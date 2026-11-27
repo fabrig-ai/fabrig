@@ -144,8 +144,8 @@ mod retry;
 mod tell;
 
 use accounting::{
-    charge, count, delegated_credit, len, owned_credit, payload_cost, receive_completion, receive_result,
-    release_provider, replay_cost, reservation, reserve_provider, returned_cost, spec_cost, used,
+    charge, count, delegated_credit, len, owned_credit, payload_cost, receive_completion, release_provider,
+    replay_cost, reservation, reserve_provider, returned_cost, spec_cost, used,
 };
 pub(crate) use accounting::{content_cost, provider_reserve};
 use restore::restore;
@@ -215,9 +215,10 @@ struct Conversation {
     transcript: List<Message>,
     /// Bytes held, counted against `Limits::history_bytes`.
     bytes: u64,
-    /// Logical space owed to provider and tool terminals.
+    /// Sum of the provider credit, active batch shares and unused program credit.
     reserved: u64,
     provider: accounting::Provider,
+    result_place: Option<history::Place>,
     /// One-based attempt of the last issued completion, retained through close.
     completion_attempts: u32,
     /// Retries spent on transient failures of this completion, excluding rate limits.
@@ -323,11 +324,64 @@ struct Tools {
     slots: List<Slot>,
     /// The runs of the batch still in flight.
     running: u32,
+    /// The current batch, until its last share has gone back.
+    batch: Option<history::Batch>,
     /// The block where the calls not reached yet begin.
     next: u32,
     /// The first failed call, counted from one among all calls.
     failed: Option<u16>,
     reached: u32,
+}
+
+impl Tools {
+    fn start(&mut self, block: u32, run: Id<Run>) {
+        let Some(batch) = &mut self.batch else {
+            unreachable!("call at block {block} starts without a current batch");
+        };
+        batch.start(block, run);
+        let slot = self.slots.get(self.reached).expect("the completion reserved this call's result slot");
+        match slot {
+            Slot::Unstarted => {}
+            Slot::Running { .. } | Slot::Done { .. } | Slot::Withheld => {
+                unreachable!("call at block {block} starts in an already used result slot in batch {batch:?}");
+            }
+        }
+        batching::put_next(self, Slot::Running { run });
+        self.running = self.running.checked_add(1).expect("current batch's running count fits");
+    }
+
+    fn receiving(&mut self, slot: u32, block: u32, run: Id<Run>) -> &mut history::Batch {
+        let Some(batch) = &mut self.batch else {
+            unreachable!("terminal for call at block {block} has no current batch");
+        };
+        batch.assert_slot(block, run, self.slots.get(slot));
+        self.running = self.running.checked_sub(1).expect("current batch counts this running call");
+        batch
+    }
+
+    fn receive(
+        &mut self,
+        conversation: &mut Conversation,
+        slot: u32,
+        block: u32,
+        run: Id<Run>,
+        result: Returned,
+        limits: &Limits,
+    ) -> Returned {
+        self.receiving(slot, block, run).receive(conversation, block, run, result, limits)
+    }
+
+    fn withhold(&mut self, conversation: &mut Conversation, slot: u32, block: u32, run: Id<Run>) {
+        let batch = self.receiving(slot, block, run);
+        let _credit = batch.give_back(conversation, block, run);
+        *self.slots.get_mut(slot).expect("withheld call owns its checked batch slot") = Slot::Withheld;
+    }
+
+    fn end_batch(&mut self) {
+        if let Some(batch) = self.batch.take() {
+            batch.finish(self.running);
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -352,7 +406,6 @@ pub(crate) struct Run {
     slot: u32,
     block: u32,
     by: By,
-    credit: u64,
     metadata: crate::ToolCall,
 }
 
@@ -609,8 +662,8 @@ fn open_admitted(
     conclude(domain, env, id, out, mark);
 }
 
-/// An addressed delegated terminal charges its inclusive bill once before
-/// settling its result. Retired, stale, wrong-owner and duplicate bills
+/// A delegated terminal charges its inclusive bill once before advancing.
+/// Retired, stale, wrong-owner and duplicate bills
 /// change neither price prefix; the own prefix never includes a child bill.
 pub(crate) fn delegate_ended(
     domain: &mut Domain,
@@ -629,17 +682,18 @@ pub(crate) fn delegate_ended(
         return;
     }
     let mark = out.len();
-    let Run { session: id, slot, block, by, credit, metadata, ended: _ } =
-        ended_run(&mut domain.calls.runs, Id::from_token(owner));
+    let run = Id::from_token(owner);
+    let Run { session: id, slot, block, by, metadata, ended: _ } = ended_run(&mut domain.calls.runs, run);
     assert!(by == By::Opener, "the opener answers its delegated call once");
     let session = domain.sessions.get_mut(id).expect("a call keeps its session alive");
     let conversation = &mut session.conversation;
+    let tools = terminal_tools(&mut session.state, block);
+    let result = tools.receive(conversation, slot, block, run, result, &env.limits);
     let added = conversation.spending.total.checked_add(bill.spent);
     if let Some(total) = added {
         conversation.spending.total = total;
         out.push(Request::Priced { opener: conversation.opener, spent: total, own_spent: conversation.spending.own });
     }
-    let result = history::cut_result(result, credit);
     let fact = match &result {
         Returned::Text { text, error, replay: _ } => {
             FactKind::DelegateAnswered { opener: conversation.opener, bytes: count(text.len()).into(), error: *error }
@@ -658,10 +712,8 @@ pub(crate) fn delegate_ended(
                 After::Yield => tools.after = After::Yield,
             }
             match added {
-                Some(_) => tool_ran(conversation, id, &mut domain.calls, tools, slot, block, credit, result, env, out),
+                Some(_) => tool_ran(conversation, id, &mut domain.calls, tools, slot, block, result, env, out),
                 None => {
-                    tools.running = tools.running.checked_sub(1).expect("settled delegated call");
-                    receive_result(conversation, credit, &result, &env.limits);
                     let result = Block::ToolResult { id: call_id(conversation, block), result };
                     *tools.slots.get_mut(slot).expect("settled slot") = Slot::Done { result };
                     clear_pending(conversation);
@@ -670,15 +722,19 @@ pub(crate) fn delegate_ended(
             }
         }
         State::Closing { end, waiting, mut tools } => {
-            let end = match added {
-                Some(_) => keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits, out)
-                    .unwrap_or(end),
-                None => {
-                    let _discarded: Option<End> =
-                        keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits, out);
-                    clear_pending(conversation);
-                    End::PriceOverflow
-                }
+            keep_closing(
+                conversation,
+                tools.as_mut().expect("closing delegated call retains its batch"),
+                slot,
+                block,
+                result,
+                out,
+            );
+            let end = if added.is_some() {
+                end
+            } else {
+                clear_pending(conversation);
+                End::PriceOverflow
             };
             settled(end, waiting, tools)
         }
@@ -703,23 +759,22 @@ pub(crate) fn delegate_withheld(domain: &mut Domain, env: &Env<Limits>, owner: T
         return;
     }
     let mark = out.len();
-    let Run { session: id, slot, credit, metadata, .. } = ended_run(&mut domain.calls.runs, Id::from_token(owner));
+    let run = Id::from_token(owner);
+    let Run { session: id, slot, block, metadata, .. } = ended_run(&mut domain.calls.runs, run);
     let session = domain.sessions.get_mut(id).expect("a delegated call retains its session");
     let conversation = &mut session.conversation;
-    conversation.reserved = conversation.reserved.checked_sub(credit).expect("withheld call owns its result credit");
     domain.facts.push_call(env.now, FactKind::DelegateWithheld { opener: conversation.opener }, &metadata);
     let state = mem::replace(&mut session.state, State::Closed);
     session.state = match state {
         State::Tooling { mut tools } => {
-            tools.running = tools.running.checked_sub(1).expect("withheld call was running");
+            tools.withhold(conversation, slot, block, run);
             assert!(tools.running == 0, "the run's wait is a serialized writer");
-            *tools.slots.get_mut(slot).expect("withheld call's slot") = Slot::Withheld;
+            tools.end_batch();
             State::Yielded { tools: Some(tools) }
         }
         State::Closing { end, waiting, mut tools } => {
-            if let Some(tools) = tools.as_mut() {
-                *tools.slots.get_mut(slot).expect("withheld call's closing slot") = Slot::Withheld;
-            }
+            let active = tools.as_mut().expect("closing withheld call retains its batch");
+            active.withhold(conversation, slot, block, run);
             settled(end, waiting, tools)
         }
         State::Completing { .. }
@@ -1004,22 +1059,22 @@ pub(crate) fn narrowed(
         Some(cost) => cost.checked_add(skein_lib::len_u64(note.len())),
         None => None,
     };
-    session.state = if conversation.compaction.asking()
-        || conversation.transcript.room() == 0
-        || !charge(conversation, cost, &env.limits)
+    session.state = if let Some(place) = history::Place::at(conversation, 0)
+        && !conversation.compaction.asking()
+        && charge(conversation, cost, &env.limits)
     {
+        conversation.choice = choice;
+        conversation.choice_names = names;
+        let content = Box::new([Block::Text { text: note, replay: None }]);
+        place.append(conversation, Message { role: Role::User, content }, "narrowing note admission");
+        ask(conversation, id, 0, env, out)
+    } else {
         conversation.choice = choice;
         conversation.choice_names = names;
         match history::hold_note(conversation, note, &env.limits) {
             Some(end) => finish(end),
             None => ask(conversation, id, 0, env, out),
         }
-    } else {
-        conversation.choice = choice;
-        conversation.choice_names = names;
-        let content = Box::new([Block::Text { text: note, replay: None }]);
-        conversation.transcript.push(Message { role: Role::User, content }).expect("note slot checked");
-        ask(conversation, id, 0, env, out)
     };
     conclude(domain, env, id, out, mark);
 }
@@ -1235,19 +1290,25 @@ fn owned_answered(
     result: Returned,
     out: &mut Queue<Request>,
 ) -> Id<Session> {
-    let Run { session: id, slot, block, by, credit, metadata, ended: _ } = ended_run(&mut domain.calls.runs, run);
+    let Run { session: id, slot, block, by, metadata, ended: _ } = ended_run(&mut domain.calls.runs, run);
     assert!(by == By::Tools, "the tools answer only the calls they were given");
     let session = domain.sessions.get_mut(id).expect("a session lives until its requests have ended");
-    let state = mem::replace(&mut session.state, State::Closed);
     let conversation = &mut session.conversation;
+    let tools = terminal_tools(&mut session.state, block);
+    let result = tools.receive(conversation, slot, block, run, result, &env.limits);
     conversation.jobs.answered(&result, metadata);
+    let state = mem::replace(&mut session.state, State::Closed);
     session.state = match state {
-        State::Tooling { tools } => {
-            tool_ran(conversation, id, &mut domain.calls, tools, slot, block, credit, result, env, out)
-        }
+        State::Tooling { tools } => tool_ran(conversation, id, &mut domain.calls, tools, slot, block, result, env, out),
         State::Closing { end, waiting, mut tools } => {
-            let end = keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits, out)
-                .unwrap_or(end);
+            keep_closing(
+                conversation,
+                tools.as_mut().expect("closing owned call retains its batch"),
+                slot,
+                block,
+                result,
+                out,
+            );
             settled(end, waiting, tools)
         }
         State::Completing { .. }
@@ -1259,6 +1320,20 @@ fn owned_answered(
         }
     };
     id
+}
+
+fn terminal_tools(state: &mut State, block: u32) -> &mut Tools {
+    match state {
+        State::Tooling { tools } | State::Closing { tools: Some(tools), .. } => tools,
+        State::Closing { tools: None, .. }
+        | State::Completing { .. }
+        | State::Backoff { .. }
+        | State::Resting { .. }
+        | State::Yielded { .. }
+        | State::Closed => {
+            unreachable!("terminal for call at block {block} has no current batch")
+        }
+    }
 }
 
 /// The kit of `id`, closing, has closed.
@@ -1398,7 +1473,6 @@ fn ended_run(runs: &mut Slab<Run>, run: Id<Run>) -> Run {
         slot: found.slot,
         block: found.block,
         by: found.by,
-        credit: found.credit,
         ended: true,
         metadata: found.metadata.clone(),
     };
@@ -1509,7 +1583,7 @@ fn conclude(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Q
     builtin::follow(&mut session.conversation, &mut domain.facts);
     match session.state {
         State::Closing { waiting: Waiting { completion: false, runs: 0, .. }, .. } | State::Yielded { .. } => {
-            let tools = match &mut session.state {
+            let mut tools = match &mut session.state {
                 State::Closing { tools, .. } | State::Yielded { tools } => tools.take(),
                 State::Completing { .. }
                 | State::Backoff { .. }
@@ -1517,10 +1591,31 @@ fn conclude(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Q
                 | State::Resting { .. }
                 | State::Closed => unreachable!("matched states above"),
             };
+            if let Some(tools) = &mut tools {
+                tools.end_batch();
+            }
             if session.conversation.cut {
+                session.conversation.result_place = None;
                 clear_pending(&mut session.conversation);
             } else {
                 builtin::finish_closing(&mut session.conversation, tools);
+            }
+            match session.state {
+                State::Closing { .. } => {
+                    session.conversation.result_place = None;
+                    assert!(
+                        session.conversation.reserved == 0,
+                        "a settled close owes neither a provider terminal, a batch share nor a program result"
+                    );
+                }
+                State::Yielded { .. } => {}
+                State::Completing { .. }
+                | State::Backoff { .. }
+                | State::Tooling { .. }
+                | State::Resting { .. }
+                | State::Closed => {
+                    unreachable!("matched the settled states above")
+                }
             }
             if session.conversation.compaction.asking() {
                 clear_pending(&mut session.conversation);
@@ -1718,20 +1813,21 @@ fn answered_late(
         let end = compaction::accept(conversation, completion, limits, out).unwrap_or(end);
         return State::Closing { end, waiting: Waiting { completion: false, ..waiting }, tools: None };
     }
-    assert!(conversation.transcript.room() > 0, "reserved assistant message");
-    if !receive_completion(conversation, &completion.content, tally(&completion.content).0, limits) {
+    let Some(place) = receive_completion(conversation, &completion.content, tally(&completion.content).0, limits)
+    else {
         clear_pending(conversation);
         return State::Closing {
             end: history::completion_limit(conversation, &completion.content, limits),
             waiting: Waiting { completion: false, ..waiting },
             tools: None,
         };
-    }
+    };
     let calls = tally(&completion.content).0;
-    conversation
-        .transcript
-        .push(Message { role: Role::Assistant, content: completion.content })
-        .expect("reserved assistant slot");
+    place.append(
+        conversation,
+        Message { role: Role::Assistant, content: completion.content },
+        "late provider completion admission",
+    );
     tell::answer(conversation, out);
     let tools = if calls > 0 { Some(builtin::late(conversation, id, issuer, calls, limits)) } else { None };
     if let Some(tools) = &tools {
@@ -1754,18 +1850,17 @@ fn use_tools(
     if count == 0 {
         return pause(conversation, Yield::Malformed, content, &env.limits, out);
     }
-    // The results go back in another message.
-    assert!(conversation.transcript.room() >= 2, "reserved assistant and result messages");
-    if !receive_completion(conversation, &content, count, &env.limits) {
+    let Some(place) = receive_completion(conversation, &content, count, &env.limits) else {
         clear_pending(conversation);
         return finish(history::completion_limit(conversation, &content, &env.limits));
-    }
-    conversation.transcript.push(Message { role: Role::Assistant, content }).expect("checked for room above");
+    };
+    place.append(conversation, Message { role: Role::Assistant, content }, "tool-use provider completion admission");
     tell::answer(conversation, out);
     let mut tools = Tools {
         after: After::Complete,
         slots: List::with_capacity(count),
         running: 0,
+        batch: None,
         next: 0,
         failed: None,
         reached: 0,
@@ -1796,6 +1891,7 @@ fn resume_tools(
         after: After::Complete,
         slots: List::with_capacity(count),
         running: 0,
+        batch: None,
         next: 0,
         failed: None,
         reached: 0,
@@ -1828,8 +1924,11 @@ fn advance(
         return finish_batch(OUT_OF_TIME, tools);
     }
     let begin = tools.next;
-    let history::Batch { end, share } =
-        history::reserve_batch(conversation, begin, tools.failed.is_some(), &env.limits);
+    tools.end_batch();
+    let batch = history::reserve_batch(conversation, begin, tools.failed.is_some(), &env.limits);
+    let end = batch.end;
+    let share = batch.share;
+    tools.batch = Some(batch);
     // An entrance refusal can suppress a later write, but cannot admit a read past it.
     for index in begin..end {
         let block = current_block(conversation, index);
@@ -1850,11 +1949,12 @@ fn advance(
             Decoded::Owned { call } => {
                 let effect = tools::effect(call);
                 let bounded = history::tool_env(call, share, env);
-                let credit = owned_credit(call, &bounded.limits).min(share);
                 let call = call.clone();
                 let deadline = env.now.saturating_add(env.limits.tools.tool_deadline).min(conversation.expires);
                 let metadata = tool_metadata(provider_id, name, input, crate::ToolSource::Workspace, effect, deadline);
-                let run = observed_run(calls, id, tools.reached, index, By::Tools, credit, metadata);
+                let run = observed_run(calls, id, tools.reached, index, By::Tools, metadata);
+                let slot = tools.reached;
+                tools.start(index, run);
                 let (kit, reply_to) = (conversation.kit, ReplyTo::new(run.token()));
                 let observation = Some(tools::CallInfo {
                     owner: run.token(),
@@ -1867,36 +1967,31 @@ fn advance(
                 assert!(heard.kit.is_none(), "a call is news of no kit");
                 // Answered at the tools' entrance, or running.
                 let Some((answered, result)) = heard.answer else {
-                    batching::put_next(&mut tools, Slot::Running { run });
-                    tools.running = tools.running.saturating_add(1);
                     tell::started(conversation, block, out);
                     continue;
                 };
                 assert!(answered == run, "the tools answer at once only the call they were given");
                 let metadata = calls.runs.get(run).expect("answered run").metadata.clone();
-                batching::answered_next(&mut tools, block, &result);
+                let result = tools.receive(conversation, slot, index, run, result, &env.limits);
+                let block = current_block(conversation, index);
+                batching::answered(&mut tools, slot, block, &result);
                 conversation.jobs.answered(&result, metadata);
                 calls.runs.retire(run);
-                // Its block and id were counted when the message was recorded.
-                // Settle the result credit even when the tools answer at once.
-                receive_result(conversation, credit, &result, &env.limits);
                 let result = Block::ToolResult { id: call_id(conversation, index), result };
                 tell::result(conversation, &result, out);
-                batching::put_next(&mut tools, Slot::Done { result });
+                *tools.slots.get_mut(slot).expect("entrance terminal fills its own slot") = Slot::Done { result };
             }
             Decoded::Delegated { source, ticket, effect, descriptor: _ } => {
-                let credit = delegated_credit(&env.limits).min(share);
                 let deadline = env.now.saturating_add(env.limits.tools.tool_deadline).min(conversation.expires);
                 let metadata = tool_metadata(provider_id, name, input, *source, *effect, deadline);
-                let run = observed_run(calls, id, tools.reached, index, By::Opener, credit, metadata);
+                let run = observed_run(calls, id, tools.reached, index, By::Opener, metadata);
+                tools.start(index, run);
                 // The opener runs the race, and the session waits for it as
                 // long as it lives.
                 let (opener, call) = (conversation.opener, *ticket);
                 let sequence = next_sequence(conversation);
                 let origin = crate::record::Origin { sequence, position: index };
                 out.push(Request::Delegate { owner: run.token(), opener, call, deadline, origin });
-                batching::put_next(&mut tools, Slot::Running { run });
-                tools.running = tools.running.saturating_add(1);
             }
             Decoded::Builtin { .. } => batching::next_slot(&mut tools),
             Decoded::Invalid { problem, .. } => {
@@ -1911,6 +2006,7 @@ fn advance(
     if tools.running > 0 {
         return State::Tooling { tools };
     }
+    tools.end_batch();
     if begin < end {
         return State::Resting { tools };
     }
@@ -1942,19 +2038,19 @@ pub fn append_messages(
     let conversation = &mut session.conversation;
     release_provider(conversation);
     let cost = skein_lib::len_u64(text.len()).checked_add(u64::try_from(size_of::<Block>()).expect("block cell fits"));
-    session.state = if conversation.compaction.asking()
-        || conversation.transcript.room() == 0
-        || !blocks_fit(conversation, 1, &env.limits)
-        || !charge(conversation, cost, &env.limits)
+    session.state = if let Some(place) = history::Place::at(conversation, 0)
+        && !conversation.compaction.asking()
+        && blocks_fit(conversation, 1, &env.limits)
+        && charge(conversation, cost, &env.limits)
     {
+        let content = Box::new([Block::Text { text, replay: None }]);
+        place.append(conversation, Message { role: Role::User, content }, "offer admission");
+        ask(conversation, id, attempt, env, out)
+    } else {
         match history::hold_note(conversation, text, &env.limits) {
             Some(end) => finish(end),
             None => ask(conversation, id, attempt, env, out),
         }
-    } else {
-        let content = Box::new([Block::Text { text, replay: None }]);
-        conversation.transcript.push(Message { role: Role::User, content }).expect("offer slot checked");
-        ask(conversation, id, attempt, env, out)
     };
     conclude(domain, env, id, out, mark);
 }
@@ -1987,8 +2083,7 @@ fn finish_tools(
         results.push(Block::Text { text, replay: None }).expect("waking slot reserved");
     }
     conversation.resumed_results = Box::default();
-    let results = Message { role: Role::User, content: results.into_boxed() };
-    conversation.transcript.push(results).expect("room was checked when the message was recorded");
+    history::append_results(conversation, results.into_boxed());
     if let Some(text) = final_text {
         return final_answer(conversation, text, out);
     }
@@ -2014,13 +2109,12 @@ fn pause(
     out: &mut Queue<Request>,
 ) -> State {
     // A session continues from its transcript, so the message must fit there.
-    assert!(conversation.transcript.room() > 0, "reserved assistant message");
-    if !receive_completion(conversation, &content, tally(&content).0, limits) {
+    let Some(place) = receive_completion(conversation, &content, tally(&content).0, limits) else {
         clear_pending(conversation);
         return finish(history::completion_limit(conversation, &content, limits));
-    }
+    };
     let text = text_of(&content);
-    conversation.transcript.push(Message { role: Role::Assistant, content }).expect("checked for room above");
+    place.append(conversation, Message { role: Role::Assistant, content }, "yielding provider completion admission");
     tell::answer(conversation, out);
     if let Some(end) = tell_turn(conversation, out) {
         return finish(end);
@@ -2051,14 +2145,18 @@ fn resumed(
         None => None,
     };
     let blocks = env.limits.completion_blocks.saturating_add(1);
-    if conversation.transcript.room() == 0
-        || !blocks_fit(conversation, blocks, &env.limits)
-        || !charge(conversation, cost, &env.limits)
-    {
+    let Some(place) = history::Place::at(conversation, 0) else {
+        return history::continue_held(conversation, id, text, env, out);
+    };
+    if !blocks_fit(conversation, blocks, &env.limits) || !charge(conversation, cost, &env.limits) {
         return history::continue_held(conversation, id, text, env, out);
     }
     let content = unrun(conversation, text, &mut [], None);
-    conversation.transcript.push(Message { role: Role::User, content }).expect("checked for room above");
+    if conversation.result_place.is_some() {
+        history::append_results(conversation, content);
+    } else {
+        place.append(conversation, Message { role: Role::User, content }, "waking note admission");
+    }
     ask(conversation, id, 0, env, out)
 }
 
@@ -2105,16 +2203,13 @@ fn tool_ran(
     mut tools: Tools,
     slot: u32,
     block: u32,
-    credit: u64,
     result: Returned,
     env: &Env<Limits>,
     out: &mut Queue<Request>,
 ) -> State {
-    tools.running = tools.running.checked_sub(1).expect("the run that ended was counted");
     // The result's block and its id were counted when the message was
     // recorded.
     batching::answered(&mut tools, slot, current_block(conversation, block), &result);
-    receive_result(conversation, credit, &result, &env.limits);
     let result = Block::ToolResult { id: call_id(conversation, block), result };
     tell::result(conversation, &result, out);
     *tools.slots.get_mut(slot).expect("a run fills its own slot") = Slot::Done { result };
@@ -2176,7 +2271,9 @@ fn ask(
             return finish(history::sequence_limit());
         }
     }
-    assert!(reserve_provider(conversation, &env.limits), "admitted provider work has receiving room");
+    if !reserve_provider(conversation, &env.limits) {
+        return finish(history::limit(env.limits.history_bytes));
+    }
     if attempt == 0 {
         conversation.retries_spent = 0;
     }
@@ -2194,14 +2291,14 @@ fn final_prompt(conversation: &mut Conversation, env: &Env<Limits>) -> Option<En
     let cost = u64::try_from(size_of::<Block>()).expect("one block cell fits");
     conversation.choice = ToolChoice::None;
     conversation.choice_names = None;
-    if conversation.compaction.asking()
-        || conversation.transcript.room() == 0
-        || !charge(conversation, Some(cost), &env.limits)
-    {
+    let Some(place) = history::Place::at(conversation, 0) else {
+        return history::hold_note(conversation, note, &env.limits);
+    };
+    if conversation.compaction.asking() || !charge(conversation, Some(cost), &env.limits) {
         return history::hold_note(conversation, note, &env.limits);
     }
     let content = Box::new([Block::Text { text: note, replay: None }]);
-    conversation.transcript.push(Message { role: Role::User, content }).expect("final note slot checked");
+    place.append(conversation, Message { role: Role::User, content }, "final note admission");
     None
 }
 
@@ -2237,8 +2334,9 @@ fn cancel_tools(runs: &Slab<Run>, tools: Tools, end: End, out: &mut Queue<Reques
 }
 
 /// Ends with `end` at once, or once the runs in flight have settled.
-fn abandon(runs: &Slab<Run>, tools: Tools, end: End, out: &mut Queue<Request>) -> State {
+fn abandon(runs: &Slab<Run>, mut tools: Tools, end: End, out: &mut Queue<Request>) -> State {
     if tools.running == 0 {
+        tools.end_batch();
         return finish(end);
     }
     cancel_tools(runs, tools, end, out)
@@ -2250,7 +2348,8 @@ const fn finish(end: End) -> State {
     State::Closing { end, waiting: KIT_ONLY, tools: None }
 }
 
-fn finish_batch(end: End, tools: Tools) -> State {
+fn finish_batch(end: End, mut tools: Tools) -> State {
+    tools.end_batch();
     State::Closing { end, waiting: KIT_ONLY, tools: Some(tools) }
 }
 
@@ -2353,6 +2452,7 @@ fn admit(
         bytes,
         reserved: 0,
         provider: accounting::Provider::Idle,
+        result_place: None,
         completion_attempts: 0,
         retries_spent: 0,
         budget: spec.budget,
@@ -2595,23 +2695,17 @@ fn clear_pending(conversation: &mut Conversation) {
     conversation.cursor.pending = None;
 }
 
-#[expect(clippy::too_many_arguments, reason = "closing records and tells the settled call before releasing its slot")]
 fn keep_closing(
-    conversation: &mut Conversation,
-    tools: Option<&mut Tools>,
+    conversation: &Conversation,
+    tools: &mut Tools,
     slot: u32,
     block: u32,
-    credit: u64,
     result: Returned,
-    limits: &Limits,
     out: &mut Queue<Request>,
-) -> Option<End> {
-    let tools = tools?;
-    receive_result(conversation, credit, &result, limits);
+) {
     let result = Block::ToolResult { id: call_id(conversation, block), result };
     tell::result(conversation, &result, out);
-    *tools.slots.get_mut(slot).expect("the terminal fills its call's slot") = Slot::Done { result };
-    None
+    *tools.slots.get_mut(slot).expect("closing terminal fills its own call's slot") = Slot::Done { result };
 }
 
 pub(crate) use builtin::result as builtin_result;
@@ -2642,10 +2736,9 @@ fn observed_run(
     slot: u32,
     block: u32,
     by: By,
-    credit: u64,
     metadata: crate::ToolCall,
 ) -> Id<Run> {
-    let run = Run { session, slot, block, by, credit, ended: false, metadata };
+    let run = Run { session, slot, block, by, ended: false, metadata };
     let id = calls.runs.insert(run).expect("the run slab has room for regular batches and program observations");
     calls.runs.get_mut(id).expect("inserted above").metadata.owner = id.token();
     id
@@ -2666,4 +2759,21 @@ pub(crate) fn exhaust_origin_for_test(domain: &mut Domain, owner: Token) {
 pub(crate) fn provider_credit_for_test(domain: &Domain, owner: Token) -> (u64, Option<u64>) {
     let session = domain.sessions.get(Id::from_token(owner)).expect("admitted test session before reclaim");
     (session.conversation.reserved, session.conversation.provider.credit())
+}
+
+/// Read the total and each holder independently at a test's observation point.
+#[cfg(test)]
+pub(crate) fn result_credit_for_test(domain: &Domain, owner: Token) -> (u64, Option<u64>, u64, u64) {
+    let session = domain.sessions.get(Id::from_token(owner)).expect("admitted test session before reclaim");
+    let tools = match &session.state {
+        State::Tooling { tools } | State::Resting { tools } => Some(tools),
+        State::Closing { tools, .. } | State::Yielded { tools } => tools.as_ref(),
+        State::Completing { .. } | State::Backoff { .. } | State::Closed => None,
+    };
+    let batch = match tools {
+        Some(Tools { batch: Some(batch), .. }) => batch.credit(),
+        Some(Tools { batch: None, .. }) | None => 0,
+    };
+    let conversation = &session.conversation;
+    (conversation.reserved, conversation.provider.credit(), batch, conversation.builtin.credit())
 }

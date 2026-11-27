@@ -1,4 +1,5 @@
 //! Owner joins count decoded records (protocol/store/loads.md, 3).
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::{self as core, reads};
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{Event, Request, Write};
@@ -54,7 +55,9 @@ fn chain(ended: &[u64]) {
             bytes: POINT_BYTES,
         },
     });
-    let [Event::Read { result: reads::Loaded::Page { rows, next: None }, .. }] = events.as_slice() else {
+    let [Event::Read { result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }), .. }] =
+        events.as_slice()
+    else {
         panic!("one uncut point-read terminal: {events:?}")
     };
     let [row] = rows.as_ref() else { panic!("one task row: {rows:?}") };
@@ -186,7 +189,7 @@ fn small_chain(
     (world, records)
 }
 
-fn read(world: &mut World, scope: reads::Scope, after: Option<reads::Position>) -> reads::Loaded {
+fn read(world: &mut World, scope: reads::Scope, after: Option<reads::Position>) -> engine_store::Answer {
     let events = world.request(Request::Read {
         owner: Token::new(1),
         range: reads::Range { party: ALICE, scope, after, backwards: false, rows: QUERY_ROWS, bytes: POINT_BYTES },
@@ -197,8 +200,11 @@ fn read(world: &mut World, scope: reads::Scope, after: Option<reads::Position>) 
     result
 }
 
-fn too_linked(result: &reads::Loaded) {
-    assert!(matches!(result, reads::Loaded::TooLinked { joins } if *joins == small_joins()), "{result:?}");
+fn too_linked(result: &engine_store::Answer) {
+    assert!(
+        matches!(result, engine_store::Answer::Failed(engine_store::Failure::TooLinked { joins }) if *joins == small_joins()),
+        "{result:?}"
+    );
 }
 
 #[test]
@@ -211,7 +217,9 @@ fn a_row_four_requesters_deep_reads_whole_on_small() {
             reads::Scope::History { task: FOURTH, subtree: false },
         ] {
             let result = read(&mut world, scope, None);
-            let reads::Loaded::Page { rows, next: None } = &result else { panic!("whole row: {result:?}") };
+            let engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }) = &result else {
+                panic!("whole row: {result:?}")
+            };
             let [row] = rows.as_ref() else { panic!("one row: {rows:?}") };
             assert_eq!(row.owner.as_ref().expect("owner").number, FOURTH);
             assert_eq!(row.ancestors.as_ref(), [GRANDCHILD, CHILD, GOAL]);
@@ -241,7 +249,9 @@ fn a_project_query_serves_the_rows_before_a_too_linked_one() {
     world.commit(writes.into_boxed_slice()).expect("shallow task commits");
     let scope = reads::Scope::Tasks { query: project_query() };
     let result = read(&mut world, scope.clone(), None);
-    let reads::Loaded::Page { rows, next } = &result else { panic!("prefix: {result:?}") };
+    let engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) = &result else {
+        panic!("prefix: {result:?}")
+    };
     let [row] = rows.as_ref() else { panic!("one shallow row: {rows:?}") };
     assert_eq!(row.owner.as_ref().expect("owner").number, SHALLOW);
     assert_eq!(next, &Some(reads::Position::Owner(row.value.key())));
@@ -260,7 +270,7 @@ fn a_task_query_lists_a_live_task_past_the_bound() {
     use skein_lib::{Env, Queue, Time};
     let profile = jig_protocol_config_fixtures::small();
     let (mut world, records) = small_chain(FIFTH, false, false, false);
-    let mut core = core::Core::new(jig_test_profile::config(SEED).core, &profile.core).expect("core");
+    let mut core = jig_test_profile::new_core(jig_test_profile::config(SEED).core, &profile.core).expect("core");
     core.projects.push(PROJECT).expect("open fixture project");
     assert!(matches!(core.start_begin(false, Wall::EPOCH), core::start::Action::Step(core::start::Phase::LoadCore)));
     let mut out = Queue::uncapped();

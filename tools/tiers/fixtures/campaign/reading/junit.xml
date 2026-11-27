@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="campaign-temper" tests="7" failures="4" errors="1" time="2.2">
+  <testsuite name="temper-fixture::suite" tests="7" failures="4" errors="1" time="2.2">
+    <testcase name="fuzzy::numbered" classname="temper-fixture::suite" time="0.2">
+      <failure type="test failure" message="a reported failure" />
+      <system-err>fuzzy case: fixture::fuzzy::numbered seed 0000000000000011: expected 3, saw 4
+kept detail
+fuzzy cases: fixture::fuzzy::numbered 3
+fuzzy reach: walking forge/busy 1
+fuzzy reach: walking forge/slow 0
+thread 'fuzzy::numbered' panicked at src/x.rs:3:5:
+fuzzy case: fixture::fuzzy::numbered seed 0000000000000011: expected 3, saw 4
+</system-err>
+    </testcase>
+    <testcase name="fuzzy::panic" classname="temper-fixture::suite" time="0.1">
+      <failure type="test failure" message="boom" />
+      <system-err>fuzzy case: fixture::fuzzy::panic seed 0000000000000022
+
+thread 'fuzzy::panic' panicked at src/x.rs:3:5:
+boom
+note: more detail here
+</system-err>
+    </testcase>
+    <testcase name="fuzzy::two_sweeps" classname="temper-fixture::suite" time="0.35">
+      <system-out>fuzzy cases: fixture::fuzzy::two_sweeps/first 2
+fuzzy case: fixture::fuzzy::two_sweeps/first seed 0000000000000033: printed by the test
+fuzzy reach: walking forge/busy 2
+</system-out>
+      <system-err>fuzzy cases: fixture::fuzzy::two_sweeps/second 4
+fuzzy reach: walking forge/busy 5
+fuzzy reach: walking forge/slow 0
+</system-err>
+    </testcase>
+    <testcase name="fuzzy::fixed" classname="temper-fixture::suite" time="1.25">
+      <system-out>debug: fuzzy cases: fixture::fuzzy::fixed 100</system-out>
+    </testcase>
+    <testcase name="fuzzy::setup" classname="temper-fixture::suite" time="0.1">
+      <failure type="test failure" message="fallback message" />
+      <system-err>thread 'fuzzy::setup' panicked at src/x.rs:3:5:
+fuzzy setup: no seed
+unrelated second line
+</system-err>
+    </testcase>
+    <testcase name="fuzzy::after" classname="temper-fixture::suite" time="0.1">
+      <failure type="test failure" message="after the sweep&#10;second line" />
+      <system-err>fuzzy cases: fixture::fuzzy::after 9</system-err>
+    </testcase>
+    <testcase name="fuzzy::crash" classname="temper-fixture::suite" time="0.1">
+      <error type="test abort" />
+    </testcase>
+  </testsuite>
+</testsuites>

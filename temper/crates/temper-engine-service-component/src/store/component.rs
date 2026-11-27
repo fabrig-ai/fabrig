@@ -151,7 +151,7 @@ impl Store {
             | root::StoreRequest::Commit { .. }
             | root::StoreRequest::Load { .. }
             | root::StoreRequest::PartRead { .. }
-            | root::StoreRequest::Read { .. }) => out,
+            | root::StoreRequest::Engine(_)) => out,
         };
         #[cfg(test)]
         if self.hold_mark

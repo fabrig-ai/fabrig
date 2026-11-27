@@ -1,5 +1,6 @@
 use super::fixtures;
 use crate::store::{self, Store};
+use jig_domain_core::engine::store as engine_store;
 use jig_protocol_store::{Row, core_v6::Record as _};
 use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
 use skein_lib::Time;
@@ -402,8 +403,10 @@ fn settings_history_loads_with_the_roots_effective_envelope() {
             bytes: reads::settings::load_bytes(&effective, 1).unwrap(),
         },
     });
-    let Some(jig_protocol_store::Event::Read { result: reads::Loaded::Page { rows, next: None }, .. }) =
-        store.host.above.pop()
+    let Some(jig_protocol_store::Event::Read {
+        result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }),
+        ..
+    }) = store.host.above.pop()
     else {
         panic!("settings history must answer a value, not Busy")
     };

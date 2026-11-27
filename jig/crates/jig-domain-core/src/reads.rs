@@ -35,6 +35,7 @@ pub mod vocabulary;
 mod waits;
 pub(crate) mod watches;
 
+use crate::engine::store as engine_store;
 pub(crate) use watches::start_watch;
 use watches::watch_loaded;
 
@@ -71,6 +72,10 @@ enum Destination {
 }
 
 impl Pending {
+    pub(crate) fn awaiting_store(&self) -> bool {
+        if let Destination::Done = self.destination { false } else { self.parts.is_none() }
+    }
+
     fn take_reply(&mut self) -> ReplyTo {
         match core::mem::replace(&mut self.destination, Destination::Done) {
             Destination::Read(reply)
@@ -576,7 +581,8 @@ fn start_jig(
     if !rows::scope_allowed(core, party, &scope) {
         return answer(destination, Answer::None(Why::Unknown));
     }
-    let occupied = core.reads.len().checked_sub(u32::from(continuing)).expect("continuation retains its retired slot");
+    let occupied =
+        core.loads.reads().checked_sub(u32::from(continuing)).expect("continuation retains its retired slot");
     if occupied >= env.limits.load_slots {
         return answer(destination, Answer::None(Why::Busy));
     }
@@ -618,14 +624,14 @@ fn start_jig(
     };
     let emitted = range.clone();
     let pending = Pending { destination, sign_in, party, range, tasks, parts: None };
-    let load = match core.reads.insert(pending) {
+    let load = match core.loads.insert_read(pending) {
         Ok(load) => load.token(),
         Err(mut pending) => {
             return answer(core::mem::replace(&mut pending.destination, Destination::Done), Answer::None(Why::Busy));
         }
     };
     let mut out = Queue::uncapped();
-    out.push(Request::Held(Box::new(Held::ReadLoad { load, range: Box::new(emitted) })));
+    out.push(crate::loads::read(load, emitted));
     out
 }
 
@@ -633,11 +639,10 @@ pub(crate) fn loaded(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<crate::routing::Work>,
-    load: Token,
-    result: Loaded,
+    name: Id<crate::loads::Flight>,
+    result: crate::engine::store::Answer,
 ) -> Queue<Request> {
-    let name = Id::<Pending>::from_token(load);
-    let Some(pending) = core.reads.get(name) else {
+    let Some(pending) = core.loads.read(name) else {
         return Queue::uncapped();
     };
     if pending.parts.is_some() {
@@ -650,12 +655,12 @@ pub(crate) fn loaded(
         Destination::RevisionMetadata { .. } => return settings::metadata_loaded(core, env, name, result),
         Destination::ProjectProposal { .. } => return settings::project_proposal_loaded(core, env, name, result),
         Destination::Restore => return settings::restore_loaded(core, env, work, name, result),
-        Destination::Erase => return crate::routing::task::erase::loaded(core, env, load, result),
+        Destination::Erase => return crate::routing::task::erase::loaded(core, env, name.token(), result),
         Destination::RunTask { .. } => return run_task::loaded(core, env, name, result),
         Destination::Person { owner_read: Some(_), .. } => return person::owner_loaded(core, env, name, result),
         Destination::Person { key, .. } => {
             if !core.current_proof(key.task, key.attempt) {
-                core.reads.retire(name);
+                core.loads.retire(name);
                 return Queue::uncapped();
             }
         }
@@ -678,7 +683,13 @@ pub(crate) fn loaded(
         Answer::None(Why::Unknown)
     } else {
         match result {
-            Loaded::TurnProblem { task, attempt, turn: number, owner, why } => {
+            engine_store::Answer::Failed(engine_store::Failure::TurnProblem {
+                task,
+                attempt,
+                turn: number,
+                owner,
+                why,
+            }) => {
                 if let Some(project) = person_project
                     && owner.project != project
                 {
@@ -687,10 +698,16 @@ pub(crate) fn loaded(
                     turn::failure(core, &pending.range, task, attempt, number, &owner, why)
                 }
             }
-            Loaded::TooLinked { joins } => Answer::None(Why::TooLinked { joins }),
-            Loaded::Busy => Answer::None(Why::Busy),
-            Loaded::Gone => Answer::None(Why::Gone),
-            Loaded::Page { rows, next } => match person_project {
+            engine_store::Answer::Failed(engine_store::Failure::TooLinked { joins }) => {
+                Answer::None(Why::TooLinked { joins })
+            }
+            engine_store::Answer::Rows(engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. })
+            | engine_store::Answer::Cut { .. }
+            | engine_store::Answer::Failed(
+                engine_store::Failure::Busy | engine_store::Failure::Failed | engine_store::Failure::Unread,
+            ) => Answer::None(Why::Busy),
+            engine_store::Answer::Failed(engine_store::Failure::Gone) => Answer::None(Why::Gone),
+            engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) => match person_project {
                 Some(project) => {
                     rows::person_from_store(core, &env.limits, &pending.range, rows, next, env.wall, project)
                 }
@@ -698,7 +715,7 @@ pub(crate) fn loaded(
             },
         }
     };
-    let answer = match (core.reads.get_mut(name).expect("live read").tasks.take(), answer) {
+    let answer = match (core.loads.read_mut(name).expect("live read").tasks.take(), answer) {
         (Some(mut tasks), Answer::Page(page)) => {
             let mut lines = List::with_capacity(env.limits.documents.rows);
             for row in page.rows.into_boxed() {
@@ -714,8 +731,8 @@ pub(crate) fn loaded(
         return parts::loaded(core, env, name, page);
     }
     let destination =
-        core::mem::replace(&mut core.reads.get_mut(name).expect("live read").destination, Destination::Done);
-    core.reads.retire(name);
+        core::mem::replace(&mut core.loads.read_mut(name).expect("live read").destination, Destination::Done);
+    core.loads.retire(name);
     self::answer(destination, answer)
 }
 
@@ -760,16 +777,16 @@ fn task_live(
 }
 
 pub(super) fn load_settings(core: &mut Core, env: &Env<Limits>, pending: Pending) -> Queue<Request> {
-    if core.reads.len() >= env.limits.load_slots {
+    if core.loads.reads() >= env.limits.load_slots {
         return settings::answer(pending.destination, Answer::None(Why::Busy));
     }
     let emitted = pending.range.clone();
-    let load = match core.reads.insert(pending) {
+    let load = match core.loads.insert_read(pending) {
         Ok(load) => load.token(),
         Err(pending) => return settings::answer(pending.destination, Answer::None(Why::Busy)),
     };
     let mut out = Queue::uncapped();
-    out.push(Request::Held(Box::new(Held::ReadLoad { load, range: Box::new(emitted) })));
+    out.push(crate::loads::read(load, emitted));
     out
 }
 
@@ -783,15 +800,15 @@ pub(crate) fn erase_load(core: &mut Core, range: Range, out: &mut Queue<Request>
         tasks: None,
         parts: None,
     };
-    let load = core.reads.insert(pending).expect("reserved erasure read slots").token();
-    out.push(Request::Held(Box::new(Held::ReadLoad { load, range: Box::new(range) })));
+    let load = core.loads.insert_read(pending).expect("reserved erasure read slots").token();
+    out.push(crate::loads::read(load, range));
 }
 
 pub(crate) fn erase_range(core: &mut Core, load: Token) -> Range {
-    let id = Id::<Pending>::from_token(load);
-    let pending = core.reads.get_mut(id).expect("pending erasure load");
+    let id = Id::<crate::loads::Flight>::from_token(load);
+    let pending = core.loads.read_mut(id).expect("pending erasure load");
     pending.destination = Destination::Done;
     let range = pending.range.clone();
-    core.reads.retire(id);
+    core.loads.retire(id);
     range
 }

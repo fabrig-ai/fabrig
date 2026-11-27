@@ -386,7 +386,7 @@ fn a_delegate_held_past_its_tries_is_escalated_to_a_person_and_released() {
     world.front().session.driver.send(
         now,
         clock(now),
-        root::Event::Core(jig_domain_core::Event::DelegateValidated {
+        root::Event::Core(jig_domain_core::Event::Delegate {
             to: skein_lib::ReplyTo::new(Token::new(9801)),
             key: jig_domain_core::CallKey {
                 task: assignment.task,
@@ -415,7 +415,6 @@ fn a_delegate_held_past_its_tries_is_escalated_to_a_person_and_released() {
                 dependencies: Box::new([]),
                 wake: Some(tasks::WakePolicy::DEFAULT),
             }]),
-            stubs: Box::new([]),
         }),
     );
     let child = match &world.front().session.driver.world.answers.last().expect("delegate answer").2 {

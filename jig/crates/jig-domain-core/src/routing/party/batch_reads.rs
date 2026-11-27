@@ -146,15 +146,8 @@ pub(crate) fn admit(
     if let Some(next) = evidence.missing(core, role, batch) {
         let tasks::Event::Make { reply_to, creator, maker, batch, .. } = event else { unreachable!("make inspected") };
         let request = reply_to.into_token();
-        let mut out = Queue::uncapped();
-        crate::routing::run::results::wait_batch(
-            core,
-            work,
-            &mut out,
-            next,
-            BatchRead { request, creator, maker, batch },
-        );
-        return Err(out);
+        crate::routing::run::results::wait_batch(core, work, next, BatchRead { request, creator, maker, batch });
+        return Err(Queue::uncapped());
     }
     for member in batch.as_ref() {
         for &dependency in &member.dependencies {

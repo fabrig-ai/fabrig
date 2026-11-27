@@ -21,8 +21,7 @@ fn setup(count: usize) -> Domain {
     .unwrap();
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     landing_routes::member_landing(&mut d);
-    let template = d.landing.rows.get(&61).unwrap().clone();
-    d.landing.rows.remove(&61);
+    let template = landing_routes::erase_landing(&mut d, 61);
     let repository = adopted().provider;
     let mut tasks = List::with_capacity(4);
     for task in [40, 10, 30, 20].iter().take(count) {
@@ -42,16 +41,30 @@ fn setup(count: usize) -> Domain {
         )
         .unwrap();
     for (index, task) in [40, 10, 30, 20].iter().take(count).enumerate() {
+        let index = u64::try_from(index).unwrap();
         let mut landing = template.clone();
         landing.landing.task = *task;
-        d.landing.rows.insert(*task, landing).unwrap();
+        // Each gather is for its own landing, not a newer claim held at startup.
+        if index != 0 {
+            let member = &mut landing.landing.members[0];
+            let mut change = d.change(member.change).unwrap().clone();
+            let task = member.change.checked_add(index).unwrap();
+            change.task = task;
+            change.change.task = task;
+            change.branch = bytes::concat(&[b"temper/", Decimal::of(task).as_bytes()]);
+            change.pull = Some(index.checked_add(1).unwrap());
+            member.change = task;
+            member.pull = change.pull.unwrap();
+            d.changes.insert(task, change).unwrap();
+        }
+        assert!(d.landing.remember(landing).is_none());
         let mut change = fixtures::opening_row();
         change.task = *task;
         change.pull = Some(1);
         change.change.last_head = Some([3; 32]);
         d.changes.insert(*task, change).unwrap();
         crate::topics::refresh(&mut d, &environment, *task, &mut Queue::uncapped());
-        let owner = Token::new(u64::try_from(index).unwrap());
+        let owner = Token::new(index);
         d.pending_ci
             .insert(
                 owner,

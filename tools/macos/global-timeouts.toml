@@ -1,0 +1,3 @@
+# The user's figure of 2026-11-26 (temper/docs/design/testing/macos.md, 7).
+[profile.browser-temper]
+global-timeout = "150s"

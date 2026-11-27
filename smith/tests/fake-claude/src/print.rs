@@ -613,6 +613,12 @@ impl Print {
                         return effects;
                     }
                 }
+                Step::ReportCall { tool, input } => {
+                    let name = format!("mcp__{}__{tool}", self.server);
+                    let (_, message) = self.call_message(&name, &input, &mut effects);
+                    effects.extend(self.message(message, None));
+                    effects.push(Effect::Seen(Seen::ReportedCall { tool }));
+                }
                 Step::Call { tool, input } => {
                     effects.extend(self.tool(tool, input, ToolAction::Server, thinking));
                     return effects;
@@ -707,16 +713,10 @@ impl Print {
         effects
     }
 
-    fn tool(&mut self, tool: String, input: Value, action: ToolAction, thinking: Option<u64>) -> Vec<Effect> {
-        if matches!(action, ToolAction::Act) && !["Read", "Write", "Edit"].contains(&tool.as_str()) {
-            return error("Act requires Read, Write or Edit", 1);
-        }
-        let builtin = action.builtin();
+    fn call_message(&mut self, name: &str, input: &Value, effects: &mut Vec<Effect>) -> (String, Value) {
         self.next_tool = self.next_tool.checked_add(1).expect("tool ID fits");
         self.texts = self.texts.checked_add(1).expect("message count fits");
         let id = format!("toolu_{}", self.next_tool);
-        let bare = tool.strip_prefix(&format!("mcp__{}__", self.server)).unwrap_or(&tool).to_owned();
-        let name = if builtin { tool.clone() } else { format!("mcp__{}__{}", self.server, bare) };
         let message_id = self
             .session
             .messages
@@ -726,6 +726,21 @@ impl Print {
         let mut assistant = stream::assistant("", &self.flags.values["--model"], message_id, &self.story.usage);
         assistant["message"]["content"] =
             json!([{"type":"tool_use", "id":id, "name":name, "input":input,"caller":{"type":"direct"}}]);
+        if self.texts > 1 {
+            effects.push(self.emit(stream::status()));
+        }
+        (id, assistant)
+    }
+
+    fn tool(&mut self, tool: String, input: Value, action: ToolAction, thinking: Option<u64>) -> Vec<Effect> {
+        if matches!(action, ToolAction::Act) && !["Read", "Write", "Edit"].contains(&tool.as_str()) {
+            return error("Act requires Read, Write or Edit", 1);
+        }
+        let builtin = action.builtin();
+        let bare = tool.strip_prefix(&format!("mcp__{}__", self.server)).unwrap_or(&tool).to_owned();
+        let name = if builtin { tool.clone() } else { format!("mcp__{}__{}", self.server, bare) };
+        let mut effects = Vec::new();
+        let (id, assistant) = self.call_message(&name, &input, &mut effects);
         let (call, arguments) = if builtin {
             (
                 self.flags.values["--permission-prompt-tool"]
@@ -739,10 +754,6 @@ impl Print {
         };
         self.pending = Some(ToolCall { id: id.clone(), tool: if builtin { tool } else { bare }, input, action });
         self.state = State::Calling;
-        let mut effects = Vec::new();
-        if self.texts > 1 {
-            effects.push(self.emit(stream::status()));
-        }
         effects.extend(self.message(assistant, thinking));
         effects.extend([Effect::McpCall { id, tool: call, input: arguments }, Effect::ReadCode]);
         effects

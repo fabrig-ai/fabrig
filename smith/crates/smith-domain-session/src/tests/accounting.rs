@@ -303,6 +303,7 @@ fn raw_overflow_ends_before_the_completion_is_charged_or_told() {
         reasoning_tokens: Some(0),
     };
     let terminal = harness.step(Event::Completed { owner, completion: Completion { usage: second, ..done() } });
+    assert_eq!(crate::session::provider_credit_for_test(&harness.domain, owner), (0, None));
     assert_eq!(harness.usage, first);
     assert_eq!(harness.turn_records.len(), 1);
     assert_eq!(
@@ -511,5 +512,6 @@ fn a_later_listing_gets_its_share_as_the_lower_byte_cap() {
     let (mut h, session, owner, operation) = later_owned_call(list());
     let Op::List { max_bytes, .. } = operation else { panic!("listing") };
     assert_eq!(max_bytes, 64);
+    assert_eq!(room::held(&h, session), (64, None, 64, 0));
     close_later_call(&mut h, session, owner);
 }

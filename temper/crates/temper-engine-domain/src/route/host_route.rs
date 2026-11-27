@@ -995,7 +995,9 @@ pub(crate) fn settings_note(domain: &mut Domain, env: &Env<Limits>, decision: &m
             &env.limits,
             Delivery::Load {
                 waiter: id.token(),
-                range: crate::Range::Core(crate::CoreRange::Notes(jig_domain_notes::Range::Entry { name: note })),
+                range: crate::Range::Core(crate::CoreRange::ApplicationNotes(jig_domain_notes::Range::Entry {
+                    name: note,
+                })),
                 after: None,
             },
         ),

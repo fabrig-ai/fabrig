@@ -2134,6 +2134,22 @@ fn opens_pull(requests: &[Request]) -> bool {
 
 // A settled update is interpreted by the top (temper/docs/design/domain/forge/updates.md, 1).
 fn updating_entry(preparing: bool) -> (Domain, skein_forge_client::Entry) {
+    let clock = env();
+    updating_entry_with_attempt(
+        preparing,
+        Some(skein_forge_client::Attempt {
+            sent: clock.now,
+            deadline: clock.now,
+            wall: clock.wall,
+            expires: clock.wall,
+        }),
+    )
+}
+
+fn updating_entry_with_attempt(
+    preparing: bool,
+    attempt: Option<skein_forge_client::Attempt>,
+) -> (Domain, skein_forge_client::Entry) {
     use skein_forge::api::{UpdateStyle, Write};
     use temper_engine_domain_forge_change as change;
     let mut d = fixtures::connected_domain();
@@ -2154,12 +2170,7 @@ fn updating_entry(preparing: bool) -> (Domain, skein_forge_client::Entry) {
     entry.effect.write =
         Write::Update { number: 1, style: if preparing { UpdateStyle::Rebase } else { UpdateStyle::Merge } };
     entry.effect.condition = skein_forge_client::Condition::Update { head: fixtures::HEAD, base: fixtures::BASE };
-    entry.attempt = Some(skein_forge_client::Attempt {
-        sent: env().now,
-        deadline: env().now,
-        wall: env().wall,
-        expires: env().wall,
-    });
+    entry.attempt = attempt;
     outputs(&mut d, Event::Change { row });
     outputs(&mut d, Event::Enqueue { entry: entry.clone() });
     (d, entry)
@@ -2274,14 +2285,13 @@ fn a_let_go_update_reads_the_base_it_asked_for_after_main_moves_on() {
     const NEW: skein_forge::api::Commit = [5; 32];
     const BASE2: skein_forge::api::Commit = [6; 32];
     for error in [Error::Timeout, Error::Unavailable, Error::Stale] {
-        let (mut d, entry) = updating_entry(false);
+        let (mut d, _) = updating_entry_with_attempt(false, None);
         let name = run_branch(b"51");
         outputs(
             &mut d,
             Event::Restore { record: Stored::BranchHead(BranchHead { name, commit: fixtures::HEAD, owned: true }) },
         );
         // The outbox admitted the update; persist its first send before letting it go.
-        domain::keep_entry(&mut d, skein_forge_client::Entry { attempt: None, ..entry }, None, &mut Queue::uncapped());
         fixtures::send_write(&mut d, fixtures::OPEN);
         // Apply the let-go outcome after the client's retry policy has finished.
         let outcome = skein_forge_client::Outcome::Failed(error);

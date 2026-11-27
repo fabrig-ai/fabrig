@@ -34,11 +34,10 @@ fn person_decision(world: &mut World) {
         b"resolve the caller's question",
     );
     member.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: skein_lib::ReplyTo::new(skein_lib::Token::new(9801)),
         key: world.call_key(1),
         batch: Box::new([member]),
-        stubs: Box::new([]),
     }));
 }
 

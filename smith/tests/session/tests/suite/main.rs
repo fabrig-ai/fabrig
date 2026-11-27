@@ -15,6 +15,7 @@ mod recorded;
 mod referee;
 mod simulation;
 mod wind_down;
+mod world_jobs;
 
 mod fuzzy {
     mod recorded;

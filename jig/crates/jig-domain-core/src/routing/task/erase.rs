@@ -1,6 +1,7 @@
 //! One serialized walk for deletion and retention
 //! (jig/docs/design/protocol/store/growth.md, 1.1; retention.md, 5–6).
 mod retention;
+use crate::engine::store as engine_store;
 use crate::{Core, Key, Limits, Request, Write, reads};
 use alloc::boxed::Box;
 use jig_domain_people as people;
@@ -120,15 +121,12 @@ fn ask(
     );
 }
 
-pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: reads::Loaded) -> Queue<Request> {
+pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: engine_store::Answer) -> Queue<Request> {
     let range = reads::erase_range(core, load);
     let mut out = Queue::uncapped();
     let (rows, next) = match result {
-        reads::Loaded::Page { rows, next } => (rows, next),
-        reads::Loaded::Busy
-        | reads::Loaded::Gone
-        | reads::Loaded::TooLinked { .. }
-        | reads::Loaded::TurnProblem { .. } => {
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) => (rows, next),
+        engine_store::Answer::Rows(_) | engine_store::Answer::Cut { .. } | engine_store::Answer::Failed(_) => {
             reads::erase_load(core, range, &mut out);
             return out;
         }

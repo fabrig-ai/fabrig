@@ -235,7 +235,9 @@ above, under compiler-cache keys that no other build asks for
   - a build script, reading Cargo's variables and its own build-time
     ones;
   - a test harness, reading the test set through its tree's test table
-    (section 8).
+    (section 8). A value that every test of a process must see alike,
+    as skein's fuzzy sweeps' mode (`../design/testing/sweeps.md`, 4.3),
+    is read once in the process.
 
   A name a build script hands the code at compile time (`env!`) is
   declared like any other, as internal.
@@ -303,6 +305,14 @@ pages.
     more of the tree's binaries read, the host's among them;
   - `<tree>/docs/design/cli/test-env.md`, for the test set, from the tree's test table: one
     table in its test-support crate, through which tests read them.
+    - temper's is `temper-test-env`'s
+      (`temper/docs/design/cli/README.md`, 11.1);
+    - skein's is the world harness's, `skein_world::test_env::TESTS`,
+      a `TestTable` whose tree is `skein`. It holds the fuzzy sweeps'
+      two variables (`../design/testing/sweeps.md`, 4.3), and skein's
+      round brings the rest of skein's test set into it. Its document
+      is checked and rewritten in `skein-world`'s own tests;
+    - the other trees' come with their rounds.
 - **Each is generated from the tables:** public entries first, then
   "Internal", each with its set, form, default, line and notes. A test
   checks each byte for byte, and the tree's rewrite switch rewrites
@@ -374,5 +384,6 @@ its exception.
 ## 10. Later
 
 - smith's, skein's, jig's and hearth's binaries and names, each in its
-  tree's own round of these conventions.
+  tree's own round of these conventions. Skein's round moves the rest of
+  its test names into its test table, beside the fuzzy sweeps' two.
 - Shell completions, and `NO_COLOR`.

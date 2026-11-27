@@ -1,5 +1,6 @@
 //! Rung B2 under the box's stock funding and the init template's model.
 use super::*;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_link::EndpointBound;
 
 use jig_domain_core::{documents, reads};
@@ -664,7 +665,9 @@ fn stored_page(
     after: Option<reads::Position>,
 ) -> (Box<[reads::Row]>, Option<reads::Position>) {
     let result = world.party_load(person, scope, after);
-    let reads::Loaded::Page { rows, next } = result else { panic!("served whole: {result:?}") };
+    let engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) = result else {
+        panic!("served whole: {result:?}")
+    };
     (rows, next)
 }
 

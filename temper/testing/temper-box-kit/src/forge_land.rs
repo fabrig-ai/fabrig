@@ -1316,10 +1316,10 @@ fn claude_overlay(
     });
 }
 
-/// A settings change a fresh sitting applies, and its `settings apply`'s key.
+/// A settings change the sitting applies, and its `settings apply`'s key.
 #[derive(Debug, PartialEq)]
 pub struct LiveChange {
-    pub key: &'static str,
+    pub key: String,
     pub file: serde_json::Value,
 }
 
@@ -1337,7 +1337,7 @@ pub fn key_provider_change(row: &serde_json::Value) -> Result<LiveChange, String
     provider.remove("keep");
     provider.remove("drop");
     Ok(LiveChange {
-        key: "live-key-provider",
+        key: "live-key-provider".into(),
         file: serde_json::json!({"items":[{"setting":row["setting"], "set":value}]}),
     })
 }
@@ -1352,19 +1352,22 @@ fn key_provider_steps(data: &std::path::Path) -> Vec<super::ctl::Step> {
             let reads = &calls[calls.len() - 2..];
             let change = key_provider_change(&json(&reads[1])).expect("key story's provider setting");
             super::write_private(&file, &serde_json::to_vec(&change.file).expect("provider settings JSON"));
-            settings_change(&reads[0], &file, change.key)
+            settings_change(&reads[0], &file, &change.key)
         })),
     ]
 }
 
-/// The settings changes a fresh sitting applies, in order (testing/live-tier.md):
+// temper/docs/design/testing/live-tier.md, 2: chat, producer and reviewer turns per activation.
+const LIVE_CHARTERS: [(&str, u32); 3] = [("1", 5), ("2", 10), ("4", 4)];
+
+/// The settings changes a fresh sitting applies in order (temper/docs/design/testing/live-tier.md, 2):
 /// a model taken by name first, alone, at the highest model number the inventory
-/// leaves free, from the stock row it copies (`live-model`); then charters 1 and 2
-/// naming the story's model alone (`live-settings`).
+/// leaves free, from the stock row it copies (`live-model`); then the charter bounds,
+/// with chat and producer naming the story's model alone (`live-settings`).
 pub fn live_settings(
     model: LiveModel<'_>,
     inventory: &serde_json::Value,
-    charters: [&serde_json::Value; 2],
+    charters: [&serde_json::Value; 3],
     row: &serde_json::Value,
 ) -> Result<Vec<LiveChange>, String> {
     require(row["value"]["model"]["name"] == model.row(), &format!("the selected live stock model: {}", model.row()))?;
@@ -1392,20 +1395,41 @@ pub fn live_settings(
         value["source"] = "person".into();
         value["estimated"] = true.into();
         changes.push(LiveChange {
-            key: "live-model",
+            key: "live-model".into(),
             file: serde_json::json!({"items":[{"setting":{"kind":"model","number":number},"set":value}]}),
         });
     }
-    let mut items = Vec::new();
-    for charter in charters {
-        let mut charter_value = charter["value"].clone();
-        charter_value["model"] = value["model"].clone();
-        charter_value["alternatives"] = serde_json::json!([]);
-        charter_value["rest"] = false.into();
-        items.push(serde_json::json!({"setting":charter["setting"],"set":charter_value}));
-    }
-    changes.push(LiveChange { key: "live-settings", file: serde_json::json!({"items":items}) });
+    let items = live_charter_items(charters, Some(&value["model"]));
+    changes.push(LiveChange { key: "live-settings".into(), file: serde_json::json!({"items":items}) });
     Ok(changes)
+}
+
+/// A kept store already chose its models. Change only the turns that differ.
+#[must_use]
+pub fn kept_turn_settings(charters: [&serde_json::Value; 3], newest: u64) -> Option<LiveChange> {
+    let items = live_charter_items(charters, None);
+    (!items.is_empty())
+        .then(|| LiveChange { key: format!("live-turns-{newest}"), file: serde_json::json!({"items":items}) })
+}
+
+fn live_charter_items(charters: [&serde_json::Value; 3], model: Option<&serde_json::Value>) -> Vec<serde_json::Value> {
+    let mut items = Vec::new();
+    for ((number, turns), charter) in LIVE_CHARTERS.into_iter().zip(charters) {
+        if model.is_none() && charter["value"]["turns"] == turns {
+            continue;
+        }
+        let mut value = charter["value"].clone();
+        value["turns"] = turns.into();
+        if number != "4"
+            && let Some(model) = model
+        {
+            value["model"] = model.clone();
+            value["alternatives"] = serde_json::json!([]);
+            value["rest"] = false.into();
+        }
+        items.push(serde_json::json!({"setting":charter["setting"],"set":value}));
+    }
+    items
 }
 
 /// The `settings apply` of the change at `at` in `live_settings`' order, read from
@@ -1415,7 +1439,7 @@ pub fn live_settings(
 pub fn live_apply(change: &LiveChange, at: usize, newest: u64, file: &str) -> Vec<String> {
     let revision =
         newest.checked_add(u64::try_from(at).expect("change index fits revision")).expect("settings revision fits");
-    ["settings", "apply", file, "--against", &revision.to_string(), "--key", change.key]
+    ["settings", "apply", file, "--against", &revision.to_string(), "--key", &change.key]
         .into_iter()
         .map(str::to_owned)
         .collect()
@@ -1626,6 +1650,7 @@ fn live_json(call: &super::Ended) -> Result<serde_json::Value, String> {
     serde_json::from_slice(&call.stdout).map_err(|error| format!("live ctl JSON: {error}"))
 }
 
+/// The landing's two sittings (temper/docs/design/testing/live-tier.md, 2).
 enum LivePhase {
     ProgramDeclared,
     Setup,
@@ -1777,7 +1802,7 @@ impl LiveJudge<'_> {
                 }
             }
             LivePhase::Closing => {
-                self.check_landing(calls)?;
+                self.check_landing(calls, &last)?;
                 self.phase = LivePhase::Done;
             }
             LivePhase::Done | LivePhase::Returning | LivePhase::Stopping | LivePhase::Settled => {}
@@ -1807,16 +1832,14 @@ impl LiveJudge<'_> {
         self.token = Some(token);
         if self.plan.first {
             // All fixed setup indices were consumed before these extra reads.
-            if self.plan.kept {
-                self.queue(&["task", "list", "--project", &self.tasks.project.to_string(), "--json"]);
-                self.phase = LivePhase::Roots;
-            } else {
-                self.queue(&["settings", "show", "--json"]);
-                self.queue(&["settings", "show", "charter", "1", "--json"]);
-                self.queue(&["settings", "show", "charter", "2", "--json"]);
-                self.queue(&["settings", "show", "model", self.plan.model.number(), "--json"]);
-                self.phase = LivePhase::Settings;
+            self.queue(&["settings", "show", "--json"]);
+            for (number, _) in LIVE_CHARTERS {
+                self.queue(&["settings", "show", "charter", number, "--json"]);
             }
+            if !self.plan.kept {
+                self.queue(&["settings", "show", "model", self.plan.model.number(), "--json"]);
+            }
+            self.phase = LivePhase::Settings;
         } else {
             self.wait_started = Some(now);
             self.wait_until =
@@ -1854,12 +1877,17 @@ impl LiveJudge<'_> {
         Ok(())
     }
     fn settings(&mut self, calls: &super::ctl::Calls) -> Result<(), String> {
-        let reads = &calls.ends()[calls.ends().len() - 4..];
+        let count = 1 + LIVE_CHARTERS.len() + usize::from(!self.plan.kept);
+        let reads = &calls.ends()[calls.ends().len() - count..];
         let inventory = live_json(&reads[0])?;
         let revision = inventory["newest"].as_u64().ok_or("settings revision missing")?;
-        let catalogue = live_json(&reads[3])?;
-        let charters = [live_json(&reads[1])?, live_json(&reads[2])?];
-        let changes = live_settings(self.plan.model, &inventory, [&charters[0], &charters[1]], &catalogue)?;
+        let charters = [live_json(&reads[1])?, live_json(&reads[2])?, live_json(&reads[3])?];
+        let changes = if self.plan.kept {
+            kept_turn_settings(charters.each_ref(), revision).into_iter().collect()
+        } else {
+            let catalogue = live_json(&reads[4])?;
+            live_settings(self.plan.model, &inventory, charters.each_ref(), &catalogue)?
+        };
         for (at, change) in changes.iter().enumerate() {
             let file = self.plan.client.join(format!("{}.json", change.key));
             fs::write(&file, serde_json::to_vec(&change.file).map_err(|error| error.to_string())?)
@@ -1986,11 +2014,15 @@ impl LiveJudge<'_> {
         matches!(self.phase, LivePhase::Stopping | LivePhase::Settled)
     }
 
-    fn check_landing(&mut self, calls: &super::ctl::Calls) -> Result<(), String> {
-        let last = live_json(calls.ends().last().ok_or("closing reads missing")?)?;
-        if !self.plan.first {
+    fn check_landing(&mut self, calls: &super::ctl::Calls, last: &serde_json::Value) -> Result<(), String> {
+        if self.plan.first {
+            if last["met"] != true {
+                let phase = last["task"]["chip"]["phase"].as_str().unwrap_or("unknown");
+                return Err(format!("chat {} did not park within 300s: phase={phase}", self.tasks.chat));
+            }
+        } else {
             require(live_json(&calls.ends()[calls.ends().len() - 2])?["met"] == true, "chat tree closed")?;
-            require_closed_roots(&last, &self.roots)?;
+            require_closed_roots(last, &self.roots)?;
         }
         let page = live_change_page(client_address(calls)?, self.plan.client, self.tasks.change)?;
         require_chat_change(&self.conversation)?;
@@ -2001,13 +2033,8 @@ impl LiveJudge<'_> {
         tasks.extend(&delegates[1]);
         tasks.sort_unstable();
         tasks.dedup();
-        let completions = super::live::ctl_completions(self.plan.client, &tasks)?;
-        self.completions.set(Some(Ok(completions)));
+        let completions = self.record_completions(super::live::ctl_completions(self.plan.client, &tasks))?;
         require((1..=25).contains(&completions), "live completion budget: 1–25")?;
-        super::live::notice(&format!(
-            "COMPLETIONS chat={} change={} count={completions}",
-            self.tasks.chat, self.tasks.change
-        ));
         let forge = forge_identity(
             self.address.ok_or("forge address missing")?,
             self.plan.line,
@@ -2031,8 +2058,10 @@ impl LiveJudge<'_> {
 }
 impl LiveJudge<'_> {
     fn queue_closing(&mut self) {
-        if !self.plan.first {
-            let chat = self.tasks.chat.to_string();
+        let chat = self.tasks.chat.to_string();
+        if self.plan.first {
+            self.queue(&["task", "show", &chat, "--until", "phase:idle", "--timeout", "300s", "--json"]);
+        } else {
             let project = self.tasks.project.to_string();
             let key = format!("close-live-chat-{chat}");
             for args in [
@@ -2118,7 +2147,12 @@ impl LiveJudge<'_> {
             message.to_owned()
         };
         self.failure.set(Some(super::live::redact(&message)));
-        self.completions.set(Some(self.count_completions()));
+        // Keep the counted snapshot (including an over-budget one) if the story already took it.
+        if let Some(count) = self.completions.take() {
+            self.completions.set(Some(count));
+        } else {
+            let _ = self.record_completions(self.count_completions());
+        }
         super::live::notice(&format!("FAILURE {message}"));
         if let Some(index) = failing {
             self.dump(index, &calls.ends()[index]);
@@ -2158,7 +2192,20 @@ impl LiveJudge<'_> {
         self.pending.clear();
         self.phase = LivePhase::Done;
     }
-    fn count_completions(&self) -> Result<u32, String> {
+    fn record_completions(&self, turns: Result<super::live::CompletionTurns, String>) -> Result<u32, String> {
+        let chat = self.tasks.chat;
+        let change = self.tasks.change;
+        let count = turns.and_then(|turns| turns.summary(chat, change)).map(|(count, line)| {
+            super::live::notice(&line);
+            count
+        });
+        if let Err(why) = &count {
+            super::live::notice(&format!("COMPLETIONS chat={chat} change={change} count=unavailable: {why}"));
+        }
+        self.completions.set(Some(count.clone()));
+        count
+    }
+    fn count_completions(&self) -> Result<super::live::CompletionTurns, String> {
         let mut tasks = vec![];
         for parent in [self.tasks.chat, self.tasks.change].into_iter().filter(|task| *task != 0) {
             tasks.push(parent);

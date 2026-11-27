@@ -213,7 +213,7 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
     crate::domain::invalidate_input(domain, &event);
     match event {
         event @ Event::Store(
-            StoreInput::ReadLoaded { .. }
+            StoreInput::Engine(_)
             | StoreInput::PartLoaded { .. }
             | StoreInput::Switched
             | StoreInput::Checkpointed { .. }

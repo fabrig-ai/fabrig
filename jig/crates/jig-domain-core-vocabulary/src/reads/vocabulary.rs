@@ -314,20 +314,6 @@ impl Row {
         row_bytes(self)
     }
 }
-/// The one terminal event of a store load.
-#[derive(Hash, Debug)]
-pub enum Loaded {
-    /// Rows within the range's row and byte caps; continuation is exclusive.
-    Page { rows: Box<[Row]>, next: Option<Position> },
-    /// Evidence for a single turn, authenticated against its durable owner.
-    TurnProblem { task: u64, attempt: u64, turn: u32, owner: Box<tasks::TaskRecord>, why: TurnFailure },
-    /// Transport admission was full and retained nothing.
-    Busy,
-    /// This range is no longer available.
-    Gone,
-    /// The first row needs more joins than the whole read bound (protocol/store/loads.md 3).
-    TooLinked { joins: u32 },
-}
 /// A selected frame could not be supplied; visibility is checked before its reason leaves.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TurnFailure {
@@ -341,7 +327,7 @@ impl TurnFailure {
     /// Complete ownership of a failure carrier and its durable task owner.
     #[must_use]
     pub fn owned_bytes(owner: &tasks::TaskRecord) -> Option<u64> {
-        u64::try_from(size_of::<Loaded>()).ok()?.checked_add(tasks::task_bytes(owner)?)
+        u64::try_from(size_of::<crate::engine::store::Answer>()).ok()?.checked_add(tasks::task_bytes(owner)?)
     }
 }
 /// An ended object's document and its durable ending facts.

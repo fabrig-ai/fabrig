@@ -1,5 +1,5 @@
 //! Single landings outside a train (temper/docs/design/domain/landing.md, 12).
-use crate::domain::poll_at;
+use crate::domain::{active, assert_departing, poll_at};
 use crate::{
     Awaited, Decision, Facts, Flight, GateFacts, GateProof, Hold, Landing, Limits, Phase, Posted, Posting, Project,
     Proof, Status, Stepped, Verdict,
@@ -10,10 +10,17 @@ use skein_lib::{List, Wall};
 /// Remove a cancelled member, retaining the remaining members' proofs
 /// (domain/landing.md, 4.2, domain/landing-prepare.md, 1.1).
 #[must_use]
-pub fn leave(mut landing: Landing, change: u64) -> Landing {
+pub(crate) fn leave(mut landing: Landing, position: usize, change: u64) -> Landing {
+    let reserved = landing.members.get(position);
+    let Some(reserved) = reserved else {
+        unreachable!("change {change} cancelling must have position {position} in landing {}", landing.task);
+    };
+    assert_eq!(reserved.change, change, "change {change} cancelling must own its position in landing {}", landing.task);
     let mut members = List::with_capacity(u32::try_from(landing.members.len()).expect("bounded members"));
-    for member in &landing.members {
-        if member.change != change {
+    for (index, member) in landing.members.iter().enumerate() {
+        if index == position {
+            assert_departing(member, landing.task, crate::Leave::Cancelled);
+        } else {
             members.push(member.clone()).expect("member room");
         }
     }
@@ -33,8 +40,8 @@ pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits
         Phase::Held { .. } => return crate::domain::held(next, facts.released, now),
         Phase::Waiting | Phase::Preparing | Phase::Proving | Phase::Proved { .. } | Phase::Turn { .. } => {}
     }
-    for member in &facts.members {
-        if member.cancelled {
+    for (member, fresh) in landing.members.iter().zip(&facts.members) {
+        if fresh.cancelled && active(member) {
             return cancelled(next, facts, limits);
         }
     }
@@ -104,7 +111,9 @@ fn wait(landing: Landing, until: Option<Wall>, on: Awaited) -> Stepped {
 fn cancelled(mut landing: Landing, facts: &Facts, limits: &Limits) -> Stepped {
     let mut live = List::with_capacity(limits.members);
     for (member, fresh) in landing.members.iter().zip(&facts.members) {
-        if !fresh.cancelled {
+        if fresh.cancelled && active(member) {
+            assert_departing(member, landing.task, crate::Leave::Cancelled);
+        } else {
             live.push(member.clone()).expect("members admitted");
         }
     }

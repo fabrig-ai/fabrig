@@ -34,7 +34,8 @@ failure is fixed, and a test's shape.
   the same code and does the same work, so its CPU moves only when the
   code beneath it does, within the gate's tolerance (8.1). A test whose
   work rides on entropy, the real clock or a race is repaired at its
-  cause (section 10).
+  cause (section 10). Fresh seeds run beside the suites, in campaigns
+  after landing, and each of their cases replays alone from its seed (8).
 - **End to end, few tests.** Above the real loop, the binaries run as
   they ship, as processes, against fakes in the focused suite or the real
   backends in a live suite run by choice: one test per path through
@@ -552,6 +553,22 @@ them with `--layers` (`tools/tiers/design.md`, 11.9).
 configuration's `live-<tree>` profile, one at a time, with a CPU budget
 and a wall hard limit like every tier (8.1). The gate never runs them.
 
+**Campaigns run the fuzzy suite's sweeps after landing, with fresh
+seeds** (`temper/docs/design/draft/fuzzy-campaigns.md`, 4 and 5). The
+gate keeps its fixed seeds and every sweep's whole sample, campaigns or
+not (the user, 11-26): a fresh seed's finding may be an old fault or a
+recent landing's, which no head answers for at the gate. A campaign is
+rounds of a tree's campaign pair, `campaign-<tree>`, over the binaries
+of the layers that replay whose sweeps take their cases through skein's
+seam. Each round has a campaign seed, printed before it runs, and each
+case's seed comes from that seed, its test and its number alone, so a
+round replays from its seed and commit, and a case replays alone from
+its own seed. A failing case names its test and its seed, at the gate as
+in a campaign. A campaign replays each failing case alone before it
+reports it: one that passes alone doesn't replay, which is a finding
+against its world (section 1). A campaign's findings go in its report,
+for the user to route.
+
 **The user's doubling of 10-22 is provisional.** Every test-time budget,
 ceiling, guide and harness deadline is twice its earlier value. This also
 applies to test-cost guides quoted by earlier implementation plans; their
@@ -645,11 +662,30 @@ test executables and changes no test's speed or result, and only a
 backtrace through a dependency loses its line numbers.
 
 A fuzzy test lives beside its world and uses that world's settings,
-random ones included. When a fuzzy seed fails, the bug is fixed and the
-seed kept: as a scenario if it shows behaviour worth naming, or among the
-sweep's pinned seeds. A finding that cannot be fixed yet is replayed by
-an ignored test until it is: its `#[ignore]` reason names the work that
-fixes it, and its owner runs it until then.
+random ones included. When a fuzzy seed fails, at the gate or in a
+campaign, the bug is fixed and its case pinned at the gate, in the
+lowest tier that shows it (section 9): as a scenario if it shows
+behaviour worth naming, among the sweep's pinned seeds where the gate's
+configuration reproduces it, or else as a scenario running its case in
+the configuration it failed under. A drawn agent's case is pinned as its
+capture, the script of answers it drew, keyed by request, since its seed
+draws another agent once its generator changes
+(`temper/docs/design/draft/misbehaving-agents.md`, 4.4). A finding that
+cannot be fixed yet is replayed by an ignored test until it is: its
+`#[ignore]` reason names the work that fixes it, and its owner runs it
+until then. Where its sweep must go on meanwhile, the sweep takes the
+narrowest exclusion its world reads.
+
+**An escape widens its world.** An escape is a fault found outside the
+worlds, in a deployment, by a live run or by a person, that the nearest
+fuzzy world's draws couldn't reach. Its repair fixes the fault, pins its
+case in the lowest tier that shows it, and widens that world's draws so
+that the fault's kind is drawn: a menu body, a kind in a family, a
+reference to an earlier id, a wake. The repair's change names the world
+and what it now draws, and the widened sweep passes at the gate on the
+fixed code. A pinned instance guards one shape; the class's next
+instance comes on another seed or in a neighbouring shape, which only a
+widened draw reaches, and campaigns then explore it.
 
 ### 8.1 CPU budgets, wall hard limits and the repair rule
 
@@ -666,7 +702,14 @@ real pairs' runs after landing report as warnings, never red, until a
 draft of their own sets those runs' budgets
 (`temper/docs/design/draft/test-budgets.md`, 11; `tools/tiers/budgets.md`,
 4.2); until then the real pairs have no wall of their own but the focused
-profile's backstop. A delivery check on a
+profile's backstop. A campaign is no tier and has no budget of its own: a round of
+its pair reports each layer's CPU against its tree's fuzzy ceilings, as
+warnings, never red, since a round runs a process per test and its cases
+draw other work than the gate's seeds, so the gate's figures are a
+comparison. Its pair has no wall of its own but the focused profile's
+backstop until the user sets one, and a campaign's envelope, in rounds
+a day per tree, and its builder are the user's figures too
+(`temper/docs/design/draft/fuzzy-campaigns.md`, 5.3 and 5.5). A delivery check on a
 builder that keeps main's ledgers judges the delivery as the gate will
 and refuses it there, so a goal hears it before its pull request (the
 user, 11-17). Every other run (a delivery check without them, a
@@ -776,8 +819,8 @@ stand (`temper/docs/design/draft/test-budgets.md`, 7).
 A harness's own deadline keeps 2.10's rule.
 
 **Over budget is red,** at the gate for the focused and fuzzy suites'
-layers it runs and wherever a slow tier runs, but the real pairs' layers,
-which warn (above). Its repair starts by reading this
+layers it runs and wherever a slow tier runs, but the real pairs' and
+the campaign pairs' layers, which warn (above). Its repair starts by reading this
 strategy in full, as the red says; then it asks these questions, in order:
 
 1. **Does the test belong to this tier?** Use the tier definitions in

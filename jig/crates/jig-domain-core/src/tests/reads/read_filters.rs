@@ -1,3 +1,4 @@
+use crate::engine::store as engine_store;
 use crate::tests::*;
 
 fn note_row(name: u64, scope: notes::Scope, description: &[u8]) -> crate::reads::Row {
@@ -29,7 +30,8 @@ fn scoped_note_search_pages_preserve_filtered_positions_and_whole_query_identity
     let (mut core, mut limits) = watch_core();
     limits.documents.rows = 2;
     let scope = notes::Scope::Goal { project: 1, goal: 1 };
-    let Held::ReadLoad { load, range } = read_start(&mut core, &limits, 10, scoped(scope.clone(), Some(b"warm"), None))
+    let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) =
+        read_start(&mut core, &limits, 10, scoped(scope.clone(), Some(b"warm"), None))
     else {
         panic!("notes load")
     };
@@ -46,7 +48,7 @@ fn scoped_note_search_pages_preserve_filtered_positions_and_whole_query_identity
         &mut core,
         &limits,
         load,
-        crate::reads::Loaded::Page { rows: Box::new([]), next: Some(after.clone()) },
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([]), next: Some(after.clone()) }),
     )
     .unwrap() else {
         panic!("bounded notes page")
@@ -63,7 +65,7 @@ fn scoped_note_search_pages_preserve_filtered_positions_and_whole_query_identity
         };
         assert_eq!(answer, crate::reads::Answer::None(crate::reads::Why::Unknown));
     }
-    let Held::ReadLoad { load, range } =
+    let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) =
         read_start(&mut core, &limits, 10, scoped(scope.clone(), Some(b"warm"), first.next))
     else {
         panic!("next page")
@@ -73,7 +75,10 @@ fn scoped_note_search_pages_preserve_filtered_positions_and_whole_query_identity
         &mut core,
         &limits,
         load,
-        crate::reads::Loaded::Page { rows: Box::new([note_row(3, scope, b"slow to warm up")]), next: None },
+        engine_store::Answer::Rows(engine_store::Rows::Read {
+            rows: Box::new([note_row(3, scope, b"slow to warm up")]),
+            next: None,
+        }),
     )
     .unwrap() else {
         panic!("last page")
@@ -103,17 +108,19 @@ fn resource_note_scope_preserves_literal_segments_and_exact_or_open_end() {
             last: notes::Last::Open(Box::new(*b"b")),
         },
     };
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, scoped(scope.clone(), None, None)) else {
+    let Held::Store(engine_store::Out::Load { load, .. }) =
+        read_start(&mut core, &limits, 10, scoped(scope.clone(), None, None))
+    else {
         panic!("resource scope")
     };
     let crate::reads::Answer::Page(page) = loaded_answer(
         &mut core,
         &limits,
         load,
-        crate::reads::Loaded::Page {
+        engine_store::Answer::Rows(engine_store::Rows::Read {
             rows: Box::new([note_row(2, scope, b"description"), note_row(1, open, b"description")]),
             next: None,
-        },
+        }),
     )
     .unwrap() else {
         panic!("resource notes")
@@ -145,9 +152,10 @@ fn scoped_note_reads_bound_the_query_before_retaining_it_and_recheck_the_role() 
             panic!("oversized query refused")
         };
         assert_eq!(answer, crate::reads::Answer::None(crate::reads::Why::Busy));
-        assert!(core.reads.is_empty());
+        assert!(core.loads.is_empty());
     }
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, scoped(notes::Scope::Deployment, None, None))
+    let Held::Store(engine_store::Out::Load { load, .. }) =
+        read_start(&mut core, &limits, 10, scoped(notes::Scope::Deployment, None, None))
     else {
         panic!("deployment role admits")
     };
@@ -163,10 +171,10 @@ fn scoped_note_reads_bound_the_query_before_retaining_it_and_recheck_the_role() 
             &mut core,
             &limits,
             load,
-            crate::reads::Loaded::Page {
+            engine_store::Answer::Rows(engine_store::Rows::Read {
                 rows: Box::new([note_row(1, notes::Scope::Deployment, b"deployment")]),
                 next: None
-            }
+            })
         ),
         Some(crate::reads::Answer::None(crate::reads::Why::Unknown))
     );
@@ -303,7 +311,7 @@ fn stored_inbox_kind_filter_keeps_an_empty_page_cursor_and_refuses_a_different_k
     let position = crate::reads::row_key(&row).unwrap();
     let filter = crate::reads::Filter { project: Some(1), goal: None };
     let scope = crate::reads::Scope::Inbox { group: crate::reads::Group::Replies, filter };
-    let Held::ReadLoad { load, .. } = read_start(
+    let Held::Store(engine_store::Out::Load { load, .. }) = read_start(
         &mut core,
         &limits,
         10,
@@ -319,7 +327,7 @@ fn stored_inbox_kind_filter_keeps_an_empty_page_cursor_and_refuses_a_different_k
         &mut core,
         &limits,
         load,
-        crate::reads::Loaded::Page { rows: Box::new([row]), next: Some(position.clone()) },
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: Some(position.clone()) }),
     )
     .unwrap() else {
         panic!("filtered page")
@@ -335,7 +343,7 @@ fn stored_inbox_kind_filter_keeps_an_empty_page_cursor_and_refuses_a_different_k
         panic!("different query refused")
     };
     assert_eq!(answer, crate::reads::Answer::None(crate::reads::Why::Unknown));
-    let Held::ReadLoad { range, .. } = read_start(
+    let Held::Store(engine_store::Out::Load { range: engine_store::Range::Read(range), .. }) = read_start(
         &mut core,
         &limits,
         10,

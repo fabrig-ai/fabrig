@@ -17,6 +17,14 @@ fn quiet_landing_reports_name_the_change_or_turn_holder_and_clear_for_prepare_an
     let mut holder = row.clone();
     holder.landing.task = HOLDER;
     holder.landing.phase = Phase::Turn { at: since };
+    let mut other = d.change(change).unwrap().clone();
+    other.task = 52;
+    other.change.task = 52;
+    other.branch = b"temper/52".as_slice().into();
+    other.pull = Some(3);
+    d.changes.insert(other.task, other).unwrap();
+    holder.landing.members[0].change = 52;
+    holder.landing.members[0].pull = 3;
     landing::save(&mut d, &clock, holder, &mut Queue::uncapped());
     for (on, step, name) in [
         (Awaited::Ready { member: 0 }, LANDING_READY, LandingWaitFor::Ready),

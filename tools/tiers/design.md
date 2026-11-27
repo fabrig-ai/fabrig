@@ -34,6 +34,10 @@ Provisional, 2026-10-29. Run one tree's slow tier with its prerequisites.
 - **One process per binary:** the focused and fuzzy suites' second mode
   runs a binary's tests in one process and measures CPU per process
   (section 11); nextest's path stays as it is.
+- **Campaigns:** `tools/tiers/campaign TREE` runs rounds of a tree's
+  campaign pair through this runner, with fresh seeds, after landing, and
+  replays each failing case alone, and each finding's first case at the
+  last campaign's commit (`tools/tiers/campaign.md`).
 - **Visible evidence:** print each step's command; nextest prints its
   summary, and what a wrapper prints stays visible. Prerequisite failures
   name their step.
@@ -805,6 +809,9 @@ change to the build command a caller wraps changes none of them.
   and 7).
 - `tools/tiers/cpu-run --out DIR --suite ID [--wall-hard SECONDS] -- ARGV...`
   (7.5).
+- `tools/tiers/campaign TREE [--rounds N] [--seed SEED] [--out DIR] [--last DIR]`, from
+  the checkout root, with its exit statuses and files
+  (`tools/tiers/campaign.md`, 2 and 6).
 - `tools/tiers/cpu-summary DIR [--budgets PATH] [--pair PAIR] [--expect ID ...] [--ledger PATH] [--base DIR] [--gate] [--json]`:
   prints `summary`'s result (10.2) as text, or with `--json` as one JSON
   object, and exits 0 for a valid run within its CPU budgets or with none
@@ -1295,8 +1302,16 @@ What nextest gives a test today, resolved per binary from the listing and
 `cargo metadata --format-version 1 --no-deps`, over the caller's `env`:
 
 - the caller's `env` with every variable whose name begins `NEXTEST` removed,
-  then cargo's `[env]` configuration as nextest applies it (a set variable
-  kept unless `force`, `relative` paths from their configuration's directory);
+  and skein's two fuzzy variables, a campaign's seed and a replay's case
+  (`skein/docs/design/testing/sweeps.md`, 4.3), removed too, by the names
+  skein's test table declares, then cargo's `[env]` configuration as
+  nextest applies it (a set variable kept unless `force`, `relative` paths
+  from their configuration's directory). Without the fuzzy variables, every
+  sweep of a one-process run takes the gate's mode, whatever the caller's
+  shell holds (`skein/docs/design/testing/sweeps.md`, 4.3): the gate, the
+  delivery check and anyone's run of the focused and fuzzy suites alike. A
+  campaign sets them for its pair's runs, which take nextest's path
+  (`temper/docs/design/draft/fuzzy-campaigns.md`, 5);
 - `CARGO`, the cargo the command names, by path; `CARGO_MANIFEST_DIR`, the
   package's directory, and `CARGO_MANIFEST_PATH`; `CARGO_PKG_NAME`,
   `CARGO_PKG_VERSION` with `_MAJOR`, `_MINOR`, `_PATCH` and `_PRE`,

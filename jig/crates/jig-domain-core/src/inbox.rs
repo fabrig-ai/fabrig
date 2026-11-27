@@ -468,6 +468,8 @@ pub(crate) fn seen_conversation_loaded(
                 request,
                 outcome: people::Outcome::Refused(people::Refusal::Role { held: core.people.role(party, row.project) }),
             }
+        } else if !core.loads.room(&env.limits) {
+            people::Event::Decided { request, outcome: people::Outcome::Again(people::Again::Busy) }
         } else {
             let request = core.fly(crate::routing::flight::Flight::EndedMark {
                 request,
@@ -480,11 +482,8 @@ pub(crate) fn seen_conversation_loaded(
                 },
             });
             let mut out = Queue::uncapped();
-            out.push(crate::Request::Held(Box::new(crate::Held::Load(Box::new(crate::Now::LoadEndedRead {
-                request,
-                task,
-                party,
-            })))));
+            let point = crate::loads::point::Point::EndedRead { request, task, party };
+            assert!(crate::loads::try_point(core, &env.limits, &mut out, point), "ended mark load room checked");
             return out;
         }
     } else {

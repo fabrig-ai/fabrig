@@ -145,7 +145,7 @@ Which is which, by what `executors.md`, 1 prepares:
 | a required section whose cut is unanswered at the brief's deadline | infrastructure | `SECTION: not cut by its deadline` |
 | a connector says its system failed for now | infrastructure | the connector's |
 | a connector says its section is to be gathered again, what it reads having moved meanwhile | transient | the connector's |
-| a dependency's or input's result whose load failed: the root or the store could not serve it now | infrastructure | `results: task N's result could not be read: the store answered busy` |
+| a dependency's or input's result whose load failed: the store could not serve it now | infrastructure | `results: task N's result could not be read: the store answered busy` |
 | a dependency's or input's result the store answered with no row | transient | `results: task N's result is missing: the store holds no ended record of it` |
 | a dependency's or input's result the store answered with another task's row, or with a row of another project | transient | `results: task N's result is missing: the store answered task M's record`, or `results: task N's result is missing: the store's record of it is another project's` |
 | a dependency's or input's result the store answered with its row not ended | transient | `results: task N's result is missing: the store's record of it has not ended` |
@@ -164,8 +164,8 @@ and inputs' results from the store, one task at a time (`executors.md`,
 1), and a failure names the task it was reading, `N` its number in
 decimal, and what the read found:
 
-- **Busy:** the load failed; the root or the store could not serve it.
-  A root that has no slot for the load yet is not failing: it keeps the
+- **Busy:** the load failed; the store could not serve it.
+  No load free yet is no failure: the engine keeps the
   load until one frees (`decisions.md`, 1.3), so no preparation fails for
   room. A busy answer counts as infrastructure, so a store that cannot
   serve reads for minutes holds no task: the task backs off within that
@@ -434,8 +434,8 @@ does not fail:
 
 - **The wait table.** The core keeps one entry per waiting task, keyed
   by the task: either it waits for notes with its preparation kept, or,
-  refused busy while notes is idle (an index whose load found no room
-  in the root), it gives up its preparation and its next activation
+  refused busy while notes is idle (an index whose load found no load
+  free, `decisions.md`, 1.3), it gives up its preparation and its next activation
   returns to due (`executors.md`, 1, step 2). When notes is idle again
   the core resumes one waiting preparation, and the next as each
   operation ends, so that none is left waiting while notes is idle. A

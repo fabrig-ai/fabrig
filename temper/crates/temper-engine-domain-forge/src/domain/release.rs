@@ -1,5 +1,5 @@
 //! Whole repository retirement and link-preserving pages (domain/forge/adoption-connection.md, 1).
-use super::{Domain, Env, Key, Limits, List, Map, Queue, Request, Stored, Token, Topic, child, emit};
+use super::{Domain, Env, Key, Limits, List, Map, Queue, Request, Stored, Token, Topic, child, emit, take_entry};
 use alloc::boxed::Box;
 use skein_forge::api::Repository;
 use skein_lib::Set;
@@ -227,19 +227,18 @@ fn entries(
     groups: &mut Queue<Box<[Key]>>,
     out: &mut Queue<Request>,
 ) {
-    let mut numbers = List::with_capacity(d.entries.len());
+    let mut entries = List::with_capacity(d.entries.len());
     for (number, row) in &d.entries {
         if row.entry.repository == repository {
-            numbers.push(*number).expect("bounded entries");
+            entries.push((*number, row.entry.task)).expect("bounded entries");
         }
     }
-    for number in numbers.into_boxed() {
-        let task = d.entries.get(&number).expect("collected entry").entry.task;
+    for (number, task) in entries.into_boxed() {
         let mut settled = Queue::uncapped();
         d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
         super::outcome_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, &mut settled);
         super::outage::forget_entry(d, number);
-        d.entries.remove(&number);
+        take_entry(d, number, task);
         if d.flights.remove(&(task, number)).is_some() {
             erase(groups, Key::Flight { task, entry: number });
         }

@@ -238,3 +238,108 @@ fn turn_kept_precedes_terminal_acknowledgement_under_load() {
     );
     assert_eq!(driver.returned, TURN_REFUSALS);
 }
+
+fn sign_in(token: Token) -> root::Event {
+    root::Event::Core(core::Event::SignIn {
+        reply_to: ReplyTo::new(token),
+        until: None,
+        held: None,
+        identity: people::Identity {
+            key: people::IdentityKey { provider: 0, subject: token.raw().to_be_bytes().into() },
+            login: Box::from(&b"Reader"[..]),
+            name: Box::from(&b"Reader"[..]),
+        },
+    })
+}
+
+fn reader(driver: &mut Driver, token: Token) -> u64 {
+    driver.send(sign_in(token));
+    driver.settle();
+    driver
+        .released
+        .iter()
+        .find_map(|output| {
+            if let root::Output::Core(core::Held::PeopleReply { to, reply: people::Reply::SignedIn { sign_in, .. } }) =
+                output
+                && *to == ReplyTo::new(token)
+            {
+                Some(*sign_in)
+            } else {
+                None
+            }
+        })
+        .expect("reader's durable sign-in")
+}
+
+/// Store loads and answers retain their positions on either side of the journal.
+#[test]
+fn store_answers_keep_their_arrival_order_under_load() {
+    use core::engine::store;
+    const THIRD: Token = Token::new(962);
+    const RETAINED: u64 = 955;
+    const READ_SLOTS: u32 = 3;
+    let mut driver = Driver::started_with_read_slots(SEED, READ_SLOTS);
+    let readers = [driver.sign_in, reader(&mut driver, SECOND), reader(&mut driver, THIRD)];
+    // Hold a preceding commit while all three reads enter below the watermark.
+    driver.send(sign_in(Token::new(963)));
+    assert_eq!(driver.pending.len(), 1, "one unanswered preceding commit");
+    for (reply, sign_in) in [FIRST, SECOND, THIRD].into_iter().zip(readers) {
+        driver.send(root::Event::Core(core::Event::Read {
+            reply: ReplyTo::new(reply),
+            sign_in,
+            read: core::reads::Read::Task { task: RETAINED },
+        }));
+        assert!(
+            !driver.released.iter().any(|output| matches!(output, root::Output::Store(_))),
+            "no load before durability"
+        );
+    }
+    assert_eq!(driver.returned, 0, "all three reads were admitted");
+    driver.commit_one();
+    let loads = driver
+        .released
+        .iter()
+        .filter_map(|output| {
+            if let root::Output::Store(store::Out::Load { load, range: store::Range::Read(range) }) = output {
+                assert_eq!(range.scope, core::reads::Scope::Task { task: RETAINED });
+                Some((*load, range.party))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    let [(first, a), (second, b), (third, c)] = loads.as_slice() else { panic!("three loads after commit: {loads:?}") };
+    assert!(a != b && a != c && b != c, "three distinct parties");
+
+    driver.fill_to_watermark();
+    let returned = driver.returned;
+    for load in [*third, *first, *second] {
+        driver.send(root::Event::Store(root::Store::Engine(store::In::Loaded {
+            load,
+            result: store::Answer::Failed(store::Failure::Gone),
+        })));
+    }
+    assert_eq!(driver.returned, returned, "store terminals enter despite the watermark");
+    assert!(store_replies(&driver).is_empty(), "the replies wait behind the newer commits");
+    driver.settle();
+    assert_eq!(
+        store_replies(&driver),
+        [&ReplyTo::new(THIRD), &ReplyTo::new(FIRST), &ReplyTo::new(SECOND)],
+        "one party reply per completion in arrival order"
+    );
+}
+
+fn store_replies(driver: &Driver) -> Vec<&ReplyTo> {
+    driver
+        .released
+        .iter()
+        .filter_map(|output| {
+            if let root::Output::Core(core::Held::Read { reply, answer }) = output {
+                assert_eq!(*answer, core::reads::Answer::None(core::reads::Why::Gone));
+                Some(reply)
+            } else {
+                None
+            }
+        })
+        .collect()
+}

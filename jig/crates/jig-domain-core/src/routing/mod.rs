@@ -21,24 +21,22 @@ pub(crate) mod task;
 pub(crate) mod timers;
 pub(crate) mod view;
 
-pub use crate::vocabulary::{Event, Held, HoldingsNeed, Limits, Request, Timer, ToolKind, TranscriptLoad};
+pub use crate::vocabulary::{Event, Held, HoldingsNeed, Limits, Request, Timer, ToolKind};
 use crate::{
-    CallKey, CallPart, Core, RoutedCall,
+    CallKey, CallPart, Core, PendingCall, RoutedCall,
     routing::{
         children::{
             route_account, route_brief, route_fleet, route_projection_settled, tag_account, tag_brief, tag_fleet,
         },
         effect::note::route_notes,
         party::{
-            ended::{route_ended_escalation, route_ended_proposal},
             holdings::route_holdings,
             people::{route_people, sign_in},
         },
         run::{
             calls::{named_action, route_named_answer, route_refused_payload},
             delegation::{
-                delegate_holdings, delegate_input_failed, delegate_validated, procedure_holdings, procedure_step,
-                route_period, route_start_recurring,
+                delegate, delegate_holdings, procedure_holdings, procedure_step, route_period, route_start_recurring,
             },
             payloads::{route_answer_payload, route_turn_payload},
             preparation::{
@@ -83,14 +81,14 @@ impl Core {
     #[must_use]
     pub fn reserve_connector_call(&mut self, key: CallKey) -> bool {
         self.start_runtime_input();
-        self.pending_calls.insert(key, true) == Ok(None)
+        self.reserve_call(key, PendingCall::Application)
     }
 
     /// Retain a connector subscription's task-hub continuation with its named call.
     #[must_use]
     pub fn reserve_connector_subscription(&mut self, token: Token, key: CallKey, subscription: u64) -> Option<Token> {
-        self.start_input();
-        if !self.reserve_connector_call(key) {
+        self.start_runtime_input();
+        if !self.reserve_call(key, PendingCall::Routed) {
             return None;
         }
         Some(self.fly_call(token, RoutedCall::Subscribe { key, subscription }))
@@ -327,35 +325,54 @@ impl Core {
 /// Route one child event and each sibling continuation within one core decision.
 pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> {
     core.start_input();
+    let phase = core.start_phase();
+    #[expect(clippy::wildcard_enum_match_arm, reason = "only restore entrances and kind installation need validation")]
+    match &event {
+        Event::Tasks(tasks::Event::Kinds { .. }) => unreachable!("connector kinds are declared at construction"),
+        _ if core.start_failure().is_some() => return Queue::uncapped(),
+        Event::Account(accounts::Event::Want) if phase.is_some() => return want_accounts(core, env),
+        Event::Account(accounts::Event::Restore { .. })
+        | Event::People(people::Event::Restore { .. })
+        | Event::Tasks(tasks::Event::Restore { .. })
+            if phase.is_some() =>
+        {
+            assert!(core.start_loading(), "rows load before Link and outside a seed commit");
+        }
+        Event::SettingsCommit { .. } if phase.is_some() => unreachable!("the start commits settings itself"),
+        Event::EffectConnector(
+            crate::effects::connector::Event::Resource { name, .. }
+            | crate::effects::connector::Event::Adopted { name, .. },
+        ) => {
+            if let Some(phase) = phase {
+                assert!(takes_connector_resource(phase, name.connector), "connector resources load before Link");
+            }
+        }
+        _ => {}
+    }
+    decide(core, env, Work::Event(event))
+}
+
+/// Store completions take the same decision entrance, including during stopping.
+pub(crate) fn step_store(core: &mut Core, env: &Env<Limits>, input: crate::engine::store::In) -> Queue<Request> {
+    let crate::engine::store::In::Loaded { load, .. } = &input;
+    if !crate::loads::awaited(core, *load) {
+        return Queue::uncapped();
+    }
+    core.start_input();
     if core.start_failure().is_some() {
         return Queue::uncapped();
     }
-    if let Some(phase) = core.start_phase() {
-        #[expect(clippy::wildcard_enum_match_arm, reason = "only restore entrances need phase validation")]
-        match &event {
-            Event::Account(accounts::Event::Want) => return want_accounts(core, env),
-            Event::Account(accounts::Event::Restore { .. })
-            | Event::People(people::Event::Restore { .. })
-            | Event::Tasks(tasks::Event::Restore { .. }) => {
-                assert!(core.start_loading(), "rows load before Link and outside a seed commit");
-            }
-            Event::SettingsCommit { .. } => unreachable!("the start commits settings itself"),
-            Event::EffectConnector(
-                crate::effects::connector::Event::Resource { name, .. }
-                | crate::effects::connector::Event::Adopted { name, .. },
-            ) => {
-                assert!(takes_connector_resource(phase, name.connector), "connector resources load before Link");
-            }
-            _ => {}
-        }
-    }
+    decide(core, env, Work::Store(input))
+}
+
+fn decide(core: &mut Core, env: &Env<Limits>, first: Work) -> Queue<Request> {
     let oldest = core.current.oldest;
     core.run_now = env.now;
     core.run_wall = env.wall;
     // The input takes the first route; only its continuations need queuing.
     let remaining = env.limits.routes.checked_sub(1).expect("sibling_routes_drained");
     let mut work = Queue::uncapped();
-    let mut out = step_one(core, env, event, &mut work);
+    let mut out = step_work(core, env, first, &mut work);
     out.raise(u32::MAX);
     for _ in 0..remaining {
         // A resumed preparation may be stale or need no notes operation.
@@ -376,6 +393,7 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> 
         }
     }
     assert!(work.is_empty(), "sibling_routes_drained");
+    crate::loads::resume_waiting(core, &env.limits, &mut out);
     crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     core.start_collect_failure();
@@ -463,6 +481,7 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let mut out = tag_fleet(core, env, &mut work, child);
     assert!(work.is_empty(), "fleet resumption produces no sibling continuations");
     crate::admission::deletion::advance(core, env, &mut out);
+    crate::loads::resume_waiting(core, &env.limits, &mut out);
     crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     out
@@ -476,6 +495,7 @@ fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Wo
             stopping::empty()
         }
         Work::Event(event) => step_one(core, env, event, work),
+        Work::Store(event) => crate::loads::loaded(core, env, work, event),
         Work::Resources(batch) => {
             let mut out = task::resume_resources(core, env, work, batch);
             crate::admission::deletion::advance(core, env, &mut out);
@@ -540,7 +560,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         | Event::WorkspacePrepared { .. }
         | Event::ClaimPrepared { .. }
         | Event::ClaimRefused { .. }
-        | Event::TranscriptLoaded { .. }
         | Event::ProcedureStep { .. }
         | Event::ProcedureHoldings { .. }
         | Event::StartRecurring { .. }
@@ -599,7 +618,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             out
         }
         Event::SignIn { until, reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held, until),
-        Event::ReadLoaded { load, result } => crate::reads::loaded(core, env, work, load, result),
         Event::PublicRead { reply, read } => crate::public::reads::start(core, reply, read),
         Event::PublicAnswered { reply, answer } => crate::public::reads::answered(core, reply, answer),
         Event::PublicDurable { read } => crate::public::reads::durable(core, env, read),
@@ -663,7 +681,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             route_connector_repair(core, work, seed, executor, spec, contract, holdings)
         }
         Event::Period { project, period, budget, next } => route_period(core, work, project, period, budget, next),
-        Event::TranscriptLoaded { task, load } => run::preparation::transcript_loaded(core, env, work, task, load),
         Event::People(event) => route_people(core, env, work, event),
         Event::Holdings { request, connector, holdings, refused } => {
             route_holdings(core, env, work, request, connector, holdings, refused)
@@ -723,52 +740,10 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::RefusedPayload { request, problem, payload } => {
             route_refused_payload(core, work, request, problem, payload)
         }
-        Event::Activate { context, ready, busy } => route_activate(core, env, work, context, ready, busy),
-        Event::EndedReadLoaded { request, task, party, through, busy } => {
-            ended_marks::loaded(core, env, work, ended_marks::Answer { request, task, party, through, busy })
-        }
-        Event::SeenConversationLoaded { request, row, busy } => {
-            crate::inbox::seen_conversation_loaded(core, env, work, request, row, busy)
-        }
-        Event::DecidedProposal { to, key, proposal, row, busy } => {
-            party::ended::decided_proposal(core, to, key, proposal, row, busy)
-        }
-        Event::EndedProposal { request, person, project, proposer, proposal, row, busy } => route_ended_proposal(
-            core,
-            work,
-            party::dispatch::Party { request, person, project, role: None },
-            proposer,
-            proposal,
-            row,
-            busy,
-        ),
-        Event::EndedTaskLoaded { request, row, busy } => run::results::loaded(core, env, work, request, row, busy),
-        Event::PartyInputsLoaded { request, row, busy } => {
-            let mut routed = party::dispatch::Routed::new(work);
-            party::inputs::loaded(core, env, &mut routed, party::inputs::Loaded { request, row, busy });
-            routed.finish(work)
-        }
-        Event::EndedPersonTask { request, person, project, task, row, busy } => {
-            let outcome = core.person_task_ended(
-                party::dispatch::Party { request, person, project, role: None },
-                task,
-                row,
-                busy,
-            );
-            work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
-            Queue::uncapped()
-        }
-        Event::EndedEscalation { request, person, project, task, revision, row, busy } => route_ended_escalation(
-            core,
-            env,
-            work,
-            party::dispatch::Party { request, person, project, role: None },
-            party::ended::Escalation { task, revision, row, busy },
-        ),
+        Event::Activate { context, ready } => route_activate(core, env, work, context, ready),
         Event::NamedAnswer { to, key, part } => route_named_answer(core, to, key, part),
         Event::NamedAction { to, key, action } => named_action(core, env, work, to, key, action),
-        Event::DelegateValidated { to, key, batch, stubs } => delegate_validated(core, env, to, key, batch, stubs),
-        Event::DelegateInputFailed { to, key } => delegate_input_failed(work, to, key),
+        Event::Delegate { to, key, batch } => delegate(core, env, to, key, batch),
         Event::DelegateHoldings { request, connector, holdings, refused } => {
             delegate_holdings(core, env, work, request, connector, holdings, refused)
         }
@@ -878,6 +853,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
         }
     };
     crate::admission::deletion::advance(core, env, &mut out);
+    crate::loads::resume_waiting(core, &env.limits, &mut out);
     crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     out

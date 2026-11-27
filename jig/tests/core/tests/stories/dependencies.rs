@@ -290,7 +290,13 @@ fn assert_ended_refusal(world: &World, dependency: u64, how: tasks::Status) {
 
 // Intercept exactly one outgoing store demand at the root boundary. The normal
 // world transport resumes it after the story has supplied the intervening input.
-fn wait_for_dependency(world: &mut World, seed: u64, parent: (u64, u64), target: u64, dependency: u64) -> core::Now {
+fn wait_for_dependency(
+    world: &mut World,
+    seed: u64,
+    parent: (u64, u64),
+    target: u64,
+    dependency: u64,
+) -> core::engine::store::Out {
     let (_, limits) = jig_core_world::faults::plan_fixture(seed);
     let (now, wall) = world.clocks();
     let env = skein_lib::Env { now, wall, limits };
@@ -311,12 +317,18 @@ fn wait_for_dependency(world: &mut World, seed: u64, parent: (u64, u64), target:
     root::release(&mut world.domain, &env, &mut out);
     let mut load = None;
     while let Some(output) = out.pop() {
-        let root::Request::Deliver(root::Delivery::Core(core::Held::Load(now))) = output else {
+        let root::Request::Deliver(root::Delivery::Store(point)) = output else {
             panic!("asking pass emitted more than a load: {output:?}");
         };
-        let core::Now::EndedTask { task, .. } = now.as_ref() else { panic!("ended task load") };
+        let core::engine::store::Out::Load {
+            range: core::engine::store::Range::Record(core::Key::Tasks(tasks::Key::Ended(task))),
+            ..
+        } = &point
+        else {
+            panic!("ended task load")
+        };
         assert_eq!(*task, dependency);
-        assert!(load.replace(*now).is_none(), "one load at a time");
+        assert!(load.replace(point).is_none(), "one load at a time");
     }
     assert_eq!(world.store.rows, before);
     load.expect("amendment loads the ended dependency")
@@ -332,7 +344,7 @@ fn an_ended_dependency_load_waits_then_adds_done_as_met() {
     let load = wait_for_dependency(&mut world, SEED, parent, target, dependency);
     assert_eq!(world.answers.len(), answers);
     assert!(live_row(&world, target).dependencies.is_empty());
-    world.store.ask(jig_test_store::StoreOut::Now(load));
+    world.store.ask(jig_test_store::StoreOut::Engine(load));
     world.drain();
     assert_met(&world, target, dependency, tasks::Party::Task(parent.0));
     world.close();
@@ -354,7 +366,7 @@ fn a_waiting_amendment_rechecks_its_revision_after_loading() {
         core::NamedAction::Amend { keep_parameters: false, target, revision: 0, amendment: edit },
     );
     let before = live_row(&world, target).clone();
-    world.store.ask(jig_test_store::StoreOut::Now(load));
+    world.store.ask(jig_test_store::StoreOut::Engine(load));
     world.drain();
     assert!(matches!(world.answers.last().map(|answer| &answer.2),
         Some(core::CallPart::Moved { task, now: people::Moved::Spec { revision: 1 } }) if *task == target));

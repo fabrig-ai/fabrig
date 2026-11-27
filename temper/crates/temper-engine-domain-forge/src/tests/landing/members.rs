@@ -1,5 +1,6 @@
 use super::*;
 use crate::landing::members::{hand, head, take};
+use skein_lib::List;
 use temper_engine_domain_forge_change as change;
 
 const OLDER: u64 = 61;
@@ -42,6 +43,139 @@ fn restored_members_follow_the_oldest_live_row_until_they_leave_or_it_ends() {
     landing::save(&mut d, &env(), newer, &mut out);
     assert_eq!(d.landing_of(fixtures::CHANGE), None);
     assert_eq!(d.landing_of(OTHER), Some(OLDER));
+}
+
+const THIRD: u64 = OTHER + 1;
+
+fn ready(d: &mut Domain, task: u64, base: &[u8]) {
+    let mut row = d.change(fixtures::CHANGE).unwrap().clone();
+    row.task = task;
+    row.change.task = task;
+    row.base = base.into();
+    row.pull = Some(task);
+    row.change.way = change::Way::Turn;
+    row.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    row.change.ready_since = Some(env().wall);
+    outputs(d, Event::Change { row });
+}
+
+fn form(d: &mut Domain, task: u64, base: &[u8], changes: &[(u64, u16)]) -> Box<[Request]> {
+    let mut row = landing_row(task, policy::Phase::Waiting);
+    row.landing.branch = base.into();
+    let mut members = List::with_capacity(LIMITS.landing_members);
+    for (change, unit) in changes {
+        let mut member = d.forming_member(*change, LIMITS.gates).unwrap();
+        member.unit = *unit;
+        members.push(member).unwrap();
+    }
+    row.landing.members = members.into_boxed();
+    outputs(d, Event::Landing { row })
+}
+
+fn cancel(d: &mut Domain, task: u64) -> Box<[Request]> {
+    outputs(d, Event::SettleEffects { task, root: task, ending: ReleaseEnding::Cancelled })
+}
+
+#[test]
+fn members_admit_at_the_bound_but_refuse_one_more() {
+    let mut d = landing_fixture();
+    assert_eq!(LIMITS.landing_members, 2);
+    for task in [fixtures::CHANGE, OTHER, THIRD] {
+        ready(&mut d, task, b"main");
+    }
+    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE, OTHER, THIRD]), Err(LandingRefusal::Members));
+    assert!(d.landing.rows.is_empty(), "refusing the selection makes no row");
+    for task in [fixtures::CHANGE, OTHER, THIRD] {
+        assert_eq!(d.landing_of(task), None);
+    }
+
+    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE, OTHER]), Ok(()));
+    let requests = form(&mut d, OLDER, b"main", &[(fixtures::CHANGE, 0), (OTHER, 1)]);
+    assert_eq!(d.landing_of(fixtures::CHANGE), Some(OLDER));
+    assert_eq!(d.landing_of(OTHER), Some(OLDER));
+    assert_eq!(d.landing_of(THIRD), None);
+    assert!(requests.contains(&Request::LandingNews { task: OLDER, member: 1, step: LandingNews::Joined }));
+    assert_eq!(d.landing_admits(5, &[OTHER]), Err(LandingRefusal::Repository), "an owned change is refused as a value");
+}
+
+#[test]
+fn member_cancellation_removes_its_unit_once_and_the_ready_mate_forms_again() {
+    let mut d = landing_fixture();
+    for task in [fixtures::CHANGE, OTHER] {
+        ready(&mut d, task, b"main");
+    }
+    form(&mut d, OLDER, b"main", &[(fixtures::CHANGE, 0), (OTHER, 0)]);
+    let requests = cancel(&mut d, fixtures::CHANGE);
+    let left = d.landing(OLDER).unwrap().clone();
+    assert_eq!(left.landing.members[0].left, Some(policy::Leave::Cancelled));
+    assert_eq!(left.landing.members[1].left, Some(policy::Leave::Unit { change: fixtures::CHANGE }));
+    assert_eq!(d.landing_of(fixtures::CHANGE), None);
+    assert_eq!(d.landing_of(OTHER), None);
+    let mut saved = false;
+    for request in &requests {
+        if let Request::Save { record: Stored::Landing(row), .. } = request {
+            saved |= row.landing == left.landing;
+        }
+    }
+    assert!(saved);
+    let repeated = cancel(&mut d, fixtures::CHANGE);
+    assert_eq!(d.landing(OLDER), Some(&left));
+    assert!(!repeated.contains(&Request::WakeProcedure { task: OLDER }));
+    for request in &repeated {
+        assert!(!matches!(request, Request::Save { record: Stored::Landing(_), .. }));
+    }
+
+    cancel(&mut d, OLDER);
+    assert_eq!(d.landing_admits(5, &[OTHER]), Ok(()));
+    form(&mut d, NEWER, b"main", &[(OTHER, 0)]);
+    assert_eq!(d.landing_of(OTHER), Some(NEWER));
+    assert_eq!(d.landing_of(fixtures::CHANGE), None);
+}
+
+#[test]
+fn cancelling_a_change_and_ending_a_landing_touch_only_their_own_memberships() {
+    let mut d = landing_fixture();
+    ready(&mut d, fixtures::CHANGE, b"main");
+    for task in [OTHER, THIRD] {
+        ready(&mut d, task, b"next");
+    }
+    form(&mut d, OLDER, b"main", &[(fixtures::CHANGE, 0)]);
+    form(&mut d, NEWER, b"next", &[(OTHER, 0), (THIRD, 1)]);
+    let before = d.landing(OLDER).unwrap().clone();
+    for task in [OTHER, u64::MAX] {
+        let requests = cancel(&mut d, task);
+        assert_eq!(d.landing(OLDER), Some(&before));
+        assert!(!requests.contains(&Request::WakeProcedure { task: OLDER }));
+    }
+    assert_eq!(d.landing_of(OTHER), None);
+    assert_eq!(d.landing_of(THIRD), Some(NEWER));
+
+    cancel(&mut d, OLDER);
+    assert_eq!(d.landing_of(fixtures::CHANGE), None);
+    assert_eq!(d.landing_of(THIRD), Some(NEWER));
+    let next = NEWER + 1;
+    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Ok(()));
+    form(&mut d, next, b"main", &[(fixtures::CHANGE, 0)]);
+    assert_eq!(d.landing_of(fixtures::CHANGE), Some(next));
+}
+
+#[test]
+fn cancelling_a_landed_member_does_not_release_its_index_even_in_a_single_landing() {
+    for single in [true, false] {
+        let mut d = landing_fixture();
+        let mut row = merge_landing_row(single);
+        row.landing.members[0].landed = Some(fixtures::HEAD);
+        outputs(&mut d, Event::Restore { record: Stored::Landing(row.clone()) });
+        d.fit_restored(&LIMITS).unwrap();
+        let requests = cancel(&mut d, fixtures::CHANGE);
+        assert_eq!(d.landing(OLDER), Some(&row));
+        assert_eq!(d.landing_of(fixtures::CHANGE), Some(OLDER));
+        assert!(!requests.contains(&Request::WakeProcedure { task: OLDER }));
+
+        cancel(&mut d, OLDER);
+        assert_eq!(d.landing_of(fixtures::CHANGE), None);
+        assert_eq!(d.landing(OLDER).unwrap().landing.members[0].landed, Some(fixtures::HEAD));
+    }
 }
 
 fn judge() -> change::Ask {
@@ -93,7 +227,7 @@ fn departed_with_ask(mut landing: LandingRow, ask: change::Ask, why: policy::Lea
     row.pending = None;
     row.effect = change::EffectResult::None;
 
-    d.landing.remember(landing.clone()).unwrap();
+    assert!(d.landing.remember(landing.clone()).is_none());
     let mut out = Queue::uncapped();
     hand(&mut d, &landing, 0, ask, &mut out);
     landing.landing.members[0].left = Some(why);
@@ -197,7 +331,7 @@ fn the_landed_ask_takes_priority_and_is_consumed_once_across_restarts() {
 fn cancelling_a_landing_removes_only_its_prepare_and_judgement() {
     let mut d = landing_fixture();
     let row = landing(OLDER);
-    d.landing.remember(row.clone()).unwrap();
+    assert!(d.landing.remember(row.clone()).is_none());
     let other = landing(NEWER);
     let mut out = Queue::uncapped();
     let ask = repair(fixtures::HEAD);

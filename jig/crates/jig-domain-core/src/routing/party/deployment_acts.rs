@@ -75,7 +75,7 @@ pub(crate) fn route(
                 return refused(work, request, people::Refusal::Unknown);
             }
             if core.tasks.task(task).is_none() {
-                return crate::routing::run::results::closed_subject(core, work, out, request, project, task);
+                return crate::routing::run::results::closed_subject(core, work, request, project, task);
             }
             if let Err(why) = close(core, work, request, project, task, grace, reason) {
                 refused(work, request, why);

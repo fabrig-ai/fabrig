@@ -172,6 +172,20 @@ Also rejected:
 - **Shared immutable buffers (`Arc<[u8]>`) as the ownership system.** At
   most an optimisation, confined to io.
 
+## Why a use of a reservation asserts it
+
+On 2026-11-26 smith's agent shell panicked at a result's arrival, where
+a subtraction from the session's reserved total underflowed: a read had
+started with no room reserved for it, earlier, in another step. The
+panic named the arithmetic, not the read or the batch that should have
+held its room (temper's `draft/misbehaving-agents.notes.md`). So a use of
+a reservation asserts it where it is used (programming-model.md, 10.4).
+Full and busy are values a caller handles, so admission refuses; using a
+reservation the domain made itself can only go wrong by the domain's own
+bug, so the use asserts. An assertion at the use fails in every world and
+in production, naming its cause, where a check of the sums at a quiet
+point sees the breach after the fact, and only in a world.
+
 ## Why a binary is a process
 
 The focused and fuzzy suites ran through nextest, a process per test,

@@ -206,6 +206,17 @@ pub(crate) struct Outboxed {
     handoff: Handoff,
 }
 
+impl Outboxed {
+    fn check_owner(&self, number: u64, task: u64) {
+        assert!(
+            self.entry.number == number && self.entry.task == task,
+            "outbox entry {number} belongs to task {task}, found entry {} of task {}",
+            self.entry.number,
+            self.entry.task
+        );
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Handoff {
     Uncommitted,
@@ -958,21 +969,49 @@ impl Domain {
 
     /// Promise a described call's room until its entry or terminal ask (domain/forge/room.md, 5).
     pub fn reserve_call(&mut self, env: &Env<Limits>, owner: Token, task: u64) -> bool {
+        assert!(!self.call_room.contains(&owner), "one outbox reservation for call flight {owner:?} of task {task}");
         let limits = &env.limits;
         if !crate::room::check(self, limits, None) {
             return false;
         }
-        assert!(!self.call_room.contains(&owner), "fresh call flight");
-        self.call_room.insert(owner).expect("call reservations fit the outbox");
+        let inserted = self.call_room.insert(owner);
+        assert!(inserted.is_ok(), "outbox reservation for call flight {owner:?} of task {task} fits its room");
         self.full.reserve(full::Reservation::Call(owner), task, None);
         full::filled(self, env);
         true
     }
 
+    /// Check the forge end of the root's staged call flight (domain/forge/room.md, 2.2).
+    pub fn assert_call_reservation(&self, owner: Token, task: u64) {
+        assert!(self.call_room.contains(&owner), "call flight {owner:?} of task {task} holds an outbox reservation");
+        self.full.assert_owner(full::Reservation::Call(owner), task);
+    }
+
+    fn take_call_room(&mut self, owner: Token, task: u64) {
+        self.assert_call_reservation(owner, task);
+        let removed = self.call_room.remove(&owner);
+        assert!(removed, "return the held outbox reservation of call flight {owner:?} for task {task}");
+    }
+
     /// A call ended without an entry; offer its room to the line's first waiter.
-    pub fn unreserve_call(&mut self, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
-        self.call_room.remove(&owner);
+    pub fn unreserve_call(&mut self, env: &Env<Limits>, owner: Token, task: u64, out: &mut Queue<Request>) {
+        self.take_call_room(owner, task);
         crate::room::ask(self, env, out);
+    }
+
+    /// Check the forge end of the root's staged goal projection (domain/forge/room.md, 2.2).
+    pub fn assert_projection_reservation(&self, entry: u64, goal: u64) {
+        assert!(
+            self.projection_room.contains(&entry),
+            "projection entry {entry} of goal {goal} holds an outbox reservation"
+        );
+        self.full.assert_owner(full::Reservation::Projection(entry), goal);
+    }
+
+    fn take_projection_room(&mut self, entry: u64, goal: u64) {
+        self.assert_projection_reservation(entry, goal);
+        let removed = self.projection_room.remove(&entry);
+        assert!(removed, "return the held outbox reservation of projection entry {entry} for goal {goal}");
     }
 
     /// A connector's durable payload, read again before a holder accepts it.
@@ -1255,6 +1294,9 @@ impl Domain {
         self.read_line.raise(limits);
         self.reds.raise(limits.branch_reds.checked_mul(limits.holds).expect("checked red capacity"));
         self.entries.raise(limits.entries);
+        self.room.asked.raise(limits.entries);
+        self.call_room.raise(limits.entries);
+        self.projection_room.raise(limits.entries);
         self.entry_looks.raise(limits.entries);
         self.full.raise(limits.entries);
         self.flights.raise(limits.entries);
@@ -2365,14 +2407,20 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::Enqueue { entry } => enqueue(d, env, None, entry, out),
         Event::EnqueueCall { owner, entry } => enqueue(d, env, Some(owner), entry, out),
         Event::KeepProjection { row, entry } => {
-            d.projection_room.remove(&entry.number);
+            assert_eq!(entry.task, row.goal, "projection entry {} belongs to goal {}", entry.number, row.goal);
+            assert_eq!(
+                row.pending,
+                Some(entry.number),
+                "projection row of goal {} owns entry {}",
+                row.goal,
+                entry.number
+            );
+            d.take_projection_room(entry.number, row.goal);
             d.issues.insert(row.goal, row.clone()).expect("projection capacity admitted");
             emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Issue(row) });
             keep_entry(d, entry, None, out);
         }
-        Event::DropProjection { entry } => {
-            d.projection_room.remove(&entry);
-        }
+        Event::DropProjection { entry, goal } => d.take_projection_room(entry, goal),
         Event::Milestone { row } => crate::milestone_rows::project(d, row, out),
         Event::Project { entry, repository, view } => project(d, env, entry, repository, view, out),
         Event::FailProjection { goal, repository, closing } => {
@@ -2918,18 +2966,19 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             }
             skein_forge_client::Request::Progress { entry } => {
                 if d.entries.contains_key(&entry.number) && d.repositories.contains_key(&entry.repository) {
-                    keep_entry(d, entry, None, out);
+                    save_entry_progress(d, entry, None, out);
                 }
             }
             skein_forge_client::Request::Outcome { entry, task, outcome } => {
-                if !d.entries.contains_key(&entry) {
+                let Some(kept) = d.entries.get(&entry) else {
                     // Keep the outbox's idempotent erasure, but no settled facts or terminal for an unheld entry.
                     if d.releasing.withdrawing != Some(entry) {
                         release::first_write(d);
                         emit(out, Request::Erase { key: Key::Entry(entry) });
                     }
                     continue;
-                }
+                };
+                kept.check_owner(entry, task);
                 let looked = outcome != skein_forge_client::Outcome::Queued && d.entry_looks.remove(&entry);
                 // The landing owns merge readback and round cleanup; neither creates a root effect hold.
                 let mut landing_merge = false;
@@ -2980,7 +3029,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                         if lost_comment {
                             // domain/forge/issues.md: an unfindable milestone counts
                             // as posted. Retire its entry without sending it again.
-                            not_made(d, env, entry, out);
+                            not_made(d, env, task, entry, out);
                         } else {
                             // It stays in the outbox, keeping its room, until a
                             // person or its task's close settles it.
@@ -2998,7 +3047,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     | skein_forge_client::Outcome::Held
                     | skein_forge_client::Outcome::Withdrawn => {
                         if !d.waiting_release_outcomes.contains_key(&entry) {
-                            d.entries.remove(&entry);
+                            take_entry(d, entry, task);
                             full::update(d, env, out);
                             emit(out, Request::Erase { key: Key::Entry(entry) });
                         }
@@ -3947,11 +3996,10 @@ fn enqueue(
     entry: skein_forge_client::Entry,
     out: &mut Queue<Request>,
 ) {
-    let reserved = match owner {
-        Some(owner) => d.call_room.remove(&owner),
-        None => false,
-    };
     let task = entry.task;
+    if let Some(owner) = owner {
+        d.take_call_room(owner, task);
+    }
     let Some(repository) = d.repositories.get(&entry.repository) else {
         emit(out, Request::Refused { task });
         return;
@@ -3969,7 +4017,7 @@ fn enqueue(
         emit(out, Request::Refused { task });
         return;
     };
-    if (!reserved && !crate::room::check(d, &env.limits, None)) || plan.blocked(d).is_some() {
+    if (owner.is_none() && !crate::room::check(d, &env.limits, None)) || plan.blocked(d).is_some() {
         let outcome = skein_forge_client::Outcome::Failed(skein_forge::api::Error::Busy);
         d.named_outcome(entry.number, outcome);
         emit(out, Request::Outcome { entry: entry.number, task, outcome, account: None });
@@ -3980,28 +4028,55 @@ fn enqueue(
     keep_entry(d, entry, release, out);
 }
 
-/// Save one entry in the client's hands: newly committed, for the client to
-/// make once the commit is durable, or a known entry's progress.
+/// Take one place for a new entry. A writer with a reservation gives it
+/// back before this step (domain/forge/room.md, 2.2).
 pub(crate) fn keep_entry(
     d: &mut Domain,
     entry: skein_forge_client::Entry,
     release: Option<u64>,
     out: &mut Queue<Request>,
 ) {
-    let (handoff, owner_ended) = match d.entries.get(&entry.number) {
-        Some(row) => (row.handoff, row.owner_ended),
-        None => (
-            Handoff::Uncommitted,
-            d.room
-                .closing
-                .get(&entry.task)
-                .copied()
-                .or(d.full.reserved_owner_ended(full::Reservation::Projection(entry.number))),
-        ),
+    let number = entry.number;
+    let task = entry.task;
+    assert!(
+        crate::room::taken(d) < d.entries.capacity(),
+        "new outbox entry {number} of task {task} has room within forge.entries"
+    );
+    let owner_ended =
+        d.room.closing.get(&task).copied().or(d.full.reserved_owner_ended(full::Reservation::Projection(number)));
+    let row = Outboxed { entry: entry.clone(), owner_ended, held: false, handoff: Handoff::Uncommitted };
+    let Ok(prior) = d.entries.insert(number, row) else {
+        unreachable!("new outbox entry {number} of task {task} fits its checked place");
     };
+    assert!(prior.is_none(), "new outbox entry {number} of task {task} has a new number");
+    save_entry(d, entry, release, out);
+}
+
+/// The client's progress or an outage retry writes over its own place.
+pub(crate) fn save_entry_progress(
+    d: &mut Domain,
+    entry: skein_forge_client::Entry,
+    release: Option<u64>,
+    out: &mut Queue<Request>,
+) {
+    let number = entry.number;
+    let task = entry.task;
+    let Some(kept) = d.entries.get(&number) else {
+        unreachable!("outbox entry {number} of task {task} is kept when saving its progress");
+    };
+    kept.check_owner(number, task);
     writes::outbox::progress(d, &entry, out);
+    let kept = d.entries.get_mut(&number).expect("progress keeps the outbox entry");
+    kept.entry = entry.clone();
+    kept.held = false;
+    save_entry(d, entry, release, out);
+}
+
+fn save_entry(d: &mut Domain, entry: skein_forge_client::Entry, release: Option<u64>, out: &mut Queue<Request>) {
     if entry.attempt.is_some() {
-        d.flights.insert((entry.task, entry.number), ()).expect("flights are bounded by entries");
+        let number = entry.number;
+        let task = entry.task;
+        assert!(d.flights.insert((task, number), ()).is_ok(), "flight for outbox entry {number} of task {task} fits");
         emit(
             out,
             Request::Save {
@@ -4011,9 +4086,15 @@ pub(crate) fn keep_entry(
             },
         );
     }
-    let row = Outboxed { entry: entry.clone(), owner_ended, held: false, handoff };
-    d.entries.insert(entry.number, row).expect("entry capacity checked or a known entry replaced");
     emit(out, Request::Save { read_afresh: None, release, record: Stored::Entry { entry, held: false } });
+}
+
+/// Give back a place the retiring step has identified, exactly once.
+pub(crate) fn take_entry(d: &mut Domain, number: u64, task: u64) {
+    let Some(row) = d.entries.remove(&number) else {
+        unreachable!("outbox entry {number} of task {task} is kept until it leaves");
+    };
+    row.check_owner(number, task);
 }
 
 fn effect_permitted(kinds: Kinds, write: &skein_forge::api::Write) -> bool {
@@ -7351,7 +7432,6 @@ fn emit_change_effect(
         if waiting.room.is_none() {
             waiting.room = Some(crate::room::next_place(d));
         }
-        crate::room::leave(d, waiter);
         crate::room::block_write(d, waiter, blocked);
         d.change_due.remove(&row.task);
         read_session::pause(d, row.task);
@@ -8173,6 +8253,7 @@ fn settle_effects(
         emit(out, Request::EffectsSettled { task });
         return;
     }
+    leave_room_change(d, task, out);
     crate::room::release_started(d, task, env.wall);
     if ending == ReleaseEnding::Cancelled || d.landing.rows.contains_key(&task) {
         withdraw_unsent(d, env, task, out);
@@ -8192,6 +8273,9 @@ fn withdraw_unsent(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
         if let Some(row) = d.entries.get(&number)
             && row.entry.start.is_none()
         {
+            // An unsent entry can still have a read in the client. Withdraw
+            // bars its write there; its eventual answer holds no room here.
+            row.check_owner(number, task);
             let account = crate::effect_words::account(
                 &row.entry,
                 d.repository(row.entry.repository),
@@ -8199,7 +8283,7 @@ fn withdraw_unsent(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
             );
             writes::outbox::outcome(d, task, number, skein_forge_client::Outcome::Withdrawn, out);
             crate::landing::outcome(d, env, number, skein_forge_client::Outcome::Withdrawn, None, out);
-            d.entries.remove(&number);
+            take_entry(d, number, task);
             emit(out, Request::Erase { key: Key::Entry(number) });
             d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
             emit(
@@ -8277,6 +8361,7 @@ fn release(
     row.failed = false;
     d.releases.insert(task, row.clone()).expect("release capacity checked");
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row) });
+    leave_room_change(d, task, out);
     crate::room::release_started(d, task, env.wall);
     if advanced {
         release_reads::advanced(d, task, env.wall);
@@ -8507,10 +8592,10 @@ fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
         unnamed(d, env, task, true, out);
         end_change(d, env, task, out);
         heads::free(d, env, out);
+        crate::room::leave(d, crate::room::Waiter::Release(task));
         d.releases.remove(&task);
         d.room.closing.remove(&task);
         d.release_reads.remove(&task);
-        crate::room::leave(d, crate::room::Waiter::Release(task));
         crate::waits::report(d, env, task, out);
         crate::waits::forget(d, task);
         emit(out, Request::Erase { key: Key::Release(task) });
@@ -8755,7 +8840,6 @@ fn enqueue_release(
         if row.room.is_none() {
             row.room = Some(crate::room::next_place(d));
         }
-        crate::room::leave(d, waiter);
         crate::room::block_write(d, waiter, blocked);
         d.releases.insert(row.task, row.clone()).expect("replaces release");
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
@@ -9035,6 +9119,10 @@ fn project(
         },
         issues::Decision::Hold => fail_projection(d, env, goal, Some(repository), closing, out),
         issues::Decision::Effect(effect) => {
+            assert!(
+                !d.projection_room.contains(&number),
+                "one outbox reservation for projection entry {number} of goal {goal}"
+            );
             if !crate::room::check(d, &env.limits, None) {
                 wait_for_room(d, env, goal, out);
                 return;
@@ -9071,7 +9159,8 @@ fn project(
                 fail_projection(d, env, goal, Some(repository), closing, out);
                 return;
             };
-            d.projection_room.insert(number).expect("projection reservations fit the outbox");
+            let inserted = d.projection_room.insert(number);
+            assert!(inserted.is_ok(), "outbox reservation for projection entry {number} of goal {goal} fits its room");
             d.full.reserve(full::Reservation::Projection(number), goal, ended);
             emit(out, Request::ProjectionEffect { row, entry, description });
         }
@@ -9387,10 +9476,12 @@ fn resolve(d: &mut Domain, env: &Env<Limits>, number: u64, again: bool, out: &mu
     if !row.held {
         return;
     }
+    let task = row.entry.task;
     if !again {
-        not_made(d, env, number, out);
+        not_made(d, env, task, number, out);
         return;
     }
+    row.check_owner(number, task);
     row.held = false;
     let entry = row.entry.clone();
     emit(
@@ -9406,14 +9497,14 @@ fn erase_flight(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Request>)
     }
 }
 
-/// Settle one held entry as not made, freeing its room.
-fn not_made(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
+/// Settle one entry as not made, freeing its room.
+fn not_made(d: &mut Domain, env: &Env<Limits>, task: u64, number: u64, out: &mut Queue<Request>) {
+    take_entry(d, number, task);
     outage::forget_entry(d, number);
-    let row = d.entries.remove(&number).expect("a held entry lives");
-    crate::landing::not_made(d, env, row.entry.task, number, out);
+    crate::landing::not_made(d, env, task, number, out);
     emit(out, Request::Erase { key: Key::Entry(number) });
-    erase_flight(d, row.entry.task, number, out);
-    emit(out, Request::NotMade { entry: number, task: row.entry.task });
+    erase_flight(d, task, number, out);
+    emit(out, Request::NotMade { entry: number, task });
 }
 
 /// A closing task's held entries are settled not made, as many as the
@@ -9442,7 +9533,7 @@ fn settle_held(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Req
         if out.room() < needed {
             break;
         }
-        not_made(d, env, *number, out);
+        not_made(d, env, task, *number, out);
     }
     continue_release_once(out, task);
     false
@@ -9536,7 +9627,7 @@ fn veto_change(
         emit(out, Request::Marked { tasks: Box::from(tasks) });
     }
     writes::outbox::outcome(d, task, entry, skein_forge_client::Outcome::Withdrawn, out);
-    d.entries.remove(&entry);
+    take_entry(d, entry, task);
     emit(out, Request::Erase { key: Key::Entry(entry) });
 }
 
@@ -10802,8 +10893,9 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         for number in entries.into_boxed() {
             let task = d.entries.get(&number).expect("collected entry").entry.task;
             d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
+            writes::outbox::outcome(d, task, number, skein_forge_client::Outcome::Withdrawn, out);
             outcome_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, out);
-            not_made(d, env, number, out);
+            not_made(d, env, task, number, out);
             child(d, env, skein_forge_client::Event::Withdraw { entry: number }, out);
             if let Some(row) = d.releases.get(&task)
                 && !row.failed
@@ -11136,9 +11228,9 @@ pub(crate) fn save_change_parts(d: &mut Domain, out: &mut Queue<Request>, mut ro
 /// Every saved record invalidates its own panel (domain/forge/change/panel.md, 1).
 pub(crate) fn save_change(d: &mut Domain, out: &mut Queue<Request>, mut row: ChangeRow) {
     if row.frozen() {
+        crate::room::leave(d, crate::room::Waiter::Change(row.task));
         row.room = None;
         d.changes.get_mut(&row.task).expect("saved change").room = None;
-        crate::room::leave(d, crate::room::Waiter::Change(row.task));
         connection_wait::take(d, row.task);
     }
     retain_terminal_ci(d, &mut row);

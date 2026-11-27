@@ -596,6 +596,7 @@ fn a_program_without_modify_has_no_remove_tool() {
             | Seen::UnreadableSettings
             | Seen::Acted { .. }
             | Seen::Called { .. }
+            | Seen::ReportedCall { .. }
             | Seen::ReplyMismatch { .. }
             | Seen::Prompted { .. } => None,
         })

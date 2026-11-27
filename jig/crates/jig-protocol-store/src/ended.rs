@@ -1,228 +1,66 @@
-//! The core's archived reads translated by the kit (protocol/store/README.md, 3).
+//! Serving a point load from the engine's store port (jig/docs/design/protocol/store/README.md, 3).
+use crate::{Get, Request, Row};
 use alloc::boxed::Box;
-use jig_domain_core_vocabulary::{self as core, CoreKey, CoreRecord, Key, Now, Record};
+use jig_domain_core_vocabulary::{Key, Record, engine::store};
 use jig_domain_tasks as tasks;
+use skein_lib::Token;
+
+/// A proposal lookup first reads its live owner, then the named history entry.
+#[derive(Debug)]
+pub enum Pending {
+    Record,
+    ProposalOwner { task: u64, proposal: u64 },
+}
+
+/// The next get of the same load, or its terminal.
+#[derive(Debug)]
+pub enum Step {
+    Get(Request),
+    Answer(store::Answer),
+}
 
 #[must_use]
-pub fn key(now: &Now) -> Option<Key> {
-    match now {
-        Now::EndedTask { task, .. } => Some(Key::Tasks(tasks::Key::Ended(*task))),
-        Now::PartyInputs { tasks, .. } => Some(Key::Tasks(tasks::Key::Ended(*tasks.first()?))),
-        Now::LoadEndedRead { task, party, .. } => {
-            Some(Key::People(jig_domain_people::Key::EndedRead { task: *task, party: *party }))
+pub fn start(owner: Token, range: store::Range) -> Option<(Request, Pending)> {
+    let (key, pending) = match range {
+        store::Range::Record(key) => (key, Pending::Record),
+        store::Range::Proposal { task, proposal } => {
+            (Key::Tasks(tasks::Key::Live(task)), Pending::ProposalOwner { task, proposal })
         }
-        Now::SeenConversation { task, .. } | Now::EndedPersonTask { task, .. } => {
-            Some(Key::Tasks(tasks::Key::Ended(*task)))
+        store::Range::Read(_) | store::Range::Window { .. } | store::Range::Notes(_) => return None,
+    };
+    Some((get(owner, key), pending))
+}
+
+#[must_use]
+pub fn got(owner: Token, pending: Pending, row: Option<Row>) -> Step {
+    let row = match row {
+        Some(Row::Jig(row)) => Some(row),
+        None => None,
+        Some(Row::Application { .. }) => return Step::Answer(store::Answer::Failed(store::Failure::Failed)),
+    };
+    match pending {
+        Pending::Record => Step::Answer(records(row)),
+        Pending::ProposalOwner { task, proposal } => {
+            if let Some(Record::Tasks(tasks::Stored::Live(live))) = row
+                && live.number == task
+                && let Some(key) = crate::reads::proposal_key(&live, proposal)
+            {
+                return Step::Get(get(owner, key));
+            }
+            Step::Answer(records(None))
         }
-        Now::DecidedProposal { key, .. } => Some(Key::Tasks(tasks::Key::Live(key.task))),
-        Now::EndedProposal { proposer, proposal, .. } => {
-            Some(Key::Core(CoreKey::ProposalDecision { proposer: *proposer, proposal: *proposal }))
-        }
-        Now::EndedEscalation { task, revision, .. } => {
-            Some(Key::Core(CoreKey::EscalationDecision { task: *task, revision: *revision }))
-        }
-        Now::RelayBusy { .. }
-        | Now::CallBusy { .. }
-        | Now::Link(_)
-        | Now::EffectAnswer { .. }
-        | Now::TaskRead { .. }
-        | Now::ProposalRead { .. }
-        | Now::SettingsAnswer { .. }
-        | Now::PersonAnswer { .. }
-        | Now::SettledCallRefused { .. }
-        | Now::Ask { .. }
-        | Now::Call { .. }
-        | Now::DropCall { .. }
-        | Now::Undelivered { .. }
-        | Now::SignInRefused { .. }
-        | Now::WatchRefused { .. }
-        | Now::Account(_)
-        | Now::RunText { .. }
-        | Now::NotesIndexed { .. }
-        | Now::NotesRecalled { .. }
-        | Now::NotesRefused { .. }
-        | Now::NoteBusy { .. }
-        | Now::DropAssignment { .. }
-        | Now::Activate { .. }
-        | Now::StartPreparation { .. }
-        | Now::CompleteBrief { .. }
-        | Now::BriefCorePlanned { .. }
-        | Now::WorkspaceRequest { .. }
-        | Now::RunPreparationFailed { .. }
-        | Now::BriefFailed { .. }
-        | Now::RunPrepared { .. }
-        | Now::PartBusy { .. }
-        | Now::RestoreRefused => None,
     }
 }
 
 #[must_use]
-pub fn answer(now: Now, row: Option<Record>) -> Option<core::Event> {
-    Some(match now {
-        Now::EndedTask { request, .. } => core::Event::EndedTaskLoaded { request, row: ended(row), busy: false },
-        Now::PartyInputs { request, .. } => core::Event::PartyInputsLoaded { request, row: ended(row), busy: false },
-        Now::LoadEndedRead { request, task, party } => {
-            let through = match row {
-                Some(Record::People(jig_domain_people::Stored::EndedRead { task: number, party: owner, through }))
-                    if number == task && owner == party =>
-                {
-                    through
-                }
-                Some(_) | None => 0,
-            };
-            core::Event::EndedReadLoaded { request, task, party, through, busy: false }
-        }
-        Now::SeenConversation { request, .. } => {
-            core::Event::SeenConversationLoaded { request, row: ended(row), busy: false }
-        }
-        Now::EndedPersonTask { request, person, project, task } => {
-            core::Event::EndedPersonTask { request, person, project, task, row: ended(row), busy: false }
-        }
-        Now::DecidedProposal { to, key, proposal } => {
-            core::Event::DecidedProposal { to, key, proposal, row: task_proposal(row), busy: false }
-        }
-        Now::EndedProposal { request, person, project, proposer, proposal } => core::Event::EndedProposal {
-            request,
-            person,
-            project,
-            proposer,
-            proposal,
-            row: proposal_row(row),
-            busy: false,
-        },
-        Now::EndedEscalation { request, person, project, task, revision } => core::Event::EndedEscalation {
-            request,
-            person,
-            project,
-            task,
-            revision,
-            row: escalation_row(row),
-            busy: false,
-        },
-        Now::RelayBusy { .. }
-        | Now::CallBusy { .. }
-        | Now::Link(_)
-        | Now::EffectAnswer { .. }
-        | Now::TaskRead { .. }
-        | Now::ProposalRead { .. }
-        | Now::SettingsAnswer { .. }
-        | Now::PersonAnswer { .. }
-        | Now::SettledCallRefused { .. }
-        | Now::Ask { .. }
-        | Now::Call { .. }
-        | Now::DropCall { .. }
-        | Now::Undelivered { .. }
-        | Now::SignInRefused { .. }
-        | Now::WatchRefused { .. }
-        | Now::Account(_)
-        | Now::RunText { .. }
-        | Now::NotesIndexed { .. }
-        | Now::NotesRecalled { .. }
-        | Now::NotesRefused { .. }
-        | Now::NoteBusy { .. }
-        | Now::DropAssignment { .. }
-        | Now::Activate { .. }
-        | Now::StartPreparation { .. }
-        | Now::CompleteBrief { .. }
-        | Now::BriefCorePlanned { .. }
-        | Now::WorkspaceRequest { .. }
-        | Now::RunPreparationFailed { .. }
-        | Now::BriefFailed { .. }
-        | Now::RunPrepared { .. }
-        | Now::PartBusy { .. }
-        | Now::RestoreRefused => return None,
-    })
+pub fn records(row: Option<Record>) -> store::Answer {
+    let records: Box<[Record]> = match row {
+        Some(row) => Box::new([row]),
+        None => Box::new([]),
+    };
+    store::Answer::Rows(store::Rows::Records { records, more: false })
 }
 
-fn ended(row: Option<Record>) -> Option<Box<tasks::TaskRecord>> {
-    match row? {
-        Record::Tasks(tasks::Stored::Ended(row)) => Some(row),
-        Record::Tasks(
-            tasks::Stored::Live(_)
-            | tasks::Stored::PlacedHold(_)
-            | tasks::Stored::Summary(_)
-            | tasks::Stored::Retention(_)
-            | tasks::Stored::LiveCold { .. }
-            | tasks::Stored::Stub(_)
-            | tasks::Stored::Ledger(_)
-            | tasks::Stored::Writer(_)
-            | tasks::Stored::Pool(_)
-            | tasks::Stored::PersonProposal(_)
-            | tasks::Stored::ClosedLedger(_)
-            | tasks::Stored::DecidedProposal(_)
-            | tasks::Stored::History(_)
-            | tasks::Stored::Attempt(_)
-            | tasks::Stored::Hold(_)
-            | tasks::Stored::Activity(_)
-            | tasks::Stored::Update(_)
-            | tasks::Stored::Result(_)
-            | tasks::Stored::EndedByParty(_)
-            | tasks::Stored::EndedByProject(_)
-            | tasks::Stored::EndedDelegate(_)
-            | tasks::Stored::Delegate(_),
-        )
-        | Record::Core(_)
-        | Record::People(_)
-        | Record::Notes(_)
-        | Record::Accounts(_) => None,
-    }
-}
-
-fn proposal_row(row: Option<Record>) -> Option<core::ProposalDecisionRecord> {
-    match row? {
-        Record::Core(CoreRecord::ProposalDecision(row)) => Some(row),
-        Record::Core(
-            CoreRecord::Settings(_)
-            | CoreRecord::Deployment(_)
-            | CoreRecord::Projection(_)
-            | CoreRecord::RunProof(_)
-            | CoreRecord::Part(_)
-            | CoreRecord::Call(_)
-            | CoreRecord::Turn(_)
-            | CoreRecord::Terminal(_)
-            | CoreRecord::EscalationDecision(_),
-        )
-        | Record::Tasks(_)
-        | Record::People(_)
-        | Record::Notes(_)
-        | Record::Accounts(_) => None,
-    }
-}
-
-fn escalation_row(row: Option<Record>) -> Option<core::EscalationDecisionRecord> {
-    match row? {
-        Record::Core(CoreRecord::EscalationDecision(row)) => Some(row),
-        Record::Core(
-            CoreRecord::Settings(_)
-            | CoreRecord::Deployment(_)
-            | CoreRecord::Projection(_)
-            | CoreRecord::RunProof(_)
-            | CoreRecord::Part(_)
-            | CoreRecord::Call(_)
-            | CoreRecord::Turn(_)
-            | CoreRecord::Terminal(_)
-            | CoreRecord::ProposalDecision(_),
-        )
-        | Record::Tasks(_)
-        | Record::People(_)
-        | Record::Notes(_)
-        | Record::Accounts(_) => None,
-    }
-}
-
-/// Follow a task owner's retained proposal position before answering the call.
-#[must_use]
-pub fn next(now: &Now, row: &Option<Record>) -> Option<Key> {
-    if let Now::DecidedProposal { key, proposal, .. } = now
-        && let Some(Record::Tasks(tasks::Stored::Live(owner))) = row
-        && owner.number == key.task
-    {
-        return crate::reads::proposal_key(owner, *proposal);
-    }
-    None
-}
-
-fn task_proposal(row: Option<Record>) -> Option<tasks::Proposal> {
-    let Some(Record::Tasks(tasks::Stored::History(row))) = row else { return None };
-    Some(*row.proposal?)
+fn get(owner: Token, key: Key) -> Request {
+    Request::Get { owner, key: Get::Jig(key) }
 }

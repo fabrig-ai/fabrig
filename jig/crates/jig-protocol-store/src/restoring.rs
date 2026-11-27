@@ -569,6 +569,7 @@ pub(crate) fn events(
             | Event::Read { .. }
             | Event::Got { .. }
             | Event::Turns { .. }
+            | Event::WindowFailed { .. }
             | Event::Unread { .. }
             | Event::SecretsNotReady { .. }
             | Event::Kept { .. }

@@ -25,7 +25,7 @@ pub fn send_write(d: &mut Domain, number: u64) {
         wall: clock.wall,
         expires: Wall::from_nanos(clock.wall.as_nanos().saturating_add(clock.limits.client.poll.as_nanos())),
     });
-    domain::keep_entry(d, entry, None, &mut Queue::uncapped());
+    domain::save_entry_progress(d, entry, None, &mut Queue::uncapped());
 }
 
 /// Change reads start after routing has reported access.
@@ -467,10 +467,32 @@ pub fn missing_pull_reads(d: &mut Domain) {
 }
 
 pub fn finish_missing(d: &mut Domain) -> Box<[Request]> {
-    let green = checks(skein_forge::api::Check::Passed);
-    answer_next(d, Ok(green.clone()));
-    answer_next(d, Ok(green));
-    answer_next(d, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }))
+    let [head, base, ancestry] = missing_tail();
+    answer_next(d, head);
+    answer_next(d, base);
+    answer_next(d, ancestry)
+}
+
+pub fn finish_missing_at(d: &mut Domain, clock: &Env<Limits>) -> Box<[Request]> {
+    let [head, base, ancestry] = missing_tail();
+    answer_next_at(d, clock, head);
+    answer_next_at(d, clock, base);
+    answer_next_at(d, clock, ancestry)
+}
+
+pub fn answer_next_at(
+    d: &mut Domain,
+    clock: &Env<Limits>,
+    result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
+) -> Box<[Request]> {
+    let (call, _) = next_at(d, clock);
+    collected(answer_at(d, clock, call, result))
+}
+
+fn missing_tail() -> [Result<skein_forge::api::Answer, skein_forge::api::Error>; 3] {
+    use skein_forge::api::{Answer, Check};
+    let green = checks(Check::Passed);
+    [Ok(green.clone()), Ok(green), Ok(Answer::Commits { commits: Box::new([]), more: false })]
 }
 
 /// `OpenPull` succeeds after the current chain has already read Missing.

@@ -3,8 +3,8 @@ const CHILD: u64 = 2;
 const SUBSCRIPTION: u64 = 10;
 const REPLY: u64 = 500;
 use jig_domain_tasks::{
-    Class, End, Event, Funder, Hold, HoldKind, Holding, Kind, MessageKind, Name, New, NoticeState, Party, Phase,
-    Refusal, Stored, Subscription, SubscriptionKind, Taken, Writer,
+    Class, End, Event, Funder, Hold, HoldKind, Holding, MessageKind, Name, New, NoticeState, Party, Phase, Refusal,
+    ResourceKind, Stored, Subscription, SubscriptionKind, Taken, Writer, WriterSlot,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{Duration, ReplyTo, Token};
@@ -19,7 +19,7 @@ fn pool(value: u8) -> Holding {
 
 fn configured_pool(seed: u64) -> World {
     let mut world = World::new(seed, LIMITS);
-    world.configure_holds(1, vec![Kind { connector: 1, kind: 2, hold: HoldKind::Pooled { taken: Taken::Waits } }]);
+    world.configure_holds(1, vec![ResourceKind { kind: 2, hold: HoldKind::Pooled { taken: Taken::Waits } }]);
     world
 }
 
@@ -81,7 +81,7 @@ fn a_lost_pool_allocation_holds_its_task_without_releasing_its_slot() {
 
 fn configured(seed: u64) -> World {
     let mut world = World::new(seed, LIMITS);
-    world.configure_holds(1, vec![Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
+    world.configure_holds(1, vec![ResourceKind { kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
     world
 }
 
@@ -138,7 +138,7 @@ fn a_task_waiting_past_its_bound_for_a_hold_is_held_and_its_requester_told() {
 #[test]
 fn a_refusing_kind_rejects_the_whole_batch_and_names_the_holder() {
     let mut world = World::new(303, LIMITS);
-    world.configure_holds(1, vec![Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Refuses } }]);
+    world.configure_holds(1, vec![ResourceKind { kind: 1, hold: HoldKind::Exclusive { taken: Taken::Refuses } }]);
     let mut first = task(1, &[]);
     first.holdings = Box::new([resource(1)]);
     assert_eq!(world.make(Party::Person(1), vec![first]), Reply::Made(vec![1]));
@@ -202,6 +202,13 @@ fn a_delegate_waits_at_its_goals_priority() {
     assert!(!world.record(FIRST_WAITER).holds_taken);
 }
 
+fn saved_writer<'a>(world: &'a World, resource: &Name) -> Option<&'a WriterSlot> {
+    world.records.values().find_map(|row| match row {
+        Stored::Writer(slot) if &slot.resource == resource => Some(slot),
+        _ => None,
+    })
+}
+
 #[test]
 fn a_run_hands_a_held_resource_to_a_procedure_while_it_still_holds_the_writer_slot() {
     let mut world = configured(305);
@@ -221,15 +228,15 @@ fn a_run_hands_a_held_resource_to_a_procedure_while_it_still_holds_the_writer_sl
     assert_eq!(world.make(Party::Task(1), vec![procedure]), Reply::Made(vec![2]));
     assert!(world.record(1).holdings.is_empty());
     assert!(world.record(2).holds_taken);
-    assert!(world.records.values().any(|row| matches!(row, Stored::Writer(slot)
-        if slot.resource == name && slot.writer == Writer::Run { task: 1, attempt: 1 })));
+    assert_eq!(saved_writer(&world, &name).map(|slot| slot.writer), Some(Writer::Run { task: 1, attempt: 1 }));
     assert_eq!(world.claim_budget_writing(2, 2, 50, Box::new([name.clone()])), Reply::WriterWaiting(name.clone()));
 
     world.send(Event::PreparationPaused { task: 2, reason: b"brief: no brief slot is free".as_slice().into() });
     assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(jig_domain_tasks::Accepted::New));
-    assert!(!world.records.values().any(|row| matches!(row, Stored::Writer(slot) if slot.resource == name)));
+    assert_eq!(saved_writer(&world, &name), None);
     world.elapse(Duration::from_secs(2));
     assert_eq!(world.claim_budget_writing(2, 3, 50, Box::new([name.clone()])), Reply::Done);
+    assert_eq!(saved_writer(&world, &name).map(|slot| slot.writer), Some(Writer::Run { task: 2, attempt: 3 }));
 }
 
 #[test]
@@ -242,16 +249,22 @@ fn a_lost_writer_keeps_its_slot_across_restart_until_its_connector_reads_afresh(
     task.holdings = Box::new([held]);
     assert_eq!(world.make(Party::Person(1), vec![task]), Reply::Made(vec![1]));
     assert_eq!(world.claim_budget_writing(1, 1, 50, Box::new([name.clone()])), Reply::Done);
+    let slot = saved_writer(&world, &name).expect("claimed writer").clone();
+    world.send(Event::ReadAfresh { resource: name.clone() });
+    assert_eq!(saved_writer(&world, &name), Some(&slot), "a fresh read does not free a live attempt");
     assert_eq!(world.terminal(1, End::Failed(Class::Lost)), Reply::Acknowledged(jig_domain_tasks::Accepted::New));
     world.restart();
-    assert!(world.records.values().any(|row| matches!(row, Stored::Writer(slot)
-        if slot.resource == name && slot.lost)));
+    assert_eq!(saved_writer(&world, &name), Some(&WriterSlot { lost: true, ..slot }));
     world.send(Event::ReadAfresh { resource: name.clone() });
-    assert!(!world.records.values().any(|row| matches!(row, Stored::Writer(slot) if slot.resource == name)));
+    assert_eq!(saved_writer(&world, &name), None);
+    world.send(Event::ReadAfresh { resource: name.clone() });
+    assert_eq!(saved_writer(&world, &name), None);
 }
 
 #[test]
 fn a_connector_effect_waits_for_a_run_and_owns_the_writer_until_it_settles() {
+    const ENTRY: u64 = 99;
+    const OTHER_ENTRY: u64 = 100;
     let mut world = configured(307);
     let held = resource(6);
     let Holding::Write { resource: name, .. } = &held else { unreachable!() };
@@ -261,17 +274,27 @@ fn a_connector_effect_waits_for_a_run_and_owns_the_writer_until_it_settles() {
     assert_eq!(world.make(Party::Person(1), vec![task]), Reply::Made(vec![1]));
     assert_eq!(world.claim_budget_writing(1, 1, 50, Box::new([name.clone()])), Reply::Done);
     let reply_to = world.to();
-    world.send(Event::EffectInFlight { reply_to, task: 1, resource: name.clone(), entry: 99 });
+    world.send(Event::EffectInFlight { reply_to, task: 1, resource: name.clone(), entry: ENTRY });
     assert_eq!(world.replies.last_key_value().expect("effect reply").1, &Reply::WriterWaiting(name.clone()));
+    world.send(Event::EffectSettled { resource: name.clone(), entry: ENTRY });
+    assert_eq!(saved_writer(&world, &name).map(|slot| slot.writer), Some(Writer::Run { task: 1, attempt: 1 }));
     assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(jig_domain_tasks::Accepted::New));
+
     let reply_to = world.to();
-    world.send(Event::EffectInFlight { reply_to, task: 1, resource: name.clone(), entry: 99 });
+    world.send(Event::EffectInFlight { reply_to, task: 1, resource: name.clone(), entry: ENTRY });
     assert_eq!(world.replies.last_key_value().expect("effect reply").1, &Reply::Done);
     world.restart();
-    assert!(world.records.values().any(|row| matches!(row, Stored::Writer(slot)
-        if slot.resource == name && slot.writer == Writer::Effect { entry: 99 })));
-    world.send(Event::EffectSettled { resource: name.clone(), entry: 99 });
-    assert!(!world.records.values().any(|row| matches!(row, Stored::Writer(slot) if slot.resource == name)));
+    let slot = saved_writer(&world, &name).expect("restored effect writer").clone();
+    assert_eq!(slot.writer, Writer::Effect { entry: ENTRY });
+    let reply_to = world.to();
+    world.send(Event::EffectInFlight { reply_to, task: 1, resource: name.clone(), entry: ENTRY });
+    assert_eq!(world.replies.last_key_value().expect("effect reply").1, &Reply::Done);
+    world.send(Event::EffectSettled { resource: name.clone(), entry: OTHER_ENTRY });
+    assert_eq!(saved_writer(&world, &name), Some(&slot));
+    world.send(Event::EffectSettled { resource: name.clone(), entry: ENTRY });
+    assert_eq!(saved_writer(&world, &name), None);
+    world.send(Event::EffectSettled { resource: name.clone(), entry: ENTRY });
+    assert_eq!(saved_writer(&world, &name), None);
 }
 
 #[test]
@@ -343,6 +366,8 @@ fn a_run_claimed_reading_only_takes_no_writer_slot() {
     assert_eq!(world.replies.last_key_value().expect("effect reply").1, &Reply::Done);
     assert!(world.records.values().any(|row| matches!(row, Stored::Writer(slot)
         if slot.resource == name && slot.writer == Writer::Effect { entry: 72 })));
+    assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(jig_domain_tasks::Accepted::New));
+    assert_eq!(saved_writer(&world, &name).map(|slot| slot.writer), Some(Writer::Effect { entry: 72 }));
 }
 
 #[test]
@@ -390,7 +415,7 @@ fn a_tree_root_can_retain_more_than_one_childs_per_task_hold_limit() {
     let mut limits = LIMITS;
     limits.holdings = 1;
     let mut world = World::new(312, limits);
-    world.configure_holds(1, vec![Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
+    world.configure_holds(1, vec![ResourceKind { kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
     assert_eq!(world.make(Party::Person(1), vec![task(1, &[])]), Reply::Made(vec![1]));
     for (task_number, held) in [(2, resource(8)), (3, resource(9))] {
         let mut child = task(task_number, &[]);

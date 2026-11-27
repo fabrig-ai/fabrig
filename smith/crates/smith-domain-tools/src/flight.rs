@@ -122,7 +122,7 @@ enum State {
         place: Place,
         timeout: crate::TimeoutClamp,
         output: crate::BytesClamp,
-        after: crate::TimeoutClamp,
+        after: Option<crate::TimeoutClamp>,
     },
     /// Original IO owner of a command answered running, outside the batch.
     Held { job: crate::JobNumber },
@@ -194,13 +194,8 @@ pub(crate) enum Work {
     },
 }
 
-/// Starts a flight for `work` in the kit `kit`, which has room for one, asking
-/// io for its operation by `deadline`, or sooner if the tools' own limit on
-/// file operations, or on commands, falls first.
-#[expect(
-    clippy::too_many_arguments,
-    reason = "the call boundary carries its affine right and observation context beside its work"
-)]
+/// Starts a flight and returns its IO request for the kit to emit after recording
+/// the flight's places. The request keeps the earlier of the call and tool deadlines.
 pub(crate) fn start(
     flights: &mut Slab<Flight>,
     kit: Id<Kit>,
@@ -209,8 +204,7 @@ pub(crate) fn start(
     work: Work,
     deadline: Time,
     env: &Env<Limits>,
-    out: &mut Queue<Request>,
-) -> Id<Flight> {
+) -> (Id<Flight>, Request) {
     let limits = &env.limits;
     let call_deadline = deadline;
     // A command and a search have limits of their own; any other call is a
@@ -258,7 +252,8 @@ pub(crate) fn start(
         Work::Shell { cwd, command, timed, kept, yielded } => {
             let place = cwd.clone();
             let op = Op::Spawn { cwd, command, head: kept.head, tail: kept.tail, after: yielded.0 };
-            (State::Running { reply_to, place, timeout: timed.clamp, output: kept.clamp, after: yielded.1 }, op)
+            let after = yielded.0.and(Some(yielded.1));
+            (State::Running { reply_to, place, timeout: timed.clamp, output: kept.clamp, after }, op)
         }
         Work::Search { place, pattern, glob } => {
             let op =
@@ -266,14 +261,11 @@ pub(crate) fn start(
             (State::Searching { reply_to, place }, op)
         }
     };
-    // Room: a kit has at most `calls` flights, and the slab twice that many slots
-    // per kit, for the flights retired in this iteration, which are at most those
-    // running when it began.
+    // The slab counts calls and held jobs, with room for retired owners until reclaim.
     let id = flights
         .insert(Flight { kit, tool, observation, started: env.now, interrupted: None, state })
         .expect("the flight slab has room for every kit's flights");
-    out.push(Request::Io { owner: id.token(), op, deadline });
-    id
+    (id, Request::Io { owner: id.token(), op, deadline })
 }
 
 /// Cancels the flight `id`'s operation, for its kit is closing. The flight answers
@@ -322,6 +314,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
         }
         State::Running { reply_to, place, timeout, output, after } => match done {
             Done::Held { head, tail, dropped } => {
+                let after = after.expect("only a yielding command reports running");
                 let job = kit.jobs.hold(id, flight.observation, flight.started);
                 assert!(kit.flights.remove(&id), "a yielding command leaves its batch");
                 if kit::closing(kit) {
@@ -351,7 +344,12 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
             | Done::Escapes
             | Done::Failed { .. }
             | Done::TimedOut
-            | Done::Cancelled) => exited(&kit.working, reply_to, place, timeout, output, flight.interrupted, done),
+            | Done::Cancelled) => {
+                if after.is_some() {
+                    kit.jobs.release_reservation(id);
+                }
+                exited(&kit.working, reply_to, place, timeout, output, flight.interrupted, done)
+            }
         },
         State::Held { .. } => unreachable!("held terminals use the job table"),
         State::Done => unreachable!("a flight that has answered has nothing in flight"),
@@ -365,7 +363,11 @@ fn state_clamped(state: &State) -> bool {
     match state {
         State::Reading { span, .. } => facts::bytes_clamped(span.window.clamp),
         State::Running { timeout, output, after, .. } => {
-            facts::timeout_clamped(*timeout) || facts::bytes_clamped(*output) || facts::timeout_clamped(*after)
+            let yield_clamped = match after {
+                Some(clamp) => facts::timeout_clamped(*clamp),
+                None => false,
+            };
+            facts::timeout_clamped(*timeout) || facts::bytes_clamped(*output) || yield_clamped
         }
         State::Listing { .. }
         | State::Searching { .. }

@@ -25,7 +25,7 @@ fn a_stuck_landing_names_the_member_train_or_missing_wake() {
     let mut d = domain();
     let row = merge_landing_row(true);
     let task = row.landing.task;
-    outputs(&mut d, Event::Restore { record: Stored::Landing(row) });
+    restore_landing(&mut d, row);
     let cases: &[(policy::Stuck, &[u8])] = &[
         (policy::Stuck::Train { landing: 41 }, b"cannot move: landing 41 holds its train"),
         (policy::Stuck::Member { change: 7, held: true }, b"cannot move: member change 7 is held"),
@@ -336,6 +336,18 @@ pub(crate) fn erase_landing(d: &mut Domain, task: u64) -> LandingRow {
     row
 }
 
+/// Install a store snapshot before testing a live row with a different sealed membership.
+pub(super) fn restore_landing(d: &mut Domain, row: LandingRow) {
+    d.landing.restore_row(row);
+    d.landing.restore_memberships().expect("fixture landing memberships fit");
+}
+
+fn set_landing_phase(d: &mut Domain, task: u64, phase: policy::Phase) {
+    let mut row = d.landing(task).expect("fixture landing").clone();
+    row.landing.phase = phase;
+    assert!(d.landing.remember(row).is_some());
+}
+
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
         read_hold: None,
@@ -375,10 +387,10 @@ fn landing_preflight_checks_rules_and_live_room() {
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE; 2]), Err(LandingRefusal::Members));
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Ok(()));
     for task in 100..108 {
-        d.landing.rows.insert(task, landing_row(task, policy::Phase::Preparing)).expect("room");
+        assert!(d.landing.remember(landing_row(task, policy::Phase::Preparing)).is_none());
     }
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Err(LandingRefusal::Landings));
-    d.landing.rows.get_mut(&100).expect("landing").landing.phase = policy::Phase::Landed;
+    set_landing_phase(&mut d, 100, policy::Phase::Landed);
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Ok(()));
     let mut entry = refusals::entry(1);
     entry.task = 100;
@@ -529,7 +541,7 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
     let repo = change.repository;
     d.changes.insert(52, change).expect("second member");
     // A stack's gather can name one repository more than once (domain/landing-prepare.md, 1.3).
-    let row = d.landing.rows.get_mut(&61).expect("landing");
+    let mut row = d.landing(61).expect("landing").clone();
     let first = row.landing.members.first().expect("first member").clone();
     let mut second = first.clone();
     second.change = 52;
@@ -538,6 +550,7 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
         second.pull = 2;
     }
     row.landing.members = Box::new([first, second]);
+    restore_landing(&mut d, row);
 
     outputs(
         &mut d,
@@ -1157,6 +1170,7 @@ fn a_restored_turn_waits_for_its_existing_merge_entry() {
             },
         },
     );
+    d.landing.restore_memberships().unwrap();
     let requests = turn_reviews(&mut d);
     let mut waiting = false;
     for request in &requests {
@@ -1604,7 +1618,7 @@ fn a_ready_change_without_landing_room_has_no_deadline() {
     const FIRST_OTHER_LANDING: u64 = 70;
     let mut d = active_train();
     for task in FIRST_OTHER_LANDING..FIRST_OTHER_LANDING.saturating_add(u64::from(LIMITS.landings)) {
-        d.landing.rows.insert(task, landing_row(task, policy::Phase::Preparing)).expect("one live landing per place");
+        assert!(d.landing.remember(landing_row(task, policy::Phase::Preparing)).is_none());
     }
     ready_train_waiter(&mut d);
     let report = refuse_train_of_waiter(&mut d, FormingRefusal::Landings);
@@ -1997,7 +2011,8 @@ fn every_leave_drops_the_link_and_the_change_takes_its_next_step() {
             landing.landing.members[0].unit = 1;
             landing.landing.members = Box::new([green, landing.landing.members[0].clone()]);
 
-            d.landing.remember(landing).unwrap();
+            // The fixture starts with a retained prefix; a formed row cannot add it.
+            restore_landing(&mut d, landing);
             member = 1;
         }
         let mut landing = d.landing(61).unwrap().clone();
@@ -2006,7 +2021,7 @@ fn every_leave_drops_the_link_and_the_change_takes_its_next_step() {
         if let policy::Leave::Blamed { .. } = why {
             landing.landing.round.search = Some(policy::Search { green: 1, red: 2, tests: policy::SearchTests::Whole });
         }
-        d.landing.remember(landing).unwrap();
+        assert!(d.landing.remember(landing).is_some());
         assert_eq!(step_regate(&mut d, 61, 91, &run), policy::Decision::Leave { member, why });
         let row = d.change(fixtures::CHANGE).unwrap();
         assert_eq!(d.landing_of(row.task), None, "{why:?}");
@@ -2054,7 +2069,7 @@ fn ending_a_landing_frees_members_and_keeps_their_queued_results() {
             other.change.task = task;
             outputs(&mut d, Event::Change { row: other });
         }
-        let row = d.landing.rows.get_mut(&61).unwrap();
+        let mut row = d.landing(61).unwrap().clone();
         let mut left = row.landing.members[0].clone();
         left.change = OTHER_CHANGE;
         left.unit = 1;
@@ -2064,6 +2079,7 @@ fn ending_a_landing_frees_members_and_keeps_their_queued_results() {
         row.landing.members = Box::new([row.landing.members[0].clone(), left]);
         let task = row.landing.task;
         let round = row.landing.preparation;
+        restore_landing(&mut d, row);
         let mut departed = d.change(OTHER_CHANGE).unwrap().clone();
         departed.handed = 1;
         departed.asks =
@@ -2583,7 +2599,7 @@ fn a_train_is_held_from_forming_through_a_hold_until_its_landing_ends() {
         (policy::Phase::Landed, true),
         (policy::Phase::Cancelled, true),
     ] {
-        d.landing.rows.get_mut(&61).expect("landing").landing.phase = phase;
+        set_landing_phase(&mut d, 61, phase);
         assert_eq!(d.train_free(REPO, b"main"), free);
         assert!(d.train_free(REPO, b"temper/g1"));
         assert!(d.train_free(OTHER_REPOSITORY, b"main"));
@@ -3132,7 +3148,7 @@ fn a_prepare_asked_twice_before_a_restart_holds_at_its_next_absence() {
         asks: 2,
         again: None,
     });
-    outputs(&mut d, Event::Restore { record: Stored::Landing(row) });
+    assert!(d.landing.remember(row).is_some());
     let heard = preparing_heard(Some(policy::Preparation::Absent));
     outputs(&mut d, Event::StepLanding { task: 61, entry: 91, heard });
     read_preparing_member(&mut d);
@@ -3186,7 +3202,7 @@ fn a_hearing_without_preparation_reaches_policy_as_running() {
 fn a_start_read_of_a_cancelled_landing_wakes_instead_of_taking_its_step() {
     let mut d = preparing_landing();
     let mut out = Queue::uncapped();
-    d.landing.rows.get_mut(&61).expect("round").landing.phase = policy::Phase::Cancelled;
+    set_landing_phase(&mut d, 61, policy::Phase::Cancelled);
     landing::step(&mut d, &env(), 61, 0, preparing_heard(None), &mut out);
     assert_eq!(out.pop(), Some(Request::WakeProcedure { task: 61 }));
     assert!(out.is_empty());
@@ -3266,8 +3282,8 @@ fn a_waiting_landing_reads_and_takes_a_departed_landings_run() {
     }]);
     let mut successor = d.landing.rows.get(&61).expect("dispatcher").clone();
     successor.landing.task = 62;
-    d.landing.rows.insert(62, successor).expect("successor row");
-    d.landing.rows.get_mut(&61).expect("dispatcher").landing.phase = policy::Phase::Landed;
+    set_landing_phase(&mut d, 61, policy::Phase::Landed);
+    assert!(d.landing.remember(successor).is_none());
     d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
         temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
     let key = ReceiptKey { project: 5, repository: REPO, check: Check::Gate(b"gate".as_slice().into()), key: KEY };
@@ -4013,7 +4029,7 @@ fn a_landing_without_a_regate_waits_for_the_keys_superseding_run_then_reads_its_
 #[test]
 fn the_tops_held_wait_names_its_release() {
     let mut d = landing_fixture();
-    outputs(&mut d, Event::Restore { record: Stored::Landing(landing_row(61, policy::Phase::Waiting)) });
+    assert!(d.landing.remember(landing_row(61, policy::Phase::Waiting)).is_none());
     d.landing.held = true;
     let out = outputs(&mut d, Event::StepLanding { task: 61, entry: 91, heard: preparing_heard(None) });
     let mut decision = None;

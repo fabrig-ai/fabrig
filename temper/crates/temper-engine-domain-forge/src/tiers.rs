@@ -1768,7 +1768,7 @@ pub(crate) fn veto(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Reques
         return;
     }
     if post::settled(d, entry, out) {
-        d.entries.remove(&entry);
+        crate::domain::take_entry(d, entry, task);
         out.push(Request::Erase { key: crate::Key::Entry(entry) });
         return;
     }
@@ -1807,7 +1807,7 @@ pub(crate) fn veto(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Reques
     }
     save(row, out);
     d.tier_ops.follows.remove(&key);
-    d.entries.remove(&entry);
+    crate::domain::take_entry(d, entry, task);
     out.push(Request::Erase { key: crate::Key::Entry(entry) });
 }
 pub(crate) fn released(d: &mut Domain, name: &Name, out: &mut Queue<Request>) {

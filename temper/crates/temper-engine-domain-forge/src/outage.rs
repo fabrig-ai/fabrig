@@ -2,7 +2,7 @@
 //! (temper/docs/design/domain/forge/keeping-up.md, 5). All waits and reachability
 //! marks are volatile; a restart asks afresh (section 16).
 use super::read_line::{self, Waiter};
-use super::{Domain, Env, Handoff, Limits, Request, Topic, erase_flight, keep_entry};
+use super::{Domain, Env, Handoff, Limits, Request, Topic, erase_flight, save_entry_progress};
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Error, Op, Read, Repository};
 use skein_forge_client::{Event, Outcome};
@@ -377,7 +377,7 @@ pub(super) fn outcome(
     }
     active.writes.get_mut(&number).expect("retained write wait").again(env, true);
     erase_flight(d, entry.task, number, out);
-    keep_entry(d, entry, None, out);
+    save_entry_progress(d, entry, None, out);
     true
 }
 
@@ -426,7 +426,7 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
             row.handoff = Handoff::Uncommitted;
             let entry = row.entry.clone();
             // Ordinary durable fence: only Committed may hand it to Remake.
-            keep_entry(d, entry, Some(number), out);
+            save_entry_progress(d, entry, Some(number), out);
         } else {
             active.writes.remove(&number);
         }

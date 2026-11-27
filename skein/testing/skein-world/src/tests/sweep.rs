@@ -5,6 +5,7 @@ use skein_lib::Time;
 
 use crate::faults::{FaultLedger, Kind, Struck};
 use crate::sweep::{Exclusion, Sweep};
+use crate::test_env::Mode;
 
 const CANCEL_LANDING: Kind = Kind { family: "landing", name: "cancel" };
 const OTHER: Kind = Kind { family: "forge", name: "busy" };
@@ -58,6 +59,27 @@ fn configured_faults_can_fall_in_different_seeds() {
         sweep.ran(&ledger);
     }
     assert_eq!(sweep.check_fell(), Ok(()));
+}
+
+#[test]
+fn reach_counts_cases_per_configured_kind_in_kind_order() {
+    let mut sweep = configured();
+    sweep.configure(OTHER);
+    for n in [3_u64, 1] {
+        let mut ledger = FaultLedger::new();
+        for _ in 0..n {
+            ledger.inject(OTHER, AT, Struck::default());
+        }
+        ledger.inject(Kind { family: "extra", name: "unconfigured" }, AT, Struck::default());
+        sweep.ran(&ledger);
+    }
+    sweep.ran(&FaultLedger::new());
+    for mode in [Mode::Campaign(0), Mode::Replay(0)] {
+        let mut lines = Vec::new();
+        let result = sweep.check_fell_in(mode, |line| lines.push(line.to_string()));
+        assert_eq!(result, Ok(()));
+        assert_eq!(lines, ["fuzzy reach: landing forge/busy 2", "fuzzy reach: landing landing/cancel 0"]);
+    }
 }
 
 #[test]

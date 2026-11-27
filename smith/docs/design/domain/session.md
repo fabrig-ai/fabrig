@@ -348,8 +348,21 @@ child domain `smith-domain-session`, whose own child is the tools domain
   at the tools' entrance holds it until that answer; a delegated call
   its opener withholds gives it back as it is withheld (section 3). So
   no room goes back twice and no result takes room that was not
-  reserved for it; the session checks this at every result, and a
-  breach is a fault that stops the agent.
+  reserved for it. The session checks this at each use, by the batch's
+  own record (below), and a breach is a fault that stops the agent
+  (skein/docs/foundation/programming-model.md, 10.4).
+  - **A batch holds its room by its calls.** The room a batch reserves
+    is the sum of the shares of the calls it starts, and the batch keeps
+    which of its calls still hold their share. A call's result, whether
+    at the tools' entrance or later, and a delegated call's withholding
+    first assert that the call is one the current batch started and that
+    its share is still held, then give that share back. When the batch
+    ends, once each of its calls has answered or been withheld, and
+    before the next batch reserves or the session's close settles, it
+    asserts that every share went back once, so that it holds no room.
+    A result for a call with no share in the current batch fails there,
+    naming its call and its batch, never later as a subtraction from the
+    session's total.
   - **A batch's calls are fixed when it starts.** It starts only the
     calls it reserved room for, in call order. An answer at the tools'
     entrance that fails a write answers the writes after it as not run
@@ -361,6 +374,29 @@ child domain `smith-domain-session`, whose own child is the tools domain
   - **Why fixed, not widened:** the share each call's result gets is
     the batch's room over its calls, known only once the batch is, so
     a call joining it later would take room the others were given.
+- **The session's reserved room has named holders,** and each use of
+  one checks that holder's own record, as a batch's does. The session's
+  reserved total is at every step the sum of what they hold:
+  - **the provider attempt's receiving credit,** the room its completion
+    may take (`session-context.md`, section 1.1). An attempt is admitted
+    only where the history has that room, else the history is compacted
+    or the session ends at its limit, as a value; an admitted attempt
+    reserves the credit only when no attempt holds one. It holds it until
+    its completion arrives, which takes no more than it, or until the
+    attempt ends without one: unsent, failed, cancelled, refused, or
+    replaced by a compaction. Each of these asserts that the attempt
+    still holds its credit before it gives it back;
+  - **the current batch's shares** still held (above);
+  - **a program's owed results** (tools.md, section 10), each reserved
+    as its call is prepared and given back once, by its result or as it
+    is forgotten.
+
+  The transcript's places are checked the same way. A message is
+  appended only into a place an admission counted: a completion's
+  message and its results' by its attempt's admission, a note, an offer
+  or the final turn's note by its own check of the transcript's room,
+  which holds the note back or ends the session where there is none.
+  Each append asserts the place it relies on, naming that admission.
 - **Jobs run beside the turns.** A `shell` call stays a write until it
   answers, `running` or ended. A job that is running holds no place in
   any later batch: the session's later reads, writes and commands run by
@@ -589,10 +625,67 @@ budgets.
   `TOKEN_BYTES`, so that the appended count's error reaches its bounds
   both ways. It applies the guard as the protocol layer does, from that
   rendered size (`session-context.md`, 1.1).
+- **Its drawn calls name every tool the session offers.** The world's
+  translator offers `job` beside `shell`, under the shell grant, and
+  decodes a `job` call and a `shell` call's `yield_seconds` as
+  `smith-protocol-llm` does: the same call, or the same problem, for
+  every body of the menu (`smith/docs/design/testing.md`, 4) and each
+  cut prefix of one, which `smith-protocol-llm-world`'s
+  `the_session_fake_decodes_like_the_protocol` compares.
+- **A yielding command outlasts its yield on the world's clock.** A
+  command's end is drawn from `Settings::tool`, as every operation's is,
+  and nothing really sleeps. One whose end comes after its yield is held
+  as a job once its yield passes: io answers it `Held`, with nothing
+  written yet, and runs it on to its drawn end, when it writes its
+  output whole, or to its deadline, when it has written nothing. One
+  that ends within its yield is answered as a command without one. io
+  answers each act on a held job as the tools ask (`tools.md`, 5): a
+  read once the job ends or its wait passes, whichever is first, with
+  the output not yet read; a hastened read at once; a stop `stopped`, or
+  with its end if it had ended; a cancel `cancelled`, or with its end if
+  that won the race. A held job takes no place in any batch and keeps no
+  session from yielding. A session's close ends it.
+- **Its jobs are held in the session's cells** (the tools' `jobs` in
+  the world's limits): four in the calm settings and the stories, and
+  from one to four in the noisy settings, drawn for each seed after
+  every other draw. The noisy settings also give their sessions room to
+  hold jobs side by side: tool rounds, a turn budget and yielded
+  commands' run times long enough that some session holds more jobs
+  than its seed's cells. So the tools refuse at their entrance a
+  yielding command while every cell is held, and a `job` call naming a
+  number its session doesn't hold (section 5).
+  - **Why a drawn bound:** at the gate's 1000 seeds no noisy session
+    holds more than two jobs at once, since its sessions are short and
+    a drawn call is a yielding command at most one time in seven. So
+    four cells never fill there. A drawn bound reaches the same refusal
+    through the same code, with no seed added. It is a tiny limit for a
+    count, as the worlds keep (`smith/docs/design/testing.md`, 6).
+    The bound alone still left no cell full at those seeds, since the
+    few sessions that held two jobs drew bounds above one; so the noisy
+    sessions are given room to hold more. Turned down: more seeds,
+    which are a budget; a scripted world inside the sweep, which would
+    repeat the stories' check of four held jobs and a fifth, not draw
+    it; a bound weighted toward one cell, which still rests on those
+    few sessions; and full cells checked by the stories alone, which
+    drops what the sweep was asked to reach.
+- **Its referee takes a running job's answers.** A yielding command's
+  `running` answer is what comes of it, naming its session's next job
+  number, and a `job` call's answer names the job the call asked for.
 - **The fuzzy suite** draws usage, appended sizes, rendered sizes and
   those ratios, and checks that no request's bound or reported size
   exceeds its window, that none sent passes the line, and that no
   session ends for its history's length.
+  - **It counts three shapes over its seeds.** First, a completion in
+    which the tools refuse a call at their entrance, before a write,
+    with a read after it. Its outcome is counted with it: the write
+    answered not run, naming the refused call, and the read answered by
+    what came of it, having started in the next batch, which reserved
+    its own room (section 5). The session's check at the read's result
+    stops the world where it started without. Second, the `job` calls
+    answered as naming an unknown job. Third, the yielding commands
+    refused because every cell was held.
+  - **Its reach check asks for all three** at the gate's seeds, beside
+    the ends, stops, failures and races it already asks for.
 
 ## 11. Open questions
 

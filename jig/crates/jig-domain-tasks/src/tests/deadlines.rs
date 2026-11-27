@@ -9,9 +9,9 @@
 )]
 use super::revisions::{Harness, LIMITS, task};
 use crate::{
-    Active, Domain, Escalation, EscalationHolder, Event, Grace, Hold, HoldKind, Holding, Key, Kind, MessageKind, Name,
-    Party, Phase, Proposal, ProposalAction, ProposalHolder, ProposalState, Request, RetryNotice, Stored, Subscription,
-    SubscriptionKind, Taken, WakeRule, Was, Word,
+    Active, Domain, Escalation, EscalationHolder, Event, Grace, Hold, HoldKind, Holding, Key, MessageKind, Name, Party,
+    Phase, Proposal, ProposalAction, ProposalHolder, ProposalState, Request, ResourceKind, RetryNotice, Stored,
+    Subscription, SubscriptionKind, Taken, WakeRule, Was, Word,
 };
 use skein_lib::{Duration, Time, Wall};
 
@@ -141,7 +141,7 @@ fn restore(mut h: Harness) -> Harness {
     h.domain = Domain::new(&LIMITS, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0]));
     h.send(Event::Kinds {
         connector: 7,
-        kinds: Box::new([Kind { connector: 7, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]),
+        kinds: Box::new([ResourceKind { kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]),
     });
     for row in rows {
         assert!(!h.send(Event::Restore { record: row }).iter().any(|r| match r {

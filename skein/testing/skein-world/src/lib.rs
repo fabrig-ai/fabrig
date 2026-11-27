@@ -35,8 +35,9 @@
 //! from one seed, with a separate sequence for each named part.
 //!
 //! [`faults`] records each run's injected faults, intervals, identities and counters.
-//! [`sweep`] checks configured faults across seeds and excludes named combinations
-//! before injection, never findings.
+//! [`sweep`] supplies gate, campaign and replay cases, checks configured faults
+//! across seeds, and excludes named combinations before injection, never findings.
+//! [`test_env`] declares the variables that select a sweep's mode.
 //!
 //! A scenario's processes are one type, the scenario's own (an enum of its
 //! service and its fakes, say), implementing [`Host`]; the boundary
@@ -65,6 +66,7 @@ pub mod ring;
 pub mod stream;
 pub mod streams;
 pub mod sweep;
+pub mod test_env;
 #[cfg(unix)]
 #[doc(hidden)]
 pub mod testing;

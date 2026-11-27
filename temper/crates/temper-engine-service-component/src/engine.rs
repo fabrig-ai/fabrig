@@ -1014,6 +1014,7 @@ pub(crate) fn answer(engine: &mut Engine) {
             | jig_protocol_store::Event::Read { .. }
             | jig_protocol_store::Event::Got { .. }
             | jig_protocol_store::Event::Turns { .. }
+            | jig_protocol_store::Event::WindowFailed { .. }
             | jig_protocol_store::Event::Unread { .. }
             | jig_protocol_store::Event::Corrupt { .. }) => {
                 if let jig_protocol_store::Event::Corrupt { owner } = &event

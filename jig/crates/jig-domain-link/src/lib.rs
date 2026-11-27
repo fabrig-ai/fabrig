@@ -105,11 +105,16 @@ impl Worker {
     }
 }
 
-/// A startup value exceeds the priced configured membership.
+/// Configured membership or connector declarations do not hold.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Problem {
     Workers { limit: u32 },
     WorkerName { worker: u32, limit: u32 },
+    Declared { connector: u16 },
+    ResourceKind { connector: u16, kind: u16 },
+    EffectKind { connector: u16, kind: u16 },
+    Undeclared { connector: u16 },
+    HoldKinds { limit: u32 },
 }
 
 /// A fleet member's stable identity and admission places (domain/engine/workers.md, 4).

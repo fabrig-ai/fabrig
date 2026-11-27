@@ -11,14 +11,6 @@ pub(super) fn quota(world: &mut World, slots: u32) {
     world.send(root::Event::Infrastructure(infra::Event::System(event)));
 }
 pub(super) fn fill(world: &mut World) -> Result<(), Violation> {
-    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Kinds {
-        connector: 2,
-        kinds: Box::new([
-            tasks::Kind { connector: 2, kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } },
-            tasks::Kind { connector: 2, kind: 2, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } },
-            tasks::Kind { connector: 2, kind: 3, hold: tasks::HoldKind::Pooled { taken: tasks::Taken::Waits } },
-        ]),
-    })));
     for resource in std::iter::once(infra::Resource::Pool(infra::Pool(b"staging".as_slice().into())))
         .chain((0..3).map(|index| infra::Resource::Environment(environment(index))))
     {

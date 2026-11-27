@@ -31,7 +31,11 @@ The `streams` module derives independent workload, fault, party and scheduling R
 The `faults` module keeps one run's injected faults, closed intervals, struck
 identities and six independent counters (`skein/docs/design/testing/sweeps.md`, 3).
 
-The `sweep` module checks that configured faults fell across seeds and leaves out named exclusions' combinations before injection, never findings (`skein/docs/design/testing/sweeps.md`, 4 and 5).
+The `sweep` module runs the gate's seeds, fresh campaign seeds or one replayed
+seed, and names failing cases. It checks configured faults across seeds and
+leaves out named combinations before injection, never findings
+(`skein/docs/design/testing/sweeps.md`, 4 and 5). The mode's variables are in
+[`test_env::TESTS`](../../docs/design/cli/test-env.md).
 
 The `domain` module is the shared machinery of domain worlds:
 

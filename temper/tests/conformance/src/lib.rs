@@ -15,6 +15,7 @@ mod tests;
 
 use jig_conformance::referee as r;
 use jig_conformance::{Application, Clock, Input, Output};
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_host as host;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -64,7 +65,7 @@ impl std::fmt::Debug for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Root(event) => {
-                if let engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: None }) = event {
+                if let engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next }) = event {
                     // The store retains the exact rows; traces need the page's
                     // identity and bounds rather than another formatted copy.
                     f.debug_struct("Loaded")
@@ -467,12 +468,20 @@ impl Application for Temper {
             Delivery::Resume => return Ok(vec![Input::Event(Event::Fire)]),
         };
         let request = match request {
-            engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
-                let result = store.read(range);
-                return Ok(vec![Input::Event(Event::Root(engine::Event::Store(engine::StoreInput::ReadLoaded {
-                    load,
-                    result,
-                })))]);
+            engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load { load, range })) => {
+                let loaded =
+                    |answer| Input::Event(Event::Root(engine::Event::Store(engine::StoreInput::Engine(answer))));
+                return Ok(match range {
+                    engine_store::Range::Window { task, from } => {
+                        store.window(load, task, from).into_iter().map(loaded).collect()
+                    }
+                    engine_store::Range::Read(_)
+                    | engine_store::Range::Record(_)
+                    | engine_store::Range::Proposal { .. }
+                    | engine_store::Range::Notes(_) => {
+                        vec![loaded(engine_store::In::Loaded { load, result: store.load(range) })]
+                    }
+                });
             }
             request => request,
         };
@@ -495,7 +504,7 @@ impl Application for Temper {
             }
             engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                 let (rows, next) = store.page(&range, after.as_ref(), most);
-                events.push(engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: None }));
+                events.push(engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next }));
             }
             engine::Request::Forge { call, repository, op } => {
                 events.extend(systems.call(store, clock, call, repository, op));

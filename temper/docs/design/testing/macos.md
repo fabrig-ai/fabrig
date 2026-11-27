@@ -357,9 +357,9 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   the live secret absent (section 8), a run whose status is neither a pass
   nor a test's failure (nextest's 0 and 100, one process per binary's 0
   and 100), a whole set that selects nothing, and a run that left tests
-  of its selection unobserved, its profile's `global-timeout` or a wall
-  past (`tools/tiers/design.md`, 11.7). The part then uploads no file and
-  fails.
+  of its selection unobserved, its profile's `global-timeout` (on macOS,
+  as section 7 gives it) or a wall past (`tools/tiers/design.md`, 11.7).
+  The part then uploads no file and fails.
 - **The run then has no report:** where a part that ran left no file,
   `report` makes no `junit`, names each such part in an annotation and
   fails, so that the run ends with no report, which the relay takes as a
@@ -579,10 +579,42 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   matches the test and sets a slow timeout, the profile's before
   `default`'s, else the profile's setting, else `default`'s
   (`tools/tiers/design.md`, 11.3).
-- **The global timeouts stay as they are:** they are the user's, as
-  macOS's budgets are (`../draft/macos-tiers.md`, section 8). A run they
-  cut short is a fault (5.4), its summary naming the tests it left
-  unobserved.
+- **The global timeouts stay as they are, but one:** they are the
+  user's, as macOS's budgets are (`../draft/macos-tiers.md`, section 8).
+  The one exception is `browser-temper`'s: 150 s on macOS, the user's
+  figure of 2026-11-26, where Linux keeps 120 s. Its twelve stories'
+  case times came to 116.7 to 118.8 s in four runs on GitHub's macOS
+  runners (the last GitHub run 45894003997), and one slow story took a
+  run past 120 s (GitHub run 45734540075). A run they cut short is a
+  fault (5.4), its summary naming the tests it left unobserved.
+- **The helper sets the exception:** nextest gives a global timeout per
+  profile alone, with no override by platform, flag or environment
+  variable for it, so macOS's figure is the helper's. It is written once,
+  in `tools/macos/global-timeouts.toml`, in the shape of nextest's
+  configuration: a `[profile.NAME]` table for each profile whose figure
+  on macOS differs from `.config/nextest.toml`'s, holding `global-timeout`
+  alone, in whole seconds or minutes (`"150s"`). `.config/nextest.toml`
+  keeps Linux's figure, and every other profile's on both platforms.
+- **How it reaches the run:** for a nextest pair whose profile the file
+  names, the helper writes a copy of the tested commit's
+  `.config/nextest.toml` under `RUNNER_TEMP`, that profile's
+  `global-timeout` replaced by the file's, and gives the copy to the
+  pair's listing and its run alike as nextest's `--config-file`, so that
+  the selection 5.4 compares is the run's. The copy reads as the tested
+  configuration in every other key. A pair the file doesn't name lists
+  and runs on the tested configuration as it stands.
+- **Its refusals:** a file holding another table or key, a duration
+  other than whole seconds or minutes, or a profile the tested
+  configuration doesn't define or gives no `global-timeout` of its own,
+  is a fault (5.4) before the pair lists anything.
+- **Why the helper's:** the file is read at the workflow's commit, beside
+  the helper (section 1), whatever commit the part tests, since the
+  figure follows the runner. A profile of macOS's own inheriting
+  `browser-temper` is turned down: the draft turns such a profile down
+  (`../draft/macos-tiers.md`, 4.3), and `tools/tiers/run` names a pair's
+  profile by its tier and tree. Editing the tested checkout's
+  configuration in place is turned down too: the run would read a file
+  the tested commit doesn't hold, and its command line wouldn't show it.
 - **One process per binary reads no slow timeout** and passes over these
   overrides (`tools/tiers/design.md`, 11.1 and 11.3).
 - **The nextest runs' JUnit:** the profiles `process-temper`,

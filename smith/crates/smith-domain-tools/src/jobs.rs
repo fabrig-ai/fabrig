@@ -1,4 +1,5 @@
-//! A kit's numbered commands and the reads awaiting their unread output.
+//! A kit's job cells, reserved by yielding flights or held by numbered jobs,
+//! and the reads awaiting their unread output.
 //! Original spawn tokens stay live until IO settles; cancelled terminals and
 //! bounded unread output stay until read or close. Provider ids are never known.
 //! Same-job reads reach the machine one at a time.
@@ -11,10 +12,11 @@ use crate::flight::{self, Flight};
 use crate::kit::{self, Kit};
 use crate::{CallInfo, Done, JobAct, JobEnd, JobNumber, JobProblem, Limits, Outcome, Request};
 use alloc::boxed::Box;
-use skein_lib::{Env, Id, Map, Queue, ReplyTo, Time, Token};
+use skein_lib::{Env, Id, Map, Queue, ReplyTo, Set, Time, Token};
 
 #[derive(Debug)]
 pub(crate) struct Jobs {
+    reserved: Set<Id<Flight>>,
     held: Map<u32, Job>,
     reads: Map<u64, JobRead>,
     highest: u32,
@@ -55,6 +57,7 @@ pub(crate) struct JobRead {
 impl Jobs {
     pub(crate) fn new(limits: &Limits, highest: u32) -> Self {
         Self {
+            reserved: Set::with_capacity(limits.jobs),
             held: Map::with_capacity(limits.jobs),
             reads: Map::with_capacity(limits.calls),
             highest,
@@ -64,11 +67,30 @@ impl Jobs {
     }
 
     pub(crate) fn full(&self) -> bool {
-        self.held.len() >= self.held.capacity()
+        let used = self.held.len().checked_add(self.reserved.len()).expect("the kit's job cells fit u32");
+        used >= self.held.capacity()
     }
 
-    pub(crate) fn empty(&self) -> bool {
+    pub(crate) fn reserve(&mut self, owner: Id<Flight>) {
+        assert!(!self.full(), "the kit admitted this yielding command within its job bound: {owner:?}");
+        let fresh = self.reserved.insert(owner).expect("the yielding command's reserved cell fits the kit's job table");
+        assert!(fresh, "a yielding command reserves its cell once: {owner:?}");
+    }
+
+    pub(crate) fn release_reservation(&mut self, owner: Id<Flight>) {
+        let reserved = self.reserved.remove(&owner);
+        assert!(reserved, "the yielding command still owns its reserved job cell: {owner:?}");
+    }
+
+    /// Reservations still belong to ordinary flights, which the kit waits for separately.
+    pub(crate) fn no_held_jobs(&self) -> bool {
         self.held.is_empty()
+    }
+
+    pub(crate) fn assert_drained(&self) {
+        assert!(self.reserved.is_empty(), "a closed kit holds no yielding command's reservation");
+        assert!(self.held.is_empty(), "a closed kit holds no numbered job");
+        assert!(self.reads.is_empty(), "a closed kit holds no job read's place");
     }
 
     pub(crate) fn calls(&self) -> u32 {
@@ -76,16 +98,41 @@ impl Jobs {
     }
 
     pub(crate) fn hold(&mut self, owner: Id<Flight>, observation: Option<CallInfo>, started: Time) -> JobNumber {
+        self.release_reservation(owner);
         self.highest = self.highest.checked_add(1).expect("a conversation's job numbers fit u32");
         let number = JobNumber(self.highest);
         let call = match observation {
             Some(call) => call.owner,
             None => owner.token(),
         };
-        self.held
+        let previous = self
+            .held
             .insert(number.0, Job { owner, reader: None, call, started, state: State::Running })
-            .expect("the session serializes yielding shell writes");
+            .expect("the yielding command's reservation fits the held job table");
+        assert!(previous.is_none(), "a new job's number names no held job: {number:?}");
         number
+    }
+
+    fn release(&mut self, number: JobNumber, owner: Id<Flight>) -> Job {
+        let job = self.held.remove(&number.0).expect("the job still holds the cell it releases");
+        job.assert_owner(number, owner);
+        assert!(job.reader.is_none(), "a job releases its cell only after its active read: {number:?}");
+        job
+    }
+
+    fn admit_read(&mut self, mut read: JobRead, now: Time) -> u64 {
+        self.next_read = self.next_read.checked_add(1).expect("bounded activation calls fit u64");
+        let key = self.next_read;
+        read.started = Some(now);
+        let previous = self.reads.insert(key, read).expect("the kit admitted this job read within its call room");
+        assert!(previous.is_none(), "a new read's key names no pending read: {key}");
+        key
+    }
+
+    fn release_read(&mut self, number: JobNumber, key: u64) -> JobRead {
+        let read = self.reads.remove(&key).expect("the job read still holds the place it releases");
+        assert_eq!(read.job, number, "the read's place belongs to this job: read {key}");
+        read
     }
 
     pub(crate) fn cut(&mut self, now: Time) {
@@ -110,8 +157,10 @@ impl Jobs {
             let job = self.held.get_mut(number).expect("retained job");
             match &job.state {
                 State::Ended { .. } => {
-                    tell(session, JobNumber(*number), job, facts);
-                    self.held.remove(number).expect("ended job retained until close");
+                    let owner = job.owner;
+                    let number = JobNumber(*number);
+                    let job = self.release(number, owner);
+                    tell(session, number, &job, facts);
                 }
                 State::Running | State::Cancelling => cancel_one(job, limits, out),
             }
@@ -127,8 +176,14 @@ impl Jobs {
     }
 }
 
+impl Job {
+    fn assert_owner(&self, number: JobNumber, owner: Id<Flight>) {
+        assert_eq!(self.owner, owner, "the job's cell belongs to its original command: {number:?}");
+    }
+}
+
 /// Enqueue a read; another read of this number must consume its answer first.
-pub(crate) fn call(domain: &mut Domain, env: &Env<Limits>, id: Id<Kit>, mut read: JobRead, out: &mut Queue<Request>) {
+pub(crate) fn call(domain: &mut Domain, env: &Env<Limits>, id: Id<Kit>, read: JobRead, out: &mut Queue<Request>) {
     let kit = domain.kits.get_mut(id).expect("the session owns its kit");
     let job = read.job;
     let problem = if kit.jobs.held.contains_key(&job.0) { None } else { Some(JobProblem::Unknown { job }) };
@@ -150,25 +205,22 @@ pub(crate) fn call(domain: &mut Domain, env: &Env<Limits>, id: Id<Kit>, mut read
         return;
     }
     domain.facts.push_call(FactKind::Started { session: kit::session(kit), tool: crate::Tool::Job }, read.observation);
-    let ended = match &kit.jobs.held.get(&job.0).expect("known job").state {
-        State::Ended { .. } => true,
-        State::Running | State::Cancelling => false,
-    };
-    if ended {
-        let ended = kit.jobs.held.remove(&job.0).expect("one terminal read");
-        match ended.state {
-            State::Ended { head, tail, dropped, end, .. } => {
-                answer(kit::session(kit), read, &head, &tail, dropped, end, &mut domain.facts, out);
+    let key = kit.jobs.admit_read(read, env.now);
+    let held = kit.jobs.held.get(&job.0).expect("an admitted read names a held job");
+    match &held.state {
+        State::Ended { .. } => {
+            let owner = held.owner;
+            let read = kit.jobs.release_read(job, key);
+            let ended = kit.jobs.release(job, owner);
+            match ended.state {
+                State::Ended { head, tail, dropped, end, .. } => {
+                    answer(kit::session(kit), read, &head, &tail, dropped, end, &mut domain.facts, out);
+                }
+                State::Running | State::Cancelling => unreachable!("the read releases a settled job's cell"),
             }
-            State::Running | State::Cancelling => unreachable!("checked ended"),
         }
-        return;
+        State::Running | State::Cancelling => advance(&mut kit.jobs, job, env.now, &env.limits, out),
     }
-    kit.jobs.next_read = kit.jobs.next_read.checked_add(1).expect("bounded activation calls fit u64");
-    let key = kit.jobs.next_read;
-    read.started = Some(env.now);
-    kit.jobs.reads.insert(key, read).expect("the common call admission reserves a read cell");
-    advance(&mut kit.jobs, job, env.now, &env.limits, out);
 }
 
 pub(crate) fn read(
@@ -275,7 +327,8 @@ pub(crate) fn done(
         | Done::Cancelled => unreachable!("a held command answers a job act"),
     };
     let session = kit::session(kit);
-    let job = kit.jobs.held.get_mut(&number.0).expect("the original owner has its job cell");
+    let job = kit.jobs.held.get_mut(&number.0).expect("the original owner still holds its job cell");
+    job.assert_owner(number, owner);
     let ended = match end {
         JobEnd::Running => false,
         JobEnd::Ended(_) | JobEnd::Stopped | JobEnd::Cancelled => true,
@@ -289,32 +342,27 @@ pub(crate) fn done(
         }
     }
     if let Some(reader) = job.reader.take() {
-        let read = kit.jobs.reads.remove(&reader).expect("an active read owns its reply right");
+        let call = job.call;
+        let started = job.started;
+        let read = kit.jobs.release_read(number, reader);
         if read.interrupted.is_some() {
-            domain.facts.push(FactKind::JobEnded {
-                session,
-                job: number,
-                owner: job.call,
-                end,
-                unread_bytes: 0,
-                started: job.started,
-            });
+            domain.facts.push(FactKind::JobEnded { session, job: number, owner: call, end, unread_bytes: 0, started });
         }
-        answer(kit::session(kit), read, &head, &tail, dropped, end, &mut domain.facts, out);
+        answer(session, read, &head, &tail, dropped, end, &mut domain.facts, out);
     } else {
         assert!(ended, "only cancellation answers an unpolled job");
         job.state = State::Ended { head, tail, dropped, end, at: env.now };
         domain.flights.retire(owner);
         if kit::closing(kit) {
-            tell(kit::session(kit), number, kit.jobs.held.get(&number.0).expect("ended job"), &mut domain.facts);
-            kit.jobs.held.remove(&number.0).expect("close tells the end once");
+            let job = kit.jobs.release(number, owner);
+            tell(session, number, &job, &mut domain.facts);
         }
         cancelled(kit, out);
         kit::settled(&mut domain.kits, &mut domain.facts, kit_id, out);
         return;
     }
     if ended {
-        kit.jobs.held.remove(&number.0).expect("the job ends once");
+        kit.jobs.release(number, owner);
         // Calls queued behind an end now name a job whose end was answered.
         let mut queued = skein_lib::List::with_capacity(env.limits.calls);
         for (key, read) in &kit.jobs.reads {
@@ -323,7 +371,7 @@ pub(crate) fn done(
             }
         }
         for key in &queued {
-            let read = kit.jobs.reads.remove(key).expect("a queued right ends once");
+            let read = kit.jobs.release_read(number, *key);
             out.push(Request::Invalid { to: read.reply_to, problem: JobProblem::Unknown { job: number } });
         }
         domain.flights.retire(owner);

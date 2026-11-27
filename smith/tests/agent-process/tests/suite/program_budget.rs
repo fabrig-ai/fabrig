@@ -35,9 +35,13 @@ fn finish() -> Step {
 }
 
 fn winding(parts: &mut smith_charter::Charter) {
+    turn_bound(parts, 3, 2);
+}
+
+fn turn_bound(parts: &mut smith_charter::Charter, turns: u32, reserve: u32) {
     let mut budget = parts.budget.clone();
-    budget.turns = 3;
-    budget.reserve = smith_charter::Reserve { turns: 2, time: Duration::from_secs(1) };
+    budget.turns = turns;
+    budget.reserve = smith_charter::Reserve { turns: reserve, time: Duration::from_secs(1) };
     parts.budget = budget;
 }
 
@@ -108,6 +112,64 @@ fn the_wind_down_sends_the_note() {
         "received={:?}",
         run.received
     );
+}
+
+#[test]
+fn a_program_report_past_the_turn_bound_is_not_committed() {
+    const ORDINARY: u32 = 3;
+    const RESERVE: u32 = 1;
+    const BOUND: u32 = ORDINARY + RESERVE;
+    const RESERVE_TOOL: &str = "reserve_probe";
+    const OVER_BOUND_TOOL: &str = "past_turn_bound";
+    let charter = selected(|parts| turn_bound(parts, BOUND, RESERVE));
+    let ordinary =
+        (0..ORDINARY).map(|_| Step::Call { tool: "unoffered".into(), input: json!({}) }).chain([Step::Hang]).collect();
+    // The fake can send both records before it receives the agent's stop.
+    let final_reports = [RESERVE_TOOL, OVER_BOUND_TOOL]
+        .into_iter()
+        .map(|tool| Step::ReportCall { tool: tool.into(), input: json!({}) })
+        .chain([Step::Hang])
+        .collect();
+    let run = run(Case::Turns, &charter, vec![turn(ordinary), turn(final_reports)]);
+
+    let print = run.invocations.iter().find(|invocation| invocation.arguments[0] == "-p").expect("print invocation");
+    let flag = print.arguments.iter().position(|argument| argument == "--max-turns").expect("turn guard");
+    assert_eq!(print.arguments.get(flag + 1).expect("turn guard value"), &BOUND.to_string());
+    let answer = run.answer().expect("bounded fixture answers");
+    assert!(
+        matches!(&answer.result, RunResult::Failed(failed) if matches!(
+            failed.reason, RunFailure::Budget(smith_channel::BudgetFailureValue {
+                value: smith_channel::BudgetFailure::Turns, used: Some(used), bound: Some(bound),
+            }) if used == u64::from(BOUND) && bound == u64::from(BOUND)
+        )),
+        "{answer:?}; {}",
+        String::from_utf8_lossy(&run.errors)
+    );
+    assert_eq!(answer.turns, BOUND);
+    assert!(run.seen.contains(&Seen::ReportedCall { tool: OVER_BOUND_TOOL.into() }));
+    let committed = program_world::from_frames(&run.frames);
+    assert_eq!(committed.len(), BOUND as usize);
+    let calls = committed_calls(&committed);
+    let (last, ordinary) = calls.split_last().expect("the fourth report's call is in the transcript");
+    assert_eq!(ordinary.len(), ORDINARY as usize);
+    assert!(last.ends_with(RESERVE_TOOL.as_bytes()), "the reserve report, not the fifth report, is committed");
+    assert_eq!(answer.spent, u64::from(BOUND), "each reported completion in this fixture costs one unit");
+}
+
+fn committed_calls(records: &[Box<[u8]>]) -> Vec<Box<[u8]>> {
+    use smith_transcript::{Block, Record, Turn};
+    let mut calls = Vec::new();
+    for record in records {
+        let turn = Turn::decode(&smith_transcript::CEILINGS, &mut skein_lib::Reader::new(record)).expect("turn body");
+        for message in &turn.messages {
+            for block in &message.blocks {
+                if let Block::Call(call) = block {
+                    calls.push(call.name.clone());
+                }
+            }
+        }
+    }
+    calls
 }
 
 #[test]

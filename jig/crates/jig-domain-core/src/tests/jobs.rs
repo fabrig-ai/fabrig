@@ -1,6 +1,7 @@
 //! Job admission (jig/docs/design/domain/engine/executors.md, 5).
 use crate::documents::{JobWhy, TaskRunWait, TaskWaitRefused, run_wait};
 use crate::runs::delegation::job_member;
+use crate::tests::new_core;
 use crate::tests::*;
 use jig_domain_fleet::JobShort;
 use jig_domain_link::{Form, JobBound, JobKind, PauseState};
@@ -99,7 +100,7 @@ fn configured_job_bounds_fit_at_the_tasks_childs_limits() {
     let limits = limits();
     let mut config = config(7);
     config.jobs = Box::new([JobBound { spec: limits.tasks.spec_bytes, result: limits.tasks.result_bytes, ..bound() }]);
-    let core = Core::new(config, &limits).expect("job bounds fit the tasks child");
+    let core = new_core(config, &limits).expect("job bounds fit the tasks child");
     assert_eq!(
         core.jobs.as_ref(),
         &[JobBound { spec: limits.tasks.spec_bytes, result: limits.tasks.result_bytes, ..bound() }]
@@ -188,7 +189,7 @@ fn make_due_job(holds: Box<[tasks::Name]>, limits: &Limits) -> (Core, Limits) {
 fn a_due_job_claims_without_an_agent_or_transcript_and_hands_its_start_to_connectors() {
     let (mut core, limits) = due_job();
     let context = core.tasks.run_context(1).expect("due job");
-    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false });
+    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
     let mut attempt = None;
     for request in out {
         match request {
@@ -270,7 +271,7 @@ fn a_due_job_is_remembered_until_decisions_open_and_preparation_is_ready() {
         let (mut core, limits) = due_job();
         core.opened = opened;
         let context = core.tasks.run_context(1).expect("due job");
-        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: !opened, busy: false });
+        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: !opened });
         assert!(out.is_empty());
         assert_eq!(core.due.len(), 1);
         assert!(core.due_ready());
@@ -285,7 +286,7 @@ fn a_due_job_is_remembered_until_decisions_open_and_preparation_is_ready() {
 fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application() {
     let (mut core, limits) = due_job();
     let context = core.tasks.run_context(1).expect("due job");
-    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false }));
+    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true }));
     let attempt = core.workspace_flight(1).expect("workspace flight").1;
     drop(watch_outputs(
         &mut core,
@@ -303,7 +304,7 @@ fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application
     assert!(!core.proofs.contains_key(&1));
     // The root delivers the new activation from PreparationWaiting.
     let context = core.tasks.run_context(1).expect("waiting job context");
-    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false }));
+    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true }));
     assert_eq!(core.due.len(), 1);
     assert!(!core.due_ready());
     drop(watch_outputs(
@@ -312,7 +313,7 @@ fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application
         Event::Account(accounts::Event::Credential { number: 7, generation: 1, valid: Duration::from_secs(60) }),
     ));
     let context = core.take_due().expect("credential releases due job");
-    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false }));
+    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true }));
     let next = core.workspace_flight(1).expect("new workspace flight").1;
     assert!(next > attempt);
     let out = watch_outputs(
@@ -378,7 +379,7 @@ fn a_job_claims_the_names_its_root_prepared() {
     let checked = tasks::Name { connector: 1, path: Box::new([Box::from(b"authority".as_slice())]) };
     let (mut core, limits) = due_job_with_holds(Box::new([held.clone()]));
     let context = core.tasks.run_context(1).expect("due job");
-    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false }));
+    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true }));
     let attempt = core.workspace_flight(1).expect("workspace request").1;
     let out = watch_outputs(
         &mut core,
@@ -417,11 +418,17 @@ fn a_job_claims_the_names_its_root_prepared() {
 }
 
 #[test]
-fn a_busy_root_activates_a_job_as_a_root_with_read_room_does() {
-    for busy in [false, true] {
+fn a_full_store_work_lane_does_not_delay_a_job() {
+    for full in [false, true] {
         let (mut core, limits) = due_job();
+        if full {
+            for task in 0..limits.load_slots {
+                fixture_window(&mut core, u64::from(task) + 100, (1, 1));
+            }
+            assert!(!core.loads.room(&limits));
+        }
         let context = core.tasks.run_context(1).expect("due job");
-        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy });
+        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
         assert_eq!(core.tasks.task(1).expect("job").phase, tasks::Phase::Active(tasks::Active::Preparing));
         assert!(core.due.is_empty());
         assert!(core.transcripts.is_empty());
@@ -467,7 +474,7 @@ fn job_hello(core: &mut Core, limits: &Limits, channel: Token, worker: u32, jobs
 
 fn activate_job(core: &mut Core, limits: &Limits) {
     let context = core.tasks.run_context(1).expect("due job");
-    drop(watch_outputs(core, limits, Event::Activate { context, ready: true, busy: false }));
+    drop(watch_outputs(core, limits, Event::Activate { context, ready: true }));
 }
 
 fn prepared_job(core: &mut Core, limits: &Limits, attempt: u64) -> Box<[Request]> {
@@ -537,7 +544,7 @@ fn a_job_waits_for_its_declared_kind_and_deadline_then_places_on_the_covering_wo
         assert!(core.take_due().is_none());
         job_hello(&mut core, &limits, COVERING, 1, Box::new([bound()]));
         let context = core.take_due().expect("covering hello makes the job ready");
-        drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false }));
+        drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true }));
         let attempt = core.workspace_flight(1).unwrap().1;
         drop(prepared_job(&mut core, &limits, attempt));
         assert_eq!(core.tasks.task(1).unwrap().phase, tasks::Phase::Active(tasks::Active::Claimed { attempt }));
@@ -704,7 +711,7 @@ fn an_untranslated_job_is_due_after_the_pause_and_waits_for_a_new_channel() {
         }),
     );
     let context = core.tasks.run_context(1).unwrap();
-    drop(step(&mut core, &env, Event::Activate { context, ready: true, busy: false }));
+    drop(step(&mut core, &env, Event::Activate { context, ready: true }));
     assert!(!core.due_ready());
     drop(job_fleet(&mut core, &limits, fleet::Event::Lost { channel: COVERING }));
     core.reclaim();

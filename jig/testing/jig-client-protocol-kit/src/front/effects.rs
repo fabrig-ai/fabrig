@@ -39,7 +39,7 @@ impl Protocol {
         self.engine.driver.send(
             self.now,
             fixtures::wall(self.now),
-            root::Event::Core(core::Event::DelegateValidated {
+            root::Event::Core(core::Event::Delegate {
                 to: ReplyTo::new(Token::new(DELEGATE_REPLY)),
                 key: core::CallKey { task: assignment.task, attempt: assignment.attempt, completion: 1, position: 0 },
                 batch: Box::new([core::Delegate {
@@ -63,7 +63,6 @@ impl Protocol {
                     dependencies: Box::new([]),
                     wake: Some(tasks::WakePolicy::DEFAULT),
                 }]),
-                stubs: Box::new([]),
             }),
         );
         let Some((_, _, core::CallPart::Delegated(numbers))) = self.engine.driver.world.answers.last() else {

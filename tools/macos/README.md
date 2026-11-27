@@ -36,8 +36,11 @@ or builds, temporary directories inside the checkout, under 60 seconds).
   metadata and tier tools. `build` writes `build_red` and `run_tests` outputs,
   gives each command a notice counting compiled dependencies and workspace
   crates, and appends `MACOS_BUILT=true` to `GITHUB_ENV` only after every command
-  succeeds. Browser pair runs warn on any compiled crates without changing
-  their verdict. `verdict` fails on a failed case, after its file is uploaded.
+  succeeds. For a pair named in the helper's `global-timeouts.toml`, `run`
+  gives both the listing and the run a tested configuration copy under
+  `RUNNER_TEMP` with only that profile's `global-timeout` changed. Browser pair
+  runs warn on any compiled crates without changing their verdict. `verdict`
+  fails on a failed case, after its file is uploaded.
   `fetch-forge`
   exports `TEMPER_TEST_FORGEJO` and `TEMPER_TEST_FORGEJO_RUNNER` after the build
   for `process`, `live` and `temper`. Only `temper` restores and saves its fetch

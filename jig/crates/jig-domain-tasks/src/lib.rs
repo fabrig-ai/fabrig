@@ -162,14 +162,14 @@ pub use activity::{
 pub use batch::{bounded_batch, valid_authority, valid_contract, valid_spec};
 pub use boundary::{
     Accepted, Active, Added, Bound, Cause, ChangeTitle, Circle, Closing, Contract, Deadline, DelegateState,
-    DelegationContext, End, Ending, Event, Exceeded, Executor, FieldRule, Hold, HoldKind, HoldSource, Holding,
-    InvalidResult, JobSpec, KeptStart, Key, Kind, Message, MessageKind, Name, New, NewsClass, NoticeState, Parameter,
-    Party, PersonAddress, PersonAnswer, PersonOffer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem,
-    ProcedureDecision, ProcedureEnd, ProcedureInput, ProcedureMessage, QuestionAnswerer, QuestionCredit,
-    QuestionNotice, QuestionOffer, QuestionRelay, RecurringOverlap, RecurringState, RecurringTemplate, Refusal,
-    ReplyHint, Request, ResourceAccess, ResultField, ResultFollowups, ResultKind, ResultsWake, Revisions, RunContext,
-    SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind, SuspendWhy,
-    Suspended, Suspension, Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
+    DelegationContext, End, Ending, Event, Exceeded, Executor, FieldRule, Hold, HoldSource, Holding, InvalidResult,
+    JobSpec, KeptStart, Key, Message, MessageKind, Name, New, NewsClass, NoticeState, Parameter, Party, PersonAddress,
+    PersonAnswer, PersonOffer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem, ProcedureDecision,
+    ProcedureEnd, ProcedureInput, ProcedureMessage, QuestionAnswerer, QuestionCredit, QuestionNotice, QuestionOffer,
+    QuestionRelay, RecurringOverlap, RecurringState, RecurringTemplate, Refusal, ReplyHint, Request, ResourceAccess,
+    ResultField, ResultFollowups, ResultKind, ResultsWake, Revisions, RunContext, SavedResource, SettingsRevision,
+    Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind, SuspendWhy, Suspended, Suspension, TaskRecord,
+    TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
 };
 pub use boundary::{
     Hint, MessageFamily, Separate, Slot, Spoken, WAIT_WORDS, finish_requested, message_family, procedure_input,
@@ -222,3 +222,5 @@ pub struct Kept {
     pub revisions: u32,
     pub versions: u32,
 }
+
+pub use jig_domain_contract::resources::{ResourceKind, Rule as HoldKind, Taken};

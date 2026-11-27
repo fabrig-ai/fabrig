@@ -1,12 +1,17 @@
 //! Ended erasure pages find logged tasks by their summaries (protocol/store/logs.md, 4 and 9).
 use super::{Failure, Spent, erasure, point};
 use crate::{Store, intervals, keys, pages};
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{self as core, reads};
 use jig_domain_tasks as tasks;
 use skein_kv::Range;
 use skein_lib::{List, Map};
 
-pub(super) fn read(store: &mut Store, range: &reads::Range, spent: &mut Spent) -> Result<reads::Loaded, Failure> {
+pub(super) fn read(
+    store: &mut Store,
+    range: &reads::Range,
+    spent: &mut Spent,
+) -> Result<engine_store::Answer, Failure> {
     if spent.rows == 0 {
         return Ok(super::empty());
     }
@@ -41,7 +46,10 @@ pub(super) fn read(store: &mut Store, range: &reads::Range, spent: &mut Spent) -
         spent.rows = spent.rows.checked_sub(1).expect("candidate row room checked");
         last = Some(position);
     }
-    Ok(reads::Loaded::Page { rows: found.into_boxed(), next: if more { last } else { None } })
+    Ok(engine_store::Answer::Rows(engine_store::Rows::Read {
+        rows: found.into_boxed(),
+        next: if more { last } else { None },
+    }))
 }
 
 fn candidates(

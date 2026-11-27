@@ -309,18 +309,10 @@ impl Application for Testing {
     type Delivery = Delivery;
 
     fn build(config: &Config) -> Engine {
-        let (configuration, limits) = config.root();
+        let (mut configuration, limits) = config.root();
+        configuration.resource_kinds[0] = jig_test_profile::resource_kinds();
         let fixture = jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers);
-        let mut domain = root::Domain::new(configuration, &limits);
-        let env = env(config, Clock { now: 0 });
-        domain.configure_holds(
-            &env,
-            1,
-            Box::new([
-                tasks::Kind { connector: 1, kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } },
-                tasks::Kind { connector: 1, kind: 2, hold: tasks::HoldKind::Pooled { taken: tasks::Taken::Waits } },
-            ]),
-        );
+        let domain = root::Domain::new(configuration, &limits);
         Engine { root: domain, fixture: Some(fixture), journal: Box::new([]) }
     }
 
@@ -584,20 +576,6 @@ impl Application for Testing {
                         .map(|event| Input::Event(root::Event::Core(event)))
                         .collect()
                 }
-                Delivery::Now(
-                    now @ (core::Now::StartPreparation { .. }
-                    | core::Now::SeenConversation { .. }
-                    | core::Now::LoadEndedRead { .. }
-                    | core::Now::EndedPersonTask { .. }
-                    | core::Now::EndedTask { .. }
-                    | core::Now::PartyInputs { .. }
-                    | core::Now::EndedProposal { .. }
-                    | core::Now::DecidedProposal { .. }
-                    | core::Now::EndedEscalation { .. }),
-                ) => {
-                    store.ask(StoreOut::Now(now));
-                    Vec::new()
-                }
                 Delivery::Start { phase, census } => peers.start(store, phase, census),
                 Delivery::Busy(event) => {
                     peers.busy_events.push(format!("{event:?}"));
@@ -675,16 +653,8 @@ impl Application for Testing {
                     logins: Box::new([]),
                 })))]
             }
-            root::Delivery::Core(core::Held::Load(load)) => {
-                store.ask(StoreOut::Now(*load));
-                Vec::new()
-            }
-            root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
-                store.ask(StoreOut::NotesLoad { owner, range });
-                Vec::new()
-            }
-            root::Delivery::Core(core::Held::ReadLoad { load, range }) => {
-                store.ask(StoreOut::ReadLoad { load, range });
+            root::Delivery::Store(load) => {
+                store.ask(StoreOut::Engine(load));
                 Vec::new()
             }
             root::Delivery::Core(core::Held::CallAnswer { to, key, part }) => {
@@ -717,13 +687,6 @@ impl Application for Testing {
         let mut events = Vec::new();
         for answer in store.answers() {
             match answer {
-                Up::Root(root::Event::Core(core::Event::Notes(jig_domain_notes::Event::Loaded {
-                    owner,
-                    rows,
-                    more,
-                }))) => {
-                    events.push(Input::Event(root::Event::Core(peers::notes_loaded(owner, rows.records, more))));
-                }
                 Up::Root(event) => {
                     events.push(Input::Event(event));
                 }

@@ -171,7 +171,7 @@ fn sent_update(d: &mut Domain) {
         wall: clock.wall,
         expires: clock.wall,
     });
-    domain::keep_entry(d, entry, None, &mut Queue::uncapped());
+    domain::save_entry_progress(d, entry, None, &mut Queue::uncapped());
 }
 
 #[test]

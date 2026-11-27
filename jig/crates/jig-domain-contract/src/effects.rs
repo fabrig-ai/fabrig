@@ -45,21 +45,24 @@ pub enum Recovery {
     Unrecoverable,
 }
 
+/// One connector's declared effect kind.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct EffectKind {
+    pub kind: u16,
+    pub form: EffectForm,
+    pub recovery: Recovery,
+    pub waits_for_dependencies: bool,
+}
+
 /// The inspectable part of a connector-owned effect.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct EffectDescription {
-    /// Whether this kind waits while its task has pending dependencies.
-    pub waits_for_dependencies: bool,
     /// Connector number assigned by the application root.
     pub connector: u16,
     /// Stable purpose within the asking task.
     pub purpose: u64,
     /// Authority's resource and state description.
     pub effect: Effect,
-    /// Effect's shape for outbox and recovery.
-    pub form: EffectForm,
-    /// Connector's declared recovery class.
-    pub recovery: Recovery,
 }
 
 /// Why a described effect was not admitted, including refusals before authority checked it.

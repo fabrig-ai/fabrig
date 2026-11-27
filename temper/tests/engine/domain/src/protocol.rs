@@ -5,6 +5,7 @@
 
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_host as host;
 use jig_domain_link::{Bounds, EndpointBound, Form, Hosting, JobBound, JobKind, Phase, Scheme};
 use jig_domain_tasks as tasks;
@@ -475,12 +476,15 @@ impl Protocol {
                 Ok(vec![engine::Event::Worker(engine::WorkerInput::ResultRead { payload, end })])
             }
             // Internal core walks use the real store, not the party-read script.
-            engine::Request::Store(engine::StoreRequest::Read { load, range }) if range.party != 0 => {
+            engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                load,
+                range: engine_store::Range::Read(range),
+            })) if range.party != 0 => {
                 self.reads.push(*range);
-                Ok(vec![engine::Event::Store(engine::StoreInput::ReadLoaded {
+                Ok(vec![engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded {
                     load,
-                    result: core::reads::Loaded::Gone,
-                })])
+                    result: engine_store::Answer::Failed(engine_store::Failure::Gone),
+                }))])
             }
             engine::Request::Account(request) => {
                 let answer = self.account(&request);

@@ -17,8 +17,8 @@ pub(crate) mod relays;
 pub(crate) mod resources;
 
 use crate::{
-    Ask, CallKey, CallPart, CallRecord, Core, CoreRecord, Event, Family, Held, Limits, Now, Record, Request, ToolKind,
-    Write, fresh,
+    Ask, CallKey, CallPart, CallRecord, Core, CoreRecord, Event, Family, Held, Limits, Now, PendingCall, Record,
+    Request, ToolKind, Write, fresh,
     routing::{Work, effect::procedure::ProcedureCall, run::Proposing},
 };
 use alloc::boxed::Box;
@@ -79,10 +79,10 @@ fn save(core: &Core, out: &mut Queue<Request>, key: CallKey, part: CallPart) {
 
 fn answer(core: &mut Core, out: &mut Queue<Request>, to: ReplyTo, key: CallKey, part: CallPart) {
     if !claim_current(core, key) {
-        core.pending_calls.remove(&key);
+        core.release_pending_call(key);
         return;
     }
-    if core.decide_named_call(key, part.clone()) {
+    if core.decide_pending_call(key, part.clone()) {
         save(core, out, key, part.clone());
         out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part })));
     }
@@ -116,6 +116,9 @@ pub(crate) fn start(
     origin: EffectOrigin,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
+    let Some(crate::routing::flight::Flight::EffectStaging) = core.flights.get(skein_lib::Id::from_token(owner)) else {
+        return out;
+    };
     match origin {
         origin @ EffectOrigin::Projection { .. } => {
             if !origin_current(core, number, &origin) {
@@ -128,8 +131,7 @@ pub(crate) fn start(
             return propose_start(core, env, owner, number, Proposing { to, key, reason, as_holder });
         }
         EffectOrigin::Accept { to, key, proposal, by } => {
-            let pending = core.tasks.proposal(proposal.proposer, proposal.number);
-            if pending.as_ref() != Some(&proposal) {
+            if !begin_acceptance(core, key, &proposal) {
                 drop(core.land_kind(owner, crate::routing::flight::Kind::EffectStaging));
                 return out;
             }
@@ -142,6 +144,10 @@ pub(crate) fn start(
             return out;
         }
         EffectOrigin::Call { to, key, deadline } => {
+            if !core.current_proof(key.task, key.attempt) {
+                drop_staged(core, &mut out, number, owner);
+                return out;
+            }
             match core.call_parts.get(&key) {
                 Some(CallPart::Effect {
                     entry,
@@ -165,25 +171,16 @@ pub(crate) fn start(
                 }
                 None => {}
             }
-            if core.pending_calls.contains_key(&key)
-                || core.counters.deployment().calls == u64::MAX
-                || core.call_parts.len().saturating_add(core.pending_calls.len()) >= env.limits.call_records
-            {
+            if core.counters.deployment().calls == u64::MAX || !core.reserve_call(key, PendingCall::Routed) {
                 out.push(Request::Now(Box::new(Now::EffectAnswer { to, key, part: CallPart::Unavailable })));
                 drop_staged(core, &mut out, number, owner);
                 return out;
             }
-            if core.current_proof(key.task, key.attempt) {
-                if let Some(part) = core.authorize_tool(key, ToolKind::Effect) {
-                    answer(core, &mut out, to, key, part);
-                    drop_staged(core, &mut out, number, owner);
-                    return out;
-                }
-            } else {
+            if let Some(part) = core.authorize_tool(key, ToolKind::Effect) {
+                answer(core, &mut out, to, key, part);
                 drop_staged(core, &mut out, number, owner);
                 return out;
             }
-            assert!(core.reserve_connector_call(key), "named effect room admitted");
             start_flight(core, env, owner, number, EffectOrigin::Call { to, key, deadline });
         }
         EffectOrigin::Procedure { task, step, entry } => {
@@ -216,6 +213,21 @@ pub(crate) fn start(
     out
 }
 
+fn begin_acceptance(core: &mut Core, key: Option<CallKey>, proposal: &tasks::Proposal) -> bool {
+    if let Some(key) = key
+        && core.pending_calls.get(&key) != Some(&PendingCall::Routed)
+    {
+        return false;
+    }
+    if acceptance_current(core, key, proposal) {
+        return true;
+    }
+    if let Some(key) = key {
+        core.release_pending_call(key);
+    }
+    false
+}
+
 fn propose_start(
     core: &mut Core,
     env: &Env<Limits>,
@@ -225,19 +237,16 @@ fn propose_start(
 ) -> Queue<Request> {
     let Proposing { to, key, reason, as_holder } = proposing;
     let mut out = Queue::uncapped();
+    if !core.current_proof(key.task, key.attempt) {
+        drop_staged(core, &mut out, number, owner);
+        return out;
+    }
     if let Some(part) = core.call_parts.get(&key) {
         out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part: part.clone() })));
         drop_staged(core, &mut out, number, owner);
         return out;
     }
-    if !core.current_proof(key.task, key.attempt) {
-        drop_staged(core, &mut out, number, owner);
-        return out;
-    }
-    if core.call_parts.len().saturating_add(core.pending_calls.len()) >= env.limits.call_records
-        || core.pending_calls.contains_key(&key)
-        || core.counters.deployment().calls == u64::MAX
-    {
+    if core.counters.deployment().calls == u64::MAX || !core.reserve_call(key, PendingCall::Routed) {
         out.push(Request::Now(Box::new(Now::EffectAnswer { to, key, part: CallPart::Unavailable })));
         drop_staged(core, &mut out, number, owner);
         return out;
@@ -247,7 +256,6 @@ fn propose_start(
         drop_staged(core, &mut out, number, owner);
         return out;
     }
-    assert!(core.reserve_connector_call(key), "proposal call room");
     start_flight(core, env, owner, number, EffectOrigin::Propose { to, key, reason, as_holder });
     out.push(Request::Ask { connector: number, ask: Ask::Effect(connector::Ask::Describe { owner }) });
     out
@@ -396,7 +404,7 @@ fn describe_busy(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out
         }
         match flight.origin {
             EffectOrigin::Call { to, key, .. } | EffectOrigin::Propose { to, key, .. } => {
-                core.pending_calls.remove(&key);
+                core.release_pending_call(key);
                 out.push(Request::Now(Box::new(Now::EffectAnswer { to, key, part: CallPart::Unavailable })));
             }
             EffectOrigin::Accept { to, key, .. } => {
@@ -459,6 +467,10 @@ fn described(
     owner: Token,
     description: Box<connector::EffectDescription>,
 ) {
+    if core.effect_kind(description.effect.connector, description.effect.kind).is_none() {
+        describe_refused(core, env, work, out, owner);
+        return;
+    }
     let proposed = match core.effect(owner) {
         Some(flight) => match flight.origin {
             EffectOrigin::Propose { .. } => true,
@@ -560,8 +572,9 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
     if checked == authority::Answer::Allow && !writers_ready(core, env, &origin, &description) {
         checked = authority::Answer::Wait;
     }
+    let kind = core.effect_kind(description.effect.connector, description.effect.kind).expect("described kind");
     // A hard refusal outranks keeping, which only defers the effect.
-    if description.waits_for_dependencies && checked != authority::Answer::Refuse {
+    if kind.waits_for_dependencies && checked != authority::Answer::Refuse {
         let task = match &origin {
             Making::Call { key, .. } => Some(key.task),
             Making::Procedure { task, .. } => Some(*task),
@@ -640,7 +653,7 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
                 }
                 let part = CallPart::EffectDenied { answer: checked, findings: reasons.into_boxed() };
                 if checked == authority::Answer::Wait {
-                    let _pending = core.pending_calls.remove(&key);
+                    core.release_pending_call(key);
                     out.push(Request::Now(Box::new(Now::EffectAnswer { to, key, part })));
                 } else {
                     answer(core, out, to, key, part);
@@ -682,7 +695,7 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
         drop_with(out, flight.connector, owner, authority::Answer::Refuse, connector::EffectRefusal::Capacity);
         match origin {
             Making::Call { to, key, .. } => {
-                core.pending_calls.remove(&key);
+                core.release_pending_call(key);
                 out.push(Request::Now(Box::new(Now::EffectAnswer { to, key, part: CallPart::Unavailable })));
             }
             Making::Accept { to, key, .. } => {
@@ -738,11 +751,11 @@ fn acceptance_room(core: &Core, origin: &Making) -> bool {
 fn discard_origin(core: &mut Core, origin: &EffectOrigin) {
     match origin {
         EffectOrigin::Call { key, .. } | EffectOrigin::Propose { key, .. } => {
-            core.pending_calls.remove(key);
+            core.release_pending_call(*key);
         }
         EffectOrigin::Accept { key, .. } => {
             if let Some(key) = key {
-                core.pending_calls.remove(key);
+                core.release_pending_call(*key);
             }
         }
         EffectOrigin::Projection { .. } | EffectOrigin::Procedure { .. } => {}
@@ -807,14 +820,16 @@ fn origin_current(core: &Core, connector: u16, origin: &EffectOrigin) -> bool {
             }
             None => false,
         },
-        EffectOrigin::Accept { proposal, key, .. } => {
-            core.tasks.proposal(proposal.proposer, proposal.number).as_ref() == Some(proposal)
-                && match key {
-                    Some(key) => claim_current(core, *key),
-                    None => true,
-                }
-        }
+        EffectOrigin::Accept { proposal, key, .. } => acceptance_current(core, *key, proposal),
     }
+}
+
+fn acceptance_current(core: &Core, key: Option<CallKey>, proposal: &tasks::Proposal) -> bool {
+    core.tasks.proposal(proposal.proposer, proposal.number).as_ref() == Some(proposal)
+        && match key {
+            Some(key) => claim_current(core, key),
+            None => true,
+        }
 }
 
 fn claim_current(core: &Core, key: CallKey) -> bool {
@@ -876,7 +891,8 @@ fn complete_accept(
     let (to, key, proposal, by) = match origin {
         Making::Call { to, key, deadline } => {
             let part = CallPart::Effect { connector: number, entry, deadline, outcome: None };
-            assert!(core.decide_named_call(key, part.clone()), "effect fenced by current claim");
+            let decided = core.decide_pending_call(key, part.clone());
+            assert!(decided, "named call {key:?} keeps its current claim while accepting the effect");
             save(core, out, key, part);
             assert!(
                 core.effect_replies.insert(entry, Waiting { to, key, deadline }).is_ok(),
@@ -1133,7 +1149,7 @@ fn accept_refused(
     match key {
         Some(key) => {
             if why == authority::Answer::Wait {
-                core.pending_calls.remove(&key);
+                core.release_pending_call(key);
                 out.push(Request::Now(Box::new(Now::EffectAnswer {
                     to,
                     key,
@@ -1333,7 +1349,10 @@ fn settled(
     }
     if let Some((key, connector, deadline)) = found {
         let part = CallPart::Effect { connector, entry, deadline, outcome: Some(outcome) };
-        assert!(core.call_parts.insert(key, part.clone()).is_ok(), "retained call row");
+        let Some(retained) = core.call_parts.get_mut(&key) else {
+            unreachable!("settled effect call {key:?} still holds its retained place")
+        };
+        *retained = part.clone();
         save(core, out, key, part.clone());
         match outcome {
             connector::OutboxOutcome::Made
