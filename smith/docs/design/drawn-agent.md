@@ -57,12 +57,11 @@ Each refusal below is drawn by the noisy sweep (`domain/session.md`, 10), and it
 | `not_read` | a write before a read | prior state: a write to a seeded file its session hasn't read | `read the file whole before changing it` |
 | `stale` | a version changed since its read | prior state: a read, then a menu command whose program rewrites that file (skein's fake checkout's `Program`'s changes), then a write | `file changed or is gone since it was read` |
 | `timed_out` | an expired deadline | timing: the noisy settings' drawn tool deadlines against their drawn operation times | `operation timed out` |
-| `busy` | the tools' calls all taken | capacity: the noisy settings draw the tools' concurrent calls in some worlds below what a batch and its held jobs' calls ask | `tool is busy` |
 | `jobs_full` | every job cell held | capacity: the noisy settings' drawn cells (`domain/session.md`, 10) | `invalid yield_seconds: at most N jobs may run at once` |
 | `read_only` | a write to a read-only directory | world: some noisy worlds mount a second directory, `ref`, read-only, and bodies name `/ref/...` | `path is read-only: P` |
 | `too_large` | a body past the payload bound | world: some noisy worlds draw the tool payload bound, and the bounds the product derives from it, low enough that one body's content passes it | `write content too large: N bytes, bound B` |
 
-- **Not targeted:** `not_granted`, since a world offers only the tools its grants give, as the product does; `linked`, since no world's checkout holds a symbolic link; `interrupted`, since no world that draws an agent restarts a worker; `call_too_large` and `cut_off`, the provider's bounds, which the fake's own faults draw (`skein/docs/design/testing/fakes/llm.md`, 2.8).
+- **Not targeted:** `not_granted`, since a world offers only the tools its grants give, as the product does; `linked`, since no world's checkout holds a symbolic link; `interrupted`, since no world that draws an agent restarts a worker; `call_too_large` and `cut_off`, the provider's bounds, which the fake's own faults draw (`skein/docs/design/testing/fakes/llm.md`, 2.8). `busy` is not targeted either, since no valid session reaches it. Its limits keep `parallel_tools` at or below the tools' calls, and the session waits on its batch. A flight leaves the tools as its answer arrives, and a yielded command takes a job cell, not a call. So no world fakes the refusal.
 - **A drawn bound is a tiny limit,** as the worlds keep (`testing.md`, 6), drawn for each seed after every other draw, so that it reaches a refusal through the product's own check with no seed added.
 
 ## 5. Each reference's class
@@ -94,7 +93,7 @@ The world classes each reference a call names as the call's answer arrives, agai
 - **The agent world:** its translator offers what its grants give, inspect always, modify and shell where its workspace is writable, with the session world's fields, and decodes through the session world's translator.
 - **The host world:** the scripted-process world grants nothing and plays no model; the inline world grants what its start gives, through the agent world's provider.
 - **The local world:** grants by its workspace; its fuzzy chats have none, so their completions call no tool.
-- **Each counts its sweeps' shapes** in the same words (shapes.md, 4).
+- **Each counts its sweeps' shapes** in the same words (shapes.md, 4). A sweep counts what its world records as a session's turns. The agent world's memory sweep, whose completions pass through no recorded turn, counts none. So does the host's ending sweep, which plays no model.
 
 ## 8. The sweep's reach
 
@@ -109,9 +108,11 @@ The world classes each reference a call names as the call's answer arrives, agai
 - **Refusals by body first.** The fake picks bodies blindly, so a body that carries one refusing value reaches its refusal through the product's own check, with nothing else to set up. Prior state, timing and capacity come from the world, as the job cells did.
 - **A menu command for a stale version,** not a second session on the same checkout: each opener has its own root, and a program's changes are what the fake checkout already scripts.
 - **A read-only directory and a drawn payload bound in some worlds,** not in all: the namespace changes with a second directory, and a payload bound below a read's window changes every read, so the rest of the sweep keeps its draws.
+- **No `busy` setup,** though the draft's 5.1 lists it: a world that faked a refusal the product can't give would draw a shape no deployment's model meets. Its word stays in shapes.md, 3, for a future product path.
 - **The world classes, the fake fills.** As for jobs (`skein/docs/design/testing/fakes/drawn-agent.md`, 6), only the world knows what a path or an offset names.
 
 ## 10. Later
 
 - **A symbolic link in a world's checkout,** for `linked`, once skein's fake checkout makes one.
+- **The agent world's memory sweep's shapes,** once its completions are recorded as a session's turns.
 - **A path from a failure's text** (`path not found: P`), a slot of its own, if a deployment's shapes show models taking it.
