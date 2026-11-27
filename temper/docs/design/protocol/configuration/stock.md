@@ -114,7 +114,7 @@ init`'s document carries none of them (`../setup/init.md`, 6).
   section holds a whole spec of jig's `standard` (`limits.md`), and its 64
   sections' titles and framing, with margin; `temper-service`'s step
   tests hold the figures. At the stock agent's 48,000-token output,
-  that host part leaves 319,844 bytes: the brief's 318,306 bytes,
+  that host part leaves 318,907 bytes: the brief's 317,369 bytes,
   1,472 bytes for its 64 sections' titles and framing, and 66 bytes
   spare. The stock brief fits whole; cutting from its last section is
   the fallback.
@@ -348,7 +348,7 @@ init`'s document carries none of them (`../setup/init.md`, 6).
   same bounds; it needs no policy-byte override or wider store codec.
   The `core.run_bytes`
   floor measures the resolved charter, including its parts and catalogue
-  models; charter 5 at init's catalogue needs 27,765 bytes, its
+  models; charter 5 at init's catalogue needs 28,259 bytes, its
   four files' 24 KB and its models', which `temper-service`'s floor test
   holds exactly. The root holds a run's charter within
   `root.journal.run_bytes`, 65,536 in both of temper's profiles, the
