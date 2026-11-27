@@ -5,7 +5,6 @@
 
 - **Not yet:** 1: ctl's amount: text prints spend raw but in `task show`, and argv's AMOUNT takes spend units; 2: a `--call`'s AMOUNT and `help --json`'s type `amount` [in flight: change 7671].
 - **Not yet:** 1: a deletion's outcome prints `removed: project 3, fabrig`, not `deleted: project 3, fabrig`, and its kept form `kept: remove-project, removed: project 3` [in flight: change 634].
-- **Not yet:** 1: a task that awaits nothing else, with no hold and no account to wait for, prints `waiting on: Nothing awaited` before its first wait's since and bound, not that first wait's kind and object [in flight: change 22055].
 
 - **Not yet:** 3: the accepted `core-after-project` not-ready watch
   refusal and ctl deadline diagnostic are absent. Jig has no
