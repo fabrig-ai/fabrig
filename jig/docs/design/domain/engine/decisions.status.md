@@ -8,4 +8,3 @@
   established allowance covers settings-proposal withdrawals alone,
   excluding the remaining state writes, closing the project and cancellation
   operations. No reason is recorded.
-- **Not yet:** 1.3: the engine's table of loads in flight (`Loads::new`) has no capacity from the limits, so the bound lives only in its room checks [in flight: change 21078].
