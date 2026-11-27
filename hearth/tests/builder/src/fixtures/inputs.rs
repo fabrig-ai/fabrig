@@ -1,4 +1,4 @@
-//! Session 30.6's store names and command-line input models.
+//! Store names and command-line input models (hearth/docs/design/testing/README.md, 4.5).
 use hearth::{
     Call, Form, Invocation,
     records::startup::{Misuse, Startup},
@@ -7,12 +7,14 @@ use hearth_domain_render::vocabulary::Digest;
 use hearth_domain_store::vocabulary::{Directory, Shape};
 use skein_io::kernel::Kind;
 use skein_lib::Rng;
+use skein_world::sweep::{Test, cases};
 use std::{
+    convert::Infallible,
     ffi::OsString,
     os::unix::ffi::{OsStrExt, OsStringExt},
     path::{Path, PathBuf},
 };
-/// Each sweep draws five thousand small inputs from session 30.6's block.
+/// Each sweep draws five thousand small inputs.
 pub const CASES: core::ops::Range<u64> = 0..5_000;
 pub const SEED: u64 = 0x0030_6000;
 /// Zero through three targets exercise empty, singleton and plural argument vectors.
@@ -254,10 +256,17 @@ pub fn refusal(row: &Mutation) -> Startup {
     Startup::Usage { misuse: row.misuse, word: row.word.into() }
 }
 
-/// Build one seed's random input state for each independent property.
-pub fn each(mut check: impl FnMut(u64, &mut Rng)) {
-    for seed in CASES {
-        check(seed, &mut Rng::new(SEED + seed));
-        skein_checks::count("seed", 1);
-    }
+/// The input stream for one case, offset from its seed.
+#[must_use]
+pub fn case_rng(seed: u64) -> Rng {
+    Rng::new(SEED.wrapping_add(seed))
+}
+
+/// Run the caller's property at each of its case seeds.
+pub fn each(test: Test, mut check: impl FnMut(u64, &mut Rng)) {
+    cases(test, CASES, |seed| -> Result<(), Infallible> {
+        check(seed, &mut case_rng(seed));
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
