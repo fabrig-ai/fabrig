@@ -74,7 +74,9 @@ pub enum Source {
 /// One slot's draw for one call, beside its answer.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Filled {
-    /// The provider id the answer gave the call.
+    /// The call's position among its answer's lines, from 0.
+    pub call: u32,
+    /// The provider id the answer gave the call; a replay gives the id it minted anew.
     pub id: Box<[u8]>,
     /// The slot's index in `Menu::slots`.
     pub slot: u32,
