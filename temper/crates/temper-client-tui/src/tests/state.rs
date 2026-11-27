@@ -31,6 +31,30 @@ fn closed_chats_are_bounded_oldest_first_and_navigation_clears_only_the_pending_
     assert!(!tui.closed_chat(20), "a failed close is not remembered as closed");
 }
 
+#[test]
+fn unsent_words_keep_only_the_last_thirty_two_nonempty_boxes() {
+    use crate::{BoxKey, limits::KEPT};
+
+    assert_eq!(KEPT, 32);
+    let mut tui = Tui::new(f::ADDRESS);
+    for task in 0..u64::from(KEPT) {
+        tui.keep_words(BoxKey::Chat { task }, b"draft".as_slice().into());
+    }
+    tui.keep_words(BoxKey::Launchpad, Box::default());
+    let oldest = BoxKey::Chat { task: 0 };
+    let words = tui.take_words(oldest).expect("an empty box evicts nothing");
+    assert!(tui.take_words(BoxKey::Launchpad).is_none());
+    assert!(tui.take_words(oldest).is_none(), "restoring takes the words out of the table");
+    tui.keep_words(oldest, words);
+    tui.keep_words(BoxKey::Talk { task: 0 }, b"talk".as_slice().into());
+    assert!(tui.take_words(BoxKey::Chat { task: 1 }).is_none(), "the longest away goes first");
+    assert_eq!(tui.take_words(BoxKey::Talk { task: 0 }).as_deref(), Some(b"talk".as_slice()));
+    assert_eq!(tui.take_words(oldest).as_deref(), Some(b"draft".as_slice()));
+    for task in 2..u64::from(KEPT) {
+        assert_eq!(tui.take_words(BoxKey::Chat { task }).as_deref(), Some(b"draft".as_slice()));
+    }
+}
+
 type Row<'a> = (&'a [Told], Told, Signing, &'a [u8], bool, bool, u64, u64, u64);
 type LocalRow<'a> = (&'a [Told], Told, Local, Signing, &'a [u8], bool, bool);
 type ApprovalRow<'a> = (&'a [Told], Told, Option<Browser>, bool, u64);

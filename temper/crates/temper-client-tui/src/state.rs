@@ -2,7 +2,7 @@
 use crate::{BoxEnd, BoxLine, BoxStage, Own, Scheme, limits, theme::ThemeChoice};
 use alloc::boxed::Box;
 use jig_client::contract::{ObjectKey, TurnName};
-use skein_lib::{List, Queue, Secret, Set, bytes::copy_of};
+use skein_lib::{List, Lru, Queue, Secret, Set, bytes::copy_of};
 
 #[derive(Debug)]
 #[expect(
@@ -14,6 +14,7 @@ pub struct Tui {
     handshake: Option<Handshake>,
     field: Box<[u8]>,
     command_words: Box<[u8]>,
+    kept_words: Lru<BoxKey, Box<[u8]>>,
     signing: Signing,
     local: Local,
     browser: Option<Browser>,
@@ -68,6 +69,15 @@ pub struct Tui {
     talk_list: bool,
     proposals_aside: List<ObjectKey>,
 }
+/// Which box owns unsent words (temper/docs/design/client/tui/pages/README.md, 1).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum BoxKey {
+    Launchpad,
+    Chat { task: u64 },
+    Talk { task: u64 },
+    Place { command: Own },
+}
+
 /// The login lent until its end (client/tui/box.md, Lending its terminal).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Lending {
@@ -277,6 +287,7 @@ impl Tui {
             handshake: None,
             field: copy_of(b""),
             command_words: Box::default(),
+            kept_words: Lru::with_capacity(limits::KEPT),
             signing: Signing::Idle,
             local: Local::Idle,
             browser: None,
@@ -348,6 +359,19 @@ impl Tui {
     #[must_use]
     pub fn command_words(&self) -> &[u8] {
         &self.command_words
+    }
+    /// Keep a box's unsent words in this run only. An empty box takes no slot.
+    pub fn keep_words(&mut self, key: BoxKey, words: Box<[u8]>) {
+        if words.is_empty() {
+            self.kept_words.remove(key);
+        } else {
+            self.kept_words.insert(key, words);
+        }
+    }
+    /// Once a box stands again, its words belong to it, not the table.
+    #[must_use]
+    pub fn take_words(&mut self, key: BoxKey) -> Option<Box<[u8]>> {
+        self.kept_words.remove(key)
     }
     #[must_use]
     pub const fn signing(&self) -> &Signing {
@@ -759,6 +783,9 @@ impl Tui {
                 }
                 let changed = self.place != command;
                 self.place = command;
+                if changed {
+                    self.focus = self.focus.saturating_add(1);
+                }
                 changed
             }
             Told::Lending { number, name } => {

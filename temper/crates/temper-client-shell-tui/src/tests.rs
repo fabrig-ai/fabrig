@@ -1970,6 +1970,12 @@ fn stored(host: &mut Host, mut duties: Duties) -> Duties {
     duties
 }
 
+fn no_box_writes(duties: &Duties) {
+    assert!(duties.keep.is_none());
+    assert!(duties.note.is_none());
+    assert!(duties.asked.iter().all(|request| !matches!(request, Request::Save { .. } | Request::Erase { .. })));
+}
+
 fn typed(host: &mut Host, words: &[u8]) {
     give(host, Event::Typed { value: words.into() });
 }

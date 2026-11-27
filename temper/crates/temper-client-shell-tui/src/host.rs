@@ -15,7 +15,7 @@ use temper_client_domain::{
 };
 use temper_client_shell_terminal::route::{self, Down, Duty};
 use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
-use temper_client_tui::{self as tui, Local, Note, Refusal, Told};
+use temper_client_tui::{self as tui, BoxKey, Local, Note, Refusal, Told};
 use temper_client_view::shared;
 
 pub const LOCAL_READS: u8 = 3;
@@ -792,10 +792,12 @@ impl Host {
                 self.quit(duties);
             }
             tui::Event::Command { command: TuiCommand::New } => {
+                self.pressed(TuiCommand::New.name());
                 if let Some(project) = self.root.pages().project() {
                     self.went(Address::Home { project });
+                } else {
+                    self.tell(Told::Cleared);
                 }
-                self.tell(Told::Cleared);
             }
             tui::Event::Command { command: TuiCommand::Goal } => {
                 if tui::goal_offered(&self.root)
@@ -847,13 +849,15 @@ impl Host {
             }
             tui::Event::Leave => self.leave(),
             tui::Event::Back => {
-                self.tell(Told::Place { command: None });
                 if let Address::NewChat { .. } = self.root.pages().address()
                     && let Some(project) = self.root.pages().project()
                 {
                     self.went(Address::Home { project });
+                } else if self.state().place().is_some() {
+                    self.change_place(None);
+                } else {
+                    self.tell(Told::Cleared);
                 }
-                self.tell(Told::Cleared);
             }
             tui::Event::Answer { words } => {
                 self.act(Act::MessageWords { words });
@@ -875,11 +879,9 @@ impl Host {
     fn own(&mut self, command: tui::Own, duties: &mut Duties) {
         match command {
             tui::Own::Draft | tui::Own::Change | tui::Own::Ask | tui::Own::Tell => {
-                self.composer_words(Box::default());
-                self.focus.caret = 0;
-                self.tell(Told::Cleared);
+                self.pressed(command.name());
                 self.tell(Told::LeftOff { task: None });
-                self.tell(Told::Place { command: Some(command) });
+                self.change_place(Some(command));
             }
             tui::Own::Brief => {
                 self.act(Act::Terminal(terminal::Act::Dismiss));
@@ -954,9 +956,87 @@ impl Host {
     fn composer_words(&mut self, words: Box<[u8]>) {
         if self.root.pages().chat().is_some() {
             self.act(Act::MessageWords { words });
-        } else {
+        } else if self.root.pages().chats().is_some() {
             self.act(Act::ChatWords { words });
+        } else {
+            self.tell(Told::CommandWords { value: words });
         }
+    }
+
+    fn pressed(&mut self, name: &[u8]) {
+        if let Ok(words) = core::str::from_utf8(self.words()) {
+            let words = words.trim_end().as_bytes();
+            if words.starts_with(b"/") && name.starts_with(words) {
+                self.composer_words(Box::default());
+            }
+        }
+    }
+
+    fn box_key(&self) -> Option<BoxKey> {
+        if let Some(command) = self.state().place() {
+            return Some(BoxKey::Place { command });
+        }
+        let pages = self.root.pages();
+        match *pages.address() {
+            Address::Chat { .. } => Some(BoxKey::Chat { task: pages.chat()?.task }),
+            Address::Talk { .. } => Some(BoxKey::Talk { task: pages.chat()?.task }),
+            Address::Home { .. } | Address::AllHome | Address::Inbox { .. } => Some(BoxKey::Launchpad),
+            Address::Chats { .. }
+            | Address::NewChat { .. }
+            | Address::Accounts
+            | Address::Forges
+            | Address::ConnectForge { .. }
+            | Address::ConnectModel { .. }
+            | Address::Welcome { .. }
+            | Address::Task { .. }
+            | Address::Goals { .. }
+            | Address::Changes { .. }
+            | Address::Waits { .. }
+            | Address::Settings { .. }
+            | Address::Repositories { .. }
+            | Address::Models { .. }
+            | Address::Builders { .. }
+            | Address::Role { .. }
+            | Address::Rule { .. }
+            | Address::Team { .. }
+            | Address::Ask { .. }
+            | Address::Tell { .. }
+            | Address::Adopt { .. }
+            | Address::Work { .. }
+            | Address::Members
+            | Address::Remembered
+            | Address::Told
+            | Address::Limits => None,
+        }
+    }
+
+    fn leaving_box(&self) -> Option<(BoxKey, Box<[u8]>)> {
+        self.box_key().map(|key| (key, self.words().into()))
+    }
+
+    fn enter_box(&mut self, left: Option<(BoxKey, Box<[u8]>)>) {
+        let entering = self.box_key();
+        let state = self.state.as_mut().expect("started TUI");
+        // Take the returning box first, so it cannot be evicted by the one left.
+        let mut words = entering.and_then(|key| state.take_words(key)).unwrap_or_default();
+        if let Some((key, prior)) = left {
+            if entering == Some(key) {
+                // The launchpad can change its root address without changing boxes.
+                words = prior;
+            } else {
+                state.keep_words(key, prior);
+            }
+        }
+        if self.words() != words.as_ref() {
+            self.composer_words(words);
+        }
+    }
+
+    fn change_place(&mut self, command: Option<tui::Own>) {
+        let left = self.leaving_box();
+        self.tell(Told::Cleared);
+        self.tell(Told::Place { command });
+        self.enter_box(left);
     }
 
     fn tell_outcome(&mut self) {
@@ -977,7 +1057,10 @@ impl Host {
                     .and_then(|me| me.projects.iter().find(|row| row.project == tell.project))
                     .map(|row| row.name.bytes().into())
                     .unwrap_or_default();
-                self.tell(Told::Place { command: None });
+                if self.state().place() == Some(tui::Own::Tell) {
+                    self.composer_words(Box::default());
+                    self.change_place(None);
+                }
                 self.notice(tui::Notice::Filed { number, project });
                 None
             }
@@ -1000,6 +1083,7 @@ impl Host {
     #[expect(clippy::too_many_lines, reason = "composer sends route terminal commands and their screen context")]
     fn send(&mut self, duties: &mut Duties) {
         if self.words() == tui::EXIT && self.root.pages().chat().is_some_and(|chat| chat.talk().is_some()) {
+            self.composer_words(Box::default());
             self.leave();
             return;
         }
@@ -1156,7 +1240,9 @@ impl Host {
                 .flat_map(|facts| facts.roles.iter())
                 .find(|role| role.name.get(..words.len()).is_some_and(|prefix| prefix.eq_ignore_ascii_case(&words)))
             {
-                self.act(Act::Go { address: Address::Talk { project, task: role.task } });
+                let address = Address::Talk { project, task: role.task };
+                self.composer_words(Box::default());
+                self.act(Act::Go { address });
                 self.tell(Told::Cleared);
             } else {
                 let project = self
@@ -1198,6 +1284,7 @@ impl Host {
                 .and_then(|number| number.parse::<u32>().ok())
                 .and_then(|number| tui::chat_number(&self.view, number));
             if let Some(task) = task {
+                self.composer_words(Box::default());
                 self.act(Act::Go { address: Address::Chat { task } });
                 self.tell(Told::Cleared);
             } else {
@@ -1288,8 +1375,10 @@ impl Host {
         self.went(Address::Home { project });
     }
     fn went(&mut self, address: Address) {
+        let left = self.leaving_box();
         self.tell(Told::Place { command: None });
         self.start_at(address);
+        self.enter_box(left);
     }
 
     /// A start may pass through `NewChat` or `Home` without ending the TUI place.
@@ -1312,11 +1401,7 @@ impl Host {
             && let Some(me) = self.root.pages().me(self.root.client())
             && let Some(project) = me.projects.get(0)
         {
-            let words: Box<[u8]> = self.state().command_words().into();
             self.went(Address::Home { project: project.project });
-            if !words.is_empty() {
-                self.act(Act::ChatWords { words });
-            }
         }
     }
 

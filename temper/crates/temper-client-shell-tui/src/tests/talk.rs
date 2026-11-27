@@ -211,6 +211,26 @@ fn talk_opens_by_prefix_and_its_list_lowers_on_escape_or_typing() {
     }
 }
 #[test]
+fn a_talk_restores_unsent_words_when_chosen_again() {
+    let mut host = talk_host(false, false);
+    no_box_writes(&give(&mut host, Event::Typed { value: b"x".as_slice().into() }));
+    let duties = give(&mut host, Event::Leave);
+    no_box_writes(&duties);
+    admit(&mut host, duties);
+    assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
+    assert_eq!(host.words(), b"");
+    no_box_writes(&give(&mut host, Event::Own { command: Own::Talk }));
+    host.frame();
+    assert_eq!(
+        host.event_of(&Key::Enter),
+        Some(Event::Act { act: Act::Go { address: Address::Talk { project: 3, task: ROLE } } })
+    );
+    no_box_writes(&host.report(Report::Key(Key::Enter)));
+    assert_eq!(host.root.pages().address(), &Address::Talk { project: 3, task: ROLE });
+    assert_eq!(host.words(), b"x");
+}
+
+#[test]
 fn leaving_a_talk_notices_its_minutes_and_known_cost_then_goes_home() {
     for (open, cost, exit, notice) in [
         (true, true, false, Some("Left Porter after 9 min · 42. It writes its Now.")),

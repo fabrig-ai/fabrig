@@ -240,6 +240,50 @@ fn an_unoffered_name_with_space_is_a_chats_message() {
 }
 
 #[test]
+fn ask_restores_its_own_words_until_the_start_succeeds() {
+    let (mut host, _, _) = signed_host(true);
+    let ask = Event::Own { command: Own::Ask };
+    typed(&mut host, b"draft words");
+    no_box_writes(&give(&mut host, ask.clone()));
+    assert_eq!(host.words(), b"");
+    typed(&mut host, b"q");
+    no_box_writes(&give(&mut host, Event::Back));
+    assert_eq!(host.words(), b"draft words");
+    no_box_writes(&give(&mut host, ask.clone()));
+    assert_eq!(host.words(), b"q");
+
+    for refused in [true, false] {
+        host.frame();
+        assert_eq!(host.event_of(&Key::Enter), Some(Event::Send));
+        let duties = host.report(Report::Key(Key::Enter));
+        let mut duties = admit(&mut host, duties);
+        if sent_ask(&duties).is_empty() {
+            let due = root::next_deadline(&host.root).expect("start retry");
+            host.clocks(due, host.env.wall);
+            duties.asked.extend(host.report(Report::Due).asked);
+        }
+        let asks = sent_ask(&duties);
+        let [(exchange, w::Ask::Create(_))] = asks.as_slice() else { panic!("one Ask temper start: {asks:?}") };
+        if refused {
+            let answer = w::Final::Refused(w::Refused { refusal: w::Refusal::NotOffered, at: None });
+            let duties = reply(&mut host, *exchange, final_bytes(&answer));
+            admit(&mut host, duties);
+            assert_eq!(host.state().place(), Some(Own::Ask));
+            assert_eq!(host.words(), b"q", "refused words stay in Ask");
+        } else {
+            let duties = reply(&mut host, *exchange, created_bytes(NEWEST));
+            admit(&mut host, duties);
+        }
+    }
+    assert_eq!(host.state().place(), None);
+    assert_eq!(host.root.pages().address(), &Address::Chat { task: NEWEST });
+    no_box_writes(&give(&mut host, Event::Command { command: Command::New }));
+    assert_eq!(host.words(), b"draft words");
+    no_box_writes(&give(&mut host, ask));
+    assert_eq!(host.words(), b"", "a successful start empties Ask");
+}
+
+#[test]
 fn first_words_start_the_places_chat_and_a_refusal_can_be_sent_again() {
     for (command, from, label, expected) in [
         (Own::Ask, Address::Home { project: 3 }, 7, b"fix the README".as_slice()),

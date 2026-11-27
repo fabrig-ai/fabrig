@@ -79,6 +79,53 @@ fn opened(title: &[u8]) -> (Host, u64) {
     (host, watched)
 }
 
+#[test]
+fn chat_and_launchpad_restore_their_own_unsent_words() {
+    const WORDS: &[u8] = b"half a thought";
+    let (mut host, _, _) = signed_host(true);
+    let new = Event::Command { command: Command::New };
+    let go = Event::Act { act: Act::Go { address: Address::Chat { task: CHAT } } };
+    let duties = give(&mut host, go.clone());
+    admit(&mut host, duties);
+    no_box_writes(&give(&mut host, Event::Typed { value: WORDS.into() }));
+    host.focus.caret = 1;
+    let duties = give(&mut host, new.clone());
+    no_box_writes(&duties);
+    admit(&mut host, duties);
+    assert_eq!(host.root.pages().address(), &Address::Home { project: PROJECT });
+    assert_eq!(host.words(), b"");
+    no_box_writes(&give(&mut host, Event::Typed { value: b"draft words".as_slice().into() }));
+
+    let duties = give(&mut host, go.clone());
+    no_box_writes(&duties);
+    let duties = admit(&mut host, duties);
+    let watched = watch(&duties, &w::Subject::Task(w::SubjectTask { task: CHAT }));
+    let duties = delivery(&mut host, watched, &w::DeliveryValue::Task(Box::new(task(b"Chat", false))));
+    admit(&mut host, duties);
+    assert_eq!(host.words(), WORDS);
+    host.frame();
+    assert_eq!(host.focus.caret, u32::try_from(WORDS.len()).unwrap());
+
+    assert_eq!(host.event_of(&Key::Enter), Some(Event::Send));
+    let duties = host.report(Report::Key(Key::Enter));
+    let mut duties = admit(&mut host, duties);
+    if sent_ask(&duties).is_empty() {
+        let due = root::next_deadline(&host.root).expect("message retry");
+        host.clocks(due, host.env.wall);
+        duties.asked.extend(host.report(Report::Due).asked);
+    }
+    let asks = sent_ask(&duties);
+    let [(_, w::Ask::Message(message))] = asks.as_slice() else { panic!("one chat message: {asks:?}") };
+    assert_eq!(message.words.as_ref(), WORDS);
+    assert_eq!(host.words(), b"");
+    let duties = give(&mut host, new);
+    no_box_writes(&duties);
+    admit(&mut host, duties);
+    assert_eq!(host.words(), b"draft words");
+    no_box_writes(&give(&mut host, go));
+    assert_eq!(host.words(), b"", "sent words do not come back");
+}
+
 fn close(host: &mut Host) -> skein_lib::Token {
     typed(host, b"/close");
     give(host, Event::Send);

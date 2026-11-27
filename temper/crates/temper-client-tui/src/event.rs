@@ -38,7 +38,7 @@ pub const QUIT: &[u8] = b"/quit";
 pub const EXIT: &[u8] = b"/exit";
 
 /// The TUI's own commands (temper/docs/design/client/tui/pages/README.md).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Own {
     Draft,
     Change,
