@@ -1,6 +1,6 @@
 //! Different receiving bounds in one shell loop (client/domain/testing.md, 4).
 use crate::{Scripted, Settings, Test, World, scripted::Family, test};
-use jig_client_domain::contract::{DocumentText, ObjectKey, ReadValue, Text, VersionRange};
+use jig_client_domain::contract::{DocumentText, ObjectKey, ReadValue, Text};
 use jig_client_scripted_engine::{Bounds, Script, Truth};
 use skein_lib::{Duration, Wall};
 
@@ -37,10 +37,7 @@ pub fn world(settings: Settings) -> World<Test, Scripted> {
         settings,
         Scripted::new(
             Script {
-                versions: VersionRange {
-                    first: jig_client_protocol_wire::VERSION,
-                    last: jig_client_protocol_wire::VERSION,
-                },
+                served: true,
                 truth,
                 bounds: Bounds {
                     text: 128,

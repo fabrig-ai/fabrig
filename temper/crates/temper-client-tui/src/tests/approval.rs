@@ -182,10 +182,7 @@ fn asking_again_is_the_approval_rules_table() {
                 );
             }
             Link::OutOfDate => {
-                f::client(
-                    &mut root,
-                    jig_client::Event::Up { up: jig_client::Up::Served { served: false, versions: None } },
-                );
+                f::client(&mut root, jig_client::Event::Up { up: jig_client::Up::Served { served: false } });
             }
             Link::SignedOut => unreachable!("signed in rows"),
         }
