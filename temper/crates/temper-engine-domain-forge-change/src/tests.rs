@@ -1268,6 +1268,79 @@ fn an_update_conflict_resolves_after_release_and_keeps_its_resolution_bound() {
         assert_eq!(decide(&c, &facts(), &h).decision, Decision::Hold(Cause::Resolutions));
     }
 }
+fn released_failed_landing() -> Change {
+    let mut held = change(State::Held {
+        was: Box::new(State::Landing { head: HEAD }),
+        hold: crate::Hold::new(Cause::Failed, at(0)),
+    });
+    held.ready_since = Some(at(0));
+    crate::release(&held, crate::ReleaseTrigger::Task { owes_readback: true, close: false }, None, None, at(1))
+        .expect("task release")
+        .change
+}
+
+fn requeue_failed_landing(facts: &Facts) -> Change {
+    let failure = Heard { effect: EffectResult::Failed, ..heard() };
+    let resumed = decide(&released_failed_landing(), facts, &failure);
+    assert_eq!(resumed.decision, Decision::None);
+    assert!(!resumed.change.owns_turn);
+    // The connector retires the failed effect after the release re-enters.
+    let ready = decide(&resumed.change, facts, &heard());
+    assert_eq!(ready.decision, Decision::Ready);
+    assert_eq!(ready.change.state, State::Queued { head: HEAD, ready_since: at(0) });
+    ready.change
+}
+
+#[test]
+fn a_released_failed_merge_asks_afresh_after_reclaiming_the_turn() {
+    let mut f = facts();
+    let queued = requeue_failed_landing(&f);
+    let waiting = decide(&queued, &f, &heard());
+    assert_eq!(waiting.decision, Decision::Wait { until: None });
+    assert_eq!(waiting.change, queued, "another change can still own the turn");
+
+    f.first = true;
+    let first = decide(&queued, &f, &heard());
+    assert_eq!(first.decision, Decision::None);
+    assert!(first.change.owns_turn);
+    let merge = decide(&first.change, &f, &heard());
+    assert_eq!(merge.decision, Decision::Effect(Effect::Merge { head: HEAD, base: BASE }));
+    assert_eq!(merge.change.state, State::Landing { head: HEAD });
+
+    f.base_tip = MERGE;
+    f.contains_head = Status::Passed;
+    let made = Heard { effect: EffectResult::Made, ..heard() };
+    let landed = decide(&merge.change, &f, &made);
+    assert_eq!(landed.decision, Decision::Finish { merge: MERGE });
+    assert_eq!(landed.change.state, State::Landed { merge: MERGE, since: at(1) });
+}
+
+fn retry_landing_with(f: &Facts) -> Decision {
+    let first = decide(&requeue_failed_landing(f), f, &heard());
+    decide(&first.change, f, &heard()).decision
+}
+
+#[test]
+fn a_released_failed_merge_updates_to_the_moved_base() {
+    let f = Facts {
+        pull: Pull::Open { head: HEAD, base: NEW },
+        expected_base: NEW,
+        base_tip: NEW,
+        base_read: NEW,
+        base_ci: Ci { head: NEW, status: Status::Passed },
+        contains_base: Status::Failed,
+        first: true,
+        ..facts()
+    };
+    assert_eq!(retry_landing_with(&f), Decision::Effect(Effect::Update { head: HEAD, base: NEW }));
+}
+
+#[test]
+fn a_released_failed_merge_resolves_an_unmergeable_pull() {
+    let f = Facts { mergeable: Status::Failed, first: true, ..facts() };
+    assert_eq!(retry_landing_with(&f), Decision::Delegate(Delegate::Resolve { base: BASE }));
+}
+
 #[test]
 fn a_persons_request_in_first_repairs_with_its_reviewed_head() {
     for (request, repairs, contains_base, expected, count) in [

@@ -2938,6 +2938,112 @@ fn a_moved_base_wakes_a_change_from_its_turn() {
     }
 }
 
+fn held_landing(effect: temper_engine_domain_forge_change::EffectResult) -> (Domain, ChangeRow) {
+    use temper_engine_domain_forge_change as change;
+    let mut d = fixtures::adopted_domain();
+    seen_base(&mut d, fixtures::BASE);
+    let mut row = fixtures::opening_row();
+    row.pull = Some(1);
+    row.pending = None;
+    row.effect = effect;
+    if effect == change::EffectResult::Failed {
+        row.effect_account = Some(EffectAccount { entry: fixtures::OPEN, words: b"merge failed".as_slice().into() });
+    }
+    row.change.ready_since = Some(Wall::EPOCH);
+    row.change.state = change::State::Held {
+        was: Box::new(change::State::Landing { head: fixtures::HEAD }),
+        hold: change::Hold::new(change::Cause::Failed, Wall::EPOCH),
+    };
+    (d, row)
+}
+
+fn gather_open_landing(d: &mut Domain) -> Box<[Request]> {
+    use skein_forge::api::{Answer, Op, Read};
+    fixtures::step_change(d);
+    for (branch, commit) in [(b"temper/51".as_slice(), fixtures::HEAD), (b"main".as_slice(), fixtures::BASE)] {
+        let (call, op) = fixtures::next_call(d);
+        assert_eq!(op, Op::Read(Read::Branch { branch: branch.into() }));
+        fixtures::answer(d, call, Ok(Answer::Commit(commit)));
+    }
+    let (call, op) = fixtures::next_call(d);
+    assert!(matches!(op, Op::Read(Read::Pull { number: 1, .. })));
+    fixtures::answer(d, call, Ok(Answer::Pull(fixtures::open_pull())));
+    fixtures::finish_open(d);
+    fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
+}
+
+#[test]
+fn releasing_a_failed_merge_retires_its_result_before_the_next_turn() {
+    use temper_engine_domain_forge_change as change;
+    let task = fixtures::CHANGE;
+    let (mut d, row) = held_landing(change::EffectResult::Failed);
+    outputs(&mut d, Event::Change { row });
+    outputs(&mut d, Event::ReleaseChange { task, release: None });
+    gather_open_landing(&mut d);
+    let row = d.change(task).expect("released change");
+    assert_eq!(row.effect, change::EffectResult::None);
+    assert!(row.effect_account.is_none());
+    assert_eq!(row.change.state, change::State::Queued { head: fixtures::HEAD, ready_since: Wall::EPOCH });
+    assert!(row.pending.is_none());
+
+    let proposed = gather_open_landing(&mut d);
+    let mut merge = None;
+    for request in &proposed {
+        if let Request::ChangeDecision { decision, entry, .. } = request {
+            assert_eq!(
+                *decision,
+                change::Decision::Effect(change::Effect::Merge { head: fixtures::HEAD, base: fixtures::BASE })
+            );
+            merge = *entry;
+        }
+    }
+    let entry = merge.expect("fresh merge at the checked head");
+    assert_ne!(entry, fixtures::OPEN);
+    assert_eq!(d.change(task).expect("new merge").pending, Some(entry));
+}
+
+fn assert_release_keeps_unsettled_merge(d: &mut Domain, held: ChangeRow) {
+    use temper_engine_domain_forge_change as change;
+    let task = held.task;
+    outputs(d, Event::Change { row: held.clone() });
+    outputs(d, Event::ReleaseChange { task, release: None });
+    let released = d.change(task).expect("released change");
+    assert_eq!(released.change.state, held.change.state, "readback keeps the predecessor at release");
+    assert_eq!(released.change.released, Some(change::Cause::Failed));
+
+    gather_open_landing(d);
+    let waiting = d.change(task).expect("readback change");
+    assert_eq!(waiting.effect, held.effect);
+    assert_eq!(waiting.effect_account, held.effect_account);
+    assert_eq!(waiting.pending, held.pending);
+    assert_eq!(waiting.change.state, held.change.state, "an open pull is not a settled merge");
+    assert_eq!(waiting.change.released, Some(change::Cause::Failed));
+}
+
+#[test]
+fn releasing_a_pending_merge_keeps_its_readback() {
+    use temper_engine_domain_forge_change::EffectResult;
+    let (mut d, mut row) = held_landing(EffectResult::Pending);
+    row.pending = Some(fixtures::OPEN);
+    assert_release_keeps_unsettled_merge(&mut d, row);
+}
+
+#[test]
+fn releasing_an_uncertain_merge_keeps_its_readback() {
+    use crate::writes::{Operation, WriteState};
+    use temper_engine_domain_forge_change::EffectResult;
+    // A lost outcome can outlive the outbox entry as an uncertain write.
+    let (mut d, row) = held_landing(EffectResult::Failed);
+    let name = run_branch(b"51");
+    let operation = Operation::Merge { pull: 1, head: fixtures::HEAD };
+    let sender = Sender::Entry { task: row.task, entry: fixtures::OPEN };
+    let order = d.admit(&name, operation, sender, &mut Queue::uncapped()).expect("merge intent");
+    d.writes.get_mut(&name).expect("write record").entries.last_mut().expect("merge").state = WriteState::Uncertain;
+
+    assert_release_keeps_unsettled_merge(&mut d, row);
+    assert_eq!(d.write_entry(&name, order).expect("retained merge").state, WriteState::Uncertain);
+}
+
 /// Withdrawal retires the client's pending write before its answer can hold the landed change (change/README.md, 2).
 #[test]
 fn a_containment_landing_withdraws_its_pending_merge() {

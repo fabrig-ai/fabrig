@@ -582,6 +582,14 @@ pub fn release(
         if let Some(stepped) = contained_landing_at(change, was, facts, standing, now) {
             return Some(stepped);
         }
+        if cause == Cause::Failed
+            && standing.effect == EffectResult::Pending
+            && let State::Landing { .. } = was
+        {
+            // An open pull is not proof that the outstanding merge failed.
+            next.released = Some(cause);
+            return Some(Stepped { took: None, change: next, decision: Decision::Wait { until: None } });
+        }
         if nothing.is_none() {
             nothing.clone_from(&facts.produced_nothing);
         }
@@ -726,7 +734,16 @@ fn reenter(change: Change, why: Cause, facts: &Facts, standing: &Heard, now: Wal
     {
         return hold(change, Cause::Authority(AuthorityHold { released: true, ..current }), now);
     }
-    let was = change.state.clone();
+    let was = if why == Cause::Failed
+        && (standing.effect == EffectResult::Failed || standing.effect == EffectResult::None)
+        && let State::Landing { head } = change.state
+    {
+        // The hold gave up the turn. Revalidate the head and rejoin the
+        // queue at the original ready time instead of skipping to First.
+        State::Gating { head, asked: Box::new([]) }
+    } else {
+        change.state.clone()
+    };
     reenter_phase(change, &was, why, facts, standing, now)
 }
 
