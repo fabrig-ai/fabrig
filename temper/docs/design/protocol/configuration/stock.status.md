@@ -10,6 +10,8 @@
 
 - **Not yet:** "Claude's cache prices are Anthropic's": the stock prices Claude's cached input as input and no cache write, so C is still 10,896 ("Budgets in runs of the costliest model") [in flight: change 913].
 
+- **Not yet:** 1: charter 2's and charter 5's words for working without history: the stock's implementer still reads the commit that deleted a file before restoring it, and its goal's specs may ask a change for a bisect, a build of main or a figure taken at main [in flight: change 21503].
+
 - **Not yet:** charter 13 and template 7, a standing role's, its host families and wake policy, and the stock models' prompt cache's life, `cache_life_ms` 300,000 but the scripted model's (`../../domain/agent/standing.md`, sections 2 and 4).
 
 
