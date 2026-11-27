@@ -362,6 +362,23 @@ fn an_idle_close_reopens_or_wakes_after_work_ends() {
 }
 
 #[test]
+fn an_idle_close_keeps_running_when_checking_or_skipping_its_replacement() {
+    const CLOSE: u64 = 20;
+    const PREVIOUS_LANDINGS: [u64; 1] = [9]; // The first of the two changes in facts().
+    let mut c = Closer::new();
+    c.closed = Some(Box::new(PREVIOUS_LANDINGS));
+    c.running = Some(Running { step: Step::Close, change: CLOSE });
+    for (close_job, expected) in [(None, Decision::CheckClose), (Some(false), Decision::SkipClose { change: CLOSE })] {
+        let mut f = facts();
+        f.child = Child::Idle { held: true };
+        f.close_job = close_job;
+        let s = step(&c, &f);
+        assert_eq!(s.decision, expected);
+        assert_eq!(s.closer.running, c.running, "close job {close_job:?}");
+    }
+}
+
+#[test]
 fn an_idle_close_cannot_bypass_the_report_hold() {
     const CLOSE: u64 = 20;
     for (closed, after_release) in

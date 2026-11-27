@@ -188,7 +188,10 @@ fn closing_step(mut closer: Closer, facts: &Facts) -> Stepped {
                 } else if closer.closed.as_deref() != Some(facts.landed.as_ref()) {
                     match facts.close_job {
                         None => Decision::CheckClose,
-                        Some(true) => Decision::Supersede { change: running.change },
+                        Some(true) => {
+                            closer.running = None;
+                            Decision::Supersede { change: running.change }
+                        }
                         Some(false) => Decision::SkipClose { change: running.change },
                     }
                 } else if held {
