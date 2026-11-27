@@ -1,5 +1,6 @@
 //! Conformance over decoded client/agent bytes and independently read durable rows.
 pub(super) mod agent;
+mod drawn;
 use crate::world::Proc;
 use jig_channel_kit::world::store::Store;
 use jig_client_domain::contract as client;
@@ -171,7 +172,11 @@ impl Referee {
     }
 
     fn expectation_deadline(&self) -> Time {
-        Time::from_nanos(if self.chat == crate::fixtures::Chat::Finite { 10_000_000_000 } else { 60_000_000_000 })
+        Time::from_nanos(if matches!(self.chat, crate::fixtures::Chat::Finite | crate::fixtures::Chat::Drawn) {
+            10_000_000_000
+        } else {
+            60_000_000_000
+        })
     }
     fn accounts(&mut self, procs: &mut [Proc]) {
         for (index, proc) in procs.iter_mut().enumerate() {
@@ -204,6 +209,20 @@ impl Referee {
                 }
             }
         }
+    }
+    fn drawn_reached(&self, other: &[Proc]) -> Result<bool, String> {
+        if terminals(&self.store.borrow()) == 0 {
+            return Ok(false);
+        }
+        let peer = other
+            .iter()
+            .find_map(|proc| match proc {
+                Proc::Peer(peer) => Some(peer),
+                _ => None,
+            })
+            .ok_or("drawn chat's provider")?;
+        drawn::check(peer.observations(), &self.store.borrow())?;
+        Ok(true)
     }
     fn text_reached(&mut self, now: Time, service: &crate::world::ServiceHost, other: &[Proc]) -> Result<bool, String> {
         use crate::fixtures::Chat;
@@ -304,17 +323,21 @@ impl Referee {
             .map_err(|why| format!("one-process conformance over bytes and durable rows: {why:?}"))
     }
 }
-pub(super) fn conformance() -> Rc<RefCell<rules::Referee>> {
-    Rc::new(RefCell::new(rules::Referee::new(policy())))
+pub(super) fn conformance(chat: crate::fixtures::Chat) -> Rc<RefCell<rules::Referee>> {
+    Rc::new(RefCell::new(rules::Referee::new(policy(chat))))
 }
-fn policy() -> rules::Policy {
-    let scope = rules::Scope {
+fn policy(chat: crate::fixtures::Chat) -> rules::Policy {
+    let mut scope = rules::Scope {
         budget: 100,
         executors: BTreeSet::from([(0, 1)]),
         descendants: 8,
         depth: 8,
         ..rules::Scope::default()
     };
+    if chat == crate::fixtures::Chat::Drawn {
+        scope.tools = crate::fixtures::drawn::TOOLS;
+        scope.executors.insert((2, 0)); // Person 1 holds role 0 in this project's delegation policy.
+    }
     rules::Policy {
         deployment: scope.clone(),
         projects: BTreeMap::from([(1, scope.clone())]),
@@ -685,14 +708,14 @@ impl Referee {
         }
         let gate_ready = self.scenario == Scenario::MarkGate && self.mark_gate(now, service)?;
         let reached = match self.scenario {
-            Scenario::Answer => {
-                clients_done
-                    && if self.chat == crate::fixtures::Chat::Finite {
-                        terminals(&self.store.borrow()) > 0
-                    } else {
-                        self.text_reached(now, service, other)?
-                    }
-            }
+            Scenario::Answer if !clients_done => false,
+            Scenario::Answer => match self.chat {
+                crate::fixtures::Chat::Finite => terminals(&self.store.borrow()) > 0,
+                crate::fixtures::Chat::Drawn => self.done || self.drawn_reached(other)?,
+                crate::fixtures::Chat::OpenText | crate::fixtures::Chat::FiniteText => {
+                    self.text_reached(now, service, other)?
+                }
+            },
             Scenario::MidRun => {
                 clients_done
                     && agent_started
