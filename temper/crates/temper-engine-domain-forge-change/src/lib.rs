@@ -32,8 +32,8 @@ pub use boundary::{
 };
 pub use clock::{Clock, Execution, Reading};
 pub use domain::{
-    authority_account, authority_recovery, authority_words, gates_pass, held_on_ci, prefix_verdict, released,
-    review_failed, step,
+    ReleaseTrigger, authority_account, authority_recovery, authority_words, gates_pass, held_on_ci, prefix_verdict,
+    release, review_failed, step,
 };
 pub use passing::{Passed, WordAct, pass};
 pub use queue::first;

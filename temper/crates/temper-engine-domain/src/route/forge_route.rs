@@ -1573,10 +1573,35 @@ pub(crate) fn revision_saved(
         domain.work.push(Work::Forge(forge::Event::RoomUnavailable { task: task.number }));
     }
     let mut out = Queue::uncapped();
+    let hold = task_hold(domain.config.forge_connector, task);
+    domain.forge.refresh_task_hold(task.number, hold);
     domain.forge.refresh_spec_revision(task.number, task.revisions.spec, &mut out);
     landing_route::cohort_saved(domain, env, task, &mut out);
     landing_route::lifecycle_saved(domain, task);
     outputs(domain, env, decision, &mut out);
+}
+
+pub(super) fn task_hold(connector: u16, row: &tasks::TaskRecord) -> Option<forge::TaskHold> {
+    if row.placed.is_some() {
+        return Some(forge::TaskHold::Blocked);
+    }
+    match &row.phase {
+        tasks::Phase::Held { source: Some(source), .. } => match source.as_ref() {
+            tasks::HoldSource::Account { connector: owner, .. } if *owner == connector => {
+                Some(forge::TaskHold::Change { revision: row.revisions.hold })
+            }
+            tasks::HoldSource::Account { .. }
+            | tasks::HoldSource::Circle(_)
+            | tasks::HoldSource::Preparation { .. }
+            | tasks::HoldSource::Wait { .. }
+            | tasks::HoldSource::Resource(_)
+            | tasks::HoldSource::Effect { .. } => Some(forge::TaskHold::Blocked),
+        },
+        tasks::Phase::Held { source: None, .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => {
+            Some(forge::TaskHold::Blocked)
+        }
+        tasks::Phase::Waiting | tasks::Phase::Active(_) => None,
+    }
 }
 
 pub(super) fn dependency_releases_change(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, task: u64) {
@@ -3947,6 +3972,9 @@ fn cancel_change(domain: &mut Domain, task: u64) {
 // The deployment records the vanished CI cause through the task's release path (domain/forge/change/repairs.md).
 fn end_change_hold(domain: &mut Domain, task: u64) {
     let Some(row) = domain.engine.core().tasks.task(task) else { return };
+    if task_hold(domain.config.forge_connector, row) != Some(forge::TaskHold::Change { revision: row.revisions.hold }) {
+        return;
+    }
     domain.work.push(Work::Tasks(tasks::Event::Release {
         reply_to: super::internal(u64::MAX),
         by: tasks::Party::Deployment { project: row.project },
@@ -4116,6 +4144,9 @@ fn change_rehold(domain: &Domain, task: u64) -> Option<forge_change::Cause> {
         tasks::Phase::Waiting | tasks::Phase::Active(_) => {}
     }
     let row = domain.forge.change(task)?;
+    if row.change.released.is_some() {
+        return None;
+    }
     let forge_change::State::Held { hold: forge_change::Hold { cause: why, .. }, .. } = row.change.state else {
         return None;
     };

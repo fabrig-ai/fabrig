@@ -150,7 +150,7 @@ fn a_flake_release_checks_then_gates_without_a_repair() {
     assert_eq!(checked.decision, Decision::None);
     assert_eq!(checked.change.state, State::Checking { head: HEAD });
     assert!(checked.change.clean.is_empty());
-    assert_eq!(checked.change.repairs, 0);
+    assert_eq!(checked.change.repairs, 1);
     let gated = decide(&checked.change, &facts(), &heard());
     assert_eq!(gated.decision, Decision::None);
     assert_eq!(gated.change.state, State::Gating { head: HEAD, asked: Box::new([]) });
@@ -165,7 +165,7 @@ fn a_failed_landing_repair_release_asks_a_fresh_repair() {
     assert_eq!(lifted.change.state, State::Repairing { requested: false, why });
     let repair = decide(&lifted.change, &facts(), &heard());
     assert_eq!(repair.decision, Decision::Delegate(Delegate::Repair(why)));
-    assert_eq!(repair.change.repairs, 1);
+    assert_eq!(repair.change.repairs, 2);
 }
 
 #[test]
@@ -227,15 +227,15 @@ fn releasing_red_stands_asks_a_fresh_repair_for_that_red() {
         let was = State::Repairing { requested: false, why };
         let mut held =
             change(State::Held { was: Box::new(was.clone()), hold: crate::Hold::new(Cause::RedStands, Wall::EPOCH) });
-        (held.repairs, held.resolutions, held.updates) = (LIMITS.repairs, LIMITS.resolutions, LIMITS.updates);
+        (held.repairs, held.resolutions, held.updates) = (1, LIMITS.resolutions, LIMITS.updates);
         let released = released(&held, at(1));
         assert_eq!(released.state, was);
-        assert_eq!((released.repairs, released.resolutions, released.updates), (0, 0, 0));
+        assert_eq!((released.repairs, released.resolutions, released.updates), (1, LIMITS.resolutions, LIMITS.updates));
         let red = Facts { ci: Ci { head: HEAD, status: Status::Failed }, ..facts() };
         let lifted = decide(&released, &red, &heard());
         let repair = decide(&lifted.change, &red, &heard());
         assert_eq!(repair.decision, Decision::Delegate(Delegate::Repair(why)));
-        assert_eq!(repair.change.repairs, 1);
+        assert_eq!(repair.change.repairs, 2);
     }
 }
 
@@ -249,7 +249,7 @@ fn a_no_test_release_checks_then_gates_without_a_repair() {
     assert_eq!(checked.decision, Decision::None);
     assert_eq!(checked.change.state, State::Checking { head: HEAD });
     assert!(checked.change.clean.is_empty());
-    assert_eq!(checked.change.repairs, 0);
+    assert_eq!(checked.change.repairs, 1);
     let gated = decide(&checked.change, &facts(), &heard());
     assert_eq!(gated.decision, Decision::None);
     assert_eq!(gated.change.state, State::Gating { head: HEAD, asked: Box::new([]) });

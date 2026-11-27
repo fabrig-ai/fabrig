@@ -120,7 +120,7 @@ fn green_ci_after_gates_end_requests_no_repair() {
 }
 
 #[test]
-fn a_release_at_green_resets_the_count_and_ends_ci_repair() {
+fn a_release_at_green_resets_only_its_allowance_and_ends_ci_repair() {
     for why in [
         Cause::Failed,
         Cause::Stalled,
@@ -130,15 +130,13 @@ fn a_release_at_green_resets_the_count_and_ends_ci_repair() {
         Cause::Updates,
         Cause::Rejected,
     ] {
-        let c = change(State::Held {
-            was: Box::new(repairing(Repair::Ci, true).state),
-            hold: crate::Hold::new(why, Wall::EPOCH),
-        });
+        let mut c = repairing(Repair::Ci, true);
+        c.state = State::Held { was: Box::new(c.state), hold: crate::Hold::new(why, Wall::EPOCH) };
         let released = decide(&c, &facts(), &Heard { released: true, ..heard() });
         let next = decide(&released.change, &facts(), &Heard { delegate: Status::Failed, ..heard() });
         assert_eq!(next.decision, Decision::RepairEnded { head: HEAD });
         assert_eq!(next.change.state, State::Checking { head: HEAD });
-        assert_eq!(next.change.repairs, 0);
+        assert_eq!(next.change.repairs, u32::from(why != Cause::Repairs));
     }
 }
 
@@ -187,7 +185,7 @@ fn authority() -> Cause {
 }
 
 #[test]
-fn green_ci_ends_only_its_own_hold_without_resetting_counters() {
+fn green_ci_ends_only_its_own_hold_and_resets_its_allowance() {
     for reason in [Repair::Ci, Repair::Semantic] {
         for why in [Cause::Failed, Cause::Stalled, Cause::Repairs, authority(), Cause::RedStands] {
             let mut c = repairing(reason, why != Cause::RedStands);
@@ -197,7 +195,10 @@ fn green_ci_ends_only_its_own_hold_without_resetting_counters() {
             let next = decide(&c, &facts(), &heard());
             assert_eq!(next.decision, Decision::EndHold);
             assert!(!matches!(next.change.state, State::Held { .. }));
-            assert_eq!((next.change.repairs, next.change.resolutions, next.change.updates), (1, 2, 3));
+            assert_eq!(
+                (next.change.repairs, next.change.resolutions, next.change.updates),
+                (u32::from(why != Cause::Repairs), 2, 3)
+            );
             assert_eq!(next.change.since, at(1));
             assert!(!next.change.owns_turn);
             assert_eq!(next.change.released, None);

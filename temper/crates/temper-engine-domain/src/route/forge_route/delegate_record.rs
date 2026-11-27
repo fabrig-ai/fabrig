@@ -16,7 +16,7 @@ pub(super) fn is_release(domain: &Domain, task: u64) -> bool {
     }
     let revision = record.revisions.hold;
     match &row.task_release {
-        Some(release) => release.revision != revision,
+        Some(release) => revision > release.revision,
         None => true,
     }
 }

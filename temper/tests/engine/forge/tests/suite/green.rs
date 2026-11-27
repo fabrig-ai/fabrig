@@ -111,7 +111,7 @@ fn a_release_at_a_green_head_makes_no_fresh_repair() {
         change_step_with_release(&mut world, 1, change::Status::Unknown, Box::new([]), true),
         change::Decision::Ready
     );
-    assert_eq!(row(&world).change.repairs, 0);
+    assert_eq!(row(&world).change.repairs, 1);
     assert!(row(&world).delegate.is_none());
 }
 
@@ -124,7 +124,7 @@ fn a_release_at_a_failing_head_still_asks_a_fresh_repair() {
         change_step_with_release(&mut world, 1, change::Status::Unknown, Box::new([]), true),
         change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci))
     );
-    assert_eq!(row(&world).change.repairs, 1);
+    assert_eq!(row(&world).change.repairs, 2);
 }
 
 #[test]

@@ -376,7 +376,7 @@ pub struct Change {
     pub clean: Box<[Commit]>,
     /// One bounded count per gate; cleared when the head changes or the task is released.
     pub gate_failures: Box<[GateFailure]>,
-    /// A lifted hold awaiting the next fresh forge snapshot.
+    /// An admitted release awaiting a fresh snapshot; its held step may still owe readback.
     pub released: Option<Cause>,
     /// A failed resolution or merge job was retired; fresh facts decide its replacement (change/repairs.md, A release).
     pub released_resolution: bool,
@@ -480,6 +480,10 @@ pub enum Recheck {
 #[expect(clippy::struct_excessive_bools, reason = "independent root-supplied facts")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Facts {
+    /// Jig bars a forge-triggered release, including under a placed hold.
+    pub release_blocked: bool,
+    /// The producing delegate ended without a change while this hold stood.
+    pub produced_nothing: Option<Box<[u8]>>,
     /// The change task's current `revisions.spec`, projected by the root.
     pub revision: u64,
     pub wait: Wait,

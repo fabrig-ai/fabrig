@@ -239,6 +239,13 @@ pub(crate) type ConnectionState = (crate::Connection, Option<crate::FailedStep>)
 type WaitingClaim = (u64, Box<[Name]>, Box<[Name]>, Box<[u64]>);
 
 /// The bounded forge connector subtree.
+/// Jig's live release authority, projected before a change reads or takes a result.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum TaskHold {
+    Change { revision: u64 },
+    Blocked,
+}
+
 #[derive(Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "the volatile full-outbox mark is independent of connector phases")]
 pub struct Domain {
@@ -343,6 +350,7 @@ pub struct Domain {
     pub(crate) sequence: u64,
     pub(crate) closing: crate::closer::State,
     pub(crate) changes: Map<u64, ChangeRow>,
+    task_holds: Map<u64, TaskHold>,
     /// The cold part last put, also held while restart collects the two parts.
     pub(crate) change_cold: Map<u64, crate::ChangeCold>,
     /// Progress parts awaiting the restore fit barrier.
@@ -1175,6 +1183,7 @@ impl Domain {
             sequence: 0,
             closing: crate::closer::State::new(l.tasks),
             changes: Map::with_capacity(l.changes),
+            task_holds: Map::with_capacity(l.changes),
             change_cold: Map::with_capacity(l.changes),
             change_hot: Map::with_capacity(l.changes),
             steps: Map::with_capacity(l.changes),
@@ -1784,6 +1793,21 @@ impl Domain {
             tasks.push(*task).expect("retained change count");
         }
         tasks.into_boxed()
+    }
+
+    /// Keep the current hold alongside spec revisions while a gather is in flight.
+    pub fn refresh_task_hold(&mut self, task: u64, hold: Option<TaskHold>) {
+        if !self.changes.contains_key(&task) {
+            return;
+        }
+        match hold {
+            Some(hold) => {
+                self.task_holds.insert(task, hold).expect("one projection per retained change");
+            }
+            None => {
+                self.task_holds.remove(&task);
+            }
+        }
     }
 
     /// Refresh jig's revision projection before reading verdicts. The forge never advances it
@@ -2621,7 +2645,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
                         Some(prior) => release.revision > prior.revision,
                         None => true,
                     },
-                    None => matches_held(&row.change.state),
+                    None => matches_held(&row.change.state) && row.change.released.is_none(),
                 },
                 None => false,
             };
@@ -4448,36 +4472,6 @@ fn unasked(row: &mut ChangeRow, kind: change::Delegate) -> change::State {
 
 // A result ends a stall at its delegate's wait; a close result also ends its
 // failed producing hold (domain/forge/change/repairs.md).
-fn delegate_wait(state: &change::State) -> bool {
-    match state {
-        change::State::Producing { requested }
-        | change::State::Repairing { requested, .. }
-        | change::State::Resolving { requested, .. } => *requested,
-        change::State::Taking { .. }
-        | change::State::WaitingProducer { .. }
-        | change::State::Opening { .. }
-        | change::State::Recreating { .. }
-        | change::State::Reopening { .. }
-        | change::State::Checking { .. }
-        | change::State::Judging { .. }
-        | change::State::Gating { .. }
-        | change::State::CancellingGates { .. }
-        | change::State::Ready { .. }
-        | change::State::Preparing { .. }
-        | change::State::Queued { .. }
-        | change::State::First { .. }
-        | change::State::Updating { .. }
-        | change::State::Landing { .. }
-        | change::State::Landed { .. }
-        | change::State::NoChange { .. }
-        | change::State::Ended
-        | change::State::Held { .. }
-        | change::State::Red { .. }
-        | change::State::Cleared { .. }
-        | change::State::Uncleared { .. } => false,
-    }
-}
-
 #[expect(clippy::too_many_arguments, reason = "one child's terminal carries its status, failure standing and words")]
 #[expect(clippy::too_many_lines, reason = "one delegate result records its answer, ending and readiness together")]
 #[expect(
@@ -4533,18 +4527,7 @@ fn delegate_result(
         return;
     }
     let fresh = row.ending.is_none() && !row.terminal();
-    let mut held_why = None;
     let owned = row.change.owns_turn;
-    let mut ended = false;
-    if let change::State::Held { was, hold: change::Hold { cause: why, .. } } = &row.change.state
-        && *why == change::Cause::Stalled
-        && delegate_wait(was)
-    {
-        held_why = Some(*why);
-        row.change.state = (**was).clone();
-        row.change.owns_turn = false;
-        ended = true;
-    }
     let empty_repair =
         if let change::Delegate::Repair(why) = kind { ci_reason(why) || crate::recheck::landing(why) } else { false };
     let agent = match kind {
@@ -4580,7 +4563,8 @@ fn delegate_result(
         change::Delegate::Produce | change::Delegate::Repair(_) | change::Delegate::Gate { .. } => row.delegate = None,
     }
     d.start_conflicts.remove(&task);
-    row.delegate_status = if no_change && !empty_repair { change::Status::Failed } else { status };
+    row.delegate_status =
+        if no_change && !empty_repair && kind != change::Delegate::Produce { change::Status::Failed } else { status };
     row.delegate_flake = flake
         && match kind {
             change::Delegate::Repair(_) => true,
@@ -4659,12 +4643,13 @@ fn delegate_result(
         crate::history::Answer::Failed
     };
     crate::change_history::answered(d, env.wall, &mut saved, child, kind, outcome, out);
+    let no_change = produced_nothing(&saved);
+    let owes_readback = release_owes_readback(d, env, &saved);
+    let ended = fresh
+        && engine_release(d, env, &mut saved, change::ReleaseTrigger::DelegateEnded { owes_readback, no_change }, out);
     d.changes.insert(task, saved.clone()).expect("retained change");
     if fresh && let change::State::NoChange { .. } = saved.change.state {
         crate::readiness::ending(d, env, &mut saved, crate::history::Ending::NoChange, out);
-    }
-    if ended && let Some(why) = held_why {
-        crate::readiness::released(d, env, &mut saved, why, out);
     }
     crate::readiness::reconcile(d, env, &mut saved, None, out);
     wake_after_turn(d, &saved, owned);
@@ -4672,6 +4657,11 @@ fn delegate_result(
     if ended {
         emit(out, Request::ChangeDecision { task, decision: change::Decision::EndHold, entry: None, evidence: None });
     }
+}
+
+fn producing_state(state: &change::State) -> bool {
+    *state == (change::State::Producing { requested: false })
+        || *state == (change::State::Producing { requested: true })
 }
 
 /// The last done dependency refreshes readiness before forming (domain/landing-turn.md, 2).
@@ -4694,22 +4684,13 @@ fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queu
     }
     d.change_due.remove(&task);
     emit(out, Request::WakeProcedure { task });
-    let row = d.changes.get_mut(&task).expect("live dependent change");
-    let owned = row.change.owns_turn;
-    let mut ended = false;
-    if let change::State::Held { was, hold: change::Hold { cause: change::Cause::Stalled, .. } } = &row.change.state
-        && **was == (change::State::Producing { requested: false })
-    {
-        row.change.state = (**was).clone();
-        row.change.owns_turn = false;
-        ended = true;
-    }
-    if let change::State::Producing { .. } = row.change.state {
-        row.change.since = env.wall;
-        let mut saved = row.clone();
-        if ended {
-            crate::readiness::released(d, env, &mut saved, change::Cause::Stalled, out);
-        }
+    let mut saved = d.changes.get(&task).expect("live dependent change").clone();
+    let owned = saved.change.owns_turn;
+    let owes_readback = release_owes_readback(d, env, &saved);
+    let ended = engine_release(d, env, &mut saved, change::ReleaseTrigger::DependenciesDone { owes_readback }, out);
+    if ended || producing_state(&saved.change.state) {
+        saved.change.since = env.wall;
+        d.changes.insert(task, saved.clone()).expect("retained dependent change");
         wake_after_turn(d, &saved, owned);
         save_change(d, out, saved);
         if ended {
@@ -4856,7 +4837,7 @@ fn producer_result(row: &mut ChangeRow, no_change: bool, failed: bool, words: &[
         | change::State::Cleared { .. }
         | change::State::Uncleared { .. } => false,
     };
-    row.producer_failure = if (failed || (no_change && held_producing)) && !words.is_empty() {
+    row.producer_failure = if (failed && !words.is_empty()) || (no_change && held_producing) {
         Some(crate::text::fit(
             words,
             usize::try_from(jig_domain_tasks::HOLD_ACCOUNT_BYTES).expect("bounded hold account"),
@@ -4865,6 +4846,20 @@ fn producer_result(row: &mut ChangeRow, no_change: bool, failed: bool, words: &[
     } else {
         None
     };
+}
+
+// A producer's no-change is a successful terminal with a bounded account but
+// no retained delegate. Do not confuse it with a failed or cancelled producer.
+fn produced_nothing(row: &ChangeRow) -> Option<Box<[u8]>> {
+    if let change::State::Held { was, .. } = &row.change.state
+        && producing_state(was)
+        && row.close.is_none()
+        && row.delegate.is_none()
+        && row.delegate_status == change::Status::Passed
+    {
+        return row.producer_failure.clone();
+    }
+    None
 }
 
 fn review_terminal_words(status: change::Status, failed: bool, cancelled: bool) -> &'static [u8] {
@@ -5076,6 +5071,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     if heard.released {
         if let Some(row) = d.changes.get(&task)
             && row.task_release.is_none()
+            && row.change.released.is_none()
             && matches_held(&row.change.state)
         {
             release_change(d, env, task, out);
@@ -6212,7 +6208,7 @@ fn wake_after_turn(d: &mut Domain, row: &ChangeRow, owned: bool) {
 
 fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
     let Some(row) = d.changes.get(&pending.task) else { return };
-    let held = matches_held(&row.change.state);
+    let held = matches_held(&row.change.state) && row.change.released.is_none();
     if let Some(behind) = pending.behind
         && !held
     {
@@ -6260,7 +6256,7 @@ fn wait_for_forge(
         emit(out, Request::WakeProcedure { task: pending.task });
         return;
     }
-    if let change::State::Held { .. } = row.change.state {
+    if matches_held(&row.change.state) && row.change.released.is_none() {
         read_session::forget(d, pending.task, out);
         emit(
             out,
@@ -6330,10 +6326,9 @@ fn hold_read_session(
     let prior = row.change.clone();
     let owned = row.change.owns_turn;
     row.change.owns_turn = false;
-    row.change.state = change::State::Held {
-        was: Box::new(row.change.state),
-        hold: change::Hold::new(change::Cause::Stalled, env.wall),
-    };
+    let was = if let change::State::Held { was, .. } = row.change.state { was } else { Box::new(row.change.state) };
+    row.change.state = change::State::Held { was, hold: change::Hold::new(change::Cause::Stalled, env.wall) };
+    row.change.released = None;
     let evidence = match pending {
         Some(pending) => step_evidence(d, &row, pending, prior),
         None => crate::ChangeEvidence {
@@ -6511,6 +6506,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         crate::settle::observe(d, env, &row, pending.pull.as_ref(), base_tip);
     }
     if takes_released_head(&row.change)
+        && pending.behind.is_none()
         && let Some(head) = pending.branch
     {
         accept_released_branch(d, env, &mut row, head, out);
@@ -6615,6 +6611,11 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             gather_read(d, env, owner, repository, skein_forge::api::Read::Checks { commit: head }, out);
             return;
         }
+        let released = held_cause(&effect_prior.state);
+        if stepped.decision == change::Decision::EndHold {
+            take_engine_revision(d, &mut row, env.wall);
+            fence_release(d, env, &mut row, out);
+        }
         let measured = if stepped.decision == change::Decision::Hold(change::Cause::RedStands)
             && !change::held_on_ci(&stepped.change.state)
             && facts.recheck == change::Recheck::Taken
@@ -6625,6 +6626,19 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             None
         };
         row.change = stepped.change;
+        if let Some(cause) = released
+            && (stepped.decision == change::Decision::EndHold || effect_prior.released.is_some())
+            && !matches_held(&row.change.state)
+            && !row.terminal()
+        {
+            forget_released_step(&mut row, cause);
+            if cause == change::Cause::Runner
+                && let Some(head) = pending.branch
+            {
+                row.runner_ci = Some(crate::RunnerCi::Counting { attempts: pending.failed.baseline(head) });
+            }
+            heard = change_standing(d, &row, &pending);
+        }
         if let Some(took) = stepped.took {
             crate::landing::members::take(&mut row, took, out);
             facts.ask = crate::landing::members::head(&row).cloned();
@@ -6736,15 +6750,6 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                     let commit = pending.branch.expect("runner fault at the checked head");
                     let words = pending.failed.hold_words(commit, crate::change_ci::baseline(&row));
                     row.runner_ci = Some(crate::RunnerCi::Held { words });
-                } else if decision == change::Decision::EndHold {
-                    if let Some(crate::RunnerCi::Held { .. }) = &row.runner_ci {
-                        row.runner_ci = None;
-                    }
-                    if let change::State::Held { hold: change::Hold { cause: change::Cause::RedStands, .. }, .. } =
-                        effect_prior.state
-                    {
-                        row.producer_failure = None;
-                    }
                 }
                 row.room = None;
                 crate::room::leave(d, crate::room::Waiter::Change(row.task));
@@ -7187,6 +7192,8 @@ fn change_facts(
     };
     let window = crate::settle::window(d, row.task);
     change::Facts {
+        release_blocked: d.task_holds.get(&row.task) == Some(&TaskHold::Blocked),
+        produced_nothing: if row.change.released.is_some() { produced_nothing(row) } else { None },
         revision: row.spec_revision,
         taken: row.kept,
         fault: if pending.ci == change::Status::Failed {
@@ -7891,6 +7898,10 @@ pub(crate) fn matches_held(state: &change::State) -> bool {
     }
 }
 
+fn held_cause(state: &change::State) -> Option<change::Cause> {
+    if let change::State::Held { hold, .. } = state { Some(hold.cause) } else { None }
+}
+
 fn takes_released_head(change: &change::Change) -> bool {
     change.released_resolution || change.released == Some(change::Cause::BranchMoved)
 }
@@ -7949,57 +7960,24 @@ fn retire_failed_delegate(row: &mut ChangeRow) {
     row.merge_result = None;
 }
 
-/// Released updates and re-runs drop failed results, retaining conflicts
-/// (temper/docs/design/domain/forge/updates.md, 1, and change/README.md, 2, step 3).
-#[expect(clippy::too_many_lines, reason = "the release resets the procedure and its waits before fencing fresh reads")]
-fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
-    if let Some(owner) = step_owner(d, task) {
-        d.steps.remove(&owner);
+/// Drop only connector-side verdicts superseded by the policy's release.
+fn forget_released_step(row: &mut ChangeRow, cause: change::Cause) {
+    if cause == change::Cause::Runner {
+        row.runner_ci = Some(crate::RunnerCi::Released);
     }
-    d.change_due.remove(&task);
-    read_session::restart(d, env, task, env.wall, out);
-    branch_due(d, task);
-    let Some(row) = d.changes.get_mut(&task) else {
-        emit(out, Request::Refused { task });
-        return;
-    };
-    let before = crate::panel::ready(row);
-    if let change::State::Held { hold: change::Hold { cause: change::Cause::RedStands, .. }, .. } = row.change.state {
+    let (flake, no_test) = (row.delegate_flake, row.delegate_no_test);
+    if cause == change::Cause::Failed || cause == change::Cause::RedStands || cause == change::Cause::CloseRefused {
+        retire_failed_delegate(row);
+    }
+    if cause == change::Cause::RedStands {
+        // A legacy flake/no-test still owes its re-gate on release.
+        row.delegate_flake = flake;
+        row.delegate_no_test = no_test;
         row.producer_failure = None;
         row.delegate_status = change::Status::Unknown;
         row.ci_recheck = None;
     }
-    // The old flake/no-test arms owe one regate. Retire their delegate as
-    // before, but carry the marks until the fresh read takes the release.
-    let (flake, no_test) = (row.delegate_flake, row.delegate_no_test);
-    retire_failed_delegate(row);
-    let mut released = change::released(&row.change, env.wall);
-    if released.released == Some(change::Cause::RedStands) {
-        row.delegate_flake = flake;
-        row.delegate_no_test = no_test;
-    }
-    if row.close.is_some()
-        && (released.released == Some(change::Cause::Failed) || released.released == Some(change::Cause::CloseRefused))
-        && released.state == (change::State::Producing { requested: true })
-    {
-        // A failed close is a new producing decision, not drift recovery. Put
-        // it in that phase before picking the reads (or parking for its closer).
-        released.state = change::State::Producing { requested: false };
-        released.released = None;
-    }
-    let lifted = released.state != row.change.state;
-    if lifted && row.room.is_some() {
-        row.effect_account = None;
-        crate::room::released(d, task, env.wall);
-    }
-    // Reborrow after resetting the room clock.
-    let row = d.changes.get_mut(&task).expect("released change");
-    if released.released == Some(change::Cause::Runner) {
-        row.runner_ci = Some(crate::RunnerCi::Released);
-    }
-    row.change = released;
-    row.change.since = env.wall;
-    if lifted && (row.effect == change::EffectResult::Failed || row.effect == change::EffectResult::Stale) {
+    if row.effect == change::EffectResult::Failed || row.effect == change::EffectResult::Stale {
         match row.change.state {
             change::State::Taking { .. }
             | change::State::Updating { .. }
@@ -8028,8 +8006,7 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
             | change::State::Ended => {}
         }
     }
-    if lifted
-        && let Some(check) = &mut row.follow_check
+    if let Some(check) = &mut row.follow_check
         && check.held.is_some()
     {
         check.held = None;
@@ -8037,20 +8014,92 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
         check.flight = None;
         check.page = 1;
     }
+}
+
+fn release_owes_readback(d: &Domain, env: &Env<Limits>, row: &ChangeRow) -> bool {
+    if let Some(change::Handed { ask: change::Ask::Landed { .. }, .. }) = crate::landing::members::head(row) {
+        return true;
+    }
+    if let change::State::Held { was, .. } = &row.change.state
+        && let change::State::First { .. } | change::State::Landing { .. } = was.as_ref()
+    {
+        return true;
+    }
+    writes::release_readback(d, &env.limits, row)
+}
+
+fn fence_release(d: &mut Domain, env: &Env<Limits>, row: &mut ChangeRow, out: &mut Queue<Request>) {
+    let task = row.task;
+    if let Some(owner) = step_owner(d, task) {
+        d.steps.remove(&owner);
+    }
+    d.fresh_steps.remove(&task);
+    d.change_due.remove(&task);
+    if let Some(read) = d.settling.get_mut(&task) {
+        read.branch.due = true;
+        read.contains_head = None;
+    }
+    read_session::restart(d, env, task, env.wall, out);
+    row.behind_wait = None;
+    fence_release_reads(d, env, row, out);
+}
+
+fn take_engine_revision(d: &Domain, row: &mut ChangeRow, now: skein_lib::Wall) {
+    if let Some(TaskHold::Change { revision }) = d.task_holds.get(&row.task) {
+        row.task_release = Some(crate::TaskRelease { revision: *revision, at: now });
+    }
+}
+
+fn engine_release(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    row: &mut ChangeRow,
+    trigger: change::ReleaseTrigger,
+    out: &mut Queue<Request>,
+) -> bool {
+    if d.task_holds.get(&row.task) == Some(&TaskHold::Blocked) {
+        return false;
+    }
+    let Some(stepped) = change::release(&row.change, trigger, None, None, env.wall) else { return false };
+    assert_eq!(stepped.decision, change::Decision::EndHold, "only engine triggers reach this path");
+    take_engine_revision(d, row, env.wall);
+    fence_release(d, env, row, out);
+    row.change = stepped.change;
+    if !matches_held(&row.change.state) && !row.terminal() {
+        forget_released_step(row, change::Cause::Stalled);
+    }
+    fresh_release_reads(d, env, row, out);
+    crate::readiness::released(d, env, row, change::Cause::Stalled, out);
+    true
+}
+
+fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    let Some(mut row) = d.changes.get(&task).cloned() else {
+        emit(out, Request::Refused { task });
+        return;
+    };
+    let before = crate::panel::ready(&row);
+    let cause = held_cause(&row.change.state);
+    let owes_readback = release_owes_readback(d, env, &row) || produced_nothing(&row).is_some();
+    fence_release(d, env, &mut row, out);
+    let trigger = change::ReleaseTrigger::Task { owes_readback, close: row.close.is_some() };
+    row.change = change::release(&row.change, trigger, None, None, env.wall).expect("task release is admitted").change;
+    if !matches_held(&row.change.state)
+        && let Some(cause) = cause
+    {
+        forget_released_step(&mut row, cause);
+        if row.room.is_some() {
+            row.effect_account = None;
+            crate::room::released(d, task, env.wall);
+        }
+    }
     row.drift = None;
-    let mut saved = row.clone();
+    let saved = row;
     save_queue_change(d, env, before, saved.clone(), out);
     let mut affected = List::with_capacity(d.holds.len());
-    let mut observed = None;
     for (name, hold) in &d.holds {
         if hold.task == task && hold.drift.is_some() {
             affected.push(name.clone()).expect("at most all held resources");
-            if let Some(drift) = &hold.drift {
-                match &drift.change {
-                    crate::DriftChange::Branch { observed: head, .. } => observed = *head,
-                    crate::DriftChange::PullClosed { .. } | crate::DriftChange::Retargeted { .. } => {}
-                }
-            }
         }
     }
     for name in &affected {
@@ -8058,13 +8107,6 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
         hold.drift = None;
         save_hold(out, hold.clone());
     }
-    if saved.change.released == Some(change::Cause::BranchMoved)
-        && let Some(head) = observed
-    {
-        // A poll may finish before the procedure's fresh snapshot does.
-        accept_released_branch(d, env, &mut saved, head, out);
-    }
-    fence_release_reads(d, env, &saved, out);
     fresh_release_reads(d, env, &saved, out);
 }
 
@@ -11245,7 +11287,7 @@ pub(crate) fn save_change_parts(d: &mut Domain, out: &mut Queue<Request>, mut ro
         row.ci_recheck = None;
         d.changes.get_mut(&row.task).expect("saved change is retained").ci_recheck = None;
     }
-    if row.behind_wait.is_some() && (row.frozen() || matches_held(&row.change.state)) {
+    if row.behind_wait.is_some() && (row.frozen() || matches_held(&row.change.state) && row.change.released.is_none()) {
         row.behind_wait = None;
         d.changes.get_mut(&row.task).expect("saved change").behind_wait = None;
     }

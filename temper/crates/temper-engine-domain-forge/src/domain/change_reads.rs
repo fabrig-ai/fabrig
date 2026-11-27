@@ -79,10 +79,10 @@ pub(super) fn branch(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, o
     };
     let held_new_head = super::change_requester_writing(d, row);
     let seen = d.observe(&name, pending.branch, actor, out);
-    if accept {
-        return Judgement::Read;
-    }
     match seen {
+        Seen::Current | Seen::Explained { .. } | Seen::Drift { .. } if accept && pending.branch.is_some() => {
+            Judgement::Read
+        }
         Seen::Current if !d.writes.contains_key(&name) => {
             // Older procedure rows can predate the write record. Their last
             // confirmed head is the baseline until they have a record.
@@ -272,8 +272,17 @@ pub(super) fn keep(
 ) -> bool {
     // A hint identifying another writer, or a missing branch, is not made
     // ambiguous by a later view of the base or of the pull.
-    if pending.drift.is_some() {
-        return true;
+    let releasing = match d.changes.get(&pending.task) {
+        Some(row) => row.change.released.is_some(),
+        None => false,
+    };
+    match judgement {
+        Judgement::Owed | Judgement::Behind(_) if releasing => {}
+        Judgement::Read | Judgement::Owed | Judgement::Behind(_) | Judgement::Drift(_) => {
+            if pending.drift.is_some() {
+                return true;
+            }
+        }
     }
     match judgement {
         Judgement::Read => true,

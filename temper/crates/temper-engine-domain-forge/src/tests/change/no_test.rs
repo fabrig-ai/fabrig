@@ -151,7 +151,7 @@ fn a_previous_no_test_hold_releases_into_one_regate_whose_red_stands() {
         }
     );
     assert_eq!(held.producer_failure.as_deref(), Some(b"its red at 030303030303 stands: repair task 52 changed nothing, and the same content failed again: test; release this change to ask a fresh repair, or cancel it".as_slice()));
-    assert_eq!(held.change.repairs, 0);
+    assert_eq!(held.change.repairs, 1);
     assert_eq!(held.repair_tasks.as_ref(), [52]);
     assert_eq!(held.regate.as_ref().unwrap().taken, Some(57));
     assert!(d.landing.flights.is_empty(), "the taken regate never dispatches again");
@@ -160,7 +160,7 @@ fn a_previous_no_test_hold_releases_into_one_regate_whose_red_stands() {
     assert_eq!(change_step_at(&mut d, fixtures::HEAD), change::Decision::Delegate(change::Delegate::Repair(why())));
     let next = d.change(fixtures::CHANGE).unwrap();
     assert_eq!(next.regate, None);
-    assert_eq!(next.change.repairs, 1);
+    assert_eq!(next.change.repairs, 2);
 }
 
 #[test]

@@ -1935,6 +1935,7 @@ fn a_dependency_end_refreshes_producing_and_ends_only_its_unrequested_stall() {
     ] {
         let mut d = delegate_waiting(state.clone(), change::Delegate::Produce);
         d.changes.get_mut(&fixtures::CHANGE).expect("change").change.owns_turn = end;
+        d.refresh_task_hold(fixtures::CHANGE, Some(TaskHold::Change { revision: 3 }));
         let before = d.change(fixtures::CHANGE).expect("change").clone();
         let finished = outputs(&mut d, Event::DependenciesMet { task: fixtures::CHANGE });
         let row = d.change(fixtures::CHANGE).expect("change");
@@ -1962,6 +1963,9 @@ fn a_dependency_end_refreshes_producing_and_ends_only_its_unrequested_stall() {
         assert_eq!(saved, refresh);
         if !refresh {
             assert_eq!(*row, before);
+        }
+        if end {
+            assert_engine_release_taken(&mut d);
         }
     }
 }
@@ -2079,6 +2083,7 @@ fn a_result_ends_only_a_stall_at_its_delegate_wait() {
             hold: change::Hold::new(change::Cause::Stalled, Wall::EPOCH),
         };
         let mut d = delegate_waiting(held.clone(), kind);
+        d.refresh_task_hold(fixtures::CHANGE, Some(TaskHold::Change { revision: 3 }));
         let result = producer_terminal(&mut d, false);
         assert_eq!(d.change(fixtures::CHANGE).expect("change").change.state, if ends { was } else { held });
         assert_eq!(
@@ -2091,9 +2096,19 @@ fn a_result_ends_only_a_stall_at_its_delegate_wait() {
             ends
         );
         if ends {
+            assert_engine_release_taken(&mut d);
             assert!(ready(&mut d).contains(&Request::WakeProcedure { task: fixtures::CHANGE }));
         }
     }
+}
+
+fn assert_engine_release_taken(d: &mut Domain) {
+    let task = fixtures::CHANGE;
+    let before = d.change(task).expect("released").clone();
+    assert_eq!(before.task_release, Some(TaskRelease { revision: 3, at: env().wall }));
+    let repeated = outputs(d, Event::ReleaseChange { task, release: before.task_release.clone() });
+    assert!(repeated.is_empty(), "no reset or read on deployment's release: {repeated:?}");
+    assert_eq!(d.change(task), Some(&before));
 }
 
 #[test]
@@ -2184,6 +2199,14 @@ fn a_questions_hold_keeps_the_result_until_release_and_says_no_change_words() {
         assert_eq!(row.report.as_ref(), b"Whole report");
         if no_change {
             assert_eq!(row.producer_failure.as_deref(), Some(b"Nothing applies".as_slice()));
+            outputs(&mut d, waiting_step(false, true));
+            fixtures::missing_pull_reads(&mut d);
+            let finished = fixtures::finish_missing(&mut d);
+            assert!(decided(&finished, change::Decision::NoChange), "{finished:?}");
+            assert_eq!(
+                d.change(fixtures::CHANGE).unwrap().change.state,
+                change::State::NoChange { words: b"Nothing applies".as_slice().into() }
+            );
         } else {
             outputs(&mut d, waiting_step(false, true));
             fixtures::missing_pull_reads(&mut d);
@@ -2528,7 +2551,7 @@ fn a_release_of_a_failed_update_drops_its_result() {
             outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
             assert_eq!(d.change(fixtures::CHANGE).expect("released").effect, expected);
             if expected == change::EffectResult::None {
-                decide_update_again(&mut d, preparing, 1);
+                decide_update_again(&mut d, preparing, 2);
             }
         }
     }
@@ -2598,7 +2621,7 @@ fn a_release_keeps_the_repair_and_resolution_tasks_made_before_it() {
         hold: change::Hold::new(change::Cause::Failed, Wall::EPOCH),
     };
     outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
-    assert_eq!(d.change(fixtures::CHANGE).expect("released").change.repairs, 0);
+    assert_eq!(d.change(fixtures::CHANGE).expect("released").change.repairs, 1);
     outputs(&mut d, waiting_step(false, true));
     fixtures::missing_pull_reads(&mut d);
     let made = fixtures::finish_missing(&mut d);
@@ -2616,7 +2639,7 @@ fn a_release_keeps_the_repair_and_resolution_tasks_made_before_it() {
         Event::Delegated { task: fixtures::CHANGE, child: 53, kind: change::Delegate::Repair(change::Repair::Gate(1)) },
     );
     let row = d.change(fixtures::CHANGE).expect("second repair");
-    assert_eq!(row.change.repairs, 1);
+    assert_eq!(row.change.repairs, 2);
     assert_eq!(row.repair_tasks.as_ref(), &[52, 53]);
     assert_eq!(row.resolution_tasks.as_ref(), &[90]);
 }
@@ -3126,6 +3149,64 @@ fn a_release_supersedes_an_outstanding_gather_and_ignores_its_late_answer() {
     fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
     let finished = fixtures::finish_missing(&mut d);
     assert!(built_entry(&finished, fixtures::OPEN + 1), "fresh reads decide: {finished:?}");
+}
+
+#[test]
+fn a_release_reads_back_an_uncertain_update_before_adopting_its_head() {
+    use crate::writes::{Operation, WriteState};
+    use skein_forge::api::{Answer, Op, Read};
+    use temper_engine_domain_forge_change::{Cause, GateFailure, Hold, State};
+
+    let task = fixtures::CHANGE;
+    let mut d = restarted_producing();
+    let (old, _) = fixtures::next_call(&mut d);
+    let name = run_branch(b"51");
+    let mut writes = Queue::uncapped();
+    let head = fixtures::HEAD;
+    let newer = [41; 32];
+    let sender = Sender::Entry { task, entry: fixtures::OPEN };
+    d.admit(&name, Operation::Create { after: head }, sender, &mut writes).expect("first head");
+    assert!(matches!(
+        d.observe(&name, Some(head), Actor::Unknown, &mut writes),
+        Seen::Current | Seen::Explained { .. }
+    ));
+    let update = Operation::Update { pull: 1, before: head, base: fixtures::BASE, after: None };
+    let order = d.admit(&name, update, sender, &mut writes).expect("update intent");
+    let record = d.writes.get_mut(&name).unwrap();
+    let written = record.entries.last_mut().expect("admitted write");
+    assert_eq!(written.order, order);
+    written.state = WriteState::Uncertain;
+    let row = d.changes.get_mut(&task).unwrap();
+    row.change.state = State::Held {
+        was: Box::new(State::Gating { head, asked: Box::new([1]) }),
+        hold: Hold::new(Cause::BranchMoved, env().wall),
+    };
+    row.change.gate_failures = Box::new([GateFailure { number: 1, count: 2 }]);
+    row.change.repairs = 5;
+    outputs(&mut d, waiting_step(false, true));
+    let (fresh, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }));
+    assert_ne!(fresh, old);
+    fixtures::answer(&mut d, old, Ok(Answer::Commit(head)));
+    let out = fixtures::answer(&mut d, fresh, Ok(Answer::Commit(newer)));
+    assert!(!opens_pull(&out));
+    let row = d.change(task).unwrap();
+    assert!(matches!(row.change.state, State::Held { .. }));
+    assert_eq!(row.change.last_head, Some(head));
+    assert_eq!(row.change.gate_failures.as_ref(), &[GateFailure { number: 1, count: 2 }]);
+    assert!(d.inspection_write_readback(&name, order), "the changed head owes ancestry before re-entry");
+
+    for after in [head, fixtures::BASE] {
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Commits { before: newer, after, page: 1 }));
+        fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+    }
+    let written = d.write_entry(&name, order).unwrap();
+    assert_eq!(written.state, WriteState::Confirmed);
+    assert_eq!(
+        written.operation,
+        Operation::Update { pull: 1, before: head, base: fixtures::BASE, after: Some(newer) }
+    );
 }
 
 #[test]

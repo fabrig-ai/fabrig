@@ -30,7 +30,6 @@ pub fn step(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits:
     stepped
 }
 
-#[expect(clippy::too_many_lines, reason = "the ordered guards include the record verdict before phase dispatch")]
 fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
     let mut next = change.clone();
     if facts.kept {
@@ -44,27 +43,20 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     {
         return hold(next, Cause::Failed, now);
     }
-    if change.way == Way::Turn
-        && let Some(Handed { number, ask: Ask::Landed { prefix }, .. }) = facts.ask
-    {
-        next.state = State::Landed { merge: prefix, since: now };
-        next.owns_turn = false;
-        next.released = None;
-        let mut stepped = verifying(next, prefix, now, facts, standing.cancelled, now);
-        stepped.took = Some(Took::Taken(number));
-        return stepped;
-    }
-    if let Some(stepped) = after_landing(&next, facts, standing, now) {
-        return stepped;
-    }
-    match facts.pull {
-        Pull::Merged { commit } if change.way == Way::Queue || facts.landing.is_none() => {
-            next.state = State::Landed { merge: commit, since: now };
-            next.owns_turn = false;
-            next.released = None;
-            return verifying(next, commit, now, facts, standing.cancelled, now);
+    if !standing.cancelled {
+        let trigger = if standing.released {
+            ReleaseTrigger::Task { owes_readback: false, close: facts.close }
+        } else if next.released.is_some() {
+            ReleaseTrigger::Fresh
+        } else {
+            ReleaseTrigger::Green
+        };
+        if let Some(stepped) = release(&next, trigger, Some(facts), Some(standing), now) {
+            return stepped;
         }
-        Pull::Missing | Pull::Open { .. } | Pull::Closed | Pull::Merged { .. } => {}
+    }
+    if let Some(stepped) = settle_landed(&next, facts, standing, now) {
+        return stepped;
     }
     if standing.cancelled {
         if let State::Held { hold: crate::Hold { cause: why, .. }, .. } = &next.state {
@@ -74,15 +66,6 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         next.released = None;
         next.owns_turn = false;
         return Stepped { took: None, change: next, decision: Decision::Cancel };
-    }
-    if standing.released {
-        next = released(&next, now);
-    }
-    clear_old_gate_failures(&mut next, facts);
-    if facts.behind.is_none()
-        && let Some(why) = next.released.take()
-    {
-        return released_step(next, why, facts, standing, now);
     }
     if facts.behind.is_none()
         && facts.contains_head == Status::Passed
@@ -97,22 +80,6 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         next.owns_turn = false;
         return Stepped { took: None, change: next, decision: Decision::NoChange };
     }
-    if let State::Held { was, hold: crate::Hold { cause: why, .. } } = &change.state {
-        if facts.behind.is_none()
-            && held_on_ci(&change.state)
-            && green_head(facts).is_some()
-            && !standing.delegate_running
-            && facts.drift.is_none()
-            && !facts.writer_taken
-            && facts.pull != Pull::Closed
-        {
-            next.state = released_state(&next, was, *why, facts.pull, false);
-            next.since = now;
-            next.owns_turn = false;
-            return Stepped { took: None, change: next, decision: Decision::EndHold };
-        }
-        return Stepped { took: None, change: next, decision: Decision::None };
-    }
     if let Some(since) = facts.behind {
         let until = Wall::from_nanos(since.as_nanos().saturating_add(limits.stall.as_nanos()));
         return if now >= until {
@@ -121,6 +88,10 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
             Stepped { took: None, change: next, decision: Decision::Wait { until: Some(until) } }
         };
     }
+    if let State::Held { .. } = next.state {
+        return Stepped { took: None, change: next, decision: Decision::None };
+    }
+    clear_old_gate_failures(&mut next, facts);
     // A conflicting preparation cancels its producer before waiting for that
     // producer's writer slot (domain/forge/change/questions.md, 1).
     let start_conflicted = match next.early {
@@ -236,6 +207,34 @@ fn head_may_end(state: &State) -> bool {
         | State::Resolving { .. }
         | State::Repairing { .. } => true,
     }
+}
+
+fn settle_landed(change: &Change, facts: &Facts, standing: &Heard, now: Wall) -> Option<Stepped> {
+    // Take the landing's durable prefix before any other queued ask or forge read.
+    if change.way == Way::Turn
+        && let Some(Handed { number, ask: Ask::Landed { prefix }, .. }) = facts.ask
+    {
+        let mut stepped = record_landed(change, prefix, facts, standing, now);
+        stepped.took = Some(Took::Taken(number));
+        return Some(stepped);
+    }
+    if let Some(stepped) = after_landing(change, facts, standing, now) {
+        return Some(stepped);
+    }
+    match facts.pull {
+        Pull::Merged { commit } if change.way == Way::Queue || facts.landing.is_none() => {
+            Some(record_landed(change, commit, facts, standing, now))
+        }
+        Pull::Missing | Pull::Open { .. } | Pull::Closed | Pull::Merged { .. } => None,
+    }
+}
+
+fn record_landed(change: &Change, merge: [u8; 32], facts: &Facts, standing: &Heard, now: Wall) -> Stepped {
+    let mut next = change.clone();
+    next.state = State::Landed { merge, since: now };
+    next.owns_turn = false;
+    next.released = None;
+    verifying(next, merge, now, facts, standing.cancelled, now)
 }
 
 fn after_landing(change: &Change, facts: &Facts, standing: &Heard, now: Wall) -> Option<Stepped> {
@@ -458,28 +457,31 @@ pub fn held_on_ci(state: &State) -> bool {
     }
 }
 
-/// Lift a task's own change hold in the same decision as the task's release.
-/// The persisted cause lets the next fresh snapshot perform drift recovery.
+/// What admitted a release, or the fresh snapshot continuing an admitted one.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ReleaseTrigger {
+    Task { owes_readback: bool, close: bool },
+    Green,
+    DelegateEnded { owes_readback: bool, no_change: Option<Box<[u8]>> },
+    DependenciesDone { owes_readback: bool },
+    Fresh,
+}
+
+/// Release a hold, or continue that release on fresh forge facts. The caller
+/// takes the task revision and fences outstanding reads before supplying new
+/// facts. An owed readback keeps the held predecessor until it can be settled.
+/// `Change::released` marks the continuation, including across restart.
 #[must_use]
-pub fn released(change: &Change, now: Wall) -> Change {
-    let mut next = change.clone();
-    next.stale = None;
-    match &change.state {
-        State::Held { was, hold: crate::Hold { cause: why, .. } } => {
-            next.state = *was.clone();
-            if *why == Cause::Failed && resolving_state(was) {
-                next.released_resolution = true;
-            }
-            next.released = Some(*why);
-            if *why != Cause::Runner {
-                next.gate_failures = Box::new([]);
-                next.repairs = 0;
-                next.resolutions = 0;
-                next.updates = 0;
-            }
-            next.since = now;
-            next.owns_turn = false;
-        }
+#[expect(clippy::too_many_lines, reason = "the release orders admission, settlement, forgetting and re-entry")]
+pub fn release(
+    change: &Change,
+    trigger: ReleaseTrigger,
+    facts: Option<&Facts>,
+    standing: Option<&Heard>,
+    now: Wall,
+) -> Option<Stepped> {
+    let held = match &change.state {
+        State::Held { was, hold } => Some((was.as_ref(), hold.cause)),
         State::Taking { .. }
         | State::Producing { .. }
         | State::Opening { .. }
@@ -503,9 +505,182 @@ pub fn released(change: &Change, now: Wall) -> Change {
         | State::Cleared { .. }
         | State::Uncleared { .. }
         | State::NoChange { .. }
-        | State::Ended => {}
+        | State::Ended => None,
+    };
+    let mut end_hold = false;
+    let mut nothing = None;
+    let (owes_readback, close) = match trigger {
+        ReleaseTrigger::Task { owes_readback, close } => (owes_readback, close),
+        ReleaseTrigger::Fresh => {
+            change.released?;
+            (false, facts?.close)
+        }
+        ReleaseTrigger::Green => {
+            let f = facts?;
+            let h = standing?;
+            if change.released.is_some()
+                || f.release_blocked
+                || f.behind.is_some()
+                || !held_on_ci(&change.state)
+                || green_head(f).is_none()
+                || h.delegate_running
+                || f.drift.is_some()
+                || f.writer_taken
+                || f.pull == Pull::Closed
+            {
+                return None;
+            }
+            end_hold = true;
+            (false, f.close)
+        }
+        ReleaseTrigger::DelegateEnded { owes_readback, no_change } => {
+            let (was, cause) = held?;
+            if cause != Cause::Stalled || !delegate_wait(was) || change.released.is_some() {
+                return None;
+            }
+            end_hold = true;
+            nothing = no_change;
+            (owes_readback, false)
+        }
+        ReleaseTrigger::DependenciesDone { owes_readback } => {
+            let (was, cause) = held?;
+            if cause != Cause::Stalled || *was != (State::Producing { requested: false }) || change.released.is_some() {
+                return None;
+            }
+            end_hold = true;
+            (owes_readback, false)
+        }
+    };
+    let decision = if end_hold { Decision::EndHold } else { Decision::None };
+    let mut next = change.clone();
+    let cause = match held {
+        Some((_, cause)) => cause,
+        None => match change.released {
+            Some(cause) => cause,
+            None => {
+                // A task may be released from a party's stop while its change is live.
+                next.since = now;
+                next.stale = None;
+                next.clock = None;
+                next.gate_failures = Box::new([]);
+                return Some(Stepped { took: None, change: next, decision });
+            }
+        },
+    };
+    if let Some(facts) = facts {
+        let standing = standing?;
+        if let Some(stepped) = settle_landed(change, facts, standing, now) {
+            return Some(stepped);
+        }
+        if facts.behind.is_some() {
+            return None;
+        }
+        let was = match held {
+            Some((was, _)) => was,
+            None => &change.state,
+        };
+        if let Some(stepped) = contained_landing_at(change, was, facts, standing, now) {
+            return Some(stepped);
+        }
+        if nothing.is_none() {
+            nothing.clone_from(&facts.produced_nothing);
+        }
     }
-    next
+    if change.released.is_none() {
+        next.since = now;
+    }
+    if owes_readback {
+        next.released = Some(cause);
+        return Some(Stepped { took: None, change: next, decision });
+    }
+    if let Some(words) = nothing {
+        next.state = State::NoChange { words };
+        next.released = None;
+        next.owns_turn = false;
+        return Some(Stepped {
+            took: None,
+            change: next,
+            decision: if end_hold { decision } else { Decision::NoChange },
+        });
+    }
+    if let Some((was, _)) = held {
+        forget_release(&mut next, was, cause);
+        if close
+            && (cause == Cause::Failed || cause == Cause::CloseRefused)
+            && *was == (State::Producing { requested: true })
+        {
+            next.state = State::Producing { requested: false };
+            next.released = None;
+            return Some(Stepped { took: None, change: next, decision });
+        }
+    }
+    let Some(facts) = facts else {
+        next.released = Some(cause);
+        return Some(Stepped { took: None, change: next, decision });
+    };
+    next.released = None;
+    let mut stepped = reenter(next, cause, facts, standing?, now);
+    if end_hold {
+        stepped.decision = Decision::EndHold;
+    }
+    Some(stepped)
+}
+
+fn forget_release(next: &mut Change, was: &State, cause: Cause) {
+    next.state = was.clone();
+    next.stale = None;
+    next.clock = None;
+    next.owns_turn = false;
+    next.gate_failures = Box::new([]);
+    next.clean = Box::new([]);
+    match cause {
+        Cause::Repairs => next.repairs = 0,
+        Cause::Resolutions => next.resolutions = 0,
+        Cause::Updates => next.updates = 0,
+        Cause::Failed if resolving_state(was) => next.released_resolution = true,
+        Cause::Stalled
+        | Cause::Runner
+        | Cause::RedStands
+        | Cause::Questions
+        | Cause::BranchMoved
+        | Cause::BranchMissing
+        | Cause::PullClosed
+        | Cause::Retargeted
+        | Cause::Failed
+        | Cause::CloseRefused
+        | Cause::Rejected
+        | Cause::Authority(_) => {}
+    }
+}
+
+fn delegate_wait(state: &State) -> bool {
+    match state {
+        State::Producing { requested } | State::Repairing { requested, .. } | State::Resolving { requested, .. } => {
+            *requested
+        }
+        State::Taking { .. }
+        | State::WaitingProducer { .. }
+        | State::Opening { .. }
+        | State::Recreating { .. }
+        | State::Reopening { .. }
+        | State::Checking { .. }
+        | State::Judging { .. }
+        | State::Gating { .. }
+        | State::CancellingGates { .. }
+        | State::Ready { .. }
+        | State::Preparing { .. }
+        | State::Queued { .. }
+        | State::First { .. }
+        | State::Updating { .. }
+        | State::Landing { .. }
+        | State::Landed { .. }
+        | State::NoChange { .. }
+        | State::Ended
+        | State::Held { .. }
+        | State::Red { .. }
+        | State::Cleared { .. }
+        | State::Uncleared { .. } => false,
+    }
 }
 
 fn resolving_state(state: &State) -> bool {
@@ -538,10 +713,7 @@ fn resolving_state(state: &State) -> bool {
     }
 }
 
-fn released_step(change: Change, why: Cause, facts: &Facts, standing: &Heard, now: Wall) -> Stepped {
-    if let Some(stepped) = contained_landing(&change, facts, standing, now) {
-        return stepped;
-    }
+fn reenter(change: Change, why: Cause, facts: &Facts, standing: &Heard, now: Wall) -> Stepped {
     let delegate = if let State::Gating { head, .. } = change.state {
         Delegate::Gate { number: 0, head }
     } else {
@@ -555,10 +727,10 @@ fn released_step(change: Change, why: Cause, facts: &Facts, standing: &Heard, no
         return hold(change, Cause::Authority(AuthorityHold { released: true, ..current }), now);
     }
     let was = change.state.clone();
-    release(change, &was, why, facts, now)
+    reenter_phase(change, &was, why, facts, standing, now)
 }
 
-fn release(mut change: Change, was: &State, why: Cause, facts: &Facts, now: Wall) -> Stepped {
+fn reenter_phase(mut change: Change, was: &State, why: Cause, facts: &Facts, standing: &Heard, now: Wall) -> Stepped {
     match why {
         Cause::PullClosed => {
             change.state = State::Reopening { requested: true, retarget: false };
@@ -583,10 +755,8 @@ fn release(mut change: Change, was: &State, why: Cause, facts: &Facts, now: Wall
             }
         },
         Cause::BranchMoved => {
-            change.clean = Box::new([]);
             if let State::WaitingProducer { .. } = was {
-                change.state =
-                    released_state(&change, was, why, facts.pull, why == Cause::RedStands && facts.legacy_regate);
+                change.state = reentry(&mut change, was, why, facts, standing);
                 return Stepped { took: None, change, decision: Decision::None };
             }
             change.state = match facts.branch {
@@ -614,7 +784,6 @@ fn release(mut change: Change, was: &State, why: Cause, facts: &Facts, now: Wall
         | Cause::Rejected
         | Cause::Authority(_) => {
             if why == Cause::RedStands && facts.legacy_regate {
-                change.clean = Box::new([]);
                 change.last_head = facts.branch.or(change.last_head);
                 if !facts.regate
                     && let State::Repairing { why, .. } = was
@@ -622,18 +791,19 @@ fn release(mut change: Change, was: &State, why: Cause, facts: &Facts, now: Wall
                     return red_stands(change, *why, now);
                 }
             }
-            change.state =
-                released_state(&change, was, why, facts.pull, why == Cause::RedStands && facts.legacy_regate);
+            change.state = reentry(&mut change, was, why, facts, standing);
             Stepped { took: None, change, decision: Decision::None }
         }
     }
 }
 
-fn released_state(change: &Change, was: &State, why: Cause, pull: Pull, legacy_regate: bool) -> State {
+fn reentry(change: &mut Change, was: &State, why: Cause, facts: &Facts, standing: &Heard) -> State {
+    let pull = facts.pull;
     let open = match pull {
         Pull::Open { .. } => true,
         Pull::Missing | Pull::Closed | Pull::Merged { .. } => false,
     };
+    let legacy_regate = why == Cause::RedStands && facts.legacy_regate;
     match was {
         State::Repairing { .. } if legacy_regate => {
             let Some(head) = change.last_head else { return State::Opening { requested: false } };
@@ -643,20 +813,57 @@ fn released_state(change: &Change, was: &State, why: Cause, pull: Pull, legacy_r
                 Pull::Missing | Pull::Merged { .. } => State::Opening { requested: false },
             }
         }
+        State::Opening { .. } | State::Reopening { .. } if standing.effect == EffectResult::Pending => was.clone(),
         State::Checking { .. }
         | State::Judging { .. }
         | State::Gating { .. }
         | State::Ready { .. }
         | State::Queued { .. }
         | State::First { .. }
+        | State::Opening { .. }
+        | State::Reopening { .. }
+            if facts.branch.is_none() =>
+        {
+            State::Producing { requested: false }
+        }
+        State::Checking { .. }
+        | State::Judging { .. }
+        | State::Gating { .. }
+        | State::Ready { .. }
+        | State::Queued { .. }
+        | State::First { .. }
+        | State::Opening { .. }
+        | State::Reopening { .. }
             if !open =>
         {
+            change.last_head = facts.branch;
             match pull {
                 Pull::Closed => State::Reopening { requested: false, retarget: false },
                 Pull::Missing | Pull::Open { .. } | Pull::Merged { .. } => State::Opening { requested: false },
             }
         }
-        State::Gating { .. } if why == Cause::Runner => was.clone(),
+        State::Checking { head }
+        | State::Ready { head, .. }
+        | State::Queued { head, .. }
+        | State::First { head, .. }
+        | State::Judging { head, .. }
+        | State::Gating { head, .. }
+            if facts.drift.is_none() && facts.branch != Some(*head) =>
+        {
+            let observed = facts.branch.expect("release read a branch");
+            change.last_head = Some(observed);
+            pushed(change, observed)
+        }
+        State::Opening { .. } | State::Reopening { .. } => {
+            let head = facts.branch.expect("release read a branch with an open pull");
+            change.last_head = Some(head);
+            pushed(change, head)
+        }
+        State::Ready { head, ready_since } | State::Judging { head, ready_since, .. }
+            if facts.ask.is_some() && change.way == Way::Turn =>
+        {
+            State::Ready { head: *head, ready_since: *ready_since }
+        }
         State::Ready { head, .. }
         | State::Queued { head, .. }
         | State::First { head, .. }
@@ -682,9 +889,7 @@ fn released_state(change: &Change, was: &State, why: Cause, pull: Pull, legacy_r
             State::Repairing { requested: false, why: *repair }
         }
         State::Producing { .. }
-        | State::Opening { .. }
         | State::Recreating { .. }
-        | State::Reopening { .. }
         | State::Checking { .. }
         | State::Preparing { .. }
         | State::CancellingGates { .. }
@@ -1905,19 +2110,18 @@ fn take_pushed_head(mut change: Change, head: [u8; 32], now: Wall) -> Stepped {
 
 /// Its turn's contained head lands at the tip the fresh ancestry read proved (change/README.md, 2).
 fn contained_landing(change: &Change, facts: &Facts, standing: &Heard, now: Wall) -> Option<Stepped> {
-    let (State::First { head, .. } | State::Landing { head }) = change.state else { return None };
+    contained_landing_at(change, &change.state, facts, standing, now)
+}
+
+fn contained_landing_at(change: &Change, was: &State, facts: &Facts, standing: &Heard, now: Wall) -> Option<Stepped> {
+    let (State::First { head, .. } | State::Landing { head }) = was else { return None };
     if (change.way == Way::Queue || facts.landing.is_none())
-        && facts.branch == Some(head)
+        && facts.branch == Some(*head)
         && facts.drift.is_none()
         && !facts.writer_taken
         && facts.contains_head == Status::Passed
     {
-        let mut next = change.clone();
-        let merge = facts.base_tip;
-        next.state = State::Landed { merge, since: now };
-        next.owns_turn = false;
-        next.released = None;
-        return Some(verifying(next, merge, now, facts, standing.cancelled, now));
+        return Some(record_landed(change, facts.base_tip, facts, standing, now));
     }
     None
 }

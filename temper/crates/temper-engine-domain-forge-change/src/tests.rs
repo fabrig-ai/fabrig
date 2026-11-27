@@ -5,7 +5,7 @@ mod drift;
 use crate::{
     Cause, Change, Ci, Clock, Decision, Delegate, Early, Effect, EffectResult, Execution, Facts, Freshness, Gate,
     GateFailure, GateKind, GateReport, Heard, Limits, Pending, PendingKind, Pull, QUESTIONS_OPEN, Questions, Reading,
-    Ready, Repair, Route, StartedFrom, State, Status, first, released, step,
+    Ready, Repair, Route, StartedFrom, State, Status, first, step,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, Wall};
@@ -58,8 +58,16 @@ fn change(state: State) -> Change {
 fn handed(ask: crate::Ask) -> crate::Handed {
     crate::Handed { number: 17, landing: 8, round: 1, ask }
 }
+fn released(change: &Change, now: Wall) -> Change {
+    crate::release(change, crate::ReleaseTrigger::Task { owes_readback: false, close: false }, None, None, now)
+        .expect("task release")
+        .change
+}
+
 fn facts() -> Facts {
     Facts {
+        release_blocked: false,
+        produced_nothing: None,
         revision: 0,
         taken: None,
         fault: crate::Fault::Change,
@@ -525,8 +533,14 @@ fn a_spent_record_bound_does_not_wrap_an_existing_hold() {
     let hold =
         crate::Hold { cause: Cause::BranchMoved, since: at(1), words: b"original branch evidence".as_slice().into() };
     let mut c = change(State::Held { was: Box::new(was), hold });
-    c.clean = Box::new([HEAD]);
-    let limits = Limits { clean_heads: 0, ..LIMITS };
+    c.gates = Box::new([Gate {
+        number: 1,
+        kind: GateKind::Agent,
+        blocking: true,
+        freshness: Freshness::Clean,
+        eager: false,
+    }]);
+    let limits = Limits { gates: 0, ..LIMITS };
     let still = step(&c, &facts(), &heard(), at(2), &limits);
     assert_eq!(still.change.state, c.state);
     assert_eq!(still.decision, Decision::None);
@@ -740,22 +754,24 @@ fn failed_ci_repair() -> (Change, Facts, Heard, Limits) {
 #[test]
 fn a_released_failed_ci_repair_requests_one_replacement_despite_the_stale_failure() {
     // The change step is the lowest world: no connector or model causes this transition.
-    let (c, f, h, limits) = failed_ci_repair();
+    let (mut c, f, h, limits) = failed_ci_repair();
+    c.repairs = 3;
+    let limits = Limits { repairs: 4, ..limits };
     let reset = step(&released(&c, at(3)), &f, &h, at(3), &limits);
     assert_eq!(reset.change.state, State::Repairing { requested: false, why: Repair::Ci });
-    assert_eq!(reset.change.repairs, 0);
+    assert_eq!(reset.change.repairs, 3);
     let fresh = step(&reset.change, &f, &h, at(4), &limits);
     assert_eq!(fresh.decision, Decision::Delegate(Delegate::Repair(Repair::Ci)));
-    assert_eq!(fresh.change.repairs, 1);
+    assert_eq!(fresh.change.repairs, 4);
     assert_eq!(fresh.change.last_head, Some(HEAD));
     let pending = step(&fresh.change, &f, &heard(), at(5), &limits);
     assert_eq!(pending.decision, Decision::Wait { until: Some(at(34)) });
-    assert_eq!(pending.change.repairs, 1);
+    assert_eq!(pending.change.repairs, 4);
 }
 
 fn failed_resolution(delegate: Delegate) -> (Change, Facts, Heard) {
     let mut c = change(State::Resolving { requested: true, base: BASE });
-    c.resolutions = LIMITS.resolutions;
+    c.resolutions = 1;
     let f = Facts { delegate: Some(delegate), ..facts() };
     let h = Heard { delegate: Status::Failed, ..heard() };
     let failed = step(&c, &f, &h, at(2), &LIMITS);
@@ -843,12 +859,12 @@ fn a_released_failed_resolution_decides_from_fresh_facts_despite_the_stale_failu
             let reset = step(&released(&held, at(3)), &fresh, &stale, at(3), &LIMITS);
             assert_eq!(reset.decision, Decision::None, "{terminal}");
             assert_eq!(reset.change.state, State::WaitingProducer { base: BASE }, "{terminal}");
-            assert_eq!(reset.change.resolutions, 0, "{terminal}");
+            assert_eq!(reset.change.resolutions, 1, "{terminal}");
             // A live pushing task must not stall even long after the release.
             let next = step(&reset.change, &fresh, &stale, at(3600), &LIMITS);
             assert_eq!(next.decision, decision, "{terminal}, {mergeable:?}, {way:?}, live={live}");
             assert_eq!(next.change.state, state, "{terminal}");
-            assert_eq!(next.change.resolutions, resolutions, "{terminal}");
+            assert_eq!(next.change.resolutions, 1 + resolutions, "{terminal}");
             assert_eq!(next.change.last_head, last_head, "{terminal}");
         }
         let fresh = Facts { branch: Some(NEW), base_tip: MERGE, mergeable: Status::Failed, merge_job: true, ..f };
@@ -857,7 +873,7 @@ fn a_released_failed_resolution_decides_from_fresh_facts_despite_the_stale_failu
         assert_eq!(replacement.decision, Decision::Delegate(Delegate::Resolve { base: MERGE }), "{terminal}");
         let pending = step(&replacement.change, &fresh, &heard(), at(5), &LIMITS);
         assert_eq!(pending.decision, Decision::Wait { until: Some(at(34)) }, "{terminal}");
-        assert_eq!(pending.change.resolutions, 1, "{terminal}");
+        assert_eq!(pending.change.resolutions, 2, "{terminal}");
     }
 }
 
@@ -885,7 +901,7 @@ fn a_released_resolution_without_a_delegate_uses_the_fresh_head_and_base() {
 }
 
 #[test]
-fn a_released_failed_resolution_obeys_the_reset_allowance_and_current_authority() {
+fn a_released_failed_resolution_obeys_the_remaining_allowance_and_current_authority() {
     use crate::{AuthorityHold, AuthorityLack, AuthorityRecovery};
     let cause = AuthorityHold {
         recovery: AuthorityRecovery { task: 7, spec: 0, hold: 2, tasks: 2 },
@@ -899,9 +915,9 @@ fn a_released_failed_resolution_obeys_the_reset_allowance_and_current_authority(
     f.mergeable = Status::Failed;
     f.merge_job = true;
     for (allowance, lacking, decision, count) in [
-        (1, None, Decision::Delegate(Delegate::Resolve { base: MERGE }), 1),
-        (0, None, Decision::Hold(Cause::Resolutions), 0),
-        (1, Some(cause), Decision::Hold(Cause::Authority(cause)), 0),
+        (2, None, Decision::Delegate(Delegate::Resolve { base: MERGE }), 2),
+        (1, None, Decision::Hold(Cause::Resolutions), 1),
+        (2, Some(cause), Decision::Hold(Cause::Authority(cause)), 1),
     ] {
         let limits = Limits { resolutions: allowance, ..LIMITS };
         let stale = Heard { lacking, ..h };
@@ -928,10 +944,11 @@ fn a_resolution_held_for_allowance_or_authority_keeps_its_release_path() {
         let f = Facts { delegate: Some(Delegate::Resolve { base: BASE }), merge_job: true, ..facts() };
         let reset = step(&released(&c, at(3)), &f, &heard(), at(3), &LIMITS);
         assert_eq!(reset.change.state, state);
-        assert_eq!(reset.change.resolutions, 0);
+        let kept = if why == Cause::Resolutions { 0 } else { LIMITS.resolutions };
+        assert_eq!(reset.change.resolutions, kept);
         let next = step(&reset.change, &f, &heard(), at(4), &LIMITS);
         assert_eq!(next.decision, Decision::Delegate(Delegate::Resolve { base: BASE }));
-        assert_eq!(next.change.resolutions, 0, "the unrequested resolution was counted before the hold");
+        assert_eq!(next.change.resolutions, kept, "the unrequested resolution was counted before the hold");
     }
 }
 
@@ -948,7 +965,7 @@ fn a_released_failed_ci_repairs_replacement_requires_current_authority() {
     };
     let blocked = step(&reset.change, &f, &Heard { lacking: Some(cause), ..h }, at(4), &limits);
     assert_eq!(blocked.decision, Decision::Hold(Cause::Authority(cause)));
-    assert_eq!(blocked.change.repairs, 0);
+    assert_eq!(blocked.change.repairs, c.repairs);
     let bare = step(&released(&blocked.change, at(5)), &f, &Heard { lacking: Some(cause), ..h }, at(5), &limits);
     assert_eq!(bare.decision, Decision::Hold(Cause::Authority(AuthorityHold { released: true, ..cause })));
 }
@@ -967,11 +984,11 @@ fn a_released_failed_repair_keeps_its_reason_and_checks_the_current_base() {
         let reset = step(&released(&held, at(3)), &f, &h, at(3), &limits);
         let fresh = step(&reset.change, &f, &h, at(4), &limits);
         assert_eq!(fresh.decision, Decision::Delegate(Delegate::Repair(why)));
-        assert_eq!(fresh.change.repairs, 1);
+        assert_eq!(fresh.change.repairs, 2);
         f.contains_base = Status::Failed;
         let updating = step(&reset.change, &f, &h, at(4), &limits);
         assert_eq!(updating.decision, Decision::Effect(Effect::Update { head: HEAD, base: BASE }));
-        assert_eq!(updating.change.repairs, 0, "taking the new base does not spend a repair");
+        assert_eq!(updating.change.repairs, 1, "taking the new base does not spend a repair");
         f.contains_base = Status::Passed;
     }
 }
@@ -1625,8 +1642,7 @@ fn a_held_change_on_its_requesters_branch_takes_the_head_at_release() {
     );
 
     let lifted = released(&waiting.change, at(1));
-    let reset = decide(&lifted, &f, &heard());
-    let taken = decide(&reset.change, &f, &heard());
+    let taken = decide(&lifted, &f, &heard());
     assert_eq!(taken.change.last_head, Some(NEW));
     assert_eq!(taken.change.state, State::Checking { head: NEW });
     assert_eq!(taken.change.repairs, 0);
@@ -1847,7 +1863,7 @@ fn a_release_resets_failed_review_tries_before_any_forge_read() {
     assert_eq!(lifted.state, State::Gating { head: HEAD, asked: Box::new([]) });
     assert!(lifted.gate_failures.is_empty());
     assert_eq!(lifted.released, Some(Cause::Failed));
-    assert_eq!(lifted.repairs, 0);
+    assert_eq!(lifted.repairs, LIMITS.repairs);
     assert_eq!(lifted.since, at(5));
     let decided = step(&lifted, &facts(), &heard(), at(10), &LIMITS);
     assert_eq!(decided.change.released, None);
@@ -2052,6 +2068,7 @@ mod green;
 mod merge;
 mod passing;
 mod relay;
+mod release;
 mod verifying;
 
 #[test]
@@ -2388,7 +2405,7 @@ fn an_update_let_go_waits_on_what_it_cannot_read() {
 #[test]
 fn a_released_failed_update_decides_again() {
     let mut c = updating_change();
-    c.updates = LIMITS.updates;
+    c.updates = LIMITS.updates - 1;
     c.state = State::Held { was: Box::new(c.state), hold: crate::Hold::new(Cause::Failed, Wall::EPOCH) };
     let f = Facts { contains_base: Status::Failed, ..facts() };
     let lifted = released(&c, at(1));
@@ -2396,7 +2413,7 @@ fn a_released_failed_update_decides_again() {
     assert_eq!(resumed.decision, Decision::None);
     let next = decide(&resumed.change, &f, &heard());
     assert_eq!(next.decision, Decision::Effect(Effect::Update { head: HEAD, base: BASE }));
-    assert_eq!(next.change.updates, 1);
+    assert_eq!(next.change.updates, LIMITS.updates);
 }
 
 #[test]

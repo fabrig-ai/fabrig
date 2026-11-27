@@ -365,13 +365,13 @@ fn a_restarted_recheck_waits_for_its_later_ended_attempt_then_holds_and_releases
 
     let mut released = restored(&d);
     outputs(&mut released, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
-    assert_eq!(released.change(fixtures::CHANGE).unwrap().change.repairs, 0);
+    assert_eq!(released.change(fixtures::CHANGE).unwrap().change.repairs, 1);
     assert_eq!(
         read_ci(&mut released, fixtures::HEAD, Ci::Failed, &checks, &ended),
         change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci))
     );
     let row = released.change(fixtures::CHANGE).unwrap();
-    assert_eq!(row.change.repairs, 1);
+    assert_eq!(row.change.repairs, 2);
     assert!(row.ci_recheck.is_none());
 
     let passed = [ci_check(b"ci/test", Check::Passed, Some(later))];

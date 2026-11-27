@@ -1328,7 +1328,7 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
     let Some(top::Stored::ChangeHot(saved)) = world.stored().get(&top::Key::ChangeHot(51)) else {
         panic!("retained change")
     };
-    assert_eq!(saved.change.repairs, 1, "release resets the allowance and counts its replacement");
+    assert_eq!(saved.change.repairs, 2, "failure keeps the spent repair and counts its replacement");
     world.event(top::Event::Delegated { task: 51, child: 53, kind: change::Delegate::Repair(change::Repair::Ci) });
     world.run_for(1);
     world.restart();
@@ -1351,7 +1351,7 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
     };
     assert_eq!(saved.delegate, Some((53, change::Delegate::Repair(change::Repair::Ci))));
     assert_eq!(saved.delegate_status, change::Status::Unknown);
-    assert_eq!(saved.change.repairs, 1);
+    assert_eq!(saved.change.repairs, 2);
     repair_push(&mut world, 53, b"repaired");
     world.status(b"temper/51", skein_fake_forge_domain::api::Check::Passed);
     world.event(top::Event::DelegateResult {

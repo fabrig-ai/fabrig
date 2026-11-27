@@ -14,6 +14,10 @@ pub(super) struct Failed {
     runs: Map<u64, Option<api::Run>>,
 }
 impl Failed {
+    pub(super) fn baseline(&self, head: Commit) -> Box<[JobAttempt]> {
+        release_baseline(&self.checks, head)
+    }
+
     pub(super) fn new(checks: Box<[api::Status]>) -> Self {
         // At most one run per check, plus the change's pinned recheck.
         let capacity = u32::try_from(checks.len()).expect("bounded checks").saturating_add(1);

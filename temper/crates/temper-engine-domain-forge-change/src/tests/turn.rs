@@ -442,7 +442,7 @@ fn a_prepare_let_go_waits_on_what_it_cannot_read() {
 #[test]
 fn a_released_failed_prepare_decides_again() {
     let mut c = preparing_change();
-    c.updates = LIMITS.updates;
+    c.updates = LIMITS.updates - 1;
     c.state = State::Held { was: Box::new(c.state), hold: crate::Hold::new(Cause::Failed, Wall::EPOCH) };
     let f = Facts { contains_base: Status::Failed, ..facts() };
     let lifted = released(&c, at(1));
@@ -450,7 +450,7 @@ fn a_released_failed_prepare_decides_again() {
     assert_eq!(resumed.decision, Decision::None);
     let next = decide(&resumed.change, &f, &heard());
     assert_eq!(next.decision, Decision::Effect(Effect::Prepare { head: HEAD, main: BASE }));
-    assert_eq!(next.change.updates, 1);
+    assert_eq!(next.change.updates, LIMITS.updates);
 }
 
 #[test]
@@ -584,7 +584,7 @@ fn releasing_a_stale_update_counts_afresh_then_replans_without_another_count() {
         let mut c = stale_change(preparing);
         c.stale = Some(at(1));
         c.updates = LIMITS.updates;
-        c.state = State::Held { was: Box::new(c.state), hold: crate::Hold::new(Cause::Stalled, Wall::EPOCH) };
+        c.state = State::Held { was: Box::new(c.state), hold: crate::Hold::new(Cause::Updates, Wall::EPOCH) };
         let lifted = released(&c, at(40));
         assert_eq!(lifted.stale, None);
         assert_eq!(lifted.updates, 0);
