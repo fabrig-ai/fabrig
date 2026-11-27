@@ -103,7 +103,7 @@ fn taking_accounts_reach_the_task_under_the_existing_stalled_and_effect_failed_h
         };
         row.effect_account = Some(forge::EffectAccount { entry: 0, words: words.as_slice().into() });
         super::restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
-        let decision = route::hold_change_decision(&domain, &env, task, cause, None, None);
+        let decision = route::hold_change_decision(&domain, &env, task, cause, None);
         let route::StepEnd::HoldFrom { why, source } = decision.end else { panic!("taking hold has an account") };
         assert_eq!(why, expected);
         let tasks::HoldSource::Account { words: held, .. } = source.as_ref() else { panic!("taking keeps its words") };

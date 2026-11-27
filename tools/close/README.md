@@ -1,18 +1,21 @@
 # fabrig's close command
 
-`.temper/close close <request.json>` settles a goal's in-flight status entries
-(`DESIGN.md`, section 2) once every change of the goal has ended, before its
-closer lands the goal (temper/docs/design/protocol/tooling.md, 4.2;
-temper/docs/design/domain/forge/branches.md, 2). It runs from a job directory with
-the goal's branch checked out in `<repository name>/`, with no model, no
-credential and no network, and needs only Python's standard library and git.
+`<repository name>/.temper/hooks/close close <request.json>` settles a goal's
+in-flight status entries (`DESIGN.md`, section 2) once every change of the goal
+has ended, then checks the goal (temper/docs/design/protocol/tooling.md, 4.2;
+temper/docs/design/domain/forge/branches.md, 2). It runs from a job directory
+with the goal's branch checked out in `<repository name>/`, with no model or
+credential. Settlement uses only Python's standard library and git, and no
+network.
 
 - **The request:** `{"version": 1, "goal": G, "changes": [{"task": N,
   "landed": BOOL}]}`, as temper writes it. Anything else, a task named twice
   among them, or a number that is no positive integer, is the command's
   failure.
-- **What it reads:** every tracked file whose name ends `.status.md` under a
-  `docs/` directory, in the repository's index, at the checked-out tree.
+- **What it reads:** every tracked file whose name ends `.status.md`,
+  wherever it is in the repository (a tree's `docs/`, a tool's directory
+  under `tools/`, or any other), in the repository's index, at the
+  checked-out tree.
 - **An entry** is a list item of a status file opening `- **Not yet:**`,
   with its continuation lines, those indented beneath it, to the next list
   item, blank line or heading. **Its tag** is the text `[in flight: TEXT]`
@@ -51,6 +54,21 @@ credential and no network, and needs only Python's standard library and git.
   - its tag names no change of the request: the entry is left as it is,
     byte for byte, and the result lists the tag as kept. Whoever owns a
     tag settles it: the command never removes or rewrites another goal's.
+- **A file it leaves with no entry says so** (`DESIGN.md`, section 2).
+  Where settling a file leaves nothing but blank lines after its opening,
+  its heading and the dated paragraph after it as
+  `tools/citations/README.md` reads them, the file becomes that opening,
+  byte for byte, then one blank line, then `No gap.` and a line ending:
+  `# x: status`, a blank line and `2026-11-20. Where ...` with only
+  `- **Not yet:** 3: built [in flight: change 9].` after them become
+  `# x: status`, a blank line, `2026-11-20. Where ...`, a blank line and
+  `No gap.`. The lines it writes end as the opening's last line does,
+  `\r\n` or `\n`, and that line gains a `\n` when it has no ending. Any
+  other text left after the opening stays as settling left it: a
+  `No gap.` line already there is kept and never doubled, and a file left
+  with an entry, or with prose, gains none. A file with no such opening
+  gains none, and neither does a file in which it settled no tag, empty
+  or not.
 - **A file it changed** is staged with `git add`, its date line as the
   goal's design dated it. It never commits, never writes another branch,
   and changes no other file.
@@ -80,12 +98,13 @@ change ends, each seed printed so that it replays (`--seed N`).
 
 ## Goal validation
 
-A project selecting `.temper/checked-close` as its close job first runs the
-settlement above. It then runs `tools/pre-pr/pre_pr.py --close` from the
-repository root, even when settlement stages nothing. The check covers the
-goal's changes since its merge base with the checkout's main
-(`tools/pre-pr/design.md`, 1) and returns its exit status to the worker. A missing verifier, unavailable comparison,
-failed check or expired job prevents successful close. The worker still
+The close hook runs `tools/close/close.py` to settle status, then runs
+`tools/pre-pr/pre_pr.py --close` from the repository root, even when settlement
+stages nothing. The older `.temper/close` and `.temper/checked-close` both
+forward to the hook. The check compares the goal's tree with the newest
+published main commit that the goal contains (`tools/pre-pr/design.md`, 1)
+and returns its exit status to the worker. A missing verifier, unavailable
+comparison, failed check or expired job prevents successful close. The worker still
 owns committing and pushing the settled tree. Where the worker asks for a
 typed refusal, `TEMPER_CLOSE_REFUSAL=3` in the environment, a refusal
 replaces settlement's result with its own and exits 3, and an error of

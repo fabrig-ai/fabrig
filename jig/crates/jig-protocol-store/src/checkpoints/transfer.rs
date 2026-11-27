@@ -275,6 +275,7 @@ impl Transfer {
                             | Error::NoSpace
                             | Error::NameTooLong
                             | Error::Escape
+                            | Error::NotALink
                             | Error::NotAFile
                             | Error::InvalidArgument
                             | Error::NotFound,

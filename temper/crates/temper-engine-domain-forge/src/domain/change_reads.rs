@@ -1,4 +1,5 @@
 //! One change's reads through the write record (domain/forge/change/drift.md, 1).
+//! Re-reads follow the client's pace (temper/docs/design/domain/forge/keeping-up.md, 3).
 use super::{Domain, Env, Limits, PendingStep, Request, change, writes};
 use crate::{Actor, BehindRead, ChangeRow, ReadBehind, Seen};
 use skein_forge::api::{Commit, Pull, State};
@@ -297,7 +298,7 @@ pub(super) fn keep(
         Judgement::Owed => {
             super::read_session::owe_readback(d, pending.task);
             super::branch_due(d, pending.task);
-            super::wait_for_forge(d, env, pending, Some(retry(env)), out);
+            super::wait_for_forge(d, env, pending, Some(retry_at(env)), out);
             false
         }
     }
@@ -306,9 +307,10 @@ pub(super) fn keep(
 pub(super) fn wait(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
     // No ordinary phase progress, write or gate may use these partial facts.
     super::branch_due(d, pending.task);
-    super::wait_for_forge(d, env, &pending, Some(retry(env)), out);
+    super::wait_for_forge(d, env, &pending, Some(retry_at(env)), out);
 }
 
-fn retry(env: &Env<Limits>) -> Wall {
-    Wall::from_nanos(env.wall.as_nanos().saturating_add(1_000_000_000))
+/// Poll for a missing fact at the client's fixed pace, without moving the read bound.
+pub(super) fn retry_at(env: &Env<Limits>) -> Wall {
+    Wall::from_nanos(env.wall.as_nanos().saturating_add(env.limits.client.backoff.as_nanos()))
 }

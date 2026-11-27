@@ -139,6 +139,16 @@ pub(super) fn limits(
     limits.forge.gates = limits.forge.gates.max(7);
 }
 
+pub(super) fn producer_seeds(streams: skein_world::streams::Streams) -> skein_fake_llm_domain::api::Seeds {
+    use skein_world::streams::Stream;
+
+    skein_fake_llm_domain::api::Seeds::Parts {
+        agent: streams.seed_of(Stream::Parties, "agent/model"),
+        faults: streams.seed_of(Stream::Faults, "llm"),
+        scheduling: streams.seed_of(Stream::Scheduling, "llm"),
+    }
+}
+
 pub(super) fn forge(world: &mut World) {
     use skein_fake_forge_domain::api as f;
     let mut checks = super::super::agreement::checks();
@@ -231,7 +241,9 @@ pub(super) fn goal(world: &World, goal: &Goal, milestone: u64) -> people::Ask {
     member.tracked = Some(1);
     member.label = 2;
     member.symbols = Box::new([people::Symbol { connector: 1, symbol: 1 }]);
-    member.authority.spend = 150;
+    // The two-child goal and its change can pass a sixteenth of this spend to
+    // a producer. Each extra fake completion costs one unit, above the reserve.
+    member.authority.spend = 150 + 16 * 2 * u64::from(super::super::stretches::ROUNDS);
     // temper/docs/design/domain/forge/branches.md, 2: reserve twelve tasks
     // for (two repairs + the change) * (three landing attempts + one),
     // beside the original work and closer. Both COMPOSED changes may be red.

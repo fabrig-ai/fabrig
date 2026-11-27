@@ -118,13 +118,15 @@ pub fn configured(
 
 fn shell_configuration(configuration: agent::Config) -> smith_agent_shell::config::Configuration {
     let environment_bytes = configuration.limits.machine.env_bytes;
+    let mut profile = profile();
+    profile.policy.host_tools = configuration.limits.domain.run.host_tools;
     smith_agent_shell::config::Configuration {
         program: None,
         program_endpoints: std::collections::BTreeSet::new(),
         service: configuration,
-        memory: profile().declared.memory,
+        memory: profile.declared.memory,
         trace: None,
-        profile: profile(),
+        profile,
         declarations: declarations(environment_bytes),
     }
 }
@@ -167,9 +169,12 @@ pub fn limits() -> agent::Limits {
 }
 
 fn derive_limits() -> agent::Limits {
-    let profile = profile();
+    derive_with_profile(&profile())
+}
+
+fn derive_with_profile(profile: &agent::profile::Profile) -> agent::Limits {
     let configuration = declarations(0);
-    let mut limits = agent::profile::derive(&profile, &configuration).expect("tiny profile derives");
+    let mut limits = agent::profile::derive(profile, &configuration).expect("tiny profile derives");
     // Worlds may lower or specialize a derived limit (smith/docs/design/protocol/limits.md, section 2.2).
     limits.domain.run.models = 2;
     limits.domain.configured_endpoint_bytes = 4096;
@@ -201,7 +206,17 @@ fn configuration_for(provider: skein_llm::Provider) -> agent::Config {
     configuration_with_limits(provider, &limits())
 }
 
+/// Widen the hosted tool inventory of the otherwise tiny `OpenAI` configuration.
+#[must_use]
+pub fn configuration_for_host_tools(host_tools: u32) -> agent::Config {
+    let mut profile = profile();
+    profile.policy.host_tools = host_tools;
+    configuration_with_limits(skein_llm::Provider::OpenAi, &derive_with_profile(&profile))
+}
+
 fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limits) -> agent::Config {
+    let mut profile = profile();
+    profile.policy.host_tools = limits.domain.run.host_tools;
     let mut endpoints = List::with_capacity(1);
     endpoints
         .push(smith_protocol_translate::Endpoint { name: Box::default(), number: 0, dialect: 3 })
@@ -234,7 +249,7 @@ fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limi
             endpoints: Box::new([smith_domain::run::charter::Endpoint(0)]),
             limits: Box::new([smith_domain::EndpointLimits {
                 protocol_allowance: agent::profile::endpoint_allowance(
-                    &profile(),
+                    &profile,
                     &declarations(0).endpoints[0],
                     &limits.domain.session.tools,
                 )

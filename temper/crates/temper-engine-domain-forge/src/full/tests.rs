@@ -264,6 +264,35 @@ fn ask_keeps_one_first_come_line_and_skips_ineligible_waiters() {
 }
 
 #[test]
+fn an_asked_waiter_takes_the_last_place_before_the_next_waiter() {
+    let (mut d, env) = setup(2, 4);
+    let entry = 7;
+    let writer = 1;
+    let first = 8;
+    let second = 9;
+    keep(&mut d, entry, writer);
+    waiting_change(&mut d, first, 1);
+    waiting_change(&mut d, second, 2);
+    d.room.ready = true;
+    let mut out = Queue::uncapped();
+
+    assert_eq!(crate::room::free(&d, &env.limits), 1);
+    crate::room::ask(&mut d, &env, &mut out);
+    assert!(out.iter().eq(&[Request::WakeProcedure { task: first }]), "{out:?}");
+    assert_eq!(crate::room::free(&d, &env.limits), 0);
+    assert_eq!(d.inspection_reservations().as_ref(), &[first]);
+    out.clear();
+
+    crate::room::ask(&mut d, &env, &mut out);
+    assert!(out.is_empty(), "{out:?}");
+    domain::take_entry(&mut d, entry, writer);
+    crate::room::ask(&mut d, &env, &mut out);
+    assert!(out.iter().eq(&[Request::WakeProcedure { task: second }]), "{out:?}");
+    assert_eq!(d.inspection_reservations().as_ref(), &[first, second]);
+    assert_eq!(crate::room::free(&d, &env.limits), 0);
+}
+
+#[test]
 fn saturated_report_deadlines_keep_each_update_observable() {
     let (mut d, mut env) = full_outbox();
     d.room.ready = true;

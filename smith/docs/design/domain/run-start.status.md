@@ -1,6 +1,6 @@
 # run-start: status
 
-2026-11-23. Where the tree's code lags or departs from [run-start.md](run-start.md).
+2026-11-27. Where the tree's code lags or departs from [run-start.md](run-start.md).
 
 - **Departs:** 1.3: the workspace's section renders as `## Checkout`, and
   the system text says "the checkout" (`smith-domain-run/src/prompt.rs`,

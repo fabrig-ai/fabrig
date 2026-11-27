@@ -32,7 +32,7 @@ Draft, 2026-11-27, from a session with the user on 2026-11-27. It takes the hook
 
 - **`deliver` and `finish` are two moments, each with its own hook:** a `deliver` pushes checked work and the run goes on; a `finish` that hands in a change pushes it and ends the run. Each runs its own hook and only that one, so a project checks the two differently or, linking one to the other, the same. A `save` runs none, and neither does a `finish` with a report, a failure or a verdict. What follows a `finish`, review, CI and the landing, is temper's rather than the run's, and its hooks are `merge` and `close`.
 - **A hook is an executable file** at `.temper/hooks/<moment>`, or a symbolic link to another hook beside it, its target a bare name in the same directory, as `finish` to `deliver`. Any other link, or a file that isn't executable, is the hook's failure, not its absence.
-- **Present, it runs. Missing, that moment has none:** a repository with no `merge` hook sends a conflict to a resolution at once, one with no `close` hook gets no close change, and one with no `finish` hook pushes a finished change unchecked, for CI to judge.
+- **Present, it runs. Missing, that moment has none:** a repository with no `merge` hook sends a conflict to a resolution at once, one with no `close` hook settles nothing at a goal's close, and one with no `finish` hook pushes a finished change unchecked, for CI to judge.
 - **Each file's head says its contract:** its moment, what it's given and its exit codes, pointing at `../protocol/tooling.md` or the check's convention, so that a person reading the directory needs nothing else.
 - **Bounded as tooling is:** each runs with no credential and reaches no forge. Its time, its output's size and its result's shape are bounded and checked as `../protocol/tooling.md`, sections 1, 2 and 6 say, and `deliver` and `finish` keep the check's bound (`../domain/agent/charter.md`, section 4).
 - **The repository's, for every piece of work:** all work delivers and lands through the same hooks, and only a change to the file turns one off.
@@ -49,9 +49,10 @@ Draft, 2026-11-27, from a session with the user on 2026-11-27. It takes the hook
 ### 3.3 How temper finds them
 
 - **`deliver` and `finish`: smith finds them** in each writable directory when the run starts, as it finds the check today (smith's `domain/run-start.md`, 1.1, and `domain/run-delivery.md`, 1.1). temper's conventions name a check for each moment, `.temper/hooks/deliver` and `.temper/hooks/finish`, where today they name one for both, and, while section 4 holds, `.temper/pre-pr` beside them, taken for both only in a directory with no `.temper/hooks/`. The brief names the checks smith found, and which tool runs each.
-- **`merge` and `close`: temper reads `.temper/hooks/`** at the commit the job will start from, with one read of the directory, as the forge reads the CI workflows' directory (`../domain/forge/adoption.md`, section 11). For `close`, that is the goal's branch's tip once its changes have ended. For `merge`, it is the head the merge is made on, when a conflict is found. An entry named for the moment is its hook, a link's entry among them.
-- **The job's checkout decides the rest:** a hook the read found that the job's checkout doesn't hold as a regular executable file is the job's failure, as an absent command is today (`../protocol/tooling.md`, 4.1 and 4.2).
-- **A read refused or failed is no answer:** the step waits and reads again. It never takes a failed read as no hook, which would skip a close's check.
+- **`merge` and `close`: the job's checkout decides** (the user, 2026-11-27): temper makes the job wherever a hook could run, a merge job for a conflict and a close change once a goal's changes have ended, and the job looks in its own checkout. A hook there runs. None there is none: the merge job answers so, and the conflict goes to a resolution at once, spending no try; the close change ends with no change. No forge read decides it, and a job that finds no hook costs its checkout and ends at once.
+- **A job that fails is no answer:** it is tried again within its tries, as a job is (`../protocol/tooling.md`, 4.1 and 4.2), and never taken as no hook, which would skip a close's check.
+- **A hook uses only what its checkout holds** (the user, 2026-11-27): the files of the version it runs from, and what the job's directory gives it. One that needs anything else is a bug, of the hook or of what it does, and is fixed there.
+- **What must be cheap** (the user, 2026-11-27): `merge`, which runs in a landing's way, and `deliver` and `finish`, which every delivery waits on. `close` may check at length, within its timeout (3.4).
 
 ### 3.4 How long each may run
 
@@ -71,7 +72,7 @@ Draft, 2026-11-27, from a session with the user on 2026-11-27. It takes the hook
 
 ## 4. By repository, while the old ones stay
 
-- **A repository with `.temper/hooks/`** at the commit read runs hooks alone. A missing hook means none, `.temper/pre-pr` isn't run, and the project's `merge_job` and `close_job` are ignored for that repository.
+- **A repository with `.temper/hooks/`** in the job's checkout runs hooks alone. A missing hook means none, `.temper/pre-pr` isn't run, and the project's `merge_job` and `close_job` are ignored for that repository.
 - **A repository without it** runs as today: `.temper/pre-pr` for `deliver` and `finish`, `merge_job` for `merge` and `close_job` for `close`, each setting's presence switching its job on.
 - **Wrappers for older builds:** a repository moving to hooks keeps its old scripts as wrappers that call the hooks. An older build, which reads only the old paths and settings, then runs the same code, and going back to one finds them.
 - **Older agents and workers** follow `../protocol/wires.md`, sections 5 and 8: an agent whose layout lacks the hooks' paths is sent `.temper/pre-pr` alone, and runs the wrapper at both moments. A repository that keeps no wrapper gets no check from an older agent.
@@ -82,7 +83,7 @@ Once dev.fabrig.ai, its engine and its workers' agents run a build that reads ho
 
 - **temper stops reading the old ones.** It no longer reads `.temper/pre-pr`, `merge_job`, `close_job` or `check_timeout_ms`, which `config.toml` replaces (3.4): a stored one reads as none (`../protocol/wires.md`), and `temper ctl` refuses either by name. Section 4's rule goes with them: every repository runs hooks alone, and one without `.temper/hooks/` has none.
 - **fabrig's wrappers go:** `.temper/pre-pr`, `merge`, `close` and `checked-close`.
-- **`goal-pre-pr` and `goal-child-pre-pr` leave `.temper/` for `tools/pre-pr/`,** so that `.temper/` holds only what temper runs. Whatever calls them from outside the repository, CI's runner wrapper among them, moves to the new path first, a step of ops' by hand. The gate's scope (`.forgejo/scripts/gate_scope.py`), pre-PR's own list of hooks and their tests follow.
+- **`goal-pre-pr` and `goal-child-pre-pr` aren't this draft's:** nothing calls them any more, and a goal of their own removes them, with their workflows and pre-PR's `--goal` and `--child` modes (the user, 2026-11-27). So `.temper/` holds only what temper runs.
 
 ## 6. fabrig and dev.fabrig.ai
 
@@ -93,7 +94,7 @@ Once dev.fabrig.ai, its engine and its workers' agents run a build that reads ho
   - `pre-pr`, `merge`, `close` and `checked-close` stay as wrappers (section 4).
   - The reference profile (`../protocol/configuration/reference.md`) names neither `merge_job` nor `close_job`.
   - The gate's scope and pre-PR's list of hooks take in the hooks' paths, beside the old ones.
-- **dev.fabrig.ai:** nothing by hand for the first increment. Its project's `merge_job` and `close_job` keep naming the old paths, which an older build runs and a build that reads hooks ignores. The second increment drops them as it reads them (section 5). Before it, ops moves CI's runner wrapper to `goal-pre-pr`'s new path.
+- **dev.fabrig.ai:** nothing by hand for the first increment. Its project's `merge_job` and `close_job` keep naming the old paths, which an older build runs and a build that reads hooks ignores. The second increment drops them as it reads them (section 5).
 
 ## 7. Later
 

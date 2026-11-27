@@ -120,6 +120,7 @@ impl Store {
                     | kernel::Error::TooManyLinks
                     | kernel::Error::NameTooLong
                     | kernel::Error::Escape
+                    | kernel::Error::NotALink
                     | kernel::Error::NotAFile
                     | kernel::Error::InvalidArgument
                     | kernel::Error::Reach(_)

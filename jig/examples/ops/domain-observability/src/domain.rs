@@ -629,7 +629,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 && domain.staged.len() < env.limits.staged
             {
                 domain.staged.insert(token, effect.clone()).expect("stage fits");
-                out.push(Request::Described { token, effect, waits_for_dependencies: false });
+                out.push(Request::Described { token, effect });
             } else {
                 out.push(Request::Refused { token });
             }

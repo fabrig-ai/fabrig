@@ -138,7 +138,7 @@ fn an_opened_changes_landing_repair_pins_the_rounds_newer_base_not_its_source() 
     let candidate = world.landing(LANDING).landing.members[0].candidate.expect("candidate");
     let why = change::Repair::LandingAt { gate, candidate, below: None };
     assert_eq!(step(&mut world, 300, Box::new([])), change::Decision::Delegate(change::Delegate::Repair(why)));
-    world.event(top::Event::Delegated { task: 51, child: 71, kind: change::Delegate::Repair(why) });
+    world.event(top::Event::Delegated { task: 51, child: 71, kind: change::Delegate::Repair(why), close_at: None });
     let receipt = world
         .stored()
         .iter()

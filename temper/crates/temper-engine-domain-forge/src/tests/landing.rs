@@ -2211,12 +2211,9 @@ fn a_dependency_closure_is_upstream_first_and_stops_at_a_formed_landing() {
 }
 
 #[test]
-fn a_formed_landing_is_sealed_against_joining_and_ordering() {
+fn a_formed_landing_is_sealed_against_ordering() {
     let mut d = across_fixture();
     member_landing(&mut d);
-    let mut member = d.landing(61).expect("formed landing").landing.members[0].clone();
-    member.change = OTHER_CHANGE;
-    member.repository.repository = OTHER_REPOSITORY.repository;
     let key = [7; 32];
     d.landing.rows.get_mut(&61).expect("landing").entries = Box::new([LandingEntry {
         run: None,
@@ -2232,7 +2229,6 @@ fn a_formed_landing_is_sealed_against_joining_and_ordering() {
     d.landing.keys.insert((62, 0, 0), (fixtures::HEAD, None, key)).expect("other landing key room");
     d.landing.results.insert((61, 0, 0, 5), (policy::Status::Passed, false)).expect("merge result room");
     let before = d.landing(61).expect("formed landing").clone();
-    outputs(&mut d, Event::JoinLanding { task: 61, member, after: Box::new([]) });
     outputs(&mut d, Event::OrderLanding { task: 61, changes: Box::new([OTHER_CHANGE, fixtures::CHANGE]) });
     assert_eq!(d.landing(61), Some(&before));
     assert_eq!(d.landing_of(OTHER_CHANGE), None);

@@ -5,12 +5,19 @@ This document holds merge jobs and conflict resolutions, split from [`repairs.md
 ## 1. Resolutions
 
 - **The merge job** comes before a resolution where the change's
-  project names a `merge_job` and the change's authority delegates to
-  the merge kind (`../../../protocol/configuration/engine.md`): a job of
+  repository has a merge command at the head the merge is made on, its
+  `.temper/hooks/merge` or, where that head holds no `.temper/hooks/`,
+  its project's `merge_job` (`../../../protocol/hooks.md`, 4.2 and 5;
+  `../../../protocol/configuration/engine.md`), and the change's
+  authority delegates to the merge kind: a job of
   kind 3 (`../../worker/jobs.md`), delegated by the change, which holds the
-  branch it writes. Its workspace is a resolution's, the base merged
+  branch it writes. Once a conflict is found that such a job may take,
+  the kind declared and in its authority, the change reads
+  `.temper/hooks/` at that head, the answer kept while the head stands;
+  a read with no answer leaves the change waiting, and it reads again
+  at its next step. Its workspace is a resolution's, the base merged
   into the branch's head;
-  the project's merge command settles the conflicts it knows
+  the merge command settles the conflicts it knows
   (`../../../protocol/tooling.md`, 4.1); if none is left, the worker commits
   the merge and pushes it. On the job's result the change reads its
   branch afresh: a head that moved is the merge's, and the change goes
@@ -24,7 +31,7 @@ This document holds merge jobs and conflict resolutions, split from [`repairs.md
   try that will be spent again included, is a line on the worker that met
   it and on the engine, naming the job, its kind and why (`../../worker/jobs.md`
   ); the job's own hold, out of tries, names its failures' class,
-  and its way out points at the engine's log, where each is named. Without a `merge_job`,
+  and its way out points at the engine's log, where each is named. Without a merge command at that head,
   without the kind declared (`../../worker/jobs.md`) or in its authority, or
   with the job's spec past the kind's bound, a conflict goes to a
   resolution at once. A merge job counts as one of the change's

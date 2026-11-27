@@ -29,6 +29,7 @@ mod files;
 #[cfg(test)]
 mod fixture;
 mod guide;
+mod hook_probe;
 mod limits;
 mod listing;
 mod process;

@@ -40,6 +40,7 @@ impl Input {
             | Event::Used { .. }
             | Event::Read { .. }
             | Event::Probed { .. }
+            | Event::HooksProbed { .. }
             | Event::Delegated { .. }
             | Event::Withdraw { .. }
             | Event::Aborted { .. }

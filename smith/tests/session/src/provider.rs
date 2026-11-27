@@ -107,6 +107,8 @@ pub(super) fn weighted_menu(rewrites: bool) -> Menu {
         after: after.into(),
         unissued: unissued.into(),
         weight: 100,
+        with: Box::new([]),
+        foreign: 0,
         numeric,
     };
     let numeric = Some(Bounds { low: 1, high: u64::from(u32::MAX) });

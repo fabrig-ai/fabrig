@@ -105,6 +105,7 @@ impl Behind {
 /// Answer one seam request without requiring a simulator ticket.
 pub fn answer(behind: &mut Behind, ask: Ask) -> Result<Reply, Error> {
     let op = match ask {
+        Ask::ReadLink { .. } => unreachable!("hearth does not ask this seam to read a symbolic link"),
         Ask::HardLink { .. } => unreachable!("hearth does not ask for a second name"),
         Ask::Open { root, path, how } => {
             return behind.open(At::Beneath(behind.handle(root)), &path, open_how(how)).map(Reply::Opened);
@@ -158,6 +159,7 @@ pub fn answer(behind: &mut Behind, ask: Ask) -> Result<Reply, Error> {
 fn open_how(how: OpenHow) -> How {
     match how {
         OpenHow::PathNoFollow => How::PathNoFollow,
+        OpenHow::PathSiblingFile => unreachable!("hearth does not ask to open a single sibling link"),
         OpenHow::Read => How::Read,
         OpenHow::ReadNoFollow => How::ReadNoFollow,
         OpenHow::Directory => How::Directory,

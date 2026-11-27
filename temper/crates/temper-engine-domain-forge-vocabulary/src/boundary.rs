@@ -2463,11 +2463,6 @@ pub enum Event {
         task: u64,
         changes: Box<[u64]>,
     },
-    JoinLanding {
-        task: u64,
-        member: landing::Member,
-        after: Box<[u64]>,
-    },
     Landing {
         row: LandingRow,
     },
@@ -2805,12 +2800,8 @@ pub enum Event {
         task: u64,
         child: u64,
         kind: change::Delegate,
-    },
-    /// Remember the two measured tips when a close job is admitted.
-    CloseDelegated {
-        task: u64,
-        child: u64,
-        at: change::CloseAt,
+        /// For a close job only, the goal and landing tips read by its decision, if both were read.
+        close_at: Option<change::CloseAt>,
     },
     /// The whole procedure batch was refused before a child number was admitted.
     DelegateAdmissionRefused {
@@ -2920,6 +2911,14 @@ pub enum Event {
         repository: skein_forge::api::Repository,
         branch: Box<[u8]>,
         base: Box<[u8]>,
+    },
+    /// Find the close command at the goal branch's tip for this observed tree.
+    ReadCloserClose {
+        task: u64,
+        step: u64,
+        dependencies: usize,
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
     },
     /// A change's task ending before its resources finish releasing.
     ChangeEnding {
@@ -3075,14 +3074,6 @@ pub fn root_read(serial: u64) -> Option<Token> {
 #[must_use]
 pub fn is_root_read(owner: Token) -> bool {
     owner.raw().checked_shr(59).expect("read range shift fits u64") == 0b0_0100
-}
-
-/// A close job offer or its refusal, fresh or replayed (domain/forge/change/repairs-releases.md, 1).
-#[derive(PartialEq, Eq, Hash, Debug)]
-pub enum CloseStep {
-    Delegate(change::CloseAt),
-    Replay(change::CloseAt),
-    Refused(Box<[u8]>),
 }
 
 /// The connector's output to the root, including child API calls.
@@ -3489,11 +3480,20 @@ pub enum Request {
         decision: change::Decision,
         entry: Option<u64>,
         evidence: Option<ChangeEvidence>,
+        /// For a decision to delegate a close job only, the goal and landing tips, if both were read.
+        close_at: Option<change::CloseAt>,
+        /// For a fresh close refusal only, the larger account to send to the goal once.
+        close_refusal: Option<Box<[u8]>>,
     },
-    /// A close decision, with the tips or the fresh refusal's names.
-    CloseDecision {
+    /// A fresh read confirmed the same judgement. Only rejection needs its previous hold's account.
+    ReplayJudgement {
         task: u64,
-        step: CloseStep,
+        replay: change::Replay,
+        prior_rejection: Box<[u8]>,
+    },
+    /// The relay already held the task; the change's row keeps the refusal evidence.
+    RelayRefusal {
+        task: u64,
     },
     /// Task-specific news with a connector classification.
     News {

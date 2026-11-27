@@ -32,6 +32,7 @@ fn a_file_changed_behind_the_sessions_back_refuses_the_store() {
         other @ (ToDomain::Done { .. }
         | ToDomain::Read { .. }
         | ToDomain::Probed { .. }
+        | ToDomain::HooksProbed { .. }
         | ToDomain::Checked { .. }
         | ToDomain::Aborted { .. }) => panic!("expected load: {other:?}"),
     };
@@ -204,6 +205,7 @@ fn referee_writes_only_within_a_writable_root_and_answers_each_call_once() {
         other @ (ToDomain::Done { .. }
         | ToDomain::Read { .. }
         | ToDomain::Probed { .. }
+        | ToDomain::HooksProbed { .. }
         | ToDomain::Checked { .. }
         | ToDomain::Aborted { .. }) => panic!("expected a load: {other:?}"),
     };
@@ -442,6 +444,7 @@ fn selected_paths_form_a_tree_over_the_shared_fake_machine_and_settle_once() {
             other @ (ToDomain::Done { .. }
             | ToDomain::Read { .. }
             | ToDomain::Probed { .. }
+            | ToDomain::HooksProbed { .. }
             | ToDomain::Checked { .. }
             | ToDomain::Aborted { .. }) => panic!("selected listing: {other:?}"),
         };
@@ -480,6 +483,7 @@ fn removal_checks_versions_and_confines_one_file_or_empty_directory() {
         terminal @ (ToDomain::Done { .. }
         | ToDomain::Read { .. }
         | ToDomain::Probed { .. }
+        | ToDomain::HooksProbed { .. }
         | ToDomain::Checked { .. }
         | ToDomain::Aborted { .. }) => panic!("read before removal: {terminal:?}"),
     };
@@ -609,4 +613,63 @@ fn a_command_whose_child_outlives_it_ends_with_its_group_at_the_deadline() {
     assert_eq!(out.pop(), Some(tools::Request::Closed { session: Token::new(1) }));
     domain.reclaim();
     assert_eq!((domain.kits(), domain.flights()), (0, 0));
+}
+
+#[test]
+fn hooks_probe_distinguishes_non_directories_missing_hooks_and_broken_leaves() {
+    use run::{Hook, HookProblem, Hooks};
+
+    let valid = Item { mode: 0o111, ..Item::file(b"hooks/deliver", b"exec-only") };
+    let absent = vec![Item::directory(b"other-hooks")];
+    let directory = Item::directory(b"hooks");
+    for (items, expected) in [
+        (absent, None),
+        (vec![Item::file(b"hooks", b"regular")], None),
+        (vec![Item::directory(b"other-hooks"), Item::link(b"hooks", b"other-hooks")], None),
+        (vec![directory.clone(), valid.clone()], Some(Hook::Missing)),
+        (vec![directory.clone(), valid.clone(), Item::link(b"hooks/finish", b"deliver")], Some(Hook::Executable)),
+        (
+            vec![
+                directory.clone(),
+                valid.clone(),
+                Item::link(b"hooks/finish", b"../pre-pr"),
+                Item::file(b"pre-pr", b""),
+            ],
+            Some(Hook::Broken(HookProblem::BadLink)),
+        ),
+        (
+            vec![
+                directory.clone(),
+                valid.clone(),
+                Item::link(b"hooks/finish", b"alias"),
+                Item::link(b"hooks/alias", b"deliver"),
+            ],
+            Some(Hook::Broken(HookProblem::BadLink)),
+        ),
+        (
+            vec![directory.clone(), valid.clone(), Item::file(b"hooks/finish", b"not executable")],
+            Some(Hook::Broken(HookProblem::NotExecutable)),
+        ),
+        (
+            vec![directory.clone(), valid.clone(), Item::directory(b"hooks/finish")],
+            Some(Hook::Broken(HookProblem::NotFile)),
+        ),
+    ] {
+        let mut world = World::new(24, &items);
+        let owner = Token::new(75);
+        let root = world.root();
+        let answer = world.request(FromDomain::ProbeHooks {
+            owner,
+            at: run::Place { root, path: b"hooks".as_slice().into() },
+            deadline: far(),
+        });
+        assert_eq!(
+            answer,
+            ToDomain::HooksProbed { owner, hooks: expected.map(|finish| Hooks { deliver: Hook::Executable, finish }) },
+            "{:?}",
+            world.trace()
+        );
+        assert!(world.spawns().is_empty(), "discovery never runs a hook");
+        world.settle();
+    }
 }

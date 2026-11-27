@@ -248,6 +248,9 @@ impl Domain {
         if let Some(lost) = self.lost.get(&owner) {
             return Some(lost.task);
         }
+        if let Some(reading) = self.closing.reads.get(&owner) {
+            return Some(reading.task);
+        }
         match self.makings.get(&owner) {
             Some(making) => Some(making.task),
             None => crate::unmade::reader(self, owner),

@@ -157,7 +157,12 @@ fn a_cancelled_changes_history_is_frozen_across_push_close_reopen_and_restart() 
 #[test]
 fn a_delegates_interval_open_at_the_changes_end_closes_once() {
     let mut world = queued();
-    world.event(top::Event::Delegated { task: TASK, child: CHILD, kind: change::Delegate::Repair(change::Repair::Ci) });
+    world.event(top::Event::Delegated {
+        task: TASK,
+        child: CHILD,
+        kind: change::Delegate::Repair(change::Repair::Ci),
+        close_at: None,
+    });
     world.event(top::Event::ChangeEnding { task: TASK, ending: top::Ending::Cancelled });
     let before = world.history(TASK);
     world.restart();
@@ -309,9 +314,19 @@ fn a_conflicting_update_and_its_resolution_have_distinct_intervals() {
     assert!(matches!(step(&mut world, 30), change::Decision::Effect(change::Effect::Update { .. })));
     let base = translate::commit(world.branch(b"main"));
     assert_eq!(step(&mut world, 31), change::Decision::Delegate(change::Delegate::Resolve { base }));
-    world.event(top::Event::Delegated { task: TASK, child: CHILD, kind: change::Delegate::Resolve { base } });
+    world.event(top::Event::Delegated {
+        task: TASK,
+        child: CHILD,
+        kind: change::Delegate::Resolve { base },
+        close_at: None,
+    });
     world.restart();
-    world.event(top::Event::Delegated { task: TASK, child: CHILD, kind: change::Delegate::Resolve { base } });
+    world.event(top::Event::Delegated {
+        task: TASK,
+        child: CHILD,
+        kind: change::Delegate::Resolve { base },
+        close_at: None,
+    });
     world.resolve(BRANCH, b"settled both sides");
     let head = translate::commit(world.branch(BRANCH));
     report(&mut world);
@@ -386,7 +401,7 @@ fn repair_and_judgement_results_record_their_own_outcomes_once() {
             world.status(BRANCH, raw::Check::Failed);
         }
         assert_eq!(step(&mut world, 70), change::Decision::Delegate(kind));
-        world.event(top::Event::Delegated { task: TASK, child: CHILD, kind });
+        world.event(top::Event::Delegated { task: TASK, child: CHILD, kind, close_at: None });
         if outcome == h::Answer::Pushed {
             world.push(BRANCH, b"repair");
             report(&mut world);
@@ -414,7 +429,7 @@ fn repair_and_judgement_results_record_their_own_outcomes_once() {
 #[test]
 fn a_lost_push_found_again_and_restarted_is_written_once_per_head() {
     let mut world = queued();
-    world.event(top::Event::Delegated { task: TASK, child: CHILD, kind: change::Delegate::Produce });
+    world.event(top::Event::Delegated { task: TASK, child: CHILD, kind: change::Delegate::Produce, close_at: None });
     // The queued change already has a recorded head for the first delivery.
     let commit = translate::commit(world.branch(BRANCH));
     world.event(top::Event::Restore {

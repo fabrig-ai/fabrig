@@ -244,7 +244,7 @@ fn advance(world: &mut World, task: u64, entry: u64) {
     let decision = changes::change_step_task(world, task, entry, change::Status::Passed, Box::new([]), false, false);
     if let change::Decision::Delegate(kind) = decision {
         let child = 100_000 + entry;
-        world.event(top::Event::Delegated { task, child, kind });
+        world.event(top::Event::Delegated { task, child, kind, close_at: None });
         let branch = format!("temper/c{task}");
         match kind {
             change::Delegate::Repair(_) | change::Delegate::Resolve { .. } => {

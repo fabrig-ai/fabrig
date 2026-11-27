@@ -325,7 +325,8 @@ fn valid_rules(group: &[Box<[Rule]>], scripts: &[Script]) -> bool {
             let Ok(turn) = usize::try_from(rule.turn) else {
                 return false;
             };
-            if default || turn >= script.turns.len() {
+            let Some(turn) = script.turns.get(turn) else { return false };
+            if default || crate::stretches::drawn(turn).is_some() {
                 return false;
             }
             default = rule.cue.is_empty();

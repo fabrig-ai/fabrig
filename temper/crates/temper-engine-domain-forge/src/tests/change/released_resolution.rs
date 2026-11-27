@@ -128,7 +128,7 @@ fn a_failed_delegates_terminal_and_words_are_retired_across_restore() {
             assert_eq!(domain.change(fixtures::CHANGE), Some(&released));
             gather(domain, FRESH);
             assert_eq!(domain.change(fixtures::CHANGE).unwrap().change.state, State::Checking { head: FRESH });
-            outputs(domain, Event::Delegated { task: fixtures::CHANGE, child: CHILD + 1, kind });
+            outputs(domain, Event::Delegated { task: fixtures::CHANGE, child: CHILD + 1, kind, close_at: None });
             let replacement = domain.change(fixtures::CHANGE).unwrap();
             assert_eq!(replacement.delegate, Some((CHILD + 1, kind)));
             assert_eq!(replacement.delegate_status, Status::Unknown);

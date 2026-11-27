@@ -40,6 +40,10 @@ pub enum Document<'a> {
         bytes: u64,
     },
 }
+pub(super) fn result_json_bounds(limits: &Limits) -> skein_json::writer::Limits {
+    skein_json::writer::Limits { depth: 32, length: u32::try_from(limits.result_bytes).expect("output bound fits") }
+}
+
 #[must_use]
 pub fn print(
     document: Document<'_>,
@@ -75,10 +79,7 @@ pub fn print(
         | Document::SizedTurn { .. } => false,
     };
     if settings {
-        let bounds = skein_json::writer::Limits {
-            depth: 32,
-            length: u32::try_from(limits.result_bytes).expect("output bound fits"),
-        };
+        let bounds = result_json_bounds(limits);
         let mut measured = Encoder::measure(&bounds);
         encode(&document, limits, subject_digest(&document, limits), &mut measured);
         if measured.measured().is_err() {
@@ -87,9 +88,10 @@ pub fn print(
     }
     let stdout = if json {
         let digest = subject_digest(&document, limits);
-        let bounds = skein_json::writer::Limits {
-            depth: 32,
-            length: if accounts { limits.text } else { u32::try_from(limits.result_bytes).expect("output bound fits") },
+        let bounds = if accounts {
+            skein_json::writer::Limits { depth: 32, length: limits.text }
+        } else {
+            result_json_bounds(limits)
         };
         let mut measure = Encoder::measure(&bounds);
         encode(&document, limits, digest, &mut measure);

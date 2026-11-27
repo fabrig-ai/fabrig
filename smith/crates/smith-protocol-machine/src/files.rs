@@ -348,6 +348,7 @@ fn failure(kind: Kind, error: kernel::Error) -> tools::Done {
         | kernel::Error::Exists
         | kernel::Error::NotEmpty
         | kernel::Error::NameTooLong
+        | kernel::Error::NotALink
         | kernel::Error::InvalidArgument
         | kernel::Error::Reach(_)
         | kernel::Error::Other(_) => other(),

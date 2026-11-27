@@ -1369,7 +1369,7 @@ impl Worker {
             Ok(()) => return Ok(()),
             Err(complete) => complete,
         };
-        let complete = match self.job_complete(complete) {
+        let complete = match self.job_complete(now, complete) {
             Ok(()) => return Ok(()),
             Err(complete) => complete,
         };

@@ -38,3 +38,14 @@ fn a_close_changes_job_runs_on_its_worker() {
         }
     }
 }
+
+// temper/docs/design/protocol/hooks.md, 4.2: the closer and worker meet at the hook path.
+#[test]
+fn the_goals_close_hook_settles_its_status_without_a_project_command() {
+    let report = World::close_hook(928).run_close_job();
+    assert_eq!(report.program, [report.directory.as_slice(), b"/repo/.temper/hooks/close"].concat());
+    assert_eq!(report.request, br#"{"version":1,"goal":1,"changes":[]}"#);
+    assert_eq!(report.parents, [report.tip]);
+    assert_eq!(report.tree.get(b"status.md".as_slice()).map(Vec::as_slice), Some(b"settled\n".as_slice()));
+    assert!(report.opened);
+}

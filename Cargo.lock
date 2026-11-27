@@ -1471,6 +1471,7 @@ dependencies = [
 name = "jig-domain-contract"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-link",
  "skein-lib",
 ]
 
@@ -1766,6 +1767,7 @@ dependencies = [
  "smith-host-protocol",
  "smith-protocol-channel",
  "smith-protocol-llm",
+ "smith-shapes",
 ]
 
 [[package]]
@@ -5546,7 +5548,24 @@ dependencies = [
  "smith-domain-tools-fixtures",
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
+ "smith-shapes",
  "smith-tools-world",
+]
+
+[[package]]
+name = "smith-shapes"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-llm",
+ "skein-llm-kit",
+ "skein-world",
+ "smith-domain",
+ "smith-domain-session",
+ "smith-domain-tools",
+ "smith-domain-tools-fixtures",
+ "smith-protocol-llm",
+ "smith-protocol-llm-fixtures",
 ]
 
 [[package]]
@@ -5983,6 +6002,7 @@ dependencies = [
  "temper-box-kit",
  "temper-client-domain",
  "temper-client-journeys-tool",
+ "temper-client-tools",
  "temper-client-walk-lines",
  "temper-config-shell",
  "temper-engine-domain",
@@ -7011,6 +7031,7 @@ dependencies = [
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
+ "jig-domain-contract",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
@@ -8514,6 +8535,7 @@ dependencies = [
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
  "smith-protocol-llm-world",
+ "smith-shapes",
  "smith-transcript",
  "temper-agent-fixtures",
  "temper-blame",
