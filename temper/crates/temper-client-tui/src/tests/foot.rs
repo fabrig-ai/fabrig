@@ -486,7 +486,7 @@ fn the_foot_says_each_state() {
     for (name, project, chat, typed, listing, placeholder, commands) in [
         ("launchpad", true, false, "", None, Some("Ask for a change, or ask temper.  / for commands"), &[][..]),
         ("no project", false, false, "", None, Some("/ for commands"), &[][..]),
-        ("chat", true, true, "", None, Some("Reply"), &[][..]),
+        ("chat", true, true, "", None, Some("Reply, or ← to leave."), &[][..]),
         ("chat prefix", true, true, "/c", None, None, &[Command::Close, Command::Chats][..]),
         ("unknown", true, false, "/zz", None, Some("Ask for a change, or ask temper.  / for commands"), &[][..]),
         ("whitespace", true, false, "/new ", None, Some("Ask for a change, or ask temper.  / for commands"), &[][..]),
@@ -586,7 +586,13 @@ fn the_foot_says_each_state() {
             good &= menu.is_none();
         }
         good &= crate::escape(&view)
-            == if listing.is_some() || !commands.is_empty() { Some(TuiEvent::Dismiss) } else { None };
+            == if listing.is_some() || !commands.is_empty() {
+                Some(TuiEvent::Dismiss)
+            } else if chat {
+                Some(TuiEvent::Command { command: Command::Pause })
+            } else {
+                None
+            };
         good &= !tree.nodes().iter().any(|node| node.shortcut.is_some());
         if !good {
             failures.push(name).unwrap();
@@ -608,11 +614,11 @@ fn read_states() {
     let words = f::words();
     let tui = Tui::new(f::ADDRESS);
     for (name, state, placeholder, paused, running) in [
-        ("idle", TaskState::Idle, "Reply", false, false),
-        ("ended", TaskState::Ended, "/new starts another chat", false, false),
-        ("result", TaskState::Result, "/new starts another chat", false, false),
-        ("paused", TaskState::Paused, "Reply", true, false),
-        ("running", TaskState::Working, "Reply", false, true),
+        ("idle", TaskState::Idle, "Reply, or ← to leave.", false, false),
+        ("ended", TaskState::Ended, "/new starts another chat, or ← to leave.", false, false),
+        ("result", TaskState::Result, "/new starts another chat, or ← to leave.", false, false),
+        ("paused", TaskState::Paused, "Reply, or ← to leave.", true, false),
+        ("running", TaskState::Working, "Reply, or ← to leave.", false, true),
     ] {
         let root = root_state(true, true, true, false, false, state);
         let part = foot::read(&root, &tui, &words, f::NOW);
@@ -1459,6 +1465,49 @@ fn reply_states() {
     }
 }
 
+#[test]
+#[expect(clippy::disallowed_methods, reason = "check the help key rows in order, after the commands")]
+fn help_keys_follow_the_screen() {
+    const LEAVE: &str = "← at the start goes back";
+    const LIST: &str = "↑ reaches the list";
+    const ESC: &str = "Esc closes a list";
+    const STOP: &str = "Esc stops the agent or closes a list";
+    const PANE: &str = "Ctrl-o cycles the draft pane";
+    let words = f::words();
+    for (name, navigation, escape, pane) in [
+        ("launchpad", LIST, ESC, None),
+        ("chat", LEAVE, STOP, Some(PANE)),
+        ("talk", LEAVE, ESC, None),
+        ("place", LEAVE, ESC, None),
+    ] {
+        let mut tui = Tui::new(f::ADDRESS);
+        let mut root = if name == "talk" {
+            super::chat::talk_root("closed")
+        } else {
+            root(true, true, name == "chat" || name == "place", false, name == "chat")
+        };
+        if name == "place" {
+            tui.step(Told::Place { command: Some(crate::Own::Tell) });
+        }
+        act(&mut root, d::pages::Act::Terminal(d::pages::terminal::Act::Run { command: Command::Help }));
+        let notes = foot::read_notes(&root, &tui, &words);
+        let mut keys = notes.lines.iter().skip_while(|line| line.starts_with(b"/"));
+        let expected = [
+            Some("Enter sends"),
+            Some("Tab completes a command"),
+            Some(navigation),
+            Some("PgUp and PgDn read back"),
+            Some(escape),
+            pane,
+            Some("Ctrl+C closes temper"),
+        ];
+        for line in expected.into_iter().flatten() {
+            assert_eq!(keys.next().map(Box::as_ref), Some(line.as_bytes()), "{name}");
+        }
+        assert!(keys.next().is_none(), "{name}: no other key lines");
+    }
+}
+
 #[expect(clippy::disallowed_methods, reason = "test assertions filter the rendered note paragraphs")]
 fn note_states() {
     walk_notes();
@@ -1484,6 +1533,7 @@ fn note_states() {
         "/quit    Close temper",
         "Enter sends",
         "Tab completes a command",
+        "↑ reaches the list",
         "PgUp and PgDn read back",
         "Esc closes a list",
         "Ctrl+C closes temper",
@@ -2729,7 +2779,7 @@ fn the_places_before_their_first_words_are_empty_chats() {
         (
             Own::Ask,
             "Ask temper",
-            "Ask temper anything, or Esc to go back.",
+            "Ask temper anything, or ← to go back.",
             Scheme::Dark,
             "not-started-ask-80x24-dark",
             include_bytes!("golden/not-started-ask-80x24-dark.txt").as_slice(),
@@ -2737,7 +2787,7 @@ fn the_places_before_their_first_words_are_empty_chats() {
         (
             Own::Change,
             "New change",
-            "Say the change, or Esc to go back.",
+            "Say the change, or ← to go back.",
             Scheme::Dark,
             "not-started-change-80x24-dark",
             include_bytes!("golden/not-started-change-80x24-dark.txt").as_slice(),
@@ -2745,7 +2795,7 @@ fn the_places_before_their_first_words_are_empty_chats() {
         (
             Own::Draft,
             "Design session",
-            "Say what to design, or Esc to go back.",
+            "Say what to design, or ← to go back.",
             Scheme::Dark,
             "not-started-draft-80x24-dark",
             include_bytes!("golden/not-started-draft-80x24-dark.txt").as_slice(),
@@ -2753,7 +2803,7 @@ fn the_places_before_their_first_words_are_empty_chats() {
         (
             Own::Tell,
             "Tell temper",
-            "Tell temper what's off, or Esc to go back.",
+            "Tell temper what's off, or ← to go back.",
             Scheme::Dark,
             "not-started-tell-80x24-dark",
             include_bytes!("golden/not-started-tell-80x24-dark.txt").as_slice(),
@@ -2761,7 +2811,7 @@ fn the_places_before_their_first_words_are_empty_chats() {
         (
             Own::Ask,
             "Ask temper",
-            "Ask temper anything, or Esc to go back.",
+            "Ask temper anything, or ← to go back.",
             Scheme::Light,
             "not-started-ask-80x24-light",
             include_bytes!("golden/not-started-ask-80x24-light.txt").as_slice(),
@@ -2780,7 +2830,8 @@ fn the_places_before_their_first_words_are_empty_chats() {
         assert_eq!(field.value.as_ref().unwrap().text.as_ref(), b"");
         assert_eq!(field.focus, Some(tui.focus()));
         assert!(field.states.as_slice().contains(&State::SubmitsOnEnter));
-        assert_eq!(crate::escape(&view), Some(TuiEvent::Back));
+        assert_eq!(crate::back(&view, field.id, 0), Some(TuiEvent::Back));
+        assert_eq!(crate::escape(&view), None);
         assert_eq!(crate::pane_key(&view), None);
         assert_eq!(crate::walk_key(&view), None);
         let part = foot::read(&root, &tui, &f::words(), f::NOW);

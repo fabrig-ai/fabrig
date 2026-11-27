@@ -345,7 +345,7 @@ fn first_words_start_the_places_chat_and_a_refusal_can_be_sent_again() {
 }
 
 #[test]
-fn back_ends_only_an_empty_place_and_a_list_gets_escape_first() {
+fn left_goes_back_from_a_place_and_escape_only_closes_its_list() {
     for screen in [Screen::Home, Screen::Chat, Screen::Talk] {
         let mut host = at(screen);
         let address = host.root.pages().address().clone();
@@ -367,20 +367,28 @@ fn back_ends_only_an_empty_place_and_a_list_gets_escape_first() {
         host.report(Report::Key(Key::Escape));
         assert_eq!(host.state().place(), Some(Own::Tell));
         host.frame();
-        assert_eq!(host.event_of(&Key::Escape), Some(Event::Back));
+        assert_eq!(host.event_of(&Key::Escape), None);
         empty(&host.report(Report::Key(Key::Escape)));
+        assert_eq!(host.state().place(), Some(Own::Tell));
+        assert_eq!(host.event_of(&Key::Left), Some(Event::Back));
+        empty(&host.report(Report::Key(Key::Left)));
         assert_eq!(host.state().place(), None);
         assert_eq!(host.root.pages().address(), &address, "{screen:?}: not Leave");
         assert!(host.state().notice().is_none());
     }
     let mut host = one_chat_host(false);
-    give(&mut host, Event::Own { command: Own::Change });
+    key_words(&mut host, "/ask");
+    host.report(Report::Key(Key::Enter));
+    host.frame();
+    assert_eq!(host.state().place(), Some(Own::Ask));
+    assert_eq!(host.event_of(&Key::Escape), None);
+    assert_eq!(host.event_of(&Key::Left), Some(Event::Back));
     // A start's intermediate NewChat, as left by a refused start.
     host.start_at(Address::NewChat { draft: false });
     host.report(Report::Due);
     host.frame();
-    assert_eq!(host.event_of(&Key::Escape), Some(Event::Back));
-    host.report(Report::Key(Key::Escape));
+    assert_eq!(host.event_of(&Key::Left), Some(Event::Back));
+    host.report(Report::Key(Key::Left));
     assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
     assert_eq!(host.state().place(), None);
 }

@@ -13,7 +13,7 @@ use skein_lib::{
 use skein_ui::{Binding, Builder, Role, State, Style, phrases::Hole};
 use temper_client_domain::{
     Domain,
-    pages::{chat, chats, needs::Count},
+    pages::{chat, chats, needs::Count, terminal::Command},
 };
 use temper_client_view_parts::shared::{self, TerminalWord};
 use temper_client_view_words::words::Word as Shared;
@@ -25,7 +25,6 @@ pub(crate) use notes::{Notes, draw_link_note, draw_notes, draw_other_notes, read
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent view facts read from the root, not a lifecycle")]
 pub(crate) struct Foot {
-    pub place: bool,
     pub talk_name: Option<Box<[u8]>>,
     pub talk_session: Option<Box<[u8]>>,
     pub tick: Option<Wall>,
@@ -36,6 +35,7 @@ pub(crate) struct Foot {
     pub running: Option<Box<[u8]>>,
     pub project: Option<Box<[u8]>>,
     pub paused: bool,
+    pub pause: bool,
     pub session: bool,
     pub launchpad: bool,
     pub needs: Count,
@@ -160,7 +160,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
             &[Hole::Name(super::talk::name(talking, words))],
         )
     } else if chat.is_some() {
-        words.say(if ended { Word::Ended } else { Word::Reply }, &[])
+        words.say(if ended { Word::Ended } else { Word::ChatReply }, &[])
     } else if project.is_some() {
         words.say(Word::BoxStart, &[])
     } else {
@@ -236,7 +236,6 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
         (words.view().say(state, &[]), style)
     };
     Foot {
-        place: place.is_some(),
         talk_name,
         talk_session: match talking {
             Some(talking) => super::talk::session(talking, words, wall),
@@ -310,6 +309,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
         playground: front::playground(root, project),
         project: project_name(root, project),
         paused,
+        pause: talking.is_none() && shared::offered(root, task, Command::Pause),
         session,
         launchpad: place.is_none() && chat.is_none(),
         needs: if chat.is_none() {

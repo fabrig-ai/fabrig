@@ -61,6 +61,7 @@ pub struct View {
     shown: u64,
     binds: Binds,
     escape: Option<Event>,
+    back: Option<Event>,
     reply: Box<[Event]>,
     left_off: List<(u64, launchpad::LeftKind)>,
     selected_event: Option<Event>,
@@ -84,6 +85,7 @@ impl View {
             shown: 0,
             binds: Binds { events: List::with_capacity(limits.bindings) },
             escape: None,
+            back: None,
             reply: Box::default(),
             left_off: List::with_capacity(3),
             selected_event: None,
@@ -413,6 +415,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
     view.walkable = has_needs(root);
     let refused = refused(root, tui);
     if refused || sign_in_drawn(root, tui) {
+        view.back = None;
         view.reply = Box::default();
         view.selected_event = None;
         view.walkable = false;
@@ -565,10 +568,13 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
         Body::Chat(part) => chat::draw(&mut b, part, &view.words, &mut view.binds),
     }
     view.escape = foot::draw(&mut b, &signed.foot, &view.words, &mut view.binds);
-    if signed.foot.list.is_none() && view.box_empty && signed.foot.place {
-        view.escape = Some(Event::Back);
-    } else if signed.foot.list.is_none() && view.box_empty && signed.foot.talk_name.is_some() {
-        view.escape = Some(Event::Leave);
+    view.back = back_event(signed, view.escape.as_ref());
+    if let Body::Chat(_) = &signed.body
+        && view.escape.is_none()
+        && view.reply.is_empty()
+        && signed.foot.pause
+    {
+        view.escape = Some(Event::Command { command: temper_client_domain::pages::terminal::Command::Pause });
     }
     if signed.foot.list.is_none() && view.selected.is_some() {
         view.escape = Some(Event::LeftOff { task: None });
@@ -576,6 +582,34 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
     b.close();
     view.render.finish(b, view.shown, out);
 }
+fn back_event(signed: &Signed, list_escape: Option<&Event>) -> Option<Event> {
+    // Questions, proposals and replies stand on their own; other lists must be closed first.
+    if let Some(event) = list_escape {
+        let (Event::Aside { .. } | Event::ReplyAside { .. }) = event else { return None };
+    }
+    match &signed.body {
+        Body::Place(_) => Some(Event::Back),
+        Body::Chat(_) if signed.foot.talk_name.is_some() => Some(Event::Leave),
+        Body::Chat(_) => Some(Event::Command { command: temper_client_domain::pages::terminal::Command::New }),
+        Body::Starting(_) | Body::Welcome(_) | Body::Launchpad(_) => None,
+    }
+}
+
+/// What Left at the box's start makes in the tree last built.
+#[must_use]
+pub fn back(view: &View, node: NodeId, caret: u32) -> Option<Event> {
+    // The renderer clamps the caret to the field's value, even after a send clears it.
+    if caret != 0 && !view.box_empty {
+        return None;
+    }
+    let event = view.back.as_ref()?;
+    if view.tree().find(node)?.binding == Some(Binding { owner: look::OWNER, token: BOX }) {
+        Some(event.clone())
+    } else {
+        None
+    }
+}
+
 /// What Escape makes in the tree last built.
 #[must_use]
 pub fn escape(view: &View) -> Option<Event> {

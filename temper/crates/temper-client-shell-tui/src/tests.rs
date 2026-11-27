@@ -129,6 +129,10 @@ fn text(host: &mut Host) -> String {
     String::from_utf8(host.frame().text().into_vec()).expect("UTF-8 frame")
 }
 
+fn has_option(host: &Host, name: &[u8]) -> bool {
+    host.tree().nodes().iter().any(|node| node.role == skein_ui::Role::MenuItem && node.name.as_deref() == Some(name))
+}
+
 fn empty(duties: &Duties) {
     assert_eq!(duties.asked.len(), 0);
     assert!(duties.keep.is_none());
@@ -1373,7 +1377,24 @@ fn signed_host(projects: bool) -> (Host, u64, Duties) {
 }
 
 fn signed_host_look(projects: bool, background: Option<Rgb>, boxed: bool) -> (Host, u64, Duties) {
-    let mut host = host();
+    // These fixtures exercise the TUI, not the native shell's capacity checks.
+    let native = temper_client_shell_terminal::limits::native();
+    let view = temper_client_tui::limits(&native.client, &skein_ui::Limits::EMPTY, limits::PASTE).unwrap();
+    let limits = limits::Limits {
+        native,
+        view,
+        most: Size { columns: 120, rows: 40 },
+        paste: limits::PASTE,
+        interval: limits::INTERVAL,
+    };
+    let shared = temper_client_view::words::Words::english(
+        temper_client_protocol_wire::FORGE,
+        native.client.client.domain.text,
+        temper_client_view::words::Shell::Terminal,
+    )
+    .unwrap();
+    let words = temper_client_tui::words::Words::english(shared, &native.client).unwrap();
+    let mut host = Host::with_checked_words(&Settings { limits }, words, 7, Time::ZERO, Wall::EPOCH);
     start_look(&mut host, Some(Secret::new(Box::new([7; 40]))), background, boxed);
     let hello = hello_for_me(&host, launchpad_me(projects));
     let duties =
@@ -1845,13 +1866,15 @@ fn reply_host() -> Host {
     reply_host_draft(false)
 }
 fn pane_document() -> w::NotePage {
-    let body = format!("# Draft\n\n{}", "line\n\n".repeat(40));
+    draft_note(format!("# Draft\n\n{}", "line\n\n".repeat(40)).into_bytes().into())
+}
+fn draft_note(body: Box<[u8]>) -> w::NotePage {
     let note = w::Note {
         number: 1,
         revision: w::Revision { value: 1 },
         scope: w::NoteScope::Task(w::NoteScopeTask { project: 3, task: 7 }),
         description: records::wire_text(b"Draft"),
-        body: w::DocumentText { bytes: body.into_bytes().into(), cut: false },
+        body: w::DocumentText { bytes: body, cut: false },
         writer: w::NoteAuthor::Task(w::NoteAuthorTask { task: 7, attempt: 1 }),
         tasks: List::with_capacity(0),
         changed: None,
@@ -1865,6 +1888,9 @@ fn pane_document() -> w::NotePage {
     w::NotePage { cut: false, rows: pieces(&[writer.finish()]), before: None, after: None }
 }
 fn reply_host_draft(draft: bool) -> Host {
+    reply_host_with_draft(draft.then(pane_document))
+}
+fn reply_host_with_draft(draft: Option<w::NotePage>) -> Host {
     use smith_transcript as s;
     let (mut host, me_watch, _) = signed_host(true);
     let mut me = launchpad_me(true);
@@ -1922,9 +1948,8 @@ fn reply_host_draft(draft: bool) -> Host {
     task.acts = pieces(&[writer.finish()]);
     let duties = delivery(&mut host, task_watch, &w::DeliveryValue::Task(Box::new(task)));
     let duties = admit_watches(&mut host, duties);
-    if draft {
+    if let Some(page) = draft {
         let read = read_exchange(&duties, "notes");
-        let page = pane_document();
         read_reply(&mut host, read, &w::ReadValue::Notes(page));
     }
     let mut turn = s::decode_archived(&s::CEILINGS, &records::full_turn()).unwrap();
@@ -2797,6 +2822,9 @@ fn reply_keys_send_choices_or_keep_the_composer() {
         host.report(Report::Key(Key::Paste(typed_words.into())));
         host.frame();
         assert_eq!(host.words(), typed_words, "{case}: typed words before Enter");
+        if keys.first() == Some(&Key::Escape) {
+            assert_eq!(host.event_of(&Key::Escape), Some(Event::ReplyAside { turn: REPLY_TURN }), "{case}");
+        }
         let key_event = host.event_of(&Key::Enter);
         let number_event = temper_client_tui::reply_number(&host.view, typed_words);
         let before = host.state().box_written();
@@ -2841,7 +2869,9 @@ fn waiting_at(chat: bool) -> Host {
     let (mut host, _, mut watches) = signed_host(true);
     // The fixture supplies the terminal look so event rows isolate event translation.
     host.step(root::Event::LookKept { look: terminal::Look { terminal: true, ..terminal::Look::default() } });
-    host.step(root::Event::Went { place: Place::Address(Address::Home { project: 3 }) });
+    if !chat {
+        host.step(root::Event::Went { place: Place::Address(Address::Home { project: 3 }) });
+    }
     let duties = host.report(Report::Due);
     watches.asked.extend(admit(&mut host, duties).asked);
     if chat {

@@ -364,7 +364,7 @@ fn a_person_talks_with_a_standing_role_in_the_tui_and_leaves() {
     let shown = tui.text();
     assert!(shown.contains(WORDS), "{shown}");
     assert!(shown.contains(core::str::from_utf8(REPLY).unwrap()), "{shown}");
-    tui.press(&mut world, vec![Key::Escape]);
+    tui.press(&mut world, vec![Key::Left]);
     tui.run(&mut world, fixtures::WITHIN);
     let ended = world.front().engine.store.rows.values().any(|record| {
         matches!(record,
@@ -372,7 +372,7 @@ fn a_person_talks_with_a_standing_role_in_the_tui_and_leaves() {
             if line.task == task && matches!(line.line, jig_domain_tasks::Line::TalkEnded { lapsed: false, .. })
         )
     });
-    assert!(ended, "Esc ends the engine's talk");
+    assert!(ended, "Left ends the engine's talk");
     assert!(world.front().engine.task(task).unwrap().talk.is_none());
     let shown = tui.text();
     assert!(shown.contains("Left Owns the tests after 1 min"), "{shown}");

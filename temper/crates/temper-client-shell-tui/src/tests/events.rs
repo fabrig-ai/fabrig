@@ -416,6 +416,56 @@ fn escape_dispatches_the_views_event() {
 }
 
 #[test]
+fn left_is_only_a_caret_key_on_the_launchpad() {
+    let (mut host, _, _) = signed_host(true);
+    host.frame();
+    for words in ["", "hi"] {
+        if !words.is_empty() {
+            host.report(Report::Key(Key::Paste(words.as_bytes().into())));
+            host.frame();
+            host.report(Report::Key(Key::Home));
+        }
+        assert_eq!(host.event_of(&Key::Left), None);
+        empty(&host.report(Report::Key(Key::Left)));
+        assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
+        assert_eq!(host.words(), words.as_bytes());
+    }
+}
+
+#[test]
+fn left_leaves_a_chat_while_its_question_stands() {
+    let mut host = waiting_host();
+    let object = shared_question(&host);
+    left_leaves_with_prompt(&mut host, Event::Aside { object });
+}
+
+#[test]
+fn left_leaves_a_chat_while_its_reply_choices_stand() {
+    left_leaves_with_prompt(&mut reply_host(), Event::ReplyAside { turn: REPLY_TURN });
+}
+
+fn left_leaves_with_prompt(host: &mut Host, esc: Event) {
+    host.frame();
+    assert_eq!(host.words(), []);
+    assert_eq!(host.event_of(&Key::Escape), Some(esc));
+    assert_eq!(host.event_of(&Key::Left), Some(Event::Command { command: Command::New }));
+    host.report(Report::Key(Key::Left));
+    assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
+}
+
+#[test]
+fn escape_sets_aside_the_chats_question() {
+    let mut host = waiting_host();
+    let object = jig_client::contract::ObjectKey::Question { task: 7, message: 7 };
+    assert!(has_option(&host, b"1. Comma"));
+    assert_eq!(host.event_of(&Key::Escape), Some(Event::Aside { object }));
+    empty(&host.report(Report::Key(Key::Escape)));
+    assert_eq!(host.state().aside(), Some(object));
+    assert_eq!(host.root.pages().address(), &Address::Chat { task: 7 });
+    assert!(!has_option(&host, b"1. Comma"));
+}
+
+#[test]
 fn an_aside_without_a_question_expires() {
     let (mut host, _, _) = signed_host(true);
     let passed = {

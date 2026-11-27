@@ -19,7 +19,7 @@
 
 
 ───────────────────────────────────────── Demo / New change on 127.0.0.1:8367 ──
-❯ Say the change, or Esc to go back.
+❯ Say the change, or ← to go back.
 ────────────────────────────────────────────────────────────────────────────────
  ● Live · Demo · model · high
 --
@@ -44,7 +44,7 @@
 ................................................................................
 ................................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbaaabbbbbbbbbbccccccccccccccccccaaa
-ddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa............................................
+ddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..............................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 .eeeeeeaaaccccaaacccccccccccc...................................................
 --

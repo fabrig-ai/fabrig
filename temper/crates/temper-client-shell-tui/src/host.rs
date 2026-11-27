@@ -331,6 +331,8 @@ impl Host {
                     self.tell(Told::Walk { by_key: true });
                 } else if let Some(event) = self.arrow(&key) {
                     self.event(event, &mut duties);
+                } else if let Some(event) = self.back(&key) {
+                    self.event(event, &mut duties);
                 } else {
                     match command(&key, self.view.tree(), &mut self.focus, &self.bounds) {
                         Command::Act { node, act } => {
@@ -341,7 +343,12 @@ impl Host {
                         Command::Close => self.quit(&mut duties),
                         Command::Nothing if key == Key::Escape => {
                             if let Some(event) = tui::escape(&self.view) {
-                                self.event(event, &mut duties);
+                                if let tui::Event::Command { command: TuiCommand::Pause } = event {
+                                    // Esc stops the turn without submitting or clearing the box.
+                                    self.act(Act::Stop);
+                                } else {
+                                    self.event(event, &mut duties);
+                                }
                             }
                         }
                         Command::Moved | Command::Nothing => {}
@@ -1769,12 +1776,19 @@ impl Host {
         if let Some(event) = self.arrow(key) {
             return Some(event);
         }
+        if let Some(event) = self.back(key) {
+            return Some(event);
+        }
         let mut focus = self.focus;
         match command(key, self.view.tree(), &mut focus, &self.bounds) {
             Command::Act { node, act } => tui::event(&self.view, node, act),
             Command::Nothing if *key == Key::Escape => tui::escape(&self.view),
             Command::Moved | Command::Close | Command::Nothing => None,
         }
+    }
+
+    fn back(&self, key: &Key) -> Option<tui::Event> {
+        if *key == Key::Left { tui::back(&self.view, self.focus.node?, self.focus.caret) } else { None }
     }
 
     fn arrow(&self, key: &Key) -> Option<tui::Event> {
