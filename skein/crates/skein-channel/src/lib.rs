@@ -30,7 +30,7 @@ pub use frame::{
 };
 pub use limits::valid;
 pub use machine::{Machine, StreamMode};
-pub use schema::{Direction, Kind, Limits, Role, Schema, SchemaError, Version};
+pub use schema::{Direction, Kind, Limits, Role, Schema, SchemaError};
 
 #[cfg(test)]
 mod tests;

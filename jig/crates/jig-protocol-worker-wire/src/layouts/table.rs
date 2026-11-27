@@ -1,8 +1,8 @@
 //! Kind numbers and bounds from the worker's text (jig/docs/design/protocol/channel/wires.md, 4).
 use super::{plans::other_root, words};
-use crate::{VERSION, kinds, v22, wire};
+use crate::{kinds, v22, wire};
 use alloc::boxed::Box;
-use skein_channel::{Direction, Kind, Version};
+use skein_channel::{Direction, Kind};
 use skein_codec::{
     layout::{Mode, Plan, Why},
     schema::{DeclIx, FieldIx, LimitLevel, Schema, Shape, Type, TypeIx, VariantIx, limit_child, limit_name},
@@ -27,7 +27,7 @@ pub(super) fn number(base: u16, tag: u8) -> u16 {
     base.checked_add(u16::from(tag)).expect("one byte after the frame kind base")
 }
 
-pub(super) fn current(limits: &v22::Limits) -> Result<Version, Box<[u8]>> {
+pub(super) fn current(limits: &v22::Limits) -> Result<List<Kind>, Box<[u8]>> {
     match kinds::current(limits) {
         Ok(table) => Ok(table),
         Err(crate::Overflow::Body) => Err(words::wire(wire::FAMILY, &[b": the engine's kind bounds do not fit"])),
@@ -101,7 +101,7 @@ impl Frames {
         Ok(Self { worker, from_worker, down_names, rules })
     }
 
-    pub(super) fn table(&self, limits: &v22::Limits) -> Version {
+    pub(super) fn table(&self, limits: &v22::Limits) -> List<Kind> {
         let values = limits.values();
         let bounds = self.worker.bounds_within(v22::LIMIT_NAMES, values.as_slice());
         let mut kinds = List::with_capacity(self.rules.len());
@@ -111,7 +111,7 @@ impl Frames {
                 .expect("the parser checks the u32 bound");
             kinds.push(Kind { kind: rule.kind, direction: rule.direction, largest }).expect("one row per rule");
         }
-        Version { version: VERSION, kinds }
+        kinds
     }
 
     pub(super) fn source(&self, mode: Mode, tag: u8) -> &str {

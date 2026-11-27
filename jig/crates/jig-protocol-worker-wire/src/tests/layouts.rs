@@ -1,7 +1,7 @@
 //! Opening and converting worker layouts (jig/docs/design/protocol/channel/layouts.md, 8).
 use crate as wire;
 use crate::layouts::{Cause, MAX_TEXTS, Nested, Peer, Plans, Site, Theirs};
-use crate::{Carried, KINDS, Kind, Record, Root, VERSION, v22};
+use crate::{Carried, KINDS, Kind, Record, Root, v22};
 #[expect(clippy::disallowed_types, reason = "the test spells a fingerprint independently of the protocol")]
 use core::fmt::Write;
 use skein_codec::{
@@ -50,8 +50,17 @@ fn judge_worker(worker: &Schema) -> Peer {
         .expect("worker layout fits")
 }
 
-fn current_table() -> skein_channel::Version {
-    crate::schema(&LIMITS).expect("current wire table").version(VERSION).expect("current version").clone()
+fn current_table() -> List<skein_channel::Kind> {
+    crate::schema(&LIMITS).expect("current wire table").kinds
+}
+
+fn kind_in(table: &List<skein_channel::Kind>, number: u16) -> Option<skein_channel::Kind> {
+    for rule in table {
+        if rule.kind == number {
+            return Some(*rule);
+        }
+    }
+    None
 }
 
 #[test]
@@ -171,7 +180,7 @@ fn cached_kind_bounds_follow_the_supplied_limits() {
 
     let limits = v22::Limits { ask_bytes: ASK_BYTES, ..LIMITS };
     let table = plans.fit_table(&peer, &limits).expect("fit updated bounds");
-    assert_eq!(table.kind(Kind::Ask.number()).expect("ask kind").largest, ASK_BOUND);
+    assert_eq!(kind_in(&table, Kind::Ask.number()).expect("ask kind").largest, ASK_BOUND);
 }
 
 #[test]
@@ -394,10 +403,9 @@ fn the_workers_table_uses_worker_tags_and_known_limit_names() {
     let mut peer = judge_worker(&parse(&worker));
     let table = peer.table(&LIMITS).expect("peer table");
     let current = current_table();
-    assert_eq!(table.version, VERSION);
-    assert_eq!(table.kinds.len(), current.kinds.len().checked_sub(1).expect("one fewer kind"));
-    assert!(table.kind(UP).is_none(), "worker-only receipt stays out of terms");
-    assert!(table.kind(Kind::PartBusy.number()).is_none(), "dropped send stays out of terms");
+    assert_eq!(table.len(), current.len().checked_sub(1).expect("one fewer kind"));
+    assert!(kind_in(&table, UP).is_none(), "worker-only receipt stays out of terms");
+    assert!(kind_in(&table, Kind::PartBusy.number()).is_none(), "dropped send stays out of terms");
     for rule in KINDS {
         if rule.body == Kind::PartBusy {
             continue;
@@ -411,8 +419,8 @@ fn the_workers_table_uses_worker_tags_and_known_limit_names() {
         } else {
             rule.kind
         };
-        let got = table.kind(mapped).expect("mapped kind occurs");
-        let original = current.kind(rule.kind).expect("current kind");
+        let got = kind_in(&table, mapped).expect("mapped kind occurs");
+        let original = kind_in(&current, rule.kind).expect("current kind");
         let delta = if rule.body == Kind::Assignment {
             LIMITS.assignment_parts.checked_add(4).expect("length plus bytes")
         } else {

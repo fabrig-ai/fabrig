@@ -28,18 +28,12 @@ pub struct Kind {
     pub largest: u32,
 }
 
-/// One version and its bounded application kinds.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Version {
-    pub version: u16,
-    pub kinds: List<Kind>,
-}
-
-/// An application's magic and contiguous supported versions.
+/// An application's magic, frozen wire version and bounded application kinds.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Schema {
     pub magic: [u8; 4],
-    pub versions: List<Version>,
+    pub version: u16,
+    pub kinds: List<Kind>,
 }
 
 /// Per-channel storage and wire limits supplied by its owner.
@@ -58,13 +52,11 @@ pub struct Limits {
 pub enum SchemaError {
     /// At least one count or byte bound is unusable.
     InvalidLimit,
-    /// There is no contiguous, ascending version table.
-    Versions,
     /// An application kind is reserved, duplicated or exceeds a bound.
     Kind,
 }
 
-/// A failed per-version check, also used for the responder's refusal text.
+/// A failed kind table check, also used for the responder's refusal text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum KindTableError {
     TooManyKinds,
@@ -89,91 +81,25 @@ impl Schema {
         {
             return Err(SchemaError::InvalidLimit);
         }
-        if self.versions.is_empty() {
-            return Err(SchemaError::Versions);
+        match check_kinds(&self.kinds, role, limits) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(SchemaError::Kind),
         }
-        let mut previous: Option<u16> = None;
-        for version in &self.versions {
-            if previous.is_some() && previous != version.version.checked_sub(1) {
-                return Err(SchemaError::Versions);
-            }
-            previous = Some(version.version);
-            if version.check_kinds(role, limits).is_err() {
-                return Err(SchemaError::Kind);
-            }
-        }
-        Ok(())
     }
 
-    /// Installs checked kinds for a version already selected from this schema.
-    pub(super) fn install_version(
+    /// Installs a checked replacement for the application kinds.
+    pub(super) fn install_kinds(
         &mut self,
-        table: Version,
+        kinds: List<Kind>,
         role: Role,
         limits: &Limits,
     ) -> Result<(), KindTableError> {
-        table.check_kinds(role, limits)?;
-        for version in self.versions.iter_mut() {
-            if version.version == table.version {
-                *version = table;
-                return Ok(());
-            }
-        }
-        unreachable!("the selected version is within the checked schema's range")
-    }
-
-    /// Inclusive bounds of the contiguous version offer.
-    #[must_use]
-    pub fn range(&self) -> Option<(u16, u16)> {
-        Some((self.versions.get(0)?.version, self.versions.last()?.version))
-    }
-
-    /// Finds a version, or reports that this side does not speak it.
-    #[must_use]
-    #[expect(clippy::manual_find, reason = "the strict step subset has no closures")]
-    pub fn version(&self, number: u16) -> Option<&Version> {
-        for version in &self.versions {
-            if version.version == number {
-                return Some(version);
-            }
-        }
-        None
-    }
-}
-
-impl Version {
-    fn check_kinds(&self, role: Role, limits: &Limits) -> Result<(), KindTableError> {
-        if self.kinds.len() > limits.kinds {
-            return Err(KindTableError::TooManyKinds);
-        }
-        let sent = match role {
-            Role::Initiator => Direction::FromInitiator,
-            Role::Responder => Direction::FromResponder,
-        };
-        for (index, kind) in self.kinds.iter().enumerate() {
-            if kind.kind < 0x0100 {
-                return Err(KindTableError::ReservedKind);
-            }
-            if usize::try_from(kind.largest).is_err() || isize::try_from(kind.largest).is_err() {
-                return Err(KindTableError::BodyCapacity);
-            }
-            // Received bodies are bounded by their own terms, not the output queue.
-            if kind.direction == sent {
-                let length = kind.largest.checked_add(8).ok_or(KindTableError::OutputCapacity)?;
-                if length > limits.output_bytes {
-                    return Err(KindTableError::OutputCapacity);
-                }
-            }
-            for earlier in self.kinds.iter().take(index) {
-                if earlier.kind == kind.kind {
-                    return Err(KindTableError::DuplicateKind);
-                }
-            }
-        }
+        check_kinds(&kinds, role, limits)?;
+        self.kinds = kinds;
         Ok(())
     }
 
-    /// Finds an application kind in this version.
+    /// Finds an application kind in this table.
     #[must_use]
     pub fn kind(&self, number: u16) -> Option<Kind> {
         for kind in &self.kinds {
@@ -183,4 +109,35 @@ impl Version {
         }
         None
     }
+}
+
+fn check_kinds(kinds: &List<Kind>, role: Role, limits: &Limits) -> Result<(), KindTableError> {
+    if kinds.len() > limits.kinds {
+        return Err(KindTableError::TooManyKinds);
+    }
+    let sent = match role {
+        Role::Initiator => Direction::FromInitiator,
+        Role::Responder => Direction::FromResponder,
+    };
+    for (index, kind) in kinds.iter().enumerate() {
+        if kind.kind < 0x0100 {
+            return Err(KindTableError::ReservedKind);
+        }
+        if usize::try_from(kind.largest).is_err() || isize::try_from(kind.largest).is_err() {
+            return Err(KindTableError::BodyCapacity);
+        }
+        // Received bodies are bounded by their own terms, not the output queue.
+        if kind.direction == sent {
+            let length = kind.largest.checked_add(8).ok_or(KindTableError::OutputCapacity)?;
+            if length > limits.output_bytes {
+                return Err(KindTableError::OutputCapacity);
+            }
+        }
+        for earlier in kinds.iter().take(index) {
+            if earlier.kind == kind.kind {
+                return Err(KindTableError::DuplicateKind);
+            }
+        }
+    }
+    Ok(())
 }

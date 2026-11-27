@@ -596,7 +596,7 @@ impl Component {
             | channel::Event::Sent { .. } => {}
         }
         match event {
-            channel::Event::Ready { version, terms } => self.ready(now, version, terms, out),
+            channel::Event::Ready { terms } => self.ready(now, terms, out),
             channel::Event::Refused { reason, text } => {
                 out.push(Request::Refused { reason, text });
                 self.lose(now, Loss::Closed(Closed::RefusedPeer(reason)), out);
@@ -648,10 +648,9 @@ impl Component {
             channel::Event::Sent { .. } => {}
         }
     }
-    fn ready(&mut self, now: Time, version: u16, terms: List<channel::Term>, out: &mut Queue<Request>) {
-        let table = self.schema.version(version).expect("the channel chose its own version");
+    fn ready(&mut self, now: Time, terms: List<channel::Term>, out: &mut Queue<Request>) {
         if self.opening == wire::Opening::Link
-            && let Some(kind) = crate::wires::terms_gap(table, &terms)
+            && let Some(kind) = crate::wires::terms_gap(&self.schema.kinds, &terms)
         {
             self.command(channel::Request::Refuse {
                 reason: REFUSED_LIMITS,

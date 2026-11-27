@@ -34,7 +34,6 @@ impl Opening {
             schema,
             skein_channel::Role::Initiator,
             peer_limits,
-            wire::VERSION,
             fixtures::credential(LOCAL, fixtures::SECRET_A, fixtures::APPLICATION_VERSION),
         )
         .expect("worker peer");

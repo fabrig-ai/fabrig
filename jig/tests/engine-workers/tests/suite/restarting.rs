@@ -10,21 +10,9 @@ fn a_restart_tells_each_worker_that_can_hear_it_and_can_be_asked_again() {
     let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
     let (current, _) = world.reporting(fixtures::WORKER_A, fixtures::SECRET_A);
     let codec = wire::sizes::limits(&fixtures::limits().sizes).expect("codec");
-    let previous = wire::VERSION.checked_sub(1).expect("previous channel version");
-    let mut schema = fixtures::schema();
-    schema.versions.truncate(1);
-    schema.versions.get_mut(0).expect("one version").version = previous;
-    let old = skein_fake_channel::ScriptedPeer::new(
-        schema,
-        skein_channel::Role::Initiator,
-        fixtures::channel_limits(),
-        previous,
-        Box::new([]),
-    )
-    .expect("older worker");
-    let older = world.connect(old);
+    let refused = world.connect(fixtures::worker(fixtures::WORKER_B, b"wrong secret", fixtures::APPLICATION_VERSION));
     world.run();
-    assert_eq!(world.refusal(older).map(|(reason, _)| reason), Some(1));
+    assert_eq!(world.refusal(refused).map(|(reason, _)| reason), Some(260));
     let (second, _) = world.reporting(fixtures::WORKER_B, fixtures::SECRET_B);
     assert_eq!(world.root().iter().filter(|r| matches!(r, Request::Hello { .. })).count(), 2);
     let wait = Duration::from_millis(1_200_000);
@@ -40,7 +28,7 @@ fn a_restart_tells_each_worker_that_can_hear_it_and_can_be_asked_again() {
                 assert_eq!(record.wait_ms, 1_200_000);
             }
         }
-        assert!(!world.observed(older).iter().any(|r| r.kind == wire::Kind::Restarting.number()));
+        assert!(!world.observed(refused).iter().any(|r| r.kind == wire::Kind::Restarting.number()));
         let told: Vec<_> = world
             .root()
             .iter()

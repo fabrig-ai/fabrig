@@ -746,13 +746,13 @@ impl Component {
         out: &mut Queue<Request>,
     ) {
         match event {
-            ChannelEvent::Opening { credential, lowest, highest } => {
+            ChannelEvent::Opening { credential } => {
                 if self.life != Life::Running {
                     self.refuse(now, connection, state, Reason::Stopping.code(), Box::new([]), out);
                     return;
                 }
                 if !self.workers_ready {
-                    state.pending_opening = Some(ChannelEvent::Opening { credential, lowest, highest });
+                    state.pending_opening = Some(ChannelEvent::Opening { credential });
                     return;
                 }
                 let verdict = self.judge(&credential, state.in_process);
@@ -812,7 +812,7 @@ impl Component {
                 state.hello_deadline = Some(now.saturating_add(self.limits.hello));
                 state.down(ChannelRequest::AcceptWith { table }, connection, out);
             }
-            ChannelEvent::Ready { version: _, terms } => {
+            ChannelEvent::Ready { terms } => {
                 let table = state.table.take().expect("the opening installed a table");
                 let check = if state.opening == wire::Opening::Figures {
                     figures_terms(&table, state.sends(wire::Kind::Figures), &terms)
@@ -1054,18 +1054,22 @@ impl Component {
 }
 
 fn figures_terms(
-    table: &skein_channel::Version,
+    table: &List<skein_channel::Kind>,
     kind: Option<u16>,
     terms: &List<skein_channel::Term>,
 ) -> Result<(), Box<[u8]>> {
     let Some(kind) = kind else { return Err(statement::kind_words(wire::Kind::Figures.number())) };
-    let rule = table.kind(kind).expect("the worker's figures kind is in its table");
-    for term in terms {
-        if term.kind == kind && term.largest >= rule.largest {
-            return Ok(());
+    for rule in table {
+        if rule.kind == kind {
+            for term in terms {
+                if term.kind == kind && term.largest >= rule.largest {
+                    return Ok(());
+                }
+            }
+            return Err(statement::kind_words(kind));
         }
     }
-    Err(statement::kind_words(kind))
+    unreachable!("the worker's figures kind is in its table")
 }
 
 fn closed(

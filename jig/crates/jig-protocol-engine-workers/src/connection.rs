@@ -2,7 +2,9 @@
 use crate::{Loss, Statement};
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::{Kind, layouts::Peer};
-use skein_channel::{Event, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, Version, WriteWait};
+use skein_channel::{
+    Event, Kind as ChannelKind, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, WriteWait,
+};
 use skein_lib::{Duration, List, Queue, Time, Token};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Phase {
@@ -29,7 +31,7 @@ pub(crate) struct Connection {
     pub worker: Option<u32>,
     pub channel: Token,
     pub peer: Option<Box<Peer>>,
-    pub table: Option<Version>,
+    pub table: Option<List<ChannelKind>>,
     pub converted: List<Box<str>>,
     pub statement: Option<Statement>,
     pub refusal: bool,

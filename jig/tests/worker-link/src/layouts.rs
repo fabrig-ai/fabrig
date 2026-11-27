@@ -1,6 +1,6 @@
 //! A worker codec behind the derived layouts (jig/docs/design/protocol/channel/layouts.md, 8).
 use jig_protocol_worker_wire::{self as wire, Application, Carried, Root, Spoken, v22 as w};
-use skein_channel::{Control, Frame, Term, Version};
+use skein_channel::{Control, Frame, Term};
 use skein_codec::{
     layout::{Mode, Plan, Workspace},
     schema::{Schema, parse},
@@ -163,7 +163,7 @@ fn schemas(current: &str, derived: &str) -> (Schema, Schema) {
 /// still runs its own codec; the engine sees the derived credential and bytes.
 pub struct Shim {
     limits: w::Limits,
-    current: Version,
+    current: skein_channel::Schema,
     frame_up: Pass,
     frame_down: Pass,
     up_term: Pass,
@@ -185,11 +185,7 @@ impl Shim {
         let (app, other_app) = schemas(APP_TEXT, &text.application);
         Self {
             limits: *limits,
-            current: wire::schema(limits)
-                .expect("current fixture table")
-                .version(wire::VERSION)
-                .expect("current version")
-                .clone(),
+            current: wire::schema(limits).expect("current fixture table"),
             frame_up: Pass::new(Mode::Keep, &ours, &theirs, "FromWorker"),
             frame_down: Pass::new(Mode::Read, &theirs, &ours, "FromEngine"),
             up_term: Pass::new(Mode::Read, &theirs, &ours, "FromWorker"),
@@ -246,13 +242,7 @@ impl Shim {
                     let largest = if up {
                         term.largest + if grows { 2 } else { 0 }
                     } else {
-                        self.current
-                            .kinds
-                            .as_slice()
-                            .iter()
-                            .find(|rule| rule.kind == kind)
-                            .expect("mapped worker kind")
-                            .largest
+                        self.current.kind(kind).expect("mapped worker kind").largest
                     };
                     mapped.push(Term { kind, largest }).expect("one per receive term");
                 }

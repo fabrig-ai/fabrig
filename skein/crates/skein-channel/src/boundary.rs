@@ -3,7 +3,7 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Token, stream};
 
-use super::{Frame, Term, Version};
+use super::{Frame, Kind, Term};
 
 /// The most owner events one entry point emits.
 pub const MAX_UP: u32 = 3;
@@ -15,11 +15,11 @@ pub const MAX_DOWN: u32 = 3;
 pub enum Request {
     /// The initiator starts with an opaque bounded credential.
     Open { credential: Box<[u8]> },
-    /// The responder selects a version offered by both peers.
-    Accept { version: u16 },
-    /// The responder selects a common version and supplies that version's kinds.
-    AcceptWith { table: Version },
-    /// Either owner ends with a bounded reason and text.
+    /// The responder accepts with its schema's kinds.
+    Accept,
+    /// The responder accepts with a replacement kind table.
+    AcceptWith { table: List<Kind> },
+    /// Either owner ends with a reason other than legacy version (1), and bounded text.
     Refuse { reason: u16, text: Box<[u8]> },
     /// The owner grants one application frame read.
     Read,
@@ -38,7 +38,7 @@ impl core::fmt::Debug for Request {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Open { credential } => f.debug_struct("Open").field("credential_len", &credential.len()).finish(),
-            Self::Accept { version } => f.debug_struct("Accept").field("version", version).finish(),
+            Self::Accept => f.write_str("Accept"),
             Self::AcceptWith { table } => f.debug_struct("AcceptWith").field("table", table).finish(),
             Self::Refuse { reason, text } => {
                 f.debug_struct("Refuse").field("reason", reason).field("text", text).finish()
@@ -94,9 +94,9 @@ pub struct Room {
 /// An event delivered to the channel's owner.
 pub enum Event {
     /// The responder heard an opening and asks its owner to choose.
-    Opening { credential: Box<[u8]>, lowest: u16, highest: u16 },
+    Opening { credential: Box<[u8]> },
     /// Opening completed with the peer's receive terms.
-    Ready { version: u16, terms: List<Term> },
+    Ready { terms: List<Term> },
     /// One application body was received.
     Body { kind: u16, body: Box<[u8]> },
     /// The peer sent a liveness frame.
@@ -123,15 +123,10 @@ pub enum Event {
 impl core::fmt::Debug for Event {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Self::Opening { credential, lowest, highest } => f
-                .debug_struct("Opening")
-                .field("credential_len", &credential.len())
-                .field("lowest", lowest)
-                .field("highest", highest)
-                .finish(),
-            Self::Ready { version, terms } => {
-                f.debug_struct("Ready").field("version", version).field("terms", terms).finish()
+            Self::Opening { credential } => {
+                f.debug_struct("Opening").field("credential_len", &credential.len()).finish()
             }
+            Self::Ready { terms } => f.debug_struct("Ready").field("terms", terms).finish(),
             Self::Body { kind, body } => {
                 f.debug_struct("Body").field("kind", kind).field("body_len", &body.len()).finish()
             }

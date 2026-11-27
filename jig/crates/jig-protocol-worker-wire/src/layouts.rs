@@ -1,7 +1,7 @@
 //! Engine-side conversion between worker layouts (jig/docs/design/protocol/channel/layouts.md, 2–5).
 use crate::{Carried, KINDS, Kind, v22};
 use alloc::boxed::Box;
-use skein_channel::{Direction, Version};
+use skein_channel::{Direction, Kind as ChannelKind};
 use skein_codec::layout::{Misconverted, Mode, Plan, Refused, Workspace};
 use skein_lib::{Buffer, List};
 
@@ -131,7 +131,7 @@ impl Unconverted {
 pub struct Peer {
     same: bool,
     frames: Option<table::Frames>,
-    send_bounds: Option<(v22::Limits, Version)>,
+    send_bounds: Option<(v22::Limits, List<ChannelKind>)>,
     plans: List<Pass>,
     work: Workspace,
 }
@@ -158,8 +158,8 @@ impl Peer {
         self.same
     }
 
-    /// The worker's kinds and their bounds, at the channel's version.
-    pub fn table(&self, limits: &v22::Limits) -> Result<Version, Box<[u8]>> {
+    /// The worker's kinds and their bounds.
+    pub fn table(&self, limits: &v22::Limits) -> Result<List<ChannelKind>, Box<[u8]>> {
         if let Some(frames) = &self.frames {
             return Ok(frames.table(limits));
         }
@@ -194,7 +194,7 @@ impl Peer {
             self.send_bounds = Some((*limits, frames.table(limits)));
         }
         let (_, table) = self.send_bounds.as_ref().expect("bounds fitted to these limits");
-        for rule in &table.kinds {
+        for rule in table {
             if rule.kind == number && rule.direction == Direction::FromResponder {
                 return Ok(rule.largest);
             }

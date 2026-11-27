@@ -450,7 +450,6 @@ fn kept() -> Box<[KeptWire]> {
 fn opening(name: &str) -> WorkerOpening {
     let configured = configured();
     let schema = jig_protocol_worker_wire::schema(&configured.limits).expect("fixture table");
-    let table = schema.version(jig_protocol_worker_wire::VERSION).expect("current version");
     WorkerOpening {
         worker: name.into(),
         wires: configured
@@ -463,7 +462,7 @@ fn opening(name: &str) -> WorkerOpening {
             })
             .collect(),
         output: configured.room,
-        terms: table
+        terms: schema
             .kinds
             .iter()
             .filter(|kind| kind.direction == skein_channel::Direction::FromResponder)

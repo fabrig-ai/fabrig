@@ -2,7 +2,7 @@
 use super::{MAX_TEXTS, Nested, Pass, Peer, Theirs, Value, table, words};
 use crate::{Root, v22, wire};
 use alloc::boxed::Box;
-use skein_channel::Version;
+use skein_channel::Kind;
 use skein_codec::{
     layout::{Mode, Plan, Why, Workspace},
     schema::{self, DeclIx, Named, Schema, Shape},
@@ -22,7 +22,7 @@ pub struct Plans {
 #[derive(Debug)]
 struct CurrentBounds {
     limits: v22::Limits,
-    table: Version,
+    table: List<Kind>,
 }
 
 #[derive(Debug)]
@@ -156,7 +156,7 @@ impl Plans {
 
     /// Fits the worker's kinds. Workers at the engine's frame layout share
     /// the bounds for a given set of limits, even if their carried parts differ.
-    pub fn fit_table(&mut self, peer: &Peer, limits: &v22::Limits) -> Result<Version, Box<[u8]>> {
+    pub fn fit_table(&mut self, peer: &Peer, limits: &v22::Limits) -> Result<List<Kind>, Box<[u8]>> {
         if peer.frames.is_some() {
             return peer.table(limits);
         }
