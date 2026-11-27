@@ -247,6 +247,21 @@ fn a_checkout_without_a_hooks_directory_uses_its_fallback() {
     }
 }
 
+/// temper/docs/design/protocol/hooks.md, 4.3 and 5: a legacy command can settle a cut conflict list.
+#[test]
+fn a_cut_merge_conflict_list_does_not_block_the_fallback() {
+    let mut stand = fixtures::started_worker();
+    let worker = &mut stand.worker;
+    let mut hooks = Hooks::new(Some(FALLBACK.into()), 3600);
+    hooks.conflict = Some(Conflict::Cut);
+    hooks.fallback.as_mut().expect("merge fallback").conflict = Some(Conflict::Cut);
+    discover(worker, MERGE, b"merge", hooks);
+    steps(worker, [Step { result: Err(Error::NotFound), ..directory() }]);
+    let (_, spawn) = take_spawn(worker);
+    assert_eq!(spawn.program.as_ref(), b"/worker/workspaces/7/repo/tools/check");
+    assert_eq!(spawn.args[0].as_ref(), b"merge");
+}
+
 /// temper/docs/design/protocol/hooks.md, 4.3: absence also holds when there is no fallback.
 #[test]
 fn a_checkout_without_a_directory_or_fallback_answers_none() {

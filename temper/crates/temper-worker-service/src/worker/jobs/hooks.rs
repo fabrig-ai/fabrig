@@ -251,8 +251,9 @@ impl Check {
     fn fallback(&self) -> Outcome {
         match &self.hooks.fallback {
             Some(fallback) if !fallback.program.is_empty() => match fallback.conflict {
-                Some(conflict) => Outcome::Failed(super::joined(&[b"fallback command: ", conflict.why()])),
-                None => Outcome::Fallback,
+                Some(Conflict::Path) => Outcome::Failed(super::joined(&[b"fallback command: ", Conflict::Path.why()])),
+                // An ordinary merge command reads the index, not the checkout's bounded conflict list.
+                Some(Conflict::Cut) | None => Outcome::Fallback,
             },
             Some(_) | None => Outcome::Absent,
         }
