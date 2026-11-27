@@ -33,7 +33,7 @@ pub fn read_only(directories: &Directories, shape: Shape) -> Result<Read, String
 pub fn report(
     read: Result<temper_config_shell::Read, temper_config_shell::Refusal>,
 ) -> Result<temper_config_shell::Read, String> {
-    report_to(read, std::io::stderr().lock())
+    report_to(read, std::io::stderr())
 }
 
 fn report_to(
