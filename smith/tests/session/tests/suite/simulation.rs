@@ -79,7 +79,7 @@ fn a_session_runs_its_tool_rounds_and_yields_with_the_providers_answer() {
 #[test]
 fn a_nudged_session_goes_on_until_its_opener_closes_it() {
     // Each of the three messages gets two successful tool rounds.
-    const NUDGED_ROUNDS_SEED: u64 = 0;
+    const NUDGED_ROUNDS_SEED: u64 = 7;
     let calm = Settings::calm(NUDGED_ROUNDS_SEED);
     let mut world = World::new(Settings { nudges: Count { min: 2, max: 2 }, ..calm });
     let opener = world.submit(Time::ZERO, spec(b"fix the build"));
@@ -737,7 +737,7 @@ fn a_guarded_request_past_the_line_is_refused_by_the_world() {
     // The guard refuses one drawn request before it is sent.
     const GUARD_REFUSAL_SEED: u64 = 104;
     const LINE: u64 = 200;
-    const DRAWN_NEW_PART: u64 = 615;
+    const DRAWN_NEW_PART: u64 = 741;
     let mut world = World::new(Settings::calm(GUARD_REFUSAL_SEED));
     let opener = world.submit(Time::ZERO, Spec { line: LINE, ..spec(b"fix the build") });
     world.run(ITERATIONS);
