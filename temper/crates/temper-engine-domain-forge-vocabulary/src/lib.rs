@@ -920,7 +920,11 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(line) => bytes(line),
                 None => 0,
             };
-            total.checked_add(row.relay.held_bytes()?)?.checked_add(goal_left)
+            let goal_asked = match &row.closer.goal_asked {
+                Some(block) => bytes(block),
+                None => 0,
+            };
+            total.checked_add(row.relay.held_bytes()?)?.checked_add(goal_left)?.checked_add(goal_asked)
         }
         Stored::Change(row) => skein_lib::len_u64(row.signed.len())
             .checked_add(match &row.source {

@@ -507,7 +507,7 @@ enum ClosingForm { words, question, answer: Number }
 record ClosingMessage { target: u64 form: ClosingForm words: bytes 1048576 }
 record ClosingRelay { open: option ClosingQuestion replies: list 1024 ClosingMessage waiting: list 1024 ClosingQuestion = [] }
 enum ClosingReportCheck { unread, held, released }
-record Closer { report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none task: u64 goal: u64 closed: option ClosingTasks running: option ClosingRun landing: option u64 hold: option ClosingRun retry: option ClosingStep making: option ClosingStep close_changes: list 1024 u64 landing_changes: list 1024 u64 selections: list 1024 ClosingSelection done: bool relay: option ClosingRelay superseded: list 1024 u64 = [] }
+record Closer { report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none goal_asked: option bytes 1048576 = none task: u64 goal: u64 closed: option ClosingTasks running: option ClosingRun landing: option u64 hold: option ClosingRun retry: option ClosingStep making: option ClosingStep close_changes: list 1024 u64 landing_changes: list 1024 u64 selections: list 1024 ClosingSelection done: bool relay: option ClosingRelay superseded: list 1024 u64 = [] }
 
 record LandedDraft { repository: Repository path: bytes 1024 project: u32 branch: bytes 1024 commit: fixed 32 title: bytes 200 writer: u64 at: u64 chat: option u64 goal: option u64 ready: bool }
 
