@@ -699,7 +699,7 @@ fn the_worlds_provider_counts_blocks_at_their_drawn_ratios() {
 #[test]
 fn a_guarded_request_past_the_line_is_refused_by_the_world() {
     const LINE: u64 = 200;
-    const DRAWN_NEW_PART: u64 = 1_626;
+    const DRAWN_NEW_PART: u64 = 601;
     let mut world = World::new(Settings::calm(104));
     let opener = world.submit(Time::ZERO, Spec { line: LINE, ..spec(b"fix the build") });
     world.run(ITERATIONS);

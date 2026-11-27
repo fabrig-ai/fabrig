@@ -4,10 +4,12 @@ use smith_session_world::said;
 
 use smith_session_world::bytes;
 
+use skein_fake_llm_domain::api::Part as ProviderPart;
 use skein_lib::{Duration, Time, Token};
 use smith_domain_session::{self as session, llm, record};
 use smith_domain_tools::{self as tools, Budget, Call, Done, JobEnd, JobNumber, Wait};
 use smith_session_world::recorded::{self, Scripted};
+use smith_session_world::{tickets::Tickets, translate};
 use smith_tools_world::translate as io;
 
 fn opening(transcript: Option<record::Transcript>) -> record::Opening {
@@ -56,6 +58,10 @@ fn job(stop: bool) -> llm::Block {
 }
 
 fn read(id: &[u8]) -> llm::Block {
+    read_window(id, Budget::Default)
+}
+
+fn read_window(id: &[u8], window: Budget) -> llm::Block {
     called(
         id,
         Call::Read {
@@ -66,7 +72,7 @@ fn read(id: &[u8]) -> llm::Block {
                 }]),
             },
             offset: 1,
-            window: Budget::Default,
+            window,
         },
     )
 }
@@ -155,6 +161,65 @@ fn a_command_answered_running_while_the_session_reads_edits_and_completes() {
             end: JobEnd::Ended(tools::Exit::Code { code: 0 }),
         })
     );
+}
+
+/// Read the next query at the fake provider boundary, not the domain's stored outcome.
+fn provider_output(world: &Scripted, id: &[u8]) -> (Box<[u8]>, bool) {
+    let prompt = world.prompts.last().expect("the next provider prompt").clone();
+    translate::query(prompt, &Tickets::default())
+        .messages
+        .into_iter()
+        .flat_map(|message| message.parts)
+        .find_map(|part| match part {
+            ProviderPart::ToolOutput { id: result_id, output, is_error } if result_id.as_ref() == id => {
+                Some((output, is_error))
+            }
+            _ => None,
+        })
+        .expect("the provider sees the call's result")
+}
+
+#[test]
+fn the_provider_reads_job_status_and_numbered_read_continuation() {
+    let mut world = Scripted::new(1);
+    let mut start = opening(None);
+    start.spec.delegated = Box::default();
+    world.open(start);
+    let input = br#"{"command":"ls","yield_seconds":0}"#;
+    complete(
+        &mut world,
+        vec![llm::Block::ToolCall(llm::ToolCall {
+            id: bytes(b"shell"),
+            name: bytes(b"shell"),
+            input: bytes(input),
+            call: translate::decode(b"shell", input),
+            replay: None,
+        })],
+    );
+    let owner = world.operations[0].0;
+    world.step(session::Event::Done {
+        owner,
+        done: Done::Held { head: Box::default(), tail: Box::default(), dropped: 0 },
+    });
+    assert_eq!(world.prompts.len(), 2, "the shell yields before its end");
+    assert_eq!(provider_output(&world, b"shell"), (bytes(b"job 1 running; use job to read the rest"), false));
+
+    complete(&mut world, vec![job(false)]);
+    world.env.now = Time::from_nanos(500_000_000);
+    end_job(&mut world, owner, JobEnd::Ended(tools::Exit::Code { code: 0 }));
+    assert_eq!(
+        provider_output(&world, b"poll"),
+        (bytes(b"job 1 output since its last answer:\nDone\n\nexit code 0"), false)
+    );
+
+    complete(&mut world, vec![read_window(b"read", Budget::Asked(2))]);
+    let owner = world.operations[0].0;
+    world.step(session::Event::Done {
+        owner,
+        done: Done::Loaded { content: bytes(b"a\nb\n"), version: tools::Version::new([1; 4]) },
+    });
+    assert_eq!(provider_output(&world, b"read"), (bytes(b"1: a\n(1 of 2 lines; skipped 0) [next line 2]"), false));
+    finish(&mut world);
 }
 
 #[test]

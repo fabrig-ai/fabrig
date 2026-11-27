@@ -1,5 +1,7 @@
 //! Render, guard and submit the world's LLM effects (smith/docs/design/domain/session.md, 10).
 
+use smith_domain::{Below, Event};
+
 use super::{Call, Delivery, Failure, Prompt, Token, World, agent, in_call_order, not_run, translate, window_referee};
 
 impl World {
@@ -24,7 +26,18 @@ impl World {
         self.stats.calls += 1;
         let purpose = prompt.purpose;
         let served = prompt.delegated.clone();
-        let query = translate::query(prompt, &self.tickets);
+        let query = match translate::query_bounded(prompt, &self.tickets, self.rendered_result) {
+            Ok(query) => query,
+            Err(error) => {
+                let Event::Below(Below::Failed { owner, failure, detail, evidence, .. }) =
+                    smith_protocol_llm::refusal(owner, error, self.settings.agent.failure_bytes)
+                else {
+                    unreachable!("a preparation refusal is an unsent completion failure");
+                };
+                self.agent_stage.push(agent::Event::Failed { retry_ok: false, owner, failure, evidence, detail });
+                return;
+            }
+        };
         let measured = self.sessions.get_mut(&opener).expect("known session").counting.measure(&query, purpose);
         window_referee::measured(self.sessions.get(&opener).expect("known session"), &measured);
         let input = measured.input;
