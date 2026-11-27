@@ -41,7 +41,7 @@ members' JSON of `README.md`, section 8.
 | `temper.toml`, each binary's | `format`, a key of its top table | 1 | every command that reads it | `file.md` |
 | a settings file | `"format"`, a member beside `items` | 1 | `temper ctl settings apply`, `propose` and `upgrade` | `../../client/ctl/tools-acts.md`, 1 |
 | a charter file a settings file names | `format = N`, the one line of its `+++` front matter | 1 | the same, with its settings file | `../../client/ctl/overlays.md`, 2 |
-| `.temper/`'s files | `../../draft/ways.md`, 8.5 and 8.8 | — | the engine's and the worker's reads of `.temper/` | designed with them (`../../draft/ways.execution.md`, W2) |
+| `.temper/`'s files | `../../draft/ways-temper-dir.md`, 5 and 8 | — | the engine's and the worker's reads of `.temper/` | designed with them (`../../draft/ways.execution.md`, W2) |
 
 - **A whole number from 1,** in decimal. Anything else in the place is
   refused alone, naming the file and `format`, since no other key can
@@ -137,8 +137,8 @@ In order, for every file of section 2:
   one naming a charter file at a newer format, is refused before
   anything is sent (`../../client/ctl/tools-acts.md`, 1;
   `../../client/ctl/overlays.md`, 2); a repository's `.temper/` at a
-  newer format keeps its last good revision (`../../draft/ways.md`, 8.5
-  and 8.8).
+  newer format keeps its last good revision
+  (`../../draft/ways-temper-dir.md`, 5 and 8).
 
 ## 6. Printing a file at the newest format
 
