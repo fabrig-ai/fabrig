@@ -2,5 +2,5 @@ recipe 1
 after "turn-landing"
 ctl goal start --project Hello --charter 1 --budget 1000 --deadline 2030-01-01T00:00Z --key first "@turn-a First turn member\x0aPerson: 1; Repository: 4294967297;"
 check
-ctl task show 1 --until phase:idle
+ctl task show 1 --until phase:idle --timeout 300s
 ctl task show 1 --tree
