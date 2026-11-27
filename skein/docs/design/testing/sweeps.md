@@ -38,7 +38,7 @@ impl Streams {
 
   Adding the golden ratio to a seed only shifts a SplitMix64 sequence by one draw, so a stream is never seeded by an offset of another's seed: every derived seed passes through `mix`.
 - **Independent by construction:** a stream's draws depend on the seed, the stream and the part alone, never on another stream's draws, so a run with restarts and one without draw the same goals, faults and parties' actions (the draft, 3.5).
-- **Parts:** each injector its own part of `Faults` (`forge`, `llm`, `restarts`), each party its own of `Parties`, so that a fault family added to a sweep, or a restart, leaves the others' draws as they were. A part's name is the world's.
+- **Parts:** each injector its own part of `Faults` (`forge`, `llm`, `restarts`), each party its own of `Parties`, so that a fault family added to a sweep, or a restart, leaves the others' draws as they were. A part's name is the world's. A model the fake LLM plays is a party, `agent/NAME`, whose part draws what its answers say, apart from the fake's failures (`Faults`' `llm`) and its latency and cache routing (`Scheduling`'s `llm`; `fakes/drawn-agent.md`, 3).
 - **Scheduling** is what the simulator and a world's own delivery order draw: a world seeds its simulated world, its latencies and its delivery order from `Scheduling`.
 - **Adoption is each world's,** as its goal moves it: today's worlds keep their seeding, and a world that moves to streams moves its pinned seeds with it.
 
@@ -198,7 +198,7 @@ They are `skein_world::sweep`'s, and `this_test!` is at the crate's root.
 - **`seeds`** is a range or a hand-picked list: the gate's seeds, unchanged. Its length is the case count, at the gate and in a campaign.
 - **A check returns its finding,** as jig's core sweeps return theirs, or panics (4.4). A test returns `cases`'s result, or words it in its own failure.
 - **A case's seed is the world's seed.** A world on streams takes it as `Streams::new(seed)`, and one that isn't takes it as it took its loop's seed. A draw made some other way, as a fixture picked by `seed % n`, takes it from the case's seed too, so that a campaign moves every draw.
-- **Counted as `each_seed` counts:** each case `cases` runs is a `seed` check (`skein_checks::count`, checks.md), in every mode, so a sweep that moves from `each_seed` keeps its counts.
+- **Counted as `each_seed` counts:** each case `cases` runs is a `seed` check (`skein_checks::count`, checks.md), in every mode, so a sweep that moves from `each_seed` keeps its counts. Inside a case, `Sweep::ran` folds its ledger and counts no `seed`, since `cases` counts the case, so a sweep on `Sweep` keeps its counts too; outside one it counts a seed, as before. A test that folds several worlds' ledgers at each seed gives each world a part and its own `cases`, so that each world's case is counted, and replays, alone.
 - **`each_seed` stays** as it is, for the loops that keep fixed seeds, focused tests' among them: it runs its range in every mode, as given, and counts it.
 
 ### 4.3 Its modes

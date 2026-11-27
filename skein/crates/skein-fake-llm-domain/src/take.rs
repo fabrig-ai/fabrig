@@ -14,20 +14,8 @@ pub(crate) fn valid(scripts: &[Script]) -> bool {
                 match line {
                     Line::Take { name, before, after } => {
                         takes = takes.checked_add(1).expect("bounded line count");
-                        if takes > 8
-                            || name.is_empty()
-                            || name.len() > 32
-                            || before.is_empty()
-                            || before.len() > 256
-                            || after.is_empty()
-                            || after.len() > 256
-                        {
+                        if takes > 8 || !valid_name(name) || !valid_marker(before) || !valid_marker(after) {
                             return false;
-                        }
-                        for byte in name {
-                            if !byte.is_ascii_alphanumeric() && *byte != b'_' {
-                                return false;
-                            }
                         }
                         for earlier in turn.lines.get(..index).expect("line prefix") {
                             match earlier {
@@ -61,17 +49,60 @@ pub(crate) fn valid(scripts: &[Script]) -> bool {
     true
 }
 
+pub(crate) fn valid_name(name: &[u8]) -> bool {
+    if !(1..=32).contains(&name.len()) {
+        return false;
+    }
+    for byte in name {
+        if !byte.is_ascii_alphanumeric() && *byte != b'_' {
+            return false;
+        }
+    }
+    true
+}
+
+pub(crate) fn valid_marker(marker: &[u8]) -> bool {
+    (1..=256).contains(&marker.len())
+}
+
+/// Where the value lies within a single text, excluding its delimiters.
+#[derive(Clone, Copy)]
+pub(crate) struct Span {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+}
+
+impl Span {
+    pub(crate) fn value(self, text: &[u8]) -> &[u8] {
+        text.get(self.start..self.end).expect("capture within its text")
+    }
+}
+
+pub(crate) fn capture_at(text: &[u8], at: usize, before: &[u8], after: &[u8]) -> Option<Span> {
+    let rest = text.get(at..)?.strip_prefix(before)?;
+    // An `after` beyond this prefix cannot close an admissible value.
+    let search = 256_usize.checked_add(after.len()).expect("admitted marker length");
+    let rest = rest.get(..rest.len().min(search))?;
+    let len = bytes::find(rest, after)?;
+    if len == 0 || rest.get(..len)?.contains(&b'\n') {
+        return None;
+    }
+    let start = at.checked_add(before.len())?;
+    Some(Span { start, end: start.checked_add(len)? })
+}
+
+pub(crate) fn text_in(part: &Part) -> Option<&[u8]> {
+    match part {
+        Part::Text { text } => Some(text),
+        Part::ToolOutput { output, .. } => Some(output),
+        Part::Opaque { .. } | Part::ToolCall { .. } => None,
+    }
+}
+
 fn in_part<'q>(text: &'q [u8], before: &[u8], after: &[u8]) -> Option<&'q [u8]> {
     for index in (0..text.len()).rev() {
-        let suffix = text.get(index..).expect("position within part");
-        if let Some(value) = suffix.strip_prefix(before)
-            && let Some(end) = bytes::find(value, after)
-            && (1..=256).contains(&end)
-        {
-            let value = value.get(..end).expect("found suffix within part");
-            if !value.contains(&b'\n') {
-                return Some(value);
-            }
+        if let Some(span) = capture_at(text, index, before, after) {
+            return Some(span.value(text));
         }
     }
     None
@@ -80,12 +111,9 @@ fn in_part<'q>(text: &'q [u8], before: &[u8], after: &[u8]) -> Option<&'q [u8]> 
 fn taken<'q>(query: &'q Query, before: &[u8], after: &[u8]) -> Option<&'q [u8]> {
     for message in query.messages.iter().rev() {
         for part in message.parts.iter().rev() {
-            let text = match part {
-                Part::Text { text } => text,
-                Part::ToolOutput { output, .. } => output,
-                Part::Opaque { .. } | Part::ToolCall { .. } => continue,
-            };
-            if let Some(value) = in_part(text, before, after) {
+            if let Some(text) = text_in(part)
+                && let Some(value) = in_part(text, before, after)
+            {
                 return Some(value);
             }
         }
@@ -111,7 +139,7 @@ fn value<'q>(query: &'q Query, name: &[u8], before: &[u8], after: &[u8]) -> Resu
     }
 }
 
-fn number(value: &[u8]) -> bool {
+pub(crate) fn number(value: &[u8]) -> bool {
     if value.is_empty() || value.len() > 20 || (value.len() > 1 && value.first() == Some(&b'0')) {
         return false;
     }
@@ -159,7 +187,7 @@ pub(crate) fn expand(source: &[u8], earlier: &[Line], query: &Query, arguments: 
     out.finish()
 }
 
-fn use_at(source: &[u8], name: &[u8], arguments: bool) -> Option<(usize, bool)> {
+pub(crate) fn use_at(source: &[u8], name: &[u8], arguments: bool) -> Option<(usize, bool)> {
     if arguments
         && let Some(rest) = source.strip_prefix(b"\"{{#")
         && let Some(rest) = rest.strip_prefix(name)
@@ -176,14 +204,14 @@ fn use_at(source: &[u8], name: &[u8], arguments: bool) -> Option<(usize, bool)> 
     None
 }
 
-fn emit(out: &mut Option<&mut Writer>, value: &[u8]) -> u64 {
+pub(crate) fn emit(out: &mut Option<&mut Writer>, value: &[u8]) -> u64 {
     if let Some(out) = out {
         out.put(value).expect("measured output room");
     }
     len_u64(value.len())
 }
 
-fn escaped(out: &mut Option<&mut Writer>, value: &[u8]) -> Result<u64, Failure> {
+pub(crate) fn escaped(out: &mut Option<&mut Writer>, value: &[u8]) -> Option<u64> {
     let mut len = 0_u64;
     for byte in value {
         let size = match *byte {
@@ -195,9 +223,9 @@ fn escaped(out: &mut Option<&mut Writer>, value: &[u8]) -> Result<u64, Failure> 
             }
             0x20..=0x21 | 0x23..=0x5b | 0x5d..=0xff => emit(out, &[*byte]),
         };
-        len = len.checked_add(size).ok_or(Error::ContextTooLong)?;
+        len = len.checked_add(size)?;
     }
-    Ok(len)
+    Some(len)
 }
 
 fn walk(
@@ -229,8 +257,11 @@ fn walk(
                                 bytes::concat(&[b"the value taken for ", name, b", \"", value, b"\", is no number"]);
                             return Err(respond::invalid_script(b"no_take", &reason, query));
                         }
-                        let size =
-                            if arguments && !numeric { escaped(&mut out, value)? } else { emit(&mut out, value) };
+                        let size = if arguments && !numeric {
+                            escaped(&mut out, value).ok_or(Error::ContextTooLong)?
+                        } else {
+                            emit(&mut out, value)
+                        };
                         len = len.checked_add(size).ok_or(Error::ContextTooLong)?;
                         end = index.checked_add(used).expect("placeholder within source");
                         replaced = true;

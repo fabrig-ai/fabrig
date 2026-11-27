@@ -278,6 +278,54 @@ fn a_row_answered_for_another_account_says_nothing() {
     }
 }
 
+#[test]
+fn a_limited_trial_offers_other_ways_without_changing_the_sources_acts() {
+    let (mut root, trials, accounts) = trial_root(c::AccountKind::Program);
+    let reset = skein_lib::Wall::from_nanos(fixtures::NOW.as_nanos().checked_add(300_000_000_000).unwrap());
+    let mut doc = card_document(b"anthropic", b"Pat", c::AccountKind::Program);
+    let row = doc.accounts.get_mut(0).unwrap();
+    let program = row.sources.get_mut(0).unwrap();
+    program.usable = false;
+    program.state = c::AccountState::Later { until: Some(reset) };
+    let program = program.clone();
+    let key = c::AccountSource { usable: false, state: c::AccountState::Asking, ..source(2) };
+    row.sources = List::from_boxed(Box::new([program, key]));
+    deliver(&mut root, accounts, doc);
+    trial_rows(
+        &mut root,
+        trials,
+        &[trial_row(v::TrialStep::Answers, v::TrialState::Limited(v::TrialLimited { reset: Some(reset.as_nanos()) }))],
+    );
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let mut view = fixtures::view_of(words);
+        let tree = fixtures::build(&mut view, &root);
+        let nodes = account_nodes(tree);
+        let line = nodes
+            .iter()
+            .position(|node| node.name.as_deref() == Some("Claude subscription · Limited".as_bytes()))
+            .unwrap();
+        let sources = nodes
+            .iter()
+            .position(|node| node.name.as_deref() == Some(b"Its sources in order: a run takes the first usable one."))
+            .unwrap();
+        assert!(line < sources);
+        assert!(skein_lib::bytes::find(&fixtures::text(tree), b"Limited by ").is_some());
+        assert!(fixtures::find(tree, Role::Button, b"Resume").is_some());
+        assert!(fixtures::find(tree, Role::Button, b"Use the API key first").is_some());
+        assert!(fixtures::find(tree, Role::Link, b"Sign in again").is_none());
+        let all = fixtures::find(tree, Role::Link, b"All ways").unwrap();
+        let retry = fixtures::find(tree, Role::Button, b"Try again").unwrap();
+        assert_eq!(
+            crate::act(&mut view, all, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::ConnectModel { way: None } }))
+        );
+        assert_eq!(
+            crate::act(&mut view, retry, Act::Press),
+            Some(d::Action::Forge(d::forge::Act::TryAccount { account: TRIED_ACCOUNT, again: true }))
+        );
+    }
+}
+
 /// A row's answering act opens `ConnectModel`; no answering act offers no All ways (domain/trial.md, 6.2).
 #[test]
 fn sign_in_again_on_a_row_goes_to_the_ways_page() {
@@ -2216,7 +2264,7 @@ fn the_old_chrome_is_gone() {
 fn usage_text(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> Box<[u8]> {
     fixtures::node_text(tree, tree.nodes().iter().position(|node| node.id == id).unwrap())
 }
-fn usage_fact(label: &[u8], hours: u64, remaining: u64, used: u16, state: u16, rate: u32) -> c::AccountFact {
+pub(super) fn usage_fact(label: &[u8], hours: u64, remaining: u64, used: u16, state: u16, rate: u32) -> c::AccountFact {
     c::AccountFact {
         kind: c::FACT_USAGE,
         label: Box::from(label),

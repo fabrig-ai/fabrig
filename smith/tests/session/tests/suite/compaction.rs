@@ -686,7 +686,9 @@ fn the_guards_refusal_compacts_the_window_once() {
 fn a_turn_counted_a_byte_a_token_is_refused_by_the_guard_then_compacted() {
     use smith_session_world::{Settings, World as Simulated, spec};
     const LINE: u64 = 200;
-    let mut world = Simulated::new(Settings::calm(123));
+    // The reply is counted at a byte a token; the guard sends a compaction instead.
+    const GUARD_THEN_COMPACT_SEED: u64 = 123;
+    let mut world = Simulated::new(Settings::calm(GUARD_THEN_COMPACT_SEED));
     let opener = world.submit(skein_lib::Time::ZERO, session::Spec { line: LINE, ..spec(b"fix the build") });
     world.run(SIMULATION_ITERATIONS);
     let measures = &world.session(opener).measures;
@@ -697,17 +699,19 @@ fn a_turn_counted_a_byte_a_token_is_refused_by_the_guard_then_compacted() {
     assert!(!measures[2].ordinary && measures[2].sent);
 }
 
+// Seed 104 draws these sizes for the opening and the added read call and reply.
+const LAST_PROMPT: u64 = 40;
+const DRAWN_NEW_PART: u64 = 635;
+const READ_LINE: u64 = LAST_PROMPT + DRAWN_NEW_PART;
+
 #[test]
 fn a_new_part_just_within_the_line_is_sent() {
     use skein_fake_llm_domain::api::Script;
     use smith_session_world::{Settings, World as Simulated, spec};
-    const LAST_PROMPT: u64 = 40;
-    const DRAWN_NEW_PART: u64 = 411;
-    const LINE: u64 = LAST_PROMPT + DRAWN_NEW_PART;
     const TURN_TOKENS: u64 = 8;
     let script = Script { cue: bytes(b"You are a coding agent."), turns: Box::new([read_turn(TURN_TOKENS)]) };
     let mut world = Simulated::with_scripts(Settings::calm(104), Box::new([script]));
-    let opener = world.submit(skein_lib::Time::ZERO, session::Spec { line: LINE, ..spec(b"fix the build") });
+    let opener = world.submit(skein_lib::Time::ZERO, session::Spec { line: READ_LINE, ..spec(b"fix the build") });
     world.run(SIMULATION_ITERATIONS);
     let prompt = &world.session(opener).measures[1];
     assert_eq!(prompt.new_part, DRAWN_NEW_PART);
@@ -726,7 +730,6 @@ fn read_turn(tokens: u64) -> skein_fake_llm_domain::api::Turn {
 #[test]
 fn the_most_output_just_within_the_line_then_compacts_within_the_window() {
     use smith_session_world::{Settings, World as Simulated, spec};
-    const LINE: u64 = 451;
     const WINDOW: u32 = 1_520;
     const OUTPUT: u32 = 1_024;
     const SUMMARY_TOKENS: u64 = 8;
@@ -738,12 +741,12 @@ fn the_most_output_just_within_the_line_then_compacts_within_the_window() {
     let mut world = Simulated::with_scripts(Settings::calm(104), Box::new([script]));
     let opener = world.submit(
         skein_lib::Time::ZERO,
-        session::Spec { line: LINE, window: WINDOW, output: OUTPUT, ..spec(b"fix the build") },
+        session::Spec { line: READ_LINE, window: WINDOW, output: OUTPUT, ..spec(b"fix the build") },
     );
     world.run(SIMULATION_ITERATIONS);
     let session = world.session(opener);
     assert_eq!(session.records[0].usage.output_tokens, Some(u64::from(OUTPUT)));
-    assert_eq!(session.measures[1].new_part, 411);
+    assert_eq!(session.measures[1].new_part, DRAWN_NEW_PART);
     assert!(session.measures[1].sent);
     assert!(!session.measures[2].ordinary && session.measures[2].sent);
 }

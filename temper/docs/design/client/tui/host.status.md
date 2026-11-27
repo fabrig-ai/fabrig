@@ -1,6 +1,6 @@
 # host: status
 
-2026-11-22. Where the tree's code lags or departs from [host.md](host.md).
+2026-11-27. Where the tree's code lags or departs from [host.md](host.md).
 
 - **Not yet:** 1: the events table's `Act { act }` row: a close done
   going to the launchpad [in flight: change 3609].

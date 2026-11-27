@@ -218,30 +218,60 @@ pub(crate) fn signed_in(request: &request::Request, client: &Client, chosen: Opt
     None
 }
 
-/// A connected host's pending login observation keeps the check out (temper/docs/design/domain/trial.md, 6.1).
+/// The named program's host check (temper/docs/design/domain/trial.md, 6.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProgramSignIn {
+    Waiting,
+    SignedIn { usable: bool },
+    NotSignedIn,
+}
+
 #[must_use]
-pub fn program_settled(accounts: &jig_client::contract::Accounts, source: u32) -> bool {
-    if accounts.program_hosts.is_empty() {
-        return true;
-    }
-    for account in &accounts.accounts {
+pub fn program_sign_in(doc: &c::Accounts, source: u32) -> ProgramSignIn {
+    for account in &doc.accounts {
         for row in &account.sources {
-            if row.number != source {
-                continue;
+            if row.number == source && row.kind == c::AccountKind::Program {
+                return program_observation(doc, row);
             }
-            let Some(name) = &row.name else { return false };
-            for host in &accounts.program_hosts {
-                if host.connected && host.awaiting_logins {
-                    return false;
-                }
-                for login in &host.programs {
-                    if host.connected && login.name == *name && login.state.is_none() {
-                        return false;
-                    }
-                }
-            }
-            return true;
         }
     }
-    false
+    if doc.settled && !doc.cut && doc.program_hosts.is_empty() {
+        ProgramSignIn::NotSignedIn
+    } else {
+        ProgramSignIn::Waiting
+    }
+}
+
+fn program_observation(doc: &c::Accounts, source: &c::AccountSource) -> ProgramSignIn {
+    let mut signed_in = false;
+    for host in &doc.program_hosts {
+        if !host.connected {
+            continue;
+        }
+        if host.awaiting_logins || source.name.is_none() {
+            return ProgramSignIn::Waiting;
+        }
+        for login in &host.programs {
+            if source.name.as_deref() != Some(login.name.as_ref()) {
+                continue;
+            }
+            match &login.state {
+                None => return ProgramSignIn::Waiting,
+                Some(c::ProgramState::Usable) => signed_in = true,
+                Some(
+                    c::ProgramState::NotSignedIn
+                    | c::ProgramState::SignedInOtherwise { .. }
+                    | c::ProgramState::Failed { .. },
+                ) => {}
+            }
+        }
+    }
+    // The host sees the login even when the source's hold prevents runs.
+    if source.usable || (signed_in && doc.settled) {
+        ProgramSignIn::SignedIn { usable: source.usable }
+    } else if doc.settled && !doc.cut {
+        ProgramSignIn::NotSignedIn
+    } else {
+        ProgramSignIn::Waiting
+    }
 }

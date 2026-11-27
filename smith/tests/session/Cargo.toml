@@ -24,10 +24,10 @@ smith-tools-world.workspace = true
 skein-fake-checkout.workspace = true
 skein-fake-llm-domain.workspace = true
 skein-world.workspace = true
-
-[dev-dependencies]
 smith-domain.workspace = true
 smith-protocol-llm.workspace = true
+
+[dev-dependencies]
 smith-protocol-llm-fixtures.workspace = true
 
 # Ordinary Rust (programming-model.md, section 10.2), so not the step crates' lints.

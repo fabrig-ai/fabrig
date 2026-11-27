@@ -547,9 +547,8 @@ fn the_producer_hears_the_change_task_lands_what_it_delivers_when_its_bound_has_
     let (_, row) = producer(b"Small fix", 4096);
     assert!(
         row.spec.words.starts_with(
-            b"Small fix\n\nThe host pushes what you deliver; the change task opens the pull request, \
-waits for CI and merges it. Finish with your change once it is checked. \
-Report the branch and head you produced; only the change task reports landing after merge."
+            b"Small fix\n\nFinishing with your change checks it and the host pushes it; the change task opens the pull request, \
+waits for CI and merges it. Finish with your change once it is done; only the change task reports landing after merge."
                 .as_slice()
         ),
         "the change's words, then the producer's scope"

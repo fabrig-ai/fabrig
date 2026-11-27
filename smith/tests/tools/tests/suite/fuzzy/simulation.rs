@@ -2,7 +2,9 @@
 //! call answered, every kind of answer and every fault reached among them.
 
 use std::collections::BTreeSet;
+use std::convert::Infallible;
 
+use skein_world::sweep::{Case, cases, gate};
 use smith_tools_world::{Stats, kind, noisy_world};
 
 const ITERATIONS: u32 = 100_000;
@@ -12,28 +14,38 @@ const ITERATIONS: u32 = 100_000;
 /// (checked by `World::run`), and between them they reach every way a call
 /// can end.
 #[test]
-fn random_worlds_settle_with_every_call_answered() {
+fn random_worlds_settle_with_every_call_answered() -> Result<(), Case<Infallible>> {
+    let collect_reach = gate();
     let mut seen = BTreeSet::new();
     let mut faults = Stats::default();
-    for seed in 0..300 {
+    cases(skein_world::this_test!("random_worlds_settle_with_every_call_answered"), 0..300, |seed| {
         let mut world = noisy_world(seed);
         world.run(ITERATIONS);
-        let stats = world.stats();
-        faults.faults += stats.faults;
-        faults.timeouts += stats.timeouts;
-        faults.late_effects += stats.late_effects;
-        faults.cancels += stats.cancels;
-        faults.late_cancels += stats.late_cancels;
-        faults.stale_cancels += stats.stale_cancels;
-        for session in world.sessions().collect::<Vec<_>>() {
+        if collect_reach {
+            let stats = world.stats();
+            faults.faults += stats.faults;
+            faults.timeouts += stats.timeouts;
+            faults.late_effects += stats.late_effects;
+            faults.cancels += stats.cancels;
+            faults.late_cancels += stats.late_cancels;
+            faults.stale_cancels += stats.stale_cancels;
+        }
+        for session in world.sessions() {
             if world.refusal(session).is_some() {
-                seen.insert("refused");
+                if collect_reach {
+                    seen.insert("refused");
+                }
                 continue;
             }
-            for answer in world.answers(session) {
-                seen.insert(kind(answer));
+            let answers = world.answers(session);
+            if collect_reach {
+                seen.extend(answers.into_iter().map(kind));
             }
         }
+        Ok(())
+    })?;
+    if !collect_reach {
+        return Ok(());
     }
     let expected = [
         "ambiguous",
@@ -74,4 +86,5 @@ fn random_worlds_settle_with_every_call_answered() {
     ] {
         assert!(count > 10, "only {count} {what}");
     }
+    Ok(())
 }

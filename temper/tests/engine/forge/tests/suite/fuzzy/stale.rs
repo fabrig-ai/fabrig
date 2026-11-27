@@ -4,8 +4,9 @@ use skein_fake_forge_domain::{self as forge, api as raw};
 use skein_world::{
     faults::Struck,
     streams::{Stream, Streams},
-    sweep::Sweep,
+    sweep::{Sweep, cases, gate},
 };
+use std::convert::Infallible;
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as landing;
@@ -103,96 +104,114 @@ fn close_and_release(world: &mut World, task: u64) {
 
 #[test]
 fn stale_state_keeps_the_opens_invariants() {
+    let test = skein_world::this_test!("stale_state_keeps_the_opens_invariants");
+    let at_gate = gate();
     let mut sweep = Sweep::new("stale_state_keeps_the_opens_invariants");
     for kind in STALE {
         sweep.configure(kind);
     }
     super::lagging::exclude_records(&mut sweep);
     let mut own_late_merges = 0;
-    for seed in 1..=8 {
-        eprintln!("seed {seed}");
+    let mut skipped = 0;
+    cases(test, 1..=8, |seed| {
         let streams = Streams::new(seed);
         let mut world =
             World::batch_turn_in(&streams, Some(super::super::landing_batches::workflow(false)), fake_config());
         super::lagging::lag_world(&mut world, &sweep);
-        let mut merged = false;
-        let mut reordered = false;
-        let (world, _) =
-            super::opened::run_with(world, streams.seed_of(Stream::Workload, "opened"), 240, |world, moment| {
-                match moment {
-                    Moment::Sourced(51) => {
-                        reopened(world);
-                        dependency(world);
-                    }
-                    Moment::Kept(51) => {
-                        // Taking writes the kept head, not an update/resolution/save.
-                        // This is the nearest moved-base race that this workload writes.
-                        let injection = world.inject(MOVED_BASE, candidate(world.branch(b"docs/x")));
-                        world.push_now_as(b"main", b"base_moved", b"after kept read, before make", 2);
-                        world.stop(injection);
-                    }
-                    Moment::Ready(51) => close_and_release(world, 51),
-                    Moment::Landing if seed % 2 != 0 && !reordered => {
-                        let row = &world.landing(LANDING).landing;
-                        if let Some(number) = row.round.pull {
-                            let current = candidate(world.branch(b"main")).candidate;
-                            let own_write_lagging = world.ledger().entries().iter().any(|entry| {
-                                entry.kind == MERGE_LATE
-                                    && entry.struck.candidate == current
-                                    && entry.until.is_some_and(|until| world.now() < until)
-                            });
-                            if own_write_lagging {
-                                let raw::Answer::Pull(before) = world.inspect(&raw::Read::Pull { number }) else {
-                                    panic!("round pull")
-                                };
-                                assert_eq!(
-                                    before.state,
-                                    raw::State::Open,
-                                    "the engine's own merge is not yet in the pull view"
-                                );
-                                let earlier = world.branch(b"docs/x");
-                                world.push_now_as(b"docs/x", b"member0", b"later than the engine merge", 2);
-                                assert_ne!(world.branch(b"docs/x"), earlier, "a later write is already visible");
-                                let raw::Answer::Pull(after) = world.inspect(&raw::Read::Pull { number }) else {
-                                    panic!("round pull")
-                                };
-                                assert_eq!(after.merged, None, "the earlier merge record still lags the later write");
-                                reordered = true;
-                            }
-                        }
-                    }
-                    Moment::Landing if seed % 2 == 0 && !merged => {
-                        let row = &world.landing(LANDING).landing;
-                        if matches!(row.phase, landing::Phase::Turn { .. }) {
-                            let number = row.round.pull.expect("proved round pull");
-                            let head = world.branch(&row.members.last().expect("member").branch);
-                            let injection =
-                                world.inject(MERGED, Struck { request: Some(number.to_string()), ..Struck::default() });
-                            assert_eq!(
-                                world.external_now(
-                                    raw::Op::Write(raw::Write::Merge {
-                                        number,
-                                        head,
-                                        how: raw::MergeHow::FastForwardOnly,
-                                    }),
-                                    2
-                                ),
-                                raw::Answer::Merged(head)
-                            );
-                            world.stop(injection);
-                            merged = true;
-                        }
-                    }
-                    Moment::Sourced(_) | Moment::Kept(_) | Moment::Ready(_) | Moment::Landing => {}
-                }
-            });
-        if reordered {
+        let (world, replay, reordered) = run(world, streams);
+        if at_gate && reordered {
             own_late_merges += 1;
         }
+        skipped += replay.skipped_pushes;
         sweep.ran(world.ledger());
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    super::opened::check_skipped_pushes(skipped);
+    if at_gate {
+        assert!(own_late_merges > 0, "an engine merge's record arrived after a later visible write");
+        eprintln!("{own_late_merges} seeds observed the engine's own merge behind a later write");
+        eprintln!("{}: {} draws left out", super::lagging::LATE_RECORD, sweep.left_out(super::lagging::LATE_RECORD));
     }
-    assert!(own_late_merges > 0, "an engine merge's record arrived after a later visible write");
     sweep.check_fell().expect("configured stale sequences fell");
-    eprintln!("{own_late_merges} seeds observed the engine's own merge behind a later write");
-    eprintln!("{}: {} draws left out", super::lagging::LATE_RECORD, sweep.left_out(super::lagging::LATE_RECORD));
+}
+
+fn run(world: World, streams: Streams) -> (World, super::opened::Replay, bool) {
+    let reorder = streams.seed() % 2 != 0;
+    let mut merged = false;
+    let mut reordered = false;
+    // Sourced spends five commits (sacrificial change, dependency, early
+    // checkout, squash, source update); Kept moves main; odd seeds can reorder.
+    let outside_commits = 6 + u32::from(reorder);
+    let (world, replay) = super::opened::run_with(
+        world,
+        streams.seed_of(Stream::Workload, "opened"),
+        240,
+        outside_commits,
+        |world, moment| {
+            match moment {
+                Moment::Sourced(51) => {
+                    reopened(world);
+                    dependency(world);
+                }
+                Moment::Kept(51) => {
+                    // Taking writes the kept head, not an update/resolution/save.
+                    // This is the nearest moved-base race that this workload writes.
+                    let injection = world.inject(MOVED_BASE, candidate(world.branch(b"docs/x")));
+                    world.push_now_as(b"main", b"base_moved", b"after kept read, before make", 2);
+                    world.stop(injection);
+                }
+                Moment::Ready(51) => close_and_release(world, 51),
+                Moment::Landing if reorder && !reordered => {
+                    let row = &world.landing(LANDING).landing;
+                    if let Some(number) = row.round.pull {
+                        let current = candidate(world.branch(b"main")).candidate;
+                        let own_write_lagging = world.ledger().entries().iter().any(|entry| {
+                            entry.kind == MERGE_LATE
+                                && entry.struck.candidate == current
+                                && entry.until.is_some_and(|until| world.now() < until)
+                        });
+                        if own_write_lagging {
+                            let raw::Answer::Pull(before) = world.inspect(&raw::Read::Pull { number }) else {
+                                panic!("round pull")
+                            };
+                            assert_eq!(
+                                before.state,
+                                raw::State::Open,
+                                "the engine's own merge is not yet in the pull view"
+                            );
+                            let earlier = world.branch(b"docs/x");
+                            world.push_now_as(b"docs/x", b"member0", b"later than the engine merge", 2);
+                            assert_ne!(world.branch(b"docs/x"), earlier, "a later write is already visible");
+                            let raw::Answer::Pull(after) = world.inspect(&raw::Read::Pull { number }) else {
+                                panic!("round pull")
+                            };
+                            assert_eq!(after.merged, None, "the earlier merge record still lags the later write");
+                            reordered = true;
+                        }
+                    }
+                }
+                Moment::Landing if !reorder && !merged => {
+                    let row = &world.landing(LANDING).landing;
+                    if matches!(row.phase, landing::Phase::Turn { .. }) {
+                        let number = row.round.pull.expect("proved round pull");
+                        let head = world.branch(&row.members.last().expect("member").branch);
+                        let injection =
+                            world.inject(MERGED, Struck { request: Some(number.to_string()), ..Struck::default() });
+                        assert_eq!(
+                            world.external_now(
+                                raw::Op::Write(raw::Write::Merge { number, head, how: raw::MergeHow::FastForwardOnly }),
+                                2
+                            ),
+                            raw::Answer::Merged(head)
+                        );
+                        world.stop(injection);
+                        merged = true;
+                    }
+                }
+                Moment::Sourced(_) | Moment::Kept(_) | Moment::Ready(_) | Moment::Landing => {}
+            }
+        },
+    );
+    (world, replay, reordered)
 }

@@ -61,7 +61,7 @@ impl Turn {
         if credentials.is_some() {
             let scripts =
                 api::Scripts { cued: Box::new([]), asked: Box::new([]), otherwise: Box::new([value.clone()]) };
-            let menu = api::Menu { arguments: Box::new([]), invalid: Box::new([]) };
+            let menu = api::Menu { arguments: Box::new([]), invalid: Box::new([]), slots: Box::new([]) };
             if skein_fake_llm_domain::Domain::played(&crate::llm::LIMITS, 0, scripts, menu).is_err() {
                 return Err(read::why(p, b"invalid turn"));
             }

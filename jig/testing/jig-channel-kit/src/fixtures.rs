@@ -370,7 +370,7 @@ pub fn provider_played_at(
             &config,
             17,
             scripts,
-            skein_fake_llm_domain::api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
+            skein_fake_llm_domain::api::Menu { arguments: Box::new([]), invalid: Box::new([]), slots: Box::new([]) },
         )
         .expect("bounded provider scripts"),
         config,

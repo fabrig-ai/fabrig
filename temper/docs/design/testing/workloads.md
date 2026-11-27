@@ -857,6 +857,49 @@ all and the fewest seeds make each fall:
   measurements go to the user as a question. No sweep takes fewer seeds
   or checks to fit.
 
+### 8.5 In a campaign
+
+The engine domain world's walking, opening and follows sweeps, and the
+forge world's sweeps, take their cases from skein's seam,
+`skein_world::sweep::cases` (`skein/docs/design/testing/sweeps.md`, 4.2
+to 4.5), so that a campaign runs them with fresh seeds after landing
+(`temper/docs/design/draft/fuzzy-campaigns.md`, 9). `campaign-temper`
+lists their binaries, `temper-engine-domain-world::suite` and
+`temper-engine-forge-world::suite` (`tools/tiers/layers.md`, 9.3). At the
+gate each does the work it did before:
+
+- **Its identity:** each test passes its own, `this_test!` where it is
+  written, and a shard's is its test's. A test that judges several worlds
+  at each seed, as the CI faults' sweep judges three, gives each world a
+  part and its own `cases` over the same seeds, so that each world's case
+  replays alone.
+- **Its gate seeds** as before, in their order, with the same draws. A
+  sweep that offsets its seed (walking's, opening's and follows') wraps
+  the sum, so that any `u64` draws a case, and its fuzzy module pins the
+  gate seeds' draws by a digest and draws one at `u64::MAX`. A choice
+  made by the seed's value (the CI sweep's `seed == 1`) takes its parity
+  instead, which keeps the gate's choices and gives a campaign both.
+- **Every seed a valid case** (sweeps.md, 4.5): a draw its world can't
+  run at a fresh seed, a push past the fake forge's commit room or a task
+  past the task kit's table, is skipped, and the case goes on. The gate's
+  seeds never reach one, so they draw as before.
+- **Its checks over the loop** wait for `gate()`: what a sweep fills or
+  counts across its seeds, as the opens' mask of what was exercised, the
+  queue histories' kinds of event, the pull cutoff's counts, the forge
+  restarts' gate dispatches and a count an exclusion left out.
+  `check_fell` is skein's, and writes the reach outside the gate. A
+  case's own checks, its referee, its replay's comparison and its
+  invariants, run in every mode.
+- **Its counts:** each case one `seed` check (sweeps.md, 4.2). A sweep
+  that counted its seeds through `each_seed` or `Sweep::ran` counts the
+  same, and one whose loop was its own, counting nothing, gains its
+  cases' count: its binary loses none.
+- **Fixed scenarios keep their seeds** and take no case: the forge
+  world's `people_act_on_the_landing_train`,
+  `answers_past_bounds_leave_repairs_their_evidence` and
+  `refusals_keep_the_batches_invariants` script what their seeds were
+  chosen to show. A campaign runs them as the gate does.
+
 ## 9. Testing
 
 Focused and fuzzy suites only.
@@ -904,3 +947,6 @@ Focused and fuzzy suites only.
   composed workload (the draft, 12).
 - The composed workload at more goals than its shape's fewest, as the
   system layer's room allows.
+- The engine domain world's other sweeps taking their cases from the
+  seam (8.5), and the composed workload's once its draws are total
+  (`temper/docs/design/draft/fuzzy-campaigns.md`, 9).

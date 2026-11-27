@@ -29,6 +29,9 @@ pub(super) const CONFIG: Config = Config {
     cache_entries: 8,
     strict: false,
     unscoped_reads: 0,
+    conversations: 0,
+    capture_answers: 0,
+    capture_bytes: 0,
     accounts: 0,
     unserved: 0,
     cut: 0,
@@ -319,7 +322,7 @@ pub(crate) fn played(scripts: &[Script]) -> crate::domain::Played {
 }
 
 pub(crate) fn empty_menu() -> crate::api::Menu {
-    crate::api::Menu { arguments: Box::new([]), invalid: Box::new([]) }
+    crate::api::Menu { arguments: Box::new([]), invalid: Box::new([]), slots: Box::new([]) }
 }
 
 #[test]
@@ -340,7 +343,7 @@ fn played_groups_and_menu_share_one_byte_cap() {
             asked: Box::new([script(b"ask", Box::new([says(b"asked")]))]),
             otherwise: Box::new([says(b"otherwise")]),
         };
-        let menu = Menu { arguments: Box::new([copy_of(b"{}")]), invalid: Box::new([]) };
+        let menu = Menu { arguments: Box::new([copy_of(b"{}")]), invalid: Box::new([]), slots: Box::new([]) };
         let config = Config { script_bytes: u32::try_from(cap).expect("fixture cap fits"), ..CONFIG };
         assert_eq!(Domain::played(&config, 1, scripts, menu).err(), expected, "cap {cap}");
     }
@@ -547,7 +550,8 @@ fn input_rule_arrays_and_cues_share_the_script_and_menu_byte_cap() {
         for (cap, expected) in [(CAP, None), (CAP - 1, Some(crate::api::Error::ContextTooLong))] {
             let config = Config { script_bytes: u32::try_from(cap).expect("fixture cap"), ..CONFIG };
             let rules = rules_in(asked, Box::new([Box::new([rule(b"expected", 1), rule(b"", 0)])]));
-            let menu = crate::api::Menu { arguments: Box::new([copy_of(b"{}")]), invalid: Box::new([]) };
+            let menu =
+                crate::api::Menu { arguments: Box::new([copy_of(b"{}")]), invalid: Box::new([]), slots: Box::new([]) };
             assert_eq!(
                 Domain::played_by_input(&config, 1, ruled_scripts(asked), menu, rules).err(),
                 expected,

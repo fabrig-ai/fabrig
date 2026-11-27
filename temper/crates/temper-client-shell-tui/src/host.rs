@@ -4,7 +4,7 @@ use jig_client::{Link, Message, With, contract::LoginExit};
 use skein_lib::{Duration, Env, List, Queue, Secret, Set, Time, Token, Wall};
 use skein_ui::Patch;
 use skein_ui_screen::{Cell, Focus, Frame, Rgb, Size, Theme};
-use skein_ui_screen_terminal::{Command, Key, command};
+use skein_ui_screen_terminal::{Command, Key, alias, command};
 use temper_client_domain::{
     self as root, Address, Event, Place,
     address::Filter,
@@ -15,7 +15,7 @@ use temper_client_domain::{
 };
 use temper_client_shell_terminal::route::{self, Down, Duty};
 use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
-use temper_client_tui::{self as tui, Local, Note, Refusal, Told};
+use temper_client_tui::{self as tui, BoxKey, Local, Note, Refusal, Told};
 use temper_client_view::shared;
 
 pub const LOCAL_READS: u8 = 3;
@@ -323,28 +323,31 @@ impl Host {
                 }
             }
             Report::Key(key) => {
-                if key == Key::Control(b'p') {
+                if key == Key::Control(b'o') {
                     if let Some(event) = tui::pane_key(&self.view) {
                         self.event(event, &mut duties);
                     }
-                } else if key == Key::Char('n') && tui::walk_key(&self.view).is_some() {
-                    self.tell(Told::Walk { by_key: true });
                 } else if let Some(event) = self.arrow(&key) {
                     self.event(event, &mut duties);
+                } else if let Some(event) = self.back(&key) {
+                    self.event(event, &mut duties);
                 } else {
-                    match command(&key, self.view.tree(), &mut self.focus, &self.bounds) {
+                    match list_command(&self.view, &key, &mut self.focus, &self.bounds) {
                         Command::Act { node, act } => {
                             if let Some(event) = tui::event(&self.view, node, act) {
                                 self.event(event, &mut duties);
                             }
                         }
                         Command::Close => self.quit(&mut duties),
-                        Command::Nothing if key == Key::Escape => {
-                            if let Some(event) = tui::escape(&self.view) {
-                                self.event(event, &mut duties);
+                        Command::Nothing => match self.key_without_act(&key) {
+                            Some(tui::Event::Command { command: TuiCommand::Pause }) => {
+                                // Esc stops the turn without submitting or clearing the box.
+                                self.act(Act::Stop);
                             }
-                        }
-                        Command::Moved | Command::Nothing => {}
+                            Some(event) => self.event(event, &mut duties),
+                            None => {}
+                        },
+                        Command::Moved => {}
                     }
                 }
             }
@@ -460,6 +463,20 @@ impl Host {
             terminal::Theme::Light => tui::Scheme::Light,
         };
         self.theme = tui::theme(scheme, self.background);
+        self.build_view();
+        if self.state().picked() != self.view.picked() {
+            match self.view.picked() {
+                Some((row, in_list)) => self.tell(Told::Picked { row: Some(row), in_list }),
+                None => self.clear_pick(),
+            }
+            self.build_view();
+        }
+        if self.view.list_focused() {
+            self.focus.node = None;
+        }
+    }
+
+    fn build_view(&mut self) {
         tui::build(
             &mut self.view,
             self.state.as_ref().expect("started TUI"),
@@ -695,15 +712,16 @@ impl Host {
         }
     }
 
-    fn typed(&mut self, mut value: Box<[u8]>) {
-        if self.state().aside().is_none() && self.state().walk().is_some() {
-            if self.state().walk().is_some_and(|walk| walk.by_key() && !walk.taken()) {
-                value = skein_lib::bytes::concat(&[b"n", &value]);
-                self.tell(Told::Cleared);
-            }
-            if !value.is_empty() {
-                self.tell(Told::EndWalk);
-            }
+    fn clear_pick(&mut self) {
+        self.tell(Told::Picked { row: None, in_list: false });
+    }
+
+    fn typed(&mut self, value: Box<[u8]>) {
+        if self.state().aside().is_none() && self.state().walk().is_some() && !value.is_empty() {
+            self.tell(Told::EndWalk);
+        }
+        if let Some((row, _)) = self.state().picked() {
+            self.tell(Told::Picked { row: value.starts_with(b"/").then_some(row), in_list: false });
         }
         if tui::sign_in_drawn(&self.root, self.state()) {
             if !self.state().address().at_name() {
@@ -712,9 +730,6 @@ impl Host {
         } else if self.root.pages().chat().is_some() {
             self.act(Act::MessageWords { words: value });
         } else if self.root.pages().chats().is_some() {
-            if !value.starts_with(b"/") {
-                self.tell(Told::LeftOff { task: None });
-            }
             self.act(Act::ChatWords { words: value });
         } else {
             self.tell(Told::CommandWords { value });
@@ -728,7 +743,14 @@ impl Host {
         }
         match event {
             tui::Event::Own { command } => self.own(command, duties),
-            tui::Event::Open { address } => self.open(address, duties),
+            tui::Event::Open { address } => {
+                self.clear_pick();
+                self.open(address, duties);
+            }
+            tui::Event::WalkFrom { object } => {
+                self.clear_pick();
+                self.walk(Some(object));
+            }
             tui::Event::Walk { object, step } => {
                 match step {
                     tui::WalkStep::Choose { words } => self.act(Act::Needs(needs::Act::Choose { object, words })),
@@ -756,7 +778,7 @@ impl Host {
                     self.notice(tui::Notice::Theme { choice, terminal: self.terminal });
                 }
             }
-            tui::Event::LeftOff { task } => self.tell(Told::LeftOff { task }),
+            tui::Event::Picked { row } => self.tell(Told::Picked { row, in_list: row.is_some() }),
             tui::Event::TypeCode => {
                 if tui::may_type_instead(self.state(), &self.root) {
                     self.unlisten(duties);
@@ -792,10 +814,12 @@ impl Host {
                 self.quit(duties);
             }
             tui::Event::Command { command: TuiCommand::New } => {
+                self.pressed(TuiCommand::New.name());
                 if let Some(project) = self.root.pages().project() {
                     self.went(Address::Home { project });
+                } else {
+                    self.tell(Told::Cleared);
                 }
-                self.tell(Told::Cleared);
             }
             tui::Event::Command { command: TuiCommand::Goal } => {
                 if tui::goal_offered(&self.root)
@@ -831,7 +855,12 @@ impl Host {
             }
             tui::Event::Send => self.send(duties),
             tui::Event::Act { act: Act::Confirm } => self.confirm(),
-            tui::Event::Act { act } => self.act(act),
+            tui::Event::Act { act } => {
+                if let Act::Go { .. } = act {
+                    self.clear_pick();
+                }
+                self.act(act);
+            }
             tui::Event::Aside { object } => {
                 if matches!(object, jig_client::contract::ObjectKey::Proposal(_))
                     && self.root.pages().chat().is_some_and(|chat| chat.talk().is_some())
@@ -847,13 +876,15 @@ impl Host {
             }
             tui::Event::Leave => self.leave(),
             tui::Event::Back => {
-                self.tell(Told::Place { command: None });
                 if let Address::NewChat { .. } = self.root.pages().address()
                     && let Some(project) = self.root.pages().project()
                 {
                     self.went(Address::Home { project });
+                } else if self.state().place().is_some() {
+                    self.change_place(None);
+                } else {
+                    self.tell(Told::Cleared);
                 }
-                self.tell(Told::Cleared);
             }
             tui::Event::Answer { words } => {
                 self.act(Act::MessageWords { words });
@@ -868,29 +899,23 @@ impl Host {
 
     fn dismiss(&mut self) {
         self.act(Act::Terminal(terminal::Act::Dismiss));
-        self.tell(Told::LeftOff { task: None });
+        self.clear_pick();
         self.tell(Told::Cleared);
     }
 
     fn own(&mut self, command: tui::Own, duties: &mut Duties) {
+        self.clear_pick();
         match command {
             tui::Own::Draft | tui::Own::Change | tui::Own::Ask | tui::Own::Tell => {
-                self.composer_words(Box::default());
-                self.focus.caret = 0;
-                self.tell(Told::Cleared);
-                self.tell(Told::LeftOff { task: None });
-                self.tell(Told::Place { command: Some(command) });
+                self.pressed(command.name());
+                self.change_place(Some(command));
             }
             tui::Own::Brief => {
                 self.act(Act::Terminal(terminal::Act::Dismiss));
                 self.tell(Told::Cleared);
                 self.tell(Told::Brief);
             }
-            tui::Own::Needs => {
-                self.act(Act::Terminal(terminal::Act::Dismiss));
-                self.tell(Told::Cleared);
-                self.tell(Told::Walk { by_key: false });
-            }
+            tui::Own::Needs => self.walk(None),
             tui::Own::Talk => {
                 self.act(Act::Terminal(terminal::Act::Dismiss));
                 self.tell(Told::Cleared);
@@ -929,6 +954,13 @@ impl Host {
         }
     }
 
+    fn walk(&mut self, first: Option<jig_client::contract::ObjectKey>) {
+        self.act(Act::Terminal(terminal::Act::Dismiss));
+        self.tell(Told::Cleared);
+        self.tell(Told::Walk { first });
+        self.focus.active = None;
+    }
+
     fn open(&mut self, address: Box<[u8]>, duties: &mut Duties) {
         self.opens.push(Opening::Page { address: address.clone() });
         duties.open = Some(address);
@@ -954,9 +986,87 @@ impl Host {
     fn composer_words(&mut self, words: Box<[u8]>) {
         if self.root.pages().chat().is_some() {
             self.act(Act::MessageWords { words });
-        } else {
+        } else if self.root.pages().chats().is_some() {
             self.act(Act::ChatWords { words });
+        } else {
+            self.tell(Told::CommandWords { value: words });
         }
+    }
+
+    fn pressed(&mut self, name: &[u8]) {
+        if let Ok(words) = core::str::from_utf8(self.words()) {
+            let words = words.trim_end().as_bytes();
+            if words.starts_with(b"/") && name.starts_with(words) {
+                self.composer_words(Box::default());
+            }
+        }
+    }
+
+    fn box_key(&self) -> Option<BoxKey> {
+        if let Some(command) = self.state().place() {
+            return Some(BoxKey::Place { command });
+        }
+        let pages = self.root.pages();
+        match *pages.address() {
+            Address::Chat { .. } => Some(BoxKey::Chat { task: pages.chat()?.task }),
+            Address::Talk { .. } => Some(BoxKey::Talk { task: pages.chat()?.task }),
+            Address::Home { .. } | Address::AllHome | Address::Inbox { .. } => Some(BoxKey::Launchpad),
+            Address::Chats { .. }
+            | Address::NewChat { .. }
+            | Address::Accounts
+            | Address::Forges
+            | Address::ConnectForge { .. }
+            | Address::ConnectModel { .. }
+            | Address::Welcome { .. }
+            | Address::Task { .. }
+            | Address::Goals { .. }
+            | Address::Changes { .. }
+            | Address::Waits { .. }
+            | Address::Settings { .. }
+            | Address::Repositories { .. }
+            | Address::Models { .. }
+            | Address::Builders { .. }
+            | Address::Role { .. }
+            | Address::Rule { .. }
+            | Address::Team { .. }
+            | Address::Ask { .. }
+            | Address::Tell { .. }
+            | Address::Adopt { .. }
+            | Address::Work { .. }
+            | Address::Members
+            | Address::Remembered
+            | Address::Told
+            | Address::Limits => None,
+        }
+    }
+
+    fn leaving_box(&self) -> Option<(BoxKey, Box<[u8]>)> {
+        self.box_key().map(|key| (key, self.words().into()))
+    }
+
+    fn enter_box(&mut self, left: Option<(BoxKey, Box<[u8]>)>) {
+        let entering = self.box_key();
+        let state = self.state.as_mut().expect("started TUI");
+        // Take the returning box first, so it cannot be evicted by the one left.
+        let mut words = entering.and_then(|key| state.take_words(key)).unwrap_or_default();
+        if let Some((key, prior)) = left {
+            if entering == Some(key) {
+                // The launchpad can change its root address without changing boxes.
+                words = prior;
+            } else {
+                state.keep_words(key, prior);
+            }
+        }
+        if self.words() != words.as_ref() {
+            self.composer_words(words);
+        }
+    }
+
+    fn change_place(&mut self, command: Option<tui::Own>) {
+        let left = self.leaving_box();
+        self.tell(Told::Cleared);
+        self.tell(Told::Place { command });
+        self.enter_box(left);
     }
 
     fn tell_outcome(&mut self) {
@@ -977,7 +1087,10 @@ impl Host {
                     .and_then(|me| me.projects.iter().find(|row| row.project == tell.project))
                     .map(|row| row.name.bytes().into())
                     .unwrap_or_default();
-                self.tell(Told::Place { command: None });
+                if self.state().place() == Some(tui::Own::Tell) {
+                    self.composer_words(Box::default());
+                    self.change_place(None);
+                }
                 self.notice(tui::Notice::Filed { number, project });
                 None
             }
@@ -1000,6 +1113,7 @@ impl Host {
     #[expect(clippy::too_many_lines, reason = "composer sends route terminal commands and their screen context")]
     fn send(&mut self, duties: &mut Duties) {
         if self.words() == tui::EXIT && self.root.pages().chat().is_some_and(|chat| chat.talk().is_some()) {
+            self.composer_words(Box::default());
             self.leave();
             return;
         }
@@ -1156,7 +1270,9 @@ impl Host {
                 .flat_map(|facts| facts.roles.iter())
                 .find(|role| role.name.get(..words.len()).is_some_and(|prefix| prefix.eq_ignore_ascii_case(&words)))
             {
-                self.act(Act::Go { address: Address::Talk { project, task: role.task } });
+                let address = Address::Talk { project, task: role.task };
+                self.composer_words(Box::default());
+                self.act(Act::Go { address });
                 self.tell(Told::Cleared);
             } else {
                 let project = self
@@ -1198,6 +1314,7 @@ impl Host {
                 .and_then(|number| number.parse::<u32>().ok())
                 .and_then(|number| tui::chat_number(&self.view, number));
             if let Some(task) = task {
+                self.composer_words(Box::default());
                 self.act(Act::Go { address: Address::Chat { task } });
                 self.tell(Told::Cleared);
             } else {
@@ -1288,8 +1405,13 @@ impl Host {
         self.went(Address::Home { project });
     }
     fn went(&mut self, address: Address) {
+        self.went_from(address, self.leaving_box());
+    }
+
+    fn went_from(&mut self, address: Address, left: Option<(BoxKey, Box<[u8]>)>) {
         self.tell(Told::Place { command: None });
         self.start_at(address);
+        self.enter_box(left);
     }
 
     /// A start may pass through `NewChat` or `Home` without ending the TUI place.
@@ -1312,11 +1434,14 @@ impl Host {
             && let Some(me) = self.root.pages().me(self.root.client())
             && let Some(project) = me.projects.get(0)
         {
-            let words: Box<[u8]> = self.state().command_words().into();
-            self.went(Address::Home { project: project.project });
-            if !words.is_empty() {
-                self.act(Act::ChatWords { words });
-            }
+            // Reading `me` can open an empty root composer before we leave the start address.
+            let words = self.state().command_words();
+            let left = if self.state().place().is_none() && !words.is_empty() {
+                Some((BoxKey::Launchpad, words.into()))
+            } else {
+                self.leaving_box()
+            };
+            self.went_from(Address::Home { project: project.project }, left);
         }
     }
 
@@ -1673,30 +1798,57 @@ impl Host {
         if self.refused() {
             return None;
         }
-        if *key == Key::Control(b'p') {
+        if *key == Key::Control(b'o') {
             return tui::pane_key(&self.view);
-        }
-        if *key == Key::Char('n')
-            && let Some(event) = tui::walk_key(&self.view)
-        {
-            return Some(event);
         }
         if let Some(event) = self.arrow(key) {
             return Some(event);
         }
+        if let Some(event) = self.back(key) {
+            return Some(event);
+        }
         let mut focus = self.focus;
-        match command(key, self.view.tree(), &mut focus, &self.bounds) {
+        match list_command(&self.view, key, &mut focus, &self.bounds) {
             Command::Act { node, act } => tui::event(&self.view, node, act),
-            Command::Nothing if *key == Key::Escape => tui::escape(&self.view),
-            Command::Moved | Command::Close | Command::Nothing => None,
+            Command::Nothing => self.key_without_act(key),
+            Command::Moved | Command::Close => None,
         }
     }
 
+    fn back(&self, key: &Key) -> Option<tui::Event> {
+        if *key == Key::Left { tui::back(&self.view, self.focus.node?, self.focus.caret) } else { None }
+    }
+
     fn arrow(&self, key: &Key) -> Option<tui::Event> {
-        if *key == Key::Up {
-            tui::arrow(&self.view, tui::Arrow::Up)
-        } else if *key == Key::Down {
-            tui::arrow(&self.view, tui::Arrow::Down)
+        let aliased = alias(key, self.view.tree(), &self.focus);
+        let arrow = match aliased.as_ref().unwrap_or(key) {
+            Key::Up => tui::Arrow::Up,
+            Key::Down => tui::Arrow::Down,
+            Key::Tab => tui::Arrow::Tab,
+            Key::BackTab => tui::Arrow::BackTab,
+            Key::Enter | Key::Right => tui::Arrow::Open,
+            Key::Char(_)
+            | Key::Paste(_)
+            | Key::Backspace
+            | Key::Delete
+            | Key::Left
+            | Key::Home
+            | Key::End
+            | Key::PageUp
+            | Key::PageDown
+            | Key::Escape
+            | Key::Control(_)
+            | Key::Alt(_) => return None,
+        };
+        tui::arrow(&self.view, arrow)
+    }
+
+    fn key_without_act(&self, key: &Key) -> Option<tui::Event> {
+        if *key == Key::Escape {
+            tui::escape(&self.view)
+        } else if self.view.list_focused() && types(key) {
+            // Delete at the end and Backspace in an empty box edit no bytes.
+            Some(tui::Event::Picked { row: None })
         } else {
             None
         }
@@ -1725,6 +1877,27 @@ impl Host {
 #[cfg(test)]
 #[path = "tests.rs"]
 pub(crate) mod tests;
+
+fn types(key: &Key) -> bool {
+    matches!(key, Key::Char(_) | Key::Paste(_) | Key::Backspace | Key::Delete)
+}
+
+fn list_command(view: &tui::View, key: &Key, focus: &mut Focus, bounds: &skein_ui::Limits) -> Command {
+    if view.list_focused() {
+        if types(key) {
+            let Some(node) = view.box_node() else { return Command::Nothing };
+            focus.node = Some(node);
+            focus.caret = view
+                .tree()
+                .find(node)
+                .and_then(|node| node.value.as_ref())
+                .map_or(0, |value| u32::try_from(value.text.len()).expect("box text fits"));
+        } else if !matches!(key, Key::PageUp | Key::PageDown | Key::Control(b'c')) {
+            return Command::Nothing;
+        }
+    }
+    command(key, view.tree(), focus, bounds)
+}
 
 fn same_origin(origin: &tui::Origin, authority: &[u8]) -> bool {
     match origin {
