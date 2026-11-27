@@ -139,7 +139,11 @@ smith's agent processes, and declares in its hello the kinds it runs:
     `message` from the request as its message;
   - **`squash`** otherwise: the same tree, one parent, the prefix
     below, and the member's `squash` message, committed even when the
-    tree is the one below's (`always`).
+    tree is the one below's (`always`). For a member the request marks
+    `head_trailers`, the job first reads its fetched head's message
+    (`Message`, `../../protocol/git-operations.md`, 1.9) and commits
+    `squash` with that message's TRAILERS (`../../protocol/tooling.md`,
+    4); a member it merges reads none.
 
   A head that does not merge cleanly is no failure, whatever `combine`
   says: the merge is abandoned, the member skipped, and the next merged
