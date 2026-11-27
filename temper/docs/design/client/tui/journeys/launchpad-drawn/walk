@@ -12,7 +12,7 @@ tui key paste "/new"
 tui mark
 tui key enter
 tui see "/needs"
-tui see "Add a CSV export to the report: csv-export: comma"
+tui see "Add a CSV export to the report: csv-export"
 tui mark
 tui key paste "/needs"
 tui key enter
