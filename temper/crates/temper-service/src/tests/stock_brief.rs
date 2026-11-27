@@ -158,11 +158,16 @@ fn finding_is_offered_only_to_stock_delegators_with_room_for_their_briefs() {
 
 #[test]
 fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
+    // The largest provider framing includes 32 speed-name bytes and 18
+    // bytes for the service_tier key and JSON punctuation. The host and
+    // messages each give up 25 bytes before messages split into two offers.
+    const HOST_PART: u64 = 360_125;
+    const OFFER_BYTES: u32 = 180_062;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
-    assert_eq!(limits.host_part, 360_150);
+    assert_eq!(limits.host_part, HOST_PART);
     assert_eq!(limits.room, 742_860);
-    assert_eq!(limits.offer_bytes, 180_075);
+    assert_eq!(limits.offer_bytes, OFFER_BYTES);
     assert_eq!(configuration.service.limits.channel.bodies.turn_body, 18_431_842);
 
     for (number, open) in [
@@ -208,7 +213,11 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         );
         temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), &limits);
         if number == 5 {
-            assert_eq!(original.owned_bytes().unwrap(), 59_414);
+            // Six boxed alternative LLMs carry an 80-byte optional speed:
+            // 16 each for name and alias slice, 48 for prices. Main's
+            // inline LLM isn't charged here, and no speed owns a payload.
+            const GOAL_CHARTER_BYTES: u64 = 59_894;
+            assert_eq!(original.owned_bytes().unwrap(), GOAL_CHARTER_BYTES);
 
             assert_eq!(receiving, 127_391);
             assert!(original.owned_bytes().unwrap() <= receiving, "the goal's smaller offer keeps its maximal brief");
@@ -262,6 +271,8 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     // Task words and contract, then the task identity and requester.
     const TASK_PARTS: u32 = 2;
     const MARGIN: u32 = 66;
+    // The non-brief host part is 40,521 bytes within the 360,125-byte host bound.
+    const GOAL_BRIEF_ROOM: u32 = 319_604;
     const OTHER: u32 = 768;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
@@ -270,7 +281,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     let assignments = Assignments::new();
     let largest = temper_engine_smith::charter(&assignments.assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 319_629, "charter 5's maximal non-brief host part leaves this room");
+    assert_eq!(room, GOAL_BRIEF_ROOM, "charter 5's maximal non-brief host part leaves this room");
 
     assert_eq!(brief.brief_bytes, 318_046);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
