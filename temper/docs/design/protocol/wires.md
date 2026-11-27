@@ -344,6 +344,29 @@ them.
   project's policy grants the job kinds its goals may make (the close
   job, job 4, `configuration/stock.md`), so a kind 5 would be refused
   until each deployment's settings granted it.
+- **A merge or close job asks its worker to find its hook:** `JobSpec`'s
+  `find`, a `bool` defaulting to `false`, and `fallback`, bytes of the
+  `command`'s form defaulting to empty (`hooks.md`, 4.2 and 4.3). The
+  engine sets `find` on every merge and close job it makes, its
+  `command` the hook's path and its `fallback` the project's
+  `merge_job` or `close_job`, or empty. As `refusal`, it is no new kind,
+  and a worker whose layout lacks `find` can't keep a spec that sets it,
+  so the engine sends it none and the job waits for a worker of this
+  build, spending no try; a spec of an earlier engine reads `find`
+  false and `fallback` empty, and a worker of this build runs its
+  command as that engine expects.
+- **A hook's ceiling rides in the items:** `Items`' `hook_timeout_max_seconds`,
+  a `u32` defaulting to 3,600 and `droppable`, the project's
+  `hook_timeout_max_seconds` on every run's items and every job's
+  (`hooks.md`, 2.3). A worker whose layout lacks it drops it and reads
+  no hook's `config.toml`, as before (`hooks.md`, 6); items of an
+  earlier engine read 3,600, the setting's default.
+- **The merge and close kinds' deadline** is the ceiling's greatest,
+  86,400 seconds, in the engine's declaration and the worker's alike,
+  and each merge or close job's deadline its project's ceiling
+  (`hooks.md`, 2.3; `../domain/worker/jobs.md`, 2): a grown declaration,
+  so an engine of this build places neither kind on a worker of an
+  earlier build (above), as `find` alone would keep them off it.
 
 ## 9. Clients
 
