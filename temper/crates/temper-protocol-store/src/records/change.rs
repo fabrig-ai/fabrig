@@ -23,9 +23,8 @@ fn encode_hold(value: d::Cause) -> w::ChangeHold {
         d::Cause::Authority(value) => w::ChangeHold::Authority(authority_hold_to_record(&value)),
     }
 }
-fn decode_hold(value: w::ChangeHold, close_refused: bool) -> d::Cause {
+fn decode_hold(value: w::ChangeHold) -> d::Cause {
     match value {
-        w::ChangeHold::Failed if close_refused => d::Cause::CloseRefused,
         w::ChangeHold::Stalled => d::Cause::Stalled,
         w::ChangeHold::Repairs => d::Cause::Repairs,
         w::ChangeHold::Resolutions => d::Cause::Resolutions,
@@ -139,7 +138,7 @@ fn encode_progress(value: &d::State) -> w::ChangeLive {
         }
         d::State::Cleared { merge } => w::ChangeLive::Cleared(w::MergeChange { merge: *merge }),
         d::State::Uncleared { merge } => w::ChangeLive::Uncleared(w::MergeChange { merge: *merge }),
-        d::State::Held { .. } => unreachable!("the bounded loop unwrapped every hold"),
+        d::State::Held { .. } => unreachable!("a change is held only once"),
         d::State::NoChange { .. }
         | d::State::Ended
         | d::State::Taking { .. }
@@ -299,7 +298,11 @@ fn decode_change_state(value: w::ChangeState, step_since: u64, close_refused: bo
     let w::ChangeState { live, holds, since, words, judged } = value;
     let state = decode_live(live);
     let Some(outer) = holds.as_slice().first() else { return (state, None) };
-    let cause = decode_hold(outer.clone(), close_refused && since.is_none());
+    let cause = if close_refused && since.is_none() && *outer == w::ChangeHold::Failed {
+        d::Cause::CloseRefused
+    } else {
+        decode_hold(outer.clone())
+    };
     if state == d::State::Ended {
         return (state, Some(cause));
     }
@@ -492,7 +495,7 @@ fn decode_change(value: w::Change, close_refused: bool) -> (d::Change, Option<to
         gate_failures: decode_gate_failures(gate_failures),
         released_resolution,
         released: match released {
-            Some(why) => Some(decode_hold(why, close_refused)),
+            Some(why) => Some(decode_hold(why)),
             None => None,
         },
         way: crate::generated::store::way_to_domain(way),
@@ -715,7 +718,7 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         verdicts: verdicts.into_boxed(),
         gate_remarks: gate_remarks.into_boxed(),
         drift: match value.drift {
-            Some(value) => Some(decode_hold(value, false)),
+            Some(value) => Some(decode_hold(value)),
             None => None,
         },
         queue_repair: value.queue_repair,

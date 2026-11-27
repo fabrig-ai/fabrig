@@ -998,7 +998,7 @@ pub fn merge_change_row(from: Option<[u8; 32]>) -> top::ChangeRow {
 }
 
 pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
-    use temper_engine_domain_forge_change::{Cause, Repair, State};
+    use temper_engine_domain_forge_change::{Cause, Hold, Judged, Repair, State};
     let mut states = List::with_capacity(25);
     for state in [
         State::Taking { requested: true },
@@ -1027,15 +1027,21 @@ pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
     ] {
         states.push(state).expect("fixture room");
     }
-    let held = State::Held {
-        was: Box::new(State::Checking { head: [17; 32] }),
-        hold: temper_engine_domain_forge_change::Hold::new(Cause::Stalled, skein_lib::Wall::EPOCH),
-    };
-    states.push(held.clone()).expect("fixture room");
     states
         .push(State::Held {
-            was: Box::new(held),
-            hold: temper_engine_domain_forge_change::Hold::new(Cause::BranchMissing, skein_lib::Wall::EPOCH),
+            was: Box::new(State::Checking { head: [17; 32] }),
+            hold: Hold::new(Cause::Stalled, skein_lib::Wall::EPOCH),
+        })
+        .expect("fixture room");
+    states
+        .push(State::Held {
+            was: Box::new(State::Repairing { requested: false, why: Repair::Ci }),
+            hold: Hold {
+                cause: Cause::RedStands,
+                since: skein_lib::Wall::from_nanos(18),
+                words: b"the red stands at the same head and spec".as_slice().into(),
+                judged: Some(Judged { head: [15; 32], spec: 0 }),
+            },
         })
         .expect("fixture room");
     states
