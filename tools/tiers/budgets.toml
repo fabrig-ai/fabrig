@@ -451,6 +451,13 @@ kind = "removed"
 why = "The Smith worker wire patch histories are gone, so the codec suite no longer draws a seed to exercise the retired transcript patch path."
 by = "Change 16307"
 
+[[gate.fuzzy.check_reasons]]
+binary = "temper-conformance-world::suite"
+checks = { store-check = 23 }
+kind = "removed"
+why = "The write record replaces the former forge write and readback paths. The stories now produce 534 live commits instead of 557; the sweep still cold-starts at every live commit of every story."
+by = "Change 19914"
+
 [[gate.fuzzy.moves]]
 from = "temper.real-loop"
 to = "temper.domain"
