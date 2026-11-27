@@ -24,6 +24,10 @@ const CHAT: &str = "333333333333333333333333333333333333333333333333333333333333
 const ADDED: &str = "4444444444444444444444444444444444444444444444444444444444444444";
 const CATALOGUE: &str =
     "chat-draft (after project-landing): A draft.\nproject-landing (after welcome): A project.\nwelcome: Welcome!\n";
+const BOX_FAILURE: &str = "box failed: box exited 1 before ready: DATA/box/fake-backends: remove this sandbox directory explicitly to reset it";
+const DEPLOYMENT_FAILURE: &str = "deployment failed: engine exited 1 before ready: engine.limits: moved";
+// Long enough for a walk's first line to fall out of the 40-line diagnostic tail (qa/places.md, 4).
+const LOG_LINES: usize = 45;
 
 fn write(tree: &mut Tree, path: impl AsRef<Path>, bytes: impl AsRef<[u8]>) -> io::Result<()> {
     tree.write(path.as_ref(), bytes.as_ref(), WriteOptions::REPLACE, false)
@@ -113,13 +117,9 @@ impl Journeys {
         }
         let failure = PathBuf::from(format!("walk-{name}-{from}"));
         if tree.exists(&failure) {
-            let mut log = String::new();
-            for n in 1..=45 {
-                writeln!(log, "answer {n}").expect("log line");
-            }
-            writeln!(log, "stopped at {name}:7: missing Start").expect("stop line");
-            let code = text(tree, &failure)?.parse().expect("scripted walk exit");
-            return Ok(answer(code, log, []));
+            let script = text(tree, &failure)?;
+            let (code, log) = script.split_once('\n').expect("scripted exit and log");
+            return Ok(answer(code.parse().expect("scripted walk exit"), log, []));
         }
         for member in ["config", "data"] {
             tree.directory(&scratch.join(member), DirectoryMode::Parents)?;
@@ -353,6 +353,9 @@ impl PlaceWorld {
         let snapshot = self.home.directory.join("test-copies").join(name).join(format!("{hash}-{commit}"));
         tree.directory(&snapshot.join("config"), DirectoryMode::Parents).expect("copy config");
         tree.directory(&snapshot.join("data"), DirectoryMode::Parents).expect("copy data");
+        if self.place.paths.kind == Kind::Deployment {
+            write(&mut tree, snapshot.join("config/receipt"), "saved config").expect("copied deployment config");
+        }
         write(&mut tree, snapshot.join("data/state"), format!("{name}\n")).expect("copied state");
         write(&mut tree, &directory, snapshot.as_os_str().as_bytes()).expect("archive marker");
         directory
@@ -374,8 +377,21 @@ impl PlaceWorld {
     }
 
     fn fail(&mut self, name: &str, from: &str, code: u8) {
-        write(&mut self.tree, self.place.paths.directory.join(format!("walk-{name}-{from}")), code.to_string())
-            .expect("walk exit");
+        let mut log = String::new();
+        for n in 1..=LOG_LINES {
+            writeln!(log, "answer {n}").expect("log line");
+        }
+        writeln!(log, "stopped at {name}:7: missing Start").expect("stop line");
+        self.fail_with_log(name, from, code, &log);
+    }
+
+    fn fail_with_log(&mut self, name: &str, from: &str, code: u8, log: &str) {
+        write(&mut self.tree, self.place.paths.directory.join(format!("walk-{name}-{from}")), format!("{code}\n{log}"))
+            .expect("walk exit and log");
+    }
+
+    fn walk_starts(&self) -> Vec<String> {
+        self.walks().iter().map(|walk| walk.split_once(" --bin ").expect("walk options").0.to_owned()).collect()
     }
 
     fn setup_file(&self) -> String {
@@ -527,13 +543,20 @@ fn a_matching_copy_is_checked_without_saving_and_uses_the_places_build() {
 
 #[test]
 fn a_refused_copy_rebuilds_from_the_nearest_ancestor_and_prunes_every_saved_copy() {
+    const REFUSED: &str = "refused: temper serve: DATA/store: layout refused";
     let mut world = PlaceWorld::new();
     world.copy("welcome", WELCOME, OLD);
     let refused = world.copy("chat-draft", CHAT, OLD);
     world.place.archive.removed_before_retry = Some(refused.clone());
     let stale = world.copy("project-landing", WELCOME, OLD);
-    world.fail("chat-draft", "chat-draft", 3);
+    world.fail_with_log(
+        "chat-draft",
+        "chat-draft",
+        3,
+        &format!("answer 1\nrefused: earlier diagnostic\n{REFUSED}\n{}", "| detail\n".repeat(LOG_LINES)),
+    );
     let (code, output) = world.setup("chat-draft");
+    assert!(output.contains(&format!("copy chat-draft removed: {REFUSED}\n")), "{output}");
     assert_eq!(code, 0);
     assert!(!world.tree.exists(&refused));
     assert!(!world.tree.exists(&stale));
@@ -564,6 +587,90 @@ fn a_refused_copy_rebuilds_from_the_nearest_ancestor_and_prunes_every_saved_copy
     let log = text(&world.tree, &world.place.paths.walk_log).expect("whole walk log");
     assert!(log.contains("answer 1\n"));
     assert!(log.ends_with("walked chat-draft\n"));
+}
+
+#[test]
+fn an_unlabelled_store_refusal_reports_the_last_line() {
+    let mut world = PlaceWorld::new();
+    world.copy("welcome", WELCOME, OLD);
+    world.fail_with_log("welcome", "welcome", 3, "DATA/store: opening\nDATA/store: bad layout\n");
+
+    let (code, output) = world.setup("welcome");
+
+    assert_eq!(code, 0, "{output}");
+    assert!(output.contains("copy welcome removed: DATA/store: bad layout\n"), "{output}");
+}
+
+#[test]
+fn a_copy_refused_at_start_is_rebuilt_from_its_parent() {
+    for (mut world, failure) in [(PlaceWorld::new(), BOX_FAILURE), (deployment_world(), DEPLOYMENT_FAILURE)] {
+        world.copy("welcome", WELCOME, OLD);
+        let parent = world.copy("project-landing", PROJECT, OLD);
+        let old = world.copy("chat-draft", CHAT, OLD);
+        world.place.archive.removed_before_retry = Some(old.clone());
+        world.fail_with_log("chat-draft", "chat-draft", 4, &format!("{failure}\n{}", "| detail\n".repeat(LOG_LINES)));
+
+        let (code, output) = world.setup("chat-draft");
+
+        assert_eq!(code, 0, "{output}");
+        assert!(!world.tree.exists(&old));
+        assert_eq!(world.place.archive.restored, [old, parent]);
+        assert_eq!(
+            world.walk_starts(),
+            ["recipe walk chat-draft --from chat-draft", "recipe walk chat-draft --from project-landing"]
+        );
+        assert!(output.ends_with(&format!(
+            "copy chat-draft removed: {failure}\nwalking chat-draft from project-landing\nwalk chat-draft ended: 0\nsetup chat-draft: made again from project-landing's copy\ncopy chat-draft saved: 333333333333 at bbbbbbbbbbbb\n"
+        )), "{output}");
+        assert_eq!(world.setup_file(), format!("chat-draft {CHAT}\n"));
+    }
+}
+
+#[test]
+fn an_answered_walk_failing_from_a_copy_keeps_it() {
+    let mut world = PlaceWorld::new();
+    let copy = world.copy("chat-draft", CHAT, OLD);
+    world.fail_with_log("chat-draft", "chat-draft", 4, &format!("chat-draft:7 ok\n{BOX_FAILURE}\n"));
+
+    let (code, output) = world.setup("chat-draft");
+
+    assert_eq!(code, 4, "{output}");
+    assert!(output.contains("setup chat-draft: the box failed walking chat-draft\n"), "{output}");
+    assert_eq!(world.walk_starts(), ["recipe walk chat-draft --from chat-draft"]);
+    assert!(world.tree.exists(copy));
+    assert!(!world.tree.exists(&world.place.paths.setup));
+}
+
+#[test]
+fn a_fresh_walk_failing_at_start_stops_without_retry() {
+    let mut world = PlaceWorld::new();
+    world.fail_with_log("welcome", "fresh", 4, &format!("{BOX_FAILURE}\n"));
+
+    let (code, output) = world.setup("chat-draft");
+
+    assert_eq!(code, 4, "{output}");
+    assert!(output.contains("setup chat-draft: the box failed walking welcome\n"), "{output}");
+    assert_eq!(world.walk_starts(), ["recipe walk welcome"]);
+    assert!(!world.tree.exists(&world.place.paths.setup));
+}
+
+#[test]
+fn a_later_walk_failing_at_start_keeps_both_copies() {
+    let mut world = PlaceWorld::new();
+    let ancestor = world.copy("welcome", WELCOME, OLD);
+    world.fail_with_log("chat-draft", "project-landing", 4, &format!("{BOX_FAILURE}\n"));
+
+    let (code, output) = world.setup("chat-draft");
+
+    assert_eq!(code, 4, "{output}");
+    assert!(output.contains("setup chat-draft: the box failed walking chat-draft\n"), "{output}");
+    assert_eq!(
+        world.walk_starts(),
+        ["recipe walk project-landing --from welcome", "recipe walk chat-draft --from project-landing"]
+    );
+    assert!(world.tree.exists(ancestor));
+    assert!(world.tree.exists(world.place.paths.copies.join(format!("project-landing/{PROJECT}-{BUILD}.tar"))));
+    assert!(!world.tree.exists(&world.place.paths.setup));
 }
 
 #[test]
