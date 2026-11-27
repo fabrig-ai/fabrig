@@ -507,7 +507,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     audit.run(store, &layouts, &mut work)?;
     let writing = changed || (!seeded && !layouts.types.is_empty());
     rows::operations(store.limits.store.key, &mut layouts)?;
-    if !writing && store.directory.patch.is_none() {
+    if !writing && store.directory.upgrade_levels.is_none() {
         // Retirement alone does not write: these erases wait for a writing open.
         layouts.pending = Queue::uncapped();
     }

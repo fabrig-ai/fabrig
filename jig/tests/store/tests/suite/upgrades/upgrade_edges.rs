@@ -2,8 +2,9 @@
 //! jig/docs/design/protocol/store/transcripts.md, 3 and 6, and jig/docs/design/protocol/store/opening.md, 2.
 use jig_protocol_store::{Event, OwnerSets, Request, TranscriptRead};
 use jig_store_world::{
-    World, patches,
+    World,
     root::{self, LIVE as TASK},
+    upgrade_fixtures,
 };
 use skein_lib::{Token, length::len_u64};
 
@@ -124,12 +125,12 @@ fn requested_rows_cannot_expand_the_store_page_limit() {
 }
 
 fn mixed_frames() -> (World, u64) {
-    let old = patches::fixture_turn(1, SAID, REPLAY, 0);
-    let current = patches::fixture_turn(2, SAID, &[], 0);
+    let old = upgrade_fixtures::fixture_turn(1, SAID, REPLAY, 0);
+    let current = upgrade_fixtures::fixture_turn(2, SAID, &[], 0);
     let charge = direct_frame_bytes(&current);
-    let mut world = committed(patches::FRAME_VERSION_HEADS, &[&old, &current]);
+    let mut world = committed(upgrade_fixtures::FRAME_VERSION_HEADS, &[&old, &current]);
     world.crash(SEED);
-    world.owner_sets(patches::FRAME_SETS);
+    world.owner_sets(upgrade_fixtures::FRAME_SETS);
     world.open_switched().expect("seed the frames registry");
     (world, charge)
 }
@@ -137,19 +138,19 @@ fn mixed_frames() -> (World, u64) {
 #[test]
 fn converted_pages_charge_framing_before_accepting_any_turn() {
     let (mut world, charge) = mixed_frames();
-    // Forward/window encounter a patched turn first; backward encounters a
+    // Forward/window encounter a converted turn first; backward encounters a
     // current turn. Both need the same complete current-body frame charge.
     for read in starts() {
         let events = page(&mut world, read, TWO_ROWS, charge - 1);
         if matches!(read, TranscriptRead::Window { .. }) {
             let [Event::Turns { owner, turns, next, cut }] = events.as_slice() else {
-                panic!("cut patched turn {read:?}: {events:?}")
+                panic!("cut converted turn {read:?}: {events:?}")
             };
             assert_eq!(*owner, OWNER);
             assert_eq!(turns.as_ref(), &[root::turn(TASK, ATTEMPT, FIRST_TURN, &[])]);
-            let current = patches::fixture_turn(2, SAID, &[], 0);
+            let current = upgrade_fixtures::fixture_turn(2, SAID, &[], 0);
             assert_eq!(*cut, Some(u32::try_from(current.len()).expect("fixture length")));
-            let old = patches::fixture_turn(1, SAID, REPLAY, 0);
+            let old = upgrade_fixtures::fixture_turn(1, SAID, REPLAY, 0);
             assert_eq!(
                 *next,
                 Some(super::frames::log_frame_bytes(&root::turn(TASK, ATTEMPT, FIRST_TURN, &old))),
@@ -185,7 +186,7 @@ fn accepted_prefix_continues_without_skipping_after_an_unread() {
             };
             assert_eq!(*owner, OWNER);
             assert_eq!(turns.as_ref(), &[root::turn(TASK, ATTEMPT, second, &[])]);
-            let current = patches::fixture_turn(2, SAID, &[], 0);
+            let current = upgrade_fixtures::fixture_turn(2, SAID, &[], 0);
             assert_eq!(*cut, Some(u32::try_from(current.len()).expect("fixture length")));
             assert_eq!(*next, None, "the cut continuation ends the transcript");
         } else {

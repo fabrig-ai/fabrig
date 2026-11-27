@@ -492,7 +492,7 @@ pub fn frame_committed(seed: u64, windows: &[bool], crossed: bool) -> World {
 }
 
 /// Current real owner sets for the registry and opening-metadata suites. No
-/// eager map patch is part of these binaries; frame fixtures use `FRAME_SETS`.
+/// eager map rewrite is part of these binaries; frame fixtures use `FRAME_SETS`.
 #[must_use]
 pub const fn current(sets: OwnerSets) -> OwnerSets {
     sets

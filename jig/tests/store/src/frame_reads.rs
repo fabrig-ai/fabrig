@@ -8,7 +8,7 @@ use skein_lib::{Env, Queue, Time, Token, Wall, length::len_u64};
 
 const OWNER: Token = Token::new(9);
 const COMMITTED: u64 = 1024;
-pub use crate::patches::FRAME_SETS as SETS;
+pub use crate::upgrade_fixtures::FRAME_SETS as SETS;
 #[must_use]
 pub fn floor() -> Box<[u8]> {
     use jig_protocol_store::core_v6::Record as _;
@@ -98,7 +98,7 @@ pub fn open(component: &mut store::Store, env: &Env<store::Limits>) {
     // These transcript checks do not consume the map census (protocol/store/growth.md, 1.3).
     let Some(Event::Census { .. }) = above.pop() else { panic!("opened census") };
 }
-pub use crate::patches::fixture_turn as turn;
+pub use crate::upgrade_fixtures::fixture_turn as turn;
 // At most six file operations cover one small fixture frame.
 const STEPS: u32 = 8;
 

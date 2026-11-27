@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use skein_codec::schema::{self, Schema};
 use skein_lib::{List, Set};
 
-/// Whose patch levels the format row keeps, upstream first.
+/// Whose levels the format row keeps, upstream first.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Owner {
     Skein,

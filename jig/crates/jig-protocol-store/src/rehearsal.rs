@@ -223,7 +223,7 @@ fn refused(store: &mut Store, why: OpenRefusal, above: &mut Queue<Event>) {
     open::refuse(store, owner, why, above);
 }
 
-/// Read the source's last wires from its scratch copy, before any checks or patches.
+/// Read the source's last wires from its scratch copy, before any checks or jobs.
 pub(crate) fn announce(store: &mut Store, above: &mut Queue<Event>) {
     let Some(state) = &mut store.rehearsal else { return };
     if state.announced {

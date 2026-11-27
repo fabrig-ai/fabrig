@@ -160,7 +160,7 @@ fn run_forge(command: &Command, row: &Row, arguments: &[Box<[u8]>], captured: &C
     forge::command(ENGINE.binary, configured).map_err(|why| (1, why))
 }
 
-/// The store's patch levels and versions, worker wires and bounds (protocol/binaries.md, 2),
+/// The store's levels and versions, worker wires and bounds (protocol/binaries.md, 2),
 /// each line ending in a newline.
 #[must_use]
 pub fn versions() -> String {

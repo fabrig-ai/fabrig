@@ -223,7 +223,7 @@ fn a_kept_part_uses_its_live_key_and_converts_its_held_turn_on_read() {
     };
     let old_set = OwnerSet { families: Box::leak(Box::new([old_family])), ..crate::owners::SMITH_SET };
     // Register this value type alone within the fixture's small commit edge.
-    let mut core = *crate::patch_set::STORE_FAMILIES.iter().find(|family| family.name == "jig-store-core").unwrap();
+    let mut core = *crate::owner_set::STORE_FAMILIES.iter().find(|family| family.name == "jig-store-core").unwrap();
     core.keys = &[crate::Keys { from: &[1, 0, 10], to: &[1, 0, 11], root: "Row" }];
     core.types = &[crate::ValueType {
         number: 8,
@@ -242,7 +242,7 @@ fn a_kept_part_uses_its_live_key_and_converts_its_held_turn_on_read() {
         actual.layout(actual.root(b"Row", Some(b"part")).unwrap(), &[&smith]).unwrap().digest(),
         small.layout(small.root(b"Row", Some(b"part")).unwrap(), &[&smith]).unwrap().digest()
     );
-    let jig = OwnerSet { jobs: &[], families: Box::leak(Box::new([core])), ..crate::patch_set::JIG_STORE_SET };
+    let jig = OwnerSet { jobs: &[], families: Box::leak(Box::new([core])), ..crate::owner_set::JIG_STORE_SET };
     store.owner_sets(OwnerSets { sets: Box::leak(Box::new([jig, old_set])) });
     let opened = disk.open(&mut store);
     let Some(Event::Opened { .. }) = opened.first() else { panic!("part writer open: {opened:?}") };
@@ -264,7 +264,11 @@ fn a_kept_part_uses_its_live_key_and_converts_its_held_turn_on_read() {
     expected[1] = 8;
     assert_eq!(loaded.body.as_ref(), expected.as_slice());
     assert_eq!((loaded.key, loaded.turn, loaded.thread, loaded.call, loaded.kind), (part.key, 4, 0, 5, part.kind));
-    assert_eq!(fixtures::get_kv(&mut store, &key).unwrap(), before, "patching never rewrites the kept part");
+    assert_eq!(
+        fixtures::get_kv(&mut store, &key).unwrap(),
+        before,
+        "converting the layout never rewrites the kept part"
+    );
 }
 
 #[test]
@@ -279,11 +283,11 @@ fn the_real_smith_set_converts_kept_version_seven_on_read() {
     let bytes = frames::frame(6, &old);
     let (mut disk, mut store) = scene(&bytes, REAL);
     let events = disk.request(&mut store, request(1, BUDGET));
-    let patched = payload(&events);
+    let converted = payload(&events);
     let mut expected = old;
     expected[1] = 8;
-    assert_eq!(patched, expected);
-    assert_eq!(&*disk.bytes(PATH), &*bytes, "patching a read never writes the frame");
+    assert_eq!(converted, expected);
+    assert_eq!(&*disk.bytes(PATH), &*bytes, "converting a frame at read never writes it");
 }
 
 #[test]

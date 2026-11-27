@@ -13,7 +13,7 @@ pub(crate) use jobs::answer as job;
 /// Closing counts two KV close bits (1, 2), then two directory
 /// close bits (4, 8); Recovering two KV open bits (1, 2).
 #[derive(Debug)]
-pub(crate) enum Patching {
+pub(crate) enum Upgrading {
     Closing { closed: u8 },
     Dropping(Dropping),
     Copying(Copying),
@@ -24,21 +24,21 @@ pub(crate) enum Patching {
     Checking(Box<Checking>),
 }
 fn root(store: &Store) -> Root {
-    store.directory.root.expect("patching holds the deployment lock")
+    store.directory.root.expect("upgrading holds the deployment lock")
 }
 fn active(store: &Store) -> u64 {
-    store.directory.active.expect("patching follows active's checks").number
+    store.directory.active.expect("upgrading follows active's checks").number
 }
 fn refuse(store: &mut Store, above: &mut Queue<Event>) {
     store.directory.opening = Opening::Idle;
     open::refuse(store, store.directory.owner, OpenRefusal::Failed, above);
 }
-fn state(store: &mut Store, phase: Patching) {
-    store.directory.opening = Opening::Patching(Box::new(phase));
+fn state(store: &mut Store, phase: Upgrading) {
+    store.directory.opening = Opening::Upgrading(Box::new(phase));
 }
-fn take(store: &mut Store) -> Box<Patching> {
+fn take(store: &mut Store) -> Box<Upgrading> {
     match core::mem::replace(&mut store.directory.opening, Opening::Idle) {
-        Opening::Patching(phase) => phase,
+        Opening::Upgrading(phase) => phase,
         Opening::Idle
         | Opening::Locking
         | Opening::Reading
@@ -84,8 +84,8 @@ pub(crate) fn begin(
     if active(store).checked_add(1).is_none() {
         return refuse(store, above);
     }
-    store.directory.patch = Some(pending);
-    state(store, Patching::Closing { closed: 0 });
+    store.directory.upgrade_levels = Some(pending);
+    state(store, Upgrading::Closing { closed: 0 });
     close_stores(store, env, above, below);
 }
 fn kv_down(
@@ -129,7 +129,7 @@ fn dropping(store: &mut Store, above: &mut Queue<Event>, below: &mut Below) {
     }
     let dropping = generations::drop_previous(root(store), active(store), below);
     match dropping.progress() {
-        Progress::Pending => state(store, Patching::Dropping(dropping)),
+        Progress::Pending => state(store, Upgrading::Dropping(dropping)),
         Progress::Done => copying(store, above, below),
         Progress::Failed => refuse(store, above),
     }
@@ -137,7 +137,7 @@ fn dropping(store: &mut Store, above: &mut Queue<Event>, below: &mut Below) {
 fn copying(store: &mut Store, above: &mut Queue<Event>, below: &mut Below) {
     let copying = generations::copy(root(store), active(store), store.limits.store.chunk, below);
     match copying.progress() {
-        Progress::Pending => state(store, Patching::Copying(copying)),
+        Progress::Pending => state(store, Upgrading::Copying(copying)),
         Progress::Done | Progress::Failed => refuse(store, above),
     }
 }
@@ -149,27 +149,27 @@ fn open_copy(store: &mut Store, below: &mut Below) {
         name: generations::map(number, Map::Store),
         no_follow: true,
     });
-    state(store, Patching::Mapping { secrets: false });
+    state(store, Upgrading::Mapping { secrets: false });
 }
 fn opened_copy(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
-    let pending = store.directory.patch.take().expect("begin retained the plan until copy recovery");
+    let pending = store.directory.upgrade_levels.take().expect("begin retained the plan until copy recovery");
     let Some(counts) = check::before(store) else { return refuse(store, above) };
     let Some(sealing) = sealing::opened(store, *pending, counts) else { return refuse(store, above) };
     jobs::begin(store, env, sealing, above, below);
 }
 
 fn recovering(store: &Store) -> bool {
-    match directory::patching(store) {
-        Some(Patching::Recovering { .. }) => true,
+    match directory::upgrading(store) {
+        Some(Upgrading::Recovering { .. }) => true,
         None
         | Some(
-            Patching::Closing { .. }
-            | Patching::Dropping(_)
-            | Patching::Copying(_)
-            | Patching::Mapping { .. }
-            | Patching::Jobs(_)
-            | Patching::Sealing { .. }
-            | Patching::Checking(_),
+            Upgrading::Closing { .. }
+            | Upgrading::Dropping(_)
+            | Upgrading::Copying(_)
+            | Upgrading::Mapping { .. }
+            | Upgrading::Jobs(_)
+            | Upgrading::Sealing { .. }
+            | Upgrading::Checking(_),
         ) => false,
     }
 }
@@ -182,16 +182,16 @@ pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue
     };
     // KV recovery probes missing files; job commits also create payload logs.
     // Their expected NotFound/Exists terminals belong to KV's state machine.
-    let job = match directory::patching(store) {
-        Some(Patching::Jobs(_)) => true,
+    let job = match directory::upgrading(store) {
+        Some(Upgrading::Jobs(_)) => true,
         Some(
-            Patching::Closing { .. }
-            | Patching::Dropping(_)
-            | Patching::Copying(_)
-            | Patching::Mapping { .. }
-            | Patching::Recovering { .. }
-            | Patching::Sealing { .. }
-            | Patching::Checking(_),
+            Upgrading::Closing { .. }
+            | Upgrading::Dropping(_)
+            | Upgrading::Copying(_)
+            | Upgrading::Mapping { .. }
+            | Upgrading::Recovering { .. }
+            | Upgrading::Sealing { .. }
+            | Upgrading::Checking(_),
         )
         | None => false,
     };
@@ -243,35 +243,35 @@ pub(crate) fn event(
         skein_kv::Event::Closed { .. } => {
             let phase = take(store);
             let mut closed = match *phase {
-                Patching::Closing { closed } => closed,
-                Patching::Dropping(_)
-                | Patching::Copying(_)
-                | Patching::Mapping { .. }
-                | Patching::Recovering { .. }
-                | Patching::Jobs(_)
-                | Patching::Sealing { .. }
-                | Patching::Checking(_) => return refuse(store, above),
+                Upgrading::Closing { closed } => closed,
+                Upgrading::Dropping(_)
+                | Upgrading::Copying(_)
+                | Upgrading::Mapping { .. }
+                | Upgrading::Recovering { .. }
+                | Upgrading::Jobs(_)
+                | Upgrading::Sealing { .. }
+                | Upgrading::Checking(_) => return refuse(store, above),
             };
             closed |= if secret { 2 } else { 1 };
             if closed == 3 {
                 close_directories(store, below);
             }
-            state(store, Patching::Closing { closed });
+            state(store, Upgrading::Closing { closed });
         }
         skein_kv::Event::Opened { .. } => {
             let phase = take(store);
             match *phase {
-                Patching::Recovering { mut opened } => {
+                Upgrading::Recovering { mut opened } => {
                     opened |= if secret { 2 } else { 1 };
-                    state(store, Patching::Recovering { opened });
+                    state(store, Upgrading::Recovering { opened });
                 }
-                Patching::Closing { .. }
-                | Patching::Mapping { .. }
-                | Patching::Dropping(_)
-                | Patching::Copying(_)
-                | Patching::Jobs(_)
-                | Patching::Sealing { .. }
-                | Patching::Checking(_) => refuse(store, above),
+                Upgrading::Closing { .. }
+                | Upgrading::Mapping { .. }
+                | Upgrading::Dropping(_)
+                | Upgrading::Copying(_)
+                | Upgrading::Jobs(_)
+                | Upgrading::Sealing { .. }
+                | Upgrading::Checking(_) => refuse(store, above),
             }
         }
         skein_kv::Event::Committed { owner, number } => {
@@ -280,24 +280,24 @@ pub(crate) fn event(
             }
             let phase = take(store);
             match *phase {
-                Patching::Jobs(mut running) if !secret => {
+                Upgrading::Jobs(mut running) if !secret => {
                     if !running.committed(number, above, store.directory.owner) {
                         return refuse(store, above);
                     }
-                    state(store, Patching::Jobs(running));
+                    state(store, Upgrading::Jobs(running));
                 }
-                Patching::Sealing { number: expected, before, counts } if !secret && number == expected => {
+                Upgrading::Sealing { number: expected, before, counts } if !secret && number == expected => {
                     // resume runs the check only after the seal is durable.
-                    state(store, Patching::Sealing { number: 0, before, counts });
+                    state(store, Upgrading::Sealing { number: 0, before, counts });
                 }
-                Patching::Closing { .. }
-                | Patching::Dropping(_)
-                | Patching::Copying(_)
-                | Patching::Mapping { .. }
-                | Patching::Recovering { .. }
-                | Patching::Sealing { .. }
-                | Patching::Jobs(_)
-                | Patching::Checking(_) => refuse(store, above),
+                Upgrading::Closing { .. }
+                | Upgrading::Dropping(_)
+                | Upgrading::Copying(_)
+                | Upgrading::Mapping { .. }
+                | Upgrading::Recovering { .. }
+                | Upgrading::Sealing { .. }
+                | Upgrading::Jobs(_)
+                | Upgrading::Checking(_) => refuse(store, above),
             }
         }
         skein_kv::Event::Refused { .. }
@@ -318,17 +318,17 @@ pub(crate) fn ready(store: &Store) -> bool {
     if store.phase == Phase::Stopped {
         return false;
     }
-    match directory::patching(store) {
+    match directory::upgrading(store) {
         Some(phase) => match phase {
-            Patching::Jobs(running) => running.ready(),
-            Patching::Recovering { opened: 3 } | Patching::Sealing { number: 0, .. } => true,
-            Patching::Recovering { .. }
-            | Patching::Mapping { .. }
-            | Patching::Closing { .. }
-            | Patching::Dropping(_)
-            | Patching::Copying(_)
-            | Patching::Sealing { .. }
-            | Patching::Checking(_) => false,
+            Upgrading::Jobs(running) => running.ready(),
+            Upgrading::Recovering { opened: 3 } | Upgrading::Sealing { number: 0, .. } => true,
+            Upgrading::Recovering { .. }
+            | Upgrading::Mapping { .. }
+            | Upgrading::Closing { .. }
+            | Upgrading::Dropping(_)
+            | Upgrading::Copying(_)
+            | Upgrading::Sealing { .. }
+            | Upgrading::Checking(_) => false,
         },
         None => false,
     }
@@ -337,36 +337,36 @@ pub(crate) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Eve
     if store.phase == Phase::Stopped {
         return;
     }
-    if let Some(phase) = directory::patching(store) {
+    if let Some(phase) = directory::upgrading(store) {
         match *phase {
-            Patching::Recovering { opened: 3 } => opened_copy(store, env, above, below),
-            Patching::Jobs(_) => jobs::resume(store, env, above, below),
-            Patching::Sealing { number: 0, .. } => checking(store, above, below),
-            Patching::Recovering { .. }
-            | Patching::Mapping { .. }
-            | Patching::Closing { .. }
-            | Patching::Dropping(_)
-            | Patching::Copying(_)
-            | Patching::Sealing { .. }
-            | Patching::Checking(_) => {}
+            Upgrading::Recovering { opened: 3 } => opened_copy(store, env, above, below),
+            Upgrading::Jobs(_) => jobs::resume(store, env, above, below),
+            Upgrading::Sealing { number: 0, .. } => checking(store, above, below),
+            Upgrading::Recovering { .. }
+            | Upgrading::Mapping { .. }
+            | Upgrading::Closing { .. }
+            | Upgrading::Dropping(_)
+            | Upgrading::Copying(_)
+            | Upgrading::Sealing { .. }
+            | Upgrading::Checking(_) => {}
         }
     }
 }
 fn checking(store: &mut Store, above: &mut Queue<Event>, below: &mut Below) {
     let phase = take(store);
     let (before, counts) = match *phase {
-        Patching::Sealing { number: 0, before, counts } => (before, counts),
-        Patching::Closing { .. }
-        | Patching::Dropping(_)
-        | Patching::Copying(_)
-        | Patching::Mapping { .. }
-        | Patching::Recovering { .. }
-        | Patching::Jobs(_)
-        | Patching::Sealing { .. }
-        | Patching::Checking(_) => unreachable!("resume routed the durable seal"),
+        Upgrading::Sealing { number: 0, before, counts } => (before, counts),
+        Upgrading::Closing { .. }
+        | Upgrading::Dropping(_)
+        | Upgrading::Copying(_)
+        | Upgrading::Mapping { .. }
+        | Upgrading::Recovering { .. }
+        | Upgrading::Jobs(_)
+        | Upgrading::Sealing { .. }
+        | Upgrading::Checking(_) => unreachable!("resume routed the durable seal"),
     };
     match check::start(store, before, counts, below) {
-        Ok(checking) => state(store, Patching::Checking(Box::new(checking))),
+        Ok(checking) => state(store, Upgrading::Checking(Box::new(checking))),
         Err(why) => open::refuse(store, store.directory.owner, why, above),
     }
 }
@@ -380,23 +380,23 @@ fn file_up(
 ) {
     let phase = take(store);
     match *phase {
-        Patching::Closing { closed } => closed_directory(store, closed, arrived, secret, above, below),
-        Patching::Dropping(mut dropping) => match generations::dropped(&mut dropping, arrived, below) {
-            Progress::Pending => state(store, Patching::Dropping(dropping)),
+        Upgrading::Closing { closed } => closed_directory(store, closed, arrived, secret, above, below),
+        Upgrading::Dropping(mut dropping) => match generations::dropped(&mut dropping, arrived, below) {
+            Progress::Pending => state(store, Upgrading::Dropping(dropping)),
             Progress::Done => copying(store, above, below),
             Progress::Failed => refuse(store, above),
         },
-        Patching::Copying(mut copying) => match generations::copied(&mut copying, arrived, below) {
-            Progress::Pending => state(store, Patching::Copying(copying)),
+        Upgrading::Copying(mut copying) => match generations::copied(&mut copying, arrived, below) {
+            Progress::Pending => state(store, Upgrading::Copying(copying)),
             Progress::Done => open_copy(store, below),
             Progress::Failed => refuse(store, above),
         },
-        Patching::Mapping { secrets } => opened_directory(store, env, secrets, arrived, above, below),
-        Patching::Recovering { .. } | Patching::Jobs(_) | Patching::Sealing { .. } => {
+        Upgrading::Mapping { secrets } => opened_directory(store, env, secrets, arrived, above, below),
+        Upgrading::Recovering { .. } | Upgrading::Jobs(_) | Upgrading::Sealing { .. } => {
             refuse(store, above);
         }
-        Patching::Checking(mut checking) => match check::up(&mut checking, arrived, below) {
-            Ok(false) => state(store, Patching::Checking(checking)),
+        Upgrading::Checking(mut checking) => match check::up(&mut checking, arrived, below) {
+            Ok(false) => state(store, Upgrading::Checking(checking)),
             Ok(true) => {
                 let (before, counts) = checking.into_counts();
                 super::switch::open(store, before, counts, above, below);
@@ -420,7 +420,7 @@ fn closed_directory(
     if closed == 15 {
         dropping(store, above, below);
     } else {
-        state(store, Patching::Closing { closed });
+        state(store, Upgrading::Closing { closed });
     }
 }
 fn opened_directory(
@@ -437,7 +437,7 @@ fn opened_directory(
     let Root { token: file, fd } = opened_root;
     if secrets {
         store.directory.private_root = Some(Root { token: file, fd });
-        state(store, Patching::Recovering { opened: 0 });
+        state(store, Upgrading::Recovering { opened: 0 });
         let public = store.directory.store_root.expect("copy's store directory opened first");
         kv_down(store, env, false, skein_kv::Request::Open { owner: OWNER, root: public.fd }, above, below);
         if store.phase != Phase::Stopped {
@@ -451,6 +451,6 @@ fn opened_directory(
             root: root(store).token,
             path: generations::map(number, Map::Secrets),
         });
-        state(store, Patching::Mapping { secrets: true });
+        state(store, Upgrading::Mapping { secrets: true });
     }
 }

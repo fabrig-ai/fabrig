@@ -360,7 +360,7 @@ fn every_commit_cause_has_bounded_content_free_words_and_a_whole_stop_line() {
         ),
         (
             Store(CommitFailure::Check(CommitCheck::Switching)),
-            "the store's own check refused it: a patch switch is pending",
+            "the store's own check refused it: an upgrade's switch is pending",
         ),
         (
             Store(CommitFailure::Check(CommitCheck::Encoding)),

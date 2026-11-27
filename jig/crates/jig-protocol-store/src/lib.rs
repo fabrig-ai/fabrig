@@ -41,10 +41,10 @@ pub use jobs::{
     Converts, Job, JobAnswer, JobCount, JobLayout, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, KeyRange, Layouts,
 };
 mod open;
+mod owner_set;
 mod pages;
-mod patch_set;
 mod upgrade;
-pub use patch_set::{JIG_STORE_SET, STORE_FAMILIES};
+pub use owner_set::{JIG_STORE_SET, STORE_FAMILIES};
 mod owners;
 mod rehearsal;
 pub use owners::{SKEIN_SET, SMITH_SET};
@@ -233,22 +233,22 @@ pub fn seed(drivers: [&mut skein_io::file_layer::FileIo; 4], seed: u64) -> Seede
 impl Store {
     /// Rows at the binary's layouts while a job page is out (protocol/store/jobs.md, 3).
     /// Keys are whole for jig's jobs and relative to the application's tag for its jobs.
-    pub fn patch_page(
+    pub fn job_read(
         &mut self,
         range: skein_kv::Range,
         after: Option<&Cursor>,
         rows: u32,
-    ) -> Result<PatchPage, OpenRefusal> {
-        let directory::Opening::Patching(phase) = &self.directory.opening else { return Err(OpenRefusal::Failed) };
+    ) -> Result<JobRead, OpenRefusal> {
+        let directory::Opening::Upgrading(phase) = &self.directory.opening else { return Err(OpenRefusal::Failed) };
         let owner = match &**phase {
-            upgrade::phase::Patching::Jobs(running) => running.page_owner(),
-            upgrade::phase::Patching::Closing { .. }
-            | upgrade::phase::Patching::Dropping(_)
-            | upgrade::phase::Patching::Copying(_)
-            | upgrade::phase::Patching::Mapping { .. }
-            | upgrade::phase::Patching::Recovering { .. }
-            | upgrade::phase::Patching::Sealing { .. }
-            | upgrade::phase::Patching::Checking(_) => None,
+            upgrade::phase::Upgrading::Jobs(running) => running.page_owner(),
+            upgrade::phase::Upgrading::Closing { .. }
+            | upgrade::phase::Upgrading::Dropping(_)
+            | upgrade::phase::Upgrading::Copying(_)
+            | upgrade::phase::Upgrading::Mapping { .. }
+            | upgrade::phase::Upgrading::Recovering { .. }
+            | upgrade::phase::Upgrading::Sealing { .. }
+            | upgrade::phase::Upgrading::Checking(_) => None,
         };
         let owner = owner.ok_or(OpenRefusal::Failed)?;
         if rows == 0 || rows > self.limits.store.ops {
@@ -273,9 +273,9 @@ impl Store {
             } else {
                 row.row.key
             };
-            found.push(skein_kv::Row { key, value: row.row.value }).expect("bounded patch page");
+            found.push(skein_kv::Row { key, value: row.row.value }).expect("bounded job read");
         }
-        Ok(PatchPage { rows: found.into_boxed(), next: page.next })
+        Ok(JobRead { rows: found.into_boxed(), next: page.next })
     }
     /// A component over open stores; `models` are the configuration's, in its order.
     /// Its codec bounds come from the checked limits without deriving them again.
@@ -484,9 +484,9 @@ impl Store {
     }
 }
 
-/// A bounded page of stored inputs read while a job page is outstanding (protocol/store/opening-owners.md, 1).
+/// A bounded page of stored inputs read while a job page is outstanding (protocol/store/jobs.md, 3).
 #[derive(Debug)]
-pub struct PatchPage {
+pub struct JobRead {
     pub rows: Box<[skein_kv::Row]>,
     pub next: Option<Cursor>,
 }

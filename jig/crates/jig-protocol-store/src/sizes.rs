@@ -109,12 +109,12 @@ pub fn whole(bound: u32) -> Result<(), SizeRefusal> {
     Ok(())
 }
 
-/// Whether patch planning or patching owns the current step's retained state
+/// Whether upgrade planning or execution owns the current step's retained state
 /// (protocol/store/opening.md, 2, and protocol/store/README.md, 8). Observers sample both sides of a call
-/// so its entry and exit transitions are priced as patching too.
+/// so its entry and exit transitions are priced as part of the upgrade too.
 #[must_use]
-pub fn is_patching(store: &crate::Store) -> bool {
-    store.directory.patch.is_some() || crate::directory::patching(store).is_some()
+pub fn is_upgrading(store: &crate::Store) -> bool {
+    store.directory.upgrade_levels.is_some() || crate::directory::upgrading(store).is_some()
 }
 
 pub fn check_commits(

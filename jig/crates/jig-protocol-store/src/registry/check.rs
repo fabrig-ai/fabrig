@@ -157,7 +157,7 @@ pub(super) fn history_type(sets: &OwnerSets, family: &str, number: u16) -> bool 
     if frame_type(sets, family, number).is_some() {
         return true;
     }
-    for held in crate::patch_set::STORE_FAMILIES {
+    for held in crate::owner_set::STORE_FAMILIES {
         if held.name != family {
             continue;
         }

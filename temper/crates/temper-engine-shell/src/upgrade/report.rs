@@ -128,7 +128,7 @@ fn event_refusal(text: &mut String, binary: &str, event: &Event, mut passed: boo
         Event::BackRefused { why, .. } => {
             let words = match why {
                 BackRefusal::Committed { .. } => {
-                    "the patched generation is past its first commit; going back is restoring a backup"
+                    "the upgraded generation is past its first commit; going back is restoring a backup"
                 }
                 BackRefusal::NoPrevious => "no previous generation; restore a backup to go back",
                 BackRefusal::Busy => "a process holds the deployment; stop it before going back",
@@ -533,7 +533,7 @@ mod tests {
         }
     }
     #[test]
-    fn report_words_cover_back_and_patched_starts() {
+    fn report_words_cover_back_and_upgraded_starts() {
         let dirs = Directories {
             config: b"/config".as_slice().into(),
             data: b"/data".as_slice().into(),

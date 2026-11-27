@@ -63,7 +63,7 @@ pub const VERSIONS: Command = Command {
     reach: Reach::Words(&["versions"]),
     set: Set::Public,
     forms: &[""],
-    line: "Print this binary's patch levels, its store's and families' versions, and its wires, one line each.",
+    line: "Print this binary's levels, its store's and families' versions, and its wires, one line each.",
     arguments: &[],
     settings: &[],
     switches: &[],
@@ -97,9 +97,9 @@ pub const UPGRADE_WORKERS: Command = Command {
 pub const UPGRADE_BACK: Command = Command {
     reach: Reach::Words(&["upgrade", "--back"]),
     forms: &["[DIRECTORIES]"],
-    line: "Makes the previous generation active again, before the patched one's first commit.",
+    line: "Makes the previous generation active again, before the upgraded one's first commit.",
     arguments: &[DIRECTORIES],
-    notes: "Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.",
+    notes: "Stop the deployment first, then start the old binary after going back. Past the upgraded generation's first commit, going back is restoring a backup.",
     ..UPGRADE_CHECK
 };
 
