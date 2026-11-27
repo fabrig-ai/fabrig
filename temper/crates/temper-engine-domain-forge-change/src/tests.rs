@@ -11,10 +11,10 @@ use alloc::boxed::Box;
 use skein_lib::{Duration, Wall};
 
 const HEAD: [u8; 32] = [1; 32];
-const BASE: [u8; 32] = [2; 32];
+pub(super) const BASE: [u8; 32] = [2; 32];
 const NEW: [u8; 32] = [3; 32];
 const MERGE: [u8; 32] = [4; 32];
-const LIMITS: Limits = Limits {
+pub(super) const LIMITS: Limits = Limits {
     reruns: 1,
     repairs: 2,
     resolutions: 2,
@@ -27,10 +27,10 @@ const LIMITS: Limits = Limits {
     gates: 4,
     clean_heads: 4,
 };
-fn at(seconds: u64) -> Wall {
+pub(super) fn at(seconds: u64) -> Wall {
     Wall::from_nanos(seconds.saturating_mul(1_000_000_000))
 }
-fn change(state: State) -> Change {
+pub(super) fn change(state: State) -> Change {
     Change {
         ended_held: None,
         early: Early::None,
@@ -64,7 +64,7 @@ fn released(change: &Change, now: Wall) -> Change {
         .change
 }
 
-fn facts() -> Facts {
+pub(super) fn facts() -> Facts {
     Facts {
         release_blocked: false,
         produced_nothing: None,
@@ -118,7 +118,7 @@ fn facts() -> Facts {
         wait: crate::Wait::Cleared,
     }
 }
-fn heard() -> Heard {
+pub(super) fn heard() -> Heard {
     Heard {
         review_request: None,
         closer_waiting: false,

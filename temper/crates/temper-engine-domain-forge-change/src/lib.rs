@@ -16,6 +16,8 @@ extern crate alloc;
 mod boundary;
 mod clock;
 mod domain;
+#[cfg(test)]
+mod fuzzy;
 mod passing;
 mod queue;
 mod relay;
