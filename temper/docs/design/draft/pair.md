@@ -1,6 +1,6 @@
 # Pair: one agent in its own copy
 
-Draft, 2026-11-27, from sessions with the user on 2026-11-26 and 2026-11-27. The try's draft sketched a person working "quite like a coding agent", with one agent that "has its own repo checkout/workspace and works directly in it", and "Land this" as the person's act (its section 4.8, on branch draft/trying-temper), leaving the build to "a draft of its own", this one. On 2026-11-26 the user and the terminal's designer, drawing Pair's frames, worked out how "Land this" works underneath, the flow this draft takes, the user's "preferred flow, no extra turn needed for /land". On 2026-11-27 the user: a pair lands its own edits alone; one change at a time; "basically it should be like a 'connected implementer'"; "'pair' might just be a name we give to a way, not the mechanism itself, which is generic"; and "'land this' is entirely mechanical": "when he thinks he's done he calls 'deliver'", which prepares "the changes themselves, the metadata", the client offers it, "accepting the proposal triggers a mechanical 'finish'", and "the agent is not given the tools to land, so there's nothing to refuse"; the duplicate checks between them "tbd". A first version, reviewed once, made the pair the change's producer; this one keeps the review's concerns and follows the flow. A second review, on the user's word (2026-11-27), found what code must hold: the agent's write bound, the offer it names, the open change's repairs, the copy's move, funds and upgrades. The idle bound of three days is the user's (2026-11-27).
+Draft, 2026-11-27, from sessions with the user on 2026-11-26 and 2026-11-27. The try's draft sketched a person working "quite like a coding agent", with one agent that "has its own repo checkout/workspace and works directly in it", and "Land this" as the person's act (its section 4.8, on branch draft/trying-temper), leaving the build to "a draft of its own", this one. On 2026-11-26 the user and the terminal's designer, drawing Pair's frames, worked out how "Land this" works underneath, the flow this draft takes, the user's "preferred flow, no extra turn needed for /land". On 2026-11-27 the user: a pair lands its own edits alone; one change at a time; "basically it should be like a 'connected implementer'"; "'pair' might just be a name we give to a way, not the mechanism itself, which is generic"; and "'land this' is entirely mechanical": "when he thinks he's done he calls 'deliver'", which prepares "the changes themselves, the metadata", the client offers it, "accepting the proposal triggers a mechanical 'finish'", and "the agent is not given the tools to land, so there's nothing to refuse"; the duplicate checks between them "tbd". A first version, reviewed once, made the pair the change's producer; this one keeps the review's concerns and follows the flow. A second review, on the user's word (2026-11-27), found what code must hold: the agent's write bound, the offer it names, the open change's repairs, the copy's move, funds and upgrades. The idle bound of three days and the cap of 16 live pairs are the user's (2026-11-27), and so is a pair's `shell` following the implementer's.
 
 ## 1. In one page
 
@@ -17,7 +17,7 @@ Draft, 2026-11-27, from sessions with the user on 2026-11-26 and 2026-11-27. The
 
 - **A chat converses and only inspects:** an Open run whose text replies wait and park; its charter grants no `modify` and no `shell` (`../domain/agent/tools.md`). Open requires `wait` and forbids `deliver` (smith's `domain/run.md`, section 1). jig derives a run's mode from how its task ends: a requester-ended task's run is Open, a closer-ended one's Finite.
 - **A goal's run delivers to its own branch and goes on:** a Finite run, "Delivering isn't finishing": its `finish` offers a report or a failure, never a change (`../domain/agent/tools.md`). A design delivery carries Markdown alone; code goes through a change. A Finite run's text reply ends its turn unfinished.
-- **`deliver` checks, then the host commits and pushes;** `save` pushes unchecked and is granted only with `deliver`; a push with nothing new returns nothing, and a stale one ends the run (smith's `domain/run-delivery.md`, 1.2 and 1.5). The stock implementer holds no `shell`.
+- **`deliver` checks, then the host commits and pushes;** `save` pushes unchecked and is granted only with `deliver`; a push with nothing new returns nothing, and a stale one ends the run (smith's `domain/run-delivery.md`, 1.2 and 1.5). The stock implementer holds no `shell`; a deployment's charter settings may grant it, as dev.fabrig.ai's do for its implementers and coordinators.
 - **A person opens a change from a pushed branch** with `OpenChange`, a title and a body, the person its requester: the change takes the source's head, or the `at` named, failing where the head is another commit, onto a branch of its own; its repairs are temper's, automatic, and a later push to the source doesn't reach it (`../domain/forge/change/opened.md`).
 - **A task holding a branch is tracked and ended by its closer** (`ways-recipes.md`, section 2, Derived).
 - **Away** is each person's switch for which decisions wait for them; it pauses no task (`../domain/forge/attention.md`, section 4).
@@ -42,7 +42,7 @@ Draft, 2026-11-27, from sessions with the user on 2026-11-26 and 2026-11-27. The
 
 ### 3.3 Its tools, and their bound
 
-- **An implementer's, no wider:** `inspect` and `modify` in its copy, its program tools, `deliver`, and `finish` with a report. No `shell` until the worker's file and network confinement has landed (the confinement draft, `confinement.md`, sections 5.3 and 5.4); until then a pair runs what an implementer runs, through its program tools and hooks.
+- **An implementer's, no wider:** `inspect` and `modify` in its copy, its program tools, `deliver`, and `finish` with a report; and `shell` where the deployment grants its implementers `shell`, the `pair` charter's settings following the implementer's: off in the stock, on where a deployment turns it on. A pair holds nothing an implementer doesn't, and the worker's confinement, as it lands (`confinement.md`, sections 5.3 and 5.4), bounds both alike.
 - **The host pushes only to the pair's copy and offer;** the agent holds no forge credential, as an implementer holds none today (`../domain/forge/writes.md`, section 2).
 - **Nothing it holds starts work:** no `change`, `goal` or proposal tool. Admission refuses any change, landing or task a pair's run asks for, through a tool, a batch, a proposal or an amendment, under its charter or a project's own; "Land this" is the person's (3.5).
 - **Its sub-agents inspect only:** a review in place, when the person asks for one, is a sub-agent granted `inspect` alone, on a model the charter lists; smith's sub-agent may not take its parent's `modify` (smith's `domain/run.md`, 5.3).
@@ -84,7 +84,7 @@ The person accepts an offer by its number (in the terminal, `temper ctl task lan
 - **No worker held between turns,** and no writer lease: between turns nothing is live, as for any parked run.
 - **Its funds:** the pair's own budget, capped and cumulative, pays its turns; each change it opens is funded apart, by the person at "Land this" (3.5). A repair spends its change's funds; a top-up is the person's act.
 - **Idle three days** (the user, 2026-11-27), the project's setting: past it the pair asks its person once to keep it or close it, and nothing closes by itself.
-- **Live pairs** are capped per person, the project's setting, four unless set; a start past it is refused, naming the open ones.
+- **Live pairs** are capped per person, the project's setting, 16 unless set (the user, 2026-11-27); a start past it is refused, naming the open ones. A live pair costs its two refs and its reserved funds, and no worker between turns.
 - **Closing** ends its run, deletes its copy and offer refs, and releases its funds; a change it opened stays open, its person's.
 
 ## 4. As a way
@@ -127,7 +127,6 @@ landing = { ci = true, up_to_date = true }
 
 ## 6. Later
 
-- **`shell` for a pair,** once the worker's confinement has landed (3.3).
 - **Handing over from a pair** to another way (the user, 2026-11-26: later, with moves between ways).
 - **One pair, one change,** closed at landing, as a way of its own, if wanted.
 - **The pages and the terminal's look:** the frames both clients drew on 2026-11-26, "Land this?", the diff, the states (the UX pass's).
