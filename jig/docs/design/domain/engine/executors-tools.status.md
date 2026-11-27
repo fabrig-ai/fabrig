@@ -22,7 +22,3 @@
   root holds, can come from another project's entry; temper says only
   whether more wait. No test pages a filtered inbox.
 
-- **Not yet:** 1, *Held by one route, handed on by it*: the route is
-  public, jig-domain-core's `PendingCall` in the public map
-  `Core::pending_calls`, which the application reads for whether a call
-  is pending. [in flight: change 21251]
