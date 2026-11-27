@@ -83,7 +83,7 @@ Once dev.fabrig.ai, its engine and its workers' agents run a build that reads ho
 
 - **temper stops reading the old ones.** It no longer reads `.temper/pre-pr`, `merge_job`, `close_job` or `check_timeout_ms`, which `config.toml` replaces (3.4): a stored one reads as none (`../protocol/wires.md`), and `temper ctl` refuses either by name. Section 4's rule goes with them: every repository runs hooks alone, and one without `.temper/hooks/` has none.
 - **fabrig's wrappers go:** `.temper/pre-pr`, `merge`, `close` and `checked-close`.
-- **`goal-pre-pr` and `goal-child-pre-pr` leave `.temper/` for `tools/pre-pr/`,** so that `.temper/` holds only what temper runs. Whatever calls them from outside the repository, CI's runner wrapper among them, moves to the new path first, a step of ops' by hand. The gate's scope (`.forgejo/scripts/gate_scope.py`), pre-PR's own list of hooks and their tests follow.
+- **`goal-pre-pr` and `goal-child-pre-pr` aren't this draft's:** nothing calls them any more, and a goal of their own removes them, with their workflows and pre-PR's `--goal` and `--child` modes (the user, 2026-11-27). So `.temper/` holds only what temper runs.
 
 ## 6. fabrig and dev.fabrig.ai
 
@@ -94,7 +94,7 @@ Once dev.fabrig.ai, its engine and its workers' agents run a build that reads ho
   - `pre-pr`, `merge`, `close` and `checked-close` stay as wrappers (section 4).
   - The reference profile (`../protocol/configuration/reference.md`) names neither `merge_job` nor `close_job`.
   - The gate's scope and pre-PR's list of hooks take in the hooks' paths, beside the old ones.
-- **dev.fabrig.ai:** nothing by hand for the first increment. Its project's `merge_job` and `close_job` keep naming the old paths, which an older build runs and a build that reads hooks ignores. The second increment drops them as it reads them (section 5). Before it, ops moves CI's runner wrapper to `goal-pre-pr`'s new path.
+- **dev.fabrig.ai:** nothing by hand for the first increment. Its project's `merge_job` and `close_job` keep naming the old paths, which an older build runs and a build that reads hooks ignores. The second increment drops them as it reads them (section 5).
 
 ## 7. Later
 
