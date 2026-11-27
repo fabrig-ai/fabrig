@@ -14,6 +14,10 @@ browser-temper = [
     "temper-client-browser-world",
 ]
 
+campaign-jig = [
+    "jig-core-world",
+]
+
 campaign-temper = [
     "temper-engine-domain-world",
 ]
@@ -131,6 +135,7 @@ browser-temper = [
     { package = "temper-box", bin = "temper-box" },
     { package = "temper-playground-serve", bin = "temper-playground-serve" },
 ]
+campaign-jig = []
 campaign-temper = []
 conformance-hearth = []
 live-jig = []
