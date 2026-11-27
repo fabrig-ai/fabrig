@@ -67,6 +67,7 @@ impl Files {
             file::Request::OpenReadNoFollow { owner, root, name } => {
                 self.open(owner, root, &name, How::ReadNoFollow, &mut descriptor)
             }
+            file::Request::OpenSiblingFile { .. } => unreachable!("store tests do not probe hooks"),
             file::Request::OpenWrite { owner, root, name } => {
                 self.open(owner, root, &name, How::Write, &mut descriptor)
             }

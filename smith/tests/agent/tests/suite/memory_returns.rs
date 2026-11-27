@@ -32,6 +32,7 @@ fn limits() -> Limits {
 
 fn read(input_tokens: u64) -> Completion {
     Completion {
+        served: smith_domain::llm::ServedSpeed::Unreported,
         reasoning_dropped: Box::new([]),
         content: Box::new([
             Said::Text { text: vec![b'a'; 1024].into_boxed_slice(), replay: None },
@@ -81,6 +82,7 @@ fn fill_window(memory: &mut Memory) {
 
 fn summary() -> Completion {
     Completion {
+        served: smith_domain::llm::ServedSpeed::Unreported,
         reasoning_dropped: Box::new([]),
         content: Box::new([Said::Text { text: vec![b's'; 64].into_boxed_slice(), replay: None }]),
         stop: Stop::EndTurn,
@@ -106,6 +108,7 @@ fn a_compaction_releases_the_compacted_historys_bytes() {
 
 fn tool(call: Decoded, name: &[u8]) -> Completion {
     Completion {
+        served: smith_domain::llm::ServedSpeed::Unreported,
         reasoning_dropped: Box::new([]),
         content: Box::new([Said::ToolCall {
             id: b"c".as_slice().into(),
@@ -191,6 +194,7 @@ fn open_and_close_child(memory: &mut Memory) {
     memory.answer(
         owner,
         Completion {
+            served: smith_domain::llm::ServedSpeed::Unreported,
             reasoning_dropped: Box::new([]),
             content: Box::new([Said::Text { text: vec![b'c'; 1024].into_boxed_slice(), replay: None }]),
             stop: Stop::EndTurn,

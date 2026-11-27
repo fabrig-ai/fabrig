@@ -2,6 +2,30 @@
 use super::{Body, How, Machine, Opened, READ, Refusal, UMASK, WRITE, fail};
 use alloc::vec::Vec;
 impl Machine {
+    pub(crate) fn open_sibling_file(&mut self, directory: Opened, name: &[u8]) -> Result<Opened, Refusal> {
+        let root = self.handle(directory).node;
+        let source = self.resolve_path(root, name, false, true, true)?.node.ok_or(Refusal::NotFound)?;
+        let target = match &self.node_state(source).body {
+            Body::Link(target) => {
+                if target.len() > skein_io::kernel::LONGEST_NAME || !skein_io::kernel::is_name(target) {
+                    return Err(Refusal::Loop);
+                }
+                let sibling = self
+                    .resolve_path(root, target, false, true, true)
+                    .map_err(|_| Refusal::Loop)?
+                    .node
+                    .ok_or(Refusal::Loop)?;
+                match self.node_state(sibling).body {
+                    Body::File(_) => {}
+                    Body::Link(_) | Body::Directory { .. } | Body::Special(_) => return Err(Refusal::Loop),
+                }
+                Some(target.clone())
+            }
+            Body::File(_) | Body::Directory { .. } | Body::Special(_) => None,
+        };
+        self.open(directory, target.as_deref().unwrap_or(name), How::PathNoFollow)
+    }
+
     /// Opens `path`, resolved beneath the directory `root` has open, as
     /// `how` says.
     pub fn open(&mut self, root: Opened, path: &[u8], how: How) -> Result<Opened, Refusal> {

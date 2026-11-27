@@ -27,7 +27,7 @@ impl Finish {
             smith::RunResult::Parked => Self::Parked,
             smith::RunResult::Failed { failure } => Self::Failed(crate::translate::failure(failure)),
             smith::RunResult::Refused { refusal } => match refusal {
-                smith::Refusal::Invalid(why) => Self::Refused(crate::translate::start_cause(*why)),
+                smith::Refusal::Invalid(why) => Self::Refused(crate::translate::start_cause(why)),
                 smith::Refusal::Busy => Self::Busy,
             },
         }

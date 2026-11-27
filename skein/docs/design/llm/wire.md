@@ -182,14 +182,15 @@ refuses the configuration and names the relationship:
   arguments (under the input limit) and encrypted reasoning (under the
   reasoning limit), and an unknown item whole, as opaque replay under the
   reasoning limit; of `response`, its status, the known usage fields,
-  error and incomplete details. It never keeps `response.output`,
+  its `service_tier`, error and incomplete details. It never keeps `response.output`,
   `instructions`, `tools` or per-item usage attribution, which echo what
   it already has or does not read.
 - **Of an error,** each dialect keeps its type, code, message, the field
   it names (`param`) and the reset it gives, and of the response head
   the route's request id and limit fields; the report (`vocabulary.md`, section 1.5) is
   copied from them.
-- **Anthropic keeps** each event type's known fields; a thinking block
+- **Anthropic keeps** each event type's known fields, its usage's
+  `speed` among them; a thinking block
   whole, its extension fields included, under the reasoning limit, so
   that its replay is exact; tool input under the input limit; and an
   unknown native block whole. Its events are told apart by their SSE
@@ -292,6 +293,15 @@ ordering, delta types, cumulative usage patches and completion at `message_stop`
   at every effort. A caller whose model declares efforts always sends
   one, since a model's own default may sit below the caller's: Opus 5.5's
   is `medium`.
+- **Speed.** A prompt's speed (`vocabulary.md`, 1.3) sends `speed:
+  NAME`; a prompt with none sends nothing, the provider's standard
+  speed. No beta flag goes with it: a model whose faster speed needs
+  one names it in the endpoint's headers, as it names any other.
+  `usage.speed`, in `message_start`'s usage or a later `message_delta`'s,
+  is the completion's served speed, the last one reported, as a
+  cumulative patch replaces a usage field. A refusal of the speed, a
+  429 or a 529 past the provider's own limit for it, fails as its type
+  says (below): nothing is sent again at another speed.
 - **No sampling settings.** No request carries `temperature`, `top_p` or
   `top_k`: a prompt has none to give, and current Claude models refuse
   them beside thinking. With tool choice's (above), never `any` or a
@@ -372,6 +382,14 @@ bounds still hold.
   for it; `output_tokens` is output;
   `output_tokens_details.reasoning_tokens` is reasoning. A field absent
   from the wire is `None`.
+- **Service tier.** A prompt's speed (`vocabulary.md`, 1.3) sends
+  `service_tier: NAME`; a prompt with none sends nothing, which takes
+  the project's own default, Fast where the project says so. So a caller
+  that must hold a model at the standard speed sends `default`. Both
+  writers render it: the client's, from the prompt, and the owned
+  request's (`openai::Request`), whose decoder reads it back. The
+  `service_tier` of `response.completed` or `response.incomplete` is the
+  completion's served speed.
 - **Cut calls.** A response that ends incomplete for its output limit
   with a function call unfinished delivers that call as `Block::Cut`.
 - **Reasoning past its limit** is a `Limit` failure naming the reasoning

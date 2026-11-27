@@ -60,7 +60,7 @@ pub(super) fn run(
     }
 }
 
-pub(super) fn refused(text: &mut Shown, why: host::Refusal) {
+pub(super) fn refused(text: &mut Shown, why: &host::Refusal) {
     append(text, b"run refused: ");
     append(text, &words(&refusal(why), None, None));
 }
@@ -210,14 +210,14 @@ fn failure(class: AnswerClass, which: Option<&[u8]>) -> AnswerFailure {
     result
 }
 
-fn refusal(refusal: host::Refusal) -> AnswerFailure {
+fn refusal(refusal: &host::Refusal) -> AnswerFailure {
     match refusal {
         host::Refusal::Busy => failure(AnswerClass::Busy, None),
         host::Refusal::Invalid(invalid) => failure(AnswerClass::Invalid, Some(invalid_name(invalid))),
     }
 }
 
-fn invalid_name(invalid: host::RunInvalid) -> &'static [u8] {
+fn invalid_name(invalid: &host::RunInvalid) -> &'static [u8] {
     match invalid {
         host::RunInvalid::HostPart { .. } => b"host_part",
         host::RunInvalid::Room { .. } => b"room",
@@ -244,7 +244,7 @@ fn invalid_name(invalid: host::RunInvalid) -> &'static [u8] {
             | host::BudgetRefusal::Completion { .. } => b"budget",
         },
         host::RunInvalid::Price(_) => b"price",
-        host::RunInvalid::Llm => b"llm",
+        host::RunInvalid::Llm | host::RunInvalid::ProgramSpeed { .. } => b"llm",
         host::RunInvalid::Effort => b"effort",
         host::RunInvalid::Conversation => b"conversation",
     }

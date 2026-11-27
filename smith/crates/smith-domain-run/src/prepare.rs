@@ -4,19 +4,18 @@
 //!
 //! - For each directory, the start of its selected guide, which the system text
 //!   carries after the brief.
-//! - For each writable directory, whether its selected relative check path
-//!   names an executable. No executable, no checks.
+//! - For each writable directory, its two hooks where the selected hooks directory
+//!   exists, or whether the legacy check path names an executable.
 //!
 //! One operation at a time, in the workspace's order, each with its deadline.
-//! A file that is missing, that is not text, or that io fails to read, is
-//! simply not there.
+//! An unreadable guide or legacy check is absent; an unreadable hook is broken.
 
 use alloc::boxed::Box;
 
 use skein_lib::bytes::copy_of;
 use skein_lib::{List, Time, Token};
 
-use crate::boundary::{Place, Read, Request};
+use crate::boundary::{Hook, Hooks, Place, Read, Request};
 use crate::charter::{Charter, count};
 use crate::conventions;
 use crate::limits::Limits;
@@ -33,6 +32,7 @@ pub(crate) struct Step {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) enum Look {
     Guide,
+    Hooks,
     Checks,
 }
 
@@ -43,7 +43,20 @@ pub(crate) struct Found {
     pub(crate) guides: List<Guide>,
     /// The repositories that have checks, by their place in the workspace, in
     /// its order.
-    pub(crate) checks: List<u32>,
+    pub(crate) checks: List<Check>,
+}
+
+/// Checks found in one writable directory.
+#[derive(Debug)]
+pub(crate) struct Check {
+    pub(crate) directory: u32,
+    pub(crate) kind: Kind,
+}
+
+#[derive(Debug)]
+pub(crate) enum Kind {
+    Legacy,
+    Hooks(Hooks),
 }
 
 /// The start of a directory's selected guide.
@@ -65,19 +78,16 @@ impl Found {
 
 /// The first step, or the step after `after`, or `None` once there is
 /// nothing left to look for.
-pub(crate) fn next(mounted: Option<&Workspace>, after: Option<Step>) -> Option<Step> {
+pub(crate) fn next(charter: &Charter, mounted: Option<&Workspace>, after: Option<Step>) -> Option<Step> {
     let repositories = count(workspace::directories(mounted).len());
-    let candidate = match after {
+    let step = match after {
         None => Step { directory: 0, look: Look::Guide },
-        Some(Step { directory, look: Look::Guide }) => Step { directory, look: Look::Checks },
-        Some(Step { directory, look: Look::Checks }) => {
+        Some(Step { directory, look: Look::Guide }) if wants_checks(mounted, directory) => {
+            Step { directory, look: if conventions::hooks(charter).is_some() { Look::Hooks } else { Look::Checks } }
+        }
+        Some(Step { directory, look: Look::Guide | Look::Hooks | Look::Checks }) => {
             Step { directory: directory.saturating_add(1), look: Look::Guide }
         }
-    };
-    let step = match candidate.look {
-        Look::Guide => candidate,
-        Look::Checks if wants_checks(mounted, candidate.directory) => candidate,
-        Look::Checks => Step { directory: candidate.directory.saturating_add(1), look: Look::Guide },
     };
     (step.directory < repositories).then_some(step)
 }
@@ -98,6 +108,10 @@ pub(crate) fn request(
         Look::Guide => {
             let at = Place { root, path: copy_of(conventions::guide(charter)) };
             Request::Read { owner, at, max: guide_bytes, deadline }
+        }
+        Look::Hooks => {
+            let at = Place { root, path: copy_of(conventions::hooks(charter).expect("hooks directory selected")) };
+            Request::ProbeHooks { owner, at, deadline }
         }
         Look::Checks => {
             Request::Probe { owner, at: Place { root, path: copy_of(conventions::checks(charter)) }, deadline }
@@ -122,7 +136,21 @@ pub(crate) fn guide(found: &mut Found, step: Step, read: Read, guide_bytes: u32)
 pub(crate) fn checks(found: &mut Found, step: Step, executable: bool) {
     assert!(step.look == Look::Checks, "a probe answers a checks' step");
     if executable {
-        found.checks.push(step.directory).expect("room for checks per directory");
+        found
+            .checks
+            .push(Check { directory: step.directory, kind: Kind::Legacy })
+            .expect("room for checks per directory");
+    }
+}
+
+/// Keeps the per-moment checks found, including broken hooks.
+pub(crate) fn hooks(found: &mut Found, step: Step, hooks: Hooks) {
+    assert!(step.look == Look::Hooks, "a hooks probe answers a hooks step");
+    if hooks.deliver != Hook::Missing || hooks.finish != Hook::Missing {
+        found
+            .checks
+            .push(Check { directory: step.directory, kind: Kind::Hooks(hooks) })
+            .expect("room for checks per directory");
     }
 }
 

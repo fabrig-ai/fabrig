@@ -575,6 +575,12 @@ fn wire_error(problem: jig_client_protocol_wire::Problem, limits: &jig_client_pr
             bound(b"setting_model_effort_some", limits.setting_model_effort_some)
         }
         path if path == paths::SETTING_MODEL_EFFORTS => bound(b"setting_model_efforts", limits.setting_model_efforts),
+        path if path == paths::SETTING_MODEL_SPEED => {
+            bound(b"setting_model_speed_some", limits.setting_model_speed_some)
+        }
+        path if path == paths::SETTING_MODEL_SPEEDS => bound(b"setting_model_speeds", limits.setting_model_speeds),
+        path if path == paths::SETTING_SPEED_NAME => bound(b"setting_speed_name", limits.setting_speed_name),
+        path if path == paths::SETTING_SPEED_ALSO => bound(b"setting_speed_also", limits.setting_speed_also),
         path if path == paths::SETTING_MODEL_NAME => bound(b"setting_model_name", limits.setting_model_name),
         path if path == paths::SETTING_MODEL_PROGRAM => {
             bound(b"setting_model_program_some", limits.setting_model_program_some)

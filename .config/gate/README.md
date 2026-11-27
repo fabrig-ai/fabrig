@@ -207,16 +207,20 @@ Each list has one entry per line; `#` starts a comment line.
 
 ## The repository's hooks and fixture readers
 
-- **`.temper/pre-pr`** checks the delivery in the worker workspace using the
-  changed packages, their immediate consumers and named integration targets.
+- **`.temper/hooks/deliver`** checks the delivery in the worker workspace using
+  the changed packages, their immediate consumers and named integration
+  targets. `.temper/hooks/finish` links to `deliver`.
   A checker-only Gate runs the checker's Python suite. Explicit diagnostic
   dispatch can check an accumulated goal using `.temper/goal-pre-pr HEAD DESTINATION`
   (`tools/pre-pr/design.md`, 1).
 
-- **`.temper/merge`:** the reference's merge job, `tools/merge/merge.py`
+- **`.temper/hooks/merge`:** the reference's merge job, `tools/merge/merge.py`
   (`temper/docs/design/protocol/tooling.md`, 4.1).
-- **`.temper/close`:** fabrig's close command, `tools/close/close.py`
+- **`.temper/hooks/close`:** fabrig's close command, which settles status with
+  `tools/close/close.py` and then checks the goal
   (`temper/docs/design/protocol/tooling.md`, 4.2).
+- **Compatibility wrappers:** `.temper/pre-pr` runs `deliver`, `.temper/merge`
+  runs `merge`, and `.temper/close` and `.temper/checked-close` run `close`.
 - **`.config/fixture-readers.toml`:** the readers and generators of every tracked
   `**/fixtures/**` file (`tools/tiers/design.md`, 9;
   `skein/docs/foundation/testing-strategy.md`, 8).

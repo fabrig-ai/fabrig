@@ -176,13 +176,19 @@ and the state as it is now (jig's `domain/tasks/lifecycle.md`, 7).
 
 ## 4. Conventions
 
-Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
+Guides at `AGENTS.md`; checks at `.temper/hooks/deliver` and
+`.temper/hooks/finish`, a check for each moment, and at `.temper/pre-pr`
+for both in a directory with no `.temper/hooks/`: the conventions name
+`.temper/hooks` as their hooks directory and `.temper/pre-pr` as their
+checks (`../../protocol/hooks.md`, 4.1 and 5; smith's
 `domain/run-start.md`, 1.1, and `domain/run-delivery.md`, 1.1).
 
 - **What a delivery checks** is its project's: the host runs the
-  repository's `.temper/pre-pr` on the run's warm checkout before anything
-  is pushed, at each `deliver` and at a `finish` that delivers, and a
-  failing check refuses the delivery, its output's tail the run's feedback.
+  repository's hook for the moment on the run's warm checkout before
+  anything is pushed, `.temper/hooks/deliver` at each `deliver` and
+  `.temper/hooks/finish` at a `finish` that delivers, or `.temper/pre-pr`
+  at both in a repository with no `.temper/hooks/`, and a failing check
+  refuses the delivery, its output's tail the run's feedback.
   A `save` runs none, and is marked unchecked (`tools.md`; `README.md`, section 5).
   The worker pins the landing branch's tip in each change producer's
   checkout as `refs/temper/landing`, and the head a repair's or a

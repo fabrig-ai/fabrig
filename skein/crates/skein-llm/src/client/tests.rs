@@ -47,6 +47,7 @@ fn call() -> Call {
                 content: Box::new([Block::Text { text: bytes::copy_of(b"hi"), replay: None }]),
             }]),
             reasoning_effort: None,
+            speed: None,
             affinity: None,
             max_output_tokens: None,
         },
@@ -757,5 +758,54 @@ fn a_prepared_call_keeps_its_rendered_body_only_when_asked() {
                 assert!(kept.is_none());
             }
         }
+    }
+}
+
+#[test]
+fn responses_speed_uses_the_same_measured_bytes_in_both_writers() {
+    let bounds = limits();
+    let native = bounds.native();
+    let provider = Provider::OpenAi;
+    assert_eq!(provider.standard_speed(), b"default");
+    for (speed, member) in [
+        (None, ""),
+        (Some(b"ultrafast".as_slice()), r#""service_tier":"ultrafast""#),
+        (Some(provider.standard_speed()), r#""service_tier":"default""#),
+    ] {
+        let mut input = provider_call(provider);
+        input.prompt.speed = speed.map(bytes::copy_of);
+        let owned = translate::request(&input.prompt, provider, &native).unwrap();
+        let checked = measure_request(input, &bounds, false).unwrap();
+        let prepared = Client::prepare_measured(checked).unwrap();
+        let Upload::Sending { body, .. } = &prepared.upload else { panic!("prepared body") };
+        let text = core::str::from_utf8(body).unwrap();
+        if member.is_empty() {
+            assert!(!text.contains("service_tier"), "{text}");
+        } else {
+            assert!(text.contains(member), "{text}");
+        }
+        assert_eq!(usize::try_from(prepared.measured().body).unwrap(), body.len());
+        assert_eq!(&openai::encode_request(&owned, &native).unwrap(), body);
+        assert_eq!(openai::measure_request(&owned, &native).unwrap(), prepared.measured().body);
+        let json = crate::Json::from_bytes(body, &native.request_document()).unwrap();
+        assert_eq!(openai::decode_request(&json, &native).unwrap().service_tier.as_deref(), speed);
+    }
+}
+
+#[test]
+fn speed_admission_has_a_typed_refusal_and_an_inclusive_name_bound() {
+    let maximum = b"abcdefghijklmnopqrstuvwxyz12-_34";
+    let past_maximum = b"abcdefghijklmnopqrstuvwxyz12-_345";
+    assert_eq!(maximum.len(), 32);
+    assert_eq!(past_maximum.len(), 33);
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
+        for name in [b"".as_slice(), past_maximum, b"tier:fast", b"Fast"] {
+            let mut input = provider_call(provider);
+            input.prompt.speed = Some(bytes::copy_of(name));
+            assert_eq!(measure_request(input, &limits(), false).err(), Some(Error::Invalid { cause: Invalid::Speed }));
+        }
+        let mut input = provider_call(provider);
+        input.prompt.speed = Some(bytes::copy_of(maximum));
+        assert!(Client::prepare(input, &limits()).is_ok(), "{provider:?}");
     }
 }

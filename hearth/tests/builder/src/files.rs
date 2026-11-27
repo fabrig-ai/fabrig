@@ -83,6 +83,7 @@ impl Files {
             | Request::CreateNoFollow { owner, .. }
             | Request::OpenRead { owner, .. }
             | Request::OpenReadNoFollow { owner, .. }
+            | Request::OpenSiblingFile { owner, .. }
             | Request::OpenWrite { owner, .. }
             | Request::OpenWriteNoFollow { owner, .. }
             | Request::OpenDirectory { owner, .. }
@@ -117,6 +118,7 @@ impl Files {
                     | Request::Scan { .. }
                     | Request::CreateNoFollow { .. }
                     | Request::OpenRead { .. }
+                    | Request::OpenSiblingFile { .. }
                     | Request::OpenWrite { .. }
                     | Request::OpenWriteNoFollow { .. }
                     | Request::Stat { .. }
@@ -203,6 +205,7 @@ impl Files {
             | Request::Scan { .. }
             | Request::CreateNoFollow { .. }
             | Request::OpenRead { .. }
+            | Request::OpenSiblingFile { .. }
             | Request::OpenWrite { .. }
             | Request::OpenWriteNoFollow { .. }
             | Request::Stat { .. }

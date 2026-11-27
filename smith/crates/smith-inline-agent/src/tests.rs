@@ -389,6 +389,7 @@ fn pending_counts_separate_root_content_from_lifecycle_and_native_facts() {
             terminal: Below::Completed {
                 owner,
                 completion: smith::llm::Completion {
+                    served: smith_domain::llm::ServedSpeed::Unreported,
                     reasoning_dropped: Box::default(),
                     content: Box::new([
                         smith::llm::Said::Text { text: b"one".as_slice().into(), replay: None },
@@ -760,6 +761,7 @@ fn a_parent_drain_keeps_the_completion_and_tells_its_turn_before_cancelling() {
             terminal: Below::Completed {
                 owner,
                 completion: smith::llm::Completion {
+                    served: smith_domain::llm::ServedSpeed::Unreported,
                     reasoning_dropped: Box::default(),
                     content: Box::new([smith::llm::Said::Text { text: b"whole turn".as_slice().into(), replay: None }]),
                     stop: smith::llm::Stop::EndTurn,

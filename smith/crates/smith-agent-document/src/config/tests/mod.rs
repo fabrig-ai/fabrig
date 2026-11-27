@@ -427,6 +427,7 @@ fn native_validated_dense_prompts_fit_the_seen_joint_receiving_ceiling() {
                 })
                 .collect(),
             reasoning_effort: None,
+            speed: None,
             affinity: None,
             max_output_tokens: None,
         };

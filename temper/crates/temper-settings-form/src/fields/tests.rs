@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 101] = [
+const SHAPES: [Shape; 102] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -14,6 +14,7 @@ const SHAPES: [Shape; 101] = [
     Shape::CharterPart,
     Shape::Document,
     Shape::Model,
+    Shape::SettingSpeed,
     Shape::Catalogue,
     Shape::Provider,
     Shape::ProviderSources,
@@ -516,6 +517,11 @@ fn optional_provider(field: &Field) -> bool {
         || (field.shape == Shape::ProviderEndpoint && [b"program".as_slice(), b"trust"].contains(&field.name))
         || field.shape == Shape::ProviderAddress
 }
+fn optional_model_speed(field: &Field) -> bool {
+    (field.shape == Shape::Model && [b"speeds".as_slice(), b"speed"].contains(&field.name))
+        || (field.shape == Shape::SettingSpeed && [b"also".as_slice(), b"cache_write_price"].contains(&field.name))
+}
+
 fn optional_worker(field: &Field) -> bool {
     field.shape == Shape::Worker && [b"number".as_slice(), b"digest", b"withdrawn"].contains(&field.name)
 }
@@ -558,6 +564,7 @@ fn every_generated_file_decodes() {
             || (field.shape == Shape::Llm && field.name == b"later")
             || (field.shape == Shape::LlmLater && field.name == b"subagents")
             || (field.shape == Shape::ClassItem && field.name == b"words")
+            || optional_model_speed(field)
             || optional_worker(field)
             || optional_follow(field)
             || optional_landing(field)
@@ -591,6 +598,7 @@ fn a_member_left_out_is_refused_naming_it() {
             || (field.shape == Shape::Model && field.name == b"provider")
             || (field.shape == Shape::Document && field.name == b"heading")
             || (field.shape == Shape::ClassItem && [b"set".as_slice(), b"words"].contains(&field.name))
+            || optional_model_speed(field)
             || optional_worker(field)
             || optional_provider(field)
             || optional_follow(field)
@@ -624,6 +632,7 @@ fn a_path_resolves_through_its_shapes() {
         (b"template.llm.later.main.model", Shape::ModelEffort, b"model"),
         (b"template.llm.later.subagents[].effort", Shape::ModelEffort, b"effort"),
         (b"model.name", Shape::Model, b"name"),
+        (b"model.speeds[].cache_write_price", Shape::SettingSpeed, b"cache_write_price"),
         (b"template.resources[].connector", Shape::Symbol, b"connector"),
         (b"template.resources[].symbol", Shape::Symbol, b"symbol"),
         (b"landing-rule.pattern.last.exact", Shape::LandingLast, b"exact"),

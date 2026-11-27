@@ -1915,12 +1915,15 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
                 }
                 None => after_merged(holding, repository, last),
             },
-            Done::Conflicted { files, .. } => {
+            Done::Conflicted { files, cut } => {
                 if head.is_some() {
                     return Next::Failed(Failure::Conflicted { repository, head: theirs });
                 }
                 assert!(paths_fit(&files, limits), "terminal admission bounds retained paths");
-                holding.conflicts.push(Conflicts { repository, files }).expect("room for each repository's conflicts");
+                holding
+                    .conflicts
+                    .push(Conflicts { repository, files, cut })
+                    .expect("room for each repository's conflicts");
                 after_merged(holding, repository, last)
             }
             Done::Failed { .. } | Done::FailedWithOutput { .. } => Next::Failed(Failure::Transient),
