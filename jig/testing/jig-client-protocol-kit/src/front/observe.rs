@@ -97,6 +97,7 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
                     }
                     w::AnswerOn::Person(v) => Some((c::ObjectKey::PersonTask(v.task), 3, v.revision.value)),
                 },
+                w::Ask::Measure(value) => Some((c::ObjectKey::Task(value.task), 2, value.revision.value)),
                 w::Ask::Release(value) => Some((c::ObjectKey::Task(value.task), 2, value.revision.value)),
                 w::Ask::Decide(value) => match &value.on {
                     w::DecideOn::Proposal(_) => None,

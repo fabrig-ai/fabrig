@@ -2101,6 +2101,14 @@ impl<B: Backend> World<B> {
         &self.turns
     }
 
+    /// Shapes of the main conversation's emitted turns.
+    #[must_use]
+    pub fn reached(&self) -> smith_session_world::shapes::Reached {
+        let mut reached = smith_session_world::shapes::Reached::new();
+        reached.turns(&self.turns);
+        reached
+    }
+
     /// Told parts with their clock, number and owning main turn.
     #[must_use]
     pub fn parts(&self) -> &[(Time, u32, u32, agent::session::record::Part)] {

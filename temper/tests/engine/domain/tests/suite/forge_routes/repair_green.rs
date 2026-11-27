@@ -237,7 +237,7 @@ fn a_cancelled_repair_released_at_a_green_head_makes_no_fresh_one() {
     world.advance_ticks(STEPS);
     assert_eq!(task(&world, change).made, MADE);
     assert!(row(&world, change).delegate.is_none());
-    assert_eq!(row(&world, change).change.repairs, 0);
+    assert_eq!(row(&world, change).change.repairs, 1);
     assert!(!matches!(row(&world, change).change.state, State::Repairing { .. } | State::Held { .. }));
     world.close();
 }
@@ -347,7 +347,9 @@ fn release(world: &mut World, change: u64) {
 }
 
 fn goes_on(world: &mut World, change: u64) {
-    let before = row(world, change).change.clone();
+    let before = row(world, change).change;
+    let State::Held { hold, .. } = &before.state else { panic!("change held") };
+    let hold_revision = live_task(world, change).revisions.hold;
     let made = live_task(world, change).made;
     let deadline =
         world.env.now.saturating_add(world.env.limits.forge.client.poll_max).saturating_add(Duration::from_secs(5));
@@ -359,8 +361,11 @@ fn goes_on(world: &mut World, change: u64) {
             break;
         }
     }
-    let after = &row(world, change).change;
-    assert_eq!((after.repairs, after.resolutions, after.updates), (before.repairs, before.resolutions, before.updates));
+    let saved = row(world, change);
+    let after = &saved.change;
+    let repairs = if hold.cause == temper_engine_domain_forge_change::Cause::Repairs { 0 } else { before.repairs };
+    assert_eq!((after.repairs, after.resolutions, after.updates), (repairs, before.resolutions, before.updates));
+    assert_eq!(saved.task_release.expect("engine consumed the hold revision").revision, hold_revision);
     assert!(matches!(task(world, change).phase, tasks::Phase::Active(_)), "{:?}", task(world, change).phase);
     assert!(!matches!(row(world, change).change.state, State::Held { .. } | State::Repairing { .. }));
     assert_eq!(live_task(world, change).made, made);
@@ -434,7 +439,7 @@ fn a_hold_past_the_repair_bound_goes_on_when_ci_passes() {
     }
     wait_held(&mut world, change);
     assert!(
-        matches!(&row(&world, change).change.state, State::Held { was, why: temper_engine_domain_forge_change::Hold::Repairs }
+        matches!(&row(&world, change).change.state, State::Held { was, hold: temper_engine_domain_forge_change::Hold { cause: temper_engine_domain_forge_change::Cause::Repairs, .. } }
         if matches!(was.as_ref(), State::Checking { .. }))
     );
     assert_eq!(row(&world, change).change.repairs, bound);
@@ -539,7 +544,13 @@ fn a_hold_short_of_authority_goes_on_when_ci_passes() {
     wait_held(&mut world, change);
     assert!(matches!(
         row(&world, change).change.state,
-        State::Held { why: temper_engine_domain_forge_change::Hold::Authority(_), .. }
+        State::Held {
+            hold: temper_engine_domain_forge_change::Hold {
+                cause: temper_engine_domain_forge_change::Cause::Authority(_),
+                ..
+            },
+            ..
+        }
     ));
     status(&mut world, head, raw::Check::Passed);
     goes_on(&mut world, change);
@@ -581,7 +592,10 @@ fn a_drifted_change_stays_held_at_a_green_head() {
     let mut drifted = row(&world, change).clone();
     drifted.change.state = State::Held {
         was: Box::new(State::Repairing { requested: true, why: Repair::Ci }),
-        why: temper_engine_domain_forge_change::Hold::BranchMoved,
+        hold: temper_engine_domain_forge_change::Hold::new(
+            temper_engine_domain_forge_change::Cause::BranchMoved,
+            skein_lib::Wall::EPOCH,
+        ),
     };
     world
         .store
@@ -598,7 +612,13 @@ fn a_drifted_change_stays_held_at_a_green_head() {
     assert!(matches!(task(&world, change).phase, tasks::Phase::Held { .. }));
     assert!(matches!(
         row(&world, change).change.state,
-        State::Held { why: temper_engine_domain_forge_change::Hold::BranchMoved, .. }
+        State::Held {
+            hold: temper_engine_domain_forge_change::Hold {
+                cause: temper_engine_domain_forge_change::Cause::BranchMoved,
+                ..
+            },
+            ..
+        }
     ));
     world.close();
 }
@@ -695,13 +715,13 @@ fn a_stop_during_the_green_read_leaves_the_next_release_safe() {
     world.advance_ticks(STEPS);
     assert!(live_task(&world, change).placed.is_some());
     assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
-    assert!(!matches!(row(&world, change).change.state, State::Held { .. }));
+    assert!(matches!(row(&world, change).change.state, State::Held { .. }));
     assert!(
         !world.store.rows.values().any(|record| matches!(record,
         Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::History(history)))
             if history.task == change && history.change == tasks::Change::Released
                 && history.by == tasks::Party::Deployment { project: 1 })),
-        "the placed hold refused deployment release"
+        "the placed hold blocked the engine release"
     );
     release(&mut world, change);
     world.advance_ticks(STEPS);

@@ -26,6 +26,7 @@ skein-fake-llm-domain.workspace = true
 [dev-dependencies]
 smith-agent-profile.workspace = true
 smith-agent-process-world.workspace = true
+smith-session-world.workspace = true
 smith-protocol-llm-world = { path = "../protocol-llm" }
 
 # Ordinary Rust (programming-model.md, section 10.2), so not the step crates' lints.

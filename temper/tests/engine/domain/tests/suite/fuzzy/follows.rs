@@ -1,10 +1,13 @@
 //! Seeded, sharded whole-engine follows (forge/follows.md, 11).
-//! A shard reruns its named seeds exactly; the failure trace names the seed and step.
+//! Each shard supplies its own cases (`temper/docs/design/testing/workloads.md`, 8.5).
 use crate::forge_routes::follow_changes::{proof, role};
 use jig_domain_tasks as tasks;
 use skein_forge::api::Commit;
-use skein_lib::Rng;
+use skein_lib::{Rng, StateHasher};
+use skein_world::sweep::{Test, cases};
 use std::collections::BTreeSet;
+use std::convert::Infallible;
+use std::hash::{Hash, Hasher};
 use std::ops::Range;
 use temper_engine_domain::{Key, Record};
 use temper_engine_domain_forge::{self as forge, FollowState, follows::FollowAct};
@@ -31,13 +34,13 @@ const PRELUDE: [Step; 11] = [
     Step::Restart,
     Step::Check(false),
 ];
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 enum Files {
     Inside,
     Outside,
     Unknown,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 enum Step {
     Landing(Files),
     Start(u64),
@@ -48,6 +51,10 @@ enum Step {
     Restart,
     Owner(bool),
 }
+fn stream(seed: u64) -> Rng {
+    Rng::new(seed.wrapping_add(17_100))
+}
+
 fn drawn(random: &mut Rng) -> Step {
     match random.below(12) {
         0 | 1 => Step::Landing(Files::Inside),
@@ -136,7 +143,13 @@ impl Driver {
                 if let Some(entry) = self.entry(at)
                     && Self::waiting(&entry)
                 {
-                    self.act(FollowAct::Skip { after: entry.after, reason: b"already ported".as_slice().into() });
+                    // The referee needs every skip's evidence, but the follow keeps only its newest skips.
+                    let skips = proof::follow(&self.world).skips.len();
+                    if skips < skein_lib::usize_of(self.world.env.limits.forge.follow_skips) {
+                        self.act(FollowAct::Skip { after: entry.after, reason: b"already ported".as_slice().into() });
+                    } else {
+                        eprintln!("skip ineligible: the follow's skip history is full");
+                    }
                 }
             }
             Step::Merge(at) => {
@@ -234,7 +247,7 @@ fn same(first: &Driver, replay: &Driver, seed: u64, step: Step) {
     assert_eq!(first.world.assigned, replay.world.assigned, "worker trace seed {seed}: {step:?}");
 }
 fn run_replayed(seed: u64) {
-    let mut random = Rng::new(seed + 17_100);
+    let mut random = stream(seed);
     let mut first = Driver::new();
     let mut replay = Driver::new();
     // A live red crosses a restart on every seed; random steps then interleave all stimuli.
@@ -275,7 +288,7 @@ pub(super) fn run_with_restarts(seeds: &[u64]) -> Vec<skein_world::faults::Fault
     let mut ledgers = Vec::new();
     for &seed in seeds {
         eprintln!("engine restart seed {seed}");
-        let mut random = Rng::new(seed + 17_100);
+        let mut random = stream(seed);
         driver.world.drain_cut();
         driver.world.inject_restarts(
             Injector::new(seed, &temper_faults::restarts::ENGINE, RESTART_HORIZON).with_recovery_clock(),
@@ -304,22 +317,43 @@ pub(super) fn run_with_restarts(seeds: &[u64]) -> Vec<skein_world::faults::Fault
     ledgers
 }
 
-fn shard(seeds: Range<u64>) {
-    skein_world::sweep::each_seed(seeds, run_replayed);
+#[test]
+fn fuzzy_follows_draws_keep_gate_steps_and_accept_full_width_seeds() {
+    let mut digest = StateHasher::new();
+    for seed in 0..SEEDS {
+        let mut random = stream(seed);
+        for _ in 0..STEPS {
+            drawn(&mut random).hash(&mut digest);
+        }
+    }
+    assert_eq!(digest.finish(), 0xee7f_d68c_2f8e_656b, "step draws in gate seed order");
+
+    let mut random = stream(u64::MAX);
+    for _ in 0..STEPS {
+        let _ = drawn(&mut random);
+    }
+}
+
+fn shard(test: Test, seeds: Range<u64>) {
+    cases(test, seeds, |seed| {
+        run_replayed(seed);
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 #[test]
 fn fuzzy_follows_shard_0() {
-    shard(0..4);
+    shard(skein_world::this_test!("fuzzy_follows_shard_0"), 0..4);
 }
 #[test]
 fn fuzzy_follows_shard_1() {
-    shard(4..8);
+    shard(skein_world::this_test!("fuzzy_follows_shard_1"), 4..8);
 }
 #[test]
 fn fuzzy_follows_shard_2() {
-    shard(8..12);
+    shard(skein_world::this_test!("fuzzy_follows_shard_2"), 8..12);
 }
 #[test]
 fn fuzzy_follows_shard_3() {
-    shard(12..SEEDS);
+    shard(skein_world::this_test!("fuzzy_follows_shard_3"), 12..SEEDS);
 }

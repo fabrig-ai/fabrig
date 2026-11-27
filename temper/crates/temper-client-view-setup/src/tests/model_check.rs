@@ -151,10 +151,11 @@ fn a_plan_or_key_has_two_steps_with_the_first_already_done() {
             State::Running { at: 1 },
             State::Answered { seconds: 6 },
             State::Stopped { at: 1, why: b"Stopped".as_slice().into(), answer: None },
+            State::Limited { passed: false, why: b"Reached its usage limit.".as_slice().into() },
         ] {
             let running = match state {
                 State::Running { .. } => true,
-                State::Usable | State::Answered { .. } | State::Stopped { .. } => false,
+                State::Usable | State::Answered { .. } | State::Stopped { .. } | State::Limited { .. } => false,
             };
             let trial = Trial {
                 first: if key { First::Key } else { First::Plan },
@@ -168,6 +169,12 @@ fn a_plan_or_key_has_two_steps_with_the_first_already_done() {
                 let tree = drawn(&w, &trial);
                 let text = String::from_utf8_lossy(&f::text(&tree)).into_owned();
                 assert_eq!(text.contains("one short message"), key && running);
+                if let State::Limited { .. } = trial.state {
+                    let steps = items(&tree);
+                    assert_eq!(steps.len(), 2);
+                    assert!(steps[0].styles.as_slice().contains(&look::FLOW_DONE));
+                    assert!(steps[1].styles.as_slice().contains(&look::FLOW_FAILED));
+                }
                 if !running {
                     assert!(!print(&tree).contains("one short message"));
                     continue;
@@ -378,7 +385,7 @@ pub(crate) fn from_root(root: &d::Domain, w: &Words) -> (Tree, Bindings) {
         root,
         w,
         &mut bindings,
-        &model_check::trial(root, w).unwrap(),
+        &model_check::trial(root, w, &mut crate::words::Times::new(f::NOW)).unwrap(),
         model_check::Place::Welcome,
     );
     (b.finish(), bindings)
@@ -406,7 +413,7 @@ fn trial_rows_feed_the_steps_answer_and_ask_gap_in_both_shells() {
             (v::TrialStep::Answers, v::TrialState::Running, if kind == d::WayKind::Program { 2 } else { 1 }),
         ] {
             for w in [f::words(), f::browser_words()] {
-                let trial = model_check::trial(&root, &w).unwrap();
+                let trial = model_check::trial(&root, &w, &mut crate::words::Times::new(f::NOW)).unwrap();
                 let State::Running { .. } = trial.state else { panic!("ask and running never ticked") };
                 rows(&mut root, watch, &[row(step.clone(), state.clone())]);
                 let (tree, _) = from_root(&root, &w);
@@ -424,7 +431,7 @@ fn trial_rows_feed_the_steps_answer_and_ask_gap_in_both_shells() {
         }
         rows(&mut root, watch, &[row(v::TrialStep::Answers, v::TrialState::Answered(v::TrialAnswered { seconds: 7 }))]);
         for w in [f::words(), f::browser_words()] {
-            let trial = model_check::trial(&root, &w).unwrap();
+            let trial = model_check::trial(&root, &w, &mut crate::words::Times::new(f::NOW)).unwrap();
             assert_eq!(trial.detail.as_deref(), detail.map(str::as_bytes));
             let (tree, _) = from_root(&root, &w);
             assert!(String::from_utf8_lossy(&f::text(&tree)).contains("answered in 7 s"));
@@ -491,10 +498,13 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
         (source(S::Cancelled), "Cancelled"),
         (source(S::Closing), "Closing"),
     ] {
+        let sign_in = why == source(S::NeedsSignIn) || why == W::Host;
         wait_delivery(&mut root, watch, Some(account_wait(why)));
         for w in [f::words(), f::browser_words()] {
             let (tree, _) = from_root(&root, &w);
             position(&tree, Role::Paragraph, expected.as_bytes());
+            assert_eq!(f::find(&tree, Role::Link, b"Sign in again").is_some(), sign_in, "{expected}");
+            assert_eq!(f::find(&tree, Role::Link, b"All ways").is_some(), !sign_in, "{expected}");
             assert!(!tree.nodes().iter().any(|n| n.name.as_deref() == Some(b"Try again")));
             assert!(!String::from_utf8_lossy(&f::text(&tree)).contains("temper program-login"));
         }
@@ -521,7 +531,7 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
     ] {
         wait_delivery(&mut root, watch, Some(wait.clone()));
         for w in [f::words(), f::browser_words()] {
-            let trial = model_check::trial(&root, &w).unwrap();
+            let trial = model_check::trial(&root, &w, &mut crate::words::Times::new(f::NOW)).unwrap();
             let State::Stopped { why, .. } = trial.state else { panic!("lasting wait stops line") };
             let mut b = Builder::new(&f::tree_limits());
             let mut task = f::task::document();
@@ -548,13 +558,17 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
     for why in [source(S::Asking), W::Refreshing, source(S::Granted), source(S::Moving)] {
         wait_delivery(&mut root, watch, Some(account_wait(why)));
         for w in [f::words(), f::browser_words()] {
-            let State::Running { at: 1 } = model_check::trial(&root, &w).unwrap().state else {
+            let State::Running { at: 1 } =
+                model_check::trial(&root, &w, &mut crate::words::Times::new(f::NOW)).unwrap().state
+            else {
                 panic!("a moment settles this wait")
             };
         }
     }
     wait_delivery(&mut root, watch, None);
-    let State::Running { at: 1 } = model_check::trial(&root, &f::words()).unwrap().state else {
+    let State::Running { at: 1 } =
+        model_check::trial(&root, &f::words(), &mut crate::words::Times::new(f::NOW)).unwrap().state
+    else {
         panic!("cleared wait leaves the row running")
     };
     wait_delivery(&mut root, watch, Some(account_wait(source(S::NeedsSignIn))));
@@ -582,9 +596,12 @@ fn took_names_the_account_that_answered_and_the_newest_row_wins() {
     rows(&mut root, watch, &[took, older]);
     for w in [f::words(), f::browser_words()] {
         let (tree, _) = from_root(&root, &w);
-        assert!(model_check::of_account(&root, &w, 1).is_none());
-        assert!(model_check::of_account(&root, &w, 2).is_some());
-        assert_eq!(crate::common::model_check::stopped(&root, &w), Some((Box::from(b"ChatGPT".as_slice()), 1)));
+        assert!(model_check::of_account(&root, &w, 1, &mut crate::words::Times::new(f::NOW)).is_none());
+        assert!(model_check::of_account(&root, &w, 2, &mut crate::words::Times::new(f::NOW)).is_some());
+        assert_eq!(
+            crate::common::model_check::stopped(&root, &w, &mut crate::words::Times::new(f::NOW)),
+            Some((Box::from("ChatGPT didn’t answer when tried".as_bytes()), 1)),
+        );
         position(&tree, Role::Paragraph, "ChatGPT plan · ChatGPT didn’t answer".as_bytes());
         position(&tree, Role::Paragraph, "ChatGPT didn’t answer within a minute.".as_bytes());
         assert_eq!(items(&tree).len(), 2);
@@ -610,7 +627,7 @@ fn sign_in_again_follows_the_place_and_the_selected_source() {
             for welcome in [false, true] {
                 let mut b = Builder::new(&f::tree_limits());
                 let mut bindings = bindings();
-                let trial = model_check::of_account(&root, &w, 1).unwrap();
+                let trial = model_check::of_account(&root, &w, 1, &mut crate::words::Times::new(f::NOW)).unwrap();
                 model_check::line(
                     &mut b,
                     &root,

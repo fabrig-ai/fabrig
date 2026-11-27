@@ -441,8 +441,10 @@ fn a_resolution_that_fails_for_good_holds_and_notifies_its_requester() {
             break;
         }
     }
-    assert!(matches!(&change_row(&world, task).change.state, change::State::Held { was, why: change::Hold::Failed }
-        if matches!(was.as_ref(), change::State::Resolving { .. })));
+    assert!(
+        matches!(&change_row(&world, task).change.state, change::State::Held { was, hold: change::Hold { cause: change::Cause::Failed, .. } }
+        if matches!(was.as_ref(), change::State::Resolving { .. }))
+    );
     let tasks::Phase::Held { why: tasks::Hold::Procedure, source: Some(source), .. } = &live_task(&world, task).phase
     else {
         panic!("failed resolution holds its change task: {:?}", live_task(&world, task).phase)

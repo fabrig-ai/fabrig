@@ -197,6 +197,7 @@ pub(super) fn make_service(
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
         | Ask::Lift { .. }
+        | Ask::Measure { .. }
         | Ask::Release { .. }
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }

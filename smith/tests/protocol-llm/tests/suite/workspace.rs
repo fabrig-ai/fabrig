@@ -444,7 +444,7 @@ fn namespace_descriptions_and_list_slash_reach_both_native_provider_dialects() {
             if several {
                 assert!(contains(&initial.system, b"Your working directory is `hidden-working-name`"));
             } else {
-                assert!(contains(&initial.system, b"Paths start in your working directory. Use `src/lib.rs`"));
+                assert!(contains(&initial.system, b"Use paths relative to the working directory: `src/lib.rs`."));
                 assert!(!contains(&initial.system, b"hidden-working-name"));
             }
             for name in [b"read".as_slice(), b"list", b"search", b"write", b"edit"] {

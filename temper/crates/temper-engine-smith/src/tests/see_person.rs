@@ -230,7 +230,7 @@ fn question_words(words: &[u8]) -> Box<[SeeWords]> {
                 task: chip(),
                 message: 4,
                 from: tasks::Party::Task(41),
-                at: Wall::EPOCH,
+                at: Wall::from_nanos(0),
                 words: text(words),
             }))),
         },
@@ -601,7 +601,7 @@ fn panel(pull: Option<u64>) -> Box<temper_engine_domain_forge::Document> {
         head: Some(HASH),
         pull,
         step: f::PanelStep::Queued { place: 1, ahead: Box::new([]) },
-        hold: Some(c::Hold::Repairs),
+        hold: Some(c::Cause::Repairs),
         wait: None,
         runs: None,
         ci: c::Status::Passed,
@@ -1194,10 +1194,10 @@ fn a_persons_task_names_its_own_question_after_its_phase() {
 }
 
 #[test]
-fn a_no_test_hold_says_its_repair_found_no_failed_test() {
+fn a_close_refused_hold_names_the_refused_close() {
     let mut document = panel(Some(1));
     let temper_engine_domain_forge::Document::Change(panel) = document.as_mut() else { panic!("change panel") };
-    panel.hold = Some(temper_engine_domain_forge_change::Hold::NoTest);
+    panel.hold = Some(temper_engine_domain_forge_change::Cause::CloseRefused);
     let answer = SeeAnswer::Person(Box::new(SeePerson {
         read: SeeRead::Change { number: 41, panel: document },
         names: names(),
@@ -1205,5 +1205,5 @@ fn a_no_test_hold_says_its_repair_found_no_failed_test() {
     let (bytes, error) =
         crate::see_answer(b"change 41", 0, &answer, &catalogue(), 20_000, crate::ForgeReadBounds::STOCK).into_parts();
     assert!(!error);
-    assert!(skein_lib::bytes::find(&bytes, b"hold: its repair found no failed test").is_some());
+    assert!(skein_lib::bytes::find(&bytes, b"hold: its close check refused the goal's branch").is_some());
 }

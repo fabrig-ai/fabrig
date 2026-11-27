@@ -42,6 +42,18 @@ pub(super) fn hold(domain: &mut tasks::Domain, now: Time, wall: Wall, number: u6
 }
 
 impl World {
+    /// Whether the scripted core has room for all the new task numbers in a draw.
+    #[must_use]
+    pub fn can_hold_tasks(&self, numbers: &[u64]) -> bool {
+        let new = numbers
+            .iter()
+            .enumerate()
+            .filter(|(index, number)| self.tasks.task(**number).is_none() && !numbers[..*index].contains(number))
+            .count();
+        let room = skein_lib::usize_of(LIMITS.tasks).saturating_sub(self.tasks.view_tasks().len());
+        new <= room
+    }
+
     /// The scripted core holds a task before giving its work to the connector.
     pub fn hold_task(&mut self, number: u64) {
         hold(&mut self.tasks, self.env.now, self.env.wall, number);

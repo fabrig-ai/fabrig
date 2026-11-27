@@ -69,6 +69,7 @@ AskLift: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
 AskMakeProject: ceilings encoded=72 decoded=64; at_most(3) encoded=11 decoded=3
 AskMakeService: ceilings encoded=8205 decoded=8192; at_most(3) encoded=16 decoded=3
 AskMarkSeen: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
+AskMeasure: ceilings encoded=20 decoded=0; at_most(3) encoded=20 decoded=0
 AskMove: ceilings encoded=8208 decoded=8192; at_most(3) encoded=19 decoded=3
 AskMoveToNewest: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 AskPauseWorker: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0

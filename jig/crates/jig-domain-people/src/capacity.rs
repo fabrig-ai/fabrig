@@ -97,7 +97,7 @@ pub(crate) fn action(ask: &Ask, person: u64) -> CapacityAction {
         Ask::Conclude { task, .. } => CapacityAction::Conclude { task: *task },
         Ask::Cancel { task, .. } => CapacityAction::Cancel { task: *task },
         Ask::Lift { hold, .. } => CapacityAction::Lift { hold: *hold },
-        Ask::Release { task, .. } => CapacityAction::Release { task: *task },
+        Ask::Release { task, .. } | Ask::Measure { task, .. } => CapacityAction::Release { task: *task },
         Ask::MarkSeen { seen } => CapacityAction::MarkSeen { seen: *seen },
         Ask::AccountSignIn { .. } => CapacityAction::AccountSignIn,
         Ask::AccountSignOut { .. } => CapacityAction::AccountSignOut,

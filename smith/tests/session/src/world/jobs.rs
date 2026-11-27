@@ -2,6 +2,7 @@
 //! Contracts: smith/docs/design/domain/session.md, 10; smith/docs/design/domain/tools.md, 5.
 
 use super::{Block, Decoded, Delivery, Done, Duration, Key, Returned, Stats, Time, Token, World, agent, io, tools};
+use crate::shapes::Class;
 use agent::llm::{NotRun, Problem};
 use std::collections::BTreeSet;
 use tools::{Call, Effect, Outcome};
@@ -73,41 +74,6 @@ impl Job {
     }
 }
 
-/// What the world knew of a job when the provider named it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum JobClass {
-    /// This session's command is still running.
-    Live,
-    /// This session's command ended, but its end has not been read.
-    Held,
-    /// This session's command ended and its cell has been freed.
-    Consumed,
-    /// The number is at or below this session's restored high-water mark.
-    BeforeOpening,
-    /// Another session issued the number, but this session did not.
-    Foreign,
-    /// No session issued the number.
-    Unissued,
-    /// The translator refused the call before it named a job.
-    Unknown,
-}
-
-impl JobClass {
-    /// The design's name for the class.
-    #[must_use]
-    pub const fn word(self) -> &'static [u8] {
-        match self {
-            Self::Live => b"live",
-            Self::Held => b"held",
-            Self::Consumed => b"consumed",
-            Self::BeforeOpening => b"before_opening",
-            Self::Foreign => b"foreign",
-            Self::Unissued => b"unissued",
-            Self::Unknown => b"unknown",
-        }
-    }
-}
-
 /// A provider job mention paired with its result in the recorded turn.
 #[derive(Debug, PartialEq, Eq)]
 pub struct JobCall {
@@ -115,7 +81,7 @@ pub struct JobCall {
     pub sequence: u32,
     /// Zero-based position in the provider completion.
     pub position: usize,
-    pub class: JobClass,
+    pub class: Class,
     pub job: Option<JobNumber>,
     /// None when the call has no result in this turn, such as a yielded tail.
     pub answer: Option<Returned>,
@@ -127,7 +93,7 @@ pub struct JobCall {
 /// Returns a finding if the tools answered a stale job call other than as unknown.
 pub fn check_job_call(call: &JobCall) -> Result<(), String> {
     // A yielded or suppressed call was not answered by the tools.
-    if matches!(call.class, JobClass::Consumed | JobClass::BeforeOpening)
+    if matches!(call.class, Class::Consumed | Class::BeforeOpening)
         && !matches!(call.answer, None | Some(Returned::NotRun { .. }))
         && !matches!((&call.job, &call.answer),
             (Some(job), Some(Returned::Invalid { problem: Problem::UnknownJob { job: named } })) if job.0 == *named)
@@ -152,34 +118,34 @@ impl World {
                 }
                 let (job, class) = match &call.call {
                     Decoded::Owned { call: Call::Job { job, .. } } => (Some(*job), self.job_class(opener, *job)),
-                    Decoded::Invalid { .. } => (None, JobClass::Unknown),
+                    Decoded::Invalid { .. } => (None, Class::Unknown),
                     _ => return None,
                 };
                 if self.settings.provider.capture_answers != 0 {
                     // Scripts (and malformed calls without a filled body) need not have a slot draw.
-                    let _classified = self.provider.classify(&call.id, b"job", class.word());
+                    let _classified = self.provider.classify(&call.id, b"job", class.word().as_bytes());
                 }
                 Some(JobCall { sequence: 0, position, class, job, answer: None })
             })
             .collect()
     }
 
-    fn job_class(&self, opener: u64, number: JobNumber) -> JobClass {
+    fn job_class(&self, opener: u64, number: JobNumber) -> Class {
         let session = &self.sessions[&opener];
         if number.0 <= session.opening_job {
-            return JobClass::BeforeOpening;
+            return Class::BeforeOpening;
         }
         if number.0 <= session.issued_job {
             return match self.jobs.values().find(|job| Some(job.session) == session.session && job.number == number) {
-                Some(Job { process: Process::Running(_), .. }) => JobClass::Live,
-                Some(Job { process: Process::Ended { .. }, .. }) => JobClass::Held,
-                None => JobClass::Consumed,
+                Some(Job { process: Process::Running(_), .. }) => Class::Live,
+                Some(Job { process: Process::Ended { .. }, .. }) => Class::Held,
+                None => Class::Consumed,
             };
         }
         if self.sessions.values().any(|other| number.0 > other.opening_job && number.0 <= other.issued_job) {
-            JobClass::Foreign
+            Class::Foreign
         } else {
-            JobClass::Unissued
+            Class::Unissued
         }
     }
 
@@ -353,7 +319,13 @@ impl RefusalShape {
                 tools::effect(call)
             }
             Decoded::Delegated { effect, .. } => *effect,
-            _ => return,
+            Decoded::Invalid { .. } => {
+                if matches!(result, Returned::Invalid { .. }) {
+                    self.entrance.get_or_insert(self.position);
+                }
+                return;
+            }
+            Decoded::Builtin { .. } | Decoded::Historical => return,
         };
         match (effect, result) {
             (Effect::Write, Returned::NotRun { why: NotRun::AfterFailedWrite { call } }) => {

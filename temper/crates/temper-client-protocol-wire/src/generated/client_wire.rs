@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 47;
 pub const LAYOUT: [u8; 32] = [
-    0x77, 0x7d, 0x77, 0xf5, 0x36, 0x9e, 0xec, 0x66, 0x3f, 0xfb, 0x67, 0xfc, 0x84, 0x4f, 0xc4, 0x18, 0x79, 0x2e, 0x58,
-    0xbb, 0x91, 0x12, 0xc1, 0x72, 0x58, 0x77, 0xcf, 0xc1, 0xdd, 0xd4, 0x86, 0x09,
+    0xae, 0x55, 0xf2, 0x48, 0x83, 0xf9, 0x90, 0x8a, 0xdb, 0xd5, 0x55, 0x75, 0x9c, 0x0c, 0x28, 0x0b, 0x84, 0x35, 0xee,
+    0x62, 0xab, 0xba, 0xe7, 0x48, 0x1c, 0xd8, 0x62, 0xc4, 0x14, 0x1a, 0x8a, 0x8d,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -2071,6 +2071,8 @@ pub mod paths {
     pub const TRIAL_ANSWERED_TAIL: Path = Path::new("TrialAnswered (tail)");
     pub const TRIAL_FAILED_WHY: Path = Path::new("TrialFailed.why");
     pub const TRIAL_FAILED_TAIL: Path = Path::new("TrialFailed (tail)");
+    pub const TRIAL_LIMITED_RESET: Path = Path::new("TrialLimited.reset");
+    pub const TRIAL_LIMITED_TAIL: Path = Path::new("TrialLimited (tail)");
     pub const TRIAL_STATE_TAG: Path = Path::new("TrialState (tag)");
     pub const TRIAL_ROW_ACCOUNT: Path = Path::new("TrialRow.account");
     pub const TRIAL_ROW_TASK: Path = Path::new("TrialRow.task");
@@ -5295,12 +5297,64 @@ impl Record for TrialFailed {
     }
 }
 
+// Type: TrialLimited.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TrialLimited {
+    pub reset: Option<u64>,
+}
+
+// Record: TrialLimited.
+impl TrialLimited {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
+impl Record for TrialLimited {
+    type Limits = Limits;
+    const TAIL: Path = paths::TRIAL_LIMITED_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TrialLimited")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TrialLimited")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Optional { item: field::U64 }, &self.reset, limits, out, paths::TRIAL_LIMITED_RESET)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            reset: field::read(field::Optional { item: field::U64 }, limits, reader, paths::TRIAL_LIMITED_RESET)?,
+        })
+    }
+}
+
 // Type: TrialState.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TrialState {
     Running,
     Answered(TrialAnswered),
     Failed(TrialFailed),
+    Limited(TrialLimited),
 }
 
 // Record: TrialState.
@@ -5309,11 +5363,12 @@ impl TrialState {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Named("TrialAnswered"),
         skein_codec::bounds::Node::Named("TrialFailed"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
+        skein_codec::bounds::Node::Named("TrialLimited"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 5;
+    pub const ENCODED_AT_ZERO: u64 = 10;
 }
 
 impl Record for TrialState {
@@ -5342,6 +5397,7 @@ impl Record for TrialState {
             Self::Running => field::put(out, &[0], paths::TRIAL_STATE_TAG),
             Self::Answered(value) => { field::put(out, &[1], paths::TRIAL_STATE_TAG)?; value.write(limits, out) },
             Self::Failed(value) => { field::put(out, &[2], paths::TRIAL_STATE_TAG)?; value.write(limits, out) },
+            Self::Limited(value) => { field::put(out, &[3], paths::TRIAL_STATE_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -5351,7 +5407,8 @@ impl Record for TrialState {
             0 => Ok(Self::Running),
             1 => Ok(Self::Answered(TrialAnswered::read(limits, reader)?)),
             2 => Ok(Self::Failed(TrialFailed::read(limits, reader)?)),
-            3..=u8::MAX => Err(Problem { path: paths::TRIAL_STATE_TAG, reason: skein_codec::Reason::Tag }),
+            3 => Ok(Self::Limited(TrialLimited::read(limits, reader)?)),
+            4..=u8::MAX => Err(Problem { path: paths::TRIAL_STATE_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -5383,7 +5440,7 @@ impl TrialRow {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 29;
+    pub const ENCODED_AT_ZERO: u64 = 34;
 }
 
 impl Record for TrialRow {
@@ -35382,6 +35439,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "TrialClass", nodes: TrialClass::SHAPE },
     skein_codec::bounds::Declaration { name: "TrialEnded", nodes: TrialEnded::SHAPE },
     skein_codec::bounds::Declaration { name: "TrialFailed", nodes: TrialFailed::SHAPE },
+    skein_codec::bounds::Declaration { name: "TrialLimited", nodes: TrialLimited::SHAPE },
     skein_codec::bounds::Declaration { name: "TrialRow", nodes: TrialRow::SHAPE },
     skein_codec::bounds::Declaration { name: "TrialState", nodes: TrialState::SHAPE },
     skein_codec::bounds::Declaration { name: "TrialStep", nodes: TrialStep::SHAPE },

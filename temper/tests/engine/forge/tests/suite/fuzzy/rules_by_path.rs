@@ -1,5 +1,7 @@
 //! Coverage agrees with the sets' patterns, independently of its bit mask (change/gates.md, 2).
 use skein_lib::Rng;
+use skein_world::sweep::cases;
+use std::convert::Infallible;
 use temper_engine_domain_forge::{self as forge, settings::LandingRule};
 use temper_engine_forge_world::{REPO, World};
 use temper_protocol_reaches::{Classes, PathSet, matches};
@@ -38,7 +40,7 @@ fn path_rules_agree_with_the_independent_pattern_statement() {
     let Some(forge::Stored::Repository(repository)) = world.stored().get(&forge::Key::Repository(REPO)) else {
         panic!("adopted fixture")
     };
-    for seed in 0..64 {
+    cases(skein_world::this_test!("path_rules_agree_with_the_independent_pattern_statement"), 0..64, |seed| {
         let mut rng = Rng::new(seed);
         for _ in 0..64 {
             let mut sets = Vec::new();
@@ -78,5 +80,7 @@ fn path_rules_agree_with_the_independent_pattern_statement() {
                 "seed {seed}: {classes:?}, {paths:?}, {rule:?}, whole {whole}"
             );
         }
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }

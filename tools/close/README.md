@@ -12,8 +12,10 @@ network.
   "landed": BOOL}]}`, as temper writes it. Anything else, a task named twice
   among them, or a number that is no positive integer, is the command's
   failure.
-- **What it reads:** every tracked file whose name ends `.status.md` under a
-  `docs/` directory, in the repository's index, at the checked-out tree.
+- **What it reads:** every tracked file whose name ends `.status.md`,
+  wherever it is in the repository (a tree's `docs/`, a tool's directory
+  under `tools/`, or any other), in the repository's index, at the
+  checked-out tree.
 - **An entry** is a list item of a status file opening `- **Not yet:**`,
   with its continuation lines, those indented beneath it, to the next list
   item, blank line or heading. **Its tag** is the text `[in flight: TEXT]`
@@ -52,6 +54,21 @@ network.
   - its tag names no change of the request: the entry is left as it is,
     byte for byte, and the result lists the tag as kept. Whoever owns a
     tag settles it: the command never removes or rewrites another goal's.
+- **A file it leaves with no entry says so** (`DESIGN.md`, section 2).
+  Where settling a file leaves nothing but blank lines after its opening,
+  its heading and the dated paragraph after it as
+  `tools/citations/README.md` reads them, the file becomes that opening,
+  byte for byte, then one blank line, then `No gap.` and a line ending:
+  `# x: status`, a blank line and `2026-11-20. Where ...` with only
+  `- **Not yet:** 3: built [in flight: change 9].` after them become
+  `# x: status`, a blank line, `2026-11-20. Where ...`, a blank line and
+  `No gap.`. The lines it writes end as the opening's last line does,
+  `\r\n` or `\n`, and that line gains a `\n` when it has no ending. Any
+  other text left after the opening stays as settling left it: a
+  `No gap.` line already there is kept and never doubled, and a file left
+  with an entry, or with prose, gains none. A file with no such opening
+  gains none, and neither does a file in which it settled no tag, empty
+  or not.
 - **A file it changed** is staged with `git add`, its date line as the
   goal's design dated it. It never commits, never writes another branch,
   and changes no other file.

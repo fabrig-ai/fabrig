@@ -1,11 +1,12 @@
 //! A landed look request rendered beside the print (temper/docs/design/client/journey-writer.md, 6.2).
 
 use std::{
+    borrow::Cow,
     collections::{BTreeMap, BTreeSet, btree_map::Entry},
     path::{Path, PathBuf},
 };
 
-use skein_browser::boundary::Element;
+use skein_browser::{Limits, boundary::Element};
 use skein_lib::Token;
 
 use crate::{
@@ -32,7 +33,7 @@ mod diff;
 mod gallery;
 mod html;
 mod measurement;
-mod report;
+pub(crate) mod report;
 mod rules;
 #[cfg(test)]
 pub(crate) mod tests;
@@ -58,7 +59,7 @@ fn diagnostic(host: &mut Host, code: u8, why: &str) -> u8 {
 }
 
 enum Candidate {
-    Uncompared(&'static str),
+    Uncompared(Why),
     Gallery(String),
     Journey { edited: bool },
 }
@@ -122,7 +123,7 @@ impl Plan {
         for (page, candidate) in &self.pages {
             browser.item = page.item();
             let result = match candidate {
-                Candidate::Uncompared(why) => ResultForPage::Uncompared(why),
+                Candidate::Uncompared(why) => ResultForPage::Uncompared(*why),
                 Candidate::Gallery(state) => self.page(browser, page, self.gallery.page(state), Kind::Gallery)?,
                 Candidate::Journey { edited } => {
                     let print = self.printed.pages.get(page).map(|source| (self.printed.path(page), source.as_str()));
@@ -147,7 +148,7 @@ impl Plan {
     ) -> Result<ResultForPage, String> {
         let edited = matches!(kind, Kind::Journey { edited: true });
         if print.is_none() && (edited || matches!(kind, Kind::Gallery)) {
-            return Ok(ResultForPage::Uncompared(MISSING));
+            return Ok(ResultForPage::Uncompared(Why::Missing));
         }
         let request = browser.open(file_url(&self.requested.path(page)))?;
         let selected = self.select(browser, page.side, request)?;
@@ -159,7 +160,7 @@ impl Plan {
             browser.done(Command::Close { page: right })?;
             result
         } else {
-            ResultForPage::Uncompared(MISSING)
+            ResultForPage::Uncompared(Why::Missing)
         };
         browser.done(Command::Close { page: request })?;
         Ok(result)
@@ -192,8 +193,11 @@ impl Plan {
         let print_tags = html::tags(print);
         let left = browser.elements(opened[0], None)?;
         let right = browser.elements(opened[1], None)?;
-        if !as_written(&tags, &left.0, left.1) || !as_written(&print_tags, &right.0, right.1) {
-            return Ok(ResultForPage::Uncompared("its markup doesn't parse as written"));
+        if left.1 > 0 || right.1 > 0 {
+            return Ok(ResultForPage::Uncompared(Why::TooLarge));
+        }
+        if !as_written(&tags, &left.0) || !as_written(&print_tags, &right.0) {
+            return Ok(ResultForPage::Uncompared(Why::Markup));
         }
         let comparable = html::comparable(request);
         let comparable_tags = html::tags(&comparable);
@@ -206,7 +210,12 @@ impl Plan {
                 if edited {
                     if let Some(parent) = blob(browser.host, &self.request.parent, &page.path())? {
                         let parent = text(&parent, &format!("{} in the request's parent", page.path()))?;
-                        let edits = diff::between(browser.host, &self.diff, &html::comparable(parent), &comparable)?;
+                        let edits = diff::between(
+                            browser.host,
+                            &self.diff,
+                            ("parent", &html::comparable(parent)),
+                            ("requested", &comparable),
+                        )?;
                         diff::edited(&comparable_tags, &edits, &mut touched);
                     } else {
                         touched.fill(true);
@@ -220,24 +229,46 @@ impl Plan {
             return Ok(ResultForPage::Untouched);
         }
         let landed = html::comparable(print);
-        let alignment = diff::between(browser.host, &self.diff, &comparable, &landed)?;
+        let alignment = diff::between(browser.host, &self.diff, ("requested", &comparable), ("landed", &landed))?;
         let pairs = diff::pairs(&comparable_tags, &html::tags(&landed), &alignment)?;
         let matched = Matched { requested: &left.0, landed: &right.0, tags: &tags, pairs: &pairs, touched: &touched };
-        Ok(matched.compare(browser, opened)?.map_or(ResultForPage::Uncompared(MISSING), ResultForPage::Compared))
+        Ok(matched.compare(browser, opened)?.map_or(ResultForPage::Uncompared(Why::Missing), ResultForPage::Compared))
     }
 }
 
-const MISSING: &str = "nothing printed beside it";
+// Derive the test's coverage list from the same cases as the report's words.
+macro_rules! reasons {
+    ($($why:ident => $words:expr),+ $(,)?) => {
+        #[derive(Clone, Copy)]
+        pub(crate) enum Why { $($why),+ }
+
+        impl Why {
+            #[cfg(test)]
+            pub(crate) const ALL: &[Self] = &[$(Self::$why),+];
+
+            pub(crate) fn words(self) -> Cow<'static, str> {
+                match self { $(Self::$why => $words.into()),+ }
+            }
+        }
+    };
+}
+
+reasons! {
+    HandMade => "hand-made",
+    NotRequested => "not the requested look",
+    Missing => "nothing printed beside it",
+    Markup => "its markup doesn't parse as written",
+    TooLarge => format!("too large to compare, over {} elements", Limits::default().elements),
+}
 
 enum ResultForPage {
     Untouched,
-    Uncompared(&'static str),
+    Uncompared(Why),
     Compared(PageReport),
 }
 
-fn as_written(tags: &[html::Tag<'_>], elements: &[Element], more: u32) -> bool {
-    more == 0
-        && tags.len() == elements.len()
+fn as_written(tags: &[html::Tag<'_>], elements: &[Element]) -> bool {
+    tags.len() == elements.len()
         && tags.iter().zip(elements).all(|(tag, element)| tag.name.as_bytes().eq_ignore_ascii_case(&element.name))
 }
 
@@ -278,11 +309,11 @@ fn candidates(
                 };
                 match drawing {
                     Some(drawing) if drawing.requests(file) => Candidate::Gallery(drawing.state.clone()),
-                    Some(_) => Candidate::Uncompared("not the requested look"),
-                    None => Candidate::Uncompared("hand-made"),
+                    Some(_) => Candidate::Uncompared(Why::NotRequested),
+                    None => Candidate::Uncompared(Why::HandMade),
                 }
             } else {
-                Candidate::Uncompared("hand-made")
+                Candidate::Uncompared(Why::HandMade)
             };
             pages.insert(page.clone(), candidate);
         } else if page.numbered() && requested.walks.contains(&journey) {

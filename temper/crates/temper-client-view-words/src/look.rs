@@ -1662,6 +1662,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-859",
         b"temper-goal-wait",
         b"temper-need-overdue",
+        b"temper-trial-limit-passed",
     ],
     regions: &[b"temper-link"],
 };
@@ -1876,6 +1877,8 @@ pub const CHIP_HIGH: Style = Style { owner: owner(), token: 483 };
 pub const WELCOME_STATUS_WHY: Style = Style { owner: owner(), token: 516 };
 /// Ready’s model controls (client/pages/README.md, The try).
 pub const WELCOME_STATUS_ACTS: Style = Style { owner: owner(), token: 517 };
+/// Model's trial after its usage limit has passed (temper/docs/design/domain/trial.md, 6.1).
+pub const TRIAL_LIMIT_PASSED: Style = Style { owner: owner(), token: 862 };
 
 /// Public pages (temper/docs/design/client/web/public.md, 3).
 pub const PUBLIC_PAGE: Style = Style { owner: owner(), token: 518 };

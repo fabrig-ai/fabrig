@@ -375,6 +375,13 @@ pub(crate) fn relay_payload(
                         action: core::NamedAction::Release { target, revision, again },
                     }));
                 }
+                Tool::Measure { target, revision } => {
+                    domain.work.push(Work::Core(core::Event::NamedAction {
+                        to: reply_to,
+                        key,
+                        action: core::NamedAction::Measure { target, revision },
+                    }));
+                }
                 Tool::Message { target, form, words } => {
                     let kind = match form {
                         MessageForm::Words => {

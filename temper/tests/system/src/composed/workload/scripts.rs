@@ -4,6 +4,8 @@ use super::{Goal, Script, World, engine};
 use serde_json::{Value, json};
 use temper_workload::draw::Change;
 
+pub(super) const ROOM_CUE: &str = "@branch-room@";
+
 pub(super) fn goal_cue(goal: &Goal) -> String {
     format!("@goal:{}@", goal.name)
 }
@@ -18,12 +20,15 @@ fn turn(name: &[u8], value: &Value) -> skein_fake_llm_domain::api::Turn {
     call(name, &serde_json::to_vec(value).expect("script JSON"))
 }
 
-pub(super) fn assigned(world: &World, assignment: &engine::Assignment) -> Script {
-    if world.lanes[0].assignment.as_ref().is_some_and(|previous| previous.task == assignment.task)
-        || world.parked.contains_key(&assignment.task)
-    {
+pub(super) fn continuing(world: &World, task: u64) -> bool {
+    world.lanes[0].assignment.as_ref().is_some_and(|previous| previous.task == task) || world.parked.contains_key(&task)
+}
+
+pub(super) fn assigned(world: &mut World, assignment: &engine::Assignment) -> Script {
+    if continuing(world, assignment.task) {
         return Script { cue: Box::default(), turns: Box::default() };
     }
+    let waiting_for_room = world.defer_branch_load(assignment.task);
     let row = world.root.tasks().task(assignment.task).expect("assigned task");
     let words = String::from_utf8_lossy(&row.spec.words);
     if words.starts_with("@chat:questions@") {
@@ -48,11 +53,17 @@ pub(super) fn assigned(world: &World, assignment: &engine::Assignment) -> Script
                     "name":change.name,"landing":if goal.train { "main" } else { "goal" },"after":after,"questions":"up"})
             }).collect();
             let mut turns = Vec::new();
+            let person = match goal.party {
+                super::Party::First => 1,
+                super::Party::Second => 2,
+            };
+            if waiting_for_room {
+                // Park at a real person task, not at an unanswered host call
+                // that would keep the only worker slot from freeing room.
+                turns.push(person_task(person, &format!("{ROOM_CUE} Admit the changes when there is branch room.")));
+                turns.push(call(b"wait", b"{}"));
+            }
             if goal.train {
-                let person = match goal.party {
-                    super::Party::First => 1,
-                    super::Party::Second => 2,
-                };
                 turns.push(person_task(person, &format!("@latch:{}@ Release the ready train.", goal.name)));
             }
             turns.extend([

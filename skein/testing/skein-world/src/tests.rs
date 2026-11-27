@@ -4,6 +4,7 @@
 mod cases;
 mod faults;
 mod inspect;
+mod shapes;
 mod streams;
 mod sweep;
 mod test_env;

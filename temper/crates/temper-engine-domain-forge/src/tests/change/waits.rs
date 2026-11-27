@@ -4,7 +4,7 @@ use fixtures::{BASE, CHANGE, HEAD, OPEN};
 use jig_domain_core_vocabulary::waits::{AtBound, ReportedBound, Thing, Unbounded};
 use skein_forge::api::{Answer, Check, Ci, Error, Op, Read, RunState};
 use temper_client_protocol_wire::waits as code;
-use temper_engine_domain_forge_change::{self as change, Decision, Delegate, Hold, State, Status};
+use temper_engine_domain_forge_change::{self as change, Cause, Decision, Delegate, State, Status};
 
 const CHILD: u64 = CHANGE + 1;
 const DEPENDENCY: u64 = CHILD + 1;
@@ -86,7 +86,7 @@ fn opening_reports_the_in_flight_entries_stall() {
     );
     let mut held = false;
     for request in &finished {
-        if let Request::ChangeDecision { task: CHANGE, decision: Decision::Hold(Hold::Stalled), .. } = request {
+        if let Request::ChangeDecision { task: CHANGE, decision: Decision::Hold(Cause::Stalled), .. } = request {
             held = true;
         }
     }
@@ -173,7 +173,7 @@ fn a_silent_reset_holds_at_its_original_read_bound_after_restart() {
     for request in &expired {
         if let Request::ChangeDecision {
             task: CHANGE,
-            decision: Decision::Hold(Hold::Stalled),
+            decision: Decision::Hold(Cause::Stalled),
             entry: None,
             evidence: Some(evidence),
         } = request

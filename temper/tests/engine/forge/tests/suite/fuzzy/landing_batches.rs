@@ -1,8 +1,12 @@
-//! Seeded batch turns on the independent forge (domain/landing.md, 16).
+//! Seeded batch turns on the independent forge (domain/landing.md, 16;
+//! temper/docs/design/testing/workloads.md, 8.5).
 use super::super::landing_batches::{heard, workflow};
+use core::convert::Infallible;
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
 use skein_lib::Rng;
+use skein_world::sweep::{Test, cases, gate};
+use std::io::{self, Write};
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_forge_world::{
@@ -26,7 +30,62 @@ pub(crate) struct Replay {
     main: u64,
     calls: Vec<api::Op>,
     histories: Vec<Vec<top::history::Event>>,
+    pub(super) skipped: Skipped,
 }
+
+/// Ineligible fixture draws, not failed engine work.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct Skipped {
+    commits: u64,
+    tasks: u64,
+    gates: u64,
+}
+
+impl Skipped {
+    pub(super) fn fits_commits(&mut self, world: &mut World, commits: u32) -> bool {
+        if world.forge_mut().room().commits < commits {
+            self.commits += 1;
+            return false;
+        }
+        true
+    }
+
+    pub(super) fn fits_tasks(&mut self, world: &World, tasks: &[u64]) -> bool {
+        if !world.can_hold_tasks(tasks) {
+            self.tasks += 1;
+            return false;
+        }
+        true
+    }
+
+    pub(super) fn no_gate(&mut self) {
+        self.gates += 1;
+    }
+
+    pub(super) fn add(&mut self, other: Self) {
+        self.commits += other.commits;
+        self.tasks += other.tasks;
+        self.gates += other.gates;
+    }
+
+    pub(super) fn report(self, test: Test) {
+        if gate() {
+            self.assert_none();
+        } else {
+            for (reason, count) in [("commit-room", self.commits), ("task-table", self.tasks), ("no-gate", self.gates)]
+            {
+                if count > 0 {
+                    let _reported = writeln!(io::stderr().lock(), "fuzzy reach: {test} ineligible/{reason} {count}");
+                }
+            }
+        }
+    }
+
+    fn assert_none(self) {
+        assert_eq!(self, Self::default(), "all scripted draws were eligible");
+    }
+}
+
 pub(crate) struct Workload {
     pub rng: Rng,
     pub count: u64,
@@ -67,7 +126,8 @@ pub(crate) fn run_repairing_in(world: World, seed: u64, horizon: u64) -> (World,
 
 fn run_workload(world: World, seed: u64, horizon: u64, workload: Workload) -> (World, Replay) {
     let Workload { mut rng, count, squash, red, conflict, moving, red_member } = workload;
-    let mut world = setup(world, count, red, conflict, red_member);
+    let mut skipped = Skipped::default();
+    let mut world = setup_batch(world, count, red, conflict, red_member, &mut skipped);
     Trains::default().judge(&mut world);
     let mut reported = false;
     let mut inject = moving;
@@ -107,6 +167,7 @@ fn run_workload(world: World, seed: u64, horizon: u64, workload: Workload) -> (W
         }
         if world.landing(LANDING).landing.phase == landing::Phase::Proving
             && let Some(index) = inject.take()
+            && skipped.fits_commits(&mut world, 1)
         {
             world.push_file(format!("temper/c{}", 51 + index).as_bytes(), b"moved", b"new delivery");
         }
@@ -130,18 +191,39 @@ fn run_workload(world: World, seed: u64, horizon: u64, workload: Workload) -> (W
         super::history::check(seed, change, &events);
         histories.push(events);
     }
-    let replay = Replay { landing: row, main, calls: world.take_calls(), histories };
+    let replay = Replay { landing: row, main, calls: world.take_calls(), histories, skipped };
     (world, replay)
 }
 #[test]
 fn seeded_batches_keep_the_fast_forward_prefix_and_cleanup_invariants() {
-    for seed in 1..65 {
-        assert_eq!(run(seed), run(seed), "seed {seed} replays");
-    }
+    let test = skein_world::this_test!("seeded_batches_keep_the_fast_forward_prefix_and_cleanup_invariants");
+    let mut skipped = Skipped::default();
+    cases(test, 1..65, |seed| {
+        let replay = run(seed);
+        assert_eq!(replay, run(seed), "seed {seed} replays");
+        skipped.add(replay.skipped);
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    skipped.report(test);
 }
 
 /// The same workload preparation for fault and party sweeps.
-pub(super) fn setup(mut world: World, count: u64, red: bool, conflict: Option<u64>, red_member: u64) -> World {
+pub(super) fn setup(world: World, count: u64, red: bool, conflict: Option<u64>, red_member: u64) -> World {
+    let mut skipped = Skipped::default();
+    let world = setup_batch(world, count, red, conflict, red_member, &mut skipped);
+    skipped.assert_none();
+    world
+}
+
+fn setup_batch(
+    mut world: World,
+    count: u64,
+    red: bool,
+    conflict: Option<u64>,
+    red_member: u64,
+    skipped: &mut Skipped,
+) -> World {
     world = landings::turn_in(world);
     world.batch(u16::try_from(count).expect("small batch"));
     world.push_file(b"main", b"file", b"fixed");
@@ -153,7 +235,7 @@ pub(super) fn setup(mut world: World, count: u64, red: bool, conflict: Option<u6
         );
         let path = format!("member{}", if conflict == Some(index) { 0 } else { index });
         world.push_file(branch.as_bytes(), path.as_bytes(), &index.to_be_bytes());
-        if red && index == red_member {
+        if red && index == red_member && skipped.fits_commits(&mut world, 1) {
             world.push_wrong_tree(branch.as_bytes(), b"file", b"broken");
         }
         landings::ready_change(&mut world, 51 + index, branch.as_bytes());

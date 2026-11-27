@@ -282,12 +282,12 @@ fn a_change_waiting_on_the_write_record_keeps_its_bound_through_an_outage() {
         let out = fixtures::advance(&mut d, &mut env, Duration::from_nanos(1));
         assert!(matches!(
             d.change(task).expect("caller").change.state,
-            change::State::Held { why: change::Hold::Stalled, .. }
+            change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
         ));
         let mut named = false;
         for request in &out {
             if let Request::ChangeDecision {
-                decision: change::Decision::Hold(change::Hold::Stalled),
+                decision: change::Decision::Hold(change::Cause::Stalled),
                 evidence: Some(read),
                 ..
             } = request

@@ -1573,10 +1573,35 @@ pub(crate) fn revision_saved(
         domain.work.push(Work::Forge(forge::Event::RoomUnavailable { task: task.number }));
     }
     let mut out = Queue::uncapped();
+    let hold = task_hold(domain.config.forge_connector, task);
+    domain.forge.refresh_task_hold(task.number, hold);
     domain.forge.refresh_spec_revision(task.number, task.revisions.spec, &mut out);
     landing_route::cohort_saved(domain, env, task, &mut out);
     landing_route::lifecycle_saved(domain, task);
     outputs(domain, env, decision, &mut out);
+}
+
+pub(super) fn task_hold(connector: u16, row: &tasks::TaskRecord) -> Option<forge::TaskHold> {
+    if row.placed.is_some() {
+        return Some(forge::TaskHold::Blocked);
+    }
+    match &row.phase {
+        tasks::Phase::Held { source: Some(source), .. } => match source.as_ref() {
+            tasks::HoldSource::Account { connector: owner, .. } if *owner == connector => {
+                Some(forge::TaskHold::Change { revision: row.revisions.hold })
+            }
+            tasks::HoldSource::Account { .. }
+            | tasks::HoldSource::Circle(_)
+            | tasks::HoldSource::Preparation { .. }
+            | tasks::HoldSource::Wait { .. }
+            | tasks::HoldSource::Resource(_)
+            | tasks::HoldSource::Effect { .. } => Some(forge::TaskHold::Blocked),
+        },
+        tasks::Phase::Held { source: None, .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => {
+            Some(forge::TaskHold::Blocked)
+        }
+        tasks::Phase::Waiting | tasks::Phase::Active(_) => None,
+    }
 }
 
 pub(super) fn dependency_releases_change(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, task: u64) {
@@ -1630,7 +1655,7 @@ fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
         return;
     }
     let Some(owner) = domain.engine.core().tasks.task(task) else { return };
-    if owner.due_reason != tasks::Why::Released {
+    if !delegate_record::release_reason(owner.due_reason) {
         return;
     }
     let Some(row) = domain.forge.change(task) else { return };
@@ -2062,7 +2087,7 @@ pub(super) fn start_recovered_change(
         // release retries that entrance before the first producer claims it.
         let resource = forge::branch_name(provider, &branch);
         let released = match domain.engine.core().tasks.task(task) {
-            Some(owner) => owner.due_reason == tasks::Why::Released,
+            Some(owner) => delegate_record::release_reason(owner.due_reason),
             None => false,
         };
         let starting = match domain.forge.change(task) {
@@ -2093,7 +2118,9 @@ pub(super) fn start_recovered_change(
     }
     let Some(entry) = crate::fresh(&mut domain.engine.core_mut().counters, Family::ConnectorRow) else { return false };
     let released_questions = match (domain.forge.change(task), domain.engine.core().tasks.task(task)) {
-        (Some(row), Some(task)) => relay::questions_held(&row.change.state) && task.due_reason == tasks::Why::Released,
+        (Some(row), Some(task)) => {
+            relay::questions_held(&row.change.state) && delegate_record::release_reason(task.due_reason)
+        }
         _ => false,
     };
     if released_questions && let Some((_, _, step)) = domain.engine.core().tasks.procedure_due(task) {
@@ -2105,7 +2132,11 @@ pub(super) fn start_recovered_change(
             )
             .expect("one released relay per change step");
         let record = domain.engine.core().tasks.task(task).expect("released change");
-        let release = forge::TaskRelease { revision: record.revisions.hold, at: record.phase_since };
+        let release = forge::TaskRelease {
+            revision: record.revisions.hold,
+            at: record.phase_since,
+            measure: record.due_reason == tasks::Why::Measured,
+        };
         domain.work.push(Work::Forge(forge::Event::ReleaseChange { task, release: Some(release) }));
     }
     let step = change_step(domain, env, task, entry, provider, &base, false);
@@ -3477,11 +3508,7 @@ fn authority_hold_message(
     })
 }
 
-fn producer_failure_words(
-    domain: &Domain,
-    task: u64,
-    replay: Option<forge_change::CloseAt>,
-) -> Option<(tasks::Hold, Box<[u8]>)> {
+fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, &[u8])> {
     let row = domain.forge.change(task)?;
     let forge_change::State::Held { was, .. } = &row.change.state else { return None };
     let (category, producing) = match was.as_ref() {
@@ -3517,32 +3544,59 @@ fn producer_failure_words(
         }
         Some(_) | None => return None,
     };
-    let words = match replay {
-        Some(at) => close::replay_words(at, words),
-        None => Box::from(words),
-    };
     Some((category, words))
 }
 
-fn hold_change_decision(
+fn task_hold_kind(why: forge_change::Cause) -> tasks::Hold {
+    match why {
+        forge_change::Cause::BranchMoved
+        | forge_change::Cause::BranchMissing
+        | forge_change::Cause::Retargeted
+        | forge_change::Cause::PullClosed => tasks::Hold::Drift,
+        forge_change::Cause::Authority(cause) => match cause.lack {
+            forge_change::AuthorityLack::Tasks | forge_change::AuthorityLack::Depth => tasks::Hold::Procedure,
+            forge_change::AuthorityLack::Spend => tasks::Hold::Budget,
+        },
+        forge_change::Cause::Stalled => tasks::Hold::Stalled,
+        forge_change::Cause::Runner
+        | forge_change::Cause::RedStands
+        | forge_change::Cause::Repairs
+        | forge_change::Cause::Resolutions
+        | forge_change::Cause::Updates
+        | forge_change::Cause::Questions => tasks::Hold::Procedure,
+        forge_change::Cause::Failed | forge_change::Cause::Rejected | forge_change::Cause::CloseRefused => {
+            tasks::Hold::EffectFailed
+        }
+    }
+}
+
+fn change_hold_step(
     domain: &Domain,
     env: &Env<Limits>,
     task: u64,
-    why: forge_change::Hold,
+    why: forge_change::Cause,
     evidence: Option<&forge::ChangeEvidence>,
     replay: Option<forge_change::CloseAt>,
 ) -> ProcedureStep {
+    let retained = retained_change_account(domain, task, why);
     // The hold keeps the delegate's account; its inbox notice has its own bound.
-    if why == forge_change::Hold::Failed
-        && let Some((category, words)) = producer_failure_words(domain, task, replay)
+    if (why == forge_change::Cause::Failed || why == forge_change::Cause::CloseRefused)
+        && let Some((category, words)) = producer_failure_words(domain, task)
     {
+        let words = match (retained, replay) {
+            (Some(account), _) => Box::from(account),
+            (None, Some(at)) => close::replay_words(at, words),
+            (None, None) => Box::from(words),
+        };
         return holds::decision_as(domain, env, task, category, words);
     }
     let check_hold = match domain.forge.change(task) {
-        Some(forge::ChangeRow { follow_check: Some(check), .. }) => check.held.clone(),
+        Some(forge::ChangeRow { follow_check: Some(check), .. }) => check.held.as_deref(),
         Some(_) | None => None,
     };
-    let account = if why == forge_change::Hold::Repairs
+    let account = if let Some(words) = retained {
+        Some(Box::from(words))
+    } else if why == forge_change::Cause::Repairs
         && let Some(row) = domain.forge.change(task)
     {
         let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
@@ -3552,9 +3606,11 @@ fn hold_change_decision(
         append(&mut words, &decimal(u64::from(env.limits.forge.change_policy.repairs)));
         append(&mut words, b" taken");
         Some(words.into_boxed())
-    } else if why == forge_change::Hold::Failed && check_hold.is_some() {
-        check_hold
-    } else if why == forge_change::Hold::Questions {
+    } else if why == forge_change::Cause::Failed
+        && let Some(words) = check_hold
+    {
+        Some(Box::from(words))
+    } else if why == forge_change::Cause::Questions {
         let bound = skein_lib::Decimal::of(u64::from(env.limits.forge.change_policy.questions));
         let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
         append(&mut words, b"its questions are spent: ");
@@ -3572,66 +3628,177 @@ fn hold_change_decision(
             append(&mut words, b" waits; release it to pass the question up");
         }
         Some(words.into_boxed())
-    } else if let forge_change::Hold::Authority(cause) = why {
-        Some(forge_change::authority_words(cause))
+    } else if let forge_change::Cause::Authority(cause) = why {
+        Some(forge_change::authority_account(cause))
     } else {
         holds::change_account(domain, env, task, why, evidence)
     };
-    let message = if let forge_change::Hold::Authority(cause) = why {
+    let message = if let forge_change::Cause::Authority(cause) = why {
         authority_hold_message(domain, env, task, cause)
-    } else if why == forge_change::Hold::Failed {
+    } else if why == forge_change::Cause::Failed {
         review_failure_message(domain, env, task)
     } else {
         None
     };
     let change_hold = why;
-    let updates = why == forge_change::Hold::Updates;
-    let why = match why {
-        forge_change::Hold::BranchMoved
-        | forge_change::Hold::BranchMissing
-        | forge_change::Hold::Retargeted
-        | forge_change::Hold::PullClosed => tasks::Hold::Drift,
-        forge_change::Hold::Authority(cause) => match cause.lack {
-            forge_change::AuthorityLack::Tasks | forge_change::AuthorityLack::Depth => tasks::Hold::Procedure,
-            forge_change::AuthorityLack::Spend => tasks::Hold::Budget,
-        },
-        forge_change::Hold::Stalled => tasks::Hold::Stalled,
-        forge_change::Hold::Runner
-        | forge_change::Hold::RedStands
-        | forge_change::Hold::Repairs
-        | forge_change::Hold::Resolutions
-        | forge_change::Hold::Updates
-        | forge_change::Hold::Questions
-        | forge_change::Hold::Flake
-        | forge_change::Hold::NoTest => tasks::Hold::Procedure,
-        forge_change::Hold::Failed | forge_change::Hold::Rejected => tasks::Hold::EffectFailed,
-    };
-    let end = if let Some(words) = account
-        && !words.is_empty()
-    {
-        StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, None, words)) }
-    } else if (updates || why == tasks::Hold::EffectFailed)
+    let updates = why == forge_change::Cause::Updates;
+    let why = task_hold_kind(why);
+    let effect = if (updates || why == tasks::Hold::EffectFailed)
         && let Some(row) = domain.forge.change(task)
         && (updates || row.effect == forge_change::EffectResult::Failed)
-        && let Some(account) = &row.effect_account
-        && !account.words.is_empty()
+        && let Some(effect) = &row.effect_account
+        && !effect.words.is_empty()
     {
-        StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, Some(account.entry), account.words.clone())) }
+        Some(effect)
+    } else {
+        None
+    };
+    let (entry, words) = if let Some(words) = account
+        && !words.is_empty()
+    {
+        let entry = if let (Some(saved), Some(effect)) = (retained, effect)
+            && saved == effect.words.as_ref()
+        {
+            Some(effect.entry)
+        } else {
+            None
+        };
+        (entry, words)
+    } else if let Some(effect) = effect {
+        (Some(effect.entry), effect.words.clone())
     } else if let Some(message) = &message
         && !message.words.is_empty()
     {
-        StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, None, message.words.clone())) }
+        (None, message.words.clone())
     } else {
-        StepEnd::HoldFrom {
-            why,
-            source: Box::new(holds::source(domain, None, holds::change_fallback(domain, env, task, change_hold))),
-        }
+        (None, holds::change_fallback(domain, env, task, change_hold))
     };
+    let end = StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, entry, words)) };
     let mut decision = ProcedureStep::new(end);
     if let Some(message) = message {
         decision.messages = Box::new([message]);
     }
     decision
+}
+
+// The step keeps its ordinary account selection. Once held, its words no
+// longer depend on the read, delegate or effect that supplied them.
+fn hold_change_decision(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    cause: forge_change::Cause,
+    evidence: Option<&forge::ChangeEvidence>,
+    replay: Option<forge_change::CloseAt>,
+) -> ProcedureStep {
+    let mut decision = change_hold_step(domain, env, task, cause, evidence, replay);
+    let StepEnd::HoldFrom { source, .. } = &mut decision.end else { unreachable!("change hold has an account") };
+    let tasks::HoldSource::Account { words, .. } = source.as_mut() else { unreachable!("change hold has words") };
+    *words = change_hold_recovery(domain, task, cause, words);
+    decision
+}
+
+fn retained_change_account(domain: &Domain, task: u64, cause: forge_change::Cause) -> Option<&[u8]> {
+    let row = domain.forge.change(task)?;
+    if let forge_change::State::Held { hold, .. } = &row.change.state
+        && hold.cause == cause
+        && !hold.words.is_empty()
+    {
+        return Some(&hold.words);
+    }
+    None
+}
+
+fn change_hold_recovery(domain: &Domain, task: u64, cause: forge_change::Cause, account: &[u8]) -> Box<[u8]> {
+    let revision =
+        if let Some(row) = domain.engine.core().tasks.task(task) { row.revisions.hold.saturating_add(1) } else { 1 };
+    if let forge_change::Cause::Authority(cause) = cause {
+        return forge_change::authority_recovery(cause, revision, account);
+    }
+    // Forge drift and the generic fallback offer the revision-addressed release
+    // and cancellation commands. Dedicated accounts retain their own way out.
+    if cause.kind() == forge_change::Kind::Forge || account.starts_with(holds::change_fallback_reason(cause)) {
+        let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+        append(&mut words, account);
+        forge::hold_words::append_recovery(task, revision, &mut words);
+        return words.into_boxed();
+    }
+    Box::from(account)
+}
+
+fn account_for_hold(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    cause: forge_change::Cause,
+    evidence: Option<&forge::ChangeEvidence>,
+    replay: Option<forge_change::CloseAt>,
+) -> Box<[u8]> {
+    let step = change_hold_step(domain, env, task, cause, evidence, replay);
+    let StepEnd::HoldFrom { source, .. } = step.end else { unreachable!("change hold has an account") };
+    let tasks::HoldSource::Account { words, .. } = *source else { unreachable!("change hold has words") };
+    forge::text::fit(&words, skein_lib::usize_of(tasks::HOLD_ACCOUNT_BYTES), b"...")
+}
+
+// A hold's save comes before its procedure decision; both reach the same root
+// decision. Borrow that decision's ephemeral read evidence before saving.
+fn fill_hold_account(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    hot: &mut forge::ChangeHot,
+    pending: &Queue<forge::Request>,
+) {
+    let forge_change::State::Held { hold, .. } = &mut hot.change.state else { return };
+    if !hold.words.is_empty() {
+        return;
+    }
+    let task = hot.task;
+    if let Some(row) = domain.forge.change(task)
+        && let forge_change::State::Held { hold: current, .. } = &row.change.state
+        && current.cause == hold.cause
+        && current.since == hold.since
+        && !current.words.is_empty()
+    {
+        hold.words.clone_from(&current.words);
+        return;
+    }
+    let mut read = None;
+    let mut close = None;
+    for request in pending {
+        if let forge::Request::ChangeDecision {
+            task: owner,
+            decision: forge_change::Decision::Hold(cause),
+            evidence,
+            ..
+        } = request
+            && *owner == task
+            && *cause == hold.cause
+        {
+            read = evidence.as_ref();
+            break;
+        }
+        if let forge::Request::CloseDecision { task: owner, at, replay: true } = request
+            && *owner == task
+            && hold.cause == forge_change::Cause::CloseRefused
+        {
+            close = Some(*at);
+            break;
+        }
+    }
+    hold.words = account_for_hold(domain, env, task, hold.cause, read, close);
+    domain.forge.keep_hold_words(task, hold.cause, hold.since, hold.words.clone());
+}
+
+fn save_restored_hold(domain: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<forge::Request>) {
+    let Some(cause) = change_rehold(domain, task) else { return };
+    let Some(row) = domain.forge.change(task) else { return };
+    let forge_change::State::Held { hold, .. } = &row.change.state else { return };
+    if hold.words.is_empty() {
+        let since = hold.since;
+        let words = account_for_hold(domain, env, task, cause, None, None);
+        domain.forge.keep_hold_words(task, cause, since, words);
+        domain.forge.save_hold_words(task, out);
+    }
 }
 
 fn cancel_change_gates(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureStep {
@@ -3801,6 +3968,9 @@ fn cancel_change(domain: &mut Domain, task: u64) {
 // The deployment records the vanished CI cause through the task's release path (domain/forge/change/repairs.md).
 fn end_change_hold(domain: &mut Domain, task: u64) {
     let Some(row) = domain.engine.core().tasks.task(task) else { return };
+    if task_hold(domain.config.forge_connector, row) != Some(forge::TaskHold::Change { revision: row.revisions.hold }) {
+        return;
+    }
     domain.work.push(Work::Tasks(tasks::Event::Release {
         reply_to: super::internal(u64::MAX),
         by: tasks::Party::Deployment { project: row.project },
@@ -3960,9 +4130,9 @@ fn step_dependents(domain: &mut Domain, env: &Env<Limits>, dependency: u64) {
 }
 
 // Every hold reaches its task, including a later wake or restore (change/repairs.md).
-fn change_rehold(domain: &Domain, task: u64) -> Option<forge_change::Hold> {
+fn change_rehold(domain: &Domain, task: u64) -> Option<forge_change::Cause> {
     let task_row = domain.engine.core().tasks.task(task)?;
-    if task_row.due_reason == tasks::Why::Released {
+    if delegate_record::is_release(domain, task) {
         return None;
     }
     match task_row.phase {
@@ -3970,7 +4140,12 @@ fn change_rehold(domain: &Domain, task: u64) -> Option<forge_change::Hold> {
         tasks::Phase::Waiting | tasks::Phase::Active(_) => {}
     }
     let row = domain.forge.change(task)?;
-    let forge_change::State::Held { why, .. } = row.change.state else { return None };
+    if row.change.released.is_some() {
+        return None;
+    }
+    let forge_change::State::Held { hold: forge_change::Hold { cause: why, .. }, .. } = row.change.state else {
+        return None;
+    };
     Some(why)
 }
 
@@ -3991,11 +4166,12 @@ fn change_decision_from_read(
     {
         choice = forge_change::Decision::Hold(why);
     }
-    let cancel_close = if choice == forge_change::Decision::Hold(forge_change::Hold::Failed) {
-        close::retire_on_hold(domain, task)
-    } else {
-        None
-    };
+    let cancel_close =
+        if let forge_change::Decision::Hold(forge_change::Cause::Failed | forge_change::Cause::CloseRefused) = choice {
+            close::retire_on_hold(domain, task)
+        } else {
+            None
+        };
     let (connector, code, step) = match domain.engine.core().tasks.procedure_due(task) {
         Some(due) if due.0 == domain.config.forge_connector && due.1 == CHANGE_CODE => due,
         Some(_) | None => {
@@ -4359,7 +4535,10 @@ pub(crate) fn outputs(
                 }));
             }
             forge::Request::Settled { unfinished } => crate::settling::finished(domain, unfinished),
-            forge::Request::Save { record, release, read_afresh } => {
+            forge::Request::Save { mut record, release, read_afresh } => {
+                if let forge::Stored::ChangeHot(hot) = &mut record {
+                    fill_hold_account(domain, env, hot, out);
+                }
                 if let forge::Stored::Milestone(row) = &record {
                     super::parts::marked(domain, row.task);
                 }
@@ -4854,7 +5033,7 @@ pub(crate) fn outputs(
             }
             forge::Request::CloseDecision { task, at, replay } => {
                 let choice = if replay {
-                    forge_change::Decision::Hold(forge_change::Hold::Failed)
+                    forge_change::Decision::Hold(forge_change::Cause::CloseRefused)
                 } else {
                     forge_change::Decision::Delegate(forge_change::Delegate::Close)
                 };
@@ -4938,7 +5117,7 @@ pub(crate) fn outputs(
                                     domain,
                                     env,
                                     task,
-                                    forge_change::Decision::Hold(forge_change::Hold::Failed),
+                                    forge_change::Decision::Hold(forge_change::Cause::Failed),
                                 );
                             }
                         }
@@ -4959,6 +5138,9 @@ pub(crate) fn outputs(
                 | forge_change::Decision::NoChange
                 | forge_change::Decision::Finish { .. }
                 | forge_change::Decision::Hold(_) => {
+                    if choice == forge_change::Decision::None {
+                        save_restored_hold(domain, env, task, out);
+                    }
                     change_decision_from_read(domain, env, task, choice, evidence.as_ref(), None);
                 }
                 forge_change::Decision::Cancel => cancel_change(domain, task),

@@ -819,7 +819,7 @@ fn repaired_request_waits_for_approval(world: &mut World, change: u64, repair: &
 
 #[test]
 fn a_persons_request_for_changes_repairs_with_its_remarks() {
-    use temper_engine_domain_forge_change::{Delegate, Hold, Repair, State};
+    use temper_engine_domain_forge_change::{Cause, Delegate, Repair, State};
     for (body, remarks, moved_past, bound) in [
         (b"Please repair the edge.".as_slice(), true, false, false),
         (b"".as_slice(), false, false, false),
@@ -881,7 +881,13 @@ fn a_persons_request_for_changes_repairs_with_its_remarks() {
         } else if bound {
             assert_eq!(row.change.repairs, repairs);
             assert_eq!(world.assigned.len(), assigned, "no repair past the bound");
-            assert!(matches!(row.change.state, State::Held { why: Hold::Repairs, .. }), "{row:?}");
+            assert!(
+                matches!(
+                    row.change.state,
+                    State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::Repairs, .. }, .. }
+                ),
+                "{row:?}"
+            );
             assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
         } else {
             assert_eq!(row.change.repairs, repairs + 1, "{row:?}");

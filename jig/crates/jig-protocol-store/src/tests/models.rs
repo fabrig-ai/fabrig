@@ -25,23 +25,26 @@ fn changed(setting: s::Setting, value: s::Value) -> core::Record {
     }))
 }
 
+fn model_entry(number: u32, name: Box<[u8]>, source: s::ModelSource, withdrawn: bool) -> s::CatalogueModel {
+    s::CatalogueModel {
+        first_read: Some(skein_lib::Wall::from_nanos(123)),
+        number,
+        model: core::Model { name, ..model() },
+        shown: None,
+        description: None,
+        picker: true,
+        withdrawn,
+        source,
+        estimated: true,
+    }
+}
+
+fn model_changed(entry: s::CatalogueModel) -> core::Record {
+    changed(s::Setting::Model(entry.number), s::Value::Model(Box::new(entry)))
+}
+
 fn personal_model(withdrawn: bool) -> core::Record {
-    let mut model = model();
-    model.name = Box::from(b"personal".as_slice());
-    changed(
-        s::Setting::Model(PERSON),
-        s::Value::Model(Box::new(s::CatalogueModel {
-            first_read: Some(skein_lib::Wall::from_nanos(123)),
-            number: PERSON,
-            model,
-            shown: None,
-            description: None,
-            picker: true,
-            withdrawn,
-            source: s::ModelSource::Person,
-            estimated: true,
-        })),
-    )
+    model_changed(model_entry(PERSON, b"personal".as_slice().into(), s::ModelSource::Person, withdrawn))
 }
 
 fn names() -> Box<[s::ModelName]> {
@@ -86,7 +89,11 @@ fn policy_record() -> core::Record {
 }
 
 fn open(checked: &crate::Checked, stores: crate::Stores) -> Store {
-    let mut store = Store::over(checked, fixtures::APPLICATION, &defaults(), stores);
+    open_with_defaults(checked, stores, &defaults())
+}
+
+fn open_with_defaults(checked: &crate::Checked, stores: crate::Stores, defaults: &[core::Model]) -> Store {
+    let mut store = Store::over(checked, fixtures::APPLICATION, defaults, stores);
     let events = fixtures::run(
         &mut store,
         Request::Open {
@@ -101,7 +108,11 @@ fn open(checked: &crate::Checked, stores: crate::Stores) -> Store {
 }
 
 fn restored(store: &mut Store) -> Box<[core::Record]> {
-    let mut result = List::with_capacity(STORED_SETTINGS);
+    restored_settings(store, STORED_SETTINGS)
+}
+
+fn restored_settings(store: &mut Store, rows: u32) -> Box<[core::Record]> {
+    let mut result = List::with_capacity(rows);
     let mut after = None;
     loop {
         let events = fixtures::run(
@@ -176,6 +187,67 @@ fn a_later_catalogue_is_the_vocabulary_of_the_next_commit() {
     let key = keys::encode(&row.key(), fixtures::KEY_LIMIT).unwrap();
     let bytes = fixtures::get_kv(&mut store, &key).unwrap();
     assert_eq!(codec::decode(&row.key(), &bytes, &store.codec_limits, &names()), Some(row));
+}
+
+// Seven defaults, then deployment changes at numbers 39 through MODELS.
+const STOCK: u32 = 7;
+const FIRST_ADDED: u32 = 39;
+const ADDED_INDEX: u8 = 38;
+const POSITIONS: usize = 64; // Highest model number, MODELS.
+const GAPPED_SETTINGS: u32 = 27; // 26 added models and one template, no policy.
+
+fn numbered_catalogue() -> Box<[s::CatalogueModel]> {
+    let mut entries = List::with_capacity(MODELS);
+    for number in (1..=STOCK).chain(FIRST_ADDED..=MODELS) {
+        let name = skein_lib::bytes::concat(&[b"m", skein_lib::Decimal::of(u64::from(number)).as_bytes()]);
+        let source = if number <= STOCK { s::ModelSource::Stock } else { s::ModelSource::Person };
+        entries.push(model_entry(number, name, source, false)).expect("one entry per number");
+    }
+    entries.into_boxed()
+}
+
+#[test]
+fn a_choice_keeps_its_model_number_across_a_gapped_restart() {
+    use skein_lib::length::usize_of;
+
+    let limits = fixtures::registered_store_limits();
+    let checked = crate::check(&limits).expect("fixture store limits");
+    let stores = crate::Stores {
+        store: skein_kv::Store::memory(&limits.store),
+        secrets: skein_kv::Store::memory(&limits.secrets),
+    };
+    let entries = numbered_catalogue();
+    let (stock, added) = entries.split_at_checked(usize_of(STOCK)).expect("seven stock entries");
+    let defaults = s::catalogue::rows(stock);
+    let mut store = open_with_defaults(&checked, stores, &defaults);
+    store.catalogue(s::model_names(&s::catalogue::rows(&entries)));
+    // Each commit has one header and room for the remaining writes to be model changes.
+    let writes = limits.commits.writes;
+    let changes_per_commit = writes.checked_sub(1).expect("header uses one write");
+    let mut commit = 1_u64;
+    for chunk in added.chunks(usize_of(changes_per_commit)) {
+        let mut batch = List::with_capacity(writes);
+        batch.push(fixtures::header(commit)).expect("header write");
+        for entry in chunk {
+            batch.push(Write::Save(model_changed(entry.clone()))).expect("model change write");
+        }
+        fixtures::committed(&mut store, batch.into_boxed());
+        commit = commit.checked_add(1).expect("next commit");
+    }
+    let choice = template_choice(ADDED_INDEX);
+    fixtures::committed(&mut store, Box::new([fixtures::header(commit), Write::Save(choice.clone())]));
+
+    let mut store = open_with_defaults(&checked, store.into_stores(), &defaults);
+    let rows = restored_settings(&mut store, GAPPED_SETTINGS);
+    assert!(rows.contains(&choice), "template choice keeps m39's index and effort");
+    assert_eq!(store.names.len(), POSITIONS);
+    let index = usize::from(ADDED_INDEX);
+    let added = store.names.get(index).expect("model 39's slot");
+    assert_eq!(added.name.as_ref(), b"m39");
+    assert_eq!(added.efforts.as_ref(), &[Box::from(b"low".as_slice()), Box::from(b"high".as_slice())]);
+    for hole in store.names.get(usize_of(STOCK)..index).expect("holes within the catalogue") {
+        assert_eq!(hole, &s::ModelName { name: Box::default(), efforts: Box::default() });
+    }
 }
 
 #[test]

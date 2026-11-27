@@ -22,6 +22,7 @@ pub enum Mark {
     UnderWay,
     Failed,
     Stopped,
+    StoppedQuiet,
     ToCome,
 }
 /// A list whose lines say their state in words.
@@ -34,7 +35,7 @@ pub fn progress(b: &mut Builder, w: &Words, name: &[u8], lines: &[(&[u8], Mark)]
         match mark {
             Mark::Done => b.style(look::FLOW_DONE),
             Mark::UnderWay => b.state(State::Current),
-            Mark::Failed | Mark::Stopped => b.style(look::FLOW_FAILED),
+            Mark::Failed | Mark::Stopped | Mark::StoppedQuiet => b.style(look::FLOW_FAILED),
             Mark::ToCome => {}
         }
         b.text(Run::Plain, line);
@@ -42,7 +43,7 @@ pub fn progress(b: &mut Builder, w: &Words, name: &[u8], lines: &[(&[u8], Mark)]
             Mark::Done => Some(Word::FlowDone),
             Mark::UnderWay => Some(Word::FlowUnderWay),
             Mark::Failed => Some(Word::FlowFailed),
-            Mark::Stopped => Some(Word::FlowStopped),
+            Mark::Stopped | Mark::StoppedQuiet => Some(Word::FlowStopped),
             Mark::ToCome => None,
         };
         if let Some(word) = word {
@@ -181,7 +182,7 @@ pub(crate) fn live(b: &mut Builder, lines: &[(&[u8], Mark)]) {
             Mark::Done => {}
             Mark::UnderWay => b.state(State::Current),
             Mark::ToCome => b.style(look::CONNECT_LATER),
-            Mark::Failed | Mark::Stopped => b.style(look::CONNECT_FAILED),
+            Mark::Failed | Mark::Stopped | Mark::StoppedQuiet => b.style(look::CONNECT_FAILED),
         }
         b.text(Run::Plain, line);
         b.close();

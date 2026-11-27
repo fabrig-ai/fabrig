@@ -46,7 +46,7 @@ fn run_allowance(world: &mut World, first_entry: u64) {
         world.run_for(JOB_FINISH);
     }
     let decision = change_step(world, first_entry + u64::from(RERUNS));
-    assert_eq!(decision, change::Decision::Hold(change::Hold::Runner));
+    assert_eq!(decision, change::Decision::Hold(change::Cause::Runner));
     assert_eq!(world.change(TASK).change.repairs, repairs);
     assert!(world.change(TASK).repair_tasks.is_empty());
     assert_eq!(world.writes() - before, RERUNS);
@@ -84,13 +84,16 @@ fn releasing_a_runner_hold_counts_job_attempts_afresh() {
     let job = head_job(&world);
     world.external(raw::Op::Write(raw::Write::Rerun { job }), 2);
     world.run_for(JOB_FINISH);
-    let release = top::TaskRelease { revision: RELEASE_REVISION, at: world.wall() };
+    let release = top::TaskRelease { revision: RELEASE_REVISION, at: world.wall(), measure: false };
     world.event(top::Event::ReleaseChange { task: TASK, release: Some(release.clone()) });
     // The accepted release must still use a fresh baseline after restart.
     world.restart();
     run_allowance(&mut world, 200);
     world.event(top::Event::ReleaseChange { task: TASK, release: Some(release) });
-    assert!(matches!(world.change(TASK).change.state, change::State::Held { why: change::Hold::Runner, .. }));
+    assert!(matches!(
+        world.change(TASK).change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::Runner, .. }, .. }
+    ));
 }
 
 #[test]

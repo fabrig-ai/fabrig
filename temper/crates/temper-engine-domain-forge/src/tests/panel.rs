@@ -74,12 +74,14 @@ fn each_step_and_held_step_comes_from_the_retained_record() {
         ),
     ];
     for (state, step) in rows {
-        for hold in [None, Some(change::Hold::Stalled)] {
+        for hold in [None, Some(change::Cause::Stalled)] {
             let mut row = fixtures::opening_row();
             row.change.last_head = Some(head);
             row.change.ready_since = Some(since);
             row.change.state = match hold {
-                Some(why) => change::State::Held { was: Box::new(state.clone()), why },
+                Some(why) => {
+                    change::State::Held { was: Box::new(state.clone()), hold: change::Hold::new(why, Wall::EPOCH) }
+                }
                 None => state.clone(),
             };
             let d = with_row(row.clone());
@@ -527,15 +529,18 @@ fn a_preparing_change_has_a_panel() {
         let mut row = fixtures::opening_row();
         row.change.way = change::Way::Turn;
         let state = change::State::Preparing { from: fixtures::HEAD, main: fixtures::BASE, ready_since: env().wall };
-        row.change.state =
-            if held { change::State::Held { was: Box::new(state), why: change::Hold::Stalled } } else { state };
+        row.change.state = if held {
+            change::State::Held { was: Box::new(state), hold: change::Hold::new(change::Cause::Stalled, Wall::EPOCH) }
+        } else {
+            state
+        };
         let mut d = with_row(row);
         add_panel_landing(&mut d);
         let got = panel(&d);
         assert_eq!(got.step, PanelStep::Preparing { landing: Some(61) });
         assert_eq!(got.way, change::Way::Turn);
         assert_eq!(got.in_landing, Some(61));
-        assert_eq!(got.hold, if held { Some(change::Hold::Stalled) } else { None });
+        assert_eq!(got.hold, if held { Some(change::Cause::Stalled) } else { None });
     }
 }
 

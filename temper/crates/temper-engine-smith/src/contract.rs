@@ -21,6 +21,7 @@ pub(crate) const KEPT: &[&str] = &[
     include_str!("../contract/host-tools-v10.txt"),
     include_str!("../contract/host-tools-v11.txt"),
     include_str!("../contract/host-tools-v12.txt"),
+    include_str!("../contract/host-tools-v13.txt"),
 ];
 const ADAPTERS: &[Adapter] = &[
     Adapter { version: 10, tool: b"note", map: identity },

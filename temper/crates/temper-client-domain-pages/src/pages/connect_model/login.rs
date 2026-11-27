@@ -9,6 +9,7 @@ pub enum LoginState {
     Idle,
     Waiting { number: Option<u32>, cancelled: bool },
     Usable { provider: u32 },
+    SignedInHeld,
     NotFinished,
     Refused { refusal: c::AccountRefusal },
 }
@@ -139,7 +140,11 @@ impl ConnectModel {
         }
         match self.login_state(client) {
             LoginState::Waiting { .. } => return,
-            LoginState::Idle | LoginState::Usable { .. } | LoginState::NotFinished | LoginState::Refused { .. } => {}
+            LoginState::Idle
+            | LoginState::Usable { .. }
+            | LoginState::SignedInHeld
+            | LoginState::NotFinished
+            | LoginState::Refused { .. } => {}
         }
         let Some(me) = accounts::current_me(client) else { return };
         self.login.requested(client);
@@ -157,7 +162,11 @@ impl ConnectModel {
     pub(super) fn cancel_login(&mut self, client: &Client) {
         match self.login_state(client) {
             LoginState::Waiting { .. } => self.login.cancel = true,
-            LoginState::Idle | LoginState::Usable { .. } | LoginState::NotFinished | LoginState::Refused { .. } => {}
+            LoginState::Idle
+            | LoginState::Usable { .. }
+            | LoginState::SignedInHeld
+            | LoginState::NotFinished
+            | LoginState::Refused { .. } => {}
         }
     }
     pub(crate) fn refresh_login(&mut self, client: &Client, serial: &mut u64, out: &mut Queue<Output>) {
@@ -192,26 +201,17 @@ impl ConnectModel {
             LoginState::Waiting { number: None, .. }
             | LoginState::Idle
             | LoginState::Usable { .. }
+            | LoginState::SignedInHeld
             | LoginState::NotFinished
             | LoginState::Refused { .. } => {}
         }
     }
 }
 fn signed_in(doc: &c::Accounts, provider: u32, source: u32, number: u32) -> LoginState {
-    if !accounts::program_settled(doc, source) {
-        return LoginState::Waiting { number: Some(number), cancelled: false };
+    match accounts::program_sign_in(doc, source) {
+        accounts::ProgramSignIn::Waiting => LoginState::Waiting { number: Some(number), cancelled: false },
+        accounts::ProgramSignIn::SignedIn { usable: true } => LoginState::Usable { provider },
+        accounts::ProgramSignIn::SignedIn { usable: false } => LoginState::SignedInHeld,
+        accounts::ProgramSignIn::NotSignedIn => LoginState::NotFinished,
     }
-    for row in &doc.accounts {
-        if row.provider == Some(provider) {
-            for login in &row.sources {
-                if login.number == source && login.usable {
-                    return LoginState::Usable { provider };
-                }
-            }
-        }
-    }
-    if !doc.settled || doc.cut {
-        return LoginState::Waiting { number: Some(number), cancelled: false };
-    }
-    LoginState::NotFinished
 }
