@@ -66,14 +66,22 @@ models and a charter name.
   choices, in order, and whether **the rest** follow
   (`../../protocol/configuration-engine.md`, section 1). Its resolution is each
   name's record in the catalogue, at the effort the charter selects for
-  it where it selects one (`../tasks/README.md`, section 3), withdrawn ones dropped, the main the
+  it where it selects one (`../tasks/README.md`, section 3), and at the
+  speed the charter names for it where it names one, `standard` for the
+  provider's standard speed, else at the model's default speed, withdrawn ones dropped, the main the
   first left; then, with the rest, every other model in number order,
   while it stays within `settings.alternatives` and `run_bytes`. A
   resolution with no model is a *reference* fault. What a run reads, what
   the fleet needs and what the tasks child checks a choice against is the
   resolution; a setting's value, a read and a proposal keep the charter as
   set, so that a new model needs no charter's change. Each record holds
-  the model's speeds and default speed with its other members.
+  the model's speeds with its other members, and as its speed the one
+  just given, none for standard. A charter's speed for a model is one
+  the model declares, by its own name, or `standard`, or none: a
+  decision that leaves a charter naming another for one of its models,
+  its overlay's included, is refused as a *reference* fault naming the
+  charter, as the whole settings are checked at each decision
+  (`settings.md`, 8), so that a resolution always finds it.
 - **A change of a resolution is a change of its charter.** A decision or
   a release whose models change a charter's resolution makes that charter's
   next version at its revision, and holds the old one (3 and 8),

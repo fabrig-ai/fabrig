@@ -220,8 +220,9 @@ init`'s document carries none of them (`../setup/init.md`, 6).
 ## 6. Models and prices
 
 - **The stock's models,** the binary's, as read from the providers' pages on
-  2026-11-06, numbered in this order and for good, the scripted model last, 8,
-  its prices its own (`../setup/init.md`, 6). The seven of OpenAI and Anthropic
+  2026-11-06, numbered in this order and for good, the scripted model 8,
+  its prices its own (`../setup/init.md`, 6), and GPT-6.2 Sol, read on
+  2026-11-21 and added since, 9. The eight of OpenAI and Anthropic
   are every deployment's defaults, the stock's providers being every
   deployment's, and the scripted model is the box's, beside its scripted
   provider (`providers.md`, 2 and 4). Each has a window of 1,048,576 and an
@@ -230,7 +231,9 @@ init`'s document carries none of them (`../setup/init.md`, 6).
   one scale, where Terra and Luna also take OpenAI's `none`; is
   priced for cached input as for input, with no cache write of its own,
   so that a budget stops early rather than late, where its provider's
-  page gives no figure on the stock's terms, which is OpenAI's; and each
+  page gives no figure on the stock's terms, which is OpenAI's for all
+  but GPT-6.2 Sol, whose page gives both at short context
+  (`../../draft/model-speeds.md`, section 2); and each
   but the scripted model declares a prompt cache's life
   of five minutes, `cache_life_ms` 300,000, its provider's default, so
   that a standing role's sessions resume within it, the scripted model
@@ -245,6 +248,27 @@ init`'s document carries none of them (`../setup/init.md`, 6).
   | `gpt-6-astra` | GPT-6 Astra | OpenAI | `high` | 10,000, 50,000 | as input, none |
   | `gpt-6.1-terra` | GPT-6.1 Terra | OpenAI | `medium` | 1,000, 5,000 | as input, none |
   | `gpt-6-luna` | GPT-6 Luna | OpenAI | `medium` | 100, 500 | as input, none |
+  | `gpt-6.2-sol` | GPT-6.2 Sol | OpenAI | `high` | 2,000, 10,000 | 100, 2,500 |
+- **Two stock models declare faster speeds** (jig's
+  `domain/engine/settings-catalogue.md`, 1), at their providers' prices
+  for them, in the same unit, read on 2026-11-21 and 2026-11-27
+  (`../../draft/model-speeds.md`, section 2):
+
+  | Model | Speed | Input, output | Cached, cache write |
+  |---|---|---|---|
+  | `gpt-6.2-sol` | `fast`, also `priority` | 4,000, 20,000 | 200, 5,000 |
+  | `gpt-6.2-sol` | `ultrafast` | 12,000, 60,000 | 600, 15,000 |
+  | `claude-opus-5-5` | `fast` | 8,000, 40,000 | 400, 10,000 |
+
+  Ultrafast is six times standard, its list price from 2027-03-01, the
+  user's figure of 2026-11-27: until then it overcounts by half, so a
+  budget stops early rather than late, and nothing held needs repricing
+  on that date. No stock model names a default speed, and no stock
+  charter or template chooses one: a faster speed costs more, so it is
+  a deployment's choice, by a set of its model or a task's choice. The
+  others declare none until their providers' prices for one are read;
+  Sonnet 5.5 and Fable 5.1 have no faster speed. A deployment declares
+  more by a set.
 - **Claude's cache prices are Anthropic's,** read on 2026-11-11: a cache
   read $0.20 per million tokens for Opus 5.5 and Sonnet 5.5 and $0.25 for
   Fable 5.1, and a cache write 1.25 times the input price, for the
@@ -381,6 +405,11 @@ init`'s document carries none of them (`../setup/init.md`, 6).
   (`../../client/pages/README.md`). A task keeps the model it has. A model added
   by name takes its provider's dearest stock model's figures, marked estimated
   (jig's `domain/engine/settings-catalogue.md`, 1).
+- **A release's new model that a deployment already holds by name,** as
+  one that added its own `gpt-6.2-sol` before this stock did, is left out at the start,
+  before its checks: the deployment keeps its own model at its own
+  number, and what names it goes on naming it (jig's
+  `domain/engine/settings-store.md`, 1).
 - **A release that changes a default** reaches every deployment that
   kept it. A setting no change is over follows the binary's default, so
   at the next start the new default makes a revision recorded as the

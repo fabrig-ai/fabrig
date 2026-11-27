@@ -174,8 +174,13 @@ tasks and people families; the worker's `GrantValue` keeps tags 0 to 2.
 `me` carries `resolved_default: Option<LlmChoice>` for each effective
 template with one, in its project's `defaults` by the template's number, a
 template's own record being a setting's too; and in each project's `models`
-the offer alone, each `MeModel` with its `effort`, `shown`, `accounts` and
-`picker` (`../../client/domain/contract/documents.md`, 1). The schema, generated
+the offer alone, each `MeModel` with its `effort`, `shown`, `accounts`,
+`picker`, `speeds`, each a setting's `SettingSpeed` record, and `speed`
+(`../../client/domain/contract/documents.md`, 1). Each `ModelEffort` of a
+choice carries its `speed` by name, none where it names none, and the
+LLM refusal's `LlmWhy` has `Speed` (`../../domain/tasks/README.md`, section 3).
+Each is an added field or variant; a client at the layout before them
+is refused by name, as any other is (`versions.md`, section 1). The schema, generated
 codecs, translations and served-version declarations carry those fields
 (`versions.md`, section 1, and `testing.md`, section 1). Tests build their values from schema text
 or with public fields, without golden files (skein's `data/codec/golden.md`, 1). The

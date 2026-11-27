@@ -77,9 +77,12 @@ is due again once its dependencies are done.
      sub-agents may use, each with its effort, its window (the input
      tokens a conversation's window may hold), its output (the most
      output tokens a completion may have), its prices (../authority-budgets.md,
-     section 1) and its speed: its model's default speed, or the
-     provider's standard speed where the model names none
-     (`settings-catalogue.md`, 1).
+     section 1) and its speed: the speed its task's choice names for
+     that model, or the provider's standard speed where it names
+     `standard`; where it names none, or the task has no choice, the
+     speed the charter's resolution gives the model, which is the
+     charter's speed for it, else the model's default speed, else
+     standard (`settings-catalogue.md`, 1; ../tasks/README.md, section 3).
      The engine's protocol layer translates it into smith's (`protocol/charter.md`,
      section 2). A model at a speed gives its LLM that speed, with its
      `also` names and its prices in the model's unit; one at the
