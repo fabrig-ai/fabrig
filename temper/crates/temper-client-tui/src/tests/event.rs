@@ -63,18 +63,22 @@ fn each_act_is_its_event() {
 }
 
 #[test]
-fn arrows_leave_every_screen_to_the_key_reader() {
+fn up_enters_the_launchpad_list_but_other_arrows_go_to_the_key_reader() {
+    use crate::{Arrow, Own, Row};
     use temper_client_domain::{Address, Event as DomainEvent, Place};
     let mut launchpad = f::live(Some(f::me(&[b"Hello"]))).0;
     f::event(&mut launchpad, DomainEvent::Went { place: Place::Address(Address::Home { project: 1 }) });
     let mut chat = f::live(Some(f::me(&[b"Hello"]))).0;
     f::event(&mut chat, DomainEvent::Went { place: Place::Address(Address::Chat { task: 9 }) });
-    for root in [&f::signed_out(), &launchpad, &chat] {
+    for (root, up) in [
+        (&f::signed_out(), None),
+        (&launchpad, Some(Event::Picked { row: Some(Row::Start { command: Own::Change }) })),
+        (&chat, None),
+    ] {
         let mut view = f::view();
         f::build(&mut view, &Tui::new(f::ADDRESS), root);
-        for arrow in [crate::Arrow::Up, crate::Arrow::Down] {
-            assert_eq!(crate::arrow(&view, arrow), None);
-        }
+        assert_eq!(crate::arrow(&view, Arrow::Up), up);
+        assert_eq!(crate::arrow(&view, Arrow::Down), None);
     }
 }
 

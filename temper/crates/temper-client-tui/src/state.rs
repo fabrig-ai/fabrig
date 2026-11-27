@@ -1,8 +1,8 @@
 //! The TUI's own state beside the client root (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/box.md and temper/docs/design/client/sign-in.md, 1.1).
-use crate::{BoxEnd, BoxLine, BoxStage, Own, Scheme, limits, theme::ThemeChoice};
+use crate::{BoxEnd, BoxLine, BoxStage, Own, Row, Scheme, limits, theme::ThemeChoice};
 use alloc::boxed::Box;
 use jig_client::contract::{ObjectKey, TurnName};
-use skein_lib::{List, Queue, Secret, Set, bytes::copy_of};
+use skein_lib::{List, Lru, Queue, Secret, Set, bytes::copy_of};
 
 #[derive(Debug)]
 #[expect(
@@ -14,6 +14,7 @@ pub struct Tui {
     handshake: Option<Handshake>,
     field: Box<[u8]>,
     command_words: Box<[u8]>,
+    kept_words: Lru<BoxKey, Box<[u8]>>,
     signing: Signing,
     local: Local,
     browser: Option<Browser>,
@@ -38,7 +39,7 @@ pub struct Tui {
     tell_refusal: Option<Box<[u8]>>,
     focus: u64,
     box_written: u64,
-    left_off: Option<u64>,
+    picked: Option<(Row, bool)>,
     place: Option<Own>,
     boxed: bool,
     front: bool,
@@ -68,6 +69,15 @@ pub struct Tui {
     talk_list: bool,
     proposals_aside: List<ObjectKey>,
 }
+/// Which box owns unsent words (temper/docs/design/client/tui/pages/README.md, 1).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum BoxKey {
+    Launchpad,
+    Chat { task: u64 },
+    Talk { task: u64 },
+    Place { command: Own },
+}
+
 /// The login lent until its end (client/tui/box.md, Lending its terminal).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Lending {
@@ -154,7 +164,7 @@ pub enum Told {
         refusal: Option<Box<[u8]>>,
     },
     Walk {
-        by_key: bool,
+        first: Option<ObjectKey>,
     },
     Walked {
         object: ObjectKey,
@@ -182,8 +192,9 @@ pub enum Told {
     Starting {
         chat: Option<u64>,
     },
-    LeftOff {
-        task: Option<u64>,
+    Picked {
+        row: Option<Row>,
+        in_list: bool,
     },
     Boxed,
     Cleared,
@@ -277,6 +288,7 @@ impl Tui {
             handshake: None,
             field: copy_of(b""),
             command_words: Box::default(),
+            kept_words: Lru::with_capacity(limits::KEPT),
             signing: Signing::Idle,
             local: Local::Idle,
             browser: None,
@@ -322,7 +334,7 @@ impl Tui {
             walk: None,
             brief_shown: false,
             not_opened: None,
-            left_off: None,
+            picked: None,
             place: None,
             boxed: false,
             theme_choice: ThemeChoice::Auto,
@@ -348,6 +360,19 @@ impl Tui {
     #[must_use]
     pub fn command_words(&self) -> &[u8] {
         &self.command_words
+    }
+    /// Keep a box's unsent words in this run only. An empty box takes no slot.
+    pub fn keep_words(&mut self, key: BoxKey, words: Box<[u8]>) {
+        if words.is_empty() {
+            self.kept_words.remove(key);
+        } else {
+            self.kept_words.insert(key, words);
+        }
+    }
+    /// Once a box stands again, its words belong to it, not the table.
+    #[must_use]
+    pub fn take_words(&mut self, key: BoxKey) -> Option<Box<[u8]>> {
+        self.kept_words.remove(key)
     }
     #[must_use]
     pub const fn signing(&self) -> &Signing {
@@ -675,8 +700,25 @@ impl Tui {
         self.place
     }
     #[must_use]
-    pub const fn left_off(&self) -> Option<u64> {
-        self.left_off
+    pub const fn picked(&self) -> Option<(Row, bool)> {
+        self.picked
+    }
+    #[expect(clippy::manual_map, reason = "step code constructs the optional pick without a closure")]
+    fn set_pick(&mut self, row: Option<Row>, in_list: bool) -> bool {
+        let picked = match row {
+            Some(row) => Some((row, in_list)),
+            None => None,
+        };
+        let list_focused = match picked {
+            Some((_, held)) => held,
+            None => false,
+        };
+        if !list_focused && let Some((_, true)) = self.picked {
+            self.focus = self.focus.saturating_add(1);
+        }
+        let changed = self.picked != picked;
+        self.picked = picked;
+        changed
     }
     #[must_use]
     pub const fn boxed(&self) -> bool {
@@ -759,6 +801,9 @@ impl Tui {
                 }
                 let changed = self.place != command;
                 self.place = command;
+                if changed {
+                    self.focus = self.focus.saturating_add(1);
+                }
                 changed
             }
             Told::Lending { number, name } => {
@@ -805,25 +850,20 @@ impl Tui {
                     true
                 }
             }
-            Told::Walk { by_key } => {
+            Told::Walk { first } => {
                 let changed = match &self.walk {
-                    Some(walk) => walk.by_key != by_key || walk.taken,
+                    Some(walk) => walk.first != first || !walk.shown.is_empty(),
                     None => true,
                 };
-                self.walk = Some(Walk { by_key, shown: List::with_capacity(limits::WALK), taken: false });
+                self.walk = Some(Walk { first, shown: List::with_capacity(limits::WALK) });
                 changed
             }
             Told::Walked { object } => match &mut self.walk {
-                Some(walk) => {
-                    let mut changed = !walk.taken;
-                    walk.taken = true;
-                    if !walk.shown(&object) && walk.shown.room() > 0 {
-                        walk.shown.push(object).expect("room for a shown object");
-                        changed = true;
-                    }
-                    changed
+                Some(walk) if !walk.shown(&object) && walk.shown.room() > 0 => {
+                    walk.shown.push(object).expect("room for a shown object");
+                    true
                 }
-                None => false,
+                Some(_) | None => false,
             },
             Told::EndWalk => self.walk.take().is_some(),
             Told::Brief => {
@@ -919,21 +959,17 @@ impl Tui {
                     || self.box_written != written
                     || self.log_shown
                     || self.link_not_opened
-                    || self.left_off.is_some();
+                    || self.picked.is_some();
                 let cleared = self.clear_launchpad();
                 self.log_shown = false;
                 self.link_not_opened = false;
-                self.left_off = None;
+                self.picked = None;
                 self.focus = focus;
                 self.command_words = Box::default();
                 self.box_written = written;
                 changed || cleared
             }
-            Told::LeftOff { task } => {
-                let changed = self.left_off != task;
-                self.left_off = task;
-                changed
-            }
+            Told::Picked { row, in_list } => self.set_pick(row, in_list),
             Told::Boxed => {
                 let changed = !self.boxed;
                 self.boxed = true;
@@ -945,7 +981,7 @@ impl Tui {
                 changed
             }
             Told::Cleared => {
-                let cleared = self.clear_launchpad();
+                let cleared = self.set_pick(None, false) | self.clear_launchpad();
                 self.command_words = Box::default();
                 let written = self.box_written.saturating_add(1);
                 let changed = self.box_written != written || self.log_shown || self.link_not_opened;
@@ -1054,8 +1090,7 @@ impl Tui {
 #[derive(Debug)]
 pub struct Walk {
     shown: List<ObjectKey>,
-    by_key: bool,
-    taken: bool,
+    first: Option<ObjectKey>,
 }
 impl Walk {
     #[must_use]
@@ -1063,11 +1098,7 @@ impl Walk {
         self.shown.as_slice().contains(object)
     }
     #[must_use]
-    pub const fn by_key(&self) -> bool {
-        self.by_key
-    }
-    #[must_use]
-    pub const fn taken(&self) -> bool {
-        self.taken
+    pub const fn first(&self) -> Option<ObjectKey> {
+        self.first
     }
 }

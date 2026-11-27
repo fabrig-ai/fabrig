@@ -42,8 +42,9 @@ the foot and the commands (`../box.md`).
   else" (`chat.md`, section 2); the notice standing (`README.md`, section 1, *The notice*);
   the theme chosen, the terminal's scheme Auto reads, and whether the
   theme's list stands (`README.md`, section 2, *`/theme`*); the place
-  not yet started, if one stands (`README.md`, section 2, *Not yet started*); the left-off chat selected on the
-  launchpad, by its task (`launchpad.md`, 4, *Where you left off*); the reply whose choices
+  not yet started, if one stands (`README.md`, section 2, *Not yet started*); the row picked in the
+  launchpad's list and whether the list holds the focus (`launchpad.md`, 7, *The list*); the
+  boxes' words kept (`README.md`, section 1, *Its words kept*); the reply whose choices
   were set aside, and the chat a goal's start was asked from (`design-session.md`, section 1); and whether it is on a
   box (`../directory.md`, 1, *On a box*). The root stays the one source of the
   link's state, of `me`, of the pages and their reads, of the box's
@@ -114,8 +115,8 @@ chat, the running line above them.
   mark `❯` before it. Its placeholder: "Ask for a change, or ask
   temper.  / for commands" on the launchpad with a project (the words
   then two spaces and the terminal's phrase, as `../../../draft/surfaces.md`,
-  11.1 and its Pair mockup have it), "/ for commands" with no project, "Reply" on a chat, and on a chat
-  that has ended "/new starts another chat", as the browser's terminal
+  11.1 and its Pair mockup have it), "/ for commands" with no project, "Reply, or ← to leave." on a chat, and on a chat
+  that has ended "/new starts another chat, or ← to leave.", as the browser's terminal
   keeps its box for commands there; on a talk its own (`talk.md`, section
   1, *The box*); in a place not yet started its own (section 2, *Not yet
   started*); none while a list stands under it.
@@ -136,13 +137,57 @@ chat, the running line above them.
   - *The focus:* the box asks for it as each screen opens and keeps it.
     It is the only node a person acts on outside a list, so Tab, Up and
     Down leave the focus where it is (skein's `ui/screen.md`, 6.2), but
-    for the launchpad's left-off chats (`launchpad.md`, 4, *Where you left off*), and
-    `q` types: the first screen's "q to quit" is gone. Ctrl+C closes the
-    TUI from anywhere (`../README.md`, 4).
+    for Up into the launchpad's list (`launchpad.md`, 7, *The list*), and
+    `q` and `n` type: the first screen's "q to quit" is gone, and no
+    bare letter is a key. Ctrl+C closes the
+    TUI from anywhere (`../README.md`, 4). Ctrl-a and Ctrl-e are Home and
+    End in it, and Ctrl-p and Ctrl-n Up and Down wherever those move, as
+    in Emacs (skein's `ui/screen.md`, 6.2, *Emacs's keys*).
+  - *← at its start* (the user's word of 2026-11-27, as Claude Code
+    and Codex go back): Left with the caret at the box's start, so on
+    an empty box any Left, goes back, the box's words kept (*Its words
+    kept*); with words, Home or Ctrl-a first, then Left. On a chat, a
+    design session and an ended chat among them, it goes to the
+    launchpad as `/new` does, the TUI's event `Command { command: New
+    }`; on a talk, as its leaving does, `Leave` (`talk.md`, section 1,
+    *Leaving*); in a place not yet started, back where the person came
+    from, `Back` (section 2, *Not yet started*). It goes back while no
+    list stands under the box but one that stands by itself, the chat's
+    question, a reply's choices or a talk's proposal, which stand again
+    as before when the person comes back; with a list the person opened
+    standing, a command's or one a command opens, the theme's or
+    `/goal`'s prompt, Left is the caret's, Esc closing the list first.
+    On the launchpad, the welcome, the starting screen and the sign-in
+    screen Left is the caret's alone. The host reads it before skein's
+    key reader (`../host.md`, 1, *A key*).
+  - *Esc* closes the list standing under the box, or sets it aside, as
+    each list says (section 2, *The list* and *A command's list*;
+    `chat.md`, section 2; `design-session.md`, section 1; `talk.md`,
+    section 1; `launchpad.md`, 6 and 7). With none, on a chat, a design
+    session among them, it stops the agent's turn at once, as `/pause`
+    does, the TUI's event `Command { command: Pause }`, the root's
+    `Act::Stop`, where `/pause` is offered (section 2, *Offered*),
+    whatever the box holds, its words kept; elsewhere it does nothing.
+    It leaves no screen (the user's word of 2026-11-27): not a talk, which
+    has no stop (`../../pages/talk.md`, 1, *Not a chat's*), and not a
+    place not yet started.
+  - *Its words kept* (the user's word of 2026-11-27: leaving a box never
+    loses its words): words not sent stay with their box for the TUI's
+    run, a chat's and a talk's with its task, the launchpad's, and each
+    place not yet started's with its command. Leaving a screen, by Left,
+    `/new`, `/chats`, `/talk`, a row of the launchpad's list, a place's
+    start or end or a `Show` followed (`../host.md`, 1, *Its pages*),
+    keeps the box's words for the screen left, unless they are empty;
+    coming back to it puts them in the box, `Act::ChatWords` on the
+    launchpad and `Act::MessageWords` on a chat or a talk once its page
+    stands, the caret at their end, and the TUI keeps them no longer.
+    Sending clears them: words sent leave the box, and a place whose
+    first words started its chat or were filed keeps none. Nothing is
+    stored: they are `Tui`'s and go when the TUI closes. At most
+    `limits::KEPT` boxes, 32, are kept: past it, the one left longest
+    ago goes first.
   - *Enter:* before the sign-in lands, the words kept and the notice
-    "Still signing in" (*Typed before the sign-in lands*); on the
-    launchpad's empty box with a left-off chat
-    selected, that chat opened (`launchpad.md`, 4, *Where you left off*); else the box's
+    "Still signing in" (*Typed before the sign-in lands*); else the box's
     words, by what they are, in this order: a
     command's beginning, as `README.md`, section 2 says; in a place not
     yet started, its first words (section 2, *Not yet started*); on a chat whose question
@@ -176,7 +221,7 @@ chat, the running line above them.
     the words are acted on at the person's next Enter, as any words are.
 - **The quiet line,** the region `tui-bottom`, spread, as the sign-in's
   bottom row (`../../../draft/surfaces.md`, 11.1: the project, the model and
-  effort, the link's state, and "N need you · n to walk"):
+  effort, the link's state, and "N need you · /needs"):
   - *at its left,* first, at the row's first column, "●" and the link's
     state in its token's paint (`README.md`, *The link's state*), on every
     screen and in every state, Live included: the welcome, the starting
@@ -210,15 +255,18 @@ chat, the running line above them.
     across the person's projects, as its Needs you and its walk are
     (`Session::count_across`, `launchpad.md`, 5), on a chat the rail's
     count of the project (`Session::count`, `../../pages/needs-you.md`, 1);
-    and, on the launchpad with that count, "n to walk" (`tui-hint`);
+    and, on the launchpad with that count, "/needs" (`tui-hint`); on
+    the launchpad while its list holds the focus, "Enter opens · Tab
+    sections · Esc back to the box" (`tui-hint`), in place of the count
+    and "/needs" (`launchpad.md`, 7, *The list*);
     while a notice stands, the notice alone, in place of them all
     (*The notice*).
 
   The chat's spend is the browser's alone.
 - **A narrow terminal:** the header's lines are cut at their ends
   (section 3); then, where the quiet line's two halves, two spaces between them and its
-  padding are wider than the window's columns, it leaves out "n to walk"
-  and its " · ", on a chat the pane's goal part and then its Ctrl-P
+  padding are wider than the window's columns, it leaves out "/needs"
+  and its " · ", on a chat the pane's goal part and then its Ctrl-o
   words, each with its " · " (`design-session.md`, section 1), then the closed line
   and its " · ", and skein cuts what
   still does not fit from the left half's end, so the link's state, at
@@ -241,8 +289,8 @@ chat, the running line above them.
     started, "Forgejo started" (`../box.md`, *The box's state*). Its words are
     the TUI's own (`tui-signal`).
   - *Where:* the quiet line's right half, alone: the box's start, its
-    state, "playground", "paused · a message resumes it", the count and "n to
-    walk" give way to it for its time, then stand again. It stands on
+    state, "playground", "paused · a message resumes it", the count and
+    "/needs" give way to it for its time, then stand again. It stands on
     the launchpad, the welcome, the starting screen and a chat alike,
     and on the sign-in screen not at all.
   - *How long:* 6 seconds, a newer one replacing it, timed by the host's
@@ -359,25 +407,26 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
       place, with no chat's number; the box, empty, with the focus and
       the place's placeholder, named by the place's title; and the
       quiet line of the screen under it (section 1, *The quiet line*),
-      with no "n to walk" and no pane parts. Each place's title, then
+      with no "/needs" and no pane parts. Each place's title, then
       its placeholder, the TUI's own words:
-      - `/ask`: "Ask temper"; "Ask temper anything, or Esc to go back."
-      - `/change`: "New change"; "Say the change, or Esc to go back."
-      - `/draft`: "Design session"; "Say what to design, or Esc to go
+      - `/ask`: "Ask temper"; "Ask temper anything, or ← to go back."
+      - `/change`: "New change"; "Say the change, or ← to go back."
+      - `/draft`: "Design session"; "Say what to design, or ← to go
         back."
-      - `/tell`: "Tell temper"; "Tell temper what's off, or Esc to go
+      - `/tell`: "Tell temper"; "Tell temper what's off, or ← to go
         back."
 
       The placeholder is skein's, painted while the box is empty
-      (skein's `ui/screen.md`, 5.4), as a talk's "Talk to NAME, or Esc
+      (skein's `ui/screen.md`, 5.4), as a talk's "Talk to NAME, or ←
       to go back." is (`talk.md`, section 1).
     - *Its box* holds the words of the screen under it: Home's
       composer's on the launchpad (`Act::ChatWords`), a chat's or a
       talk's under `/tell` (`Act::MessageWords`). Going to the place
-      clears them, as a command pressed does (*Pressed*), clears the
-      launchpad's left-off selection and ends a walk standing. On its
-      empty box Up, Down and `n` are the box's: no left-off chat is
-      selected, `n` types, and Ctrl-P moves no pane.
+      keeps the screen's words for that screen and puts the place's own
+      kept words in the box (section 1, *Its words kept*), a command
+      pressed leaving none (*Pressed*); it clears the launchpad's row
+      picked and ends a walk standing. On its box Up reaches no list
+      and Ctrl-o moves no pane.
     - *Its first words,* sent, do what `NAME WORDS` sent on the screen
       under it does (`/draft`, `/change` and `/ask`, `/tell`, here):
       `/ask`'s ask Ask temper, `/change`'s start the change's chat,
@@ -395,22 +444,24 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
       list*, *Pressed*), the place standing; one of the four alone goes
       to its own place instead; `NAME WORDS` sent whole does as on that
       screen.
-    - *Esc* on its empty box with no list standing goes back where the
-      person came from: the place ends, starting nothing, and where a
-      refused start left the root at `NewChat`, the root goes back to
-      `Home { project }`. With words in its box Esc does nothing; with a
-      list standing, it closes the list, as anywhere.
+    - *Left at its box's start* with no list standing (section 1, *←
+      at its start*) goes back where the person came from: the place
+      ends, starting nothing, its words kept, and where a refused start
+      left the root at `NewChat`, the root goes back to `Home { project
+      }`. Esc leaves no place: with a list standing, it closes the list,
+      as anywhere, and otherwise does nothing.
     - *It ends* too as the root goes to any other page: a chat or a
       talk opened, `/new`, a `Show` followed (`../host.md`, 1, *Its
       pages*), the link signed out; never by the `NewChat` or `Home` its
       own start passes through.
   - *`/brief`* writes `/brief`'s note (`launchpad.md`, 7).
-  - *`/needs`* walks what needs the person, as `n` does.
+  - *`/needs`* walks what needs the person (`launchpad.md`, 6), as
+    Enter on a need of the launchpad's list walks from it.
   - *`/open`* opens the object in focus on the web, the opener given
     the origin printed (`Origin::print`, `../README.md`, 1),
     `http://HOST:PORT` or `https://NAME`, and the page's path (`address::print`) as one
     argument, as the approval's tab is opened (`../../sign-in.md`, 1.1): on the launchpad
-    the selected row's page, a chat's (`/chats/T`) or the goal's
+    the picked row's page, a chat's (`/chats/T`) or the goal's
     (`/tasks/T`), else the project's Home (`/projects/P`); on a chat
     its page, or, where a goal was started from its draft, that goal's
     (`/tasks/T`, `design-session.md`, section 1, *A linked goal*). Only the page's address: never a link, a code or a
@@ -422,8 +473,9 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
     `/open` opens it; with no opener, the link in a note to copy
     (`../box.md`, *`/web`, temper in the browser*).
   - *`/chats N`,* sent on the launchpad, opens the Nth chat of Where you
-    left off (`launchpad.md`, 4), whatever its project, as Enter on it
-    does; a number with no chat there gives the notice an unknown
+    left off (`launchpad.md`, 4), 1 the newest, whatever its project, as
+    Enter on its row does; no row draws its number (the user's word of
+    2026-11-27); a number with no chat there gives the notice an unknown
     command gives. `/chats` alone opens the root's list, the project's
     chats, newest first.
   - *`/talk`* (`../../../draft/surfaces.md`, 11.3), pressed or sent alone,
@@ -461,7 +513,7 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   its question while work runs as `../box.md` asks it. `/exit` sent whole is
   the same command, never listed or completed, and its beginnings begin
   no command of its own; but on a talk `/exit` sent whole leaves the
-  talk, as Esc does (`talk.md`, section 1, *Leaving*), and `/quit` closes. The browser's terminal keeps `/exit`: the
+  talk, as Left at its box's start does (`talk.md`, section 1, *Leaving*), and `/quit` closes. The browser's terminal keeps `/exit`: the
   view's `shared` words are unchanged, and the TUI names the command
   itself.
 - **The list:** the box's words beginning with "/" and holding no white
@@ -522,9 +574,13 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
     launchpad once the close is done (`chat.md`, section 1, *Closing*).
 - **`/help`'s note:** the commands the TUI offers there, each name
   padded with spaces to the longest and two more, then its words; then
-  its keys, a line each: "Enter sends", "Tab completes a command", "PgUp
-  and PgDn read back", "Esc closes a list", on the launchpad while Needs
-  you stands "n walks what needs you", and "Ctrl+C closes temper". The
+  its keys, a line each, the user's word of 2026-11-27: "Enter sends",
+  "Tab completes a command"; on a chat, a talk and in a place not yet
+  started "← at the start goes back"; on the launchpad with a project
+  "↑ reaches the list"; "PgUp and PgDn read back"; on a chat "Esc stops
+  the agent or closes a list", elsewhere "Esc closes a list"; on a chat
+  whose pane can show "Ctrl-o cycles the draft pane"; and "Ctrl+C closes
+  temper". The
   root keeps the note (`terminal::Note::Help`); its words are the TUI's.
 - **`/theme`,** the user's request of 2026-11-09, since a flip on the
   terminal's own ground showed as almost nothing: the TUI's own command,

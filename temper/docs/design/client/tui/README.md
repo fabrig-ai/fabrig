@@ -271,13 +271,15 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
   read the chat as it is written. Check the terminal's own
   colours and background answer in emacs vterm, the band under the
   person's words on its ground and the dim words where no answer comes,
-  the left-off chats reached by Up and Down, `/effort` on the launchpad,
+  the launchpad's list reached by Up, its rows by Up and Down and
+  Ctrl-p and Ctrl-n, Left at a box's start going back and Esc stopping
+  a chat's turn, Ctrl-o's pane, `/effort` on the launchpad,
   a Markdown list's "•", the chat's title in the rule above the box with
   "box" as its place, and the runtime on
   macOS. Walk the launchpad as drawn against its mockups
   (`tui/whole-story/launchpad.html` and `pair/` beside it): the brief
   and `/brief`, *Where you left off* with a goal among its rows, each
-  mark under Needs you and its walk by `n` and `/needs`, `/change` and
+  mark under Needs you and its walk by `/needs` and from a need's row, `/change` and
   `/ask` with words, `/chats N`, and `/open` opening the browser on the
   page in focus; and a reply's views printed in a chat beside the web's
   drawing of them (`../../draft/surfaces.md`, 11.1, 11.4 and 11.5). The

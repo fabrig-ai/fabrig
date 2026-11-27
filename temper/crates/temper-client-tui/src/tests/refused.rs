@@ -63,7 +63,6 @@ fn a_build_refused_replaces_every_page_without_bindings_or_a_tick() {
             assert_eq!(view.tick(), None);
             assert_eq!(crate::escape(&view), None);
             assert_eq!(crate::pane_key(&view), None);
-            assert_eq!(crate::walk_key(&view), None);
             let (left, right) = f::bottom_halves(tree);
             assert_eq!(left.role, Role::Status);
             assert_eq!(f::text(tree, left).as_ref(), "● Refused".as_bytes());

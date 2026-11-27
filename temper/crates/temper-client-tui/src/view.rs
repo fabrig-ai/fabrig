@@ -1,6 +1,6 @@
 //! The TUI's screens from the client and the TUI's state (temper/docs/design/client/tui/pages/README.md, temper/docs/design/client/tui/pages/launchpad.md and temper/docs/design/client/sign-in.md, 1.1).
 use crate::{
-    Browser, Event, Local, Own, Refusal, Signing, Tui, approval_address, look,
+    Browser, Event, Local, Own, Refusal, Row, Signing, Tui, approval_address, look,
     words::{Word, Words},
 };
 use alloc::boxed::Box;
@@ -61,17 +61,16 @@ pub struct View {
     shown: u64,
     binds: Binds,
     escape: Option<Event>,
+    back: Option<Event>,
     reply: Box<[Event]>,
-    left_off: List<(u64, launchpad::LeftKind)>,
-    selected_event: Option<Event>,
-    origin: Option<crate::Origin>,
+    rows: List<Row>,
+    picked: Option<(u32, bool)>,
+    row_event: Option<Event>,
     page: Option<Box<[u8]>>,
     focus: Option<Box<[u8]>>,
-    walkable: bool,
     pane: Option<(Mode, Mode)>,
-    selected: Option<u64>,
     box_empty: bool,
-    left_off_arrows: bool,
+    list_entry: bool,
 }
 impl View {
     #[must_use]
@@ -84,18 +83,40 @@ impl View {
             shown: 0,
             binds: Binds { events: List::with_capacity(limits.bindings) },
             escape: None,
+            back: None,
             reply: Box::default(),
-            left_off: List::with_capacity(3),
-            selected_event: None,
-            origin: None,
+            rows: List::with_capacity(0),
+            picked: None,
+            row_event: None,
             page: None,
             focus: None,
-            walkable: false,
             pane: None,
-            selected: None,
             box_empty: false,
-            left_off_arrows: false,
+            list_entry: false,
         }
+    }
+    /// The pick on the displayed launchpad, absent if the row is no longer drawn.
+    #[must_use]
+    pub fn picked(&self) -> Option<(Row, bool)> {
+        let (index, in_list) = self.picked?;
+        Some((*self.rows.get(index)?, in_list))
+    }
+    #[must_use]
+    pub const fn list_focused(&self) -> bool {
+        match self.picked {
+            Some((_, in_list)) => in_list,
+            None => false,
+        }
+    }
+    /// The box's node for a key that returns from the list to edit it.
+    #[must_use]
+    pub fn box_node(&self) -> Option<NodeId> {
+        for node in self.tree().nodes() {
+            if self.tree().bound(node.id) == Some(Binding { owner: look::OWNER, token: BOX }) {
+                return Some(node.id);
+            }
+        }
+        None
     }
     #[must_use]
     pub const fn words(&self) -> &Words {
@@ -407,20 +428,18 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
     if view.built == Some((root_shown, revision)) && !ticked {
         return;
     }
-    view.origin = Some(tui.address().clone());
     view.page = page_focus(root, tui.address());
     view.focus = view.page.clone();
-    view.walkable = has_needs(root);
     let refused = refused(root, tui);
     if refused || sign_in_drawn(root, tui) {
+        view.back = None;
         view.reply = Box::default();
-        view.selected_event = None;
-        view.walkable = false;
+        view.row_event = None;
         view.pane = None;
-        view.left_off.clear();
-        view.selected = None;
+        view.rows.clear();
+        view.picked = None;
         view.box_empty = false;
-        view.left_off_arrows = false;
+        view.list_entry = false;
         view.shown = view.shown.wrapping_add(1);
         view.binds.events.clear();
         let words = &view.words;
@@ -441,7 +460,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
             foot::bottom(&mut b, &state, look::DOWN, words);
             None
         } else {
-            foot::draw(&mut b, &foot::read(root, tui, words, wall), words, &mut view.binds)
+            foot::draw(&mut b, &foot::read(root, tui, words, wall), words, &mut view.binds, false)
         };
         b.close();
         view.render.finish(b, view.shown, out);
@@ -510,44 +529,38 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
         },
         Body::Place(_) | Body::Welcome(_) | Body::Launchpad(_) | Body::Starting(_) => None,
     };
-    view.left_off.clear();
-    view.selected = None;
-    view.selected_event = None;
+    view.picked = None;
+    view.row_event = None;
     view.focus = view.page.clone();
-    match &signed.body {
-        Body::Launchpad(part) => {
-            for line in &part.left_off {
-                view.left_off.push((line.task, line.kind)).expect("three left-off tasks");
-                if part.selected == Some(line.task) {
-                    view.selected = part.selected;
-                    let page = match line.kind {
-                        launchpad::LeftKind::Chat { .. } => Address::Chat { task: line.task },
-                        launchpad::LeftKind::Goal => Address::Task { task: line.task },
+    view.list_entry = signed.foot.composer.is_some() && signed.foot.list.is_none();
+    if let Body::Launchpad(part) = &signed.body {
+        view.rows = part.rows();
+        if let Some((row, in_list)) = part.picked {
+            for index in 0..view.rows.len() {
+                if view.rows.get(index) == Some(&row) {
+                    view.picked = Some((index, in_list && view.list_entry));
+                    view.row_event = Some(row_event(row, &part.address));
+                    let page = match row {
+                        Row::Chat { task } => Some(Address::Chat { task }),
+                        Row::Goal { task } => Some(Address::Task { task }),
+                        Row::Need { .. } | Row::Role { .. } | Row::Start { .. } => None,
                     };
-                    let address = page_address(view.origin.as_ref().expect("built view has an origin"), &page);
-                    view.selected_event = Some(match line.kind {
-                        launchpad::LeftKind::Chat { .. } => {
-                            Event::Act { act: temper_client_domain::pages::Act::Go { address: page } }
-                        }
-                        launchpad::LeftKind::Goal => Event::Open { address: address.clone() },
-                    });
-                    view.focus = Some(address);
+                    if let Some(page) = page {
+                        view.focus = Some(page_address(&part.address, &page));
+                    }
+                    break;
                 }
             }
         }
-        Body::Place(_) | Body::Chat(_) | Body::Welcome(_) | Body::Starting(_) => {}
+    } else {
+        view.rows.clear();
     }
     view.reply.clone_from(&signed.foot.reply);
     view.box_empty = match &signed.foot.composer {
         Some(composer) => composer.value.is_empty(),
         None => false,
     };
-    view.left_off_arrows = view.box_empty && signed.foot.list.is_none();
-    view.walkable &= view.left_off_arrows
-        && match &signed.body {
-            Body::Launchpad(part) => part.project.is_some(),
-            Body::Place(_) | Body::Chat(_) | Body::Welcome(_) | Body::Starting(_) => false,
-        };
+    let list_focused = view.list_focused();
     view.binds.events.clear();
     let mut b = view.render.builder();
     b.open(Role::Page);
@@ -564,18 +577,49 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
         Body::Launchpad(part) => launchpad::draw(&mut b, part, &view.words, &mut view.binds),
         Body::Chat(part) => chat::draw(&mut b, part, &view.words, &mut view.binds),
     }
-    view.escape = foot::draw(&mut b, &signed.foot, &view.words, &mut view.binds);
-    if signed.foot.list.is_none() && view.box_empty && signed.foot.place {
-        view.escape = Some(Event::Back);
-    } else if signed.foot.list.is_none() && view.box_empty && signed.foot.talk_name.is_some() {
-        view.escape = Some(Event::Leave);
+    view.escape = foot::draw(&mut b, &signed.foot, &view.words, &mut view.binds, list_focused);
+    view.back = back_event(signed, view.escape.as_ref());
+    if let Body::Chat(_) = &signed.body
+        && view.escape.is_none()
+        && view.reply.is_empty()
+        && signed.foot.pause
+    {
+        view.escape = Some(Event::Command { command: temper_client_domain::pages::terminal::Command::Pause });
     }
-    if signed.foot.list.is_none() && view.selected.is_some() {
-        view.escape = Some(Event::LeftOff { task: None });
+    if signed.foot.list.is_none() && view.picked.is_some() {
+        view.escape = Some(Event::Picked { row: None });
     }
     b.close();
     view.render.finish(b, view.shown, out);
 }
+fn back_event(signed: &Signed, list_escape: Option<&Event>) -> Option<Event> {
+    // Questions, proposals and replies stand on their own; other lists must be closed first.
+    if let Some(event) = list_escape {
+        let (Event::Aside { .. } | Event::ReplyAside { .. }) = event else { return None };
+    }
+    match &signed.body {
+        Body::Place(_) => Some(Event::Back),
+        Body::Chat(_) if signed.foot.talk_name.is_some() => Some(Event::Leave),
+        Body::Chat(_) => Some(Event::Command { command: temper_client_domain::pages::terminal::Command::New }),
+        Body::Starting(_) | Body::Welcome(_) | Body::Launchpad(_) => None,
+    }
+}
+
+/// What Left at the box's start makes in the tree last built.
+#[must_use]
+pub fn back(view: &View, node: NodeId, caret: u32) -> Option<Event> {
+    // The renderer clamps the caret to the field's value, even after a send clears it.
+    if caret != 0 && !view.box_empty {
+        return None;
+    }
+    let event = view.back.as_ref()?;
+    if view.tree().find(node)?.binding == Some(Binding { owner: look::OWNER, token: BOX }) {
+        Some(event.clone())
+    } else {
+        None
+    }
+}
+
 /// What Escape makes in the tree last built.
 #[must_use]
 pub fn escape(view: &View) -> Option<Event> {
@@ -622,13 +666,7 @@ pub fn event(view: &View, node: NodeId, act: Act) -> Option<Event> {
             if bound.binding.token == look::LINK {
                 Some(Event::SignIn)
             } else if bound.binding.token == BOX {
-                if view.box_empty
-                    && let Some(event) = &view.selected_event
-                {
-                    Some(event.clone())
-                } else {
-                    Some(Event::Send)
-                }
+                Some(Event::Send)
             } else {
                 None
             }
@@ -709,26 +747,71 @@ pub fn goal_offered(root: &Domain) -> bool {
 pub enum Arrow {
     Up,
     Down,
+    Tab,
+    BackTab,
+    Open,
 }
 
-/// The event made on the tree last built, or None for the key reader.
+fn row_event(row: Row, origin: &crate::Origin) -> Event {
+    use temper_client_domain::pages::Act;
+    match row {
+        Row::Chat { task } => Event::Act { act: Act::Go { address: Address::Chat { task } } },
+        Row::Goal { task } => Event::Open { address: page_address(origin, &Address::Task { task }) },
+        Row::Need { object } => Event::WalkFrom { object },
+        Row::Role { project, task } => Event::Act { act: Act::Go { address: Address::Talk { project, task } } },
+        Row::Start { command } => Event::Own { command },
+    }
+}
+
+fn section(row: Row) -> u8 {
+    match row {
+        Row::Chat { .. } | Row::Goal { .. } => 0,
+        Row::Need { .. } => 1,
+        Row::Role { .. } => 2,
+        Row::Start { .. } => 3,
+    }
+}
+
+/// The event made on the launchpad list last built, or None for the key reader.
 #[must_use]
 pub fn arrow(view: &View, arrow: Arrow) -> Option<Event> {
-    if !view.left_off_arrows {
+    if !view.list_entry {
         return None;
     }
-    let mut picked = 0;
-    for index in 0..view.left_off.len() {
-        let task = view.left_off.get(index).expect("bounded left-off row").0;
-        if Some(task) == view.selected {
-            picked = match arrow {
-                Arrow::Up => index.saturating_sub(1),
-                Arrow::Down => index.saturating_add(1).min(view.left_off.len().saturating_sub(1)),
-            };
-            break;
+    let Some((index, true)) = view.picked else {
+        return if arrow == Arrow::Up { Some(Event::Picked { row: Some(*view.rows.get(0)?) }) } else { None };
+    };
+    let current = section(*view.rows.get(index)?);
+    let next = match arrow {
+        Arrow::Up => index.saturating_sub(1),
+        Arrow::Down => index.saturating_add(1),
+        Arrow::Tab => {
+            let mut next = index;
+            for at in index.saturating_add(1)..view.rows.len() {
+                if section(*view.rows.get(at)?) != current {
+                    next = at;
+                    break;
+                }
+            }
+            next
         }
-    }
-    Some(Event::LeftOff { task: Some(view.left_off.get(picked)?.0) })
+        Arrow::BackTab => {
+            let mut first = 0;
+            for at in 1..=index {
+                let before = section(*view.rows.get(at.saturating_sub(1))?);
+                let here = section(*view.rows.get(at)?);
+                if here == current {
+                    break;
+                }
+                if here != before {
+                    first = at;
+                }
+            }
+            first
+        }
+        Arrow::Open => return view.row_event.clone(),
+    };
+    Some(Event::Picked { row: view.rows.get(next).copied() })
 }
 
 fn page_focus(root: &Domain, origin: &crate::Origin) -> Option<Box<[u8]>> {
@@ -758,18 +841,16 @@ fn has_needs(root: &Domain) -> bool {
         None => false,
     }
 }
-/// The launchpad's walk key on the tree last built (client/tui/pages/launchpad.md).
-#[must_use]
-pub fn walk_key(view: &View) -> Option<Event> {
-    if view.walkable { Some(Event::Own { command: Own::Needs }) } else { None }
-}
 /// A chat's number among the displayed left-off rows (client/tui/pages/launchpad.md).
 #[must_use]
 pub fn chat_number(view: &View, number: u32) -> Option<u64> {
-    for (task, kind) in &view.left_off {
-        match kind {
-            launchpad::LeftKind::Chat { number: held, .. } if *held == number => return Some(*task),
-            launchpad::LeftKind::Chat { .. } | launchpad::LeftKind::Goal => {}
+    let mut seen = 0_u32;
+    for row in &view.rows {
+        if let Row::Chat { task } = row {
+            seen = seen.saturating_add(1);
+            if seen == number {
+                return Some(*task);
+            }
         }
     }
     None
@@ -833,7 +914,7 @@ pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
     commands.into_boxed()
 }
 
-/// Ctrl-P, decoded against the tree last built.
+/// Ctrl-o, decoded against the tree last built.
 #[must_use]
 pub fn pane_key(view: &View) -> Option<Event> {
     let (_shown, mode) = view.pane?;

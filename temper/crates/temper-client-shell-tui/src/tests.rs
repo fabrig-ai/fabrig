@@ -42,7 +42,7 @@ use temper_client_domain::{
         terminal::{self, Command, Font, Theme},
     },
 };
-use temper_client_tui::{BoxEnd, BoxStage, Event, Local, Note, Own, Scheme, Told, WalkStep};
+use temper_client_tui::{BoxEnd, BoxStage, Event, Local, Note, Own, Row, Scheme, Told, WalkStep};
 
 fn settings() -> Settings {
     let mut limits = limits::tui();
@@ -127,6 +127,10 @@ fn link(address: &str) -> Vec<Key> {
 
 fn text(host: &mut Host) -> String {
     String::from_utf8(host.frame().text().into_vec()).expect("UTF-8 frame")
+}
+
+fn has_option(host: &Host, name: &[u8]) -> bool {
+    host.tree().nodes().iter().any(|node| node.role == skein_ui::Role::MenuItem && node.name.as_deref() == Some(name))
 }
 
 fn empty(duties: &Duties) {
@@ -1373,7 +1377,24 @@ fn signed_host(projects: bool) -> (Host, u64, Duties) {
 }
 
 fn signed_host_look(projects: bool, background: Option<Rgb>, boxed: bool) -> (Host, u64, Duties) {
-    let mut host = host();
+    // These fixtures exercise the TUI, not the native shell's capacity checks.
+    let native = temper_client_shell_terminal::limits::native();
+    let view = temper_client_tui::limits(&native.client, &skein_ui::Limits::EMPTY, limits::PASTE).unwrap();
+    let limits = limits::Limits {
+        native,
+        view,
+        most: Size { columns: 120, rows: 40 },
+        paste: limits::PASTE,
+        interval: limits::INTERVAL,
+    };
+    let shared = temper_client_view::words::Words::english(
+        temper_client_protocol_wire::FORGE,
+        native.client.client.domain.text,
+        temper_client_view::words::Shell::Terminal,
+    )
+    .unwrap();
+    let words = temper_client_tui::words::Words::english(shared, &native.client).unwrap();
+    let mut host = Host::with_checked_words(&Settings { limits }, words, 7, Time::ZERO, Wall::EPOCH);
     start_look(&mut host, Some(Secret::new(Box::new([7; 40]))), background, boxed);
     let hello = hello_for_me(&host, launchpad_me(projects));
     let duties =
@@ -1436,7 +1457,7 @@ fn typing_open_opens_the_selected_launchpad_chat() {
             if selected {
                 host.report(Report::Key(Key::Up));
                 host.frame();
-                assert_eq!(host.state().left_off(), Some(NEWEST));
+                assert_eq!(host.state().picked().map(|(row, _)| row), Some(Row::Chat { task: NEWEST }));
             }
             let address = if selected {
                 b"http://127.0.0.1:8367/chats/9".as_slice()
@@ -1513,7 +1534,6 @@ fn goal_host() -> Host {
             break;
         }
     }
-    host.frame();
     host
 }
 
@@ -1525,7 +1545,7 @@ fn typing_open_opens_the_selected_launchpad_goal() {
         host.frame();
         host.report(Report::Key(Key::Up));
         host.frame();
-        assert_eq!(host.state().left_off(), Some(NEWEST));
+        assert_eq!(host.state().picked().map(|(row, _)| row), Some(Row::Goal { task: NEWEST }));
         check_typed_open(&mut host, size, b"http://127.0.0.1:8367/tasks/9");
     }
 }
@@ -1548,10 +1568,10 @@ fn launchpad_selection_clears_after_command_composition() {
         host.report(Report::Key(Key::Up));
         host.frame();
         key_words(&mut host, words);
-        assert_eq!(host.state().left_off(), Some(NEWEST), "{words}: composing");
+        assert_eq!(host.state().picked().map(|(row, _)| row), Some(Row::Chat { task: NEWEST }), "{words}: composing");
         host.report(Report::Key(key));
         host.frame();
-        assert_eq!(host.state().left_off(), None, "{words}: cleared");
+        assert_eq!(host.state().picked(), None, "{words}: cleared");
     }
 }
 
@@ -1845,13 +1865,15 @@ fn reply_host() -> Host {
     reply_host_draft(false)
 }
 fn pane_document() -> w::NotePage {
-    let body = format!("# Draft\n\n{}", "line\n\n".repeat(40));
+    draft_note(format!("# Draft\n\n{}", "line\n\n".repeat(40)).into_bytes().into())
+}
+fn draft_note(body: Box<[u8]>) -> w::NotePage {
     let note = w::Note {
         number: 1,
         revision: w::Revision { value: 1 },
         scope: w::NoteScope::Task(w::NoteScopeTask { project: 3, task: 7 }),
         description: records::wire_text(b"Draft"),
-        body: w::DocumentText { bytes: body.into_bytes().into(), cut: false },
+        body: w::DocumentText { bytes: body, cut: false },
         writer: w::NoteAuthor::Task(w::NoteAuthorTask { task: 7, attempt: 1 }),
         tasks: List::with_capacity(0),
         changed: None,
@@ -1865,6 +1887,9 @@ fn pane_document() -> w::NotePage {
     w::NotePage { cut: false, rows: pieces(&[writer.finish()]), before: None, after: None }
 }
 fn reply_host_draft(draft: bool) -> Host {
+    reply_host_with_draft(draft.then(pane_document))
+}
+fn reply_host_with_draft(draft: Option<w::NotePage>) -> Host {
     use smith_transcript as s;
     let (mut host, me_watch, _) = signed_host(true);
     let mut me = launchpad_me(true);
@@ -1922,9 +1947,8 @@ fn reply_host_draft(draft: bool) -> Host {
     task.acts = pieces(&[writer.finish()]);
     let duties = delivery(&mut host, task_watch, &w::DeliveryValue::Task(Box::new(task)));
     let duties = admit_watches(&mut host, duties);
-    if draft {
+    if let Some(page) = draft {
         let read = read_exchange(&duties, "notes");
-        let page = pane_document();
         read_reply(&mut host, read, &w::ReadValue::Notes(page));
     }
     let mut turn = s::decode_archived(&s::CEILINGS, &records::full_turn()).unwrap();
@@ -1968,6 +1992,12 @@ fn stored(host: &mut Host, mut duties: Duties) -> Duties {
         duties.asked.push(request);
     }
     duties
+}
+
+fn no_box_writes(duties: &Duties) {
+    assert!(duties.keep.is_none());
+    assert!(duties.note.is_none());
+    assert!(duties.asked.iter().all(|request| !matches!(request, Request::Save { .. } | Request::Erase { .. })));
 }
 
 fn typed(host: &mut Host, words: &[u8]) {
@@ -2462,7 +2492,7 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
 enum LaunchAt {
     Home,
     Aside,
-    AsideByKey,
+    AsideFromRow,
     Need,
     NewChat,
 }
@@ -2523,15 +2553,15 @@ fn the_launchpad_takes_its_own_words() {
         (b"/chats 2", LaunchAt::Home, LaunchWant::Unknown),
         (b"/br", LaunchAt::Home, LaunchWant::Brief),
         (b"Use a comma", LaunchAt::Aside, LaunchWant::Reply),
-        (b"Use a comma", LaunchAt::AsideByKey, LaunchWant::Reply),
+        (b"Use a comma", LaunchAt::AsideFromRow, LaunchWant::Reply),
         (
             b"Please help",
             LaunchAt::Home,
             LaunchWant::Started { label: 7, words: b"Please help", from: Address::Home { project: 3 } },
         ),
     ] {
-        let aside = matches!(at, LaunchAt::Aside | LaunchAt::AsideByKey);
-        let mut host = if matches!(at, LaunchAt::Aside | LaunchAt::AsideByKey | LaunchAt::Need) {
+        let aside = matches!(at, LaunchAt::Aside | LaunchAt::AsideFromRow);
+        let mut host = if matches!(at, LaunchAt::Aside | LaunchAt::AsideFromRow | LaunchAt::Need) {
             waiting_at(false)
         } else {
             one_chat_host(matches!(&want, LaunchWant::Brief))
@@ -2543,7 +2573,7 @@ fn the_launchpad_takes_its_own_words() {
         }
         let object = aside.then(|| shared_question(&host));
         if let Some(object) = object {
-            host.tell(Told::Walk { by_key: matches!(at, LaunchAt::AsideByKey) });
+            host.tell(Told::Walk { first: matches!(at, LaunchAt::AsideFromRow).then_some(object) });
             give(&mut host, Event::Aside { object });
         }
         typed(&mut host, words);
@@ -2585,7 +2615,7 @@ fn the_launchpad_takes_its_own_words() {
             ),
             LaunchWant::Brief => assert!(host.state().brief_shown(), "{words:?}"),
             LaunchWant::Walk => {
-                assert!(host.state().walk().is_some_and(|walk| !walk.by_key()), "{words:?}");
+                assert!(host.state().walk().is_some_and(|walk| walk.first().is_none()), "{words:?}");
                 assert_eq!((host.words()).len(), 0);
             }
             LaunchWant::Opened => {
@@ -2791,6 +2821,9 @@ fn reply_keys_send_choices_or_keep_the_composer() {
         host.report(Report::Key(Key::Paste(typed_words.into())));
         host.frame();
         assert_eq!(host.words(), typed_words, "{case}: typed words before Enter");
+        if keys.first() == Some(&Key::Escape) {
+            assert_eq!(host.event_of(&Key::Escape), Some(Event::ReplyAside { turn: REPLY_TURN }), "{case}");
+        }
         let key_event = host.event_of(&Key::Enter);
         let number_event = temper_client_tui::reply_number(&host.view, typed_words);
         let before = host.state().box_written();
@@ -2835,7 +2868,9 @@ fn waiting_at(chat: bool) -> Host {
     let (mut host, _, mut watches) = signed_host(true);
     // The fixture supplies the terminal look so event rows isolate event translation.
     host.step(root::Event::LookKept { look: terminal::Look { terminal: true, ..terminal::Look::default() } });
-    host.step(root::Event::Went { place: Place::Address(Address::Home { project: 3 }) });
+    if !chat {
+        host.step(root::Event::Went { place: Place::Address(Address::Home { project: 3 }) });
+    }
     let duties = host.report(Report::Due);
     watches.asked.extend(admit(&mut host, duties).asked);
     if chat {
@@ -3547,14 +3582,14 @@ pub(crate) fn home_subject(duties: &Duties) -> w::Subject {
 }
 
 #[test]
-fn the_terminal_control_p_cycles_the_pane() {
+fn the_terminal_control_o_cycles_the_pane() {
     use root::pages::chat::document::Mode;
     use skein_ui_screen_terminal::Decoder;
 
     let mut decoder = Decoder::new(1);
     let mut keys = skein_lib::Queue::with_capacity(1);
-    decoder.read(b"\x10", &mut keys);
-    let key = keys.pop().expect("the terminal's Ctrl-P");
+    decoder.read(b"\x0f", &mut keys);
+    let key = keys.pop().expect("the terminal's Ctrl-o");
     let mut host = reply_host_draft(true);
     give(&mut host, Event::Act { act: Act::Mode { mode: Mode::Split } });
     for mode in [Mode::Draft, Mode::Chat, Mode::Split] {
@@ -3566,6 +3601,19 @@ fn the_terminal_control_p_cycles_the_pane() {
 }
 
 #[test]
+fn control_p_does_not_cycle_the_pane() {
+    use root::pages::chat::document::Mode;
+
+    let mut host = reply_host_draft(true);
+    give(&mut host, Event::Act { act: Act::Mode { mode: Mode::Split } });
+    host.frame();
+    let key = Key::Control(b'p');
+    assert!(!matches!(host.event_of(&key), Some(Event::Act { act: Act::Mode { .. } })));
+    host.report(Report::Key(key));
+    assert_eq!(host.root.pages().chat().expect("chat with a draft").mode, Mode::Split);
+}
+
+#[test]
 fn pane_keys_preserve_words_and_choose_the_visible_mode() {
     use root::pages::chat::document::Mode;
     for (name, draft, writing, columns, mode, words, next) in [
@@ -3574,7 +3622,8 @@ fn pane_keys_preserve_words_and_choose_the_visible_mode() {
         ("writing", true, true, 80, Mode::Split, "", Some(Mode::Draft)),
         ("typed words", true, false, 80, Mode::Split, "my words", Some(Mode::Draft)),
         ("list", true, false, 80, Mode::Draft, "/", Some(Mode::Chat)),
-        ("narrow", true, false, 79, Mode::Chat, "/", Some(Mode::Draft)),
+        ("narrow folded", true, false, 79, Mode::Chat, "/", Some(Mode::Draft)),
+        ("narrow split shown as all", true, false, 79, Mode::Split, "", Some(Mode::Chat)),
     ] {
         let mut host = reply_host_draft(draft && !writing);
         if writing {
@@ -3585,8 +3634,8 @@ fn pane_keys_preserve_words_and_choose_the_visible_mode() {
         typed(&mut host, words.as_bytes());
         host.frame();
         let want = next.map(|mode| Event::Act { act: Act::Mode { mode } });
-        assert_eq!(host.event_of(&Key::Control(b'p')), want, "{name}");
-        host.report(Report::Key(Key::Control(b'p')));
+        assert_eq!(host.event_of(&Key::Control(b'o')), want, "{name}");
+        host.report(Report::Key(Key::Control(b'o')));
         assert_eq!(host.root.pages().chat().unwrap().mode, next.unwrap_or(mode), "{name}");
         assert_eq!(host.words(), words.as_bytes(), "{name}: composer unchanged");
     }
@@ -3661,6 +3710,21 @@ fn start_gives_the_look_then_launchpad_once_but_a_theme_only_gives_the_look() {
 }
 
 #[test]
+fn chats_two_and_a_missing_chat_number_use_the_unnumbered_list() {
+    let mut host = left_off_host();
+    typed(&mut host, b"/chats 9");
+    give(&mut host, Event::Send);
+    assert_eq!(
+        host.state().notice(),
+        Some(&temper_client_tui::Notice::Unknown { words: b"/chats 9".as_slice().into() })
+    );
+    assert!(!text(&mut host).contains("/chats 2"));
+    typed(&mut host, b"/chats 2");
+    give(&mut host, Event::Send);
+    assert_eq!(host.root.pages().address(), &Address::Chat { task: OLDER });
+}
+
+#[test]
 fn chats_one_and_enter_open_the_newer_chat_of_shop() {
     let mut tasks = home_tasks(false);
     let mut reader = Reader::new(&tasks.rows);
@@ -3686,9 +3750,9 @@ fn chats_one_and_enter_open_the_newer_chat_of_shop() {
             typed(&mut host, b"/chats 1");
         } else {
             host.frame();
-            host.report(Report::Key(Key::Down));
+            host.report(Report::Key(Key::Up));
             host.frame();
-            assert_eq!(host.state().left_off(), Some(NEWEST));
+            assert_eq!(host.state().picked().map(|(row, _)| row), Some(Row::Chat { task: NEWEST }));
         }
         host.report(Report::Key(Key::Enter));
         assert_eq!(host.root.pages().address(), &Address::Chat { task: NEWEST });

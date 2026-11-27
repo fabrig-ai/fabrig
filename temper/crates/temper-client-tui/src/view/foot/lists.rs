@@ -396,39 +396,46 @@ fn own_item(command: Own, words: &Words) -> OptionItem {
 }
 pub(crate) fn walk(root: &Domain, tui: &Tui, words: &Words) -> Option<Options> {
     let walk = tui.walk()?;
+    let mut picked = None;
     for prompt in shared::need_prompts(root, words.view()) {
         if walk.shown(&prompt.object) {
             continue;
         }
-        let (name, address) = match prompt.act {
-            shared::NeedAct::Answer(question) => return Some(question_options(question, words, true, prompt.why)),
-            shared::NeedAct::Review { words, address } => (words, address),
-            shared::NeedAct::Web => {
-                let path =
-                    address::print(&Address::Inbox { filter: Filter { project: prompt.project, ..Filter::ALL } });
-                (words.say(Word::OpenOnWeb, &[]), crate::origin::page(tui.address(), &path))
-            }
-        };
-        let mut items = List::with_capacity(2);
-        items
-            .push(OptionItem {
-                name: numbered(&name, 1, words),
-                words: Box::default(),
-                selected: false,
-                event: Event::Walk { object: prompt.object, step: WalkStep::Open { address } },
-            })
-            .expect("open counted");
-        next(&mut items, prompt.object, words);
-        return Some(Options {
-            style: look::OPTION,
-            why: prompt.why,
-            name: prompt.line.words.clone(),
-            head: Some(prompt.line.words),
-            items: items.into_boxed(),
-            escape: Event::EndWalk,
-        });
+        if walk.first().is_none() || walk.first() == Some(prompt.object) {
+            picked = Some(prompt);
+            break;
+        }
+        if picked.is_none() {
+            picked = Some(prompt);
+        }
     }
-    None
+    let prompt = picked?;
+    let (name, address) = match prompt.act {
+        shared::NeedAct::Answer(question) => return Some(question_options(question, words, true, prompt.why)),
+        shared::NeedAct::Review { words, address } => (words, address),
+        shared::NeedAct::Web => {
+            let path = address::print(&Address::Inbox { filter: Filter { project: prompt.project, ..Filter::ALL } });
+            (words.say(Word::OpenOnWeb, &[]), crate::origin::page(tui.address(), &path))
+        }
+    };
+    let mut items = List::with_capacity(2);
+    items
+        .push(OptionItem {
+            name: numbered(&name, 1, words),
+            words: Box::default(),
+            selected: false,
+            event: Event::Walk { object: prompt.object, step: WalkStep::Open { address } },
+        })
+        .expect("open counted");
+    next(&mut items, prompt.object, words);
+    Some(Options {
+        style: look::OPTION,
+        why: prompt.why,
+        name: prompt.line.words.clone(),
+        head: Some(prompt.line.words),
+        items: items.into_boxed(),
+        escape: Event::EndWalk,
+    })
 }
 fn numbered(name: &[u8], number: u64, words: &Words) -> Box<[u8]> {
     super::notes::join(&[&words.say(Word::Numbered, &[Hole::Number(number)]), name])

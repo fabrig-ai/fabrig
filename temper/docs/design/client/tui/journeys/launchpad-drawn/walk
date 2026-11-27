@@ -11,11 +11,11 @@ tui see "csv-export: comma or semicolon?"
 tui key paste "/new"
 tui mark
 tui key enter
-tui see "n to walk"
-tui see "/chats 1"
+tui see "/needs"
 tui see "Add a CSV export to the report: csv-export: comma"
 tui mark
-tui key char "n"
+tui key paste "/needs"
+tui key enter
 tui see "Next"
 tui mark
 tui key enter

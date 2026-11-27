@@ -228,7 +228,7 @@ fn a_need_the_engine_asks_is_walked_from_the_launchpad_and_answered() {
         .position(|row| row.contains("? Project 2") && row.contains(QUESTION))
         .unwrap_or_else(|| panic!("the question's row: {}", tui.text()));
     assert!(needs < need, "the question stands under Needs you: {}", tui.text());
-    assert!(tui.text().contains("1 needs you · n to walk"), "{}", tui.text());
+    assert!(tui.text().contains("1 needs you · /needs"), "{}", tui.text());
 
     tui.walk_needs(&mut world);
     let rows = tui.rows();
@@ -364,7 +364,7 @@ fn a_person_talks_with_a_standing_role_in_the_tui_and_leaves() {
     let shown = tui.text();
     assert!(shown.contains(WORDS), "{shown}");
     assert!(shown.contains(core::str::from_utf8(REPLY).unwrap()), "{shown}");
-    tui.press(&mut world, vec![Key::Escape]);
+    tui.press(&mut world, vec![Key::Left]);
     tui.run(&mut world, fixtures::WITHIN);
     let ended = world.front().engine.store.rows.values().any(|record| {
         matches!(record,
@@ -372,7 +372,7 @@ fn a_person_talks_with_a_standing_role_in_the_tui_and_leaves() {
             if line.task == task && matches!(line.line, jig_domain_tasks::Line::TalkEnded { lapsed: false, .. })
         )
     });
-    assert!(ended, "Esc ends the engine's talk");
+    assert!(ended, "Left ends the engine's talk");
     assert!(world.front().engine.task(task).unwrap().talk.is_none());
     let shown = tui.text();
     assert!(shown.contains("Left Owns the tests after 1 min"), "{shown}");
