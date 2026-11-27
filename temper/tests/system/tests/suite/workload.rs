@@ -45,7 +45,7 @@ fn a_refused_close_falls_and_every_goal_lands() -> Result<(), String> {
 
     let ledger = world.workload_ledger();
     sweep.ran(ledger);
-    assert_eq!(sweep.ineligible(CLOSE_REFUSED), 0);
+    assert_eq!(sweep.ineligible(CLOSE_REFUSED), 0, "seed {SEED}: close refusal for {target} was ineligible");
     let strikes: Vec<_> = ledger.entries().iter().filter(|entry| entry.kind == CLOSE_REFUSED).collect();
     let [strike] = strikes.as_slice() else {
         return Err(format!("seed {SEED}: expected one close refusal, got {strikes:?}"));
