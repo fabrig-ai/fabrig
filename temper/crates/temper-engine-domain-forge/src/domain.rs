@@ -208,6 +208,17 @@ pub(crate) struct Outboxed {
     handoff: Handoff,
 }
 
+impl Outboxed {
+    fn check_owner(&self, number: u64, task: u64) {
+        assert!(
+            self.entry.number == number && self.entry.task == task,
+            "outbox entry {number} belongs to task {task}, found entry {} of task {}",
+            self.entry.number,
+            self.entry.task
+        );
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Handoff {
     Uncommitted,
@@ -2905,18 +2916,19 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             }
             skein_forge_client::Request::Progress { entry } => {
                 if d.entries.contains_key(&entry.number) && d.repositories.contains_key(&entry.repository) {
-                    keep_entry(d, entry, None, out);
+                    save_entry_progress(d, entry, None, out);
                 }
             }
             skein_forge_client::Request::Outcome { entry, task, outcome } => {
-                if !d.entries.contains_key(&entry) {
+                let Some(kept) = d.entries.get(&entry) else {
                     // Keep the outbox's idempotent erasure, but no settled facts or terminal for an unheld entry.
                     if d.releasing.withdrawing != Some(entry) {
                         release::first_write(d);
                         emit(out, Request::Erase { key: Key::Entry(entry) });
                     }
                     continue;
-                }
+                };
+                kept.check_owner(entry, task);
                 let looked = outcome != skein_forge_client::Outcome::Queued && d.entry_looks.remove(&entry);
                 // The landing owns merge readback and round cleanup; neither creates a root effect hold.
                 let mut landing_merge = false;
@@ -2965,7 +2977,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                         if lost_comment {
                             // domain/forge/issues.md: an unfindable milestone counts
                             // as posted. Retire its entry without sending it again.
-                            not_made(d, env, entry, out);
+                            not_made(d, env, task, entry, out);
                         } else {
                             // It stays in the outbox, keeping its room, until a
                             // person or its task's close settles it.
@@ -2983,7 +2995,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     | skein_forge_client::Outcome::Held
                     | skein_forge_client::Outcome::Withdrawn => {
                         if !d.waiting_release_outcomes.contains_key(&entry) {
-                            d.entries.remove(&entry);
+                            take_entry(d, entry, task);
                             full::update(d, env, out);
                             emit(out, Request::Erase { key: Key::Entry(entry) });
                         }
@@ -4171,27 +4183,53 @@ fn enqueue(
     keep_entry(d, entry, release, out);
 }
 
-/// Save one entry in the client's hands: newly committed, for the client to
-/// make once the commit is durable, or a known entry's progress.
+/// Take one place for a new entry. A writer with a reservation gives it
+/// back before this step (domain/forge/room.md, 2.2).
 pub(crate) fn keep_entry(
     d: &mut Domain,
     entry: skein_forge_client::Entry,
     release: Option<u64>,
     out: &mut Queue<Request>,
 ) {
-    let (handoff, owner_ended) = match d.entries.get(&entry.number) {
-        Some(row) => (row.handoff, row.owner_ended),
-        None => (
-            Handoff::Uncommitted,
-            d.room
-                .closing
-                .get(&entry.task)
-                .copied()
-                .or(d.full.reserved_owner_ended(full::Reservation::Projection(entry.number))),
-        ),
+    let number = entry.number;
+    let task = entry.task;
+    assert!(
+        crate::room::taken(d) < d.entries.capacity(),
+        "new outbox entry {number} of task {task} has room within forge.entries"
+    );
+    let owner_ended =
+        d.room.closing.get(&task).copied().or(d.full.reserved_owner_ended(full::Reservation::Projection(number)));
+    let row = Outboxed { entry: entry.clone(), owner_ended, held: false, handoff: Handoff::Uncommitted };
+    let Ok(prior) = d.entries.insert(number, row) else {
+        unreachable!("new outbox entry {number} of task {task} fits its checked place");
     };
+    assert!(prior.is_none(), "new outbox entry {number} of task {task} has a new number");
+    save_entry(d, entry, release, out);
+}
+
+/// The client's progress or an outage retry writes over its own place.
+pub(crate) fn save_entry_progress(
+    d: &mut Domain,
+    entry: skein_forge_client::Entry,
+    release: Option<u64>,
+    out: &mut Queue<Request>,
+) {
+    let number = entry.number;
+    let task = entry.task;
+    let Some(kept) = d.entries.get_mut(&number) else {
+        unreachable!("outbox entry {number} of task {task} is kept when saving its progress");
+    };
+    kept.check_owner(number, task);
+    kept.entry = entry.clone();
+    kept.held = false;
+    save_entry(d, entry, release, out);
+}
+
+fn save_entry(d: &mut Domain, entry: skein_forge_client::Entry, release: Option<u64>, out: &mut Queue<Request>) {
     if entry.attempt.is_some() {
-        d.flights.insert((entry.task, entry.number), ()).expect("flights are bounded by entries");
+        let number = entry.number;
+        let task = entry.task;
+        assert!(d.flights.insert((task, number), ()).is_ok(), "flight for outbox entry {number} of task {task} fits");
         emit(
             out,
             Request::Save {
@@ -4201,9 +4239,15 @@ pub(crate) fn keep_entry(
             },
         );
     }
-    let row = Outboxed { entry: entry.clone(), owner_ended, held: false, handoff };
-    d.entries.insert(entry.number, row).expect("entry capacity checked or a known entry replaced");
     emit(out, Request::Save { read_afresh: None, release, record: Stored::Entry { entry, held: false } });
+}
+
+/// Give back a place the retiring step has identified, exactly once.
+pub(crate) fn take_entry(d: &mut Domain, number: u64, task: u64) {
+    let Some(row) = d.entries.remove(&number) else {
+        unreachable!("outbox entry {number} of task {task} is kept until it leaves");
+    };
+    row.check_owner(number, task);
 }
 
 fn effect_permitted(kinds: Kinds, write: &skein_forge::api::Write) -> bool {
@@ -8448,13 +8492,16 @@ fn withdraw_unsent(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
         if let Some(row) = d.entries.get(&number)
             && row.entry.start.is_none()
         {
+            // An unsent entry can still have a read in the client. Withdraw
+            // bars its write there; its eventual answer holds no room here.
+            row.check_owner(number, task);
             let account = crate::effect_words::account(
                 &row.entry,
                 d.repository(row.entry.repository),
                 skein_forge_client::Outcome::Withdrawn,
             );
             crate::landing::outcome(d, env, number, skein_forge_client::Outcome::Withdrawn, None, out);
-            d.entries.remove(&number);
+            take_entry(d, number, task);
             emit(out, Request::Erase { key: Key::Entry(number) });
             d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
             emit(
@@ -9634,10 +9681,12 @@ fn resolve(d: &mut Domain, env: &Env<Limits>, number: u64, again: bool, out: &mu
     if !row.held {
         return;
     }
+    let task = row.entry.task;
     if !again {
-        not_made(d, env, number, out);
+        not_made(d, env, task, number, out);
         return;
     }
+    row.check_owner(number, task);
     row.held = false;
     let entry = row.entry.clone();
     emit(
@@ -9654,14 +9703,14 @@ fn erase_flight(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Request>)
     }
 }
 
-/// Settle one held entry as not made, freeing its room.
-fn not_made(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
+/// Settle one entry as not made, freeing its room.
+fn not_made(d: &mut Domain, env: &Env<Limits>, task: u64, number: u64, out: &mut Queue<Request>) {
+    take_entry(d, number, task);
     outage::forget_entry(d, number);
-    let row = d.entries.remove(&number).expect("a held entry lives");
-    crate::landing::not_made(d, env, row.entry.task, number, out);
+    crate::landing::not_made(d, env, task, number, out);
     emit(out, Request::Erase { key: Key::Entry(number) });
-    erase_flight(d, row.entry.task, number, out);
-    emit(out, Request::NotMade { entry: number, task: row.entry.task });
+    erase_flight(d, task, number, out);
+    emit(out, Request::NotMade { entry: number, task });
 }
 
 /// A closing task's held entries are settled not made, as many as the
@@ -9690,7 +9739,7 @@ fn settle_held(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Req
         if out.room() < needed {
             break;
         }
-        not_made(d, env, *number, out);
+        not_made(d, env, task, *number, out);
     }
     continue_release_once(out, task);
     false
@@ -9783,7 +9832,7 @@ fn veto_change(
     if yielded && let Some(tasks) = crate::views::changes_mark(d, repository) {
         emit(out, Request::Marked { tasks: Box::from(tasks) });
     }
-    d.entries.remove(&entry);
+    take_entry(d, entry, task);
     emit(out, Request::Erase { key: Key::Entry(entry) });
 }
 
@@ -11076,7 +11125,7 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             let task = d.entries.get(&number).expect("collected entry").entry.task;
             d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
             settled_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, out);
-            not_made(d, env, number, out);
+            not_made(d, env, task, number, out);
             child(d, env, skein_forge_client::Event::Withdraw { entry: number }, out);
             if let Some(row) = d.releases.get(&task)
                 && !row.failed

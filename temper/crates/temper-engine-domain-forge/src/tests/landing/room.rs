@@ -606,6 +606,12 @@ fn write_outcome(out: &[Request]) -> Option<skein_forge_client::Outcome> {
 }
 
 fn dispatch() -> (Domain, skein_forge_client::Entry) {
+    let (d, _) = dispatching();
+    let kept = d.entries.get(&FRESH).unwrap().entry.clone();
+    (d, kept)
+}
+
+fn dispatching() -> (Domain, Token) {
     let (mut d, row) = configured("dispatch");
     start_empty(&mut d);
     outputs(&mut d, Event::Landing { row });
@@ -616,11 +622,10 @@ fn dispatch() -> (Domain, skein_forge_client::Entry) {
     let (call, op) = fixtures::next_call(&mut d);
     assert!(matches!(op, Op::Read(Read::Items { .. })), "write's clock: {op:?}");
     fixtures::answer(&mut d, call, Ok(Answer::Items { items: Box::new([]), more: false, cut: false, now: env().now }));
-    let (_, op) = fixtures::next_call(&mut d);
+    let (write, op) = fixtures::next_call(&mut d);
     assert!(matches!(op, Op::Write(Write::Dispatch { .. })));
     assert!(d.flights.contains_key(&(TASK, FRESH)));
-    let kept = d.entries.get(&FRESH).unwrap().entry.clone();
-    (d, kept)
+    (d, write)
 }
 
 fn outcome(d: &mut Domain, outcome: skein_forge_client::Outcome) -> Queue<Request> {
@@ -820,6 +825,55 @@ fn ending_a_landing_withdraws_its_unsent_write() {
         assert!(!d.entries.contains_key(&FRESH));
         assert!(d.landing(TASK).unwrap().entries.is_empty());
     }
+}
+
+#[test]
+fn cancelling_a_landing_releases_unsent_room_before_sent_room() {
+    const UNSENT: u64 = FRESH + 1;
+    let (mut d, writing) = dispatching();
+    let sent = d.entries.get(&FRESH).unwrap().entry.clone();
+    // The post has its own lane and is still reading its clock when the landing ends.
+    let mut unsent = refusals::entry(UNSENT);
+    unsent.task = TASK;
+    outputs(&mut d, Event::Enqueue { entry: unsent });
+    outputs(&mut d, Event::Committed { entry: UNSENT });
+    let (reading, op) = fixtures::next_call(&mut d);
+    assert!(matches!(op, Op::Read(Read::Items { .. })), "unsent post's clock: {op:?}");
+    let free = room::free(&d, &LIMITS);
+
+    let cancelled = outputs(&mut d, Event::SettleEffects { task: TASK, root: TASK, ending: ReleaseEnding::Cancelled });
+    assert!(matches!(d.landing(TASK).unwrap().landing.phase, policy::Phase::Cancelled));
+    assert!(cancelled.contains(&Request::Erase { key: Key::Entry(UNSENT) }));
+    let mut withdrawn = false;
+    for request in &cancelled {
+        if let Request::Outcome { task: TASK, entry: UNSENT, outcome: skein_forge_client::Outcome::Withdrawn, .. } =
+            request
+        {
+            withdrawn = true;
+        }
+    }
+    assert!(withdrawn, "unsent entry's outcome: {cancelled:?}");
+    assert!(!cancelled.contains(&Request::Erase { key: Key::Entry(FRESH) }));
+    assert!(!d.entries.contains_key(&UNSENT));
+    assert_eq!(d.entries.get(&FRESH).unwrap().entry, sent);
+    assert_eq!(d.inspection_entry_owner_ended(FRESH), Some(env().wall));
+    assert_eq!(room::free(&d, &LIMITS), free + 1);
+
+    let late = fixtures::answer(
+        &mut d,
+        reading,
+        Ok(Answer::Items { items: Box::new([]), more: false, cut: false, now: env().now }),
+    );
+    for request in &late {
+        assert!(!matches!(request, Request::Outcome { entry: UNSENT, .. }), "withdrawal already reported: {late:?}");
+    }
+    assert_eq!(room::free(&d, &LIMITS), free + 1);
+
+    let settled = fixtures::answer(&mut d, writing, Ok(Answer::Done));
+    assert!(matches!(write_outcome(&settled), Some(skein_forge_client::Outcome::Made { .. })));
+    assert!(settled.contains(&Request::Erase { key: Key::Entry(FRESH) }));
+    assert!(!d.entries.contains_key(&FRESH));
+    assert_eq!(room::free(&d, &LIMITS), free + 2);
 }
 
 #[test]

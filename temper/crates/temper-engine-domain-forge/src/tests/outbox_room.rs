@@ -1,6 +1,6 @@
 //! A change gives up its decision and number, not its place (forge/room.md, 3–4).
 use super::*;
-use skein_forge::api::{Answer, Check, Error, Write};
+use skein_forge::api::{Answer, Check, Error, Op, Read, Write};
 use skein_lib::List;
 use temper_engine_domain_forge_change as change;
 
@@ -28,11 +28,15 @@ pub(super) fn row(task: u64) -> ChangeRow {
 }
 
 fn start(d: &mut Domain, task: u64, entry: u64) {
+    outputs(d, opening_step(task, entry));
+}
+
+fn opening_step(task: u64, entry: u64) -> Event {
     let Event::StepChange { merge_job, heard, gates, queue_repair_active, pending, kept, .. } = fixtures::change_step()
     else {
         panic!("step fixture")
     };
-    outputs(d, Event::StepChange { task, entry, merge_job, heard, gates, queue_repair_active, pending, kept });
+    Event::StepChange { task, entry, merge_job, heard, gates, queue_repair_active, pending, kept }
 }
 
 fn finish(d: &mut Domain) -> Box<[Request]> {
@@ -446,7 +450,6 @@ fn pull_step(d: &mut Domain, task: u64, entry: u64, kind: &str, green: bool) -> 
 }
 
 fn pull_step_at(d: &mut Domain, task: u64, entry: u64, kind: &str, green: bool, clock: &Env<Limits>) -> Box<[Request]> {
-    use skein_forge::api::{Op, Read};
     start(d, task, entry);
     fixtures::answer_next(d, Ok(Answer::Commit(fixtures::HEAD)));
     fixtures::answer_next(d, Ok(Answer::Commit(fixtures::BASE)));
@@ -610,4 +613,155 @@ fn an_unreserved_enqueue_cannot_take_an_asked_changes_room() {
     let freed = outputs(&mut d, Event::Withdraw { entry: FRESH });
     assert_eq!(asks(&freed).as_ref(), &[SECOND]);
     assert!(!freed.contains(&Request::ContinueGoalBranch { task: 7 }));
+}
+
+const WRITER: u64 = 7;
+const STATUS: u64 = 1;
+const LAST_PLACE: u64 = 2;
+const WAITING_EFFECT: u64 = 3;
+// One retained status and one more write reach the outbox's bound.
+const TWO_PLACES: u32 = 2;
+
+fn two_places() -> (Domain, Env<Limits>) {
+    let mut clock = env();
+    clock.limits.entries = TWO_PLACES;
+    let mut d = domain_with_limits(&clock.limits);
+    d.restore_begin(clock.wall);
+    for event in [
+        Event::Connection {
+            forge: REPO.forge,
+            state: Connection::Connected { id: WRITER, login: b"bot".as_slice().into() },
+        },
+        Event::Restore { record: Stored::Repository(adopted()) },
+        Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
+        Event::CatchUp,
+        Event::Enqueue { entry: status(STATUS, WRITER) },
+    ] {
+        step_at(&mut d, &clock, event);
+    }
+    (d, clock)
+}
+
+fn step_at(d: &mut Domain, clock: &Env<Limits>, event: Event) -> Box<[Request]> {
+    let mut out = Queue::uncapped();
+    step(d, clock, event, &mut out);
+    collected(out)
+}
+
+fn open_at(d: &mut Domain, clock: &Env<Limits>, task: u64, entry: u64) -> Box<[Request]> {
+    step_at(d, clock, opening_step(task, entry));
+    fixtures::answer_next_at(d, clock, Ok(Answer::Commit(fixtures::HEAD)));
+    fixtures::answer_next_at(d, clock, Ok(Answer::Commit(fixtures::BASE)));
+    fixtures::answer_next_at(d, clock, Err(Error::Missing));
+    fixtures::finish_missing_at(d, clock)
+}
+
+fn send_status(d: &mut Domain, clock: &Env<Limits>) -> (Token, Box<[Request]>) {
+    step_at(d, clock, Event::Committed { entry: STATUS });
+    let (call, op) = fixtures::next_at(d, clock);
+    assert!(matches!(op, Op::Read(Read::Items { .. })), "write's clock: {op:?}");
+    fixtures::answer_at(
+        d,
+        clock,
+        call,
+        Ok(Answer::Items { items: Box::new([]), more: false, cut: false, now: clock.now }),
+    );
+    let mut sending = Queue::uncapped();
+    resume(d, clock, &mut sending);
+    let sending = collected(sending);
+    for request in &sending {
+        if let Request::Call { call, op, .. } = request {
+            assert_eq!(op, &Op::Write(status(STATUS, WRITER).effect.write));
+            return (*call, sending);
+        }
+    }
+    panic!("status write: {sending:?}");
+}
+
+#[test]
+fn the_last_place_passes_to_the_waiting_change() {
+    let (mut d, clock) = two_places();
+    for task in [FIRST, SECOND] {
+        step_at(&mut d, &clock, Event::Change { row: row(task) });
+    }
+    let kept = entries(&open_at(&mut d, &clock, FIRST, LAST_PLACE));
+    let [entry] = kept.as_ref() else { panic!("one kept entry: {kept:?}") };
+    assert_eq!((entry.number, entry.task), (LAST_PLACE, FIRST));
+    assert_eq!(room::free(&d, &clock.limits), 0);
+
+    let waiting = open_at(&mut d, &clock, SECOND, WAITING_EFFECT);
+    assert_wait(&waiting, SECOND);
+    assert_eq!(d.change(SECOND).unwrap().room, Some(1));
+    assert!(asks(&waiting).is_empty());
+    let (call, _) = send_status(&mut d, &clock);
+    let freed = collected(fixtures::answer_at(&mut d, &clock, call, Ok(Answer::Done)));
+    assert!(freed.contains(&Request::Erase { key: Key::Entry(STATUS) }));
+    assert_eq!(asks(&freed).as_ref(), &[SECOND]);
+    assert_eq!(room::reserved(&d), 1);
+
+    let kept = entries(&open_at(&mut d, &clock, SECOND, FRESH));
+    let [entry] = kept.as_ref() else { panic!("one kept entry: {kept:?}") };
+    assert_eq!((entry.number, entry.task), (FRESH, SECOND));
+    assert_eq!(d.change(SECOND).unwrap().room, None);
+    assert_eq!(room::reserved(&d), 0);
+    assert_eq!(room::free(&d, &clock.limits), 0);
+}
+
+#[test]
+fn a_full_outbox_saves_progress_in_place() {
+    let (mut d, clock) = two_places();
+    step_at(&mut d, &clock, Event::Enqueue { entry: status(LAST_PLACE, WRITER) });
+    wait_in(&mut d, &clock, FIRST, 1);
+    let (_, progress) = send_status(&mut d, &clock);
+    let saved = entries(&progress);
+    let [entry] = saved.as_ref() else { panic!("one progress save: {progress:?}") };
+    assert_eq!((entry.number, entry.task), (STATUS, WRITER));
+    assert!(entry.attempt.is_some());
+    assert_eq!(&d.entries.get(&STATUS).unwrap().entry, entry);
+    assert_eq!(room::free(&d, &clock.limits), 0);
+    assert_eq!(room::reserved(&d), 0);
+    assert!(asks(&progress).is_empty());
+    for request in &progress {
+        assert!(!matches!(
+            request,
+            Request::Refused { .. } | Request::ResourceRefused { .. } | Request::Outcome { .. }
+        ));
+    }
+}
+
+#[test]
+fn a_repeated_outbox_outcome_leaves_the_same_room_and_line() {
+    use skein_forge_client::{Made, Outcome};
+    let (mut d, clock) = two_places();
+    step_at(&mut d, &clock, Event::Enqueue { entry: status(LAST_PLACE, WRITER) });
+    wait_in(&mut d, &clock, FIRST, 1);
+    wait_in(&mut d, &clock, SECOND, 2);
+    let (call, _) = send_status(&mut d, &clock);
+    let made = Outcome::Made { made: Made::Set, found: false };
+    let terminal = Request::Outcome { entry: STATUS, task: WRITER, outcome: made, account: None };
+    let settled = collected(fixtures::answer_at(&mut d, &clock, call, Ok(Answer::Done)));
+    assert!(settled.contains(&terminal));
+    assert_eq!(asks(&settled).as_ref(), &[FIRST]);
+    let first = room::Waiter::Change(FIRST);
+    let second = room::Waiter::Change(SECOND);
+    assert_eq!(room::reserved(&d), 1);
+    assert_eq!(room::free(&d, &clock.limits), 0);
+    assert!(room::asked(&d, first));
+    assert!(!room::asked(&d, second));
+
+    let mut out = Queue::uncapped();
+    domain::scripted_outcome(&mut d, &clock, STATUS, WRITER, made, &mut out);
+    resume(&mut d, &clock, &mut out);
+    let late = collected(out);
+    for request in &late {
+        assert!(!matches!(request, Request::Outcome { .. }), "no second terminal: {late:?}");
+    }
+    assert!(asks(&late).is_empty());
+    assert_eq!(d.entries.len(), 1);
+    assert_eq!(room::reserved(&d), 1);
+    assert_eq!(room::free(&d, &clock.limits), 0);
+    assert_eq!(room::place(&d, first), Some(1));
+    assert_eq!(room::place(&d, second), Some(2));
+    assert!(room::asked(&d, first));
+    assert!(!room::asked(&d, second));
 }

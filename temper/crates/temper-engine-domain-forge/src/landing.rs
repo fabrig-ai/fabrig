@@ -1,7 +1,7 @@
 //! Top-owned landing rows, coherent reads, receipts and effects (domain/landing.md, 2–4, and domain/landing-prepare.md, 1, and domain/landing-proof.md, 1–2, and domain/landing-turn.md, 1–2, and domain/landing.md, 10–15).
 //! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use crate::domain::read_line::{self, Waiter};
-use crate::domain::{child, emit, keep_entry};
+use crate::domain::{child, emit, keep_entry, take_entry};
 use crate::{
     Check, Domain, Key, LandingEntry, LandingHeard, LandingRow, Limits, Operation, Receipt, ReceiptJob, ReceiptKey,
     ReceiptReport, ReceiptRun, RepositoryGates, Request, Stored, runs,
@@ -6124,7 +6124,7 @@ pub(crate) fn defer_merge(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
             .expect("staged effect position");
     }
     row.entries = entries.into_boxed();
-    d.entries.remove(&entry);
+    take_entry(d, entry, task);
     emit(out, Request::Erase { key: Key::Entry(entry) });
     save(d, env, row, out);
     let repositories = match d.landing.rows.get(&task) {
@@ -6142,7 +6142,7 @@ pub(crate) fn veto(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out
         return;
     }
     outcome(d, env, entry, skein_forge_client::Outcome::Failed(api::Error::Refused), None, out);
-    d.entries.remove(&entry);
+    take_entry(d, entry, task);
     emit(out, Request::Erase { key: Key::Entry(entry) });
 }
 fn matches_entry(d: &Domain, task: u64, entry: u64) -> bool {
