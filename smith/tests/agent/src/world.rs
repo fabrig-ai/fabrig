@@ -337,6 +337,8 @@ pub struct World<B: Backend = Typed> {
     answer: Option<run::Answer>,
     answer_detail: Box<[u8]>,
     answered: Option<Time>,
+    facts_at_answer: usize,
+    requests_after_answer: usize,
     checked: Vec<bool>,
     scripted_checks: VecDeque<run::Ran>,
     check_marker: Option<Vec<u8>>,
@@ -576,6 +578,8 @@ impl<B: Backend> World<B> {
             answer: None,
             answer_detail: Box::new([]),
             answered: None,
+            facts_at_answer: 0,
+            requests_after_answer: 0,
             checked: Vec::new(),
             scripted_checks: VecDeque::new(),
             check_marker: None,
@@ -1144,6 +1148,7 @@ impl<B: Backend> World<B> {
         reason = "one exhaustive fixture routing table keeps each copied request and its terminal ownership together"
     )]
     fn request(&mut self, request: Request) {
+        self.requests_after_answer += usize::from(self.answer.is_some());
         match request {
             Request::Part { host_run, number, turn, part } => {
                 assert_eq!(host_run, self.host_run);
@@ -1228,6 +1233,7 @@ impl<B: Backend> World<B> {
                 self.messages_seen
                     .push((self.now, crate::messages_referee::Seen::Answer { turns, parked, spent, read }));
                 self.answered = Some(self.now);
+                self.facts_at_answer = self.facts.len();
             }
             Request::Long { host_run, operation, until } => {
                 self.long_notices.push((self.now, Some(operation), Some(until)));
@@ -2149,6 +2155,19 @@ impl<B: Backend> World<B> {
     #[must_use]
     pub fn facts(&self) -> &[Fact] {
         &self.facts
+    }
+
+    /// Native facts collected before the host's answer, including those at its clock.
+    #[must_use]
+    pub fn facts_at_answer(&self) -> &[Fact] {
+        assert!(self.answer.is_some(), "answer boundary has not arrived");
+        &self.facts[..self.facts_at_answer]
+    }
+
+    /// Requests and notices emitted after the host received the answer.
+    #[must_use]
+    pub const fn requests_after_answer(&self) -> usize {
+        self.requests_after_answer
     }
 
     /// Optional content observations omitted by the capture buffer.

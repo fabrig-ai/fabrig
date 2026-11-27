@@ -29,6 +29,7 @@ mod fuzzy {
     mod faults;
     mod memory;
     mod messages;
+    mod parks;
     mod simulation;
 
     #[test]
