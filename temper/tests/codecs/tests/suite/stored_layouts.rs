@@ -91,6 +91,7 @@ fn registered(build: &str, sets: &OwnerSets, family: &KeptFamily, texts: &BTreeM
             variant: ty.variant.map(Into::into),
             text: kept.text().into(),
             held: held.iter().map(|schema| schema.text().into()).collect(),
+            mode: Mode::Read,
         };
         if let Err(why) = store::judge_held_layout(sets, family.name, ty.number, &layout) {
             failures.push(format!(
@@ -149,7 +150,8 @@ fn frame_layout(build: &str, sets: &OwnerSets, family: &KeptFamily, old: &Schema
         Some(root) => std::str::from_utf8(old.spelled(old.declaration(root).name)).expect("schema name"),
         None => frames.root,
     };
-    let layout = JobLayout { root: root.into(), variant: None, text: old.text().into(), held: Box::new([]) };
+    let layout =
+        JobLayout { root: root.into(), variant: None, text: old.text().into(), held: Box::new([]), mode: Mode::Read };
     match store::judge_held_layout(sets, family.name, frames.number, &layout) {
         Ok(store::HeldLayout::Planned) => vec![],
         result => vec![format!(
@@ -469,6 +471,7 @@ fn written_jobs_cover_map_layouts_but_not_logs() {
         variant: Some(variant.into()),
         text: OLD.as_bytes().into(),
         held: Box::new([]),
+        mode: Mode::Read,
     };
     let sets = job_sets(MAP, store::Layouts::One(fingerprint(b"deployment")));
     assert_eq!(

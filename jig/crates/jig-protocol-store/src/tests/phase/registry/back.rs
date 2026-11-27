@@ -293,7 +293,9 @@ fn a_job_that_names_a_later_layout_takes_its_values_before_the_keep_check() {
     let mut earlier = store(&disk, set);
     let events = disk.open(&mut earlier);
     let [Event::Job { owner, page, .. }] = events.as_ref() else { panic!("{events:?}") };
-    assert_eq!(page.layout.as_ref().unwrap().text.as_ref(), BACK_LATER.as_bytes());
+    let layout = page.layout.as_ref().unwrap();
+    assert_eq!(layout.text.as_ref(), BACK_LATER.as_bytes());
+    assert_eq!(layout.mode, skein_codec::layout::Mode::Keep);
     assert_eq!(page.rows.len(), 1);
     assert_eq!(page.rows[0].key.as_ref(), b"a/1");
     assert_eq!(page.rows[0].value.as_ref(), &[&[0, 3], &unkept[2..]].concat());

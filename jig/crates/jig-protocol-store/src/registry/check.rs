@@ -220,11 +220,11 @@ fn declaration(
     None
 }
 
-fn mode(layouts: &Layouts, key: &RowKey, row: &Row, binary: u16, held: bool) -> Option<Mode> {
-    if key.2 == binary {
+fn mode(at_binary: bool, later: bool, held: bool) -> Option<Mode> {
+    if at_binary {
         return None;
     }
-    if is_later(layouts, key, row, binary) {
+    if later {
         Some(if held { Mode::Read } else { Mode::Keep })
     } else if held {
         None
@@ -283,6 +283,8 @@ pub(super) fn plans(
         };
         let binary_id = layouts.types.get(index).expect("found type").binary;
         let at_binary = key.2 == binary_id;
+        let later = !at_binary && is_later(layouts, key, row, binary_id);
+        layouts.rows.get_mut(key).expect("held row").later = later;
         let values = if held_outside_map { None } else { count(store, layouts, index, key.2) };
         if !at_binary && values == Some(0) {
             layouts.rows.get_mut(key).expect("held row").retire = true;
@@ -293,7 +295,7 @@ pub(super) fn plans(
             if frame.is_some() { List::uncapped() } else { binary.held(layouts, digest).ok_or(OpenRefusal::Failed)? };
         let readable = texts::row(layouts, key);
         let row = layouts.rows.get(key).expect("held row");
-        let mode = mode(layouts, key, row, binary_id, held_outside_map);
+        let mode = mode(at_binary, later, held_outside_map);
         let plan = if readable.is_some() && (frame.is_none() || row.value.held.is_empty()) {
             derive(binary, layouts, row, digest, &declaration, &held, mode)
         } else {

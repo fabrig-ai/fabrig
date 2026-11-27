@@ -2,7 +2,7 @@
 use crate::{Job, JobLayout, OpenRefusal, Owner, Store};
 use alloc::boxed::Box;
 use skein_codec::{
-    layout::{Misconverted, Plan, Workspace},
+    layout::{Misconverted, Mode, Plan, Workspace},
     schema::Schema,
 };
 use skein_lib::{Buffer, List, Map, Queue};
@@ -94,6 +94,8 @@ struct Row {
     value: crate::registry_v1::Layout,
     stored: bool,
     retire: bool,
+    // Checked while the order is in memory; written jobs run after it is discarded.
+    later: bool,
 }
 #[derive(Debug)]
 struct Order {
@@ -422,6 +424,7 @@ impl Layouts {
                     },
                     text: self.texts.get(&row.value.text)?.bytes.clone(),
                     held: held.into_boxed(),
+                    mode: if row.later { Mode::Keep } else { Mode::Read },
                 },
             ));
             match converts.from {

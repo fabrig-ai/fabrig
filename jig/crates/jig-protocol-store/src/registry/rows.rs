@@ -56,7 +56,7 @@ fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
                         .ok_or(OpenRefusal::Failed)?;
                     layouts
                         .rows
-                        .insert((family, number, id), Row { value, stored: true, retire: false })
+                        .insert((family, number, id), Row { value, stored: true, retire: false, later: false })
                         .expect("uncapped registry");
                 }
                 Some(keys::Own::Text(digest)) => {
@@ -202,7 +202,7 @@ fn in_type<'a>(
 fn insert(layouts: &mut Layouts, family: &str, number: u16, id: u16, value: wire::Layout) {
     layouts
         .rows
-        .insert((Box::from(family), number, id), Row { value, stored: false, retire: false })
+        .insert((Box::from(family), number, id), Row { value, stored: false, retire: false, later: false })
         .expect("uncapped registration");
 }
 
