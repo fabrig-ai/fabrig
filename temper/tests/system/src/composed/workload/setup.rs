@@ -109,6 +109,7 @@ pub(super) fn limits(
     limits: &mut engine::Limits,
     planned: &[skein_world::faults::Kind],
     workload: &temper_workload::draw::Workload,
+    close_refusal: bool,
 ) {
     use temper_faults::bounds;
 
@@ -116,6 +117,10 @@ pub(super) fn limits(
         // Two admitted reads make COMPOSED reach this table while the
         // other readers queue; the stock write table does not fill.
         limits.forge.client.pending = 2;
+    } else if close_refusal {
+        // Leave room for the capability refresh when a close is refused
+        // alongside fresh gathers from released changes.
+        limits.forge.client.pending += 1;
     }
     if planned.contains(&bounds::BRANCH_HOLDS) {
         // Six holds for a three-member train, two for a concurrent milestone

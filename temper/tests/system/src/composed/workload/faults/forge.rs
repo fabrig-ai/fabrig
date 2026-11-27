@@ -1,6 +1,6 @@
 //! Forge faults on the composed world's forge calls (temper/docs/design/testing/composed-catalogue.md, 2).
 use super::{Faults, World, forge_faults as kinds, stale};
-use crate::composed::{engine, people, tasks};
+use crate::composed::{Key, engine, people, tasks};
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_forge::api;
 use skein_lib::{Duration, Env, Time, Token, Wall};
@@ -287,7 +287,9 @@ impl World {
             }
             fake::lag(self.forge.domain_mut(), if armed { LAG } else { NO_LAG });
         }
-        self.observe_gate_call(&mut f, op);
+        if matches!(op, api::Op::Write(api::Write::Dispatch { .. } | api::Write::Rerun { .. })) {
+            self.observe_gate_call(&mut f, op);
+        }
         self.workload_faults = Some(f);
         config
     }
@@ -772,15 +774,24 @@ impl World {
             f.stale_release = None;
         }
         if let Some(number) = f.restored {
-            let held = self.store.rows.values().find_map(|record| {
-                let engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row))) = record else { return None };
-                if !matches!(row.phase, tasks::Phase::Held { why, .. } if !matches!(why, tasks::Hold::Placed { .. })) { return None; }
-                let affected = self.store.change(row.number).is_some_and(|change| change.pull == Some(number))
-                    || self.store.rows.values().any(|r| matches!(r, engine::Record::Forge { row: forge }
-                        if matches!(forge.as_ref(), temper_engine_domain_forge::Stored::Landing(landing)
-                        if landing.landing.task == row.number && landing.landing.members.iter().any(|m| m.pull == number))));
-                affected.then_some((row.number, row.revisions.hold))
-            });
+            use jig_domain_core::{Key as CoreKey, Record};
+            use temper_engine_domain_forge::{Key as ForgeKey, Stored};
+            let held = self
+                .store
+                .rows
+                .range(Key::Core(CoreKey::Tasks(tasks::Key::Live(0)))..=Key::Core(CoreKey::Tasks(tasks::Key::Live(u64::MAX))))
+                .find_map(|(_, record)| {
+                    let engine::Record::Core(Record::Tasks(tasks::Stored::Live(row))) = record else { return None };
+                    if !matches!(row.phase, tasks::Phase::Held { why, .. } if !matches!(why, tasks::Hold::Placed { .. })) {
+                        return None;
+                    }
+                    let affected = self.store.change_hot(row.number).is_some_and(|change| change.pull == Some(number))
+                        || matches!(self.store.rows.get(&Key::Forge(ForgeKey::Landing(row.number))),
+                            Some(engine::Record::Forge { row: forge })
+                                if matches!(forge.as_ref(), Stored::Landing(landing)
+                                    if landing.landing.members.iter().any(|m| m.pull == number)));
+                    affected.then_some((row.number, row.revisions.hold))
+                });
             if let Some((task, revision)) = held {
                 // Only release the hold whose other-user close this run restored.
                 self.workload_enqueue(

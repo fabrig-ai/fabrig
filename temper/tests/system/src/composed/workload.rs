@@ -59,13 +59,14 @@ impl World {
         let scheduling = streams.seed_of(Stream::Scheduling, "system");
         let draw = (!kinds.is_empty()).then(|| faults::FaultDraw::for_workload(seed, &workload, kinds));
         let mut config = setup::config(scheduling, &workload);
-        if draw.as_ref().is_some_and(faults::FaultDraw::plans_silent_gate) {
+        if draw.as_ref().is_some_and(|draw| draw.plans(temper_blame::SILENT)) {
             // Let the real timeout hold the landing within the workload's bound.
             temper_engine_domain_world::oracle::config::landing(&mut config, 1).gate_timeout_ms = 60_000;
         }
         let planned_bounds = draw.as_ref().map_or(&[][..], faults::FaultDraw::bounds);
+        let close_refusal = draw.as_ref().is_some_and(|draw| draw.plans(temper_faults::forge::CLOSE_REFUSED));
         let world = Self::configured_values(scheduling, scripts::idle(), true, config, |limits| {
-            setup::limits(limits, planned_bounds, &workload);
+            setup::limits(limits, planned_bounds, &workload, close_refusal);
         });
         let mut world = Self::with_two_accounts(world);
         world.account_case.take().expect("two people");

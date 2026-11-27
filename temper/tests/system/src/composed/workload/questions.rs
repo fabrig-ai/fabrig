@@ -23,7 +23,7 @@ impl World {
                 let Some(task) = story
                     .names
                     .task(&change.name)
-                    .and_then(|task| self.store.change(task))
+                    .and_then(|task| self.store.change_hot(task))
                     .and_then(|row| row.delegate.map(|(task, _)| task))
                 else {
                     continue;
@@ -193,7 +193,7 @@ impl World {
         let ready = goal.changes.iter().all(|change| {
             self.workload_names()
                 .task(&change.name)
-                .and_then(|task| self.store.change(task).map(|row| (task, row)))
+                .and_then(|task| self.store.change_hot(task).map(|row| (task, row)))
                 .is_some_and(|(task, row)| {
                     matches!(row.change.state, temper_engine_domain_forge_change::State::Gating { .. })
                         && self.root.tasks().procedure_due(task).is_none()

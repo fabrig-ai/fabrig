@@ -173,8 +173,8 @@ impl FaultDraw {
         }
     }
 
-    pub(in crate::composed::workload) fn plans_silent_gate(&self) -> bool {
-        self.plans.iter().any(|plan| plan.kind == temper_blame::SILENT)
+    pub(in crate::composed::workload) fn plans(&self, kind: Kind) -> bool {
+        self.plans.iter().any(|plan| plan.kind == kind)
     }
 
     pub(in crate::composed::workload) fn bounds(&self) -> &[Kind] {
