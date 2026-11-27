@@ -110,7 +110,11 @@ pub(crate) fn workspace_items(
         let value = repository_item(repository, save, forges, tokens, limits)?;
         repositories.push(value).or(Err(problem(v1::paths::ITEMS_REPOSITORIES)))?;
     }
-    Ok(Some(v1::Items { repositories, rerun: workspace.rerun, hook_timeout_max_seconds: 3600 }))
+    Ok(Some(v1::Items {
+        repositories,
+        rerun: workspace.rerun,
+        hook_timeout_max_seconds: workspace.hook_timeout_max_seconds,
+    }))
 }
 fn repository_item(
     repository: &engine::ForgeRepository,
@@ -327,10 +331,31 @@ mod tests {
             second.provider.forge = forge;
             let mut third = fixtures::repository(3, b"acme", b"third");
             third.provider.forge = UNKNOWN_FORGE;
-            let workspace =
-                engine::ForgeWorkspace { rerun: None, repositories: Box::new([first.clone(), second, third]) };
+            let workspace = engine::ForgeWorkspace {
+                repositories: Box::new([first.clone(), second, third]),
+                ..engine::ForgeWorkspace::default()
+            };
             assert_eq!(workspace_items(&workspace, false, &forges, &tokens, &limits), Err(problem(path)));
         }
+    }
+
+    #[test]
+    fn workspace_items_encode_the_projects_hook_ceiling() {
+        use crate::tests::fixtures;
+        let limits = fixtures::wire_limits();
+        let forges = fixtures::forge_table(&fixtures::forges());
+        let tokens = crate::forge::tokens::Tokens::empty();
+        let workspace = engine::ForgeWorkspace {
+            hook_timeout_max_seconds: 1_800,
+            repositories: Box::new([fixtures::repository(1, b"acme", b"shop")]),
+            ..engine::ForgeWorkspace::default()
+        };
+        let items = workspace_items(&workspace, false, &forges, &tokens, &limits)
+            .expect("items within bounds")
+            .expect("workspace items");
+        let bytes = items.encode(&limits).expect("encode items");
+        let decoded = v1::Items::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("wire items");
+        assert_eq!(decoded.hook_timeout_max_seconds, 1_800);
     }
 
     #[test]

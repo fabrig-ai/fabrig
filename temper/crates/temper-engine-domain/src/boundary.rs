@@ -841,6 +841,7 @@ pub enum StoreRequest {
     Engine(engine_store::Out),
 }
 #[derive(PartialEq, Eq, Hash, Debug)]
+#[expect(clippy::large_enum_variant, reason = "deliveries with a workspace stay inline in the bounded route queue")]
 pub enum WorkerRequest {
     Settings(Box<[core::settings::WorkerSetting]>),
     Host(Box<HostRequest>),

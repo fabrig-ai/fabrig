@@ -954,8 +954,11 @@ pub(super) fn prepare_workspace(
     let mut checkout = super::workspace_repository(item, None, Box::new([]))?;
     checkout.prefixes = branches.into_boxed();
     checkout.save = None;
-    let workspace =
-        super::ForgeWorkspace { rerun: super::rerun_bound(domain, project), repositories: Box::new([checkout]) };
+    let workspace = super::ForgeWorkspace {
+        rerun: super::rerun_bound(domain, project),
+        hook_timeout_max_seconds: super::hook_timeout_max_seconds(domain, project),
+        repositories: Box::new([checkout]),
+    };
     let mut writes = List::with_capacity(env.limits.forge.landing_members);
     let mut names = List::with_capacity(env.limits.forge.landing_members);
     for member in &request.members {

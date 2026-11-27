@@ -273,7 +273,7 @@ impl World {
         let Some(story) = &mut self.close_job else { return self.assigned_job(channel, job, workspace) };
         assert_eq!(channel, super::CHANNEL);
         assert_eq!(job.kind.0, temper_engine_domain_forge::CLOSE_KIND);
-        assert_eq!(job.deadline, Duration::from_secs(600));
+        assert_eq!(job.deadline, Duration::from_secs(3_600));
         story.job = Some(job.run.raw());
         if story.tip.is_none() {
             let task = job.workspace.as_ref().expect("job workspace").workstream;

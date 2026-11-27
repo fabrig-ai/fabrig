@@ -3,7 +3,6 @@ use super::super::close_change::finish_job_on;
 use super::*;
 use jig_domain_core::{documents, reads, settings::WorkerSetting};
 use jig_domain_fleet::{Figures, JobShort};
-use temper_service_core::limits::CLOSE_DEADLINE;
 
 const FIRST_WORKER: u32 = 1;
 const COVERING_WORKER: u32 = 2;
@@ -11,6 +10,7 @@ const COVERING_POSITION: u32 = 1;
 const COVERING_CHANNEL: Token = Token::new(8);
 const LANDING: &[u8] = b"main";
 const WORK_GOAL: u32 = 4;
+const KIND_DEADLINE: Duration = Duration::from_secs(86_400);
 const SHORT_DEADLINE: Duration = Duration::from_secs(60);
 const UNTRANSLATED: &[u8] = b"the worker's layout cannot keep jig-channel Job.workspace: field";
 
@@ -89,7 +89,7 @@ fn a_close_job_waits_for_a_worker_with_enough_time() {
         &mut world,
         job,
         documents::JobWhy::Short(JobShort::Deadline),
-        Some(Figures { required: CLOSE_DEADLINE.as_millis(), offered: SHORT_DEADLINE.as_millis() }),
+        Some(Figures { required: KIND_DEADLINE.as_millis(), offered: SHORT_DEADLINE.as_millis() }),
     );
     assert!(attempts(&world, job).is_empty(), "no close job attempt was committed");
     finish_with_covering_worker(world, goal, change, job);

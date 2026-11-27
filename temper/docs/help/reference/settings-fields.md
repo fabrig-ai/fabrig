@@ -573,6 +573,7 @@ Landing at the next start.
 - tier_retries:u8;? default 2.
 - flakes:landing-flakes;? default rerun at checkout.rerun_processes.
 - check_timeout_ms:u64;? 1000 to 86400000; default none.
+- hook_timeout_max_seconds:u32;? 1 to 86400 seconds; default 3600.
 - gate_timeout_ms:u64;? 60000 to 86400000; default 3600000.
 - verification_bound_ms:u64;? ms; default 7200000.
 - merge_job:t[4096];? relative, no NUL or .. segments; see merge command in configuration.

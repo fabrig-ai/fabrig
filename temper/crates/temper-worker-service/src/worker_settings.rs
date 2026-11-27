@@ -330,7 +330,7 @@ pub fn close_bound() -> jig_domain_link::JobBound {
         kind: jig_domain_link::JobKind(CLOSE_KIND),
         spec: limits::CLOSE_SPEC_BYTES,
         result: limits::CLOSE_RESULT_BYTES,
-        deadline: limits::CLOSE_DEADLINE,
+        deadline: limits::hook_job_deadline_limit(),
     }
 }
 /// The worker's declared kinds, ascending (protocol/services.md, 5).

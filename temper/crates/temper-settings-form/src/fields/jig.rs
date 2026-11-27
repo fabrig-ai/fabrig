@@ -135,7 +135,7 @@ pub static FORMS: [Form; 101] = [
     Form { shape: Shape::TemperLimits, name: b"temper-limits", choice: Choice::List { item: Shape::LimitOverride, bound: Bound::Most(256) }, line: b"Application kind 22; as limits." },
     Form { shape: Shape::LimitOverride, name: b"limit-override", choice: Choice::Every, line: b"Reasoned override." },
 ];
-pub static FIELDS: [Field; 373] = [
+pub static FIELDS: [Field; 374] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -1426,6 +1426,7 @@ pub static FIELDS: [Field; 373] = [
     Field { shape: Shape::ProjectLanding, name: b"tier_retries", value: Value::Integer(Width::U8), list: None, null: false, line: b"Optional; default 2." },
     Field { shape: Shape::ProjectLanding, name: b"flakes", value: Value::Shape(Shape::LandingFlakes), list: None, null: false, line: b"Optional; default rerun at checkout.rerun_processes." },
     Field { shape: Shape::ProjectLanding, name: b"check_timeout_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Optional; 1000 to 86400000; default none." },
+    Field { shape: Shape::ProjectLanding, name: b"hook_timeout_max_seconds", value: Value::Integer(Width::U32), list: None, null: false, line: b"Optional; 1 to 86400 seconds; default 3600." },
     Field { shape: Shape::ProjectLanding, name: b"gate_timeout_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Optional; 60000 to 86400000; default 3600000." },
     Field { shape: Shape::ProjectLanding, name: b"verification_bound_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Optional; ms; default 7200000." },
     Field { shape: Shape::ProjectLanding, name: b"merge_job", value: Value::Text(Bound::Most(4096)), list: None, null: false, line: b"Optional; relative, no NUL or .. segments; see merge command in configuration." },

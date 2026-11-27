@@ -1081,10 +1081,10 @@ pub(crate) fn run_workspace(
     _attempt: u64,
 ) -> Option<RunWorkspace> {
     if context.executor == (tasks::Executor::Agent { charter: super::trials::TRIAL_CHARTER }) {
-        return Some(status_route::workspace(context.task));
+        return Some(status_route::workspace(domain, context));
     }
     if context.executor == (tasks::Executor::Agent { charter: STATUS_CHARTER }) {
-        return Some(status_route::workspace(context.task));
+        return Some(status_route::workspace(domain, context));
     }
     if context.executor == (tasks::Executor::Job { kind: forge::PREPARE_KIND })
         && let tasks::Party::Task(parent) = context.requester
@@ -1096,7 +1096,7 @@ pub(crate) fn run_workspace(
         tasks::Executor::Agent { charter } => match domain.engine.core().charter(charter) {
             Some(charter) => {
                 if crate::no_workspace(&charter.policy) {
-                    return Some(status_route::workspace(context.task));
+                    return Some(status_route::workspace(domain, context));
                 }
                 charter.policy.modify
             }
@@ -1278,6 +1278,7 @@ pub(crate) fn run_workspace(
     Some(RunWorkspace {
         workspace: ForgeWorkspace {
             rerun: rerun_bound(domain, context.project),
+            hook_timeout_max_seconds: hook_timeout_max_seconds(domain, context.project),
             repositories: repositories.into_boxed(),
         },
         workstream: key,
@@ -1286,6 +1287,13 @@ pub(crate) fn run_workspace(
         designs: designs.into_boxed(),
         own_holds: own_holds.into_boxed(),
     })
+}
+
+fn hook_timeout_max_seconds(domain: &Domain, project: u32) -> u32 {
+    match domain.forge.landing_settings(project) {
+        Some(settings) => settings.hook_timeout_max_seconds,
+        None => forge::settings::ProjectLanding::default().hook_timeout_max_seconds,
+    }
 }
 
 /// The run or job takes its project's bound from the settings built at restore.
@@ -3066,7 +3074,10 @@ fn change_delegate(
             spec: tasks::Spec {
                 job: Some(Box::new(tasks::JobSpec {
                     bytes: forge::jobs::merge(&repository.name, fallback, &head, &base, bound.spec)?,
-                    deadline: bound.deadline,
+                    deadline: skein_lib::Duration::from_secs(u64::from(hook_timeout_max_seconds(
+                        domain,
+                        repository.project,
+                    ))),
                 })),
                 asks: false,
                 words: Box::new([]),
@@ -3095,7 +3106,10 @@ fn change_delegate(
             spec: tasks::Spec {
                 job: Some(Box::new(tasks::JobSpec {
                     bytes: forge::jobs::close(&repository.name, fallback, row.close.as_deref()?, bound.spec)?,
-                    deadline: bound.deadline,
+                    deadline: skein_lib::Duration::from_secs(u64::from(hook_timeout_max_seconds(
+                        domain,
+                        repository.project,
+                    ))),
                 })),
                 asks: false,
                 words: Box::new([]),

@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x88, 0xa1, 0xd8, 0xcc, 0xf4, 0x47, 0xd4, 0x38, 0x53, 0x8d, 0x9c, 0x25, 0x02, 0x57, 0xb4, 0x9b, 0x90, 0x94, 0x36,
-    0x55, 0x1c, 0x36, 0x37, 0x9c, 0x1b, 0x8e, 0x7e, 0x50, 0xc4, 0x11, 0x62, 0xee,
+    0xf3, 0x91, 0xa6, 0x8e, 0x7a, 0xa1, 0x13, 0x3c, 0xa3, 0x58, 0x58, 0x47, 0x9c, 0x68, 0xa9, 0x90, 0xa8, 0xc8, 0x0f,
+    0xbf, 0x61, 0x62, 0x0b, 0x0d, 0xd9, 0xf0, 0xc5, 0xf0, 0xb9, 0x3c, 0x93, 0xe5,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -3710,6 +3710,7 @@ pub mod paths {
     pub const PROJECT_LANDING_WAIT: Path = Path::new("ProjectLanding.wait");
     pub const PROJECT_LANDING_REPAIRS: Path = Path::new("ProjectLanding.repairs");
     pub const PROJECT_LANDING_FLAKES: Path = Path::new("ProjectLanding.flakes");
+    pub const PROJECT_LANDING_HOOK_TIMEOUT_MAX_SECONDS: Path = Path::new("ProjectLanding.hook_timeout_max_seconds");
     pub const PROJECT_LANDING_TAIL: Path = Path::new("ProjectLanding (tail)");
     pub const SETTINGS_REPORT_FORMAT_TAG: Path = Path::new("SettingsReportFormat (tag)");
     pub const SETTINGS_GATE_REPORT_ARTIFACT: Path = Path::new("SettingsGateReport.artifact");
@@ -28627,6 +28628,7 @@ pub struct ProjectLanding {
     pub wait: SettingsLandingWait,
     pub repairs: Option<RepairSettings>,
     pub flakes: Option<SettingsFlakes>,
+    pub hook_timeout_max_seconds: u32,
 }
 
 // Record: ProjectLanding.
@@ -28652,11 +28654,12 @@ impl ProjectLanding {
         skein_codec::bounds::Node::Option { item: 16 },
         skein_codec::bounds::Node::Named("SettingsFlakes"),
         skein_codec::bounds::Node::Option { item: 18 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15, 17, 19] },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15, 17, 19, 20] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 110;
+    pub const ENCODED_AT_ZERO: u64 = 114;
 }
 
 impl Record for ProjectLanding {
@@ -28696,6 +28699,7 @@ impl Record for ProjectLanding {
         field::write(field::Nested, &self.wait, limits, out, paths::PROJECT_LANDING_WAIT)?;
         field::write(field::Optional { item: field::Nested }, &self.repairs, limits, out, paths::PROJECT_LANDING_REPAIRS)?;
         field::write(field::Optional { item: field::Nested }, &self.flakes, limits, out, paths::PROJECT_LANDING_FLAKES)?;
+        field::write(field::U32, &self.hook_timeout_max_seconds, limits, out, paths::PROJECT_LANDING_HOOK_TIMEOUT_MAX_SECONDS)?;
         Ok(())
     }
 
@@ -28716,6 +28720,7 @@ impl Record for ProjectLanding {
             wait: field::read(field::Nested, limits, reader, paths::PROJECT_LANDING_WAIT)?,
             repairs: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PROJECT_LANDING_REPAIRS)?,
             flakes: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PROJECT_LANDING_FLAKES)?,
+            hook_timeout_max_seconds: field::read(field::U32, limits, reader, paths::PROJECT_LANDING_HOOK_TIMEOUT_MAX_SECONDS)?,
         })
     }
 }
@@ -40533,7 +40538,7 @@ impl SettingValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 111;
+    pub const ENCODED_AT_ZERO: u64 = 115;
 }
 
 impl Record for SettingValue {
@@ -40620,7 +40625,7 @@ impl SizedValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 115;
+    pub const ENCODED_AT_ZERO: u64 = 119;
 }
 
 impl Record for SizedValue {
@@ -40676,7 +40681,7 @@ impl SettingEdit {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 116;
+    pub const ENCODED_AT_ZERO: u64 = 120;
 }
 
 impl Record for SettingEdit {
@@ -40741,7 +40746,7 @@ impl SettingRow {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 137;
+    pub const ENCODED_AT_ZERO: u64 = 141;
 }
 
 impl Record for SettingRow {

@@ -1773,7 +1773,7 @@ mod merge_tests {
             kind: JobKind(3),
             spec: 4_096,
             result: 512,
-            deadline: skein_lib::Duration::from_secs(600)
+            deadline: skein_lib::Duration::from_secs(86_400)
         }));
     }
 
@@ -1787,7 +1787,7 @@ mod merge_tests {
             panic!("ready declares capabilities");
         };
         let close =
-            JobBound { kind: JobKind(4), spec: 16_384, result: 512, deadline: skein_lib::Duration::from_secs(600) };
+            JobBound { kind: JobKind(4), spec: 16_384, result: 512, deadline: skein_lib::Duration::from_secs(86_400) };
         assert!(hello.jobs.contains(&close));
         assert_eq!(hello.jobs.len(), 3, "the refusal ask is not a new kind");
         let kinds = crate::worker_settings::job_kinds();

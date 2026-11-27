@@ -167,7 +167,7 @@ fn goal_world_with_updates(
         kind: jig_domain_link::JobKind(forge_top::CLOSE_KIND),
         spec: 16_384,
         result: 512,
-        deadline: Duration::from_secs(600),
+        deadline: Duration::from_secs(86_400),
     }]);
     world.send(event);
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal request") };

@@ -1012,7 +1012,10 @@ pub fn assignment_with_settings(
         messages: Box::new([]),
         saved: Box::new([]),
         workstream: 7,
-        workspace: temper_engine_domain::ForgeWorkspace { rerun: None, repositories: Box::new([repository]) },
+        workspace: temper_engine_domain::ForgeWorkspace {
+            repositories: Box::new([repository]),
+            ..temper_engine_domain::ForgeWorkspace::default()
+        },
         transcript: Box::new([]),
         answered: Box::new([]),
         settled: Box::new([]),

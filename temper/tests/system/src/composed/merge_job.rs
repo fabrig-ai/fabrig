@@ -416,7 +416,7 @@ impl World {
     ) {
         assert_eq!(channel, super::CHANNEL);
         assert_eq!(job.kind.0, 3);
-        assert_eq!(job.deadline, Duration::from_secs(600));
+        assert_eq!(job.deadline, Duration::from_secs(3_600));
         let mut own = temper_service_core::limits::stock();
         let checkout = &self.lanes[0].worker_env.limits.checkout;
         own.checkout.repositories = checkout.repositories;

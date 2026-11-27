@@ -9,6 +9,8 @@ const COMMAND: &[u8] = b".temper/merge";
 const RESULT: &[u8] = b"{\"settled\":[\"file\"],\"left\":[]}";
 const GOAL: &[u8] = b"temper/goal";
 const STEPS: u32 = 200;
+const DEFAULT_CEILING: u32 = 3_600;
+const CUSTOM_CEILING: u32 = 1_800;
 
 #[path = "merge_job/history.rs"]
 mod history;
@@ -83,15 +85,25 @@ pub(crate) fn next_job(world: &mut World, task: u64, optimistic: bool) -> host::
 }
 
 pub(crate) fn check_job(world: &World, task: u64, job: &host::JobAssignment, head: u64, base: u64) {
-    check_job_with_fallback(world, task, job, head, base, true);
+    check_job_with_settings(world, task, job, head, base, DEFAULT_CEILING, true);
 }
 
-fn check_job_with_fallback(world: &World, task: u64, job: &host::JobAssignment, head: u64, base: u64, fallback: bool) {
+fn check_job_with_settings(
+    world: &World,
+    task: u64,
+    job: &host::JobAssignment,
+    head: u64,
+    base: u64,
+    ceiling: u32,
+    fallback: bool,
+) {
     assert_eq!(job.kind, JobKind(forge_top::MERGE_KIND));
-    assert_eq!(job.deadline, Duration::from_secs(600));
+    assert_eq!(job.deadline, Duration::from_secs(u64::from(ceiling)));
     let workspace = job.workspace.as_ref().expect("job workspace");
     assert_eq!(workspace.workstream, task, "the change owns the checkout cache");
-    let items = &world.job_workspaces.get(&job.run.raw()).expect("typed job items").repositories;
+    let workspace = world.job_workspaces.get(&job.run.raw()).expect("typed job items");
+    assert_eq!(workspace.hook_timeout_max_seconds, ceiling);
+    let items = &workspace.repositories;
     assert_eq!(items.len(), 1);
     let item = &items[0];
     let change = change_row(world, task);
@@ -234,9 +246,10 @@ pub(super) fn landed(world: &mut World, task: u64, head: u64) {
 /// temper/docs/design/domain/forge/change/repairs.md: a goal branch's conflict can be settled by its merge job alone.
 #[test]
 fn a_conflict_into_a_goal_branch_is_settled_by_the_merge_job_and_merges() {
-    let (mut world, task, head, base) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
+    let configured = world(false, true, true).with_merge_job(COMMAND).with_hook_ceiling(CUSTOM_CEILING);
+    let (mut world, task, head, base) = pushed_change_in(configured, true, GOAL);
     let job = next_job(&mut world, task, true);
-    check_job(&world, task, &job, head, base);
+    check_job_with_settings(&world, task, &job, head, base, CUSTOM_CEILING, true);
     assert!(
         world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Merge { .. })),
         "the forge refused the optimistic merge for its conflict"
@@ -380,7 +393,7 @@ fn an_update_conflict_makes_a_find_merge_job_without_a_hook_read() {
         passed_ci(&mut world, head);
         passed_ci(&mut world, base);
         let job = next_job(&mut world, task, false);
-        check_job_with_fallback(&world, task, &job, head, base, fallback);
+        check_job_with_settings(&world, task, &job, head, base, DEFAULT_CEILING, fallback);
         assert_no_hook_reads(&world);
         assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Update { .. })));
         world.close();
@@ -398,7 +411,7 @@ fn an_unmergeable_pull_makes_a_find_merge_job_without_a_hook_read() {
         world.forge_reads = Some(Vec::new());
         let (mut world, task, head, base) = pushed_change_in(world, true, GOAL);
         let job = next_job(&mut world, task, false);
-        check_job_with_fallback(&world, task, &job, head, base, fallback);
+        check_job_with_settings(&world, task, &job, head, base, DEFAULT_CEILING, fallback);
         assert!(!world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Merge { .. })));
         // The worker found no command and pushed nothing. Its result is the resolver's account.
         finish_job(&mut world, &job, NONE);

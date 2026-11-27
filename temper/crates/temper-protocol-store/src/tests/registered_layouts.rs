@@ -128,6 +128,10 @@ fn a_landing_layout_without_repairs_defaults_it_to_none() {
 fn a_landing_layout_without_flakes_defaults_it_to_unset() {
     landing_layout_defaults(" flakes: option SettingsFlakes = none");
 }
+#[test]
+fn a_landing_layout_without_hook_ceiling_defaults_to_an_hour() {
+    landing_layout_defaults(" hook_timeout_max_seconds: u32 = 3600");
+}
 fn landing_layout_defaults(field: &str) {
     use super::fixtures;
     use crate::records;
@@ -149,7 +153,11 @@ fn landing_layout_defaults(field: &str) {
     let stored = Stored::Setting(d::SettingRow {
         key: d::SettingKey { kind: 4, scope: 7, number: 1, slot: d::SettingSlot::Change },
         edit: d::Edit::Set(d::SizedValue {
-            value: d::Value::Landing(d::ProjectLanding { batch: 3, ..d::ProjectLanding::default() }),
+            value: d::Value::Landing(d::ProjectLanding {
+                batch: 3,
+                hook_timeout_max_seconds: 3_600,
+                ..d::ProjectLanding::default()
+            }),
             size: 123,
         }),
     });
