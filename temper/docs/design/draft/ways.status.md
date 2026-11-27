@@ -16,6 +16,6 @@
   - 11: `../protocol/wires.md`, sections 5, 8 and 9 say nothing of a charter's project scope. Ask temper reviews nothing after an upgrade.
 - **Design departs:** none.
 - **Open:**
-  - 13: lowering a way's value for one piece of work; the sign-off on `.temper/`; a milestone across repositories; a deployment's own ways; the stock ways without `ways.toml`; a hotfix and a turn in progress.
+  - 13: lowering a way's value for one piece of work.
   - 8.8: the same rule for `temper.toml` and the other files a person writes, in a draft of its own.
   - 12: everything a person sees, for the next pass.
