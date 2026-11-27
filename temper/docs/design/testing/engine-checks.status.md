@@ -4,4 +4,4 @@
 
 - **Not yet:** 2.3: the room's census, each reservation by its holder and
   released by its owner's state, and the adapter's own check of the
-  room's taken against it.
+  room's taken against it. [in flight: change 21566]

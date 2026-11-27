@@ -8,6 +8,7 @@ adapter is `worker.status.md`'s.
 - **Not yet:** 6.1: the composed world's relations across components:
   jig's `core` and `host`, smith's adapter and host calls, its links, and
   the check of `HOST_CALLS` and `PLACEMENTS` at its quiet points.
+  [in flight: change 21567]
 
 - **Not yet:** 6.2: no check holds the 3.3 failure table's rows for runs
   outside the system world's account case (6.3) and the composed

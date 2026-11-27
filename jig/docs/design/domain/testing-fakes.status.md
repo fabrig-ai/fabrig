@@ -4,7 +4,7 @@
 
 - **Not yet:** 1.1: `core`'s `placements` and `flights`, `jig_inspect::host`,
   jig's and the host's records of its relations, and `HOST_CALLS` and
-  `PLACEMENTS`, with their tests.
+  `PLACEMENTS`, with their tests. [in flight: change 21565]
 - **Not yet:**
   1: the core kit's `World` keeps one commit per run, rehearsed in
   `World::finish`, and its rehearsal pays for its store and start alone.
