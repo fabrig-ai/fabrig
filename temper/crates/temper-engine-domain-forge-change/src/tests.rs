@@ -146,6 +146,16 @@ fn reading(execution: Execution) -> Reading {
 }
 
 #[test]
+fn only_ci_failure_at_the_change_head_is_a_ci_repair() {
+    assert!(Repair::Ci.ci());
+    assert!(Repair::Semantic.ci());
+    assert!(!Repair::Gate(9).ci());
+    assert!(!Repair::Review { head: HEAD }.ci());
+    assert!(!Repair::Landing { gate: 3 }.ci());
+    assert!(!Repair::LandingAt { gate: 3, candidate: HEAD, below: None }.ci());
+}
+
+#[test]
 fn blocking_gate_reports_require_a_valid_pass_and_ignore_nonblocking_gates() {
     let mut c = change(State::Gating { head: HEAD, asked: Box::new([1]) });
     c.gates = Box::new([

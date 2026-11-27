@@ -124,6 +124,17 @@ pub enum Repair {
     LandingAt { gate: u16, candidate: Commit, below: Option<Below> },
 }
 
+impl Repair {
+    /// Whether the repair was prompted by CI failing at the change's head.
+    #[must_use]
+    pub fn ci(self) -> bool {
+        match self {
+            Self::Ci | Self::Semantic => true,
+            Self::Gate(_) | Self::Review { .. } | Self::Landing { .. } | Self::LandingAt { .. } => false,
+        }
+    }
+}
+
 /// The green context of a blamed unit (domain/landing-search.md, 7; landing-search-by-test.md, 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Below {

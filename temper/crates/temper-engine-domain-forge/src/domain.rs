@@ -4529,7 +4529,7 @@ fn delegate_result(
     let fresh = row.ending.is_none() && !row.terminal();
     let owned = row.change.owns_turn;
     let empty_repair =
-        if let change::Delegate::Repair(why) = kind { ci_reason(why) || crate::recheck::landing(why) } else { false };
+        if let change::Delegate::Repair(why) = kind { why.ci() || crate::recheck::landing(why) } else { false };
     let agent = match kind {
         change::Delegate::Gate { .. } => false,
         change::Delegate::Produce
@@ -6942,7 +6942,8 @@ fn repair_poll(
     heard: &change::Heard,
     decision: change::Decision,
 ) -> change::Decision {
-    if let change::State::Repairing { why: change::Repair::Ci | change::Repair::Semantic, .. } = row.change.state
+    if let change::State::Repairing { why, .. } = row.change.state
+        && why.ci()
         && heard.delegate_running
         && facts.branch == Some(facts.ci.head)
         && facts.ci.status == change::Status::Passed
@@ -7119,19 +7120,9 @@ fn take_landing_repair(
     }
 }
 
-fn ci_reason(why: change::Repair) -> bool {
-    match why {
-        change::Repair::Ci | change::Repair::Semantic => true,
-        change::Repair::Gate(_)
-        | change::Repair::Review { .. }
-        | change::Repair::Landing { .. }
-        | change::Repair::LandingAt { .. } => false,
-    }
-}
-
 fn ci_repair(state: &change::State) -> bool {
     let change::State::Repairing { requested: true, why } = state else { return false };
-    ci_reason(*why)
+    why.ci()
 }
 
 fn take_ci_repair(
@@ -7169,7 +7160,7 @@ fn step_recheck(d: &Domain, row: &ChangeRow, pending: &PendingStep, ask: Option<
         && pending.branch.is_some()
         && pending.branch == row.change.last_head
     {
-        let taken = if ci_reason(why) {
+        let taken = if why.ci() {
             if let Some(recheck) = ci_recheck_at(row, pending.branch) { recheck.taken.is_some() } else { false }
         } else if let Some(regate) = &row.regate {
             regate.taken.is_some()

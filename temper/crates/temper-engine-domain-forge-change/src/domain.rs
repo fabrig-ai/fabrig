@@ -440,7 +440,7 @@ pub fn held_on_ci(state: &State) -> bool {
         Cause::Repairs | Cause::Authority(_) => ci_state(was),
         Cause::Failed | Cause::Stalled | Cause::RedStands => {
             if let State::Repairing { why, .. } = was.as_ref() {
-                ci_reason(*why)
+                why.ci()
             } else {
                 false
             }
@@ -808,7 +808,7 @@ fn release_red(mut change: Change, why: Repair, prior: &Hold, facts: &Facts, now
         Pull::Closed => State::Reopening { requested: false, retarget: false },
         Pull::Missing | Pull::Merged { .. } => State::Opening { requested: false },
     };
-    if !matches_open(facts.pull) || Some(head) != previous || (ci_reason(why) && green_head(facts).is_some()) {
+    if !matches_open(facts.pull) || Some(head) != previous || (why.ci() && green_head(facts).is_some()) {
         change.state = checked;
         return Stepped { took: None, change, decision: Decision::None };
     }
@@ -824,7 +824,7 @@ fn release_red(mut change: Change, why: Repair, prior: &Hold, facts: &Facts, now
                 b"its red at ", b" stands at the same content and spec; amend this change to ask a fresh repair, measure it again, or cancel it.");
         }
     }
-    if ci_reason(why) && facts.rerun && facts.ci.head == head && facts.ci.status == Status::Failed {
+    if why.ci() && facts.rerun && facts.ci.head == head && facts.ci.status == Status::Failed {
         change.state = State::Checking { head };
         return rerun(change, head, now);
     }
@@ -2052,7 +2052,7 @@ fn repairing(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
-    if ci_reason(why)
+    if why.ci()
         && let Some(head) = green_head(facts)
     {
         if !requested
@@ -2072,7 +2072,7 @@ fn repairing(
     if !requested {
         return repair_due(change, why, facts, now, limits);
     }
-    if ci_reason(why)
+    if why.ci()
         && standing.delegate == Status::Passed
         && let Some(head) = facts.branch
         && Some(head) == facts.repair_head.or(change.last_head)
@@ -2091,13 +2091,6 @@ fn repairing(
     delegated(change, requested, Delegate::Repair(why), facts, standing, now, limits)
 }
 
-fn ci_reason(why: Repair) -> bool {
-    match why {
-        Repair::Ci | Repair::Semantic => true,
-        Repair::Gate(_) | Repair::LandingAt { .. } | Repair::Landing { .. } | Repair::Review { .. } => false,
-    }
-}
-
 fn green_head(facts: &Facts) -> Option<[u8; 32]> {
     let head = facts.branch?;
     if facts.ci.head == head && facts.ci.status == Status::Passed { Some(head) } else { None }
@@ -2111,7 +2104,7 @@ fn repair_ended(change: Change, head: [u8; 32], now: Wall) -> Stepped {
 
 fn ci_state(state: &State) -> bool {
     match state {
-        State::Repairing { why, .. } => ci_reason(*why),
+        State::Repairing { why, .. } => why.ci(),
         State::Checking { .. } | State::CancellingGates { .. } => true,
         State::Taking { .. }
         | State::Producing { .. }
