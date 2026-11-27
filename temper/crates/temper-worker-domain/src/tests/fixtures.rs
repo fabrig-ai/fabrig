@@ -161,7 +161,7 @@ pub fn items(names: &[&[u8]]) -> wire::Workspace {
         };
         repositories.push(repository).expect("room for each name");
     }
-    wire::Workspace { rerun: None, repositories: repositories.into_boxed() }
+    wire::Workspace { rerun: None, hook_timeout_max_seconds: 3600, repositories: repositories.into_boxed() }
 }
 
 /// The root's refusal of the run as an invalid start, for `why`.

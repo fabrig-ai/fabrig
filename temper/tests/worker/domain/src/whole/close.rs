@@ -24,6 +24,7 @@ pub enum Case {
     Unchanged,
     Failed,
     MissingHook,
+    NoHook,
 }
 
 fn kind() -> tooling::Kind {
@@ -51,10 +52,13 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
     world.forge.advance(REMOTE, b"main", b"code", b"later main\n");
     world.event(Event::Ready)?;
     assert_eq!(world.report.kinds.as_ref(), [kind().bound]);
-    let program = if case == Case::MissingHook { CLOSE_HOOK } else { b"fabrig/tools/close" };
-    assign(&mut world, head, program)?;
+    let find = case == Case::NoHook;
+    let program = if find || case == Case::MissingHook { CLOSE_HOOK } else { b"fabrig/tools/close" };
+    assign(&mut world, head, program, find)?;
     if case == Case::MissingHook {
         missing_hook(&mut world)?;
+    } else if find {
+        world.absent(program, false)?;
     } else {
         let owner = world.start(program)?;
         command(&mut world, owner, head, case)?;
@@ -72,9 +76,15 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
     }
     let answer = world.report.answer.as_ref().expect("one terminal answer");
     match case {
-        Case::Changed | Case::Unchanged => {
+        Case::Changed | Case::Unchanged | Case::NoHook => {
             let host::JobEnding::Finished { result, work } = answer else { panic!("finished: {answer:?}") };
-            assert_eq!(result.as_ref(), if case == Case::Changed { SETTLED } else { UNCHANGED });
+            let expected = match case {
+                Case::Changed => SETTLED,
+                Case::Unchanged => UNCHANGED,
+                Case::NoHook => br#"{"settled":[],"hook":"none"}"#,
+                Case::Failed | Case::MissingHook => unreachable!("the job finished"),
+            };
+            assert_eq!(result.as_ref(), expected);
             assert!(work.saved.is_none());
             assert_eq!(work.left.is_some(), case == Case::Changed);
         }
@@ -96,7 +106,7 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
     Ok(world.report)
 }
 
-fn assign(world: &mut World, head: u64, program: &[u8]) -> Result<(), String> {
+fn assign(world: &mut World, head: u64, program: &[u8], find: bool) -> Result<(), String> {
     world.event(Event::AssignJob {
         job: host::JobAssignment {
             run: RUN,
@@ -109,6 +119,7 @@ fn assign(world: &mut World, head: u64, program: &[u8]) -> Result<(), String> {
         },
         items: Ok(wire::Workspace {
             rerun: None,
+            hook_timeout_max_seconds: 3600,
             repositories: Box::new([wire::Repository {
                 admit: false,
                 tag: 0,
@@ -128,7 +139,12 @@ fn assign(world: &mut World, head: u64, program: &[u8]) -> Result<(), String> {
                 account: None,
             }]),
         }),
-        spec: Ok(wire::JobSpec { command: program.into(), request: REQUEST.into(), refusal: false }),
+        spec: Ok(wire::JobSpec {
+            command: program.into(),
+            request: REQUEST.into(),
+            refusal: false,
+            fallback: if find { Some(Box::new([])) } else { None },
+        }),
     })?;
     Ok(())
 }

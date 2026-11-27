@@ -5,7 +5,7 @@ use jig_domain_link::{JobBound, JobKind};
 use skein_lib::bytes::copy_of;
 use skein_lib::{Duration, Env, List, Queue, Time, Token, Wall};
 
-use crate::{Domain, End, Event, Exit, Invalid, Kind, Limits, Request, Spec, step, valid};
+use crate::{Domain, End, Event, Exit, Hooks, Invalid, Kind, Limits, Request, Spec, step, valid};
 
 const OWNER: Token = Token::new(1);
 const NOW: Time = Time::from_nanos(1_000);
@@ -24,7 +24,12 @@ fn kind(number: u32, delivers: bool) -> Kind {
 }
 
 fn spec() -> Spec {
-    Spec { command: copy_of(b"home/bin/tool"), request: copy_of(b"{request}"), refusal: false }
+    Spec {
+        command: copy_of(b"home/bin/tool"),
+        request: copy_of(b"{request}"),
+        refusal: false,
+        hooks: Hooks::new(None, 3600),
+    }
 }
 
 fn run(owner: Token, kind: u32) -> Event {
@@ -136,6 +141,7 @@ fn a_job_runs_its_command_in_its_directory_and_finishes_with_its_result_file() {
                 ]),
                 dir: copy_of(b"/job"),
                 deadline: NOW.saturating_add(DEADLINE),
+                hooks: Hooks::new(None, 3600),
             }
         );
         assert_eq!(

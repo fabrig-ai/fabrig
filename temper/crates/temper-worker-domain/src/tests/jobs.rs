@@ -79,6 +79,7 @@ fn assignment(decoded: bool, writable: bool) -> Event {
             command: Box::from(b"home/tools/check".as_slice()),
             request: Box::from(b"request".as_slice()),
             refusal: false,
+            fallback: None,
         })
     } else {
         Err(wire::Undecodable)

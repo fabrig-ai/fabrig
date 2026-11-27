@@ -115,6 +115,11 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
             let (class, _) = worker_job_ending(&ending);
             run_detail_line(format!("{prefix}{class}: "), &why)
         }
+        service::Note::JobTimeCut { run, attempt, kind, verb, line } => {
+            let verb = verb.escape_ascii();
+            let line = String::from_utf8_lossy(&line);
+            format!("{binary} worker: run {run} attempt {attempt} job {kind} {verb}: {line}\n")
+        }
         service::Note::Linked { worker, address } => {
             format!("linked {} {address}\n", String::from_utf8_lossy(&worker))
         }

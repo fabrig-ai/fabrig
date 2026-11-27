@@ -37,6 +37,7 @@ fn merge_assignment() -> root::Event {
             command: b"app/merge".as_slice().into(),
             request: b"{}".as_slice().into(),
             refusal: false,
+            fallback: None,
         }),
     }
 }
@@ -645,4 +646,61 @@ fn failed_jobs_name_the_workers_why_once() {
             }
         }
     }
+}
+
+const MERGE_CUT: &[u8] = b"hook `.temper/hooks/merge`: asks 7200 s, past the project's ceiling: runs at 3600 s";
+
+fn merge_cut(worker: &mut Worker) -> Token {
+    let owner = start_merge(worker);
+    assert!(merge_event(worker, owner, Event::TimeCut { owner, line: MERGE_CUT.into() }).is_empty());
+    owner
+}
+
+/// temper/docs/design/protocol/hooks.md, 2.3: a successful capped job still logs its cut.
+#[test]
+fn a_successful_hook_job_logs_its_explicit_ceiling_cut() {
+    use crate::worker_alone::Note;
+    let (mut worker, mut peer) = merge_worker_with_details();
+    let owner = merge_cut(&mut worker);
+    deliver_merge(&mut worker, owner);
+    assert!(merge_event(&mut worker, owner, Event::Gone { owner }).is_empty());
+    let (up, _) = merge_answer(&mut peer, &mut worker);
+    let hub::LinkUp::JobAnswer { answer: hub::JobEnding::Finished { .. }, .. } = up else {
+        panic!("the capped job finished");
+    };
+    let mut cut = None;
+    for note in worker.notes().iter() {
+        if let Note::JobTimeCut { .. } = note {
+            assert!(cut.replace(note).is_none(), "the cut is noted once");
+        }
+    }
+    assert_eq!(
+        *cut.expect("the cut's note"),
+        Note::JobTimeCut {
+            run: JOB.raw(),
+            attempt: 2,
+            kind: 3,
+            verb: b"merge".as_slice().into(),
+            line: MERGE_CUT.into()
+        },
+    );
+}
+
+/// temper/docs/design/protocol/hooks.md, 2.3: failure keeps the cut as its first line.
+#[test]
+fn a_capped_hook_failure_starts_with_its_cut_line() {
+    let (mut worker, mut peer) = merge_worker_with_details();
+    let owner = merge_cut(&mut worker);
+    let tail = b"hook `.temper/hooks/merge`: ran past its 3600 s\nmerge stderr".as_slice().into();
+    assert!(merge_event(&mut worker, owner, Event::Exited { owner, exit: Exit::Time, tail }).is_empty());
+    assert!(merge_event(&mut worker, owner, Event::Gone { owner }).is_empty());
+    let (up, _) = merge_answer(&mut peer, &mut worker);
+    let hub::LinkUp::JobAnswer { answer: hub::JobEnding::Failed { failure, detail, .. }, .. } = up else {
+        panic!("the hook's time fails the command");
+    };
+    assert_eq!(failure, hub::JobFailure::Failed);
+    assert_eq!(
+        detail.as_ref(),
+        b"hook `.temper/hooks/merge`: asks 7200 s, past the project's ceiling: runs at 3600 s\nhook `.temper/hooks/merge`: ran past its 3600 s\nmerge stderr",
+    );
 }

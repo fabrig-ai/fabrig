@@ -217,6 +217,17 @@ pub fn hook_failure(path: &[u8], why: &[u8]) -> Box<[u8]> {
     bytes::concat(&[b"hook `", &one_line(path), b"`: ", why])
 }
 
+/// Keep the diagnostic's first line and the last bytes of its error output.
+#[must_use]
+pub fn tail_after_line(line: &[u8], tail: &[u8], most: u32) -> Box<[u8]> {
+    let most = skein_lib::usize_of(most);
+    if tail.is_empty() || most.saturating_sub(line.len()) <= 1 {
+        return line.get(..line.len().min(most)).expect("bounded line").into();
+    }
+    let start = tail.len().saturating_sub(most.saturating_sub(line.len()).saturating_sub(1));
+    bytes::concat(&[line, b"\n", tail.get(start..).expect("bounded output tail")])
+}
+
 fn one_line(input: &[u8]) -> Box<[u8]> {
     let mut len = 0_usize;
     for byte in input {

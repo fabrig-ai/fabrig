@@ -130,6 +130,7 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
         },
         items: Ok(wire::Workspace {
             rerun: None,
+            hook_timeout_max_seconds: 3600,
             repositories: Box::new([wire::Repository {
                 admit: false,
                 tag: 0,
@@ -149,7 +150,12 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
                 account: None,
             }]),
         }),
-        spec: Ok(wire::JobSpec { command: Box::new([]), request: request.clone().into_bytes().into(), refusal: false }),
+        spec: Ok(wire::JobSpec {
+            command: Box::new([]),
+            request: request.clone().into_bytes().into(),
+            refusal: false,
+            fallback: None,
+        }),
     };
     world.event(assignment())?;
     if matches!(case, Case::Replay | Case::ReplaySquash) {
@@ -366,6 +372,7 @@ fn run_stack(seed: u64, case: Case) -> Result<Report, String> {
         },
         items: Ok(wire::Workspace {
             rerun: None,
+            hook_timeout_max_seconds: 3600,
             repositories: Box::new([wire::Repository {
                 admit: false,
                 tag: 0,
@@ -379,7 +386,12 @@ fn run_stack(seed: u64, case: Case) -> Result<Report, String> {
                 account: None,
             }]),
         }),
-        spec: Ok(wire::JobSpec { command: Box::new([]), request: request.clone().into_bytes().into(), refusal: false }),
+        spec: Ok(wire::JobSpec {
+            command: Box::new([]),
+            request: request.clone().into_bytes().into(),
+            refusal: false,
+            fallback: None,
+        }),
     };
     world.event(assignment())?;
     if matches!(case, Case::ReplayStackMerge | Case::ReplayStackSquash) {

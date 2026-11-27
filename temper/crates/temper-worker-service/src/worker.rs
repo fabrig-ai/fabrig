@@ -793,18 +793,27 @@ impl Worker {
             hub::JobEnding::Refused(reason) => Some(JobEnding::Refused(reason.clone())),
             hub::JobEnding::Finished { .. } => None,
         };
-        if let Some((kind, verb)) = kind
-            && let Some(ending) = ending
-        {
-            let why = why.expect("a failed or refused job keeps its operator evidence until taken");
-            self.notes.push(crate::worker_alone::Note::WorkerJob {
-                run: run.raw(),
-                attempt: attempt.raw(),
-                kind,
-                verb,
-                ending,
-                why,
-            });
+        if let Some((kind, verb)) = kind {
+            if let Some(line) = self.root.job_time_cut(run, attempt) {
+                self.notes.push(crate::worker_alone::Note::JobTimeCut {
+                    run: run.raw(),
+                    attempt: attempt.raw(),
+                    kind,
+                    verb: verb.clone(),
+                    line: line.into(),
+                });
+            }
+            if let Some(ending) = ending {
+                let why = why.expect("a failed or refused job keeps its operator evidence until taken");
+                self.notes.push(crate::worker_alone::Note::WorkerJob {
+                    run: run.raw(),
+                    attempt: attempt.raw(),
+                    kind,
+                    verb,
+                    ending,
+                    why,
+                });
+            }
         }
         let parts = worker_route::job_answer_parts(&answer, work, preparation);
         self.link_down(self.env.now, link::Event::Up { up: hub::LinkUp::JobAnswer { run, attempt, answer }, parts });

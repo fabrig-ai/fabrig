@@ -44,12 +44,21 @@ pub(crate) fn items_to_domain(items: v1::Items) -> worker::Workspace {
     for repository in items.repositories.into_boxed() {
         repositories.push(worker_wire::repository_to_domain(repository)).expect("one output per repository");
     }
-    worker::Workspace { repositories: repositories.into_boxed(), rerun: items.rerun }
+    worker::Workspace {
+        repositories: repositories.into_boxed(),
+        rerun: items.rerun,
+        hook_timeout_max_seconds: items.hook_timeout_max_seconds,
+    }
 }
 
 #[must_use]
 pub(crate) fn job_spec_to_domain(spec: v1::JobSpec) -> worker::JobSpec {
-    worker::JobSpec { command: spec.command, request: spec.request, refusal: spec.refusal }
+    worker::JobSpec {
+        command: spec.command,
+        request: spec.request,
+        refusal: spec.refusal,
+        fallback: if spec.find { Some(spec.fallback) } else { None },
+    }
 }
 
 /// Copy the workspace from its channel record, or give an empty workspace.
@@ -57,7 +66,11 @@ pub(crate) fn job_spec_to_domain(spec: v1::JobSpec) -> worker::JobSpec {
 pub fn workspace(items: Option<&v1::Items>) -> Assigned {
     match items {
         Some(items) => items_to_domain(items.clone()),
-        None => worker::Workspace { rerun: None, repositories: Box::new([]) },
+        None => worker::Workspace {
+            rerun: None,
+            repositories: Box::new([]),
+            hook_timeout_max_seconds: temper_service_core::limits::HOOK_TIMEOUT_MAX_DEFAULT,
+        },
     }
 }
 

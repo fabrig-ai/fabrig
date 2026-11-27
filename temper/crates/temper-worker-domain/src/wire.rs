@@ -82,6 +82,8 @@ pub struct JobSpec {
     pub command: Box<[u8]>,
     pub request: Box<[u8]>,
     pub refusal: bool,
+    /// An empty fallback still asks to find the hook.
+    pub fallback: Option<Box<[u8]>>,
 }
 
 /// The repositories a run works in (`domain/worker/hosted-runs.md`, 1.1). The checkout
@@ -91,6 +93,7 @@ pub struct JobSpec {
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Workspace {
     pub rerun: Option<u32>,
+    pub hook_timeout_max_seconds: u32,
     pub repositories: Box<[Repository]>,
 }
 

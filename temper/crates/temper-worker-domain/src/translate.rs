@@ -21,7 +21,7 @@ pub(crate) const SAVED: &[u8] = checkout::SAVED;
 /// holding task's number in eight big-endian bytes; the same repositories, in
 /// the same order, each reached as its identity.
 pub(crate) fn spec(workstream: u64, workspace: wire::Workspace) -> checkout::Spec {
-    let wire::Workspace { rerun, repositories } = workspace;
+    let wire::Workspace { rerun, repositories, .. } = workspace;
     let count = u32::try_from(repositories.len()).expect("the root checked the repositories against its limits");
     let mut specs = List::with_capacity(count);
     for repository in repositories {

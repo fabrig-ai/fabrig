@@ -23,6 +23,8 @@ pub enum Case {
     Left,
     Marked,
     ConflictedHook,
+    NoHookConflicted,
+    NoHookClean,
 }
 
 fn kind() -> tooling::Kind {
@@ -44,31 +46,40 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
     }
     let mut world = World::new(seed, kind(), limits);
     world.repository = b"fabrig".as_slice().into();
-    let (conflicted, program) = if case == Case::ConflictedHook {
-        (HOOK_PATH, HOOK_COMMAND)
-    } else {
-        (b"code".as_slice(), b"fabrig/tools/merge".as_slice())
-    };
-    let head = world.forge.advance(REMOTE, b"topic", conflicted, b"head\n");
-    let base = world.forge.advance(REMOTE, b"main", conflicted, b"base\n");
+    let find = no_hook(case);
+    let program = if find || case == Case::ConflictedHook { HOOK_COMMAND } else { b"fabrig/tools/merge" };
+    let path = if case == Case::ConflictedHook { HOOK_PATH } else { b"code" };
+    let main_path = if case == Case::NoHookClean { b"from-main".as_slice() } else { path };
+    let head = world.forge.advance(REMOTE, b"topic", path, b"head\n");
+    let base = world.forge.advance(REMOTE, b"main", main_path, b"base\n");
     world.event(Event::Ready)?;
     assert_eq!(world.report.kinds.as_ref(), [kind().bound]);
-    assign(&mut world, head, base, program)?;
+    assign(&mut world, head, base, program, find)?;
     if case == Case::ConflictedHook {
         world.written()?;
         assert!(world.operations.is_empty(), "an unmerged hook never reaches the spawn boundary");
+    } else if find {
+        world.absent(program, case == Case::NoHookClean)?;
     } else {
         let owner = world.start(program)?;
         command(&mut world, owner, head, base, case)?;
     }
     let commit = world.forge.branch(REMOTE, b"topic").expect("delivery branch");
     let answer = world.report.answer.as_ref().expect("one terminal answer");
+    let delivered = case == Case::Settled || case == Case::NoHookClean;
     match case {
-        Case::Settled | Case::Left => {
+        Case::Settled | Case::Left | Case::NoHookConflicted | Case::NoHookClean => {
             let host::JobEnding::Finished { result: received, work } = answer else { panic!("finished: {answer:?}") };
-            assert_eq!(received.as_ref(), if case == Case::Left { LEFT } else { SETTLED });
+            let expected = match case {
+                Case::Settled => SETTLED,
+                Case::Left => LEFT,
+                Case::NoHookConflicted => br#"{"settled":[],"hook":"none"}"#,
+                Case::NoHookClean => br#"{"settled":[]}"#,
+                Case::Marked | Case::ConflictedHook => unreachable!("the job finished"),
+            };
+            assert_eq!(received.as_ref(), expected);
             assert!(work.saved.is_none());
-            assert_eq!(work.left.is_some(), case == Case::Settled);
+            assert_eq!(work.left.is_some(), delivered);
         }
         Case::ConflictedHook => {
             assert_eq!(
@@ -87,7 +98,7 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
             assert_eq!(*work, host::Work { left: None, saved: None });
         }
     }
-    if case == Case::Settled {
+    if delivered {
         assert_eq!(world.report.pushes, 1);
         assert_eq!(world.forge.parent(commit), Some(head));
         assert_eq!(world.forge.merge_parent(commit), Some(base));
@@ -105,7 +116,11 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
     Ok(world.report)
 }
 
-fn assign(world: &mut World, head: u64, base: u64, program: &[u8]) -> Result<(), String> {
+fn no_hook(case: Case) -> bool {
+    case == Case::NoHookClean || case == Case::NoHookConflicted
+}
+
+fn assign(world: &mut World, head: u64, base: u64, program: &[u8], find: bool) -> Result<(), String> {
     world.event(Event::AssignJob {
         job: host::JobAssignment {
             run: RUN,
@@ -118,6 +133,7 @@ fn assign(world: &mut World, head: u64, base: u64, program: &[u8]) -> Result<(),
         },
         items: Ok(wire::Workspace {
             rerun: None,
+            hook_timeout_max_seconds: 3600,
             repositories: Box::new([wire::Repository {
                 admit: false,
                 tag: 0,
@@ -137,7 +153,12 @@ fn assign(world: &mut World, head: u64, base: u64, program: &[u8]) -> Result<(),
                 account: None,
             }]),
         }),
-        spec: Ok(wire::JobSpec { command: program.into(), request: b"request".as_slice().into(), refusal: false }),
+        spec: Ok(wire::JobSpec {
+            command: program.into(),
+            request: b"request".as_slice().into(),
+            refusal: false,
+            fallback: if find { Some(Box::new([])) } else { None },
+        }),
     })?;
     Ok(())
 }
