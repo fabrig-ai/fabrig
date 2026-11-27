@@ -4,7 +4,8 @@
     clippy::match_like_matches_macro,
     reason = "tests select the boundary output under assertion"
 )]
-use crate::reads::{Loaded, Range, Row, Scope};
+use crate::engine::store as engine_store;
+use crate::reads::{Range, Row, Scope};
 use crate::settings::{self as s, application as app};
 use crate::tests::*;
 
@@ -61,7 +62,14 @@ fn fixture_with_count(newest: u32, count: u32) -> (Core, Limits) {
     (core, limits)
 }
 fn send(core: &mut Core, limits: &Limits, event: Event) -> Box<[Request]> {
-    let mut out = step(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, event);
+    let out = step(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, event);
+    finish(core, out)
+}
+fn send_store(core: &mut Core, limits: &Limits, event: engine_store::In) -> Box<[Request]> {
+    let out = crate::routing::step_store(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, event);
+    finish(core, out)
+}
+fn finish(core: &mut Core, mut out: Queue<Request>) -> Box<[Request]> {
     let mut result = List::with_capacity(256);
     while let Some(request) = out.pop() {
         result.push(request).unwrap();
@@ -95,7 +103,8 @@ fn outcome(output: &[Request]) -> people::Outcome {
 fn load(output: &[Request]) -> (Token, Range) {
     for request in output {
         if let Request::Held(held) = request
-            && let Held::ReadLoad { load, range } = held.as_ref()
+            && let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) =
+                held.as_ref()
         {
             return (*load, *range.clone());
         }
@@ -145,7 +154,14 @@ fn page(core: &mut Core, limits: &Limits, output: &[Request], records: Box<[s::R
         })
         .unwrap();
     }
-    send(core, limits, Event::ReadLoaded { load: token, result: Loaded::Page { rows: rows.into_boxed(), next: None } })
+    send_store(
+        core,
+        limits,
+        engine_store::In::Loaded {
+            load: token,
+            result: engine_store::Answer::Rows(engine_store::Rows::Read { rows: rows.into_boxed(), next: None }),
+        },
+    )
 }
 fn restored(core: &Core, output: &[Request]) -> (u64, s::Proposal) {
     let people::Outcome::Restored { proposal, to, left_out } = outcome(output) else { panic!("restored: {output:?}") };
@@ -232,7 +248,11 @@ fn a_revision_made_while_a_restore_loads_refuses_it_stale() {
     let output = ask(&mut core, &limits, 1, 1);
     core.current.head.number = 3;
     let (load, _) = load(&output);
-    let output = send(&mut core, &limits, Event::ReadLoaded { load, result: Loaded::Busy });
+    let output = send_store(
+        &mut core,
+        &limits,
+        engine_store::In::Loaded { load, result: engine_store::Answer::Failed(engine_store::Failure::Busy) },
+    );
     assert_eq!(outcome(&output), people::Outcome::Refused(people::Refusal::Stale { newest: 3 }));
     assert!(core.restoring.pending.is_none());
 }
@@ -673,7 +693,11 @@ fn a_busy_history_load_is_retryable_under_the_same_key() {
     let (mut core, limits) = fixture(2);
     let output = ask(&mut core, &limits, 1, 1);
     let (load, _) = load(&output);
-    let output = send(&mut core, &limits, Event::ReadLoaded { load, result: Loaded::Busy });
+    let output = send_store(
+        &mut core,
+        &limits,
+        engine_store::In::Loaded { load, result: engine_store::Answer::Failed(engine_store::Failure::Busy) },
+    );
     let mut busy = false;
     for request in &output {
         if let Request::Held(held) = request

@@ -1,5 +1,6 @@
 //! Stored core rows load independently of admission (domain/engine/restart.md).
 #![expect(clippy::disallowed_macros, reason = "dynamic unit fixtures exercise stored collection boundaries")]
+use crate::tests::new_core;
 use crate::{
     CallPart, CallRecord, CoreKey, CoreRecord, Limits, Restored, SettledAnswer, SettledCall,
     start::LiveSet,
@@ -11,7 +12,7 @@ use skein_lib::List;
 
 fn loaded() -> (Core, Limits) {
     let limits = limits();
-    let mut core = Core::new(config(301), &limits).expect("configured core");
+    let mut core = new_core(config(301), &limits).expect("configured core");
     {
         let _begin = core.start_begin(false, Wall::EPOCH);
     }
@@ -491,7 +492,7 @@ fn a_proof_at_all_payload_bounds_is_retained() {
 fn seed_commit_resumes_to_load_inbox_after_acknowledgement() {
     let limits = limits();
     let env = super::Env { now: super::Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut core = Core::new(config(302), &limits).expect("configured seed");
+    let mut core = new_core(config(302), &limits).expect("configured seed");
     let _begin = core.start_begin(false, Wall::EPOCH);
     let mut out = super::Queue::uncapped();
     let super::Action::Commit(token) = core.start_done(&env, super::Phase::LoadCore, &mut out) else {
@@ -508,7 +509,7 @@ fn start_seed_policy_uses_restore_instead_of_current_admission() {
     let env = super::Env { now: super::Time::ZERO, wall: Wall::EPOCH, limits };
     let mut configured = config(303);
     configured.seed_projects[0].policy.policy.period_spend = 1001;
-    let mut core = Core::new(configured, &limits).expect("seed fits configuration bounds");
+    let mut core = new_core(configured, &limits).expect("seed fits configuration bounds");
     let _begin = core.start_begin(false, Wall::EPOCH);
     let action = core.start_done(&env, super::Phase::LoadCore, &mut super::Queue::uncapped());
     let super::Action::Commit(_) = action else { panic!("started seed kept its policy") };

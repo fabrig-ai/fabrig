@@ -37,7 +37,8 @@ pub fn class(event: &Event) -> Class {
         | Event::ProjectionEffect { .. }
         | Event::TopicCall { .. }
         | Event::EffectCall { .. } => Class::New,
-        Event::ResultRead { .. }
+        Event::Store(_)
+        | Event::ResultRead { .. }
         | Event::Stop
         | Event::ConnectorTimer { .. }
         | Event::StartRecord(_)
@@ -48,7 +49,6 @@ pub fn class(event: &Event) -> Class {
         | Event::Text { .. }
         | Event::Turn { .. }
         | Event::Answer { .. }
-        | Event::TranscriptLoaded { .. }
         | Event::Committed { .. }
         | Event::Failed { .. } => Class::Admitted,
     }
@@ -134,23 +134,12 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             step(domain, env, event);
             Ok(())
         }
-        event @ (Event::StartRecord(_)
+        event @ (Event::Store(_)
+        | Event::StartRecord(_)
         | Event::StartMissing { .. }
         | Event::StartPageRefused { .. }
         | Event::StartDone(_)
-        | Event::TranscriptLoaded { .. }
-        | Event::Core(
-            core::Event::PublicDurable { .. }
-            | core::Event::ReadLoaded { .. }
-            | core::Event::EndedReadLoaded { .. }
-            | core::Event::EndedTaskLoaded { .. }
-            | core::Event::SeenConversationLoaded { .. }
-            | core::Event::EndedPersonTask { .. }
-            | core::Event::PartyInputsLoaded { .. }
-            | core::Event::EndedProposal { .. }
-            | core::Event::DecidedProposal { .. }
-            | core::Event::EndedEscalation { .. },
-        )) => {
+        | Event::Core(core::Event::PublicDurable { .. })) => {
             domain.store_answers.push(Box::new(event));
             Ok(())
         }
@@ -255,6 +244,7 @@ fn split(domain: &mut Domain, event: Event) -> (Event, Option<Event>) {
         | Event::StartPageRefused { .. }
         | Event::StartDone(_)
         | Event::Timer(..)
+        | Event::Store(_)
         | Event::Core(..)
         | Event::Credential { .. }
         | Event::Connector { .. }
@@ -265,7 +255,6 @@ fn split(domain: &mut Domain, event: Event) -> (Event, Option<Event>) {
         | Event::Text { .. }
         | Event::Turn { .. }
         | Event::Answer { .. }
-        | Event::TranscriptLoaded { .. }
         | Event::Committed { .. }
         | Event::Failed { .. } => unreachable!("only a mixed fact is split"),
     }

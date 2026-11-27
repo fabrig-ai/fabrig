@@ -42,7 +42,7 @@ impl Harness {
         reason = "one fixture loads a sampled core store and hand-built connector records"
     )]
     fn new(recovery: u16) -> Self {
-        let (configuration, limits) = jig_core_world::world::fixture(SEED, false);
+        let (mut configuration, limits) = jig_core_world::world::fixture(SEED, false);
         let mut source = World::new(Setup { seed: SEED, ..Setup::default() });
         let task = source.assigned.as_ref().expect("source run").task;
         source.park_for_message(0);
@@ -54,22 +54,13 @@ impl Harness {
             limits: limits.core,
         };
         let connector_env = env.with(limits.connector);
-        let mut core = core::Core::new(configuration.core, &limits.core).expect("configured direct core");
-        let mut configured = Queue::uncapped();
-        tasks::step(
-            &mut core.tasks,
-            &env.with(limits.core.tasks),
-            tasks::Event::Kinds {
-                connector: 1,
-                kinds: Box::new([tasks::Kind {
-                    connector: 1,
-                    kind: 1,
-                    hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
-                }]),
-            },
-            &mut configured,
-        );
-        assert!(configured.is_empty());
+        configuration.resource_kinds[0] = Box::new([tasks::ResourceKind {
+            kind: 1,
+            hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
+        }]);
+        let declarations = configuration.declarations();
+        let mut core =
+            core::Core::new(configuration.core, &declarations, &limits.core).expect("configured direct core");
         {
             phase(&core.start_begin(false, env.wall), Phase::LoadCore);
         }

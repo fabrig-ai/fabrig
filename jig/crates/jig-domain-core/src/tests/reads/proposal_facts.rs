@@ -1,4 +1,5 @@
 //! Decided cards read the same reason and scope as their live proposal.
+use crate::engine::store as engine_store;
 use crate::tests::*;
 use crate::{
     reads,
@@ -66,7 +67,7 @@ fn retained_party_actions_keep_their_history_or_single_goal_form() {
                     created: None,
                 })));
             }
-            let Held::ReadLoad { load, .. } = read_start(
+            let Held::Store(engine_store::Out::Load { load, .. }) = read_start(
                 &mut core,
                 &limits,
                 10,
@@ -74,10 +75,13 @@ fn retained_party_actions_keep_their_history_or_single_goal_form() {
             ) else {
                 panic!("retained load")
             };
-            let reads::Answer::Ended(ended) =
-                loaded_answer(&mut core, &limits, load, reads::Loaded::Page { rows: Box::new([row]), next: None })
-                    .unwrap()
-            else {
+            let reads::Answer::Ended(ended) = loaded_answer(
+                &mut core,
+                &limits,
+                load,
+                engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }),
+            )
+            .unwrap() else {
                 panic!("retained party proposal")
             };
             match ended.value {
@@ -248,14 +252,18 @@ fn a_decided_settings_proposal_keeps_its_reason_and_projects() {
             })),
             Some(core.tasks.task(1).unwrap().clone()),
         );
-        let Held::ReadLoad { load, .. } =
+        let Held::Store(engine_store::Out::Load { load, .. }) =
             read_start(&mut core, &limits, 10, reads::Read::Proposal { proposer: Proposer::Task(1), proposal: number })
         else {
             panic!("retained proposal load")
         };
-        let reads::Answer::Ended(ended) =
-            loaded_answer(&mut core, &limits, load, reads::Loaded::Page { rows: Box::new([row]), next: None }).unwrap()
-        else {
+        let reads::Answer::Ended(ended) = loaded_answer(
+            &mut core,
+            &limits,
+            load,
+            engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }),
+        )
+        .unwrap() else {
             panic!("ended proposal")
         };
         let reads::EndedValue::Proposal(proposal) = ended.value else { panic!("proposal facts") };

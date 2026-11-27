@@ -2,13 +2,14 @@
 use super::Failure;
 use crate::{Row, Store, intervals, pages};
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::reads;
 use skein_lib::List;
-pub(super) fn read(store: &mut Store, range: &reads::Range) -> Result<reads::Loaded, Failure> {
+pub(super) fn read(store: &mut Store, range: &reads::Range) -> Result<engine_store::Answer, Failure> {
     if range.rows > store.limits.core.documents.rows.max(1)
         || range.bytes != reads::settings::load_bytes(&store.limits.core, range.rows).ok_or(Failure::Corrupt)?
     {
-        return Ok(reads::Loaded::Busy);
+        return Ok(engine_store::Answer::Failed(engine_store::Failure::Busy));
     }
     let intervals = intervals::scope(range.party, &range.scope).ok_or(Failure::Corrupt)?;
     let mut found = List::with_capacity(range.rows);
@@ -50,5 +51,5 @@ pub(super) fn read(store: &mut Store, range: &reads::Range) -> Result<reads::Loa
             break;
         }
     }
-    Ok(reads::Loaded::Page { rows: found.into_boxed(), next: None })
+    Ok(engine_store::Answer::Rows(engine_store::Rows::Read { rows: found.into_boxed(), next: None }))
 }

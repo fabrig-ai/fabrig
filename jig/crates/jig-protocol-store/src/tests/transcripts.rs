@@ -551,7 +551,7 @@ fn read_turns(
     (Box::from(turns), next)
 }
 fn window(after: Option<u64>) -> crate::TranscriptRead {
-    crate::TranscriptRead::Window { task: LIVE, attempt: 2, turn: 1, after }
+    crate::TranscriptRead::Window { task: LIVE, attempt: 2, turn: 1, after, limits: None }
 }
 fn forwards(after: Option<u64>) -> crate::TranscriptRead {
     crate::TranscriptRead::Page { task: LIVE, backwards: false, after }
@@ -633,7 +633,7 @@ fn window_pages_cut_oversized_turns_alone_and_advance() {
         let (_, below) = ask(
             &mut store,
             801,
-            crate::TranscriptRead::Window { task: LIVE, attempt: 2, turn: 2, after: None },
+            crate::TranscriptRead::Window { task: LIVE, attempt: 2, turn: 2, after: None, limits: None },
             3,
             PAIR_FRAME,
         );
@@ -742,12 +742,36 @@ fn a_window_read_starts_at_the_windows_first_turn() {
 #[test]
 fn a_window_named_at_another_turn_reads_as_unread() {
     let (mut store, disk) = readable(&pair());
-    let (events, below) =
-        ask(&mut store, 801, crate::TranscriptRead::Window { task: LIVE, attempt: 2, turn: 2, after: None }, 2, 4096);
+    let (events, below) = ask(
+        &mut store,
+        801,
+        crate::TranscriptRead::Window { task: LIVE, attempt: 2, turn: 2, after: None, limits: None },
+        2,
+        4096,
+    );
     assert!(events.is_empty());
     let events = answer_reads(&mut store, below, &disk, 4096);
     unread(&events);
 }
+#[test]
+fn an_engine_window_with_an_absent_start_or_a_damaged_frame_is_unread() {
+    let limits = Some(crate::WindowPage { row_bytes: 4096, bytes: 4096, turn_overhead: 32 });
+    for damaged in [false, true] {
+        let (mut store, mut disk) = readable(&pair());
+        let turn = if damaged {
+            *disk.get_mut(4).expect("first body byte") ^= 1;
+            1
+        } else {
+            2
+        };
+        let read = crate::TranscriptRead::Window { task: LIVE, attempt: 2, turn, after: None, limits };
+        let (events, below) = ask(&mut store, 801, read, 2, 4096);
+        assert!(events.is_empty());
+        let events = answer_reads(&mut store, below, &disk, 4096);
+        unread(&events);
+    }
+}
+
 #[test]
 fn a_turn_is_found_from_its_attempts_first_turn() {
     let turns = [
@@ -937,6 +961,13 @@ fn the_bounded_table_holds_its_limit_of_reads_until_each_owners_terminal() {
         assert!(waiting.transcripts.is_empty());
     }
     assert_eq!(store.transcripts.reads.len(), store.limits.reads);
+    let refused = FIRST.checked_add(u64::from(store.limits.reads)).expect("fixture owner");
+    let limits = Some(crate::WindowPage { row_bytes: 4096, bytes: 4096, turn_overhead: 32 });
+    let read = crate::TranscriptRead::Window { task: LIVE, attempt: 2, turn: 1, after: None, limits };
+    let (events, waiting) = ask(&mut store, refused, read, 1, 4096);
+    let [Event::WindowFailed { owner }] = events.as_ref() else { panic!("window not admitted: {events:?}") };
+    assert_eq!(*owner, Token::new(refused));
+    assert!(waiting.transcripts.is_empty());
     for index in 0..store.limits.reads {
         let expected = Token::new(FIRST.checked_add(u64::from(index)).expect("fixture owner"));
         let mut terminal = false;
@@ -960,8 +991,13 @@ fn the_bounded_table_holds_its_limit_of_reads_until_each_owners_terminal() {
 #[test]
 fn a_window_with_no_row_room_still_checks_its_named_start() {
     let (mut store, disk) = readable(&pair());
-    let (_, below) =
-        ask(&mut store, 801, crate::TranscriptRead::Window { task: LIVE, attempt: 2, turn: 2, after: None }, 0, 4096);
+    let (_, below) = ask(
+        &mut store,
+        801,
+        crate::TranscriptRead::Window { task: LIVE, attempt: 2, turn: 2, after: None, limits: None },
+        0,
+        4096,
+    );
     let events = answer_reads(&mut store, below, &disk, 4096);
     unread(&events);
 }

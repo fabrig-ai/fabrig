@@ -2475,6 +2475,52 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(browser['layers'], [])
         self.assertEqual(browser['warnings'], [])
 
+    def test_campaign_pair_layers_warn_against_fuzzy_with_moves(self):
+        pair = 'campaign-temper'
+        CPU['save'](self.directory / 'run.json', dict(profile=pair, finished=True,
+                                                     starved=False, wall_s=3.0, returncode=0))
+        world, library, unknown = 'fixture::world', 'fixture', 'fixture::unknown'
+        self.record('world-one', profile=pair, binary_id=world, user_s=6, system_s=0.25)
+        self.record('world-two', profile=pair, binary_id=world, attempt=2, user_s=6, system_s=0.25)
+        self.record('library', profile=pair, binary_id=library)
+        self.record('unknown', profile=pair, binary_id=unknown)
+        (self.directory / 'junit.xml').write_text(
+            f'<testsuites><testsuite name="{world}"><testcase name="one"><flakyFailure type="test failure"/>'
+            f'</testcase></testsuite><testsuite name="{library}"><testcase name="one"/></testsuite>'
+            f'<testsuite name="{unknown}"><testcase name="one"/></testsuite></testsuites>')
+        layers = self.root / 'tools/tiers/layers.toml'
+        layers.parent.mkdir(parents=True)
+        layers.write_text(f'layers = ["step", "domain", "simulated"]\n[temper]\n"{world}" = "domain"\n')
+        budget = self.root / 'budgets.toml'
+        budget.write_text('[gate.default.references]\nstep = 1\ndomain = 1\n'
+                          '[gate.default.temper]\nideal_s = 1\nstep = {cpu_s = 1}\ndomain = {cpu_s = 20}\n'
+                          '[gate.fuzzy.references]\ndomain = 1\nsimulated = 1\n'
+                          '[gate.fuzzy.temper]\nideal_s = 1\ndomain = {cpu_s = 5}\nsimulated = {cpu_s = 4}\n'
+                          '[[gate.fuzzy.moves]]\nfrom = "temper.simulated"\nto = "temper.domain"\n'
+                          'cpu_s = 2\nwhy = "The domain work moved below the simulated world."\n')
+        limits = CPU['budgets'](budget, layers=layers)
+        result = CPU['summary'](self.directory, limits, pair=pair, layers=layers)
+        step, domain, unplaced = result['layers']
+        self.assertEqual(domain, dict(tree='temper', layer='domain', cpu_s=12.5, ceiling_s=7,
+                                      budget_s=7, ideal_s=None, reference_s=None, instructions=None, over=True))
+        self.assertEqual(step, dict(tree='temper', layer='step', cpu_s=1.5, ceiling_s=None,
+                                    budget_s=None, ideal_s=None, reference_s=None, instructions=None, over=False))
+        self.assertIsNone(unplaced['layer'])
+        warning = 'layer over budget: temper campaign domain: 12.50 CPU s, budget 7 s'
+        self.assertEqual(result['warnings'], [f'unplaced: {unknown} has no layer (tools/tiers/layers.md)', warning])
+        self.assertEqual(result['trees'], [])
+        self.assertEqual(result['over_budget'], [])
+        self.assertEqual(result['verdict'], 'no budget set')
+
+        cli = subprocess.run([sys.executable, '-I', '-B', str(HERE / 'cpu-summary'), str(self.directory),
+                              '--budgets', str(budget), '--pair', pair, '--gate'],
+                             cwd=self.root, text=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=10)
+        self.assertEqual(cli.returncode, 0, cli.stderr)
+        self.assertIn('layer temper domain: cpu 12.5 s, ceiling 7 s, budget 7 s', cli.stdout)
+        self.assertIn('layer temper step: cpu 1.5 s, ceiling none s, budget none s', cli.stdout)
+        self.assertIn(f'warning: {warning}', cli.stdout)
+        self.assertIn('; no budget set\n', cli.stdout)
+
     def test_missing_extra_duplicate_malformed_and_unfinished_records(self):
         self.assertIn('missing', self.cli().stderr)
         self.record()

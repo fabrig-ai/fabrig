@@ -143,6 +143,7 @@ pub(crate) fn store(
         }
         Store::Committed { .. } | Store::Failed { .. } => unreachable!("store terminals belong to the journal"),
         Store::Loaded(event) => work.push(Work::Core(event)),
+        Store::Engine(answer) => work.push(Work::Store(answer)),
         Store::Restored(phase) => {
             if phase == core::start::Phase::Sweep {
                 domain.start.sweep.push(core::start::SweepInput::Finished);
@@ -150,12 +151,6 @@ pub(crate) fn store(
             } else {
                 work.push(Work::StartDone(phase));
             }
-        }
-        Store::Transcript { task, rows, done } => {
-            work.push(Work::Core(core::Event::TranscriptLoaded {
-                task,
-                load: core::TranscriptLoad::Page { rows, done },
-            }));
         }
         Store::Restore(record) => {
             if domain.start.state == crate::domain::StartState::Stopped

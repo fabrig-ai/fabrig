@@ -8,6 +8,7 @@ use skein_lib::List;
 pub enum PendingCall {
     Routed,
     Application,
+    DelegateInput,
     DecidedProposal(u64),
 }
 

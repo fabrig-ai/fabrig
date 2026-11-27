@@ -156,8 +156,8 @@ Each list has one entry per line; `#` starts a comment line.
   accounts it against `tools/tiers/budgets.toml`. The hyphenated profiles in
   `.config/nextest.toml` are `browser-skein`, `live-skein`, `real-skein`, `live-smith`,
   `real-smith`, `live-jig`, `browser-jig`, `real-jig`, `process-temper`, `live-temper`,
-  `browser-temper`, `real-temper`, `conformance-hearth` and `real-hearth`. Never in
-  the gate. Rules: `tools/tiers/design.md`, 1, 4 and 7;
+  `browser-temper`, `real-temper`, `campaign-temper`, `conformance-hearth` and
+  `real-hearth`. Never in the gate. Rules: `tools/tiers/design.md`, 1, 4 and 7;
   `skein/docs/foundation/testing-strategy.md`, 8.1.
 - **The real loop and end to end:** `tools/tiers/run TREE real`, for each of
   skein, smith, jig, temper and hearth, runs the pair `real-TREE`: the tree's
@@ -167,6 +167,17 @@ Each list has one entry per line; `#` starts a comment line.
   tree's figures for it in both suites' gate tables as a warning, never red
   (`tools/tiers/budgets.md`, 4.2); a failure is red, repaired from the
   lowest tier that shows it.
+- **Campaigns:** `tools/tiers/campaign TREE [--rounds N] [--seed SEED] [--out DIR]`
+  runs rounds of the tree's pair `campaign-TREE`, the fuzzy tests of the
+  binaries whose sweeps take their cases from skein's seam, each round with a
+  fresh campaign seed (`tools/tiers/layers.md`, 9.3). It replays each failing
+  case alone and writes `campaign.json` and `summary.txt`, findings by
+  signature, for the user to route (`tools/tiers/campaign.md`). Each round's
+  layers are reported against the tree's fuzzy ceilings as warnings, never red
+  (`tools/tiers/budgets.md`, 4.2). Campaigns run once a day, on a builder apart
+  from the gate (the user, 11-26), and by hand until a runner runs them; never
+  in the gate, where `tools/tiers/one-process` removes the campaign's variables
+  (`tools/tiers/design.md`, 11.5). temper alone has a pair today.
 - **The after-landing tier:** after each landing on main, the five real
   pairs above, once its runner lists them;
   `tools/tiers/run smith live` runs `live-smith` (`smith/docs/design/testing-tiers.md`, 3),

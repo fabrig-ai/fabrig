@@ -1,6 +1,7 @@
 //! Small core steps with public bounds enabled (jig/docs/design/domain/people/public-reading.md, 6).
 use super::*;
 use crate::PublicLine;
+use crate::tests::new_core;
 
 pub(super) fn fixture() -> (Core, Limits) {
     let (old, mut limits) = crate::tests::core();
@@ -18,7 +19,7 @@ pub(super) fn fixture() -> (Core, Limits) {
     limits.people.inbox_tasks = 64;
     let mut config = crate::tests::config(41);
     config.connectors = Box::new([]);
-    let mut core = Core::new(config, &limits).unwrap();
+    let mut core = new_core(config, &limits).unwrap();
     core.authority = old.authority;
     core.people = old.people;
     core.accounts = old.accounts;

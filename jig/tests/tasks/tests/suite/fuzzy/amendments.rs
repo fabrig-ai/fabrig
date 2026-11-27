@@ -1,7 +1,7 @@
 use jig_domain_tasks::Operation as TaskOperation;
 use jig_domain_tasks::{
     self as tasks, Accepted, Active, Amendment, Cancel, DependencyPlace, End, Ending, Event, Funder, Hold, HoldKind,
-    Holding, Key, Kind, Line, Name, Party, Phase, Refusal, Release, Status, Stored, Taken, TaskResult,
+    Holding, Key, Line, Name, Party, Phase, Refusal, Release, ResourceKind, Status, Stored, Taken, TaskResult,
 };
 use jig_tasks_world::{LIMITS, PERSON_PARTY, Reply, World, task};
 use skein_lib::{ReplyTo, Rng, Token};
@@ -60,9 +60,9 @@ fn population(seed: u64) -> World {
     world.configure_holds(
         1,
         vec![
-            Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } },
-            Kind { connector: 1, kind: 2, hold: HoldKind::Pooled { taken: Taken::Waits } },
-            Kind { connector: 1, kind: 3, hold: HoldKind::Shared },
+            ResourceKind { kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } },
+            ResourceKind { kind: 2, hold: HoldKind::Pooled { taken: Taken::Waits } },
+            ResourceKind { kind: 3, hold: HoldKind::Shared },
         ],
     );
     world.send(Event::Slots { pool: name(2), slots: 2 });

@@ -303,6 +303,7 @@ fn untagged(mut event: store::Event) -> store::Event {
         | store::Event::Read { .. }
         | store::Event::Got { .. }
         | store::Event::Turns { .. }
+        | store::Event::WindowFailed { .. }
         | store::Event::Unread { .. }
         | store::Event::SecretsNotReady { .. }
         | store::Event::Carried { .. }

@@ -147,14 +147,14 @@ fn a_restored_kept_backoff_keeps_its_alarm_and_then_becomes_idle() {
 
 #[test]
 fn an_escalation_release_reholds_a_circle_and_keeps_its_queue_place() {
-    use jig_domain_tasks::{EscalationDecision, EscalationHolder, HoldKind, Holding, Kind, Name, Taken};
+    use jig_domain_tasks::{EscalationDecision, EscalationHolder, HoldKind, Holding, Name, ResourceKind, Taken};
     use skein_lib::Duration;
     const WAITER: u64 = 3;
     const LATER: u64 = 4;
     const ENTRY: u64 = 100;
     const PREREQUISITE: u64 = 5;
     let mut world = World::new(SEED, LIMITS);
-    world.configure_holds(1, vec![Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
+    world.configure_holds(1, vec![ResourceKind { kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
     let holding = Holding::Write { resource: Name { connector: 1, path: Box::new([Box::new([1])]) }, kind: 1 };
     let mut holder = task(KEPT, &[]);
     holder.holdings = Box::new([holding.clone()]);

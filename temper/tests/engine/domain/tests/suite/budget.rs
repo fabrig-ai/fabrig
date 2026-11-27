@@ -109,7 +109,9 @@ fn hold_transcripts(driver: &mut Driver, held: &mut Vec<engine::Event>) {
     for _ in 0..STEPS {
         let mut other = std::collections::VecDeque::new();
         while let Some(event) = driver.events.pop_front() {
-            if matches!(event, engine::Event::Store(engine::StoreInput::Loaded { texts: Some(_), .. })) {
+            if temper_engine_domain_world::direct::answer_token(&event)
+                .is_some_and(|load| driver.windows.iter().any(|(issued, _)| *issued == load))
+            {
                 held.push(event);
             } else {
                 other.push_back(event);

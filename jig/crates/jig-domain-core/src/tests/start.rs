@@ -9,6 +9,7 @@ pub(in crate::tests) mod rows;
 pub(in crate::tests) mod runs;
 pub(in crate::tests) mod settings;
 
+use crate::tests::new_core;
 use crate::{
     Key, Request, Write, people,
     start::{Action, Failure, Phase, SweepInput},
@@ -381,7 +382,7 @@ fn every_operational_entrance_consumes_input() {
     ];
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
     for case in cases {
-        let mut core = Core::new(config(41), &env.limits).expect("valid core configuration");
+        let mut core = new_core(config(41), &env.limits).expect("valid core configuration");
         (case.input)(&mut core, &env);
         assert!(core.start.consumed, "{} consumes even refused or empty input", case.name);
     }
@@ -390,7 +391,7 @@ fn every_operational_entrance_consumes_input() {
 #[test]
 fn queries_drains_and_configuration_leave_start_open() {
     let limits = limits();
-    let mut core = Core::new(config(41), &limits).expect("valid core configuration");
+    let mut core = new_core(config(41), &limits).expect("valid core configuration");
     core.person_answers();
     assert_eq!(core.effect_deadline(), None);
     assert_eq!(core.start_phase(), None);
@@ -404,7 +405,7 @@ fn queries_drains_and_configuration_leave_start_open() {
 #[test]
 fn actual_stored_call_capacity_keeps_its_key() {
     let limits = limits();
-    let mut core = Core::new(config(41), &limits).expect("valid core configuration");
+    let mut core = new_core(config(41), &limits).expect("valid core configuration");
     let _begin = core.start_begin(false, Wall::EPOCH);
     let capacity = limits.call_records;
     for task in 1..=u64::from(capacity) {
@@ -430,7 +431,7 @@ fn actual_stored_call_capacity_keeps_its_key() {
 fn actual_account_outputs_wait_for_wires_release() {
     let limits = limits();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut core = Core::new(config(41), &limits).expect("valid core configuration");
+    let mut core = new_core(config(41), &limits).expect("valid core configuration");
     let _begin = core.start_begin(false, env.wall);
     super::restore_key_account(&mut core, &limits, 1, 2, 1);
     let mut child = Queue::uncapped();
@@ -511,7 +512,7 @@ fn every_start_reaches_switch_and_waits_for_wires() {
             let mut configured = config(41);
             configured.connectors = connectors;
             configured.grants = Box::new([]);
-            let mut core = Core::new(configured, &limits).expect("valid core configuration");
+            let mut core = new_core(configured, &limits).expect("valid core configuration");
             let mut out = Queue::uncapped();
             step_phase(core.start_begin(pending, env.wall), Phase::LoadCore);
             through_link(&mut core, &env, &mut out);
@@ -539,7 +540,7 @@ fn core_owned_people_rows_survive_sweep() {
         people::Stored::Policy { project: 1, name: Box::from("Project 1"), value },
         people::Stored::EndedRead { task: 2, party: 1, through: 0 },
     ];
-    let mut core = Core::new(configured, &limits).expect("valid core configuration");
+    let mut core = new_core(configured, &limits).expect("valid core configuration");
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits };
     let mut out = Queue::uncapped();
     step_phase(core.start_begin(false, env.wall), Phase::LoadCore);
@@ -560,7 +561,7 @@ fn core_owned_people_rows_survive_sweep() {
 #[test]
 fn frozen_expiry_resumes_after_cleanup() {
     let limits = limits();
-    let mut core = Core::new(config(41), &limits).expect("valid core configuration");
+    let mut core = new_core(config(41), &limits).expect("valid core configuration");
     let mut env = Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits };
     let mut out = Queue::uncapped();
     step_phase(core.start_begin(false, env.wall), Phase::LoadCore);
@@ -590,7 +591,7 @@ fn frozen_expiry_resumes_after_cleanup() {
 #[test]
 fn first_external_missing_link_stops_before_sweep() {
     let limits = limits();
-    let mut core = Core::new(config(41), &limits).expect("valid core configuration");
+    let mut core = new_core(config(41), &limits).expect("valid core configuration");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();
     let _begin = core.start_begin(false, env.wall);
@@ -615,7 +616,7 @@ fn first_external_missing_link_stops_before_sweep() {
 fn begin_starts_before_the_people_lifecycle_input() {
     let limits = limits();
     for pending in [false, true] {
-        let mut core = Core::new(config(41), &limits).expect("valid core configuration");
+        let mut core = new_core(config(41), &limits).expect("valid core configuration");
         step_phase(core.start_begin(pending, Wall::EPOCH), Phase::LoadCore);
         assert_eq!(core.start_phase(), Some(Phase::LoadCore));
         assert_eq!(core.start_failure(), None);
@@ -625,7 +626,7 @@ fn begin_starts_before_the_people_lifecycle_input() {
 #[test]
 fn first_failure_is_sticky() {
     let limits = limits();
-    let mut core = Core::new(config(41), &limits).expect("valid core configuration");
+    let mut core = new_core(config(41), &limits).expect("valid core configuration");
     let _begin = core.start_begin(false, Wall::EPOCH);
     let first = Failure::ProjectPolicy { project: 1 };
     for failure in [first.clone(), Failure::ProjectPolicy { project: 2 }] {

@@ -1093,10 +1093,14 @@ fn an_ended_proposal_decision_requires_the_exact_maker() {
             let out = keyed_proposal(&mut core, &limits, 1, proposer);
             let mut named_request = None;
             for output in &out {
-                if let Request::Now(now) = output
-                    && let Now::EndedProposal { request, person, project, proposer: named, proposal } = &**now
+                if let Request::Held(held) = output
+                    && let Held::Store(engine_store::Out::Load {
+                        load: request,
+                        range:
+                            engine_store::Range::Record(Key::Core(CoreKey::ProposalDecision { proposer: named, proposal })),
+                    }) = &**held
                 {
-                    assert_eq!((*person, *project, *named, *proposal), (1, 1, proposer, 10));
+                    assert_eq!((*named, *proposal), (proposer, 10));
                     assert!(named_request.replace(*request).is_none(), "one exact ended load");
                 }
             }
@@ -1127,18 +1131,10 @@ fn an_ended_proposal_decision_requires_the_exact_maker() {
                 choice: people::ProposalChoice::Rejected,
                 created: None,
             };
-            let out = step(
+            let out = crate::routing::step_store(
                 &mut core,
                 &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-                Event::EndedProposal {
-                    request,
-                    person: 1,
-                    project: 1,
-                    proposer,
-                    proposal: 10,
-                    row: Some(row),
-                    busy: false,
-                },
+                point_answer(request, Some(Record::Core(CoreRecord::ProposalDecision(row))), false),
             );
             assert_eq!(
                 proposal_answer(&out),
@@ -1256,4 +1252,76 @@ fn a_party_can_replace_a_tasks_lifetime_allowance_within_its_roles_authority() {
             proposable: Some(people::Accepter::Role(0)),
         })
     );
+}
+
+#[test]
+fn person_task_and_escalation_gets_share_the_engine_load_room() {
+    use crate::engine::{self, Engine, In, Out, Peer};
+    const MISSING: u64 = 12;
+    const REVISION: u64 = 3;
+    let (mut core, mut limits) = make_tree();
+    sign_in(&mut core, &limits);
+    limits.load_slots = 1;
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut engine = Engine::from_core(core);
+    let mut out = Queue::uncapped();
+    let escalation = people::Ask::DecideEscalation {
+        project: 1,
+        task: MISSING,
+        revision: REVISION,
+        decision: people::EscalationDecision::Pass,
+    };
+    for (key, ask) in [(1, people::Ask::TakePerson { project: 1, task: MISSING }), (2, escalation.clone())] {
+        engine::step(&mut engine, &env, In::Core(point_ask(key, ask)), &mut out);
+    }
+    let Some(Out::Held(Peer::Store(engine_store::Out::Load { load, range }))) = out.pop() else {
+        panic!("held ended person task load")
+    };
+    assert_eq!(range, engine_store::Range::Record(Key::Tasks(tasks::Key::Ended(MISSING))));
+    assert_point_reply(&mut out, people::Reply::Again(people::Again::Busy));
+    engine::step(&mut engine, &env, In::Store(point_answer(load, None, false)), &mut out);
+    let missing = people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Unknown));
+    assert_point_reply(&mut out, missing.clone());
+    engine.core_mut().reclaim();
+    engine::step(&mut engine, &env, In::Core(point_ask(3, escalation)), &mut out);
+    let Some(Out::Held(Peer::Store(engine_store::Out::Load { load, range }))) = out.pop() else {
+        panic!("held escalation decision load")
+    };
+    assert_eq!(
+        range,
+        engine_store::Range::Record(Key::Core(CoreKey::EscalationDecision { task: MISSING, revision: REVISION }))
+    );
+    assert!(out.is_empty());
+    // A row of the wrong family is a miss, not an escalation.
+    let wrong_family =
+        Record::Tasks(tasks::Stored::Ended(Box::new(fixtures::ended_report(MISSING, tasks::Party::Person(1)))));
+    engine::step(&mut engine, &env, In::Store(point_answer(load, Some(wrong_family), false)), &mut out);
+    assert_point_reply(&mut out, missing);
+}
+
+fn point_ask(key: u8, ask: people::Ask) -> Event {
+    Event::People(people::Event::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        sign_in: 9,
+        key: [key; 16],
+        ask,
+    })
+}
+
+fn assert_point_reply(out: &mut Queue<crate::engine::Out>, expected: people::Reply) {
+    use crate::engine::Out;
+    let mut replies = List::with_capacity(1);
+    while let Some(output) = out.pop() {
+        match output {
+            Out::Held(_) => panic!("answer {expected:?} must not issue another load"),
+            Out::Core(Request::Held(held)) => {
+                if let Held::PeopleReply { reply, .. } = *held {
+                    replies.push(reply).unwrap();
+                }
+            }
+            Out::Core(Request::Write(_) | Request::Now(_) | Request::Ask { .. } | Request::ProjectMade { .. }) => {}
+        }
+    }
+    assert_eq!(replies.as_slice(), [expected]);
 }

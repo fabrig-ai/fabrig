@@ -20,7 +20,8 @@ impl Harness {
     fn new(seed: u64) -> Self {
         let limits = jig_test_profile::limits().core;
         Self {
-            core: core::Core::new(jig_test_profile::config(seed).core, &limits).expect("configured direct Core"),
+            core: jig_test_profile::new_core(jig_test_profile::config(seed).core, &limits)
+                .expect("configured direct Core"),
             env: Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits },
             out: Queue::uncapped(),
         }

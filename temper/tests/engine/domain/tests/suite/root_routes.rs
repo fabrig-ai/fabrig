@@ -28,6 +28,7 @@ mod stopped_worker;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_host as host;
 use jig_domain_link::{Form, Hosting, Problem, Scheme};
 use jig_domain_notes as notes;
@@ -3919,10 +3920,9 @@ fn coalesced_history_waiters_survive_simultaneous_io_completion_under_full_journ
     }
     for _ in 0..40 {
         if driver.events.len() == 2
-            && driver
-                .events
-                .iter()
-                .all(|event| matches!(event, engine::Event::Store(engine::StoreInput::Loaded { .. })))
+            && driver.events.iter().all(|event| {
+                matches!(event, engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { .. })))
+            })
         {
             break;
         }

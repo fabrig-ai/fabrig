@@ -78,6 +78,8 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
         out.push(Request::Held(Box::new(Held::Restarting { wait })));
     }
     core.stopping = true;
+    crate::loads::discard_waiting_points(core);
+    core.loads.cancel_notes_retry();
     core.draining = Some(true);
     if !core.start_opened() {
         drained(core, &mut out);
@@ -158,10 +160,8 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         }
         Event::People(event) => people_gate(event),
         Event::Watch { watcher, .. } | Event::WatchRun { watcher, .. } => Err(watch(watcher)),
-        Event::NamedAnswer { to, key, .. }
-        | Event::DelegateValidated { to, key, .. }
-        | Event::DelegateInputFailed { to, key } => Err(continued_call(core, to, key)),
-        Event::NamedAction { to, .. } | Event::SettledCall { to, .. } => Err(call(to)),
+        Event::NamedAnswer { to, key, .. } => Err(continued_call(core, to, key)),
+        Event::NamedAction { to, .. } | Event::Delegate { to, .. } | Event::SettledCall { to, .. } => Err(call(to)),
         Event::Fleet(fleet::Event::Hello { worker: 0, channel, .. }) => {
             Err(answer(Some(Request::Held(Box::new(Held::Refuse { channel, hello: None })))))
         }
@@ -172,7 +172,6 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::WorkspacePrepared { .. }
         | Event::ClaimPrepared { .. }
         | Event::ClaimRefused { .. }
-        | Event::TranscriptLoaded { .. }
         | Event::ProcedureStep { .. }
         | Event::ProcedureHoldings { .. }
         | Event::StartRecurring { .. }
@@ -184,7 +183,6 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::PartsMarked { .. }
         | Event::Waits { .. }
         | Event::Marked { .. }
-        | Event::ReadLoaded { .. }
         | Event::Read { .. }
         | Event::PublicRead { .. }
         | Event::PublicAnswered { .. }
@@ -210,14 +208,6 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::AnswerPayload { .. }
         | Event::AcceptedTurn { .. }
         | Event::RefusedPayload { .. }
-        | Event::EndedReadLoaded { .. }
-        | Event::SeenConversationLoaded { .. }
-        | Event::EndedProposal { .. }
-        | Event::DecidedProposal { .. }
-        | Event::EndedPersonTask { .. }
-        | Event::PartyInputsLoaded { .. }
-        | Event::EndedTaskLoaded { .. }
-        | Event::EndedEscalation { .. }
         | Event::DelegateHoldings { .. }
         | Event::Brief(_)
         | Event::Holdings { .. }
@@ -271,7 +261,7 @@ impl Core {
         self.fleet.reclaim();
         self.views.reclaim();
         self.view_names.reclaim();
-        self.reads.reclaim();
+        self.loads.reclaim();
     }
 
     /// Discard expendable child observations without changing a decision.
@@ -312,7 +302,7 @@ impl Core {
     #[must_use]
     pub fn quiescent(&self, journal_idle: bool) -> bool {
         self.counters.quiescent(journal_idle)
-            && self.reads.is_empty()
+            && self.loads.is_empty()
             && self.dependency_results.is_empty()
             && self.pending_calls.is_empty()
             && self.pending_note_briefs.is_empty()

@@ -133,7 +133,7 @@ fn report_holdings(
             return Err(refused(tasks::Refusal::Holds));
         };
         let routed = forge_route::step_core(domain, env, event);
-        super::super::route_core_requests(domain, env, decision, routed);
+        super::super::route_engine_requests(domain, env, decision, routed);
     }
     Ok(())
 }

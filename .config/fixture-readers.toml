@@ -1064,6 +1064,13 @@ paths = ["tools/tiers/fixtures/cpu-*.c"]
 [[fixture.reader]]
 suite = "tools/tiers/test_cpu.py"
 
+# test_campaign.py reads the report and CPU records of a campaign round.
+[[fixture]]
+paths = ["tools/tiers/fixtures/campaign/reading/junit.xml", "tools/tiers/fixtures/campaign/reading/run.json",
+         "tools/tiers/fixtures/campaign/reading/records/*.json"]
+[[fixture.reader]]
+suite = "tools/tiers/test_campaign.py"
+
 # src/tests.rs and its fixture helper modules; all client-record unit callers.
 [[fixture]]
 paths = ["hearth/crates/hearth-client-protocol-records/src/tests/fixtures/*.rs"]

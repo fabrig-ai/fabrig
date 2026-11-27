@@ -574,22 +574,27 @@ def junit(directory, profile):
     return expected, timeouts, failed, passed, aborts
 
 
-def real_layers(items, tree, limits, layers):
-    """Report a real pair against both suites' ceilings, never red (budgets.md, 4.2)."""
+def pair_layers(items, tree, tier, profiles, limits, layers):
+    """Report a nextest pair against the named suites' ceilings, never red (budgets.md, 4.2)."""
     try:
         with Path(layers).open('rb') as source:
             table = tomllib.load(source)
     except FileNotFoundError:
         table = {}
     order = {layer: index for index, layer in enumerate(table.get('layers', []))}
-    ceilings = [gate_ceilings((limits or {}).get('gate', {}).get(profile, {}))
-                for profile in ('default', 'fuzzy')]
+    gate = (limits or {}).get('gate', {})
+    ceilings = [gate_ceilings(gate.get(profile, {})) for profile in profiles]
+    placements = table.get(tree, {})
     totals, unplaced = {}, set()
     for item in items:
-        layer = table.get(tree, {}).get(item['binary_id'])
+        binary = item['binary_id']
+        if tier == 'campaign' and ('::' not in binary or '::bin/' in binary):
+            layer = 'step'
+        else:
+            layer = placements.get(binary)
         totals[layer] = totals.get(layer, 0.0) + (item['user_s'] + item['system_s'])
         if layer is None:
-            unplaced.add(item['binary_id'])
+            unplaced.add(binary)
     rows = []
     warnings = [f'unplaced: {binary} has no layer (tools/tiers/layers.md)' for binary in sorted(unplaced)]
     for layer in sorted(totals, key=lambda layer: order.get(layer, len(order))):
@@ -600,7 +605,7 @@ def real_layers(items, tree, limits, layers):
         rows.append(dict(tree=tree, layer=layer, cpu_s=cpu, ceiling_s=ceiling, budget_s=ceiling,
                          ideal_s=None, reference_s=None, instructions=None, over=over))
         if over:
-            warnings.append(f'layer over budget: {tree} real {layer}: {cpu:.2f} CPU s, budget {ceiling} s')
+            warnings.append(f'layer over budget: {tree} {tier} {layer}: {cpu:.2f} CPU s, budget {ceiling} s')
     return rows, warnings
 
 
@@ -691,8 +696,9 @@ def summary(directory, limits=None, pair=None, expected=None, gate=False, ledger
     failures = sorted((set(failures) - superseded_junit) | set(unresolved.values()))
     result = summarize_records(items, pair, limits, run, timeouts, failures)
     tier, _, tree = pair.rpartition('-')
-    if tier == 'real':
-        result['layers'], warnings = real_layers(items, tree, limits, layers)
+    if tier in ('real', 'campaign'):
+        profiles = ('default', 'fuzzy') if tier == 'real' else ('fuzzy',)
+        result['layers'], warnings = pair_layers(items, tree, tier, profiles, limits, layers)
         result['warnings'].extend(warnings)
     result['unobserved'] = [dict(binary_id=binary, test_name=name, attempt=attempt)
                             for _, binary, name, attempt in sorted(unobserved)]

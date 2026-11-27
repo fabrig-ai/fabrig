@@ -8,11 +8,13 @@ pub(crate) fn source_task(words: &[u8]) -> (core::engine::Engine, core::Limits, 
     let mut limits = jig_test_profile::limits().core;
     limits.documents.text_bytes = 128;
     limits.tasks.spec_bytes = 4096;
-    let config = jig_test_profile::config(17).core;
+    let configuration = jig_test_profile::config(17);
+    let declarations = configuration.declarations();
+    let config = configuration.core;
     let mut authority = core::task_authority(&config.seed_projects[0].policy.policy.roles[0].authority);
     authority.budget.spend = 100;
     let rows = jig_test_profile::fixtures::seeded_project_rows(&config);
-    let mut engine = core::engine::Engine::new(config, &limits).unwrap();
+    let mut engine = core::engine::Engine::new(config, &declarations, &limits).unwrap();
     let core = engine.core_mut();
     core.start_begin(true, Wall::EPOCH);
     let env = Env { limits, now: Time::ZERO, wall: Wall::EPOCH };

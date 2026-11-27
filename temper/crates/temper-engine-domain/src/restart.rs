@@ -1,9 +1,6 @@
 //! Store adapters for the core's restart script (jig's domain/root.md, 8).
 //! Window texts keep cut turns and their lengths (temper/docs/design/domain/root.md, 7).
-use crate::archive::{
-    Waiting, goal_failed, goal_loaded, input_failed, input_loaded, note_failed, note_loaded, transcript_failed,
-    transcript_loaded, transcript_unread, waiting,
-};
+use crate::archive::{Waiting, goal_failed, goal_loaded, note_failed, settings_note_loaded, waiting};
 use crate::boundary::{Request, Work};
 use crate::domain::{Domain, close, emit, save};
 use crate::limits::{Limits, core_limits, environment_core};
@@ -33,10 +30,6 @@ pub(crate) fn accept_load(domain: &mut Domain, env: &Env<Limits>, decision: Opti
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one dispatcher admits root and child loads and routes refusal to their owners"
-)]
 pub(crate) fn request_load(
     domain: &mut Domain,
     waiter: Token,
@@ -58,11 +51,7 @@ pub(crate) fn request_load(
             crate::CoreRange::Deployment
             | crate::CoreRange::RequesterWord { .. }
             | crate::CoreRange::TaskResult { .. }
-            | crate::CoreRange::EndedRead { .. }
-            | crate::CoreRange::EscalationDecision { .. }
-            | crate::CoreRange::ProposalDecision { .. }
-            | crate::CoreRange::TaskProposal { .. }
-            | crate::CoreRange::Notes(jig_domain_notes::Range::Entry { .. }),
+            | crate::CoreRange::ApplicationNotes(jig_domain_notes::Range::Entry { .. }),
         ) => 1,
         Range::Core(
             crate::CoreRange::Calls
@@ -72,16 +61,19 @@ pub(crate) fn request_load(
             | crate::CoreRange::People
             | crate::CoreRange::Sweep
             | crate::CoreRange::RunProofs
-            | crate::CoreRange::Turns { .. }
-            | crate::CoreRange::TaskTranscript { .. },
+            | crate::CoreRange::Turns { .. },
         )
         | Range::Census(_)
         | Range::Forge => domain.limits.loads.rows,
-        Range::Core(crate::CoreRange::Notes(
+        Range::Core(crate::CoreRange::ApplicationNotes(
             jig_domain_notes::Range::Lines { .. } | jig_domain_notes::Range::Project { .. },
         )) => domain.limits.loads.rows.min(domain.limits.notes.load_rows),
     };
     if loads::begin(&mut domain.loads, waiter, range.clone(), after, most, &mut load_out).is_none() {
+        if waiting(domain, waiter) == Some(Waiting::ChangeFrom) {
+            crate::archive::change_from_loaded(domain, waiter, None);
+            return;
+        }
         if waiting(domain, waiter) == Some(Waiting::Parts) {
             domain.work.push(Work::PartsFailed { waiter });
             return;
@@ -95,15 +87,8 @@ pub(crate) fn request_load(
                 goal_failed(domain, waiter);
                 return;
             }
-            Range::Core(crate::CoreRange::TaskTranscript { .. }) => {
-                transcript_failed(domain, waiter);
-                return;
-            }
             Range::Core(
-                crate::CoreRange::ProposalDecision { .. }
-                | crate::CoreRange::TaskProposal { .. }
-                | crate::CoreRange::EscalationDecision { .. }
-                | crate::CoreRange::Calls
+                crate::CoreRange::Calls
                 | crate::CoreRange::Deployment
                 | crate::CoreRange::Tasks
                 | crate::CoreRange::RunProofs
@@ -112,25 +97,16 @@ pub(crate) fn request_load(
                 | crate::CoreRange::People
                 | crate::CoreRange::Sweep
                 | crate::CoreRange::TaskResult { .. }
-                | crate::CoreRange::EndedRead { .. }
                 | crate::CoreRange::Turns { .. },
             )
             | Range::Census(_)
             | Range::Forge => {}
-            Range::Core(crate::CoreRange::Notes(_)) => {
+            Range::Core(crate::CoreRange::ApplicationNotes(_)) => {
                 note_failed(domain, waiter);
                 return;
             }
         }
         match range {
-            Range::Core(crate::CoreRange::ProposalDecision { .. } | crate::CoreRange::TaskProposal { .. }) => {
-                domain.work.push(Work::ProposalFailed { waiter });
-                return;
-            }
-            Range::Core(crate::CoreRange::EscalationDecision { .. }) => {
-                domain.work.push(Work::EscalationFailed { waiter });
-                return;
-            }
             Range::Core(
                 crate::CoreRange::Calls
                 | crate::CoreRange::Deployment
@@ -141,17 +117,15 @@ pub(crate) fn request_load(
                 | crate::CoreRange::Sweep
                 | crate::CoreRange::RunProofs
                 | crate::CoreRange::Turns { .. }
-                | crate::CoreRange::TaskTranscript { .. }
                 | crate::CoreRange::RequesterWord { .. }
-                | crate::CoreRange::TaskResult { .. }
-                | crate::CoreRange::EndedRead { .. },
+                | crate::CoreRange::TaskResult { .. },
             )
             | Range::Census(_)
             | Range::Forge => {
                 unreachable!("startup/result load room reserved")
             }
             Range::History(_) => unreachable!("history load failure handled above"),
-            Range::Core(crate::CoreRange::Notes(_)) => unreachable!("notes load failure handled above"),
+            Range::Core(crate::CoreRange::ApplicationNotes(_)) => unreachable!("notes load failure handled above"),
         }
     }
     match load_out.pop().expect("load issued") {
@@ -166,7 +140,6 @@ pub(crate) fn load_outputs(
     domain: &mut Domain,
     env: &Env<Limits>,
     load_out: &mut Queue<loads::Request>,
-    mut texts: Option<crate::TranscriptTexts>,
     decision: &mut Option<Decision>,
     out: &mut Queue<Request>,
 ) {
@@ -205,30 +178,18 @@ pub(crate) fn load_outputs(
                         crate::route::forge_route::goal_report::loaded(domain, waiter, rows, next, cut, out);
                     }
                     Some(Waiting::Remember) => crate::route::remember::loaded(domain, waiter, rows, next, cut, out),
-                    Some(Waiting::Notes) => note_loaded(domain, waiter, rows, next, cut),
+                    Some(Waiting::SettingsNote) => settings_note_loaded(domain, waiter, rows, next, cut),
                     Some(Waiting::GoalWords) if cut.is_none() && next.is_none() => {
                         goal_loaded(domain, waiter, rows, out);
                     }
                     Some(Waiting::GoalWords) => goal_failed(domain, waiter),
-                    Some(Waiting::Input) if cut.is_none() => input_loaded(domain, waiter, rows, next, out),
-                    Some(Waiting::Input) => input_failed(domain, waiter),
-                    Some(Waiting::Transcript) => transcript_loaded(domain, waiter, rows, texts.take(), next, cut, out),
-                    Some(Waiting::Ended) if cut.is_none() && next.is_none() => {
-                        domain.work.push(Work::EndedLoaded { waiter, rows });
+                    Some(Waiting::ChangeFrom) => {
+                        crate::archive::change_from_loaded(
+                            domain,
+                            waiter,
+                            if cut.is_none() && next.is_none() { Some(rows) } else { None },
+                        );
                     }
-                    Some(Waiting::Ended) => domain.work.push(Work::EndedFailed { waiter }),
-                    Some(Waiting::TaskProposal) => domain.work.push(Work::TaskProposalLoaded {
-                        waiter,
-                        rows: if cut.is_none() && next.is_none() { Some(rows) } else { None },
-                    }),
-                    Some(Waiting::Proposal) if cut.is_none() && next.is_none() => {
-                        domain.work.push(Work::ProposalLoaded { waiter, rows });
-                    }
-                    Some(Waiting::Proposal) => domain.work.push(Work::ProposalFailed { waiter }),
-                    Some(Waiting::Escalation) if cut.is_none() => {
-                        domain.work.push(Work::EscalationLoaded { waiter, rows });
-                    }
-                    Some(Waiting::Escalation) => domain.work.push(Work::EscalationFailed { waiter }),
                     None => {}
                 }
             }
@@ -256,14 +217,9 @@ pub(crate) fn load_outputs(
                     ),
                     Some(Waiting::Document) => crate::route::document::failed(domain, waiter),
                     Some(Waiting::Remember) => crate::route::remember::failed(domain, waiter),
-                    Some(Waiting::Notes | Waiting::CloserReport) => note_failed(domain, waiter),
-                    Some(Waiting::Input) => input_failed(domain, waiter),
+                    Some(Waiting::SettingsNote | Waiting::CloserReport) => note_failed(domain, waiter),
                     Some(Waiting::GoalWords) => goal_failed(domain, waiter),
-                    Some(Waiting::Transcript) => transcript_unread(domain, waiter),
-                    Some(Waiting::Ended) => domain.work.push(Work::EndedFailed { waiter }),
-                    Some(Waiting::Proposal) => domain.work.push(Work::ProposalFailed { waiter }),
-                    Some(Waiting::TaskProposal) => domain.work.push(Work::TaskProposalLoaded { waiter, rows: None }),
-                    Some(Waiting::Escalation) => domain.work.push(Work::EscalationFailed { waiter }),
+                    Some(Waiting::ChangeFrom) => crate::archive::change_from_loaded(domain, waiter, None),
                     None => {}
                 }
             }
@@ -333,15 +289,10 @@ pub(crate) fn startup_page(
         Range::History(_) => unreachable!("history is never restored"),
         Range::Core(crate::CoreRange::Sweep) => unreachable!("sweep page handled above"),
         Range::Core(
-            crate::CoreRange::EscalationDecision { .. }
-            | crate::CoreRange::ProposalDecision { .. }
-            | crate::CoreRange::TaskProposal { .. }
-            | crate::CoreRange::Turns { .. }
-            | crate::CoreRange::TaskTranscript { .. }
+            crate::CoreRange::Turns { .. }
             | crate::CoreRange::RequesterWord { .. }
             | crate::CoreRange::TaskResult { .. }
-            | crate::CoreRange::EndedRead { .. }
-            | crate::CoreRange::Notes(_),
+            | crate::CoreRange::ApplicationNotes(_),
         ) => unreachable!("startup range"),
     };
     if let Some(range) = following {

@@ -161,7 +161,7 @@
   each within the store's page room. A turn past that room is loaded
   cut: its fields and its length, never its bytes
   (`../../protocol/store/transcripts.md`, 3), handed to the core in its place as
-  `TranscriptLoad::Cut`. The core counts its length in the window's bytes,
+  a cut answer (`vocabulary.md`, 2.4). The core counts its length in the window's bytes,
   keeps the fixed text `[a turn too large to load]` in its place in the
   tail (cut to the tail's budget as any turn's text is), and resumes no
   window that holds one: the run starts fresh from a brief carrying the

@@ -59,7 +59,6 @@ fn forge_history_loads_route_ordered_stored_rows_and_the_continuation_back_to_th
             owner,
             rows: Box::new([Record::Forge { row: Box::new(index(5)) }, Record::Forge { row: Box::new(index(6)) }]),
             next: Some(Key::Forge(next.clone())),
-            texts: None,
         }),
         &mut out,
     );

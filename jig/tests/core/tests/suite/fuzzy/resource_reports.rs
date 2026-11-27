@@ -39,11 +39,10 @@ fn member(authority: &tasks::Authority, resource: u64) -> core::Delegate {
 }
 
 fn delegate(world: &mut World, parent: (u64, u64), completion: u32, members: Vec<core::Delegate>) {
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9000 + u64::from(completion))),
         key: core::CallKey { task: parent.0, attempt: parent.1, completion, position: 0 },
         batch: members.into_boxed_slice(),
-        stubs: Box::new([]),
     }));
 }
 
@@ -172,14 +171,6 @@ fn full_tables_and_interleaved_reports_never_leave_a_call_past_its_deadline() {
         let (mut world, limits) = world(seed, capacity, bound);
         let (now, wall) = world.clocks();
         world.set_clock(now, wall);
-        world.configure_holds(
-            1,
-            Box::new([tasks::Kind {
-                connector: 1,
-                kind: 1,
-                hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
-            }]),
-        );
         let parent = world.assignments[0];
         let authority = world.assigned.as_ref().unwrap().run.authority.clone();
         for number in 1..=12 {

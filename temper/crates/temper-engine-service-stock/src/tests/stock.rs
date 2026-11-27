@@ -1460,7 +1460,12 @@ fn a_stock_landing_can_start_its_prepare_job() {
     let mut config = config::core(&engine, [1; 16], 7);
     config.jobs = Box::new([prepare]);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: engine.limits.core };
-    let mut jig = Engine::new(config, &env.limits).expect("stock core");
+    let mut declarations =
+        skein_lib::List::with_capacity(u32::try_from(config.connectors.len()).expect("connector count"));
+    for connector in &config.connectors {
+        declarations.push(jig_domain_contract::Declaration::empty(*connector)).expect("connector declaration");
+    }
+    let mut jig = Engine::new(config, declarations.as_slice(), &env.limits).expect("stock core");
     let mut action = jig.core_mut().start_begin(false, env.wall);
     loop {
         use jig_domain_core::start::{Action, Phase, SweepInput};

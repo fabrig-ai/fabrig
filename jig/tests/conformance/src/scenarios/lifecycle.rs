@@ -67,11 +67,10 @@ fn delegate(world: &mut World) {
         dependencies: Box::new([]),
         wake: Some(tasks::WakePolicy::DEFAULT),
     });
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(DELEGATE_REPLY)),
         key: core::CallKey { task, attempt, completion: DELEGATE_COMPLETION, position: 0 },
         batch: Box::new(batch),
-        stubs: Box::new([]),
     }));
 }
 fn compound(world: &mut World) {

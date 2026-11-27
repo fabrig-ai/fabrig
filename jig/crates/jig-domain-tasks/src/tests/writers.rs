@@ -7,8 +7,8 @@
 )]
 use super::revisions::{Harness, LIMITS, task, to};
 use crate::{
-    Capacity, CapacityAction, CapacityCause, CapacityRefusal, Domain, Event, HoldKind, Holding, Kind, Limits, Name,
-    Party, Refusal, Request, Stored, Taken, Writer, WriterSlot,
+    Capacity, CapacityAction, CapacityCause, CapacityRefusal, Domain, Event, HoldKind, Holding, Limits, Name, Party,
+    Refusal, Request, ResourceKind, Stored, Taken, Writer, WriterSlot,
 };
 use alloc::collections::BTreeMap;
 
@@ -39,7 +39,7 @@ fn write_hold(id: u8) -> Holding {
 fn configure(h: &mut Harness) {
     h.send(Event::Kinds {
         connector: CONNECTOR,
-        kinds: Box::new([Kind { connector: CONNECTOR, kind: KIND, hold: HoldKind::Exclusive { taken: Taken::Waits } }]),
+        kinds: Box::new([ResourceKind { kind: KIND, hold: HoldKind::Exclusive { taken: Taken::Waits } }]),
     });
 }
 

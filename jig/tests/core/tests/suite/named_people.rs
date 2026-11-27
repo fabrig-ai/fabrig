@@ -115,11 +115,10 @@ fn amend(world: &mut World, person: u64) -> Option<Refusal> {
 
 fn agent(world: &mut World, person: u64) -> Option<Refusal> {
     let member = person_member(world, person);
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9052)),
         key: world.call_key(1),
         batch: Box::new([member]),
-        stubs: Box::new([]),
     }));
     match world.answers.last().map(|answer| &answer.2) {
         Some(core::CallPart::Delegated(_)) => None,
@@ -193,11 +192,10 @@ fn procedure_world() -> World {
     member.authority.budget.spend = 0;
     member.authority.delegation =
         tasks::Delegation { kinds: Box::new([tasks::AuthorityExecutor::Role(ROLE)]), tasks: 1, depth: 1 };
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9054)),
         key: world.call_key(1),
         batch: Box::new([member]),
-        stubs: Box::new([]),
     }));
     world
 }
@@ -239,11 +237,10 @@ fn person_delegate_world() -> World {
     let mut world = world();
     let mut member = person_member(&world, PERSON);
     member.executor = tasks::Executor::Person(tasks::PersonAddress::Role(ROLE));
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9054)),
         key: world.call_key(1),
         batch: Box::new([member]),
-        stubs: Box::new([]),
     }));
     world
 }

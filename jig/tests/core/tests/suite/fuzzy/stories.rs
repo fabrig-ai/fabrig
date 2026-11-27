@@ -41,14 +41,6 @@ fn random_pool_sizes_shrink_and_grow_while_finishes_wait_for_their_commits() {
         let mut rng = Rng::new(seed);
         let (config, limits) = plan_fixture(seed);
         let mut world = World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() });
-        world.configure_holds(
-            1,
-            Box::new([tasks::Kind {
-                connector: 1,
-                kind: 2,
-                hold: tasks::HoldKind::Pooled { taken: tasks::Taken::Waits },
-            }]),
-        );
         world.send(root::Event::Connector {
             number: 1,
             event: connector::Event::Adopt {
@@ -65,7 +57,7 @@ fn random_pool_sizes_shrink_and_grow_while_finishes_wait_for_their_commits() {
             let mut authority = world.assigned.as_ref().expect("parent").run.authority.clone();
             authority.budget.spend = 10 + rng.below(8);
             authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-            world.send(root::Event::Core(core::Event::DelegateValidated {
+            world.send(root::Event::Core(core::Event::Delegate {
                 to: ReplyTo::new(Token::new(9000 + u64::from(completion))),
                 key: core::CallKey { task: parent.0, attempt: parent.1, completion, position: 0 },
                 batch: Box::new([core::Delegate {
@@ -89,7 +81,6 @@ fn random_pool_sizes_shrink_and_grow_while_finishes_wait_for_their_commits() {
                     dependencies: Box::new([]),
                     wake: Some(tasks::WakePolicy::DEFAULT),
                 }]),
-                stubs: Box::new([]),
             }));
             let core::CallPart::Delegated(numbers) = &world.answers.last().expect("admitted delegate").2 else {
                 panic!("delegate not admitted");

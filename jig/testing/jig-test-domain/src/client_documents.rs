@@ -3,7 +3,7 @@ use crate::routes::{route_connector, route_engine, route_request};
 use crate::{Delivery, Domain, Limits, Work, Write};
 use alloc::boxed::Box;
 use jig_domain_core as core;
-use jig_domain_core::engine::{self, In, Out};
+use jig_domain_core::engine::{self, In, Out, Peer};
 use jig_domain_views as views;
 use jig_test_connector as connector;
 use skein_lib::{Decision, Env, Queue, ReplyTo, Token};
@@ -58,9 +58,16 @@ pub(crate) fn document(
         &mut out,
     );
     for _ in 0..out.len() {
-        let Out::Core(request) = out.pop().expect("document completion output");
+        let request = match out.pop().expect("document completion output") {
+            Out::Core(request) => request,
+            Out::Held(Peer::Store(load)) => {
+                crate::hold(decision, Delivery::Store(load));
+                continue;
+            }
+        };
         match request {
             core::Request::Held(held) => match *held {
+                core::Held::Store(load) => crate::hold(decision, Delivery::Store(load)),
                 core::Held::ApplicationDelivery { watcher: due, connector: owner, subject: named } => {
                     assert!(owner == number && named == subject, "construction keeps its owner");
                     let document = value.take().expect("ready construction owns its whole document");
@@ -70,7 +77,6 @@ pub(crate) fn document(
                     );
                 }
                 held @ (core::Held::ApplicationWatchEnded { .. }
-                | core::Held::ReadLoad { .. }
                 | core::Held::Read { .. }
                 | core::Held::PublicRead { .. }
                 | core::Held::PublicWait { .. }
@@ -109,8 +115,6 @@ pub(crate) fn document(
                 | core::Held::Refuse { .. }
                 | core::Held::TurnBusy { .. }
                 | core::Held::StopRun { .. }
-                | core::Held::Load(..)
-                | core::Held::NotesLoad { .. }
                 | core::Held::NotesWritten { .. }
                 | core::Held::Acted { .. }
                 | core::Held::NotesDeleted { .. }) => {

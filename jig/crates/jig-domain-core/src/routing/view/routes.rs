@@ -415,7 +415,7 @@ fn admission(core: &Core, env: &Env<Limits>, party: u64, subject: &Subject, wind
                 Ok(_) => None,
                 Err(Missing::NotAllowed) => Some(WatchRefusal::NotAllowed),
                 Err(Missing::Unknown | Missing::Ended) if retained_subject(subject).is_some() => {
-                    if core.reads.len() >= env.limits.load_slots { Some(WatchRefusal::Busy) } else { None }
+                    if core.loads.reads() >= env.limits.load_slots { Some(WatchRefusal::Busy) } else { None }
                 }
                 Err(Missing::Unknown | Missing::Ended | Missing::TooLarge) => Some(WatchRefusal::Unknown),
             }

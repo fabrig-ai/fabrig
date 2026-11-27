@@ -3,6 +3,7 @@ mod summaries;
 use super::fixtures::{self, ALICE, CHILD, GOAL, GRANDCHILD};
 use crate::{Arrived, Below, Event, Io, Request, Store};
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{self as core, reads};
 use jig_domain_tasks as tasks;
 use skein_io::file;
@@ -22,7 +23,7 @@ fn child_store() -> Store {
     store
 }
 
-fn load(store: &mut Store, range: reads::Range) -> reads::Loaded {
+fn load(store: &mut Store, range: reads::Range) -> engine_store::Answer {
     let events = fixtures::run(store, Request::Read { owner: Token::new(7), range });
     let mut events = events.into_iter();
     let Some(Event::Read { owner, result }) = events.next() else { panic!("one read event: {events:?}") };
@@ -31,19 +32,25 @@ fn load(store: &mut Store, range: reads::Range) -> reads::Loaded {
     result
 }
 
-fn one_row(result: &reads::Loaded) -> &reads::Row {
-    let reads::Loaded::Page { rows, next: None } = result else { panic!("one page: {result:?}") };
+fn one_row(result: &engine_store::Answer) -> &reads::Row {
+    let engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }) = result else {
+        panic!("one page: {result:?}")
+    };
     let [row] = rows.as_ref() else { panic!("one row: {rows:?}") };
     row
 }
 
-fn assert_too_linked(result: &reads::Loaded, expected: u32) {
-    let reads::Loaded::TooLinked { joins } = result else { panic!("join refusal: {result:?}") };
+fn assert_too_linked(result: &engine_store::Answer, expected: u32) {
+    let engine_store::Answer::Failed(engine_store::Failure::TooLinked { joins }) = result else {
+        panic!("join refusal: {result:?}")
+    };
     assert_eq!(*joins, expected);
 }
 
-fn assert_empty(result: &reads::Loaded) {
-    let reads::Loaded::Page { rows, next: None } = result else { panic!("one page: {result:?}") };
+fn assert_empty(result: &engine_store::Answer) {
+    let engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }) = result else {
+        panic!("one page: {result:?}")
+    };
     assert!(rows.is_empty());
 }
 
@@ -325,8 +332,8 @@ fn proposal_range(proposal: u64) -> reads::Range {
     fixtures::read(ALICE, reads::Scope::Proposal { proposer: jig_domain_people::Proposer::Task(CHILD), proposal })
 }
 
-fn assert_gone(result: reads::Loaded) {
-    let reads::Loaded::Gone = result else { panic!("gone: {result:?}") };
+fn assert_gone(result: engine_store::Answer) {
+    let engine_store::Answer::Failed(engine_store::Failure::Gone) = result else { panic!("gone: {result:?}") };
 }
 
 #[test]
@@ -497,7 +504,7 @@ fn corrupt_disk(disk: &mut [u8]) {
     *disk.get_mut(5).expect("frame byte") ^= 1;
 }
 
-fn read_result(events: Box<[Event]>) -> reads::Loaded {
+fn read_result(events: Box<[Event]>) -> engine_store::Answer {
     let mut events = events.into_iter();
     let Some(Event::Read { owner, result }) = events.next() else { panic!("one party read") };
     assert_eq!(owner, Token::new(7));
@@ -505,7 +512,7 @@ fn read_result(events: Box<[Event]>) -> reads::Loaded {
     result
 }
 
-fn read_disk(store: &mut Store, mut below: Below, disk: &[u8]) -> reads::Loaded {
+fn read_disk(store: &mut Store, mut below: Below, disk: &[u8]) -> engine_store::Answer {
     for _ in 0_u32..32 {
         let Some(file::Request::ReadAt { owner, offset, max, .. }) = below.transcripts.pop() else {
             panic!("one frame read request");
@@ -594,7 +601,9 @@ fn a_turn_read_past_the_waiting_limit_is_busy() {
     }
     let (events, below) = party_submit(&mut store, Token::new(7), turn_range());
     let result = read_result(events);
-    let reads::Loaded::Busy = result else { panic!("waiting table is full: {result:?}") };
+    let engine_store::Answer::Failed(engine_store::Failure::Busy) = result else {
+        panic!("waiting table is full: {result:?}")
+    };
     assert!(below.transcripts.is_empty());
 }
 
@@ -609,8 +618,10 @@ fn an_unread_frame_gives_a_reply_without_its_turn() {
     assert_eq!(row.related, None);
 }
 
-fn page(result: reads::Loaded) -> (Box<[reads::Row]>, Option<reads::Position>) {
-    let reads::Loaded::Page { rows, next } = result else { panic!("one page: {result:?}") };
+fn page(result: engine_store::Answer) -> (Box<[reads::Row]>, Option<reads::Position>) {
+    let engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) = result else {
+        panic!("one page: {result:?}")
+    };
     (rows, next)
 }
 

@@ -71,8 +71,7 @@ impl Core {
 
     /// Admit one retained input as a completed child of the named delegator.
     #[must_use]
-    pub fn input_stub(
-        &self,
+    pub(crate) fn input_stub(
         creator: u64,
         project: u32,
         wanted: u64,

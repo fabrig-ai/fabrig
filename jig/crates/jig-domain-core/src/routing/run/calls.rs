@@ -730,11 +730,17 @@ pub(crate) fn named_action(
         NamedAction::WithdrawProposal { proposal } => {
             if core.tasks.proposal(key.task, proposal).is_none() {
                 core.handoff_call(key, PendingCall::Routed, PendingCall::DecidedProposal(proposal));
-                out.push(Request::Now(Box::new(crate::Now::DecidedProposal {
-                    to: ReplyTo::new(token),
-                    key,
-                    proposal,
-                })));
+                let point = crate::loads::point::Point::Proposal { to: ReplyTo::new(token), key, proposal };
+                if !crate::loads::try_point(core, &env.limits, &mut out, point) {
+                    return crate::routing::party::ended::decided_proposal(
+                        core,
+                        ReplyTo::new(token),
+                        key,
+                        proposal,
+                        None,
+                        true,
+                    );
+                }
                 return out;
             }
             let token = core.fly_call(token, RoutedCall::Withdraw { key, proposal, moved: None });

@@ -1,6 +1,7 @@
 //! Same-step child pages under both bounds (protocol/store/loads.md, 1, and protocol/store/README.md, 7).
-use crate::{Cursor, Event, Load, Phase, Store, intervals, pages};
+use crate::{Cursor, Event, Load, Phase, Row, Store, intervals, pages};
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::{Record, engine::store};
 use skein_lib::{List, Queue, Token};
 
 pub(crate) fn load(
@@ -48,4 +49,21 @@ fn page(store: &mut Store, range: Load, after: Option<&Cursor>, rows: u32, bytes
 pub(crate) fn corrupt(store: &mut Store, owner: Token, above: &mut Queue<Event>) {
     store.phase = Phase::Stopped;
     above.push(Event::Corrupt { owner });
+}
+
+/// Carry one notes page to the engine. A cursor without a row means that
+/// the first record did not fit, not that the child can advance its cursor.
+#[must_use]
+pub fn notes_answer(rows: Box<[Row]>, more: bool) -> store::Answer {
+    if rows.is_empty() && more {
+        return store::Answer::Failed(store::Failure::Failed);
+    }
+    let mut records = List::with_capacity(u32::try_from(rows.len()).expect("bounded page"));
+    for row in rows {
+        let Row::Jig(record @ Record::Notes(_)) = row else {
+            return store::Answer::Failed(store::Failure::Failed);
+        };
+        records.push(record).expect("one record per row");
+    }
+    store::Answer::Rows(store::Rows::Records { records: records.into_boxed(), more })
 }

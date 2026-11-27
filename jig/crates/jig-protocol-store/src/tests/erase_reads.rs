@@ -3,6 +3,7 @@
 use super::fixtures;
 use crate::{Event, Request, Store, Write, keys};
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{self as core, Record, reads};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -37,7 +38,9 @@ fn load(store: &mut Store, range: reads::Range) -> (Box<[reads::Row]>, Option<re
     assert!(below.secrets.is_empty());
     assert!(below.transcripts.is_empty(), "erasure never joins a turn's transcript");
     let event = above.pop();
-    let Some(Event::Read { owner: found, result: reads::Loaded::Page { rows, next } }) = event else {
+    let Some(Event::Read { owner: found, result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) }) =
+        event
+    else {
         panic!("erasure read answers a page: {event:?}");
     };
     assert_eq!(found, owner);

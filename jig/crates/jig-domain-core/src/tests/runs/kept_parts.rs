@@ -1,4 +1,5 @@
-//! Parts kept between turns (jig/docs/design/domain/engine/executors-transcripts.md, 1).
+//! Parts stay opaque between turns until a committed turn makes them moot
+//! (jig/docs/design/domain/engine/executors-transcripts.md, 1).
 use crate::tests::*;
 
 const TASK: u64 = 1;
@@ -24,7 +25,7 @@ fn a_part_is_written_before_acknowledgement_and_a_copy_only_acknowledged() {
     const ROOM: u32 = 1; // The original part fills the room before its copy arrives.
     let mut limits = limits();
     limits.call_records = ROOM;
-    let mut core = Core::new(config(40), &limits).unwrap();
+    let mut core = new_core(config(40), &limits).unwrap();
     claim(&mut core, TASK, 2);
     let row = part(2, 1, 1, 3, 4, b"opaque");
     kept(core.keep_part(row.clone()), &row);
@@ -106,7 +107,7 @@ fn assert_erased_parts(out: &Queue<Request>, expected: &[crate::PartKey]) {
 fn resume_parts_share_window_room_and_keep_whole_calls_in_call_order() {
     let mut limits = limits();
     limits.call_records = 8;
-    let mut core = Core::new(config(41), &limits).unwrap();
+    let mut core = new_core(config(41), &limits).unwrap();
     let rows = [
         part(1, 1, 2, 0, 0, b"main"),
         part(1, 2, 2, 1, 5, b"ab"),
@@ -141,7 +142,7 @@ fn resume_parts_share_window_room_and_keep_whole_calls_in_call_order() {
 #[test]
 fn restored_parts_have_a_room_apart_from_calls_and_name_the_part_on_overflow() {
     let limits = limits();
-    let mut core = Core::new(config(42), &limits).unwrap();
+    let mut core = new_core(config(42), &limits).unwrap();
     let _begin = core.start_begin(false, Wall::EPOCH);
     let call = CallKey { task: 1, attempt: 1, completion: 1, position: 0 };
     assert!(core.restore_call(call, CallPart::Controlled));

@@ -62,11 +62,6 @@ pub enum Delivery {
     },
     /// Resumes the start only after this decision is durable.
     Start(jig_domain_core::start::Continuation),
-    /// Retry archive admission after the current iteration can retire its read slots.
-    NotesLoad {
-        owner: Token,
-        range: jig_domain_notes::Range,
-    },
     /// Tell a new finding holder only after the areas/triager save commits (domain/areas.md, 5).
     FindingsOwned {
         project: u32,
@@ -163,12 +158,6 @@ pub enum Delivery {
         waiter: Token,
         range: Box<jig_domain_core::reads::Range>,
     },
-    /// Root internal historical read, released after preceding commit; consumed
-    /// once by root and never exposed to the shell.
-    ReadEscalationDecision {
-        /// Reserved root read slot, retired after IO terminal.
-        waiter: Token,
-    },
     /// Root to fleet after durability; the root resumes it internally.
     Fleet(
         /// Root-issued `Start`, `TurnKept`, `Acknowledge` or `Cancel` callback. `Start` workstream
@@ -205,11 +194,8 @@ pub enum Delivery {
         reply: ReplyTo,
         answer: crate::ForgeReadAnswer,
     },
-    /// A core read's store load, after every preceding commit.
-    ReadLoad {
-        load: Token,
-        range: Box<jig_domain_core::reads::Range>,
-    },
+    /// A held engine load, released after preceding commits.
+    EngineStore(jig_domain_core::engine::store::Out),
     /// A watched subject's whole current document.
     Document {
         watcher: Token,
@@ -626,17 +612,15 @@ impl Decision {
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::PartLoad { .. }
-            | Delivery::ReadLoad { .. }
+            | Delivery::EngineStore(_)
             | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
             | Delivery::Restarting { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. }
-            | Delivery::ReadEscalationDecision { .. }
             | Delivery::PartBusy { .. }
             | Delivery::TurnBusy { .. }
-            | Delivery::NotesLoad { .. }
             | Delivery::Start(_)
             | Delivery::Load { .. } => true,
         };

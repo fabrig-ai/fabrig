@@ -3,8 +3,8 @@ const CHILD: u64 = 2;
 const SUBSCRIPTION: u64 = 10;
 const REPLY: u64 = 500;
 use jig_domain_tasks::{
-    Class, End, Event, Funder, Hold, HoldKind, Holding, Kind, MessageKind, Name, New, NoticeState, Party, Phase,
-    Refusal, Stored, Subscription, SubscriptionKind, Taken, Writer, WriterSlot,
+    Class, End, Event, Funder, Hold, HoldKind, Holding, MessageKind, Name, New, NoticeState, Party, Phase, Refusal,
+    ResourceKind, Stored, Subscription, SubscriptionKind, Taken, Writer, WriterSlot,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{Duration, ReplyTo, Token};
@@ -19,7 +19,7 @@ fn pool(value: u8) -> Holding {
 
 fn configured_pool(seed: u64) -> World {
     let mut world = World::new(seed, LIMITS);
-    world.configure_holds(1, vec![Kind { connector: 1, kind: 2, hold: HoldKind::Pooled { taken: Taken::Waits } }]);
+    world.configure_holds(1, vec![ResourceKind { kind: 2, hold: HoldKind::Pooled { taken: Taken::Waits } }]);
     world
 }
 
@@ -81,7 +81,7 @@ fn a_lost_pool_allocation_holds_its_task_without_releasing_its_slot() {
 
 fn configured(seed: u64) -> World {
     let mut world = World::new(seed, LIMITS);
-    world.configure_holds(1, vec![Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
+    world.configure_holds(1, vec![ResourceKind { kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
     world
 }
 
@@ -138,7 +138,7 @@ fn a_task_waiting_past_its_bound_for_a_hold_is_held_and_its_requester_told() {
 #[test]
 fn a_refusing_kind_rejects_the_whole_batch_and_names_the_holder() {
     let mut world = World::new(303, LIMITS);
-    world.configure_holds(1, vec![Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Refuses } }]);
+    world.configure_holds(1, vec![ResourceKind { kind: 1, hold: HoldKind::Exclusive { taken: Taken::Refuses } }]);
     let mut first = task(1, &[]);
     first.holdings = Box::new([resource(1)]);
     assert_eq!(world.make(Party::Person(1), vec![first]), Reply::Made(vec![1]));
@@ -415,7 +415,7 @@ fn a_tree_root_can_retain_more_than_one_childs_per_task_hold_limit() {
     let mut limits = LIMITS;
     limits.holdings = 1;
     let mut world = World::new(312, limits);
-    world.configure_holds(1, vec![Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
+    world.configure_holds(1, vec![ResourceKind { kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
     assert_eq!(world.make(Party::Person(1), vec![task(1, &[])]), Reply::Made(vec![1]));
     for (task_number, held) in [(2, resource(8)), (3, resource(9))] {
         let mut child = task(task_number, &[]);

@@ -103,11 +103,10 @@ fn begin_at(core: &mut Core, env: &Env<Limits>, count: usize, position: u32) -> 
     let mut out = step(
         core,
         env,
-        Event::DelegateValidated {
+        Event::Delegate {
             to: ReplyTo::new(Token::new(7300_u64.checked_add(u64::from(position)).unwrap())),
             key,
             batch,
-            stubs: Box::new([]),
         },
     );
     let mut request = None;
@@ -234,11 +233,7 @@ fn a_batch_that_cannot_fit_beside_live_names_is_decided_whole() {
     assert!(!core.pending_calls.contains_key(&key));
     assert!(core.call_parts.contains_key(&key));
     let batch = Box::new([delegate(&core)]);
-    let retry = step(
-        &mut core,
-        &env,
-        Event::DelegateValidated { to: ReplyTo::new(Token::new(7301)), key, batch, stubs: Box::new([]) },
-    );
+    let retry = step(&mut core, &env, Event::Delegate { to: ReplyTo::new(Token::new(7301)), key, batch });
     assert_eq!(call_answer(retry), core.call_parts.get(&key).cloned());
 }
 

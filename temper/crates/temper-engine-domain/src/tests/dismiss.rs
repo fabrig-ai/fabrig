@@ -4,6 +4,7 @@ use crate::{
     StoreRequest,
 };
 use alloc::boxed::Box;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_people as people;
 use skein_lib::{Env, List, Queue, ReplyTo, Token, Wall};
 use temper_engine_domain_forge as forge;
@@ -78,7 +79,11 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
                 crate::try_step(domain, env, Event::Store(StoreInput::Committed { number, fill: 0 })).unwrap();
             } else if let Request::ToChild(released) = request {
                 crate::try_step(domain, env, Event::Released(released)).unwrap();
-            } else if let Request::Store(StoreRequest::Read { range, .. }) = request {
+            } else if let Request::Store(StoreRequest::Engine(engine_store::Out::Load {
+                range: engine_store::Range::Read(range),
+                ..
+            })) = request
+            {
                 assert!(
                     domain.engine.core().people.deletions().contains_key(&1),
                     "only deletion reads in this fixture"

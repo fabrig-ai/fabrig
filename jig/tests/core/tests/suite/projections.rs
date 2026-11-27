@@ -103,7 +103,7 @@ fn delegate_agent(world: &mut World, words: &[u8], spend: u64, tasks_left: u32, 
         tasks: tasks_left,
         depth,
     };
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9200 + spend)),
         key: world.call_key(1),
         batch: Box::new([core::Delegate {
@@ -127,7 +127,6 @@ fn delegate_agent(world: &mut World, words: &[u8], spend: u64, tasks_left: u32, 
             dependencies: Box::new([]),
             wake: Some(tasks::WakePolicy::DEFAULT),
         }]),
-        stubs: Box::new([]),
     }));
     let assigned = world.assigned.as_ref().expect("assigned delegate");
     (assigned.task, assigned.attempt)
@@ -449,6 +448,37 @@ fn an_untracked_goals_projection_is_forgotten_once_its_write_settles() {
     world.send(root::Event::Core(core::Event::ProjectionSettled { goal, connector: 2 }));
     assert_eq!(projection_rows(&world, goal), 0);
     assert_eq!(jig_core_world::fixtures::live_row(&world, goal).tracked, None, "the task stays live");
+}
+
+#[test]
+fn a_projection_of_a_waiting_kind_is_made_while_its_goal_has_a_pending_dependency() {
+    const SEED: u64 = 890;
+    let (mut configuration, limits) = fixture(SEED, false);
+    let policy = &mut configuration.core.seed_projects[0].policy.policy;
+    policy.projections.clone_from(&policy.ceiling.grants);
+    let effect = World::effect();
+    let declared = configuration.first.kinds.iter_mut().find(|kind| kind.kind == effect.kind).expect("projection kind");
+    declared.waits_for_dependencies = true;
+    let mut world = World::new(Setup { seed: SEED, configuration: Some(configuration), limits, ..Setup::default() });
+    let dependency = world.task();
+    let goal = tracked_goal(&mut world);
+    crate::read_support::request(
+        &mut world,
+        92,
+        people::Ask::Amend {
+            project: 1,
+            task: goal,
+            revision: 0,
+            release: None,
+            amendment: people::Amendment {
+                dependencies: Some(Box::new([dependency])),
+                ..jig_test_profile::fixtures::person_unchanged(b"wait for prerequisite")
+            },
+        },
+    );
+    assert_eq!(jig_core_world::fixtures::live_row(&world, goal).waiting_on.as_ref(), &[dependency]);
+    world.send(root::Event::ProjectionEffect { goal, number: 1, effect });
+    assert_eq!(world.systems[0].observed().iter().filter(|effect| effect.applied).count(), 1);
 }
 
 fn tracked_goal(world: &mut World) -> u64 {

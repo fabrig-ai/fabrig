@@ -5,6 +5,7 @@
 use super::admission_support;
 use jig_core_world::fixtures::run;
 use jig_core_world::world::World;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::{self as core, reads};
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -29,7 +30,8 @@ fn queued_read_answers_keep_their_arrival_order_under_load() {
     let mut driver = admission_support::chat(9302);
     let (task, attempt) = run(&driver);
     driver.offer(turn(task, attempt));
-    driver.drain();
+    driver.collect();
+    assert!(!driver.store.pending.is_empty(), "the retained turn's commit has not been answered");
     let second = read_turn(&mut driver, READ_B);
     let first = read_turn(&mut driver, READ_A);
     driver.fill_to_watermark();
@@ -150,10 +152,17 @@ fn read_turn(driver: &mut World, reply: Token) -> root::Event {
         sign_in: driver.session(),
         read: reads::Read::Turn { task, attempt, turn: TURN },
     }));
+    driver.collect();
+    if !driver.store.pending.is_empty() {
+        assert!(
+            !driver.events.iter().any(|event| matches!(event, root::Event::Store(_))),
+            "the load cannot reach the store before the turn's commit is answered"
+        );
+    }
     for _ in 0..STEPS {
         driver.collect();
         if let Some(index) =
-            driver.events.iter().position(|event| matches!(event, root::Event::Core(core::Event::ReadLoaded { .. })))
+            driver.events.iter().position(|event| matches!(event, root::Event::Store(engine_store::In::Loaded { .. })))
         {
             return driver.events.remove(index).expect("actual store terminal");
         }

@@ -1,5 +1,6 @@
 //! First-start project funding after deployment settings change
 //! (jig/docs/design/domain/engine/settings.md, 2; jig/docs/design/domain/people/acts.md, 2).
+use crate::tests::new_core;
 use crate::{settings as s, tests::*};
 
 fn first_start() -> (Core, Limits) {
@@ -8,7 +9,7 @@ fn first_start() -> (Core, Limits) {
     configured.seed_projects[0].policy.permissions = Box::new([]);
     configured.defaults.policies = Map::with_capacity(1);
     configured.defaults.policies.insert(1, configured.seed_projects[0].policy.clone()).unwrap();
-    let mut core = Core::new(configured, &limits).unwrap();
+    let mut core = new_core(configured, &limits).unwrap();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     s::check(&core.current, &core.settings, &core.connectors, &limits).unwrap();
     core.people.start_restore(env.wall);

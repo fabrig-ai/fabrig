@@ -1,5 +1,6 @@
 //! Root forge stories with its durable store and the independent fake Forgejo.
 use jig_domain_authority as authority;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_host as host;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -390,18 +391,32 @@ impl World {
                 engine::Request::Store(engine::StoreRequest::Commit { number, writes }) => {
                     self.store.pending.push_back((number, writes));
                 }
-                engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
-                    let result = self.store.read(range);
-                    self.events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                    load,
+                    range:
+                        range @ (engine_store::Range::Read(_)
+                        | engine_store::Range::Record(_)
+                        | engine_store::Range::Proposal { .. }
+                        | engine_store::Range::Notes(_)),
+                })) => {
+                    let result = self.store.load(range);
+                    self.events.push_back(engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded {
+                        load,
+                        result,
+                    })));
                 }
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                    load,
+                    range: engine_store::Range::Window { task, from },
+                })) => self.events.extend(
+                    self.store
+                        .window(load, task, from)
+                        .into_iter()
+                        .map(|answer| engine::Event::Store(engine::StoreInput::Engine(answer))),
+                ),
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
-                    self.events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
-                        owner,
-                        rows,
-                        next,
-                        texts: None,
-                    }));
+                    self.events.push_back(engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next }));
                 }
                 engine::Request::Forge { call, repository, op } => {
                     let located = translate::locate_name(&op);

@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
-    self as tasks, Active, Ending, Event, Executor, Hold, HoldKind, Holding, KeptStart, Kind, MessageKind, Name, Party,
-    Phase, ProcedureDecision, ProcedureEnd, Refusal, Release, Taken, TaskResult,
+    self as tasks, Active, Ending, Event, Executor, Hold, HoldKind, Holding, KeptStart, MessageKind, Name, Party,
+    Phase, ProcedureDecision, ProcedureEnd, Refusal, Release, ResourceKind, Taken, TaskResult,
 };
 use jig_tasks_world::{LIMITS, PERSON, PERSON_PARTY as REQUESTER, Reply, World, done, response, step, task};
 
@@ -115,7 +115,7 @@ fn a_kept_start_with_no_pending_dependency_can_end_done() {
 
 fn waiting_for_holds() -> World {
     let mut world = configured();
-    world.configure_holds(1, vec![Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
+    world.configure_holds(1, vec![ResourceKind { kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
     let holding = Holding::Write { resource: Name { connector: 1, path: Box::new([Box::new([1])]) }, kind: 1 };
     let mut holder = task(HOLDER, &[]);
     holder.holdings = Box::new([holding.clone()]);

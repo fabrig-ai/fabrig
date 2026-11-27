@@ -1,4 +1,5 @@
 //! Project numbers fit the public u32 space without spending a refused number (domain/model.md, 6.1).
+use crate::tests::new_core;
 use crate::tests::*;
 const POLICY: u32 = 1;
 const MAKER: u64 = 1;
@@ -26,7 +27,7 @@ fn project_core() -> (Core, Limits) {
             },
         )
         .expect("one configured policy");
-    let mut core = Core::new(config, &limits).expect("project fixture");
+    let mut core = new_core(config, &limits).expect("project fixture");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     finish_start(&mut core, &env);
     (core, limits)

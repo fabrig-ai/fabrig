@@ -10,6 +10,7 @@ use super::{
     history_logs::append_operations,
 };
 use crate::{Event, Get, OwnerSets, Request, Restore, Row, Store, codec, keys, logs};
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{self as core, Record, RestoreRange};
 use jig_domain_tasks as tasks;
 use skein_codec::{
@@ -282,7 +283,9 @@ fn read_back(disk: &mut Disk, store: &mut Store, calls: &[Record], activities: &
         let mut found = Vec::new();
         for _ in 0_u32..32 {
             let events = disk.request(store, Request::Read { owner: OWNER, range: range.clone() });
-            let [Event::Read { result: core::reads::Loaded::Page { rows, next }, .. }] = events.as_ref() else {
+            let [Event::Read { result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }), .. }] =
+                events.as_ref()
+            else {
                 panic!("own rows: {events:?}")
             };
             found.extend(rows.iter().map(|row| row.value.clone()));
