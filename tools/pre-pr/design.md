@@ -725,17 +725,85 @@ hold by its death (`tools/tiers/design.md`, 3).
 ### 4.1 The checked close
 
 Run the focused packages' selected targets in one `tools/tiers/one-process
---out DIR --fail-fast default --offline --locked --no-tests=warn -p … -E …`,
+--out DIR default --offline --locked --no-tests=warn -p … -E …`,
 each package's targets named in the filterset, so that the selection builds
 in parallel and its binaries run side by side; a run per group of identical
 target flags paid a build, a listing and a serial pass each. Each DIR is fresh under Cargo's target
 directory. Helper builds and `cargo check` keep their commands. The final
 128 bytes preserve the compiler diagnostic or the first failed or crashed
 case and its panic site and message from `results.json` where available.
-Then the same selection's fuzzy tests run in a second run, `… --fail-fast fuzzy …`,
+Then the same selection's fuzzy tests run in a second run, `… fuzzy …`,
 with the same filterset (each profile's `default()` is its own filter), and
 each profile's layers are judged against main's published counts for that
 profile and its `gate.<profile>` table.
+
+**Every failure at once.** A close names every failure its selection
+holds, so that one repair can take them all; nothing it finds stops what
+comes after it:
+
+- **Both runs whole.** Neither run passes `--fail-fast`: each runs its
+  whole selection, a failing test's alone run included
+  (`tools/tiers/design.md`, 11.6), and the fuzzy run follows the
+  focused one whatever that ended in: passed, failed, broke or built in
+  part.
+- **No check before them stops them.** A format refusal, an old-forms
+  count, a helper build or `cargo check` that fails leaves the checks and
+  runs after it to go on. A helper binary that fails to build
+  (`tools/tiers/packages.toml`'s `[test-binaries]`) leaves out of both runs
+  the packages whose tests run it.
+- **A build failure leaves out only what can't build.** A listing that
+  fails to build (section 4, check 4, exit 2) goes on without what failed:
+  the workspace packages its output's `error: could not compile `NAME``
+  lines name, with each package of the run's selection that depends on
+  one of them, directly or through others, are left out, and the run is
+  made again over the rest in a fresh DIR, until a listing builds, nothing
+  is left, or a listing names no package not already left out, which ends
+  the profile's run. Cargo ends a failing build once its running jobs
+  end, so each listing may find one more; what built is cached, so a
+  listing made again builds only what it did not. The profile has one
+  failure, `build` (`build fuzzy` for the fuzzy run), its log each failed
+  listing's output in turn, then the line `left out, unbuilt: A, B`, the
+  packages left out, its diagnostic the first listing's. The fuzzy run
+  selects the packages the focused run's last listing built and goes on
+  the same way. A selection with nothing left skips its run, as an empty
+  tests' set does.
+- **Budgets on a whole pass only.** The budgets are judged once every
+  step has passed and nothing was left out, as before: a failing or
+  partial run's counts measure no goal.
+- **The record's order.** The close's record (`goal-close-pre-pr 1`,
+  the failures file's form for a close, section 6) lists every failure in
+  the order the checks found it: the checks before the runs, then the
+  focused run's, then the fuzzy run's. The typed refusal names the new
+  ones in that order, those that fit and a count of the rest (below), and
+  so do the close change's hold words within their bytes
+  (`temper/docs/design/domain/forge/change/repairs-releases.md`, 1).
+- **Delivery and CI keep theirs.** Only close mode changes: a delivery's
+  and the full diagnostic's runs, and the passed-tree cache, which a close
+  never reads (section 7), are as sections 4 to 7 say.
+
+*Its deadline.* The close job's ten minutes
+(`temper/docs/design/domain/worker/jobs.md`) hold. A passing close already
+runs both runs whole, since no failure stops it, so a refused close
+running whole takes what a pass of the same tree takes, plus one alone
+run for each failing test and, after a build failure, the listings made
+again, which build only what did not: wherever a pass of the goal fits
+the deadline, its refusal does too. On goal 13656's head a whole close
+took 71 s, its fuzzy run 19 s of them (2026-11-23). Turned down: a wall of
+the close's own before the deadline, which would make a run past it a
+starved pass, a warning, where the job's deadline makes it a check that
+broke and is tried again.
+
+*Why* (the user, 2026-11-27, an experiment): a close that stopped at its
+first failure named only the failures that had started before it, so a
+goal was repaired one red at a time and checked again each time. Of the
+lean goals that ended from 2026-11-24 19:00Z, 19 took ten or more final
+checks, one 104, and goal 17897 needed nine repairs after its seven
+planned changes; closing was 26% of all goal time, 34% since the release.
+It is read after landing, on the reference deployment, by the same
+figures for the goals that end after it: the close checks per goal, the
+repairs after the planned changes, and closing's minutes and share of
+goal time. One-process keeps `--fail-fast`, which the close no longer
+passes, so the experiment can be undone by one flag.
 
 Close reads main's published counts first, before any build or test, as
 its base does (section 1): `refs/temper/counts` in the goal's checkout,
