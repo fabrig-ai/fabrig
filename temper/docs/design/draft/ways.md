@@ -93,11 +93,12 @@ From a read-only survey of main at `de275134b0`, 2026-11-26:
 | `pair` | a chat whose one agent works in its own copy of the repository, with its requester there; "Land this" opens its change | `pair` | the landing branch |
 | `change` | one change, from its requester's words, written unattended | `implementer`, `reviewer` | the landing branch |
 | `goal` | a goal whose agent designs, then has changes made into the goal's own branch, which lands whole | `goal`, `implementer`, `reviewer` | each change into the goal's branch, then the branch into the landing branch |
-| `milestone` | a milestone of goals, each run as `goal` is | as `goal` | as `goal`, for each goal |
+| `milestone` | a milestone of goals, each run as `goal` is | as `goal` | as `goal`, for each goal; or, landing whole, each goal into the milestone's own branch, then the branch into the landing branch |
 
 - **A shape is code:** `pair` is the chat working in its own copy, designed in a draft of its own that hasn't landed yet. `change` is the forge's change (`../domain/forge/change/README.md`), `goal` is a goal on its own branch with its closer (`../domain/forge/branches.md`), and `milestone` is the gathering (`../domain/milestones.md`).
 - **`implementer` is kind 3's producer slot,** named for what the agent does.
 - **A person starts a `change` from words,** which `temper ctl` can't do today: a person reaches a change through a chat that delegates one, or by pushing a branch (`../domain/forge/change/opened.md`). A change opened from a pushed branch has no producer, and takes the `change` way's landing alone.
+- **A `milestone` table** says how its goals land (the user, 2026-11-27): `whole = false`, each goal into the landing branch on its own, as milestones land today (`../domain/milestones.md`), the default, which keeps drift from the base small; or `whole = true`, the milestone holding a branch of its own, as a goal holds one (`../domain/forge/branches.md`, section 1), each goal landing into it, and the branch landing whole into the landing branch once the milestone is whole and its goals have ended. Built late (`ways.execution.md`).
 - **A `goal` table** carries kind 11's two values, `design` and `close_out`, which describe the goal's path for the pages and Ask temper (`../protocol/configuration/settings-kinds.md`, section 1). The goal's charter directs the work, as it does today.
 - **What isn't a way's:** a start that changes no repository is no way's and keeps its template: a chat with no copy of its own, Ask temper, a design session, a standing role. Whether every chat on a repository is a `pair` is the Pair draft's question.
 
@@ -112,8 +113,9 @@ A way's `landing` is a landing rule's own fields, without the pattern and path s
 - `approvals`: approvals the way adds beside `approval`, each as it is: two roles, or more people.
 - **`share`, built last** (`ways.execution.md`): how the work's changes share a landing, in a project that lands by turn (`../domain/landing.md`, section 1): `alone`, a turn of its own; or `with`, the ways whose changes may share a turn with its own, and `at_most`, how many; and `combine`, `merge` or `squash`. A turn takes the waiting changes whose ways allow one another, in queue order. Queue against turn stays the project's, since who merges and how CI is triggered are the repository's; a project landing by queue lands every change alone.
 - **Added, never removed:** `reviews` and `approvals` only add to what the floor asks (5.4). `share` changes how a landing is formed, never what it is judged by.
+- **`catch_up`, built late:** when a goal's or a milestone's own branch takes its landing branch's tip. `when-needed`, the default, is today's: a coordinator asks for a catch-up for a change that needs what the base gained (`../domain/forge/updates.md`, section 1). `after-each-landing`: temper makes one itself after each landing into the branch, a change into it, so that the branch stays near its base, as a milestone landing whole wants after each of its goals. Either takes the merge hook ([hooks.md](hooks.md)), and a conflict goes to a resolution, as a catch-up's does today.
 
-A shape with two branches gives two tables: `landing`, into the repository's landing branch, and `landing.goal`, a change into a goal's own branch. A member `landing.goal` leaves out takes the layer below's `landing.goal`, never the way's own `landing`.
+A shape with two branches gives two tables: `landing`, into the repository's landing branch, and `landing.goal`, a change into a goal's own branch. A milestone landing whole gives a third, `landing.milestone`, a goal's branch into the milestone's. A member a table leaves out takes the layer below's same table, never another table of the way.
 
 ### 3.4 The stock three
 
@@ -121,7 +123,7 @@ A shape with two branches gives two tables: `landing`, into the repository's lan
 |---|---|---|---|---|
 | `pair`, Pair | `pair` | "You and one agent, in its own copy" | `review = false`, `approval = none`: its requester is there and says "Land this" | You approve's table: everything asks |
 | `hand-it-over`, Hand it over | `change` | "An agent writes it, another reviews it, and code lands it" | `review = true`, `approval = none` | Agents review's table |
-| `milestone`, Milestone | `milestone` | "Design first, then agents build it on its own branch, and it lands whole" | Draft first's: `landing` with `ci` and `up_to_date`, no review and no approval; `landing.goal` with neither `ci` nor `up_to_date` | Draft first's table |
+| `milestone`, Milestone | `milestone` | "Design first; each goal is built on its own branch, and lands when it's done" | Draft first's: `landing` with `ci` and `up_to_date`, no review and no approval; `landing.goal` with neither `ci` nor `up_to_date` | Draft first's table |
 
 - **You approve becomes a value,** `approval` with one owner, which any layer sets (section 5), rather than a way of its own. Agents review becomes Hand it over, and Draft first becomes Milestone, with the same landing.
 - **A goal alone is a milestone of one,** started the same way. A project wanting a `goal` way of its own writes one (8.2).
@@ -145,6 +147,7 @@ A shape with two branches gives two tables: `landing`, into the repository's lan
   | `night-batch` | many small goals on a cheaper model, at low priority, landing in turns of four | `models`, `priority`, `share`, landing by turn |
   | `careful-newcomer` | every decision waits for its requester, away or not | `reaches` |
   | `standing-triage` | a standing triager starts hand-it-over work, and milestones only through a person | standing roles' grants |
+  | `one-landing-milestone` | a milestone on a branch of its own, each goal landing into it and the branch caught up with main after each, the whole landing at once | `[milestone] whole`, `catch_up` |
 
 - **Each entry is tested:** its files as a fixture, a world test running work through it in the focused and fuzzy suites, and its stops checked against temper's derivation of a way's path (`../domain/forge/change/branch-path.md`), so that the drawing shown is the derivation's, never drawn by hand.
 - **Shown on the web,** on How work runs and at a project's creation, with the note that every variation of an entry is possible, and how.
@@ -195,6 +198,8 @@ A shape with two branches gives two tables: `landing`, into the repository's lan
 | priority, deadline | the template's and the policy's bounds | the template's | `priority`, `deadline` | a start's `--priority`, `--deadline` |
 | added reviews and approvals | the floor's own, which nothing removes | work defaults | `landing.reviews`, `landing.approvals` | — |
 | sharing a landing | the project's `by` and `batch` | the project's `combine` | `landing.share` | — |
+| a milestone landing whole | — | — | `[milestone] whole` | — |
+| keeping a branch near its base | — | — | `catch_up` | a coordinator's catch-up |
 | budget | the policy's ceilings | the template's budget | `budget` | a start's `--budget` |
 
 Each row already has its default and, mostly, its per-work choice. A way adds the middle layer, and the work gains the landing rows.
@@ -315,8 +320,8 @@ Each row already has its default and, mostly, its per-work choice. A way adds th
 ```toml
 # .temper/ways/milestone.toml: the project's Milestone, as picked from the gallery and changed
 format = 1
-headline = "Design first, then agents build it on its own branch, and it lands whole"
-line = "You and an agent write a design; agents build it on its own branch; it lands whole."
+headline = "Design first; each goal is built on its own branch, and lands when it's done"
+line = "You and an agent write a design; agents build each goal on its own branch, and each lands when it's done."
 shape = "milestone"
 reaches = "draft-first"
 budget = 1000
