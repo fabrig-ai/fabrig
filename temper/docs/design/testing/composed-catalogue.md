@@ -44,6 +44,7 @@ Focused and fuzzy suites only, and nothing at the gate's cost: the gate's sweep 
 - **Its draw** (`temper-system-world`'s step tests, with no world): over a range of seeds and at `u64::MAX`, the kind plans on its coin, on a goal eligible for it, or is recorded ineligible; it leaves every other kind's plans as they were; seed 6's gate draw is unchanged.
 - **The gate's sweep** passes, unchanged, at seed 6.
 - **A case that plans it,** replayed by name with `SKEIN_TEST_FUZZY_CASE` set to a seed whose draw plans it on an eligible goal (sweeps.md, 4.3): its reach line counts the kind in one case, and the case's checks hold. The change names the seed and the lines; no campaign runs it.
+- **No focused composed case** pins a catalogue kind, which would put its cost at the gate. The gate reaches a catalogue kind in the cheapest world that injects it, where one does: the forge world's refusing sweep configures `CLOSE_REFUSED` among `REFUSING` (`workloads.md`, 8.1). And a fault the composed world finds is pinned in the lowest tier that shows it, never in the composed world (`skein/docs/foundation/testing-strategy.md`, 8 and 9): the capability refresh's, by `open::exclude`'s `a_failed_capability_refresh_reads_again` (`engine-checks.md`, 5.2). So `CLOSE_REFUSED` falls in the composed world in a campaign's cases alone (`temper/docs/design/draft/fuzzy-campaigns.md`, 6).
 
 ## 4. Later
 
