@@ -422,8 +422,7 @@ pub struct Session {
     accepted_content: Vec<Box<[Block]>>,
     /// Provider stop determines whether calls executed or remained a yielded tail.
     accepted_stop: Vec<agent::llm::Stop>,
-    /// Provider closing witnesses, kept independently of tool timeout race bookkeeping.
-    provider_closing: ProviderClosing,
+    closing_evidence: ClosingEvidence,
     /// Late Closing winners settle every call as `NotRun` for any provider stop.
     accepted_late: Vec<bool>,
     /// Delegated terminal values, indexed by their immutable origin.
@@ -440,6 +439,7 @@ pub struct Session {
     pub job_calls: Vec<JobCall>,
     authority: Authority,
     removed_paths: BTreeSet<Vec<u8>>,
+    written: BTreeMap<Box<[u8]>, StoreWitness>,
     accepted_path_calls: Vec<Vec<PathCall>>,
     /// Classified workspace references, in the order of their recorded turns.
     pub path_calls: Vec<PathCall>,
@@ -474,12 +474,13 @@ struct Received {
     path_calls: Vec<PathCall>,
 }
 
-/// Provider lifecycle evidence; ordinary IO/withdraw race bookkeeping
-/// cannot turn a yielded provider completion into a late Closing winner.
+/// Closing witnesses, independent of IO and withdrawal race bookkeeping.
 #[derive(Default, Debug)]
-struct ProviderClosing {
+struct ClosingEvidence {
     close_seen: bool,
     cancel_seen: bool,
+    /// The tool kit is settling a close, even if the opener has not heard End yet.
+    kit_closing: bool,
 }
 
 /// How a session ended.
@@ -561,6 +562,19 @@ struct Running {
     accepts: bool,
 }
 
+/// The tools' first operation follows its start observation.
+struct StartedTool {
+    tool: tools::Tool,
+    write_id: Option<Box<[u8]>>,
+}
+
+/// The checkout's state at a successful write, kept for later prompts and turns.
+#[derive(Debug)]
+struct StoreWitness {
+    at: tools::Place,
+    created: bool,
+}
+
 /// An operation of the tools in flight, as io keeps it.
 struct Pending {
     /// Its end's delivery, moved up when a cancel wins the race.
@@ -569,6 +583,7 @@ struct Pending {
     session: Token,
     /// A store or a command, which only a call that writes asks for.
     writes: bool,
+    write_id: Option<Box<[u8]>>,
     work: Work,
 }
 
@@ -632,7 +647,7 @@ pub struct World {
     /// The tools of the calls each session's tools started, as they told,
     /// until their first operation; and whether the call of each operation's
     /// token writes (an edit loads before it stores).
-    starting: BTreeMap<Token, VecDeque<tools::Tool>>,
+    starting: BTreeMap<Token, VecDeque<StartedTool>>,
     writing: BTreeMap<Token, bool>,
     /// How many messages of each session's transcript have had their results
     /// counted.
@@ -890,14 +905,14 @@ impl World {
             if let agent::Event::Close { session } = &event
                 && let Some(opener) = self.openers.get(session)
             {
-                self.sessions.get_mut(opener).expect("the addressed live opener").provider_closing.close_seen = true;
+                self.sessions.get_mut(opener).expect("the addressed live opener").closing_evidence.close_seen = true;
             }
             if let agent::Event::Completed { owner, completion } = &event {
                 let opener = self.openers[owner];
                 let job_calls = self.drawn_jobs(opener, &completion.content);
                 let path_calls = self.drawn_paths(opener, &completion.content);
                 let session = self.sessions.get_mut(&opener).expect("a provider terminal names its opener");
-                let late = session.provider_closing.close_seen || session.provider_closing.cancel_seen;
+                let late = session.closing_evidence.close_seen || session.closing_evidence.cancel_seen;
                 session.received = Some(Received {
                     content: completion.content.clone(),
                     stop: completion.stop,
@@ -1038,7 +1053,7 @@ impl World {
                 self.sessions
                     .get_mut(&opener)
                     .expect("provider cancellation names a live session")
-                    .provider_closing
+                    .closing_evidence
                     .cancel_seen = true;
                 self.closing.insert(owner);
                 // A call that has already ended has its terminal event on the
@@ -1245,7 +1260,7 @@ impl World {
                         }
                         Decoded::Owned { call } => match result {
                             Returned::Owned { outcome } => {
-                                assert!(fixture::fits(call, outcome), "result belongs to its call");
+                                session.check_result(id, call, outcome);
                                 jobs::observe_answer(&mut session.highest_job, &mut session.job_ends, outcome);
                             }
                             // The shape referee checked any tools-entrance refusal against this call.
@@ -1428,7 +1443,7 @@ impl World {
             Some(&agent::llm::Stop::ToolUse),
             "yielded and late Closing call tails never start owned IO effects"
         );
-        let writes = self.writes(owner, session, &op);
+        let (writes, write_id) = self.writes(owner, session, &op);
         self.batched(session, writes);
         let mut ends = self.now.saturating_add(self.draw(self.settings.tool));
         let mut work = if self.rng.chance(self.settings.tool_errors) {
@@ -1476,7 +1491,7 @@ impl World {
             self.stats.op_timeouts += 1;
         }
         let delivery = self.schedule(ends, Delivery::Ran { owner });
-        self.ops.open(owner, Pending { delivery, session, writes, work });
+        self.ops.open(owner, Pending { delivery, session, writes, write_id, work });
         self.stats.ops += 1;
     }
 
@@ -1515,8 +1530,20 @@ impl World {
                     Op::Remove { at, .. } => Some(paths::name(self.checkout.root_path(at.root.raw()), &at.path)),
                     _ => None,
                 };
+                let store = match (&op, pending.write_id) {
+                    (Op::Store { at, .. }, Some(id)) => {
+                        let path = paths::name(self.checkout.root_path(at.root.raw()), &at.path);
+                        Some((id, StoreWitness { at: at.clone(), created: !self.checkout.exists(&path) }))
+                    }
+                    _ => None,
+                };
                 fixture::prepare_list(&mut self.checkout, &op);
                 let done = io::perform(&mut self.checkout, op);
+                if let (Done::Stored { .. }, Some((id, witness))) = (&done, store) {
+                    let opener = self.openers[&pending.session];
+                    let session = self.sessions.get_mut(&opener).expect("the operation names a session");
+                    assert!(session.written.insert(id, witness).is_none(), "each write stores once");
+                }
                 if let (Done::Removed, Some(path)) = (&done, removed) {
                     let opener = self.openers[&pending.session];
                     self.sessions.get_mut(&opener).expect("the operation names a session").removed_paths.insert(path);
@@ -1557,7 +1584,7 @@ impl World {
                     (answered == id).then_some(outcome)
                 });
                 if let Some(outcome) = result {
-                    assert!(fixture::fits(call, outcome), "{outcome:?} is not what comes of {call:?}");
+                    self.sessions[&self.openers[&owner]].check_result(id, call, outcome);
                 }
             }
         }
@@ -1585,23 +1612,24 @@ impl World {
     /// writes: as the tools told when it started, matched with its first
     /// operation, so that an edit writes as it loads. Once facts have been
     /// lost, the start may not have been told: the operation's own effect.
-    fn writes(&mut self, owner: Token, session: Token, op: &Op) -> bool {
+    fn writes(&mut self, owner: Token, session: Token, op: &Op) -> (bool, Option<Box<[u8]>>) {
         let stores = matches!(op, Op::Remove { .. } | Op::Store { .. } | Op::Spawn { .. });
         if let Some(&writes) = self.writing.get(&owner) {
             assert!(writes || !stores, "only a call that writes stores or runs a command");
-            return writes;
+            return (writes, None);
         }
-        let told = self.starting.get_mut(&session).and_then(VecDeque::pop_front);
-        let writes = match told {
-            Some(tool) => match tool {
-                tools::Tool::Remove | tools::Tool::Write | tools::Tool::Edit | tools::Tool::Shell => true,
-                tools::Tool::Read | tools::Tool::List | tools::Tool::Search | tools::Tool::Job => false,
-            },
-            None => panic!("a call's first operation follows its native start observation"),
+        let StartedTool { tool, write_id } = self
+            .starting
+            .get_mut(&session)
+            .and_then(VecDeque::pop_front)
+            .expect("a call's first operation follows its native start observation");
+        let writes = match tool {
+            tools::Tool::Remove | tools::Tool::Write | tools::Tool::Edit | tools::Tool::Shell => true,
+            tools::Tool::Read | tools::Tool::List | tools::Tool::Search | tools::Tool::Job => false,
         };
         assert!(writes || !stores, "only a call that writes stores or runs a command");
         self.writing.insert(owner, writes);
-        writes
+        (writes, write_id)
     }
 
     /// Something starts for `session`, an operation of its tools or a
@@ -1647,8 +1675,8 @@ impl World {
                     let session = self.sessions.get_mut(&opener).expect("the opener continues what it opened");
                     assert!(session.waiting, "the opener continues a session only while it is yielded");
                     session.waiting = false;
-                    if session.closed {
-                        // It closed the session while it was making up its mind.
+                    if session.closed || (session.closing_evidence.kit_closing && session.ended.is_none()) {
+                        // The opener or the time budget closed the session while it was thinking.
                         continue;
                     }
                     let name = session.session.expect("a yielded session has opened");
@@ -1801,7 +1829,7 @@ impl World {
             received: None,
             accepted_content: Vec::new(),
             accepted_stop: Vec::new(),
-            provider_closing: ProviderClosing::default(),
+            closing_evidence: ClosingEvidence::default(),
             accepted_late: Vec::new(),
             delegated_results: BTreeMap::new(),
             opening_sequence,
@@ -1812,6 +1840,7 @@ impl World {
             job_calls: Vec::new(),
             authority: spec.authority.clone(),
             removed_paths: BTreeSet::new(),
+            written: BTreeMap::new(),
             accepted_path_calls: Vec::new(),
             path_calls: Vec::new(),
             held_peak: 0,
@@ -1852,8 +1881,8 @@ impl World {
         [self.wire.next_time(), self.agent.next_deadline(), self.provider.next_deadline()].into_iter().flatten().min()
     }
 
-    fn tell(&mut self, fact: &agent::Fact) {
-        let fact = fact.kind.clone();
+    fn tell(&mut self, observation: &agent::Fact) {
+        let fact = observation.kind.clone();
         if let agent::FactKind::Tools { opener, fact } = fact {
             let (tools::FactKind::Opened { session }
             | tools::FactKind::Refused { session, .. }
@@ -1866,10 +1895,16 @@ impl World {
             if let Some(&known) = self.openers.get(&session) {
                 assert_eq!(known, opener.raw(), "a kit's fact names the opener of its session");
             }
+            if matches!(fact, tools::FactKind::Closing { .. }) {
+                self.sessions.get_mut(&opener.raw()).expect("the kit names a session").closing_evidence.kit_closing =
+                    true;
+            }
             if let tools::FactKind::Started { session, tool } = fact
                 && tool != tools::Tool::Job
             {
-                self.starting.entry(session).or_default().push_back(tool);
+                let write_id = (tool == tools::Tool::Write)
+                    .then(|| observation.call.as_ref().expect("a workspace write names a provider call").id.clone());
+                self.starting.entry(session).or_default().push_back(StartedTool { tool, write_id });
             }
         }
         let told = &mut self.told;
