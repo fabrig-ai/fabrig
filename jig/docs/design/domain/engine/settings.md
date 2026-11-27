@@ -113,13 +113,16 @@ section 17; the records are `../../protocol/store/keys.md`, 1.4.
   - *A newer build's default* may carry a name a stored own item has. The
     start offers that item with no name and warns of it, as of a kept
     item, so the name never refuses a start; an owner names it again.
-  - *Judged by the one check* below: a name out of its form is *shape*,
-    and one taken, by a default or by another item of its kind, is its
-    fault *name*, judged as *range* is, at a set, at a proposal's
-    entrance and at its decision, each judging what its items set and
-    nothing they leave alone. A client words *name* from the setting's
-    kind and number alone: "template 33's name is taken, by a stock
-    template or another of your own".
+  - *Judged by the one check* below: a name out of its form is *shape*;
+    one taken, by a default or by another item of its kind, and another
+    name than the default's at a default's number, are its fault *name*,
+    judged as *range* is, at a set, at a proposal's entrance and at its
+    decision, each judging what its items set and nothing they leave
+    alone, the change's later item refused where two of its items take
+    one name. A client words *name* from the setting's kind and number
+    alone, the number saying which: "template 2 keeps the stock's name",
+    or "template 33's name is taken, by a stock template or another of
+    your own".
   - *Where they travel:* the values of the three kinds carry their name,
     in the store and on the client's wire, a value stored at an earlier
     layout reading with none; the engine–worker wire carries none,
