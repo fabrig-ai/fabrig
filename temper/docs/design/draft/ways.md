@@ -14,7 +14,7 @@ The first pass covered the mechanics and the whole picture, so that each piece i
 - **Values in four layers** (section 5): the floor, the project's defaults, the way, and the piece of work. The floor is the landing rules, rules by path among them. It always holds, and no way or piece of work lowers it. Below the floor, the work's own value wins over its way's, and its way's over the project's default. One calculation gives a change's criteria wherever they are used.
 - **A charter's words come from six sources** (section 6): smith's harness, temper's method, the deployment's lines, the repository's `AGENTS.md`, the project's words from `.temper/charters/`, and the task's words. A run records which it read.
 - **Standing roles start work, as people do** (section 7). A kind is a named charter. An instance is a live task, with its person, area, budget and Now, kept in the store and never in `.temper/`. A role's grant says which ways it may start. Ways stop bringing standing roles.
-- **`.temper/`** (section 8): `ways.toml`, `ways/<name>.toml`, `charters/<name>.md` and `hooks/` ([hooks.md](hooks.md)). temper reads it whole from one commit of the home repository's landing branch, checks a change to it before it lands, and asks an owner to sign off on one. All or nothing: a repository with `ways.toml` runs its own ways alone, and one without runs the stock's. Each file names its format, and every format shipped keeps reading (8.8).
+- **`.temper/`** (section 8): `ways.toml`, `ways/<name>.toml`, `charters/<name>.md` and `hooks/` ([hooks.md](hooks.md)). temper reads it whole from one commit of the home repository's landing branch, checks a change to it before it lands, and, where a project's owners turn it on, asks one of them to sign off on it. All or nothing: a repository with `ways.toml` runs its own ways alone, and one without runs the stock's. Each file names its format, and every format shipped keeps reading (8.8).
 - **A gallery** (3.5): ways built into temper as references, each tested and drawn by temper's own path, shown on the web and known to Ask temper, which explains every primitive. A new project picks from it, or starts on the stock ways, and temper writes what it picked into `.temper/` by a change (8.7).
 - **Names** (section 9): every template, charter and policy gets a lowercase name. The number stays the store's key. A way's name is its file's. A name is also a path in `.temper/`.
 - **fabrig and dev.fabrig.ai move onto it** (section 10), and upgrades keep what each build already runs (section 11). A release's changes reach a project's own ways and words through Ask temper's review, never by rewriting them.
@@ -27,7 +27,7 @@ The first pass covered the mechanics and the whole picture, so that each piece i
 |---|---|---|---|
 | `temper.toml` | what a machine runs: its places, its figures, its endpoints (`config.md`, section 3) | whoever runs the machine | at a start |
 | settings, in the store | what grants and bounds: people and their roles, accounts, models, budgets and ceilings, the floor (section 5), the project's defaults, the deployment's charters and its lines for them | the deployment's or the project's owners, by a decision (`configuring.md`, section 3) | always |
-| `.temper/`, in a repository | how work is done on this code: its ways, its charters' words and its hooks | whoever lands on the repository's landing branch, under the floor and an owner's sign-off (8.6) | whole, from one commit of the landing branch (8.5) |
+| `.temper/`, in a repository | how work is done on this code: its ways, its charters' words and its hooks | whoever lands on the repository's landing branch, under the floor, and an owner's sign-off where the project turns it on (8.6) | whole, from one commit of the landing branch (8.5) |
 
 - **The rule:** whatever grants, bounds or spends is in settings, and whatever describes method is in the repository. A way in `.temper/` can ask for more review than the floor does, never for less.
 - **Why both, not one:** a repository's method travels with its code, is reviewed as code, and is the same on every deployment that serves it. Authority can't travel with the code, since whoever can land would then grant themselves more. A forge splits it the same way: workflow files live in the repository, and a branch's protection in the forge's settings.
@@ -173,7 +173,7 @@ A shape with two branches gives two tables: `landing`, into the repository's lan
 |---|---|---|---|
 | the floor | the enforcing landing rules, kinds 1 and 2, rules by path among them; the path sets and their classes (kind 8's `sets`); the fixed `Wait` kinds; the policy's ceilings | the deployment's and the project's owners | never |
 | the project's defaults | a value each way takes where it says none: the new kind *work defaults* for landing (5.3), and today's kinds for the rest (5.2) | the project's owners; the deployment's, for kind 3 | yes |
-| the way | its members (section 3) | the stock, or a landing on the home repository with an owner's sign-off (8.6) | yes |
+| the way | its members (section 3) | the stock, or a landing on the home repository (8.6) | yes |
 | the work | its own values, set at its start or by amendment | its requester, within its grant (section 7) | — |
 
 - **Below the floor, the most specific wins,** member by member: the work's own value, else its way's, else the project's default. Over the floor, nothing wins: it is judged as well, every time.
@@ -228,7 +228,7 @@ Each row already has its default and, mostly, its per-work choice. A way adds th
 | temper's method | how temper's agents work, in that charter | the stock charter's files (`stock-charters.md`, section 2), or the deployment's charter where it sets one whole | a release, or the deployment's owners |
 | the deployment's lines | what its machines are, and its own rules | a deployment overlay of the charter (jig's `domain/engine/overlays.md`) | the deployment's owners |
 | the repository's guide | how this code is written, for every agent and person | `AGENTS.md` at the root of each workspace directory, as smith finds it; others as it says (smith's `domain/run-start.md`, 1.3) | the repository |
-| the project's words | what this project wants of that charter's agents alone | `.temper/charters/<name>.md` of the home repository (6.2) | the home repository, with an owner's sign-off |
+| the project's words | what this project wants of that charter's agents alone | `.temper/charters/<name>.md` of the home repository (6.2) | the home repository (8.6) |
 | the task | its words, its brief and its messages | the task (`../domain/agent/charter.md`, section 1) | its requester, and the run |
 
 - **Sources, not an order:** smith lays out the prompt in its own order, instructions and brief before workspace guides (smith's `domain/run-start.md`). The table says where each word comes from.
@@ -276,7 +276,7 @@ Each row already has its default and, mostly, its per-work choice. A way adds th
 ### 7.3 Its grant
 
 - **What it holds:** the ways it may start, by name; the shapes among them; which of a work's values it may set and in which direction; and its spend, as today. It is kept with its task's authority (`../domain/agent/standing.md`, section 5). Whoever starts the role grants within their own. Today nothing lists what a role may start.
-- **Checked at every start,** delegation and amendment the role makes, against the way as it resolves then. A way's file changes only with an owner's sign-off (8.6), so the owner who signs one off signs what every grant naming it allows from then on.
+- **Checked at every start,** delegation and amendment the role makes, against the way as it resolves then. A way's file changes only by a landing on the home repository (8.6), so whatever lets a change land there decides what every grant naming the way allows from then on. A project that wants an owner to see each such change turns the sign-off on.
 - **Until a role has a grant** (`ways.execution.md`), it starts work in its shape's default way and sets no value.
 - **A value outside its grant** isn't set: the role asks its person, as for a decision outside its rules.
 
@@ -357,15 +357,15 @@ up_to_date = false
 ### 8.6 Guarded
 
 - **Checked before it lands:** a change touching `.temper/` waits for a check of temper's own, by code, of the tree that will land: the change's head merged onto the landing branch's tip, and again at a turn's candidate. The files must parse; names must be valid and unique (section 9); every way named must exist and be offered; shapes must be known; charters must fit their bounds; no `replaces` may sit on a judging charter; a hook may be a symbolic link only to another hook beside it ([hooks.md](hooks.md), 3.1); every file must name a format the build reads (8.8); and no `ways/`, `ways.toml` or `charters/` may sit outside the home repository. A failure refuses with the file and its line, as a gate's verdict does.
-- **Signed off:** a change touching `.temper/` also waits for one owner's approval on the forge, a sign-off of temper's own beside the floor's rules, taking none of a project's rule or path set slots. Ways can ask for less review, charters shape what agents do, and hooks run code on workers. So a change to them waits for a person, whatever its way.
-- **Where no owner can sign,** a playground's forge or a project with no owner on its forge: the sign-off is off, and the project's record says so. The project's owners can turn it off themselves, as a setting (section 13).
+- **Signed off, where the owners turn it on** (off by default, the user, 2026-11-27): a change touching `.temper/` then also waits for one owner's approval on the forge, a sign-off of temper's own beside the floor's rules, taking none of a project's rule or path set slots. It is a project setting, refused where no owner can sign, a playground's forge or a project with no owner on its forge.
+- **Off, the floor alone guards `.temper/`:** ways can ask for less review than the project's defaults, charters shape what agents do, and hooks run code on workers, so a change an agent writes can edit them and land under the project's rules alone. A rule by path naming `.temper/` is how owners ask for a person meanwhile.
 - **The floor stays in settings,** where landing can't reach it.
 
 ### 8.7 A new project's ways
 
 - **At its creation, or its adoption,** a project whose home repository has no `ways.toml` is shown the gallery, each entry drawn, and the stock ways it would run meanwhile.
 - **It may start on the stock ways,** writing nothing: they don't ask a person to buy in yet. Or it picks one or more entries, or writes a way from scratch, and may then change them before going on.
-- **temper writes them by a change** into the home repository, "Add .temper/ with your ways": `ways.toml` and the files it names. It lands by the project's own rules, an owner's sign-off among them (8.6), so that the first thing temper does in a repository is a change a person can read. Until it lands, the stock ways run.
+- **temper writes them by a change** into the home repository, "Add .temper/ with your ways": `ways.toml` and the files it names. It lands by the project's own rules (8.6), so that the first thing temper does in a repository is a change a person can read. Until it lands, the stock ways run.
 - **A starter is offered,** Hand it over preselected, so that the step is one click, with the advice to start small and grow, the whole gallery in sight.
 
 ### 8.8 Versioned files
@@ -432,19 +432,19 @@ What this pass leaves to the pages, the terminal and the words:
 
 ## 13. Open questions
 
-- **Lowering a way's value for one piece of work:** its requester may set any value the floor leaves free, the default, since the floor is what owners protect; or a piece of work may only tighten its way, and lowering needs an owner.
-- **The sign-off on `.temper/`:** on by default where an owner can sign, the default; or offered, since a person working alone signs their own change.
-- **A milestone across repositories:** its way from the home repository, the default, and each goal's hooks and guide its own repository's.
-- **A deployment's own ways,** in settings: none, the default, since a deployment's lines are overlays and its authority the floor; or entries of a deployment's own in the gallery.
-- **The stock ways a repository without `ways.toml` runs:** Hand it over and Milestone, and Pair once it lands, the default; or Hand it over alone, the smallest start.
-- **A hotfix and a turn in progress:** a turn holds main while its proof runs. A change whose way puts it first waits for that turn, the default; or it may cancel the turn, at the cost of the turn's CI.
+- **Lowering a way's value for one piece of work:** its requester may set any value the floor leaves free, lower than its way's included, as no approval for one milestone whose way asks for one, the default, since the floor is what owners protect; or a piece of work may only tighten its way, as an approval for one milestone whose way asks for none, and lowering needs an owner.
+
+**Settled by the user, 2026-11-27:** the sign-off on `.temper/` is off by default (8.6); the stock ways a repository without `ways.toml` runs are Pair, once its draft lands, Hand it over and Milestone (3.4); a deployment's own ways, a milestone across repositories and a hotfix cancelling a turn wait (section 14). A change first in line waits for a turn in progress.
 
 ## 14. Later
 
 - **Sharing ways across projects** (the user, 2026-11-27): copying the files over, at first.
+- **A milestone across repositories** (the user, 2026-11-27): its way from the home repository, and each goal's hooks and guide its own repository's, as a first thought.
+- **A deployment's own ways,** offered beside the stock ones without a repository's `.temper/` (the user, 2026-11-27: not for now).
+- **A hotfix cancelling a turn in progress,** at the cost of the turn's CI (the user, 2026-11-27: not for now).
 - **Comparing and reconciling** a project's files with the gallery's, beyond Ask temper's review after an upgrade (section 11).
 - **Who hears and when, per way:** who holds a work's escalations, its progress cadence and its push, until `what-reaches-you.md` settles them.
 - **Moving between ways mid-work** (the user, 2026-11-26): Pair's "hand it over" starting a Hand it over, and an implementer proposing a milestone for a change too big.
 - **Standing roles in `.temper/`** (the user, 2026-11-26): a kind's words in `charters/`, and saying that one instance is of a kind, with many of a kind coming and going.
 - **A standing role pairing on its person's behalf** (7.1).
-- **The forge's own protection** for a rule by path, and for `.temper/`'s sign-off, stays `what-reaches-you.md`, section 7's open question.
+- **The forge's own protection** for a rule by path, and for `.temper/`'s sign-off where it is on, stays `what-reaches-you.md`, section 7's open question.
