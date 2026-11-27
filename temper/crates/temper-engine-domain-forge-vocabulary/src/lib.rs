@@ -29,6 +29,7 @@ pub mod brief_words;
 pub mod change_words;
 pub mod checks;
 pub mod closer;
+pub mod closer_words;
 pub mod commit;
 pub mod devices;
 pub mod dismissed;

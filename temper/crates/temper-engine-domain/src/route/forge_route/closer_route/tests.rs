@@ -58,7 +58,7 @@ fn an_unavailable_catch_up_explains_what_it_lacks() {
         (forge::Hooks::Directory { merge: false, close: true }, true, &merge, "`.temper/hooks/` names no `merge`"),
     ] {
         let lack = catch_up::lack(hooks, job, kinds).expect("catch-up is unavailable");
-        let words = catch_up::outdated_words(OUTDATED_CLOSE, AT, CloseOutdated::Ancestry, Err(lack));
+        let words = forge::closer_words::outdated(OUTDATED_CLOSE, AT, CloseOutdated::Ancestry, Err(lack));
         let expected = skein_lib::bytes::concat(&[
             b"the close step's change T20 found the goal's branch at 121212121212 outdated: its ancestry was incomplete; the closer can't catch it up from main: ",
             expected.as_bytes(),

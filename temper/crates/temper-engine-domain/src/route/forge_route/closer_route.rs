@@ -1,6 +1,7 @@
 //! A goal's mechanical close, landing and report (temper/docs/design/domain/forge/branches.md, 2).
 //! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use super::{Box, Decision, Domain, Env, Limits, List, ProcedureStep, StepEnd, Work, append, forge, tasks};
+use forge::closer_words::{append_ending, branch_reason};
 use jig_domain_core::StepCancel;
 use temper_engine_domain_forge_closer as c;
 mod catch_up;
@@ -601,30 +602,6 @@ fn ended_count(domain: &Domain, row: &forge::CloserRow, kind: c::Step) -> u32 {
     count
 }
 
-fn branch_reason(held: Option<super::forge_change::Cause>) -> Option<&'static [u8]> {
-    use super::forge_change::Cause;
-    match held {
-        Some(Cause::Repairs) => Some(b"repairs"),
-        Some(Cause::Runner) => Some(b"its CI runner's re-runs"),
-        Some(Cause::Resolutions) => Some(b"conflict resolutions"),
-        Some(Cause::Rejected) => Some(b"a rejection"),
-        Some(Cause::PullClosed) => Some(b"its pull request closed"),
-        Some(Cause::BranchMissing) => Some(b"its branch missing"),
-        Some(
-            Cause::Stalled
-            | Cause::Updates
-            | Cause::BranchMoved
-            | Cause::Retargeted
-            | Cause::Failed
-            | Cause::RedStands
-            | Cause::CloseRefused
-            | Cause::Authority(_)
-            | Cause::Questions,
-        )
-        | None => None,
-    }
-}
-
 fn close_request(domain: &Domain, closer: &forge::CloserRow, branch: &[u8]) -> Box<[u8]> {
     let mut words = List::uncapped();
     append(&mut words, b"{\"version\":1,\"goal\":");
@@ -1094,19 +1071,6 @@ fn hold_words(domain: &Domain, closer: &forge::CloserRow, hold: c::Hold, hooks: 
         append(&mut words, &super::decimal(u64::from(attempt_bound(domain, closer.task))));
     }
     words.into_boxed()
-}
-
-fn append_ending(words: &mut List<u8>, ended: Option<forge::Ending>) {
-    match ended {
-        Some(forge::Ending::Cancelled) => append(words, b"cancelled"),
-        Some(forge::Ending::Failed { line }) => {
-            append(words, b"failed: ");
-            append(words, c::first_line(&line));
-        }
-        Some(forge::Ending::NoChange) => append(words, b"with no change"),
-        Some(forge::Ending::Landed) => append(words, b"landed"),
-        None => append(words, b"without an ending account"),
-    }
 }
 
 pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>) {
