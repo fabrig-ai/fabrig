@@ -515,8 +515,6 @@ pub struct Facts {
     pub regate: bool,
     /// The admitted task release asks to measure the held verdict again.
     pub measure: bool,
-    /// Limit on a hold account delivered to the task.
-    pub hold_account_bytes: u32,
     /// Preserve the repair reason while its CI check has only a head.
     pub semantic_recheck: bool,
     pub recheck: Recheck,
@@ -731,6 +729,26 @@ pub enum Decision {
     Cancel,
     /// Hold the task and tell its requester why.
     Hold(Cause),
+    /// The same judgement still holds; no fresh measurement was taken.
+    ReplayJudgement(Replay),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Replay {
+    RedStands { head: Commit },
+    Rejected { head: Commit },
+    CloseRefused { branch: Commit, landing: Commit },
+}
+
+impl Replay {
+    #[must_use]
+    pub const fn cause(self) -> Cause {
+        match self {
+            Self::RedStands { .. } => Cause::RedStands,
+            Self::Rejected { .. } => Cause::Rejected,
+            Self::CloseRefused { .. } => Cause::CloseRefused,
+        }
+    }
 }
 
 /// A next state and its decision from one coherent snapshot.

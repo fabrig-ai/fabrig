@@ -836,6 +836,8 @@ impl Protocol {
                 | top::Request::FailRepair { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::CloseDecision { .. }
+                | top::Request::ReplayJudgement { .. }
+                | top::Request::RelayRefusal { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::News { .. }
                 | top::Request::Read { .. }

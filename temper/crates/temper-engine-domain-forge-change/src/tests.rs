@@ -74,7 +74,6 @@ pub(super) fn facts() -> Facts {
         rerun: false,
         regate: false,
         measure: false,
-        hold_account_bytes: 512,
         semantic_recheck: false,
         recheck: crate::Recheck::None,
         repair_head: None,

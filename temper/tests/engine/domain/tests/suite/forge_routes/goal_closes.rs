@@ -958,13 +958,22 @@ fn a_restart_keeps_a_refused_closes_hold_and_inputs() {
 fn a_released_close_does_not_measure_unchanged_tips_again() {
     let RefusedClose { mut world, run, close, at, .. } = goal_with_refused_close();
     let words = replay_words(at);
-    release(&mut world, &run, close, 93);
-    park_goal(&mut world, &run);
-    restart_closing(&mut world);
-    wait_held(&mut world, close, run.task);
-    world.advance_ticks(100);
-    assert!(world.jobs.is_empty(), "a fresh close job was assigned for unchanged tips");
-    super::goal_closer::assert_hold_words(&world, close, &words);
+    for call in [93, 94] {
+        let revision = live_task(&world, close).revisions.hold;
+        release(&mut world, &run, close, call);
+        if call == 94 {
+            park_goal(&mut world, &run);
+            restart_closing(&mut world);
+        }
+        wait_held(&mut world, close, run.task);
+        world.advance_ticks(100);
+        assert!(world.jobs.is_empty(), "a fresh close job was assigned for unchanged tips");
+        assert!(live_task(&world, close).revisions.hold > revision);
+        let change::State::Held { hold, .. } = &row(&world, close).change.state else { panic!("close re-held") };
+        assert_eq!(hold.cause, change::Cause::CloseRefused);
+        assert_eq!(hold.words.as_ref(), words.as_bytes());
+        super::goal_closer::assert_hold_words(&world, close, &words);
+    }
     world.close();
 }
 
