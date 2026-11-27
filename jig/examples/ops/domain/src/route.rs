@@ -1034,18 +1034,10 @@ pub(crate) fn connector_out(
         ConnectorRequest::Infrastructure(infrastructure::Request::System(request)) => {
             held(decision, Output::Infrastructure(request));
         }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Described {
-            token,
-            description,
-            waits_for_dependencies,
-        }) => {
+        ConnectorRequest::Infrastructure(infrastructure::Request::Described { token, description, .. }) => {
             work.push(Work::Core(core::Event::EffectConnector(connector::Event::Described {
                 owner: token,
-                description: Box::new(translate::infrastructure_description(
-                    number,
-                    description,
-                    waits_for_dependencies,
-                )),
+                description: Box::new(translate::infrastructure_description(number, description)),
             })));
         }
         ConnectorRequest::Infrastructure(infrastructure::Request::Refused { token })
@@ -1220,17 +1212,12 @@ pub(crate) fn connector_out(
                 state,
             })));
         }
-        ConnectorRequest::Observability(observability::Request::Described {
-            token,
-            effect,
-            waits_for_dependencies,
-        }) => {
+        ConnectorRequest::Observability(observability::Request::Described { token, effect, .. }) => {
             work.push(Work::Core(core::Event::EffectConnector(connector::Event::Described {
                 owner: token,
                 description: Box::new(translate::observability_description(
                     number,
                     effect,
-                    waits_for_dependencies,
                     &env.limits.observability.vocabulary,
                 )),
             })));

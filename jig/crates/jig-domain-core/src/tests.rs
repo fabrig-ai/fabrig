@@ -926,17 +926,20 @@ fn documents_clamp_oversized_windows_and_reject_invalid_bounds() {
 }
 
 fn tree_core() -> (Core, Limits) {
-    tree_core_with_resources(Box::new([]))
+    tree_core_with_kinds(Box::new([]), Box::new([]))
 }
 
 fn tree_core_with_write_hold() -> (Core, Limits) {
-    tree_core_with_resources(Box::new([tasks::ResourceKind {
-        kind: 1,
-        hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
-    }]))
+    tree_core_with_kinds(
+        Box::new([]),
+        Box::new([tasks::ResourceKind { kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } }]),
+    )
 }
 
-fn tree_core_with_resources(resources: Box<[tasks::ResourceKind]>) -> (Core, Limits) {
+fn tree_core_with_kinds(
+    effects: Box<[jig_domain_contract::effects::EffectKind]>,
+    resources: Box<[tasks::ResourceKind]>,
+) -> (Core, Limits) {
     let (old, mut limits) = core();
     limits.views.watchers = 8;
     limits.views.watchers_per_party = 8;
@@ -955,6 +958,9 @@ fn tree_core_with_resources(resources: Box<[tasks::ResourceKind]>) -> (Core, Lim
     given.delegation.depth = 5;
     set_seed_role_authority(&mut config, given);
     let mut connectors = empty_declarations(&config);
+    let first = connectors.first_mut().expect("first connector");
+    assert_eq!(first.connector, 1);
+    first.effects = effects;
     let Some(declaration) = connectors.get_mut(1) else { panic!("second connector") };
     assert_eq!(declaration.connector, 2);
     declaration.resources = resources;

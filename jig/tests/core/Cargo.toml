@@ -11,6 +11,7 @@ publish.workspace = true
 jig-core-kit.workspace = true
 jig-test-profile.workspace = true
 jig-test-domain.workspace = true
+jig-domain-contract.workspace = true
 jig-domain-core.workspace = true
 jig-domain-tasks.workspace = true
 jig-domain-people.workspace = true

@@ -1,6 +1,8 @@
+use crate::first_support::{effect_kind, with_effects};
 use jig_core_world::world::Setup;
 use jig_core_world::world::{World, fixture};
 use jig_domain_authority as authority;
+use jig_domain_contract::effects::EffectKind;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -8,16 +10,18 @@ use skein_lib::{Env, Queue, ReplyTo, Time, Token};
 
 fn recovered(world: &World, seed: u64, requirement: bool) -> (core::Core, Env<core::Limits>) {
     let (configuration, limits) = fixture(seed, requirement);
-    recovered_with(world, configuration, &limits)
+    recovered_with(world, configuration.core, &limits, &[effect_kind(5, false)])
 }
 
 fn recovered_with(
     world: &World,
-    configuration: root::Config,
+    configuration: core::Config,
     limits: &root::Limits,
+    effects: &[EffectKind],
 ) -> (core::Core, Env<core::Limits>) {
     let env = Env { now: Time::from_nanos(world.wall_time().as_nanos()), wall: world.wall_time(), limits: limits.core };
-    let core = super::start_links::recovered(world, configuration.core, &env);
+    let core = with_effects(configuration, &env.limits, effects);
+    let core = super::start_links::recovered_with_core(world, core, &env);
     (core, env)
 }
 
@@ -25,11 +29,9 @@ fn description() -> core::effects::connector::EffectDescription {
     let mut state = [0; 32];
     state[31] = 13;
     core::effects::connector::EffectDescription {
-        waits_for_dependencies: false,
         connector: 1,
         purpose: 19,
-        form: core::effects::connector::EffectForm::Set,
-        recovery: core::effects::connector::Recovery::Keyed,
+
         effect: authority::Effect {
             connector: 1,
             kind: 5,
@@ -413,21 +415,19 @@ fn dependency_edit(parent: (u64, u64), target: u64, dependency: u64) -> core::Ev
     }
 }
 
-fn plan_core(world: &World, seed: u64) -> (core::Core, Env<core::Limits>) {
+fn plan_core(world: &World, seed: u64, waits_for_dependencies: bool) -> (core::Core, Env<core::Limits>) {
     let (configuration, limits) = jig_core_world::faults::plan_fixture(seed);
-    recovered_with(world, configuration, &limits)
+    recovered_with(world, configuration.core, &limits, &[effect_kind(5, waits_for_dependencies)])
 }
 
 fn describe_effect(
     core: &mut core::Core,
     env: &Env<core::Limits>,
     origin: core::EffectOrigin,
-    waits_for_dependencies: bool,
+    description: core::effects::connector::EffectDescription,
 ) -> Vec<core::Request> {
     let owner = core.effect_owner();
     let _requests = core::step(core, env, core::Event::EffectStart { owner, connector: 1, origin });
-    let mut description = description();
-    description.waits_for_dependencies = waits_for_dependencies;
     let mut requests = core::step(
         core,
         env,
@@ -449,14 +449,84 @@ fn procedure_origin(core: &core::Core, task: u64) -> core::EffectOrigin {
 }
 
 #[test]
+fn an_undeclared_kind_is_refused_before_a_run_or_procedure_asks_its_judge() {
+    use core::effects::connector::{Ask, EffectRefusal};
+    const SEED: u64 = 886;
+    let (mut configuration, limits) = fixture(SEED, true);
+    configuration.core.defaults.rules.ceiling.grants[0].kind = 2;
+    let policy = &mut configuration.core.seed_projects[0].policy.policy;
+    policy.ceiling.grants[0].kind = 2;
+    policy.roles[0].authority.grants[0].kind = 2;
+    policy.requirements[0].kind = 3;
+    let core_config = configuration.core.clone();
+    let mut world = World::new(Setup {
+        seed: SEED,
+        requirement: true,
+        configuration: Some(configuration),
+        limits,
+        ..Setup::default()
+    });
+    world.hold_procedures = true;
+    world.delegate();
+    let task = world.procedure.expect("delegated procedure");
+    let key = world.call_key(2);
+    for procedure in [false, true] {
+        let restore = || {
+            let (core, env) =
+                recovered_with(&world, core_config.clone(), &limits, &[effect_kind(1, false), effect_kind(2, false)]);
+            let origin = if procedure {
+                procedure_origin(&core, task)
+            } else {
+                core::EffectOrigin::Call { to: ReplyTo::new(Token::new(9954)), key, deadline: env.wall }
+            };
+            (core, env, origin)
+        };
+        let (mut core, env, origin) = restore();
+        let asking = if procedure { task } else { key.task };
+        let before = core.tasks.task(asking).expect("live requester").numbers;
+        let mut unknown = description();
+        unknown.effect.kind = 3;
+        assert_eq!(core.connector_needed_judges(1, &unknown.effect).expect("checkable effect").len(), 1);
+        let outputs = describe_effect(&mut core, &env, origin, unknown);
+        assert!(outputs.iter().any(|request| matches!(request,
+            core::Request::Ask { connector: 1, ask: core::Ask::Effect(Ask::Drop {
+                answer: authority::Answer::Refuse, why: EffectRefusal::Description, findings, ..
+            }) } if findings.is_empty()
+        )));
+        assert!(!outputs.iter().any(|request| matches!(
+            request,
+            core::Request::Ask { ask: core::Ask::Effect(Ask::Judge { .. } | Ask::Keep { .. }), .. }
+        )));
+        assert_eq!(core.tasks.task(asking).expect("live requester").numbers, before);
+        if !procedure {
+            assert_eq!(
+                core.call_parts.get(&key),
+                Some(&core::CallPart::EffectDenied { answer: authority::Answer::Refuse, findings: Box::new([]) })
+            );
+        }
+        let (mut core, env, origin) = restore();
+        let mut declared = description();
+        declared.effect.kind = 2;
+        let outputs = describe_effect(&mut core, &env, origin, declared);
+        assert!(
+            outputs.iter().any(|request| matches!(
+                request,
+                core::Request::Ask { connector: 1, ask: core::Ask::Effect(Ask::Keep { .. }) }
+            )),
+            "declared kind is kept (procedure={procedure}): {outputs:?}"
+        );
+    }
+}
+
+#[test]
 fn a_kept_procedures_waiting_effect_is_refused_naming_its_pending_dependency() {
     const SEED: u64 = 880;
     let (mut world, task, dependency) = dependency_world(SEED, tasks::Executor::Procedure { connector: 1, code: 1 });
     add_dependency(&mut world, task, dependency);
-    let (mut core, env) = plan_core(&world, SEED);
+    let (mut core, env) = plan_core(&world, SEED, true);
     let before = core.tasks.task(task).expect("live procedure").clone();
     let origin = procedure_origin(&core, task);
-    let outputs = describe_effect(&mut core, &env, origin, true);
+    let outputs = describe_effect(&mut core, &env, origin, description());
     let problem = tasks::Problem::naming(Some(task), tasks::Refusal::Kept, &[dependency]);
     assert!(outputs.iter().any(|request| matches!(request,
         core::Request::Ask { connector: 1, ask: core::Ask::StepRefused { task: number, why: core::StepRefusal::Refused(why), .. } }
@@ -499,10 +569,10 @@ fn a_configured_kept_start_starts_its_procedure_and_refuses_its_waiting_effect()
     );
     let (mut configuration, _) = jig_core_world::faults::plan_fixture(SEED);
     configuration.core.kept_starts = Box::new([tasks::KeptStart { connector: 1, code: 1 }]);
-    let (mut core, env) = recovered_with(&world, configuration, &limits);
+    let (mut core, env) = recovered_with(&world, configuration.core, &limits, &[effect_kind(5, true)]);
     let before = core.tasks.task(task).expect("live procedure").clone();
     let origin = procedure_origin(&core, task);
-    let outputs = describe_effect(&mut core, &env, origin, true);
+    let outputs = describe_effect(&mut core, &env, origin, description());
     let problem = tasks::Problem::naming(Some(task), tasks::Refusal::Kept, &[dependency]);
     assert!(outputs.iter().any(|request| matches!(request,
         core::Request::Ask { connector: 1, ask: core::Ask::StepRefused { task: number, why: core::StepRefusal::Refused(why), .. } }
@@ -527,9 +597,9 @@ fn a_kept_procedures_non_waiting_effect_is_admitted() {
     const SEED: u64 = 881;
     let (mut world, task, dependency) = dependency_world(SEED, tasks::Executor::Procedure { connector: 1, code: 1 });
     add_dependency(&mut world, task, dependency);
-    let (mut core, env) = plan_core(&world, SEED);
+    let (mut core, env) = plan_core(&world, SEED, false);
     let origin = procedure_origin(&core, task);
-    let outputs = describe_effect(&mut core, &env, origin, false);
+    let outputs = describe_effect(&mut core, &env, origin, description());
     assert!(outputs.iter().any(|request| matches!(
         request,
         core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Keep { .. }), .. }
@@ -556,9 +626,9 @@ fn a_procedures_waiting_effect_is_admitted_after_its_dependencys_met() {
             cancel_delegates: false,
         },
     });
-    let (mut core, env) = plan_core(&world, SEED);
+    let (mut core, env) = plan_core(&world, SEED, true);
     let origin = procedure_origin(&core, task);
-    let outputs = describe_effect(&mut core, &env, origin, true);
+    let outputs = describe_effect(&mut core, &env, origin, description());
     assert!(outputs.iter().any(|request| matches!(
         request,
         core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Keep { .. }), .. }
@@ -578,10 +648,10 @@ fn a_kept_agent_effect_call_is_answered_with_its_pending_dependency() {
     let (mut world, task, dependency) = dependency_world(SEED, tasks::Executor::Agent { charter: 1 });
     add_dependency(&mut world, task, dependency);
     let &(task, attempt) = world.assignments.iter().find(|(number, _)| *number == task).expect("kept run still live");
-    let (mut core, env) = plan_core(&world, SEED);
+    let (mut core, env) = plan_core(&world, SEED, true);
     let key = core::CallKey { task, attempt, completion: 1, position: 0 };
     let origin = core::EffectOrigin::Call { to: ReplyTo::new(Token::new(9951)), key, deadline: env.wall };
-    let outputs = describe_effect(&mut core, &env, origin, true);
+    let outputs = describe_effect(&mut core, &env, origin, description());
     let problem = tasks::Problem::naming(Some(task), tasks::Refusal::Kept, &[dependency]);
     assert!(outputs.iter().any(|request| matches!(request,
         core::Request::Held(held) if matches!(held.as_ref(), core::Held::CallAnswer { key: named, part: core::CallPart::EffectRefused(why), .. } if *named == key && *why == problem)
@@ -595,23 +665,23 @@ fn a_kept_tasks_refused_effect_is_denied_rather_than_kept() {
     let (mut world, task, dependency) = dependency_world(SEED, tasks::Executor::Agent { charter: 1 });
     add_dependency(&mut world, task, dependency);
     let &(task, attempt) = world.assignments.iter().find(|(number, _)| *number == task).expect("kept run still live");
-    let (mut core, env) = plan_core(&world, SEED);
+    let (mut core, env) = plan_core(&world, SEED, true);
     let key = core::CallKey { task, attempt, completion: 1, position: 0 };
-    let owner = core.effect_owner();
     let origin = core::EffectOrigin::Call { to: ReplyTo::new(Token::new(9952)), key, deadline: env.wall };
-    let _requests = core::step(&mut core, &env, core::Event::EffectStart { owner, connector: 1, origin });
-    let mut description = description();
-    description.waits_for_dependencies = true;
-    // Described for another connector, so the check refuses it outright.
-    description.connector = 2;
-    let _requests = core::step(
-        &mut core,
-        &env,
-        core::Event::EffectConnector(core::effects::connector::Event::Described {
-            owner,
-            description: Box::new(description),
-        }),
-    );
+    let mut effect = description();
+    effect.effect.access = authority::EffectAccess::Context;
+    let outputs = describe_effect(&mut core, &env, origin, effect);
+    assert!(outputs.iter().any(|request| matches!(
+        request,
+        core::Request::Ask {
+            ask: core::Ask::Effect(core::effects::connector::Ask::Drop {
+                answer: authority::Answer::Refuse,
+                why: core::effects::connector::EffectRefusal::Authority,
+                ..
+            }),
+            ..
+        }
+    )));
     assert!(matches!(
         core.call_parts.get(&key),
         Some(core::CallPart::EffectDenied { answer: authority::Answer::Refuse, .. })
@@ -624,14 +694,14 @@ fn a_dependency_added_while_judges_answer_refuses_a_waiting_effect() {
     let (world, task, dependency) = dependency_world(SEED, tasks::Executor::Agent { charter: 1 });
     let parent = world.assignments[0];
     let &(task, attempt) = world.assignments.iter().find(|(number, _)| *number == task).expect("live caller");
-    let (mut core, env) = plan_core(&world, SEED);
+    let (mut core, env) = plan_core(&world, SEED, true);
     let (configuration, _) = fixture(SEED, true);
     let policy = configuration.core.seed_projects[0].policy.policy.clone();
     let mut facts = Queue::uncapped();
     authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut facts);
     let key = core::CallKey { task, attempt, completion: 1, position: 0 };
     let origin = core::EffectOrigin::Call { to: ReplyTo::new(Token::new(9952)), key, deadline: env.wall };
-    let outputs = describe_effect(&mut core, &env, origin, true);
+    let outputs = describe_effect(&mut core, &env, origin, description());
     let judge = outputs
         .into_iter()
         .find_map(|request| match request {

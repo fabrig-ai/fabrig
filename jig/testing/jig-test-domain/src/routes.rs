@@ -804,10 +804,10 @@ pub(super) fn route_connector(
                 }));
             }
             connector::Request::System(call) => hold(decision, Delivery::System { connector: number, call }),
-            connector::Request::Described { token, description, waits_for_dependencies } => {
+            connector::Request::Described { token, description, .. } => {
                 work.push(Work::Core(core::Event::EffectConnector(core::effects::connector::Event::Described {
                     owner: token,
-                    description: Box::new(describe(number, description, waits_for_dependencies)),
+                    description: Box::new(describe(number, description)),
                 })));
             }
             connector::Request::EffectBusy { token } => {
@@ -1107,22 +1107,7 @@ pub(crate) fn declaration(
     jig_domain_contract::Declaration { connector, resources: Box::from(resources), effects: effects.into_boxed() }
 }
 
-fn describe(
-    number: u16,
-    description: connector::Description,
-    waits_for_dependencies: bool,
-) -> core::effects::connector::EffectDescription {
-    let form = match description.form {
-        connector::Form::Creation => core::effects::connector::EffectForm::Creation,
-        connector::Form::Transition => core::effects::connector::EffectForm::Transition,
-        connector::Form::Set => core::effects::connector::EffectForm::Set,
-    };
-    let recovery = match description.recovery {
-        connector::Recovery::Keyed => core::effects::connector::Recovery::Keyed,
-        connector::Recovery::Conditional => core::effects::connector::Recovery::Conditional,
-        connector::Recovery::Idempotent => core::effects::connector::Recovery::Idempotent,
-        connector::Recovery::Unrecoverable => core::effects::connector::Recovery::Unrecoverable,
-    };
+fn describe(number: u16, description: connector::Description) -> core::effects::connector::EffectDescription {
     let mut resources = List::with_capacity(u32::try_from(description.resources.len()).expect("bounded resources"));
     for resource in description.resources {
         resources.push(name(resource)).expect("one name per resource");
@@ -1136,11 +1121,8 @@ fn describe(
     }
     let state = state_pin(description.state);
     core::effects::connector::EffectDescription {
-        waits_for_dependencies,
         connector: number,
         purpose: description.purpose,
-        form,
-        recovery,
         effect: authority::Effect {
             connector: number,
             kind: description.kind,

@@ -1,8 +1,25 @@
 //! Construction-time connector kinds (jig/docs/design/domain/engine/vocabulary.md, 2.1).
-use jig_domain_contract::Declaration;
+use crate::Core;
+use jig_domain_contract::{Declaration, effects::EffectKind};
 use jig_domain_link::Problem;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, Set, Time, Wall};
+
+impl Core {
+    pub(crate) fn effect_kind(&self, connector: u16, kind: u16) -> Option<&EffectKind> {
+        for declaration in &self.declarations {
+            if declaration.connector == connector {
+                for effect in &declaration.effects {
+                    if effect.kind == kind {
+                        return Some(effect);
+                    }
+                }
+                return None;
+            }
+        }
+        None
+    }
+}
 
 // A kind number is a u16, so this set can hold every distinct number.
 const NUMBERS: u32 = 65_536;

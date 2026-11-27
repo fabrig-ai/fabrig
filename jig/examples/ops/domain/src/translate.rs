@@ -44,7 +44,6 @@ pub(crate) fn state(value: u64) -> [u8; 32] {
 pub(crate) fn infrastructure_description(
     number: u16,
     value: infrastructure::Description,
-    waits_for_dependencies: bool,
 ) -> core::effects::connector::EffectDescription {
     let mut names = List::with_capacity(u32::try_from(value.resources.len()).expect("bounded resources"));
     for resource in value.resources {
@@ -56,23 +55,9 @@ pub(crate) fn infrastructure_description(
             .push(authority::EffectResource { name: name.clone(), access: authority::EffectAccess::Owned })
             .expect("additional names");
     }
-    let form = match value.form {
-        infrastructure::Form::Creation => core::effects::connector::EffectForm::Creation,
-        infrastructure::Form::Transition => core::effects::connector::EffectForm::Transition,
-        infrastructure::Form::Set => core::effects::connector::EffectForm::Set,
-    };
-    let recovery = match value.recovery {
-        infrastructure::Recovery::Keyed => core::effects::connector::Recovery::Keyed,
-        infrastructure::Recovery::Conditional => core::effects::connector::Recovery::Conditional,
-
-        infrastructure::Recovery::Unrecoverable => core::effects::connector::Recovery::Unrecoverable,
-    };
     core::effects::connector::EffectDescription {
-        waits_for_dependencies,
         connector: number,
         purpose: value.state,
-        form,
-        recovery,
         effect: authority::Effect {
             connector: number,
             kind: value.kind,
@@ -88,15 +73,11 @@ pub(crate) fn infrastructure_description(
 pub(crate) fn observability_description(
     number: u16,
     value: observability::Effect,
-    waits_for_dependencies: bool,
     vocabulary: &observability::Vocabulary,
 ) -> core::effects::connector::EffectDescription {
     core::effects::connector::EffectDescription {
-        waits_for_dependencies,
         connector: number,
         purpose: value.until,
-        form: core::effects::connector::EffectForm::Set,
-        recovery: core::effects::connector::Recovery::Keyed,
         effect: authority::Effect {
             connector: number,
             kind: vocabulary.silence_effect,

@@ -1,7 +1,7 @@
 //! Deployment-started tier run tasks (temper/docs/design/domain/after-landing-runs.md, 2, temper/docs/design/domain/after-landing-storage.md, 1).
 use super::{
-    AFTER_LANDING_CODE, Box, Domain, EffectDescription, EffectForm, Env, Family, Limits, List, ProcedureStep, Recovery,
-    StepEnd, Work, authority, effect_access, forge, resource_name, tasks,
+    AFTER_LANDING_CODE, Box, Domain, EffectDescription, Env, Family, Limits, List, ProcedureStep, StepEnd, Work,
+    authority, effect_access, forge, resource_name, tasks,
 };
 
 pub(super) fn start_tier_run(
@@ -125,7 +125,6 @@ pub(super) fn describe_tier_effect(
         return None;
     }
     Some(EffectDescription {
-        waits_for_dependencies: false,
         connector: domain.config.forge_connector,
         purpose: entry,
         effect: authority::Effect {
@@ -137,17 +136,6 @@ pub(super) fn describe_tier_effect(
             access: effect_access(repository, &what, described.kind),
             additional: Box::new([]),
             guards: Box::new([]),
-        },
-        form: match described.form {
-            forge::EffectForm::Creation => EffectForm::Creation,
-            forge::EffectForm::Transition => EffectForm::Transition,
-            forge::EffectForm::Set => EffectForm::Set,
-        },
-        recovery: match described.recovery {
-            forge::Recovery::Keyed => Recovery::Keyed,
-            forge::Recovery::Conditional => Recovery::Conditional,
-            forge::Recovery::Idempotent => Recovery::Idempotent,
-            forge::Recovery::Unrecoverable => Recovery::Unrecoverable,
         },
     })
 }

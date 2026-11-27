@@ -24,15 +24,12 @@ struct Harness {
 impl Harness {
     fn stored(world: &World) -> Self {
         let (config, limits) = fixture(SEED, false);
-        Self::stored_with(world, config.core, Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits: limits.core })
+        let core = jig_test_profile::new_core(config.core, &limits.core).expect("configured core");
+        Self::stored_with(world, core, Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits: limits.core })
     }
 
-    fn stored_with(world: &World, config: core::Config, env: Env<core::Limits>) -> Self {
-        let mut h = Self {
-            core: jig_test_profile::new_core(config, &env.limits).expect("configured core"),
-            env,
-            out: Queue::uncapped(),
-        };
+    fn stored_with(world: &World, core: core::Core, env: Env<core::Limits>) -> Self {
+        let mut h = Self { core, env, out: Queue::uncapped() };
         phase(&h.core.start_begin(false, h.env.wall), Phase::LoadCore);
         for range in core::RestoreRange::LIVE {
             for (key, record) in &world.store.rows {
@@ -154,7 +151,12 @@ fn recurring_lifetime_count_past_live_capacity_survives_start_link() {
 
 /// Restore the direct core through durable Wires before testing runtime inputs.
 pub(super) fn recovered(world: &World, config: core::Config, env: &Env<core::Limits>) -> core::Core {
-    let mut harness = Harness::stored_with(world, config, env.with(env.limits));
+    let domain = jig_test_profile::new_core(config, &env.limits).expect("configured core");
+    recovered_with_core(world, domain, env)
+}
+
+pub(super) fn recovered_with_core(world: &World, core: core::Core, env: &Env<core::Limits>) -> core::Core {
+    let mut harness = Harness::stored_with(world, core, env.with(env.limits));
     let action = harness.link();
     harness.open(action);
     assert!(harness.core.start_opened());

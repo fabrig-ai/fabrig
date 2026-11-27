@@ -1,4 +1,5 @@
 //! Deployment procedures spend at the effect (jig/docs/design/domain/authority.md, 6, and jig/docs/design/domain/authority-budgets.md, 1).
+use crate::first_support::{effect_kind, first_with_core, with_effects};
 use core::effects::connector;
 use jig_core_world::fixtures::{CONNECTOR, PROJECT};
 use jig_core_world::world::fixture;
@@ -35,7 +36,7 @@ fn task_event(domain: &mut core::Core, env: &Env<core::Limits>, event: tasks::Ev
 fn seeded_core() -> (core::Core, Env<core::Limits>) {
     let (config, limits) = fixture(1900, false);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.core };
-    let domain = crate::first_support::first(config.core, &env);
+    let domain = first_with_core(with_effects(config.core, &env.limits, &[effect_kind(EFFECT_KIND, false)]), &env);
     (domain, env)
 }
 
@@ -234,11 +235,9 @@ fn a_procedure_seed_cannot_admit_an_agent_executor() {
 
 fn description() -> connector::EffectDescription {
     connector::EffectDescription {
-        waits_for_dependencies: false,
         connector: CONNECTOR,
         purpose: 19,
-        form: connector::EffectForm::Set,
-        recovery: connector::Recovery::Keyed,
+
         effect: authority::Effect {
             connector: CONNECTOR,
             kind: EFFECT_KIND,
