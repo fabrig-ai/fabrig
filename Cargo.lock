@@ -963,6 +963,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "skein-http",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -2383,6 +2384,7 @@ dependencies = [
  "skein-lib",
  "skein-oauth",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
@@ -2413,6 +2415,7 @@ dependencies = [
  "skein-kv",
  "skein-lib",
  "skein-sim",
+ "skein-world",
  "tempfile",
 ]
 
@@ -2514,6 +2517,7 @@ dependencies = [
  "skein-codegen",
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -2767,6 +2771,7 @@ dependencies = [
  "skein-heap",
  "skein-lib",
  "skein-scratch",
+ "skein-world",
  "smith-channel",
  "smith-charter",
 ]
@@ -6846,6 +6851,7 @@ dependencies = [
  "temper-engine-domain-ways",
  "temper-limits-fixtures",
  "temper-protocol-brief",
+ "temper-protocol-member-message",
  "temper-protocol-reaches",
  "temper-protocol-worker-wire",
 ]
@@ -6883,6 +6889,7 @@ dependencies = [
  "temper-engine-domain-forge-vocabulary",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
+ "temper-protocol-member-message",
  "temper-protocol-reaches",
  "temper-protocol-store",
 ]
@@ -7151,6 +7158,7 @@ dependencies = [
  "temper-engine-domain-forge-tiers",
  "temper-engine-inspect",
  "temper-faults",
+ "temper-protocol-member-message",
  "temper-protocol-reaches",
  "temper-workload",
 ]
@@ -8114,6 +8122,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-protocol-member-message"
+version = "0.0.0"
+dependencies = [
+ "skein-forge",
+ "skein-lib",
+]
+
+[[package]]
 name = "temper-protocol-reaches"
 version = "0.0.0"
 dependencies = [
@@ -8691,6 +8707,7 @@ name = "temper-worker-domain-checkout"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+ "temper-protocol-member-message",
 ]
 
 [[package]]

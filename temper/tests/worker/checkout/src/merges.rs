@@ -1664,12 +1664,12 @@ pub fn a_refused_prefix_keeps_the_prefix_before_it() {
     const REMOTE: &[u8] = b"forge/temper";
     let mut world = World::new(73, Case::Clean, 64);
     let second = world.forge.advance(REMOTE, b"topic", b"next", b"next\n");
-    let message = || Message { title: b"Combine".as_slice().into(), body: Box::new([]) };
     let member = |number, head| CandidateMember {
         number,
         head: translate::commit(head),
-        message: message(),
-        squash_message: message(),
+        message: b"Combine".as_slice().into(),
+        squash_message: b"Combine".as_slice().into(),
+        head_trailers: false,
     };
     let mut spec = merge_spec(&world, Case::Clean);
     let repository = &mut spec.repositories[0];

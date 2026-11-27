@@ -7,8 +7,8 @@ This document holds preparing landing candidates and rounds, split from [`landin
 ### 1.1 Rounds
 
 - **A round** is one stack: its base, the train's tip read afresh as it
-  starts; each member's head, read afresh, and its head commit's
-  trailers (1.2); the train's upstream's tip,
+  starts; each member's head, read afresh, and whether the base
+  contains it (1.2); the train's upstream's tip,
   read afresh, where the train has an upstream (1.2); each member's
   prefix, the commit the prepare job pushed for it, and how it combined
   the member, merged or squashed; and its pull request, from the top's
@@ -85,20 +85,36 @@ The default, for a project with no prepare command:
     (`../draft/squash-in.md`, section 3). A squash whose tree is the
     one below's is still a commit.
 - **The head's trailers:** the trailers a member's squash keeps come
-  from its producer's words, or from its head commit's message
-  (`../protocol/tooling.md`, 4, TRAILERS), which the round reads from
-  the range by which it tells whether its base contains the head
-  (1.1): the commits after the base up to the head (skein's
-  `Read::Commits`), page by page from the first until the commit whose
-  id is the head, however many pages the member's history takes.
-  Whether the base contains the head is still told by the first page
-  alone. A page the forge refuses waits `read`, as the round's other
-  reads do (`landing-waits.md`, 3); a page too large for its answer,
-  or a range that ends without the head, gives none. The round keeps
-  those trailers alone, never the message, and only for its job: they
-  go with the decision that makes the job into its request, and none
-  is stored, since every job is made after a fresh gather (*Lost or
-  partial*, below) and keeps the request it was made with.
+  from its producer's words, or, where the words keep none, from its
+  head commit's message (`../protocol/tooling.md`, 4, TRAILERS), which
+  the job reads in its own checkout, where it fetched the head, as it
+  squashes the member: the round asks for them in its request
+  (`head_trailers`, `../protocol/tooling.md`, 4), and reads no list of
+  commits for them. A member the job merges, or one whose words keep
+  trailers, reads none.
+- **Whether the base contains the head** (1.1) is told by one bounded
+  read: the first page of the commits after the base up to the head
+  (skein's `Read::Commits`), and no other page, whatever the member's
+  history. A page the forge refuses waits `read`, as the round's other
+  reads do (`landing-waits.md`, 3). Where that page holds the head, its
+  trailers go into the member's `squash`, so that a worker of an
+  earlier build, which ignores `head_trailers`, squashes as it did, as
+  far as one bounded read reaches; a page too large for its answer, or
+  one without the head, gives none. A worker of this build reads them
+  from its checkout all the same, from the same commit. The round
+  keeps those trailers alone, never the message, and only for its job:
+  they go with the decision that makes the job into its request, and
+  none is stored, since every job is made after a fresh gather (*Lost
+  or partial*, below) and keeps the request it was made with.
+- **Why the checkout:** the list comes oldest first, so the head is on
+  its last page, and each page past the first costs the forge another
+  answer over the whole range: read page by page for the head's
+  message, every round on a long goal's branch paid for every page,
+  even for a member whose message takes no trailers. The job already
+  holds the head. Giving the trailers back in the job's result was
+  turned down: the squash that keeps them is made in the job, before
+  any result, and a result of 4,096 bytes (`worker/jobs.md`, 2) could
+  not hold five members' trailers of up to 4,096 bytes each.
 - **A conflict:** a member that cannot merge cleanly onto the prefix
   below is skipped; the job stacks the next on that prefix. In the
   same job it merges the conflicting head onto the round's base:

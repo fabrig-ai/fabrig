@@ -1,0 +1,8 @@
+tree 0000000000000000000000000000000000000006
+parent 0000000000000000000000000000000000000002
+author writer <writer@temper.invalid> 000000000c +0000
+committer writer <writer@temper.invalid> 000000000c +0000
+
+Fixture
+
+One parent.

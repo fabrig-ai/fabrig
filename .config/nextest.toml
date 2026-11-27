@@ -19,7 +19,8 @@
 #   fabrig: package(=fabrig-boundary)
 #
 # The tier profiles are browser-skein, live-skein, real-skein, campaign-skein;
-# live-smith, real-smith, campaign-smith; live-jig, browser-jig, real-jig;
+# live-smith, real-smith, campaign-smith;
+# live-jig, browser-jig, real-jig, campaign-jig;
 # process-temper, live-temper, browser-temper, real-temper, campaign-temper;
 # conformance-hearth, real-hearth and campaign-hearth.
 # A change to a tree's default or fuzzy clause changes its copy in real-TREE;
@@ -334,6 +335,54 @@ filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
 slow-timeout = { period = "2000ms" }
 
 [[profile.campaign-hearth.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "12s" }
+
+[profile.campaign-jig]
+junit = { path = "junit.xml", store-success-output = true, store-failure-output = true }
+default-filter = """
+(
+  package(/^jig(-|$)/)
+  & (kind(test) & test(/^fuzzy::/)) & not binary(=live)
+  & not binary(/^browser_/)
+) & (
+  binary_id(=jig-accounts-world::suite)
+  | binary_id(=jig-brief-world::suite)
+  | binary_id(=jig-channel-world::suite)
+  | binary_id(=jig-client-protocol-http::frames)
+  | binary_id(=jig-client-protocol-world::suite)
+  | binary_id(=jig-client-views-world::suite)
+  | binary_id(=jig-client-wire-world::suite)
+  | binary_id(=jig-client-world::joint)
+  | binary_id(=jig-client-world::suite)
+  | binary_id(=jig-conformance-world::suite)
+  | binary_id(=jig-core-world::suite)
+  | binary_id(=jig-engine-clients-world::protocol)
+  | binary_id(=jig-engine-workers-world::suite)
+  | binary_id(=jig-fleet-world::suite)
+  | binary_id(=jig-host-world::suite)
+  | binary_id(=jig-notes-world::suite)
+  | binary_id(=jig-one-process-world::suite)
+  | binary_id(=jig-ops-world::suite)
+  | binary_id(=jig-people-world::suite)
+  | binary_id(=jig-protocol-accounts-world::suite)
+  | binary_id(=jig-store-codecs-world::suite)
+  | binary_id(=jig-store-world::frame_limits)
+  | binary_id(=jig-store-world::suite)
+  | binary_id(=jig-tasks-world::suite)
+  | binary_id(=jig-test-connector-world::suite)
+  | binary_id(=jig-worker-link-world::suite)
+  | binary_id(=jig-worker-wire-world::suite)
+)
+"""
+
+# macOS doubles the inherited Linux slow periods.
+[[profile.campaign-jig.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.campaign-jig.overrides]]
 platform = 'cfg(target_os = "macos")'
 slow-timeout = { period = "12s" }
 

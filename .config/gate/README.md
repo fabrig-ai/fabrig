@@ -155,10 +155,10 @@ Each list has one entry per line; `#` starts a comment line.
   tier with its prerequisites; `tools/tiers/run --cpu DIR TREE TIER [-- NEXTEST_ARGS...]`
   accounts it against `tools/tiers/budgets.toml`. The hyphenated profiles in
   `.config/nextest.toml` are `browser-skein`, `live-skein`, `real-skein`, `live-smith`,
-  `real-smith`, `campaign-smith`, `live-jig`, `browser-jig`, `real-jig`, `process-temper`,
-  `live-temper`, `browser-temper`, `real-temper`, `campaign-temper`, `conformance-hearth`,
-  `real-hearth`, `campaign-hearth` and `campaign-skein`. Never in the gate. Rules:
-  `tools/tiers/design.md`, 1, 4 and 7;
+  `real-smith`, `campaign-smith`, `live-jig`, `browser-jig`, `real-jig`, `campaign-jig`,
+  `process-temper`, `live-temper`, `browser-temper`, `real-temper`, `campaign-temper`,
+  `conformance-hearth`, `real-hearth`, `campaign-hearth` and `campaign-skein`.
+  Never in the gate. Rules: `tools/tiers/design.md`, 1, 4 and 7;
   `skein/docs/foundation/testing-strategy.md`, 8.1.
 - **The real loop and end to end:** `tools/tiers/run TREE real`, for each of
   skein, smith, jig, temper and hearth, runs the pair `real-TREE`: the tree's
@@ -178,7 +178,7 @@ Each list has one entry per line; `#` starts a comment line.
   (`tools/tiers/budgets.md`, 4.2). Campaigns run once a day, on a builder apart
   from the gate (the user, 11-26), and by hand until a runner runs them; never
   in the gate, where `tools/tiers/one-process` removes the campaign's variables
-  (`tools/tiers/design.md`, 11.5). temper, smith, hearth and skein have campaign pairs.
+  (`tools/tiers/design.md`, 11.5). temper, smith, hearth, skein and jig have campaign pairs.
 - **The after-landing tier:** after each landing on main, the five real
   pairs above, once its runner lists them;
   `tools/tiers/run smith live` runs `live-smith` (`smith/docs/design/testing-tiers.md`, 3),

@@ -160,3 +160,13 @@ pub const CLOSE_REFUSAL: Variable = Variable {
     absent: "The close command uses its exit statuses from before typed refusals.",
     notes: "",
 };
+
+pub const CLOSE_OUTDATED: Variable = Variable {
+    name: "TEMPER_CLOSE_OUTDATED",
+    set: Set::Public,
+    form: "3",
+    way: Way::Sets,
+    line: "Asks the close command to report an outdated finding with exit status 3.",
+    absent: "The close command runs without the outdated ask.",
+    notes: "",
+};

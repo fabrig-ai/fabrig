@@ -4596,7 +4596,7 @@ fn delegate_result(
             }
         }
         change::Delegate::Close => {
-            crate::close::clear_refusal(row);
+            crate::close::clear_findings(row);
             if row.delegate_status == change::Status::Passed {
                 // Keep the raw result until a branch read sent after this end can judge it.
                 let bound = match d.close_kind {
@@ -6706,7 +6706,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         {
             forget_released_step(&mut row, &effect_prior.state);
             if cause == change::Cause::CloseRefused && facts.measure {
-                crate::close::clear_refusal(&mut row);
+                crate::close::clear_findings(&mut row);
                 facts.close_at = row.close_at;
             }
             if cause == change::Cause::Runner
@@ -7368,7 +7368,7 @@ fn change_facts(
         close_tips: if let Some(branch) = pending.base_read
             && let Some(landing) = pending.close_landing
         {
-            Some(change::CloseAt { branch, landing, asked: true, refused: None })
+            Some(change::CloseAt { branch, landing, asked: true, refused: None, outdated: None })
         } else {
             None
         },
