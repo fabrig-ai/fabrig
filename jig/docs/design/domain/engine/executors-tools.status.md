@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [executors-tools.md](executors-tools.md).
 
-- **Not yet:** 1, *Their room is one, of pending and retained calls*: recording a pending call can replace one, a decision ignores whether its call was pending, undecided ends remove a pending call unchecked, and the room's sum saturates (`jig-domain-core`, `runs/calls.rs`, `stored.rs`, `effects.rs`, `routing/run/calls.rs`). [in flight: change 19632]
 
 - **Not yet:** 1: the tools `move`, `succeed`,
   `hold` and `lift`.
