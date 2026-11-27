@@ -490,6 +490,7 @@ dependencies = [
  "skein-checks",
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
