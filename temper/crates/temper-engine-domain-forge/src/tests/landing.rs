@@ -1940,7 +1940,9 @@ fn every_leave_drops_the_link_and_the_change_takes_its_next_step() {
             landing.landing.members[0].unit = 1;
             landing.landing.members = Box::new([green, landing.landing.members[0].clone()]);
 
-            d.landing.remember(landing).unwrap();
+            // The fixture starts with a retained prefix; a formed row cannot add it.
+            d.landing.restore_row(landing);
+            d.landing.restore_memberships().unwrap();
             member = 1;
         }
         let mut landing = d.landing(61).unwrap().clone();
@@ -1949,7 +1951,7 @@ fn every_leave_drops_the_link_and_the_change_takes_its_next_step() {
         if let policy::Leave::Blamed { .. } = why {
             landing.landing.round.search = Some(policy::Search { green: 1, red: 2, tests: policy::SearchTests::Whole });
         }
-        d.landing.remember(landing).unwrap();
+        assert!(d.landing.remember(landing).is_some());
         assert_eq!(step_regate(&mut d, 61, 91, &run), policy::Decision::Leave { member, why });
         let row = d.change(fixtures::CHANGE).unwrap();
         assert_eq!(d.landing_of(row.task), None, "{why:?}");

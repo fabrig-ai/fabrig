@@ -994,16 +994,23 @@ pub(crate) fn join(_d: &mut Domain, _task: u64, _member: policy::Member, _after:
 pub(crate) fn order(_d: &mut Domain, _task: u64, _changes: &[u64], _out: &mut Queue<Request>) {}
 
 fn member_position(row: &LandingRow, prior: &LandingRow, old: u16) -> Option<u16> {
-    let change = prior.landing.members.get(usize::from(old))?.change;
+    // A retained entry or follow may not link to a position in a restored row.
+    let before = prior.landing.members.get(usize::from(old))?;
+    let change = before.change;
     for (index, member) in row.landing.members.iter().enumerate() {
         if member.change == change {
             return Some(u16::try_from(index).expect("member position"));
         }
     }
+    assert!(
+        prior.landing.round.branch.is_empty() && before.left.is_none() && before.landed.is_none(),
+        "change {change} must be active in single landing {} to leave on cancellation and lose its position",
+        row.landing.task,
+    );
     None
 }
 
-// All positional state follows the change when a member joins or leaves.
+// Positional state follows each retained change when a single landing's member leaves.
 fn remap_members(d: &mut Domain, row: &mut LandingRow, prior: &LandingRow) {
     let mut entries = List::with_capacity(d.landing.limits.entries);
     for entry in &prior.entries {
@@ -1131,7 +1138,7 @@ pub(crate) fn save_row(d: &mut Domain, mut row: LandingRow, out: &mut Queue<Requ
     if let Some(prior) = d.landing.rows.get(&task) {
         row.last_event = prior.last_event.or(row.last_event);
     }
-    let prior = d.landing.remember(row.clone()).expect("admitted landing members");
+    let prior = d.landing.remember(row.clone());
     if was_live && !live {
         members::end(d, &row, out);
     }
@@ -1188,14 +1195,36 @@ pub(crate) fn register(d: &mut Domain, env: &Env<Limits>, row: LandingRow, out: 
     let task = row.landing.task;
     let mut changes = List::with_capacity(env.limits.landing_members);
     for member in &row.landing.members {
-        changes.push(member.change).expect("preflighted member count");
-        let change = d.changes.get(&member.change).expect("preflighted member");
-        assert_eq!(change.repository, repository(member), "preflighted repository");
-        assert_eq!(row.landing.branch, change.base, "the member lands into its train's branch");
-        assert_eq!(change.pull.unwrap_or(0), member.pull, "preflighted pull");
-        assert_eq!(member.gates.len(), d.train_gates(&row, repository(member)).len(), "configured gates");
+        let change = member.change;
+        assert!(
+            !changes.as_slice().contains(&change),
+            "change {change} joining landing {task} must be new to that row",
+        );
+        let owner = d.landing_of(change);
+        assert!(
+            owner.is_none(),
+            "change {change} joining landing {task} must be in no live landing; held by {owner:?}",
+        );
+        let added = changes.push(change);
+        assert!(
+            added.is_ok(),
+            "change {change} joining landing {task} must fit its {} member slots",
+            env.limits.landing_members,
+        );
+        let Some(saved) = d.changes.get(&change) else {
+            unreachable!("change {change} joining landing {task} must be a preflighted change");
+        };
+        assert_eq!(saved.repository, repository(member), "change {change} joins landing {task} in its repository");
+        assert_eq!(row.landing.branch, saved.base, "change {change} joins landing {task} on its train's branch");
+        assert_eq!(saved.pull.unwrap_or(0), member.pull, "change {change} joins landing {task} with its pull");
+        assert_eq!(
+            member.gates.len(),
+            d.train_gates(&row, repository(member)).len(),
+            "change {change} joins landing {task} with its configured gates",
+        );
     }
-    d.landing_admits(row.landing.project, changes.as_slice()).expect("root preflighted landing in this decision");
+    let admission = d.landing_admits(row.landing.project, changes.as_slice());
+    assert!(admission.is_ok(), "root preflighted landing {task} with changes {changes:?}: {admission:?}");
     assert!(!d.landing.rows.contains_key(&task), "fresh landing task");
     assert!(row.entries.is_empty(), "new landing has no effects");
     if d.landing.rows.len() == env.limits.landings {
@@ -6167,18 +6196,33 @@ pub(crate) fn closing(
     if ending != crate::ReleaseEnding::Cancelled {
         return;
     }
-    if let Some(landing) = d.landing_of(task) {
-        let Some(mut row) = d.landing.rows.get(&landing).cloned() else { return };
-        if matches_terminal(&row.landing.phase) {
-            return;
+    let Some(landing) = d.landing_of(task) else { return };
+    let Some(mut row) = d.landing.rows.get(&landing).cloned() else {
+        unreachable!("change {task} cancelling must have its indexed landing {landing}");
+    };
+    assert!(!matches_terminal(&row.landing.phase), "change {task} cancelling must have a live landing {landing}");
+    let mut owned = None;
+    for member in &row.landing.members {
+        if member.change == task {
+            owned = Some(member);
+            break;
         }
-        let prior = row.clone();
-        row.landing = policy::leave(row.landing, task);
-        crate::landing_history::transition(d, env.wall, &prior, &row, out);
-        remap_members(d, &mut row, &prior);
-        save(d, env, row, out);
-        emit(out, Request::WakeProcedure { task: landing });
     }
+    let Some(member) = owned else {
+        unreachable!("change {task} cancelling must be held by its indexed landing {landing}");
+    };
+    assert!(member.left.is_none(), "change {task} cancelling has not left its indexed landing {landing}");
+    if member.landed.is_some() {
+        return;
+    }
+    let prior = row.clone();
+    row.landing = policy::leave(row.landing, task);
+    crate::landing_history::transition(d, env.wall, &prior, &row, out);
+    if row.landing.members.len() != prior.landing.members.len() {
+        remap_members(d, &mut row, &prior);
+    }
+    save(d, env, row, out);
+    emit(out, Request::WakeProcedure { task: landing });
 }
 
 /// Record a member's landed prefix and hand it to the change, as in the turn.

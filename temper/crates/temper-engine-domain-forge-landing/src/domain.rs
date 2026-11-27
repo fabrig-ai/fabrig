@@ -6,53 +6,58 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 
-/// Add a member after its upstreams while the landing can still grow
-/// (domain/landing.md, 4.1–4.2). Existing candidates and proofs remain valid.
-#[must_use]
-pub fn join(mut landing: Landing, member: Member, after: &[u64]) -> Option<Landing> {
-    match landing.phase {
-        Phase::Waiting | Phase::Preparing | Phase::Proving | Phase::Proved { .. } => {}
-        Phase::Turn { .. } | Phase::Landed | Phase::Cancelled | Phase::Held { .. } => return None,
-    }
-    for prior in &landing.members {
-        if prior.change == member.change || prior.repository == member.repository {
-            return None;
-        }
-    }
-    let mut position = 0;
-    for (index, prior) in landing.members.iter().enumerate() {
-        if after.contains(&prior.change) {
-            position = index.checked_add(1).expect("member position fits usize");
-        }
-    }
-    let mut members = List::with_capacity(
-        u32::try_from(landing.members.len().checked_add(1).expect("member count fits usize")).expect("bounded members"),
-    );
-    for prior in landing.members.get(..position).expect("member position") {
-        members.push(prior.clone()).expect("member room");
-    }
-    members.push(member).expect("new member room");
-    for prior in landing.members.get(position..).expect("member position") {
-        members.push(prior.clone()).expect("member room");
-    }
-    landing.members = members.into_boxed();
-    landing.phase = Phase::Preparing;
-    Some(landing)
-}
-
-/// Retain the cancelled member's identity until its round has closed (domain/landing.md, 4.3).
+/// Cancel a change still held by this landing. In a train, retain its identity
+/// and leave with its whole unit (temper/docs/design/domain/landing.md, 4.3).
 #[must_use]
 pub fn leave(mut landing: Landing, change: u64) -> Landing {
+    match landing.phase {
+        Phase::Landed | Phase::Cancelled => return landing,
+        Phase::Waiting
+        | Phase::Preparing
+        | Phase::Proving
+        | Phase::Proved { .. }
+        | Phase::Turn { .. }
+        | Phase::Held { .. } => {}
+    }
+    let mut departing = None;
+    for (index, member) in landing.members.iter().enumerate() {
+        if member.change == change && active(member) {
+            departing = Some((index, member.unit));
+            break;
+        }
+    }
+    let Some((index, unit)) = departing else { return landing };
     if landing.round.branch.is_empty() {
-        return crate::single::leave(landing, change);
+        return crate::single::leave(landing, index, change);
     }
     for (index, member) in landing.members.iter_mut().enumerate() {
-        if member.change == change && member.landed.is_none() && member.left.is_none() {
+        if member.unit == unit && active(member) {
+            let why = if member.change == change { crate::Leave::Cancelled } else { crate::Leave::Unit { change } };
+            mark_left(member, landing.task, why);
             landing.last_left = Some(position(index));
-            member.left = Some(crate::Leave::Cancelled);
         }
     }
     landing
+}
+
+pub(crate) fn assert_departing(member: &Member, task: u64, why: crate::Leave) {
+    assert!(
+        active(member),
+        "change {} can leave landing {task} ({why:?}) only before it has landed or left",
+        member.change,
+    );
+}
+
+fn mark_left(member: &mut Member, task: u64, why: crate::Leave) {
+    assert_departing(member, task, why);
+    member.left = Some(why);
+}
+
+fn leave_at(landing: &mut Landing, index: usize, why: crate::Leave) {
+    let Some(member) = landing.members.get_mut(index) else {
+        unreachable!("landing {} must hold the change at position {index} to leave ({why:?})", landing.task);
+    };
+    mark_left(member, landing.task, why);
 }
 
 // Leaves are committed as a closure before the first notification is emitted.
@@ -80,7 +85,7 @@ fn cascade(landing: &mut Landing, facts: &Facts) {
                 }
             }
             if let Some(why) = why {
-                landing.members.get_mut(index).expect("member").left = Some(why);
+                leave_at(landing, index, why);
             }
         }
     }
@@ -112,7 +117,7 @@ fn notify_leave(landing: &mut Landing) -> Option<Decision> {
 }
 
 fn leaving(mut landing: Landing, facts: &Facts, member: u16, why: crate::Leave) -> Stepped {
-    landing.members.get_mut(usize::from(member)).expect("member").left = Some(why);
+    leave_at(&mut landing, usize::from(member), why);
     cascade(&mut landing, facts);
     let decision = notify_leave(&mut landing).expect("a new leave");
     done(landing, decision)
@@ -123,7 +128,7 @@ fn blamed(why: Option<crate::Leave>) -> bool {
     if let Some(crate::Leave::Blamed { .. }) = why { true } else { false }
 }
 
-fn active(member: &Member) -> bool {
+pub(crate) fn active(member: &Member) -> bool {
     member.left.is_none() && member.landed.is_none()
 }
 
@@ -263,10 +268,10 @@ fn followed_post(landing: &mut Landing, facts: &Facts) -> Option<Decision> {
 pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits, now: Wall) -> Stepped {
     let mut stepped = decide(landing, facts, project, limits, now);
     remember_left(landing, &mut stepped.landing);
-    let cause = crate::liveness::check(&stepped, facts);
+    let cause = crate::liveness::check(landing, &stepped, facts);
     // A departure must not throw away the prefix of a merge that may have been made.
     if matches_turn(&landing.phase)
-        && (cause.is_some() || crate::liveness::members_and_train(landing, facts).is_some())
+        && (cause.is_some() || crate::liveness::members_and_train(landing, landing, facts).is_some())
         && let Some(waiting) = unsettled_merge(landing, facts, limits, now)
     {
         return waiting;
@@ -398,7 +403,7 @@ fn decide(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits, 
                 if !active(member) {
                     continue;
                 }
-                member.left = if let Some(gate) = fresh.refused {
+                let why = if let Some(gate) = fresh.refused {
                     Some(crate::Leave::Refused { gate })
                 } else if fresh.cancelled {
                     Some(crate::Leave::Cancelled)
@@ -409,6 +414,9 @@ fn decide(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits, 
                 } else {
                     None
                 };
+                if let Some(why) = why {
+                    mark_left(member, next.task, why);
+                }
             }
         }
     }
@@ -1082,7 +1090,7 @@ fn red(mut landing: Landing, facts: &Facts, limits: &Limits, gate: u16, run: u64
     let why = crate::Leave::Failed { gate, run };
     for member in &mut landing.members {
         if active(member) {
-            member.left = Some(why);
+            mark_left(member, landing.task, why);
         }
     }
     cascade(&mut landing, facts);
@@ -1286,7 +1294,7 @@ fn boundary(mut landing: Landing, facts: &Facts) -> Stepped {
     for (index, member) in landing.members.iter_mut().enumerate() {
         if member.unit == unit && active(member) {
             changes.push(member.change).expect("members");
-            member.left = Some(crate::Leave::Blamed { gate, run, red, green });
+            mark_left(member, landing.task, crate::Leave::Blamed { gate, run, red, green });
             landing.round.changed = Some(landing.round.changed.unwrap_or(position(index)).min(position(index)));
         }
     }
