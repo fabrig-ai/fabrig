@@ -19,18 +19,6 @@
   a space in the box, the caret after it, where it goes to its place
   not yet started; no such place is drawn or kept [in flight: change
   4200].
-- **Not yet:** 1, *The box* (its placeholders, *← at its start* and
-  *Esc*), and 2, *Not yet started* (its placeholders and *Left at its
-  box's start*) and *`/help`'s note*: Esc leaves a talk and a place,
-  Left leaves nothing, Esc stops no chat's turn, and the placeholders
-  and `/help` say the old keys [in flight: change 19984].
-- **Not yet:** 1, *The focus* and *The quiet line*, and 2, *`/needs`*,
-  *`/chats N`* and *`/open`*: no launchpad's list, `n` walking, "n to
-  walk" in the quiet line and "/chats N" on the rows [in flight: change
-  19985].
-- **Not yet:** 1, *Its words kept*, and 2, *Not yet started*, *Its
-  box*: a box's words not sent are lost on leaving, and going to a
-  place clears the screen's [in flight: change 19986].
 
 The document's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known
