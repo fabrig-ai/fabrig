@@ -2,8 +2,30 @@
 
 use skein_world::faults::Kind;
 use skein_world::sweep::{Exclusion, Sweep};
+use temper_engine_domain_forge::LandingRow;
+use temper_engine_domain_forge_landing::Combine;
+use temper_faults::forge::MERGE_LATE;
 
 pub const A_PATH_DELETED_ON_THE_BASE: Kind = Kind { family: "stale", name: "a path deleted on the base" };
+
+/// A late manual record of an already-landed squash can strand its train.
+pub const MERGE_LATE_RECORD: Exclusion = Exclusion::new(
+    "a_late_manual_merge_record_finishes_the_landed_batch",
+    "landing train",
+    MERGE_LATE,
+    &["recording a squashed member already landed on its base"],
+);
+
+/// Whether a manual merge call is recording a squashed member landed on its base.
+#[must_use]
+pub fn recording_landed_squash(row: &LandingRow, number: u64, commit: skein_forge::api::Commit) -> bool {
+    row.landing.members.iter().any(|member| {
+        member.pull == number
+            && member.combined == Some(Combine::Squash)
+            && member.landed == Some(commit)
+            && !member.recorded
+    })
+}
 
 /// Adds each engine exclusion whose fault `configured` holds, returning the first refusal.
 pub fn exclude(sweep: &mut Sweep, configured: &[Kind]) -> Result<(), String> {
@@ -30,6 +52,9 @@ pub fn exclude(sweep: &mut Sweep, configured: &[Kind]) -> Result<(), String> {
             temper_faults::people::CANCELS_A_GOAL,
             &["a goal branch making in flight"],
         ))?;
+    }
+    if configured.contains(&MERGE_LATE) {
+        sweep.exclude(MERGE_LATE_RECORD)?;
     }
     Ok(())
 }

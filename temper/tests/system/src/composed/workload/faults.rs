@@ -49,6 +49,7 @@ pub const CAMPAIGN_KINDS: &[Kind] = &[
     forge_faults::LIMITED,
     // lagging
     forge_faults::BASE_BEHIND,
+    forge_faults::MERGE_LATE,
     // bounds
     // refusing
     // ci
@@ -88,6 +89,7 @@ pub(in crate::composed) struct Faults {
     lag_until: Option<Time>,
     base_behind_configured: bool,
     base_lag: Option<forge::BaseLag>,
+    merge_lag: Option<forge::MergeLag>,
     log_restore: Option<(u64, u32, Box<[u8]>, Injection)>,
     closed: Option<(u64, Injection, Time)>,
     restored: Option<u64>,
@@ -138,6 +140,7 @@ impl Faults {
             ledger.ineligible(kind);
         }
         Self {
+            merge_lag: plans.iter().any(|plan| plan.kind == forge_faults::MERGE_LATE).then(forge::MergeLag::default),
             bounds,
             release_configured,
             watch: Watch::new(actions.iter().filter(|action| action.act == Act::HoldMember).cloned().collect()),

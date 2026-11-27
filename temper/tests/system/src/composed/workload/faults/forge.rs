@@ -5,8 +5,9 @@ use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_forge::api;
 use skein_lib::{Duration, Env, Time, Wall};
 use skein_world::faults::{Kind, Struck};
+use std::collections::BTreeMap;
 use temper_blame::{Observed, Reaction};
-use temper_engine_forge_world::translate::commit;
+use temper_engine_forge_world::{open, translate::commit};
 use temper_worker_checkout_world::forge::Move;
 
 pub(super) const REMOTE: &[u8] = b"org/repo";
@@ -23,6 +24,12 @@ pub(super) struct BaseLag {
     before: u64,
     at: Time,
     until: Time,
+}
+
+#[derive(Default)]
+pub(super) struct MergeLag {
+    armed: bool,
+    active: BTreeMap<u64, Time>,
 }
 
 fn hex(commit: u64) -> String {
@@ -240,13 +247,36 @@ impl World {
             );
             f.log_restore = Some((attempt.job, step.number, step.log.clone(), entry));
         }
-        // Head lag's forge switch also delays merge records, so turn it off for merges.
-        if matches!(op, api::Op::Write(api::Write::Merge { .. })) {
-            fake::lag(self.forge.domain_mut(), NO_LAG);
+        if let api::Op::Write(api::Write::Merge { number, how, .. }) = op {
+            // Head lag's switch also delays merge records. Arm it for this call
+            // only if the campaign planned a late merge on this goal.
+            let armed = self.workload_merge_lag(&mut f, *number, *how);
+            if let Some(lag) = &mut f.merge_lag {
+                lag.armed = armed;
+            }
+            fake::lag(self.forge.domain_mut(), if armed { LAG } else { NO_LAG });
         }
         self.observe_gate_call(&mut f, op);
         self.workload_faults = Some(f);
         config
+    }
+
+    fn workload_merge_lag(&self, f: &mut Faults, number: u64, how: api::MergeHow) -> bool {
+        let kind = kinds::MERGE_LATE;
+        let Some(lag) = &f.merge_lag else { return false };
+        if !f.due(kind)
+            || self.pull_goal(number) != f.target(kind)
+            || lag.active.get(&number).is_some_and(|&until| self.env.now < until)
+        {
+            return false;
+        }
+        if let api::MergeHow::Recorded { commit } = how
+            && self.workload_landings().any(|row| open::recording_landed_squash(row, number, commit))
+        {
+            f.ledger.leave_out(open::MERGE_LATE_RECORD.scenario, kind, self.env.now);
+            return false;
+        }
+        true
     }
 
     pub(in crate::composed) fn workload_base_advance(&mut self, moves: &[Move], to: api::Commit) {
@@ -323,8 +353,11 @@ impl World {
             f.ledger.stop(entry, self.env.now).expect("bounded read answered");
             f.stopped(self.env.now);
         }
+        let armed = f.merge_lag.as_mut().is_some_and(|lag| std::mem::take(&mut lag.armed));
         if f.lag_until.is_some() {
             fake::lag(self.forge.domain_mut(), LAG);
+        } else if armed {
+            fake::lag(self.forge.domain_mut(), NO_LAG);
         }
         self.workload_faults = Some(f);
     }
@@ -339,6 +372,12 @@ impl World {
                 _ => None,
             });
             let until = until.unwrap_or(fell.at);
+            if matches!(kind, kinds::HEAD_BEHIND | kinds::BASE_BEHIND)
+                && let Some(lag) = &mut f.merge_lag
+                && let Some(pull) = fell.pull
+            {
+                lag.active.insert(pull, until);
+            }
             if f.base_behind_configured && kind == kinds::BASE_BEHIND {
                 // HEAD_BEHIND can lag other base pushes while its switch is on.
                 // Keep their time bound, but count only a scoped, observed view.
@@ -352,11 +391,17 @@ impl World {
                     "ci/set_up must strike its planned goal"
                 );
             }
+            let request = if kind == kinds::MERGE_LATE {
+                // A refused merge or one that cannot lag leaves the plan due.
+                Some(f.fire(kind))
+            } else {
+                fell.reply_to.map(|token| token.raw().to_string())
+            };
             let entry = f.ledger.inject(
                 kind,
                 fell.at,
                 Struck {
-                    request: fell.reply_to.map(|token| token.raw().to_string()),
+                    request,
                     gate_run: fell.run.map(|run| run.to_string()),
                     runner: fell.runner.map(|runner| runner.to_string()),
                     candidate: fell.commit.map(hex),

@@ -22,6 +22,7 @@ const INJECTED_CATALOGUE: &[(Kind, Eligible)] = &[
     (forge_faults::LIMITED, |_| true),
     // lagging
     (forge_faults::BASE_BEHIND, |_| true),
+    (forge_faults::MERGE_LATE, |goal| goal.train),
     // ci
     (temper_blame::SET_UP, |_| true),
     (temper_blame::MISSING_REPORT, has_red_change),

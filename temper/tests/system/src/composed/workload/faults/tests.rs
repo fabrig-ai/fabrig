@@ -464,6 +464,47 @@ fn base_behind_draws_its_own_coin_target_and_moment() {
 }
 
 #[test]
+fn merge_late_draws_its_own_coin_train_and_moment() {
+    use forge_faults::MERGE_LATE;
+    assert!(CAMPAIGN_KINDS.contains(&MERGE_LATE));
+    assert!(!GATE_KINDS.contains(&MERGE_LATE));
+    let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+    let without: Vec<_> = kinds.iter().copied().filter(|&kind| kind != MERGE_LATE).collect();
+    for seed in (0..64).chain([u64::MAX]) {
+        let streams = Streams::new(seed);
+        let workload = Workload::draw(&streams, &COMPOSED);
+        let draw = FaultDraw::new(seed, &kinds);
+        let other = FaultDraw::new(seed, &without);
+        assert_eq!(
+            draw.plans.iter().filter(|plan| plan.kind != MERGE_LATE).collect::<Vec<_>>(),
+            other.plans.iter().collect::<Vec<_>>(),
+            "seed {seed}: other injection plans"
+        );
+        assert_eq!(
+            draw.planned().into_iter().filter(|&(kind, _)| kind != MERGE_LATE).collect::<Vec<_>>(),
+            other.planned(),
+            "seed {seed}: other planned kinds"
+        );
+        assert_eq!(draw.ineligible(), other.ineligible(), "seed {seed}: ineligible kinds");
+        assert_eq!(draw.acts(), other.acts(), "seed {seed}: party acts");
+
+        let mut rng = streams.rng(Stream::Faults, "lagging/merge_late");
+        let expected = (rng.below(2) != 0).then(|| {
+            let train = workload.goals.iter().find(|goal| goal.train).expect("composed train");
+            let _ = rng.below(1);
+            (train.name.as_str(), rng.below(16))
+        });
+        let actual: Vec<_> = draw
+            .plans
+            .iter()
+            .filter(|plan| plan.kind == MERGE_LATE)
+            .map(|plan| (plan.goal.as_str(), plan.after))
+            .collect();
+        assert_eq!(actual, expected.as_slice(), "seed {seed}: MERGE_LATE's coin, train and moment");
+    }
+}
+
+#[test]
 fn wrong_tree_is_observed_without_a_coin_when_a_change_can_go_red() {
     use temper_blame::WRONG_TREE;
     let (mut planned, mut ineligible) = (false, false);
