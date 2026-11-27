@@ -15,6 +15,7 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
+use jig_domain_contract::{Declaration, resources::ResourceKind};
 use jig_domain_core as core;
 use jig_domain_core::engine::{self, Admit, Engine, In, store as engine_store};
 use jig_domain_fleet as fleet;
@@ -328,6 +329,28 @@ pub struct Config {
     pub first: connector::Config,
     /// Connector two.
     pub second: connector::Config,
+    /// Resource kinds for connectors one and two, respectively.
+    pub resource_kinds: [Box<[ResourceKind]>; 2],
+}
+
+impl Config {
+    /// Declare just the connectors the core configuration names.
+    #[must_use]
+    pub fn declarations(&self) -> Box<[Declaration]> {
+        let [first, second] = &self.resource_kinds;
+        let mut declarations = List::with_capacity(2);
+        for number in &self.core.connectors {
+            let (config, resources) = match *number {
+                1 => (&self.first, first),
+                2 => (&self.second, second),
+                _ => continue,
+            };
+            declarations
+                .push(routes::declaration(*number, config, resources))
+                .expect("the testing application has two connectors");
+        }
+        declarations.into_boxed()
+    }
 }
 
 use jig_domain_hub_link::OutboxOwner;
@@ -559,17 +582,6 @@ impl Domain {
         &self.engine.core().accounts
     }
 
-    /// Install the application's fixed hold vocabulary before its first input.
-    pub fn configure_holds(&mut self, env: &Env<Limits>, connector: u16, kinds: Box<[tasks::Kind]>) {
-        let mut out = Queue::uncapped();
-        tasks::step(
-            &mut self.engine.core_mut().tasks,
-            &env.with(env.limits.core.tasks),
-            tasks::Event::Kinds { connector, kinds },
-            &mut out,
-        );
-        assert!(out.is_empty(), "fixed hold vocabulary has no effects");
-    }
     /// Pieces whose kind or offset the core cannot keep (domain/engine/views.md).
     #[must_use]
     pub fn pieces_dropped(&self) -> u64 {
@@ -585,6 +597,7 @@ impl Domain {
         for kind in &config.core.kinds {
             settings_connectors.push(kind.connector).expect("one owner per kind");
         }
+        let declarations = config.declarations();
         Domain {
             scripted_project_releases: None,
             scripted_workspaces: None,
@@ -602,7 +615,7 @@ impl Domain {
                 skein_lib::Rng::new(config.core.seed ^ 0x5455_524e_4255_5359),
             ),
             settings_connectors: settings_connectors.into_boxed(),
-            engine: Engine::new(config.core, &limits.core).expect("fixture core configuration"),
+            engine: Engine::new(config.core, &declarations, &limits.core).expect("fixture core configuration"),
             first: connector::Domain::new(config.first, &limits.connector),
             second: connector::Domain::new(config.second, &limits.connector),
             journal: Journal::uncapped(limits.journal.release, 0),

@@ -1,3 +1,4 @@
+use crate::tests::new_core;
 use crate::tests::*;
 const OWNER: u64 = 1;
 const PROJECT: u32 = 1;
@@ -449,7 +450,7 @@ fn stored_template_overrides_keep_their_values_without_rechecking_admission() {
         ("unknown charter", Box::from([executor_override(UNKNOWN)])),
         ("duplicate template", Box::from([executor_override(PROJECT), executor_override(PROJECT)])),
     ] {
-        let mut core = Core::new(config(41), &limits).expect("restoring core");
+        let mut core = new_core(config(41), &limits).expect("restoring core");
         let _start = core.start_begin(false, Wall::EPOCH);
         let mut restored = before.clone();
         restored.period_spend = 1;

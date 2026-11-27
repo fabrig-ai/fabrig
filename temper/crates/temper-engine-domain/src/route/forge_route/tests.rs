@@ -5040,7 +5040,14 @@ fn a_change_rerun_is_kind_17_on_its_own_branch() {
     assert_eq!(description.effect.kind, 17);
     assert_eq!(description.effect.name, expected);
     assert_eq!(description.effect.state, SHA1);
-    assert_eq!(description.recovery, super::Recovery::Unrecoverable);
+    let declaration = crate::translate::forge_declaration(description.connector);
+    let mut recovery = None;
+    for kind in &declaration.effects {
+        if kind.kind == description.effect.kind {
+            recovery = Some(kind.recovery);
+        }
+    }
+    assert_eq!(recovery, Some(jig_domain_contract::effects::Recovery::Unrecoverable));
 }
 
 #[expect(clippy::too_many_lines, reason = "one restored train fixture couples task readiness and joined repositories")]

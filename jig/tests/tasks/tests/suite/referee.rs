@@ -652,11 +652,11 @@ fn live_queue_and_dependency_circles_are_judged_from_rows() {
     }]);
 }
 
-fn rules() -> Vec<jig_domain_tasks::Kind> {
-    use jig_domain_tasks::{HoldKind, Kind, Taken};
+fn rules() -> Vec<(u16, jig_domain_tasks::ResourceKind)> {
+    use jig_domain_tasks::{HoldKind, ResourceKind, Taken};
     vec![
-        Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } },
-        Kind { connector: 1, kind: 2, hold: HoldKind::Pooled { taken: Taken::Waits } },
+        (1, ResourceKind { kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }),
+        (1, ResourceKind { kind: 2, hold: HoldKind::Pooled { taken: Taken::Waits } }),
     ]
 }
 
@@ -696,7 +696,7 @@ fn shared_writes_allow_two_holders_but_exclusive_writes_do_not() {
 
 #[test]
 fn a_shared_waiter_adds_no_queue_edge_even_when_its_holder_waits_for_it() {
-    use jig_domain_tasks::{HoldKind, Holding, Kind, Name, Phase};
+    use jig_domain_tasks::{HoldKind, Holding, Name, Phase, ResourceKind};
     use jig_tasks_world::{LIMITS, World, task};
     let mut world = World::new(0, LIMITS);
     world.make(Party::Person(1), vec![task(1, &[]), task(2, &[])]);
@@ -711,7 +711,7 @@ fn a_shared_waiter_adds_no_queue_edge_even_when_its_holder_waits_for_it() {
     waiter.holdings = holder.holdings.clone();
     let live = vec![holder, waiter];
     passes(vec![resources(live.clone(), vec![(name, HoldKind::Shared)])]);
-    for kinds in [vec![], vec![Kind { connector: 1, kind: 1, hold: HoldKind::Shared }]] {
+    for kinds in [vec![], vec![(1, ResourceKind { kind: 1, hold: HoldKind::Shared })]] {
         passes(vec![Seen::Resources { live: live.clone(), pools: vec![], writers: vec![], kinds, reports: vec![] }]);
     }
 }

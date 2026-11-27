@@ -1,10 +1,11 @@
+use crate::tests::new_core;
 use crate::tests::*;
 use jig_domain_link::{Form, Scheme};
 
 fn window_core(resume_bytes: u32) -> Core {
     let mut config = config(1);
     config.settings.resume_bytes = resume_bytes;
-    let mut core = Core::new(config, &limits()).expect("fixture core configuration");
+    let mut core = new_core(config, &limits()).expect("fixture core configuration");
     core.begin_transcript(1, 1, None);
     window(&mut core).window = Some((1, 1));
     core

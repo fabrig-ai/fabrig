@@ -804,10 +804,10 @@ pub(super) fn route_connector(
                 }));
             }
             connector::Request::System(call) => hold(decision, Delivery::System { connector: number, call }),
-            connector::Request::Described { token, description, waits_for_dependencies } => {
+            connector::Request::Described { token, description, .. } => {
                 work.push(Work::Core(core::Event::EffectConnector(core::effects::connector::Event::Described {
                     owner: token,
-                    description: Box::new(describe(number, description, waits_for_dependencies)),
+                    description: Box::new(describe(number, description)),
                 })));
             }
             connector::Request::EffectBusy { token } => {
@@ -1081,22 +1081,33 @@ fn name(path: connector::Path) -> authority::Name {
     authority::Name { segments: segments.into_boxed() }
 }
 
-fn describe(
-    number: u16,
-    description: connector::Description,
-    waits_for_dependencies: bool,
-) -> core::effects::connector::EffectDescription {
-    let form = match description.form {
-        connector::Form::Creation => core::effects::connector::EffectForm::Creation,
-        connector::Form::Transition => core::effects::connector::EffectForm::Transition,
-        connector::Form::Set => core::effects::connector::EffectForm::Set,
-    };
-    let recovery = match description.recovery {
-        connector::Recovery::Keyed => core::effects::connector::Recovery::Keyed,
-        connector::Recovery::Conditional => core::effects::connector::Recovery::Conditional,
-        connector::Recovery::Idempotent => core::effects::connector::Recovery::Idempotent,
-        connector::Recovery::Unrecoverable => core::effects::connector::Recovery::Unrecoverable,
-    };
+pub(crate) fn declaration(
+    connector: u16,
+    config: &connector::Config,
+    resources: &[tasks::ResourceKind],
+) -> jig_domain_contract::Declaration {
+    use jig_domain_contract::effects::{EffectForm, EffectKind, Recovery};
+    let mut effects = List::with_capacity(u32::try_from(config.kinds.len()).expect("configured effect kinds"));
+    for kind in &config.kinds {
+        let form = match kind.form {
+            connector::Form::Creation => EffectForm::Creation,
+            connector::Form::Transition => EffectForm::Transition,
+            connector::Form::Set => EffectForm::Set,
+        };
+        let recovery = match kind.recovery {
+            connector::Recovery::Keyed => Recovery::Keyed,
+            connector::Recovery::Conditional => Recovery::Conditional,
+            connector::Recovery::Idempotent => Recovery::Idempotent,
+            connector::Recovery::Unrecoverable => Recovery::Unrecoverable,
+        };
+        effects
+            .push(EffectKind { kind: kind.kind, form, recovery, waits_for_dependencies: kind.waits_for_dependencies })
+            .expect("one declaration per configured effect kind");
+    }
+    jig_domain_contract::Declaration { connector, resources: Box::from(resources), effects: effects.into_boxed() }
+}
+
+fn describe(number: u16, description: connector::Description) -> core::effects::connector::EffectDescription {
     let mut resources = List::with_capacity(u32::try_from(description.resources.len()).expect("bounded resources"));
     for resource in description.resources {
         resources.push(name(resource)).expect("one name per resource");
@@ -1110,11 +1121,8 @@ fn describe(
     }
     let state = state_pin(description.state);
     core::effects::connector::EffectDescription {
-        waits_for_dependencies,
         connector: number,
         purpose: description.purpose,
-        form,
-        recovery,
         effect: authority::Effect {
             connector: number,
             kind: description.kind,

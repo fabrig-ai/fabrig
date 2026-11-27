@@ -1,4 +1,5 @@
 //! Adoption fits and opening use the same state (domain/engine/restart.md, domain/engine/fleet.md).
+use crate::tests::new_core;
 use crate::{
     CoreRecord, Event, RunProof, fleet, people,
     start::{Continuation, LiveSet},
@@ -29,7 +30,7 @@ fn loaded_with_writes(in_process: bool, attempts: u32, saved: &[crate::Record]) 
     configured.workers_in_process = in_process;
     let policy = crate::admission::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[])
         .expect("project policy");
-    let mut core = Core::new(configured, &limits).expect("configured start");
+    let mut core = new_core(configured, &limits).expect("configured start");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     step_phase(core.start_begin(false, env.wall), Phase::LoadCore);
     let mut header = core.counters.deployment();

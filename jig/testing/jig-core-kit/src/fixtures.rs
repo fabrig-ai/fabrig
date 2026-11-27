@@ -345,6 +345,8 @@ pub fn long_resource_world(seed: u64) -> (crate::world::World, u64, jig_test_con
     }
     let path = jig_test_connector::Path::new(path, 128).expect("bounded resource");
     configuration.first.resources[0].path = path.clone();
+    configuration.resource_kinds[0] =
+        Box::new([tasks::ResourceKind { kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } }]);
     crate::peers::journal(&mut limits);
     let mut world =
         crate::world::World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
@@ -491,17 +493,6 @@ pub fn configure_resources(world: &mut crate::world::World) {
             },
         });
     }
-    world.configure_holds(
-        1,
-        Box::new([
-            tasks::Kind {
-                connector: CONNECTOR,
-                kind: 1,
-                hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
-            },
-            tasks::Kind { connector: CONNECTOR, kind: 2, hold: tasks::HoldKind::Pooled { taken: tasks::Taken::Waits } },
-        ]),
-    );
 }
 
 /// A procedure with one declared job kind (jig/docs/design/domain/engine/executors.md, 5).
@@ -558,7 +549,8 @@ pub fn opened_before_catch_up(seed: u64) -> core::Core {
     use core::start::{Action, Phase, SweepInput};
     let (config, limits) = crate::world::fixture(seed, false);
     let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: limits.core };
-    let mut core = core::Core::new(config.core, &limits.core).expect("configured core");
+    let connectors = config.declarations();
+    let mut core = core::Core::new(config.core, &connectors, &limits.core).expect("configured core");
     let mut out = Queue::uncapped();
     let mut action = core.start_begin(false, env.wall);
     for _ in 0..32 {

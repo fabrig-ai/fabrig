@@ -1,8 +1,11 @@
 //! New proposals need an accepting role; parties' words fit a run message.
 use super::*;
+use jig_domain_contract::effects::{EffectForm, EffectKind, Recovery};
 
 fn procedure_fixture() -> (Core, Limits, connector::EffectDescription) {
-    let (mut core, limits) = tree_core();
+    let effect =
+        EffectKind { kind: 5, form: EffectForm::Set, recovery: Recovery::Keyed, waits_for_dependencies: false };
+    let (mut core, limits) = tree_core_with_kinds(Box::new([effect]), Box::new([]));
     let grant = authority::Grant {
         connector: 1,
         kind: 5,
@@ -32,11 +35,9 @@ fn procedure_fixture() -> (Core, Limits, connector::EffectDescription) {
         },
     );
     let description = connector::EffectDescription {
-        waits_for_dependencies: false,
         connector: 1,
         purpose: 19,
-        form: connector::EffectForm::Set,
-        recovery: connector::Recovery::Keyed,
+
         effect: authority::Effect {
             connector: 1,
             kind: 5,

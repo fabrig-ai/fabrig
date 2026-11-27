@@ -1,5 +1,6 @@
 //! Prefixes, folded counts and zero bounds (jig/docs/design/domain/people/public-reading.md, 9).
 use super::*;
+use crate::tests::new_core;
 
 #[test]
 fn a_task_past_the_depth_or_the_lines_is_not_public() {
@@ -105,7 +106,7 @@ fn public_entries_stop_at_the_projects_bound_even_during_restore() {
     assert_eq!(limits.people.projects, 2);
     let configured = crate::tests::config(41);
     let value = crate::admission::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[]).unwrap();
-    let mut core = Core::new(configured, &limits).unwrap();
+    let mut core = new_core(configured, &limits).unwrap();
     let _action = core.start_begin(false, Wall::EPOCH);
     for (project, name) in [(1, "First"), (2, "Second"), (3, "Third")] {
         assert_eq!(

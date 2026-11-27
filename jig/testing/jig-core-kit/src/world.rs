@@ -116,8 +116,6 @@ pub struct AssignedTranscript {
     pub turns: Box<[Box<[u8]>]>,
 }
 
-type HoldKinds = Vec<(u16, Box<[tasks::Kind]>)>;
-
 /// Root, store and separate systems, with an answer channel that may disappear.
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independently held peer traffic and crash cuts")]
@@ -276,7 +274,6 @@ pub struct World {
     sweep: Vec<Cut>,
     fork_child: Option<Cut>,
     case_child: bool,
-    hold_kinds: Rc<HoldKinds>,
     wall: u64,
     wall_lag: u64,
     supplied_wall: Option<Wall>,

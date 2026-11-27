@@ -17,7 +17,7 @@ impl Harness {
     fn new() -> Self {
         let limits = jig_test_profile::limits().core;
         let mut h = Self {
-            core: core::Core::new(jig_test_profile::config(411).core, &limits).expect("configured core"),
+            core: jig_test_profile::new_core(jig_test_profile::config(411).core, &limits).expect("configured core"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
         };

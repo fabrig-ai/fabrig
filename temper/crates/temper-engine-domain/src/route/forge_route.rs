@@ -25,7 +25,7 @@ pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
 pub(crate) const STATUS_CODE: u32 = 5;
 pub(super) const STATUS_CHARTER: u32 = 9;
-use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
+use jig_domain_core::effects::connector::EffectDescription;
 
 pub use forge::routing::adopt_repository_ask;
 pub(crate) use forge::routing::{
@@ -329,19 +329,7 @@ fn describe_agent(
     };
     let name = resource_name(adopted, &resource, env.limits.authority.segments)
         .ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?;
-    let form = match described.form {
-        forge::EffectForm::Creation => EffectForm::Creation,
-        forge::EffectForm::Transition => EffectForm::Transition,
-        forge::EffectForm::Set => EffectForm::Set,
-    };
-    let recovery = match described.recovery {
-        forge::Recovery::Keyed => Recovery::Keyed,
-        forge::Recovery::Conditional => Recovery::Conditional,
-        forge::Recovery::Idempotent => Recovery::Idempotent,
-        forge::Recovery::Unrecoverable => Recovery::Unrecoverable,
-    };
     let description = EffectDescription {
-        waits_for_dependencies: forge::waits_for_dependencies(described.kind),
         connector: domain.config.forge_connector,
         purpose: key.completion.into(),
         effect: authority::Effect {
@@ -354,8 +342,6 @@ fn describe_agent(
             additional: Box::new([]),
             guards: Box::new([]),
         },
-        form,
-        recovery,
     };
     // A staging owner belongs to the core until EffectStart, so allocate none for a refused description.
     if !domain.forge.effect_room(&env.limits.forge) {
@@ -1468,25 +1454,10 @@ fn describe_change_effect(
         additional: Box::new([]),
         guards: Box::new([]),
     };
-    let (forge_form, forge_recovery) = forge::effect_shape(kind)?;
-    let form = match forge_form {
-        forge::EffectForm::Creation => EffectForm::Creation,
-        forge::EffectForm::Transition => EffectForm::Transition,
-        forge::EffectForm::Set => EffectForm::Set,
-    };
-    let recovery = match forge_recovery {
-        forge::Recovery::Keyed => Recovery::Keyed,
-        forge::Recovery::Conditional => Recovery::Conditional,
-        forge::Recovery::Idempotent => Recovery::Idempotent,
-        forge::Recovery::Unrecoverable => Recovery::Unrecoverable,
-    };
     Some(EffectDescription {
-        waits_for_dependencies: forge::waits_for_dependencies(kind),
         connector: domain.config.forge_connector,
         purpose: if kind == 16 || kind == 17 { 18 } else { u64::from(kind) },
         effect,
-        form,
-        recovery,
     })
 }
 
@@ -4752,7 +4723,6 @@ pub(crate) fn outputs(
                     forge::Access::Unavailable => authority::EffectAccess::Unavailable,
                 };
                 let description = EffectDescription {
-                    waits_for_dependencies: forge::waits_for_dependencies(description.kind),
                     connector: domain.config.forge_connector,
                     purpose: entry.number,
                     effect: authority::Effect {
@@ -4764,17 +4734,6 @@ pub(crate) fn outputs(
                         access,
                         additional: Box::new([]),
                         guards: Box::new([]),
-                    },
-                    form: match description.form {
-                        forge::EffectForm::Creation => EffectForm::Creation,
-                        forge::EffectForm::Transition => EffectForm::Transition,
-                        forge::EffectForm::Set => EffectForm::Set,
-                    },
-                    recovery: match description.recovery {
-                        forge::Recovery::Keyed => Recovery::Keyed,
-                        forge::Recovery::Conditional => Recovery::Conditional,
-                        forge::Recovery::Idempotent => Recovery::Idempotent,
-                        forge::Recovery::Unrecoverable => Recovery::Unrecoverable,
                     },
                 };
                 let goal = row.goal;

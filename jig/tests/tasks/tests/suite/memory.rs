@@ -752,7 +752,7 @@ fn retained_root_holds_and_new_live_holds_fit_the_index_together() {
     const LIVE_TASKS: u32 = 3;
     let limits = Limits { tasks: LIVE_TASKS, holdings: 1, tree_tasks: 6, ..LIMITS };
     let mut world = jig_tasks_world::World::new(321, limits);
-    let kind = tasks::Kind { connector: 1, kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } };
+    let kind = tasks::ResourceKind { kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } };
     world.configure_holds(1, vec![kind]);
     world.make(PERSON_PARTY, vec![task(ROOT, &[])]);
     for child in 2..=LIVE_CHILD {

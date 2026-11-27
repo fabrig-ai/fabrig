@@ -24,7 +24,7 @@ impl Harness {
             config.core.defaults.templates[0].grace = Some(Duration::from_secs(6));
         }
         let mut h = Self {
-            core: core::Core::new(config.core, &limits.core).expect("configured settings Core"),
+            core: jig_test_profile::new_core(config.core, &limits.core).expect("configured settings Core"),
             env: Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits: limits.core },
             out: Queue::uncapped(),
         };

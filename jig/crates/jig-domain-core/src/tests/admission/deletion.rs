@@ -1,5 +1,6 @@
 //! Core deletion decisions and kept-step recovery (jig/docs/design/domain/people/acts.md, 2).
 use crate::engine::store as engine_store;
+use crate::tests::new_core;
 use crate::tests::*;
 
 fn core() -> (Core, Limits) {
@@ -648,7 +649,7 @@ fn restored_projects() -> (Core, Limits) {
     let mut config = config(41);
     let value = policy::snapshot(&config.seed_projects[0].policy.policy, &[], &[]).unwrap();
     config.seed_projects = Box::new([]);
-    let mut core = Core::new(config, &limits).unwrap();
+    let mut core = new_core(config, &limits).unwrap();
     core.counters.deployment.projects = 2;
     let _start = core.start_begin(false, Wall::EPOCH);
     core.restore_core(CoreRecord::Deployment(core.counters.deployment()), &limits);

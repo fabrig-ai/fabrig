@@ -1,12 +1,13 @@
 //! The public timer route preserves the ordinary decision journal boundary.
 #![expect(clippy::disallowed_macros, reason = "unit tests build fixtures and inspect selected child events")]
+use crate::tests::new_core;
 use crate::tests::*;
 use skein_lib::{Journal, Released};
 
 pub(in crate::tests) fn timer_core(answers: bool) -> (Core, Env<Limits>) {
     let mut limits = limits();
     limits.people.sign_ins = 3;
-    let mut core = Core::new(config(41), &limits).expect("fixture core configuration");
+    let mut core = new_core(config(41), &limits).expect("fixture core configuration");
     core.people.start_restore(Wall::EPOCH);
     let mut deployment = core.counters.deployment();
     deployment.people = 1;

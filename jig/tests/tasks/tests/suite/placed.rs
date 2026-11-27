@@ -725,7 +725,7 @@ fn inheriting_a_procedures_resource_under_a_stop_starts_no_activation() {
     let mut w = World::new(922, LIMITS);
     w.configure_holds(
         1,
-        vec![tasks::Kind { connector: 1, kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } }],
+        vec![tasks::ResourceKind { kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } }],
     );
     let resource =
         tasks::Holding::Write { resource: tasks::Name { connector: 1, path: Box::new([Box::new([1])]) }, kind: 1 };

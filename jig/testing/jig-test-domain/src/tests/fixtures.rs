@@ -100,6 +100,10 @@ pub fn env() -> Env<Limits> {
     }
 }
 pub fn domain() -> Domain {
+    Domain::new(configuration(), &env().limits)
+}
+
+pub fn configuration() -> Config {
     let limits = env().limits;
     let authority = authority::Domain::new(
         authority::Rules {
@@ -113,90 +117,88 @@ pub fn domain() -> Domain {
         limits.core.authority,
     )
     .expect("bounded authority");
-    Domain::new(
-        Config {
-            first: jig_test_connector_kit::config(1),
-            second: jig_test_connector_kit::config(2),
-            core: core::Config {
-                fixed_providers: Box::new([]),
-                parts: Box::new([]),
-                jobs: Box::new([]),
-                kept_starts: Box::new([]),
+    Config {
+        resource_kinds: [Box::new([]), Box::new([])],
+        first: jig_test_connector_kit::config(1),
+        second: jig_test_connector_kit::config(2),
+        core: core::Config {
+            fixed_providers: Box::new([]),
+            parts: Box::new([]),
+            jobs: Box::new([]),
+            kept_starts: Box::new([]),
 
-                deployment: [1; 16],
-                seed: 1,
-                workers_in_process: false,
-                hub_turns: 2,
-                grants: Box::new([]),
-                owners: Box::new([]),
-                seed_projects: Box::new([]),
-                connectors: Box::new([1, 2]),
-                settings: core::Settings {
-                    endpoints: Box::new([core::EndpointFacts {
-                        direct: Box::new([]),
-                        providers: Box::new([]),
+            deployment: [1; 16],
+            seed: 1,
+            workers_in_process: false,
+            hub_turns: 2,
+            grants: Box::new([]),
+            owners: Box::new([]),
+            seed_projects: Box::new([]),
+            connectors: Box::new([1, 2]),
+            settings: core::Settings {
+                endpoints: Box::new([core::EndpointFacts {
+                    direct: Box::new([]),
+                    providers: Box::new([]),
+                    number: 1,
+                    dialect: 3,
+                    program: None,
+                }]),
+                deployment_provider: 3,
+                models: Box::new([run().policy.model]),
+                resume_bytes: 256,
+                tail_bytes: 128,
+                private_tools: Box::new([]),
+                tools: core::ToolFamilies::JIG,
+                key_bytes: 256,
+                redirect_bytes: 4096,
+                llm_providers: jig_domain_accounts::Providers {
+                    providers: Box::new([jig_domain_accounts::Provider {
+                        list: None,
+                        name: b"Fake".as_slice().into(),
+                        signed_in_plan: true,
+                        manage_usage: Some(b"https://usage.example/".as_slice().into()),
                         number: 1,
-                        dialect: 3,
-                        program: None,
+                        offers: jig_domain_accounts::Offers { sign_in: true, key: false, programs: Box::new([]) },
                     }]),
-                    deployment_provider: 3,
-                    models: Box::new([run().policy.model]),
-                    resume_bytes: 256,
-                    tail_bytes: 128,
-                    private_tools: Box::new([]),
-                    tools: core::ToolFamilies::JIG,
-                    key_bytes: 256,
-                    redirect_bytes: 4096,
-                    llm_providers: jig_domain_accounts::Providers {
-                        providers: Box::new([jig_domain_accounts::Provider {
-                            list: None,
-                            name: b"Fake".as_slice().into(),
-                            signed_in_plan: true,
-                            manage_usage: Some(b"https://usage.example/".as_slice().into()),
-                            number: 1,
-                            offers: jig_domain_accounts::Offers { sign_in: true, key: false, programs: Box::new([]) },
-                        }]),
-                    },
-                },
-                kinds: Box::default(),
-                defaults: core::settings::Defaults {
-                    limits: Box::default(),
-                    providers: Box::new([provider_setting(1, b"Fake", 1)]),
-                    workers: Box::new([
-                        jig_domain_core::settings::WorkerSetting {
-                            number: 1,
-                            name: b"alpha".as_slice().into(),
-                            places: 1,
-                            digest: Some([7; 32]),
-                            withdrawn: false,
-                        },
-                        jig_domain_core::settings::WorkerSetting {
-                            number: 2,
-                            name: b"beta".as_slice().into(),
-                            places: 1,
-                            digest: Some([7; 32]),
-                            withdrawn: false,
-                        },
-                    ]),
-                    models: Box::default(),
-                    charters: Box::new([core::Charter {
-                        parts: Box::new([]),
-                        rest: false,
-                        wake: jig_domain_tasks::WakePolicy::DEFAULT,
-                        documents: Box::new([]),
-                        number: 1,
-                        hosts: fleet::Kinds::Workers,
-                        spend: 37,
-                        policy: run().policy,
-                    }]),
-                    templates: Box::new([]),
-                    policies: Map::with_capacity(0),
-                    rules: (authority).rules().clone(),
                 },
             },
+            kinds: Box::default(),
+            defaults: core::settings::Defaults {
+                limits: Box::default(),
+                providers: Box::new([provider_setting(1, b"Fake", 1)]),
+                workers: Box::new([
+                    jig_domain_core::settings::WorkerSetting {
+                        number: 1,
+                        name: b"alpha".as_slice().into(),
+                        places: 1,
+                        digest: Some([7; 32]),
+                        withdrawn: false,
+                    },
+                    jig_domain_core::settings::WorkerSetting {
+                        number: 2,
+                        name: b"beta".as_slice().into(),
+                        places: 1,
+                        digest: Some([7; 32]),
+                        withdrawn: false,
+                    },
+                ]),
+                models: Box::default(),
+                charters: Box::new([core::Charter {
+                    parts: Box::new([]),
+                    rest: false,
+                    wake: jig_domain_tasks::WakePolicy::DEFAULT,
+                    documents: Box::new([]),
+                    number: 1,
+                    hosts: fleet::Kinds::Workers,
+                    spend: 37,
+                    policy: run().policy,
+                }]),
+                templates: Box::new([]),
+                policies: Map::with_capacity(0),
+                rules: (authority).rules().clone(),
+            },
         },
-        &limits,
-    )
+    }
 }
 pub fn run() -> Box<core::RunCharter> {
     Box::new(core::RunCharter {

@@ -309,18 +309,10 @@ impl Application for Testing {
     type Delivery = Delivery;
 
     fn build(config: &Config) -> Engine {
-        let (configuration, limits) = config.root();
+        let (mut configuration, limits) = config.root();
+        configuration.resource_kinds[0] = jig_test_profile::resource_kinds();
         let fixture = jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers);
-        let mut domain = root::Domain::new(configuration, &limits);
-        let env = env(config, Clock { now: 0 });
-        domain.configure_holds(
-            &env,
-            1,
-            Box::new([
-                tasks::Kind { connector: 1, kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } },
-                tasks::Kind { connector: 1, kind: 2, hold: tasks::HoldKind::Pooled { taken: tasks::Taken::Waits } },
-            ]),
-        );
+        let domain = root::Domain::new(configuration, &limits);
         Engine { root: domain, fixture: Some(fixture), journal: Box::new([]) }
     }
 

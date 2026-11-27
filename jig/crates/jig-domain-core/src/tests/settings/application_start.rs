@@ -1,6 +1,7 @@
 //! Application defaults join the start's revision and project deletion (jig/docs/design/domain/engine/settings-application.md, 1, and jig/docs/design/domain/engine/settings-proposals.md, 1, and jig/docs/design/domain/engine/settings-store.md, 1).
 use crate::settings::{self as s, Kind, KindScope, application as app};
 use crate::start::{Action, ApplicationWhy, Failure, Phase};
+use crate::tests::new_core;
 use crate::tests::*;
 
 fn kind(number: u32, connector: u16, scope: KindScope) -> Kind {
@@ -87,7 +88,7 @@ fn first() -> (Core, Env<Limits>, Box<[Request]>) {
 }
 fn first_with_defaults(defaults: Box<[connector::DefaultState]>) -> (Core, Env<Limits>, Box<[Request]>) {
     let env = environment();
-    let mut core = Core::new(configuration(), &env.limits).unwrap();
+    let mut core = new_core(configuration(), &env.limits).unwrap();
     let action = core.start_begin(false, env.wall);
     let out = complete(&mut core, &env, action, defaults);
     (core, env, out)
@@ -104,7 +105,7 @@ fn snapshot(core: &mut Core, out: &[Request]) -> Map<Key, Record> {
     rows
 }
 fn restart(configured: Config, env: &Env<Limits>, rows: &Map<Key, Record>) -> Core {
-    let mut core = Core::new(configured, &env.limits).unwrap();
+    let mut core = new_core(configured, &env.limits).unwrap();
     let _begun = core.start_begin(false, env.wall);
     for range in RestoreRange::LIVE {
         for (key, record) in rows {
@@ -245,7 +246,7 @@ fn a_dropped_default_is_erased_in_a_release_revision() {
 #[test]
 fn a_stored_state_of_an_undeclared_kind_refuses_the_start() {
     let env = environment();
-    let mut core = Core::new(configuration(), &env.limits).unwrap();
+    let mut core = new_core(configuration(), &env.limits).unwrap();
     let _begun = core.start_begin(false, env.wall);
     let row = CoreRecord::Settings(s::Record::Application {
         setting: setting(99, 0, 7),
@@ -261,7 +262,7 @@ fn a_stored_state_of_an_undeclared_kind_refuses_the_start() {
 #[test]
 fn an_unoffered_charter_in_a_default_refuses_as_a_reference() {
     let env = environment();
-    let mut core = Core::new(configuration(), &env.limits).unwrap();
+    let mut core = new_core(configuration(), &env.limits).unwrap();
     let _begun = core.start_begin(false, env.wall);
     answer(&mut core, &env, 2, Box::new([connector::DefaultState { charters: Box::new([99]), ..default(3, true) }]));
     let mut out = Queue::uncapped();
@@ -298,7 +299,7 @@ fn defaults_wait_for_settings_restore_and_every_kind_owner_even_an_empty_reply()
         ]),
         ..config(41)
     };
-    let mut core = Core::new(configured, &env.limits).unwrap();
+    let mut core = new_core(configured, &env.limits).unwrap();
     let action = core.start_begin(false, env.wall);
     answer(&mut core, &env, 2, Box::new([default(6, true)]));
     assert!(core.current.applications.is_empty(), "early defaults do not replace the stored states");
@@ -336,7 +337,7 @@ fn defaults_outside_the_declared_kind_refuse_with_the_setting_and_reason() {
     ];
     for (default, why) in cases {
         let env = environment();
-        let mut core = Core::new(configuration(), &env.limits).unwrap();
+        let mut core = new_core(configuration(), &env.limits).unwrap();
         let _begun = core.start_begin(false, env.wall);
         let (kind, scope, number) = (default.kind, default.scope, default.number);
         answer(&mut core, &env, 2, Box::new([default]));
@@ -347,7 +348,7 @@ fn defaults_outside_the_declared_kind_refuse_with_the_setting_and_reason() {
 #[test]
 fn stored_states_and_defaults_share_the_kinds_per_scope_bound() {
     let env = environment();
-    let mut core = Core::new(configuration(), &env.limits).unwrap();
+    let mut core = new_core(configuration(), &env.limits).unwrap();
     let _begun = core.start_begin(false, env.wall);
     for number in 1..=3 {
         let row = CoreRecord::Settings(s::Record::Application {
@@ -365,7 +366,7 @@ fn stored_states_and_defaults_share_the_kinds_per_scope_bound() {
         core.start_failure(),
         Some(Failure::Application { kind: 1, scope: 0, number: 3, why: ApplicationWhy::Count })
     );
-    let mut core = Core::new(configuration(), &env.limits).unwrap();
+    let mut core = new_core(configuration(), &env.limits).unwrap();
     let _begun = core.start_begin(false, env.wall);
     answer(
         &mut core,
@@ -388,7 +389,7 @@ fn project_deletion_erases_its_states_with_release_project_and_preserves_other_s
     let env = environment();
     let configured =
         Config { kinds: Box::new([kind(1, 2, KindScope::Deployment), kind(2, 2, KindScope::Project)]), ..config(41) };
-    let mut core = Core::new(configured, &env.limits).unwrap();
+    let mut core = new_core(configured, &env.limits).unwrap();
     let _started = finish_start_without_defaults(&mut core, &env);
     for (kind, scope, follows) in [
         (1, 0, app::Follows::Default),
@@ -506,7 +507,7 @@ fn a_restored_change_holds_its_charters_against_the_supplied_defaults() {
 fn first_start_waits_before_seeding_and_recovers_a_header_without_settings() {
     for header_only in [false, true] {
         let env = environment();
-        let mut core = Core::new(configuration(), &env.limits).unwrap();
+        let mut core = new_core(configuration(), &env.limits).unwrap();
         let action = core.start_begin(false, env.wall);
         if header_only {
             let mut header = core.counters.deployment();
@@ -542,7 +543,7 @@ fn first_start_waits_before_seeding_and_recovers_a_header_without_settings() {
 #[test]
 fn an_undeclared_default_is_refused_even_without_declared_kind_owners() {
     let env = environment();
-    let mut core = Core::new(config(41), &env.limits).unwrap();
+    let mut core = new_core(config(41), &env.limits).unwrap();
     let _begun = core.start_begin(false, env.wall);
     answer(&mut core, &env, 2, Box::new([default(1, true)]));
     assert_eq!(

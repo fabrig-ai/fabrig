@@ -171,14 +171,6 @@ fn full_tables_and_interleaved_reports_never_leave_a_call_past_its_deadline() {
         let (mut world, limits) = world(seed, capacity, bound);
         let (now, wall) = world.clocks();
         world.set_clock(now, wall);
-        world.configure_holds(
-            1,
-            Box::new([tasks::Kind {
-                connector: 1,
-                kind: 1,
-                hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
-            }]),
-        );
         let parent = world.assignments[0];
         let authority = world.assigned.as_ref().unwrap().run.authority.clone();
         for number in 1..=12 {

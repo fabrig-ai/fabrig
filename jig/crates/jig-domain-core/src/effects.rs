@@ -459,6 +459,10 @@ fn described(
     owner: Token,
     description: Box<connector::EffectDescription>,
 ) {
+    if core.effect_kind(description.effect.connector, description.effect.kind).is_none() {
+        describe_refused(core, env, work, out, owner);
+        return;
+    }
     let proposed = match core.effect(owner) {
         Some(flight) => match flight.origin {
             EffectOrigin::Propose { .. } => true,
@@ -560,8 +564,9 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
     if checked == authority::Answer::Allow && !writers_ready(core, env, &origin, &description) {
         checked = authority::Answer::Wait;
     }
+    let kind = core.effect_kind(description.effect.connector, description.effect.kind).expect("described kind");
     // A hard refusal outranks keeping, which only defers the effect.
-    if description.waits_for_dependencies && checked != authority::Answer::Refuse {
+    if kind.waits_for_dependencies && checked != authority::Answer::Refuse {
         let task = match &origin {
             Making::Call { key, .. } => Some(key.task),
             Making::Procedure { task, .. } => Some(*task),

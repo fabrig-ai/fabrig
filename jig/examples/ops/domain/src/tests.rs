@@ -901,3 +901,54 @@ fn requirements_take_the_deployments_identifiers_and_thresholds() {
         Some(observability::Requirement::LoadBelow { percent: 12, for_seconds: 600 })
     );
 }
+
+#[test]
+fn declarations_follow_the_connectors_vocabulary_and_backend() {
+    use jig_domain_contract::{
+        effects::{EffectForm, EffectKind, Recovery},
+        resources::{ResourceKind, Rule, Taken},
+    };
+    let (_, mut env) = fixture();
+    let vocabulary = &mut env.limits.infrastructure.vocabulary;
+    vocabulary.service_hold = 31;
+    vocabulary.environment_hold = 32;
+    vocabulary.pool_slot_hold = 33;
+    vocabulary.restart_effect = 41;
+    vocabulary.scale_effect = 42;
+    vocabulary.rollback_effect = 43;
+    vocabulary.create_environment_effect = 44;
+    vocabulary.tear_down_effect = 45;
+    env.limits.observability.vocabulary.silence_effect = 46;
+    for (backend, restart) in [
+        (infrastructure::Backend::OperationIds, Recovery::Keyed),
+        (infrastructure::Backend::NoOperationIds, Recovery::Unrecoverable),
+    ] {
+        let [observability, infrastructure] = crate::translate::declarations(backend, &env.limits);
+        assert_eq!(observability.connector, 1);
+        assert!(observability.resources.is_empty());
+        assert_eq!(
+            observability.effects.as_ref(),
+            &[EffectKind { kind: 46, form: EffectForm::Set, recovery: Recovery::Keyed, waits_for_dependencies: false },]
+        );
+        assert_eq!(infrastructure.connector, 2);
+        assert_eq!(
+            infrastructure.resources.as_ref(),
+            &[
+                ResourceKind { kind: 31, hold: Rule::Exclusive { taken: Taken::Waits } },
+                ResourceKind { kind: 32, hold: Rule::Exclusive { taken: Taken::Waits } },
+                ResourceKind { kind: 33, hold: Rule::Pooled { taken: Taken::Waits } },
+            ]
+        );
+        let expected = [
+            (41, EffectForm::Transition, restart),
+            (42, EffectForm::Set, Recovery::Conditional),
+            (43, EffectForm::Transition, Recovery::Conditional),
+            (44, EffectForm::Creation, Recovery::Keyed),
+            (45, EffectForm::Transition, Recovery::Conditional),
+        ];
+        assert_eq!(infrastructure.effects.len(), expected.len());
+        for (declared, (kind, form, recovery)) in infrastructure.effects.iter().zip(expected) {
+            assert_eq!(*declared, EffectKind { kind, form, recovery, waits_for_dependencies: true });
+        }
+    }
+}

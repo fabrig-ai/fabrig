@@ -1,4 +1,5 @@
 //! The core names own watch subjects from live and restored sign-ins (protocol/client/README.md, 5).
+use crate::tests::new_core;
 use crate::tests::*;
 use jig_domain_link::{Hello, Hosting, Phase};
 
@@ -45,7 +46,7 @@ fn signed_core() -> (Core, Limits, u64, Box<[Record]>) {
     let mut configuration = config(41);
     configuration.owners = Box::new([]);
     let needs = fleet_needs::configured(&configuration, &limits);
-    let mut core = Core::new(configuration, &limits).expect("fixture core configuration");
+    let mut core = new_core(configuration, &limits).expect("fixture core configuration");
     fixtures::restore_needs(&mut core.fleet, &limits, needs);
     core.people.start_restore(Wall::EPOCH);
     finish_people(&mut core.people, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people });
@@ -57,7 +58,7 @@ fn started_signed_core() -> (Core, Limits, u64, Box<[Record]>) {
     let limits = limits();
     let mut configuration = config(41);
     configuration.owners = Box::new([]);
-    let mut core = Core::new(configuration, &limits).expect("fixture core configuration");
+    let mut core = new_core(configuration, &limits).expect("fixture core configuration");
     let mut seeded = finish_start(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits });
     settle_fleet(&mut core.fleet, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet });
     let (sign_in, records) = sign_in(&mut core, &limits, 1);
@@ -111,7 +112,7 @@ fn an_own_subject_names_the_sign_ins_party() {
 #[test]
 fn an_own_subject_after_a_restart_names_the_restored_sign_ins_party() {
     let (original, limits, sign_in, records) = started_signed_core();
-    let mut restored = Core::new(config(42), &limits).expect("fixture core configuration");
+    let mut restored = new_core(config(42), &limits).expect("fixture core configuration");
     let _start = restored.start_begin(false, Wall::EPOCH);
     let mut header = original.counters.deployment();
     header.commits = 1;

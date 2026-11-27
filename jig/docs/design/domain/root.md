@@ -116,7 +116,8 @@ iterate, after the step:
   nothing durable is one call, so review finds every use.
 - **The root holds the engine,** `jig-domain-core`'s `Engine`, and no
   `Core` (engine/vocabulary.md, 2). It builds it with `Engine::new`,
-  steps it with an event as `In::Core` and fires its timers by the
+  from its configuration and one declaration per configured connector
+  (connectors.md, 2), steps it with an event as `In::Core` and fires its timers by the
   engine's `step` and `fire`, and asks `due` and `next_deadline` under
   its `Admit`. What comes back is `Out::Core`, a request whose mark the
   root keeps as above, or `Out::Held(Peer::Store(..))`, a load, which it
@@ -384,7 +385,9 @@ It inspects nothing it holds. What jig asks of it:
   connector's are ranges of their own, which the restart script loads
   (section 8).
 - **Configuration** is split the same way: the root gives each child its
-  part, and the core each connector's number.
+  part, and the engine each connector's declaration (connectors.md, 2),
+  which the root translates from the kinds a connector that keeps its own
+  vocabulary exposes, as it translates its descriptions.
 
 ## 7. Putting outputs together
 
@@ -500,7 +503,9 @@ stops taking them.
 - read or rewrite a value it carries between children, beyond wrapping
   it;
 - give one child another child's type;
-- route by content beyond the variant.
+- route by content beyond the variant;
+- install a connector's kinds in a core child: they go in its
+  declaration (connectors.md, 2).
 
 ## 12. The reference root
 

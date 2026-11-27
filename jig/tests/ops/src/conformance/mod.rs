@@ -1034,15 +1034,7 @@ pub fn night(seed: u64, cut: jig_conformance::Cut) -> jig_conformance::Harness<O
             b"checkout".as_slice().into(),
         ))]),
     }));
-    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Kinds {
-        connector: 2,
-        kinds: Box::new([tasks::Kind {
-            connector: 2,
-            kind: 1,
-            hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
-        }]),
-    })));
-    world.drain().expect("infrastructure write hold configuration");
+    world.drain().expect("infrastructure resource names");
     world.advance(1800 * 1_000_000_000);
     world.drain().expect("thirty minutes of staging observations");
     let mut child_authority = config::task_authority(10);
@@ -1134,14 +1126,6 @@ fn alert_documents(seed: u64, cut: jig_conformance::Cut, documents: bool) -> jig
             b"checkout".as_slice().into(),
         ))]),
     }));
-    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Kinds {
-        connector: 2,
-        kinds: Box::new([tasks::Kind {
-            connector: 2,
-            kind: 1,
-            hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
-        }]),
-    })));
     world.send(root::Event::Core(core::Event::People(people::Event::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(101)),

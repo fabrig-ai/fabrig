@@ -133,7 +133,7 @@ fn stored_world_with_proposal(amendment: bool) -> World {
 }
 
 fn load_core(rows: &BTreeMap<root::Key, root::Record>, limits: &root::Limits) -> core::Core {
-    let mut domain = core::Core::new(configuration().core, &limits.core).expect("configured direct core");
+    let mut domain = jig_test_profile::new_core(configuration().core, &limits.core).expect("configured direct core");
     let env = core_env(limits);
     {
         phase(&domain.start_begin(false, env.wall), Phase::LoadCore);

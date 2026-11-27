@@ -11,6 +11,7 @@
 
 pub mod acts;
 mod admission;
+mod declarations;
 pub mod documents;
 pub mod effects;
 mod ended_groups;
@@ -46,6 +47,7 @@ use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
+use jig_domain_contract::Declaration;
 pub use jig_domain_core_vocabulary::limits::problems as worker_membership;
 use jig_domain_fleet as fleet;
 use jig_domain_link::Problem;
@@ -184,6 +186,7 @@ pub struct Core {
     fleet_versions: u32,
     /// Application connectors addressed only by number.
     pub connectors: Box<[u16]>,
+    declarations: Box<[Declaration]>,
     pub(crate) jobs: Box<[jig_domain_link::JobBound]>,
     /// Subjects owned by the parent; the child echoes each watch token.
     pub(crate) view_names: skein_lib::Slab<WatchedSubject>,
@@ -327,9 +330,9 @@ impl Core {
 
     /// Allocate the eight children and the bounded live core tables.
     /// # Errors
-    /// A configured worker count or name exceeds the priced membership bounds.
+    /// Worker membership exceeds its bounds or the connector declarations do not hold.
     #[expect(clippy::too_many_lines, reason = "construct all bounded children, bindings and subject marks together")]
-    pub fn new(mut config: Config, limits: &Limits) -> Result<Core, Problem> {
+    pub fn new(mut config: Config, connectors: &[Declaration], limits: &Limits) -> Result<Core, Problem> {
         let worker_names = limits::problems(&config.defaults.workers, limits)?;
         assert!(limits.people.words <= limits.tasks.message_bytes, "party words fit one run message");
         assert!(limits.tasks.message_bytes >= 24, "projection refusal news fits one run message");
@@ -340,6 +343,7 @@ impl Core {
             "core prices every configured connector number"
         );
         assert_connector_registry(&config.connectors);
+        declarations::check(connectors, &config.connectors, limits.tasks.hold_kinds)?;
         reads::parts::assert_kinds(&config.parts, &config.connectors);
         let mut previous = None;
         for job in &config.jobs {
@@ -406,7 +410,7 @@ impl Core {
             );
         }
         let authority = authority::Domain::new(current.rules().clone(), limits.authority).expect("configured rules");
-        Ok(Core {
+        let mut core = Core {
             erasures: erase::Erasures::new(),
             deletions: deletion::Deletions::new(limits.people.projects),
             routes: limits.routes,
@@ -477,6 +481,7 @@ impl Core {
             permission_roles: Map::with_capacity(limits.authority.projects),
             template_overrides: Map::with_capacity(limits.authority.projects),
             connectors: config.connectors,
+            declarations: Box::from(connectors),
             jobs: config.jobs,
             pending_calls: Map::with_capacity(limits.call_records),
             call_parts: Map::with_capacity(limits.call_records),
@@ -537,7 +542,9 @@ impl Core {
             notes: notes::Domain::new(&limits.notes),
             views: views::Domain::new(&limits.views),
             settings: config.settings,
-        })
+        };
+        declarations::install(&mut core.tasks, &limits.tasks, &core.declarations);
+        Ok(core)
     }
 }
 

@@ -32,7 +32,7 @@ fn cold(source: &Harness) -> Harness {
     for (key, hold) in &source.domain.hold_kinds {
         cold.send(Event::Kinds {
             connector: key.connector,
-            kinds: Box::new([crate::Kind { connector: key.connector, kind: key.kind, hold: *hold }]),
+            kinds: Box::new([crate::ResourceKind { kind: key.kind, hold: *hold }]),
         });
     }
     for row in source.stored.values().filter(|row| row.key().live()) {

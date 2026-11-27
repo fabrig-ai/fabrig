@@ -178,12 +178,6 @@ impl World {
         *self.domain.journal_mut() = skein_lib::Journal::uncapped(self.limits.journal.release, header.commits);
     }
 
-    /// Install the connector's fixed hold vocabulary, retained across cold starts.
-    pub fn configure_holds(&mut self, connector: u16, kinds: Box<[tasks::Kind]>) {
-        super::Rc::make_mut(&mut self.hold_kinds).push((connector, kinds.clone()));
-        self.send(root::Event::Core(core::Event::Tasks(tasks::Event::Kinds { connector, kinds })));
-    }
-
     /// Let every previously durable completion through its ordered barrier.
     pub fn release_commits(&mut self) {
         self.try_release_commits().unwrap_or_else(|finding| self.fail(&finding));
@@ -224,6 +218,7 @@ impl World {
         self.drain();
     }
 
+    /// Cold restart from the fixture with the same resource kind declarations.
     pub fn restart(&mut self, seed: u64, requirement: bool) {
         let mut config = fixture(seed, requirement).0;
         for kind in &mut config.first.kinds {
@@ -231,6 +226,12 @@ impl World {
                 kind.recovery = self.recovery;
             }
         }
+        self.restart_from_fixture(config);
+    }
+
+    /// Keep the running connector's declared resource kinds when rebuilding a fixture.
+    pub(crate) fn restart_from_fixture(&mut self, mut config: root::Config) {
+        config.resource_kinds.clone_from(&self.restart_config.0.resource_kinds);
         self.restart_with(config);
     }
 
@@ -317,10 +318,6 @@ impl World {
         }
         if let Some(setup) = self.startup {
             setup(&mut self.domain);
-        }
-        let env = self.env();
-        for (connector, kinds) in self.hold_kinds.iter() {
-            self.domain.configure_holds(&env, *connector, kinds.clone());
         }
         self.events.clear();
         self.internal_reads.clear();
