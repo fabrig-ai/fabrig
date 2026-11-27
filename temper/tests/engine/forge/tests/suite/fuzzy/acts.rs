@@ -248,8 +248,11 @@ fn advance(world: &mut World, task: u64, entry: u64) {
         let branch = format!("temper/c{task}");
         match kind {
             change::Delegate::Repair(_) | change::Delegate::Resolve { .. } => {
-                world.push_file(branch.as_bytes(), b"file", b"fixed");
-                world.push_file(branch.as_bytes(), format!("member{}", task - 51).as_bytes(), b"resolved");
+                let branch = branch.as_bytes();
+                let name = changes::branch_name(branch);
+                let attempt = (child, 1);
+                world.push_attempt(&name, attempt, branch, b"file", b"fixed");
+                world.push_attempt(&name, attempt, branch, format!("member{}", task - 51).as_bytes(), b"resolved");
             }
             _ => panic!("train member's delegate: {kind:?}"),
         }
