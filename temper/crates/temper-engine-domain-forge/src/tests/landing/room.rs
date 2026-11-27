@@ -746,7 +746,7 @@ fn cancelling_a_dispatch_lets_the_next_landing_dispatch_its_key() {
     assert!(d.landing.flights.contains_key(&key));
     let fault = d.landing.flights.get(&key).unwrap().clone();
     d.landing.faults.insert((TASK, 0, 0), fault).unwrap();
-    outputs(&mut d, Event::Restore { record: Stored::Landing(landing_row(63, policy::Phase::Waiting)) });
+    assert!(d.landing.remember(landing_row(63, policy::Phase::Waiting)).is_none());
     let cancelled = outputs(&mut d, Event::SettleEffects { task: TASK, root: TASK, ending: ReleaseEnding::Cancelled });
     assert!(!d.landing.flights.contains_key(&key));
     assert!(d.landing.faults.is_empty());
@@ -787,7 +787,7 @@ fn old_retained_dispatches_settle_for_live_and_cancelled_landings() {
         assert_eq!(d.landing.flights.contains_key(&key), !cancelled);
         // Fill the rest of the landing table to test admission at the bound.
         for task in 200..200 + u64::from(LIMITS.landings - 1) {
-            outputs(&mut d, Event::Restore { record: Stored::Landing(landing_row(task, policy::Phase::Waiting)) });
+            assert!(d.landing.remember(landing_row(task, policy::Phase::Waiting)).is_none());
         }
         if cancelled {
             assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Err(LandingRefusal::Landings));
@@ -824,7 +824,7 @@ fn ending_a_landing_withdraws_its_unsent_write() {
         drive(&mut d, TASK, FRESH);
         assert!(d.entries.get(&FRESH).unwrap().entry.attempt.is_none());
         if ending == ReleaseEnding::Done {
-            d.landing.rows.get_mut(&TASK).unwrap().landing.phase = policy::Phase::Landed;
+            set_landing_phase(&mut d, TASK, policy::Phase::Landed);
         }
         let out = outputs(&mut d, Event::SettleEffects { task: TASK, root: TASK, ending });
         assert_eq!(write_outcome(&out), Some(skein_forge_client::Outcome::Withdrawn));

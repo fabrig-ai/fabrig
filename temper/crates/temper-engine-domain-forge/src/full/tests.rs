@@ -164,7 +164,6 @@ fn pruning_inside_ask_reports_room_before_admitting_the_next_waiter() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "The FIFO and eligibility checks share one queue setup")]
 fn ask_keeps_one_first_come_line_and_skips_ineligible_waiters() {
     use crate::room::Waiter;
     use temper_engine_domain_forge_change as change;
@@ -173,45 +172,40 @@ fn ask_keeps_one_first_come_line_and_skips_ineligible_waiters() {
         let (mut d, env) = setup(4, 4);
         d.room.ready = true;
         d.landing.held = globally_held;
-        d.landing
-            .rows
-            .insert(
-                50,
-                crate::LandingRow {
-                    read_hold: None,
-                    gate_hold: None,
-                    last_event: None,
-                    turn_since: None,
-                    waiting: None,
-                    follows: None,
-                    flake_reruns: Box::new([]),
-                    room: Some(1),
-                    job: None,
-                    landing: landing::Landing {
-                        last_left: None,
-                        searched: None,
-                        round: landing::Round::new(b"temper/1/l50".as_slice().into()),
-                        task: 50,
-                        project: 5,
-                        phase: if globally_held {
-                            landing::Phase::Preparing
-                        } else {
-                            landing::Phase::Held {
-                                was: Box::new(landing::Phase::Preparing),
-                                why: landing::Hold::Faults { member: 0, gate: 0 },
-                            }
-                        },
-                        members: Box::new([]),
-                        preparation: 0,
-                        stale_proofs: 0,
-                        last_prepare: None,
-                        branch: b"main".as_slice().into(),
-                    },
-                    previous_asks: Box::new([]),
-                    entries: Box::new([]),
+        let row = crate::LandingRow {
+            read_hold: None,
+            gate_hold: None,
+            last_event: None,
+            turn_since: None,
+            waiting: None,
+            follows: None,
+            flake_reruns: Box::new([]),
+            room: Some(1),
+            job: None,
+            landing: landing::Landing {
+                last_left: None,
+                searched: None,
+                round: landing::Round::new(b"temper/1/l50".as_slice().into()),
+                task: 50,
+                project: 5,
+                phase: if globally_held {
+                    landing::Phase::Preparing
+                } else {
+                    landing::Phase::Held {
+                        was: Box::new(landing::Phase::Preparing),
+                        why: landing::Hold::Faults { member: 0, gate: 0 },
+                    }
                 },
-            )
-            .unwrap();
+                members: Box::new([]),
+                preparation: 0,
+                stale_proofs: 0,
+                last_prepare: None,
+                branch: b"main".as_slice().into(),
+            },
+            previous_asks: Box::new([]),
+            entries: Box::new([]),
+        };
+        assert!(d.landing.remember(row).is_none());
         waiting_change(&mut d, 20, 2);
         crate::room::reserve_ask(&mut d, Waiter::Change(20), 20);
         waiting_change(&mut d, 21, 3);

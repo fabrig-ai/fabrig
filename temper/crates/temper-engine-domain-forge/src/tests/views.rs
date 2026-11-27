@@ -215,6 +215,7 @@ fn a_landing_view_shows_its_member_gate_and_turn() {
     let mut d = setup();
     outputs(&mut d, Event::Restore { record: Stored::Landing(row(61, policy::Phase::Proving)) });
     outputs(&mut d, Event::Restore { record: Stored::Landing(row(62, policy::Phase::Turn { at: env().wall })) });
+    d.landing.restore_memberships().unwrap();
     let got = view(&d, 61);
     assert_eq!((got.task, got.project, got.turn, got.preparation, got.stale_proofs), (61, 5, Some(62), 1, 2));
     assert_eq!(got.phase, policy::Phase::Proving);
@@ -240,6 +241,7 @@ fn a_landing_view_shows_its_member_gate_and_turn() {
 fn a_gate_whose_key_another_landing_dispatched_is_waiting() {
     let mut d = setup();
     outputs(&mut d, Event::Restore { record: Stored::Landing(row(61, policy::Phase::Proving)) });
+    d.landing.restore_memberships().unwrap();
     d.landing.rows.get_mut(&61).unwrap().waiting = Some(policy::Awaited::Run { member: 0, gate: 0 });
     let key =
         ReceiptKey { project: 5, repository: REPO, check: Check::Gate(Box::from(b"gate".as_slice())), key: [7; 32] };
@@ -288,6 +290,7 @@ fn landings_list_live_first_then_newest() {
         [(61, policy::Phase::Turn { at: env().wall }), (62, policy::Phase::Proving), (63, policy::Phase::Waiting)]
     {
         outputs(&mut d, Event::Restore { record: Stored::Landing(row(task, phase)) });
+        d.landing.restore_memberships().unwrap();
     }
     let got = list(&d, false);
     assert_eq!(got.turn, Some(61));
@@ -299,6 +302,7 @@ fn ended_landings_are_listed_only_when_asked() {
     let mut d = setup();
     for (task, phase) in [(61, policy::Phase::Proving), (62, policy::Phase::Cancelled), (63, policy::Phase::Landed)] {
         outputs(&mut d, Event::Restore { record: Stored::Landing(row(task, phase)) });
+        d.landing.restore_memberships().unwrap();
     }
     assert_eq!(list(&d, false).landings.len(), 1);
     let all = list(&d, true);
@@ -875,6 +879,7 @@ fn a_squashed_landing_keeps_its_train_round_and_prefix_judgement_after_landing()
         change::GateReport { revision: 0, number: 3, head: fixtures::HEAD, status: change::Status::Failed },
     ]);
     outputs(&mut d, Event::Restore { record: Stored::Landing(row) });
+    d.landing.restore_memberships().unwrap();
     let got = view(&d, 61);
     let train = got.train.unwrap();
     assert_eq!(
@@ -955,6 +960,7 @@ fn searching_landings_show_the_probe_in_the_landing_and_train() {
     second.candidate = Some([9; 32]);
     landing.landing.members = Box::new([landing.landing.members[0].clone(), second]);
     outputs(&mut d, Event::Restore { record: Stored::Landing(landing) });
+    d.landing.restore_memberships().unwrap();
     let change = d.changes.get_mut(&fixtures::CHANGE).unwrap();
     change.change.way = change::Way::Turn;
     change.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
@@ -1013,6 +1019,7 @@ fn searches_by_test_show_bounded_selections_passes_and_the_train_probe() {
     second_change.change.way = change::Way::Turn;
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(second_change)) });
     outputs(&mut d, Event::Restore { record: Stored::Landing(landing) });
+    d.landing.restore_memberships().unwrap();
     let change = d.changes.get_mut(&fixtures::CHANGE).unwrap();
     change.change.way = change::Way::Turn;
     change.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
@@ -1065,6 +1072,7 @@ fn landing_steps_distinguish_prefix_judgement_leaving_and_recording() {
     landing.landing.round.judging = true;
     landing.landing.members[0].judging = true;
     outputs(&mut d, Event::Restore { record: Stored::Landing(landing) });
+    d.landing.restore_memberships().unwrap();
     d.changes.get_mut(&fixtures::CHANGE).unwrap().change.gates = Box::new([change::Gate {
         number: 3,
         kind: change::GateKind::Agent,
@@ -1087,7 +1095,9 @@ fn landing_steps_distinguish_prefix_judgement_leaving_and_recording() {
         policy::Leave::Refused { gate: 3 },
         policy::Leave::Failed { gate: 0, run: 7 },
     ] {
-        d.landing.rows.get_mut(&61).unwrap().landing.members[0].left = Some(why);
+        let mut row = d.landing(61).unwrap().clone();
+        row.landing.members[0].left = Some(why);
+        assert!(d.landing.remember(row).is_some());
         assert_eq!(view(&d, 61).members[0].left, Some(why));
     }
     let landing = &mut d.landing.rows.get_mut(&61).unwrap().landing;
@@ -1108,6 +1118,7 @@ fn landing_events_keep_their_time_through_the_steps_row_save() {
     let mut d = setup();
     let stale = row(61, policy::Phase::Proving);
     outputs(&mut d, Event::Restore { record: Stored::Landing(stale.clone()) });
+    d.landing.restore_memberships().unwrap();
     for (index, what) in [
         What::Formed { members: Box::new([]), place: 1 },
         What::Departed { line: Line::Landing, cause: Departure::Landing(policy::Leave::Cancelled) },
@@ -1152,9 +1163,11 @@ fn landing_wait_views_resolve_names_and_list_times() {
     saved.waiting = Some(policy::Awaited::Close);
     saved.last_event = Some(Wall::from_nanos(12));
     outputs(&mut d, Event::Restore { record: Stored::Landing(saved.clone()) });
+    d.landing.restore_memberships().unwrap();
     assert_eq!(view(&d, 61).waits.unwrap().on, LandingWaitFor::Close);
     saved.waiting = Some(policy::Awaited::Run { member: 0, gate: 0 });
     outputs(&mut d, Event::Restore { record: Stored::Landing(saved.clone()) });
+    d.landing.restore_memberships().unwrap();
     let wait = view(&d, 61).waits.unwrap();
     assert_eq!(
         (wait.on, wait.change, wait.gate.as_deref(), wait.run),
@@ -1162,13 +1175,16 @@ fn landing_wait_views_resolve_names_and_list_times() {
     );
     saved.room = Some(3);
     outputs(&mut d, Event::Restore { record: Stored::Landing(saved.clone()) });
+    d.landing.restore_memberships().unwrap();
     assert_eq!(view(&d, 61).waits.unwrap().on, LandingWaitFor::Room);
     saved.room = None;
     saved.waiting = Some(policy::Awaited::Turn);
     outputs(&mut d, Event::Restore { record: Stored::Landing(saved) });
+    d.landing.restore_memberships().unwrap();
     let mut holder = row(62, policy::Phase::Turn { at: Wall::EPOCH });
     holder.turn_since = Some(Wall::from_nanos(8));
     outputs(&mut d, Event::Restore { record: Stored::Landing(holder.clone()) });
+    d.landing.restore_memberships().unwrap();
     assert_eq!(view(&d, 61).waits.unwrap().landing, Some(62));
     let got = list(&d, false);
     assert_eq!((got.now, got.turn_since), (env().wall, holder.turn_since));
@@ -1178,6 +1194,7 @@ fn landing_wait_views_resolve_names_and_list_times() {
     );
     holder.landing.phase = policy::Phase::Landed;
     outputs(&mut d, Event::Restore { record: Stored::Landing(holder) });
+    d.landing.restore_memberships().unwrap();
     assert_eq!(view(&d, 62).waits, None);
     let ended = list(&d, true);
     assert_eq!((ended.landings[1].step, &ended.landings[1].waits), (None, &None));
