@@ -190,14 +190,14 @@ fn call_done(
             return;
         }
         RoutedCall::Subscribe { key, subscription } => {
-            core.handoff_call(key, crate::PendingCall::Routed, crate::PendingCall::Application);
+            core.handoff_call(key, crate::CallHolder::Routed, crate::CallHolder::Application);
             for &connector in core.connectors.as_ref() {
                 out.push(Request::Ask { connector, ask: Ask::SubscriptionDone { request, key, subscription } });
             }
             return;
         }
         RoutedCall::Unsubscribe(key) => {
-            core.handoff_call(key, crate::PendingCall::Routed, crate::PendingCall::Application);
+            core.handoff_call(key, crate::CallHolder::Routed, crate::CallHolder::Application);
             for &connector in core.connectors.as_ref() {
                 out.push(Request::Ask { connector, ask: Ask::UnsubscriptionDone { request, key } });
             }

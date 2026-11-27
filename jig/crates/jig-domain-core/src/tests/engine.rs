@@ -468,7 +468,7 @@ fn a_notes_load_refuses_full_room_once_and_a_project_drop_retries_after_the_wind
     let proof = crate::RunProof::claimed(key.task, key.attempt, 1, None, jig_domain_fleet::HostKind::Worker);
     let core = engine.core_mut();
     core.proofs.insert(key.task, proof).expect("current call proof");
-    assert!(core.reserve_call(key, crate::PendingCall::Routed));
+    assert!(core.reserve_call(key, crate::CallHolder::Routed));
     let to = ReplyTo::new(owner);
     let call = core.begin_note_route(crate::routing::NoteRoute::Call { to, key, records: Box::new([]) });
     let mut seen = false;

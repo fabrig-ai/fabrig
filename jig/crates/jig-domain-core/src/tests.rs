@@ -77,6 +77,18 @@ fn assert_retained(core: &Core, key: CallKey, expected: CallPart) {
 }
 
 #[test]
+fn call_pending_reads_only_the_pending_place() {
+    let (mut core, _) = claimed_call_room();
+    assert!(core.reserve_connector_call(ROOM_CALL));
+    assert!(core.call_pending(ROOM_CALL));
+    assert!(!core.call_pending(ROOM_NEXT), "an unknown name has no pending place");
+
+    assert!(core.decide_named_call(ROOM_CALL, CallPart::Controlled));
+    assert_retained(&core, ROOM_CALL, CallPart::Controlled);
+    assert!(!core.call_pending(ROOM_CALL), "a retained answer is no longer pending");
+}
+
+#[test]
 fn call_room_counts_pending_calls_and_allows_retained_replay_at_capacity() {
     let (mut core, limits) = claimed_call_room();
     assert!(core.reserve_connector_call(ROOM_CALL));
