@@ -1,6 +1,7 @@
 //! Bounded family pages and dense activity in either direction (protocol/store/loads.md, 3 and 4).
 use super::{Failure, Spent, empty, joins};
 use crate::{Cursor, Row, Store, intervals, keys, pages, restore};
+use jig_domain_core_vocabulary::engine::store::{Answer, Rows};
 use jig_domain_core_vocabulary::{self as core, reads};
 use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
@@ -24,7 +25,7 @@ pub(super) fn activity(
     range: &reads::Range,
     task: u64,
     spent: &mut Spent,
-) -> Result<reads::Loaded, Failure> {
+) -> Result<Answer, Failure> {
     let Some(owner) = joins::owner(store, task, spent)? else { return Ok(empty()) };
     let capacity = spent.rows.max(1).min(store.limits.store.page.bytes);
     let before = activity_position(range, task)?;
@@ -128,7 +129,7 @@ pub(super) fn activity(
             Err(error @ (Failure::Joins | Failure::Corrupt)) => return Err(error),
         }
     }
-    Ok(reads::Loaded::Page { rows: found.into_boxed(), next: if more { last } else { None } })
+    Ok(Answer::Rows(Rows::Read { rows: found.into_boxed(), next: if more { last } else { None } }))
 }
 
 pub(super) fn decode(store: &mut Store, row: skein_kv::Row) -> Result<core::Record, Failure> {
@@ -163,7 +164,7 @@ fn family(
     range: &reads::Range,
     owner: Option<&tasks::TaskRecord>,
     spent: &mut Spent,
-) -> Result<reads::Loaded, Failure> {
+) -> Result<Answer, Failure> {
     let intervals = intervals::scope(range.party, &range.scope).ok_or(Failure::Corrupt)?;
     let after = cursor(range, &intervals)?;
     let walked = pages::reader::walk(store, &intervals, after.as_ref(), spent.rows).or(Err(Failure::Corrupt))?;
@@ -179,12 +180,12 @@ fn family(
             }
             Err(Failure::Joins) if last.is_none() => return Err(Failure::Joins),
             Err(Failure::Joins | Failure::Cut) => {
-                return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });
+                return Ok(Answer::Rows(Rows::Read { rows: found.into_boxed(), next: last }));
             }
             Err(Failure::Corrupt) => return Err(Failure::Corrupt),
         }
     }
-    Ok(reads::Loaded::Page { rows: found.into_boxed(), next: if walked.next.is_some() { last } else { None } })
+    Ok(Answer::Rows(Rows::Read { rows: found.into_boxed(), next: if walked.next.is_some() { last } else { None } }))
 }
 
 pub(super) fn history(
@@ -192,16 +193,16 @@ pub(super) fn history(
     range: &reads::Range,
     task: u64,
     spent: &mut Spent,
-) -> Result<reads::Loaded, Failure> {
+) -> Result<Answer, Failure> {
     let Some(owner) = joins::owner(store, task, spent)? else { return Ok(empty()) };
     family(store, range, Some(&owner), spent)
 }
 
-pub(super) fn spend(store: &mut Store, range: &reads::Range, spent: &mut Spent) -> Result<reads::Loaded, Failure> {
+pub(super) fn spend(store: &mut Store, range: &reads::Range, spent: &mut Spent) -> Result<Answer, Failure> {
     family(store, range, None, spent)
 }
 
-pub(super) fn notes(store: &mut Store, range: &reads::Range, spent: &mut Spent) -> Result<reads::Loaded, Failure> {
+pub(super) fn notes(store: &mut Store, range: &reads::Range, spent: &mut Spent) -> Result<Answer, Failure> {
     let intervals = intervals::scope(range.party, &range.scope).ok_or(Failure::Corrupt)?;
     let after = cursor(range, &intervals)?;
     let walked = pages::reader::walk(store, &intervals, after.as_ref(), spent.rows).or(Err(Failure::Corrupt))?;
@@ -262,7 +263,7 @@ pub(super) fn notes(store: &mut Store, range: &reads::Range, spent: &mut Spent) 
             }
             Err(Failure::Joins) if last.is_none() => return Err(Failure::Joins),
             Err(Failure::Joins | Failure::Cut) => {
-                return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });
+                return Ok(Answer::Rows(Rows::Read { rows: found.into_boxed(), next: last }));
             }
             Err(Failure::Corrupt) => return Err(Failure::Corrupt),
         };
@@ -273,18 +274,14 @@ pub(super) fn notes(store: &mut Store, range: &reads::Range, spent: &mut Spent) 
             }
             Err(Failure::Joins) if last.is_none() => return Err(Failure::Joins),
             Err(Failure::Joins | Failure::Cut) => {
-                return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });
+                return Ok(Answer::Rows(Rows::Read { rows: found.into_boxed(), next: last }));
             }
             Err(Failure::Corrupt) => return Err(Failure::Corrupt),
         }
     }
-    Ok(reads::Loaded::Page { rows: found.into_boxed(), next: if walked.next.is_some() { last } else { None } })
+    Ok(Answer::Rows(Rows::Read { rows: found.into_boxed(), next: if walked.next.is_some() { last } else { None } }))
 }
 
-pub(super) fn scoped_notes(
-    store: &mut Store,
-    range: &reads::Range,
-    spent: &mut Spent,
-) -> Result<reads::Loaded, Failure> {
+pub(super) fn scoped_notes(store: &mut Store, range: &reads::Range, spent: &mut Spent) -> Result<Answer, Failure> {
     notes(store, range, spent)
 }

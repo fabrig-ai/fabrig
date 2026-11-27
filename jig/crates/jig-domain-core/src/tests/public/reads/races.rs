@@ -171,7 +171,7 @@ fn the_pending_table_is_separate_from_authenticated_loads_and_reclaims() {
     let first = asking(start(&mut core, &limits, 98, read), read, &[]);
     let second = asking(start(&mut core, &limits, 99, read), read, &[]);
     assert_eq!(core.public_reads.len(), limits.load_slots);
-    assert_eq!(core.reads.len(), 0);
+    assert_eq!(core.loads.reads(), 0);
     outputs(start(&mut core, &limits, 100, read), &[terminal(100, PublicAnswer::Busy)]);
     for (token, reply) in [(first, 98), (second, 99)] {
         let token = answered(&mut core, &limits, token, None);

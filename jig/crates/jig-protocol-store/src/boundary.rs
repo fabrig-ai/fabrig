@@ -1,5 +1,6 @@
 //! Store requests and terminals (protocol/store/README.md, section 3 and protocol/store/loads.md and protocol/store/transcripts.md and protocol/store/secrets.md and protocol/store/opening.md).
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{self as core, RestoreRange, reads};
 use jig_domain_notes as notes;
 use skein_io::file;
@@ -133,12 +134,20 @@ pub enum Get {
 pub enum TranscriptRead {
     /// A resuming run's current window, from the turn the core names as its
     /// start; a window that starts at another turn is `Unread`.
-    Window { task: u64, attempt: u64, turn: u32, after: Option<u64> },
+    Window { task: u64, attempt: u64, turn: u32, after: Option<u64>, limits: Option<WindowPage> },
     /// One turn, walked to from its attempt's first turn.
     Turn { task: u64, attempt: u64, turn: u32 },
     /// A page of a task's turns from either end; a fresh run's tail is
     /// `backwards: true, after: None`.
     Page { task: u64, backwards: bool, after: Option<u64> },
+}
+
+/// Additional decoded page bounds for an engine window (jig/docs/design/protocol/store/README.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct WindowPage {
+    pub row_bytes: u32,
+    pub bytes: u32,
+    pub turn_overhead: u32,
 }
 
 /// Whose secret (protocol/store/secrets.md).
@@ -796,7 +805,7 @@ pub enum Event {
     /// A read's page, busy, or gone.
     Read {
         owner: Token,
-        result: reads::Loaded,
+        result: engine_store::Answer,
     },
     Got {
         owner: Token,
@@ -817,6 +826,10 @@ pub enum Event {
     /// turn, a dropped transcript, or no complete turn fitting the direct
     /// read's room while committed bytes remain (protocol/store/transcripts.md 3, 5).
     Unread {
+        owner: Token,
+    },
+    /// An engine window could not be read, distinct from an absent first turn.
+    WindowFailed {
         owner: Token,
     },
     /// A secrets request refused until this start's mark is durable (protocol/store/records.md 3).

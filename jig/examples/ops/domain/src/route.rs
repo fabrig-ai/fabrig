@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_core::effects::connector;
-use jig_domain_core::engine::{self, In, Out};
+use jig_domain_core::engine::{self, In, Out, Peer};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_hub_link::{Event as LinkEvent, Procedure};
@@ -30,6 +30,11 @@ pub(crate) fn work(
         Work::Core(event) => {
             let mut out = Queue::uncapped();
             engine::step(&mut domain.engine, &env.with(env.limits.core), In::Core(event), &mut out);
+            engine_out(domain, env, decision, out, work);
+        }
+        Work::Store(answer) => {
+            let mut out = Queue::uncapped();
+            engine::step(&mut domain.engine, &env.with(env.limits.core), In::Store(answer), &mut out);
             engine_out(domain, env, decision, out, work);
         }
         Work::Effect { owner, origin, effect } => effect_start(domain, env, decision, owner, origin, effect, work),
@@ -90,7 +95,13 @@ fn effect_start(
     let mut effect = Some(effect);
     // The core selects description or refusal; the typed input moves once.
     for _ in 0..out.len() {
-        let Out::Core(request) = out.pop().expect("effect start outputs");
+        let request = match out.pop().expect("effect start outputs") {
+            Out::Core(request) => request,
+            Out::Held(Peer::Store(load)) => {
+                held(decision, Output::Store(load));
+                continue;
+            }
+        };
         match request {
             core::Request::Ask { connector, ask: core::Ask::Effect(connector::Ask::Describe { owner: asked }) } => {
                 assert!(
@@ -253,8 +264,10 @@ fn engine_out(
     work: &mut Queue<Work>,
 ) {
     for _ in 0..out.len() {
-        let Out::Core(request) = out.pop().expect("engine output count");
-        core_request(domain, env, decision, request, work);
+        match out.pop().expect("engine output count") {
+            Out::Core(request) => core_request(domain, env, decision, request, work),
+            Out::Held(Peer::Store(load)) => held(decision, Output::Store(load)),
+        }
     }
 }
 
@@ -317,7 +330,8 @@ fn core_held(
     match value {
         core::Held::PublicRead { .. } => {}
         core::Held::PublicWait { read } => child(decision, Released::Core(core::Event::PublicDurable { read })),
-        core::Held::Load(load) => held(decision, Output::CoreLoad(*load)),
+        core::Held::Store(load) => held(decision, Output::Store(load)),
+
         core::Held::ApplicationDelivery { .. } => unreachable!("document assembly owns this synchronous output"),
         core::Held::ApplicationWatchEnded { watcher, connector, subject, why } => {
             crate::client_documents::forget(domain, connector, subject, work);
@@ -428,7 +442,6 @@ fn core_held(
             Released::Fleet(fleet::Event::Acknowledge { run: Token::new(task), attempt: Token::new(attempt) }),
         ),
         other @ (core::Held::CallAnswer { .. }
-        | core::Held::ReadLoad { .. }
         | core::Held::Read { .. }
         | core::Held::Delivery { .. }
         | core::Held::WatchEnded { .. }
@@ -453,7 +466,6 @@ fn core_held(
         | core::Held::SourceSignedOut { .. }
         | core::Held::Refuse { .. }
         | core::Held::TurnBusy { .. }
-        | core::Held::NotesLoad { .. }
         | core::Held::NotesWritten { .. }
         | core::Held::NotesDeleted { .. }) => held(decision, Output::Core(other)),
     }
@@ -1359,9 +1371,8 @@ fn core_now(
         }
         core::Now::Undelivered { message, .. } => drop(domain.hub_link.take_payload(message.words)),
         core::Now::Activate { context } => {
-            work.push(Work::Core(core::Event::Activate { context, ready: domain.ready(), busy: false }));
+            work.push(Work::Core(core::Event::Activate { context, ready: domain.ready() }));
         }
-        value @ core::Now::StartPreparation { .. } => now(domain, Output::CoreLoad(value)),
         core::Now::BriefCorePlanned { task, sections, .. } => {
             let budget = env.limits.core.brief.brief_bytes;
             let deadline = env.now.saturating_add(env.limits.policy.brief_timeout);
@@ -1421,14 +1432,6 @@ fn core_now(
             drop(domain.hub_link.take_assignment(task));
             drop(domain.hub_link.take_brief(task));
         }
-        load @ (core::Now::SeenConversation { .. }
-        | core::Now::LoadEndedRead { .. }
-        | core::Now::EndedProposal { .. }
-        | core::Now::DecidedProposal { .. }
-        | core::Now::EndedEscalation { .. }
-        | core::Now::EndedPersonTask { .. }
-        | core::Now::EndedTask { .. }
-        | core::Now::PartyInputs { .. }) => now(domain, Output::CoreLoad(load)),
         core::Now::RestoreRefused => {
             assert!(domain.engine.core().start_failure().is_some(), "a refused row records its start failure");
         }

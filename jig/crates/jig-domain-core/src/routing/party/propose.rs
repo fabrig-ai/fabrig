@@ -1,6 +1,7 @@
 //! Explicit party proposals and withdrawals (domain/people/acts.md, section 1).
+use crate::loads::point::{self, Point};
 use crate::{
-    Core, Event, GoalRoute, Limits, Now, Request,
+    Core, Event, GoalRoute, Limits,
     routing::{
         Work,
         party::{create, dispatch::Routed, inputs as party_inputs},
@@ -147,7 +148,7 @@ pub(crate) struct Withdrawal {
     pub project: u32,
     pub proposal: u64,
 }
-pub(crate) fn withdraw_request(core: &mut Core, routed: &mut Routed, value: Withdrawal) {
+pub(crate) fn withdraw_request(core: &mut Core, limits: &Limits, routed: &mut Routed, value: Withdrawal) {
     let Withdrawal { request, person, project, proposal } = value;
     if let Some(row) = core.tasks.person_proposal(person, proposal) {
         if row.project != project {
@@ -161,13 +162,14 @@ pub(crate) fn withdraw_request(core: &mut Core, routed: &mut Routed, value: With
             proposal,
         })));
     } else {
-        routed.out.push(Request::Now(Box::new(Now::EndedProposal {
+        let party = super::dispatch::Party { request, person, project, role: None };
+        point::party(
+            core,
+            limits,
+            routed,
             request,
-            person,
-            project,
-            proposer: people::Proposer::Party(person),
-            proposal,
-        })));
+            Point::ProposalDecision { party, proposer: people::Proposer::Party(person), proposal },
+        );
     }
 }
 

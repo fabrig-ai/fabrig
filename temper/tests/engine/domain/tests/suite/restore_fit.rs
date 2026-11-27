@@ -64,12 +64,7 @@ fn a_forge_fit_failure_names_its_step_and_releases_no_wires() {
         }
         let owner = driver.loads.last().expect("forge load was issued").0;
         driver.send(root::Event::Store(root::StoreInput::Unloaded { owner }));
-        driver.send(root::Event::Store(root::StoreInput::Loaded {
-            owner,
-            rows: Box::new([binding(99)]),
-            next: None,
-            texts: None,
-        }));
+        driver.send(root::Event::Store(root::StoreInput::Loaded { owner, rows: Box::new([binding(99)]), next: None }));
         assert_eq!(driver.root.forge_fit_failure(), Some(&first));
         assert_eq!(driver.loads.len(), loads, "no continuation after the failed page");
         assert_eq!(driver.switches.len(), 0);
@@ -126,7 +121,6 @@ fn application_pages_use_the_restart_entry_wall_observation() {
                     owner: page_owner,
                     rows: page.to_vec().into_boxed_slice(),
                     next,
-                    texts: None,
                 }));
                 if done && over_limit {
                     assert_eq!(

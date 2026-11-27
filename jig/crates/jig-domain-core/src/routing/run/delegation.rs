@@ -4,6 +4,7 @@
 use super::Proposing;
 use crate::routing::{HoldingsNeed, Work, effect::procedure::ProcedureCall};
 
+use crate::loads::point::Point;
 use crate::{
     Ask, CallKey, CallPart, Core, Delegate, Dependency, Event, HoldingsRefusal, Limits, ProcedureStep, Request,
     StepRefusal, ToolKind,
@@ -34,11 +35,101 @@ pub(crate) fn delegate_refused(
     out
 }
 
+/// The connector translates the batch; the engine loads ended task records for its inputs.
+pub(crate) fn delegate(
+    core: &mut Core,
+    env: &Env<Limits>,
+    to: ReplyTo,
+    key: CallKey,
+    batch: Box<[Delegate]>,
+) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    if !core.current_proof(key.task, key.attempt) || core.loads.delegate_waiting(key) {
+        return out;
+    }
+    if let Some(part) = core.call_parts.get(&key) {
+        out.push(Request::Held(Box::new(crate::Held::CallAnswer { to, key, part: part.clone() })));
+        return out;
+    }
+    if let Some(part) = core.authorize_tool(key, ToolKind::Delegate) {
+        call_decision(core, &mut out, to, key, part);
+        return out;
+    }
+    if let Err(part) = core.delegate_preflight(&env.limits.tasks, key, &batch, env.wall) {
+        call_decision(core, &mut out, to, key, *part);
+        return out;
+    }
+    let (project, ids) = match core.delegate_inputs(&env.limits.tasks, key, &batch) {
+        Ok(value) => value,
+        Err(part) => {
+            call_decision(core, &mut out, to, key, *part);
+            return out;
+        }
+    };
+    if ids.is_empty() {
+        return delegate_validated(core, env, to, key, batch, Box::new([]));
+    }
+    let stubs = List::with_capacity(u32::try_from(ids.len()).expect("bounded input IDs"));
+    assert!(core.pending_calls.insert(key, true).is_ok(), "reserved call record room");
+    load_input(core, env, DelegateInput { to, key, batch, ids, at: 0, project, stubs })
+}
+
+#[derive(Hash, Debug)]
+pub(crate) struct DelegateInput {
+    pub to: ReplyTo,
+    pub key: CallKey,
+    pub batch: Box<[Delegate]>,
+    pub ids: Box<[u64]>,
+    pub at: usize,
+    pub project: u32,
+    pub stubs: List<tasks::Stub>,
+}
+
+fn load_input(core: &mut Core, env: &Env<Limits>, read: DelegateInput) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    if core.loads.room(&env.limits) {
+        assert!(
+            crate::loads::try_point(core, &env.limits, &mut out, Point::DelegateInput(Box::new(read))),
+            "input load room checked"
+        );
+    } else {
+        call_decision(core, &mut out, read.to, read.key, CallPart::Unavailable);
+    }
+    out
+}
+
+pub(crate) fn input_loaded(
+    core: &mut Core,
+    env: &Env<Limits>,
+    mut read: DelegateInput,
+    row: Option<Box<tasks::TaskRecord>>,
+) -> Queue<Request> {
+    if core.stopping() || !core.current_proof(read.key.task, read.key.attempt) {
+        let _pending = core.pending_calls.remove(&read.key);
+        return Queue::uncapped();
+    }
+    let wanted = *read.ids.get(read.at).expect("pending input");
+    let stub = match row {
+        Some(row) => Core::input_stub(read.key.task, read.project, wanted, row),
+        None => None,
+    };
+    let Some(stub) = stub else {
+        return delegate_refused(core, read.to, read.key, Some(read.key.task), tasks::Refusal::Inputs);
+    };
+    read.stubs.push(stub).expect("one stub per input");
+    read.at = read.at.checked_add(1).expect("bounded input index");
+    if read.at < read.ids.len() {
+        load_input(core, env, read)
+    } else {
+        delegate_validated(core, env, read.to, read.key, read.batch, read.stubs.into_boxed())
+    }
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one bounded delegated batch receives task identities and connector handoffs"
 )]
-pub(crate) fn delegate_validated(
+fn delegate_validated(
     core: &mut Core,
     env: &Env<Limits>,
     to: ReplyTo,
@@ -723,20 +814,6 @@ pub(crate) fn route_start_recurring(
     if core.open_project(project) {
         start_recurring(core, work, project, authority, template);
     }
-    Queue::uncapped()
-}
-
-pub(crate) fn delegate_input_failed(work: &mut Queue<Work>, to: ReplyTo, key: CallKey) -> Queue<Request> {
-    work.push(Work::Event(Event::NamedAnswer {
-        to,
-        key,
-        part: CallPart::DelegationRefused(tasks::Problem {
-            task: Some(key.task),
-            why: tasks::Refusal::Inputs,
-            blocked_by: None,
-            capacity: None,
-        }),
-    }));
     Queue::uncapped()
 }
 

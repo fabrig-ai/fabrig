@@ -179,8 +179,8 @@ impl Core {
         Ok(())
     }
 
-    /// Name each retained input once before the root starts its bounded result loads.
-    pub fn delegate_inputs(
+    /// Name each retained input once before starting bounded result loads.
+    pub(crate) fn delegate_inputs(
         &self,
         limits: &tasks::Limits,
         key: CallKey,

@@ -25,6 +25,7 @@ mod settings;
 mod start;
 mod translate;
 
+use crate::engine::store as engine_store;
 use crate::{
     Settings,
     admission::{amendments, compound, person_task},
@@ -2401,7 +2402,62 @@ fn watch_core() -> (Core, Limits) {
 }
 
 fn watch_outputs(core: &mut Core, limits: &Limits, event: Event) -> Box<[Request]> {
-    let mut out = step(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, event);
+    watch_decision(step(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, event))
+}
+
+fn watch_store_outputs(core: &mut Core, limits: &Limits, event: engine_store::In) -> Box<[Request]> {
+    watch_decision(crate::routing::step_store(
+        core,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
+        event,
+    ))
+}
+
+fn point_answer(load: Token, row: Option<Record>, busy: bool) -> engine_store::In {
+    let result = if busy {
+        engine_store::Answer::Failed(engine_store::Failure::Busy)
+    } else {
+        let records: Box<[Record]> = match row {
+            Some(row) => Box::new([row]),
+            None => Box::new([]),
+        };
+        engine_store::Answer::Rows(engine_store::Rows::Records { records, more: false })
+    };
+    engine_store::In::Loaded { load, result }
+}
+
+fn ended_answer(load: Token, row: Option<Box<tasks::TaskRecord>>, busy: bool) -> engine_store::In {
+    let row = match row {
+        Some(row) => Some(Record::Tasks(tasks::Stored::Ended(row))),
+        None => None,
+    };
+    point_answer(load, row, busy)
+}
+
+/// Fixtures that start directly in preparation still register the load their page answers.
+fn fixture_window(core: &mut Core, task: u64, from: (u64, u32)) -> Token {
+    let Request::Held(held) = core.loads.window(task, from) else { panic!("window held") };
+    let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Window { .. } }) = *held else {
+        panic!("window through store")
+    };
+    load
+}
+
+fn finish_window(core: &mut Core, limits: &Limits, task: u64, result: engine_store::Answer) -> Box<[Request]> {
+    let load = fixture_window(core, task, (1, 1));
+    watch_store_outputs(core, limits, engine_store::In::Loaded { load, result })
+}
+
+fn last_empty_window_page(core: &mut Core, limits: &Limits, task: u64) -> Box<[Request]> {
+    finish_window(
+        core,
+        limits,
+        task,
+        engine_store::Answer::Rows(engine_store::Rows::Turns { turns: Box::new([]), more: false }),
+    )
+}
+
+fn watch_decision(mut out: Queue<Request>) -> Box<[Request]> {
     let mut requests = List::with_capacity(out.len());
     while let Some(request) = out.pop() {
         requests.push(request).unwrap();
@@ -3012,10 +3068,10 @@ fn loaded_answer(
     core: &mut Core,
     limits: &Limits,
     load: Token,
-    result: crate::reads::Loaded,
+    result: engine_store::Answer,
 ) -> Option<crate::reads::Answer> {
     let mut answer = None;
-    for output in watch_outputs(core, limits, Event::ReadLoaded { load, result }) {
+    for output in watch_store_outputs(core, limits, engine_store::In::Loaded { load, result }) {
         match output {
             Request::Held(held) => {
                 let Held::Read { answer: value, .. } = *held else { panic!("one held terminal") };
@@ -3033,11 +3089,16 @@ fn loaded_answer(
 
 fn read_answer(core: &mut Core, limits: &Limits, sign_in: u64, read: crate::reads::Read) -> Held {
     let held = read_start(core, limits, sign_in, read);
-    if let Held::ReadLoad { load, .. } = held {
+    if let Held::Store(engine_store::Out::Load { load, .. }) = held {
         return Held::Read {
             reply: ReplyTo::new(Token::new(90)),
-            answer: loaded_answer(core, limits, load, crate::reads::Loaded::Page { rows: Box::new([]), next: None })
-                .unwrap(),
+            answer: loaded_answer(
+                core,
+                limits,
+                load,
+                engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([]), next: None }),
+            )
+            .unwrap(),
         };
     }
     held
@@ -3076,7 +3137,7 @@ fn stored_activity_pages_follow_committed_positions_with_exact_continuations() {
             words: Box::new(*b"whole original words"),
         },
     };
-    let Held::ReadLoad { load, range } =
+    let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) =
         read_start(&mut core, &limits, 10, crate::reads::Read::Activity { task: 1, before: None })
     else {
         panic!()
@@ -3088,16 +3149,20 @@ fn stored_activity_pages_follow_committed_positions_with_exact_continuations() {
         stored_row(Record::Tasks(tasks::Stored::Activity(line(2, 30))), Some(owner.clone())),
     ]);
     let next = crate::reads::row_key(&rows[1]).unwrap();
-    let crate::reads::Answer::Page(page) =
-        loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Page { rows, next: Some(next.clone()) }).unwrap()
-    else {
+    let crate::reads::Answer::Page(page) = loaded_answer(
+        &mut core,
+        &limits,
+        load,
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: Some(next.clone()) }),
+    )
+    .unwrap() else {
         panic!()
     };
     assert_eq!(page.rows.len(), 2);
     let crate::reads::PageRow::Activity { line: first, .. } = page.rows.get(0).unwrap() else { panic!() };
     assert_eq!(first.position, 3);
     core.reclaim();
-    let Held::ReadLoad { load, range } =
+    let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) =
         read_start(&mut core, &limits, 10, crate::reads::Read::Activity { task: 1, before: page.next })
     else {
         panic!()
@@ -3107,17 +3172,19 @@ fn stored_activity_pages_follow_committed_positions_with_exact_continuations() {
         &mut core,
         &limits,
         load,
-        crate::reads::Loaded::Page {
+        engine_store::Answer::Rows(engine_store::Rows::Read {
             rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Activity(line(1, 20))), Some(owner))]),
             next: None,
-        },
+        }),
     )
     .unwrap() else {
         panic!()
     };
     assert_eq!(last.rows.len(), 1);
     assert_eq!(last.next, None);
-    assert!(loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Gone).is_none());
+    assert!(
+        loaded_answer(&mut core, &limits, load, engine_store::Answer::Failed(engine_store::Failure::Gone)).is_none()
+    );
 }
 
 #[test]
@@ -3125,28 +3192,35 @@ fn store_load_admission_is_bounded_and_each_terminal_consumes_its_slot() {
     let (mut core, mut limits) = watch_core();
     limits.load_slots = 1;
     // Reconstruct with the chosen capacity; authentication is restored below.
-    core.reads = skein_lib::Slab::with_capacity(1);
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 100 }) else {
+    core.loads = loads::Loads::new(1, core.flight_tasks_capacity);
+    fixture_window(&mut core, 102, (1, 1));
+    assert!(!core.loads.room(&limits), "the full work lane does not take the read's room");
+    let Held::Store(engine_store::Out::Load { load, .. }) =
+        read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 100 })
+    else {
         panic!()
     };
     let Held::Read { answer, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 101 }) else {
         panic!()
     };
     assert_eq!(answer, crate::reads::Answer::None(crate::reads::Why::Busy));
-    assert_eq!(core.reads.len(), 1);
+    assert_eq!(core.loads.reads(), 1);
     assert_eq!(
-        loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Busy),
+        loaded_answer(&mut core, &limits, load, engine_store::Answer::Failed(engine_store::Failure::Busy)),
         Some(crate::reads::Answer::None(crate::reads::Why::Busy))
     );
     core.reclaim();
-    let Held::ReadLoad { load: fresh, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 101 })
+    let Held::Store(engine_store::Out::Load { load: fresh, .. }) =
+        read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 101 })
     else {
         panic!()
     };
     assert_ne!(fresh, load);
-    assert!(loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Gone).is_none());
+    assert!(
+        loaded_answer(&mut core, &limits, load, engine_store::Answer::Failed(engine_store::Failure::Gone)).is_none()
+    );
     assert_eq!(
-        loaded_answer(&mut core, &limits, fresh, crate::reads::Loaded::Gone),
+        loaded_answer(&mut core, &limits, fresh, engine_store::Answer::Failed(engine_store::Failure::Gone)),
         Some(crate::reads::Answer::None(crate::reads::Why::Gone))
     );
 }
@@ -3157,7 +3231,7 @@ fn stored_read_refuses_rows_over_either_bound_and_cursors_from_another_query() {
     limits.documents.rows = 1;
     limits.load_bytes = 1;
     let owner = core.tasks.task(1).unwrap().clone();
-    let Held::ReadLoad { load, .. } =
+    let Held::Store(engine_store::Out::Load { load, .. }) =
         read_start(&mut core, &limits, 10, crate::reads::Read::Activity { task: 1, before: None })
     else {
         panic!()
@@ -3167,10 +3241,10 @@ fn stored_read_refuses_rows_over_either_bound_and_cursors_from_another_query() {
             &mut core,
             &limits,
             load,
-            crate::reads::Loaded::Page {
+            engine_store::Answer::Rows(engine_store::Rows::Read {
                 rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(owner))), None)]),
                 next: None
-            }
+            })
         ),
         Some(crate::reads::Answer::None(crate::reads::Why::Busy))
     );
@@ -3201,17 +3275,19 @@ fn retained_task_read_keeps_cancellation_actor_time_and_full_spec() {
     });
     owner.ended_at = Some(Wall::from_nanos(13));
     let expected = owner.spec.clone();
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 99 }) else {
+    let Held::Store(engine_store::Out::Load { load, .. }) =
+        read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 99 })
+    else {
         panic!()
     };
     let crate::reads::Answer::Ended(value) = loaded_answer(
         &mut core,
         &limits,
         load,
-        crate::reads::Loaded::Page {
+        engine_store::Answer::Rows(engine_store::Rows::Read {
             rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(owner))), None)]),
             next: None,
-        },
+        }),
     )
     .unwrap() else {
         panic!()
@@ -3245,7 +3321,7 @@ fn stored_reply_reads_exact_child_activity_and_preserves_original_word_facts() {
         at: word.at,
         line: tasks::Line::Notified { recipient: tasks::Party::Person(1), word: word.clone() },
     };
-    let Held::ReadLoad { load, .. } =
+    let Held::Store(engine_store::Out::Load { load, .. }) =
         read_start(&mut core, &limits, 10, crate::reads::Read::Reply { task: 1, activity: 8 })
     else {
         panic!()
@@ -3254,10 +3330,10 @@ fn stored_reply_reads_exact_child_activity_and_preserves_original_word_facts() {
         &mut core,
         &limits,
         load,
-        crate::reads::Loaded::Page {
+        engine_store::Answer::Rows(engine_store::Rows::Read {
             rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Activity(line)), Some(owner))]),
             next: None,
-        },
+        }),
     )
     .unwrap() else {
         panic!()
@@ -3284,14 +3360,18 @@ fn stored_person_forms_load_dependency_results_and_retained_links() {
     dependency.ended_at = Some(Wall::from_nanos(8));
     let mut row = stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(owner))), None);
     row.linked = Box::new([Box::new(dependency)]);
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::PersonTask { task: 100 })
+    let Held::Store(engine_store::Out::Load { load, .. }) =
+        read_start(&mut core, &limits, 10, crate::reads::Read::PersonTask { task: 100 })
     else {
         panic!()
     };
-    let crate::reads::Answer::Ended(value) =
-        loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Page { rows: Box::new([row]), next: None })
-            .unwrap()
-    else {
+    let crate::reads::Answer::Ended(value) = loaded_answer(
+        &mut core,
+        &limits,
+        load,
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }),
+    )
+    .unwrap() else {
         panic!()
     };
     let crate::reads::EndedValue::PersonTask { document, .. } = value.value else { panic!() };
@@ -3306,7 +3386,7 @@ fn stored_person_forms_load_dependency_results_and_retained_links() {
 fn a_load_completion_rechecks_current_project_visibility() {
     let (mut core, limits) = watch_core();
     let owner = core.tasks.task(1).unwrap().clone();
-    let Held::ReadLoad { load, .. } =
+    let Held::Store(engine_store::Out::Load { load, .. }) =
         read_start(&mut core, &limits, 10, crate::reads::Read::Activity { task: 1, before: None })
     else {
         panic!()
@@ -3323,10 +3403,10 @@ fn a_load_completion_rechecks_current_project_visibility() {
             &mut core,
             &limits,
             load,
-            crate::reads::Loaded::Page {
+            engine_store::Answer::Rows(engine_store::Rows::Read {
                 rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Live(Box::new(owner))), None)]),
                 next: None
-            }
+            })
         ),
         Some(crate::reads::Answer::None(crate::reads::Why::Unknown))
     );

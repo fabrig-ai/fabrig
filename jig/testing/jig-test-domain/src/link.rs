@@ -99,7 +99,8 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
                 }
             }
         }
-        other @ (Delivery::Start(_)
+        other @ (Delivery::Store(_)
+        | Delivery::Start(_)
         | Delivery::AssignedJob { .. }
         | Delivery::Link { .. }
         | Delivery::Message { .. }
@@ -265,6 +266,7 @@ pub(super) enum Work {
     },
     Timer(core::Timer),
     Core(core::Event),
+    Store(core::engine::store::In),
     ResumeFleet,
     Finish,
     Connector {

@@ -119,7 +119,10 @@ iterate, after the step:
   steps it with an event as `In::Core` and fires its timers by the
   engine's `step` and `fire`, and asks `due` and `next_deadline` under
   its `Admit`. What comes back is `Out::Core`, a request whose mark the
-  root keeps as above, in the order the engine made it. What else it
+  root keeps as above, or `Out::Held(Peer::Store(..))`, a load, which it
+  holds as any held output and gives its store once released, each in
+  the order the engine made it; the store's answers go back to the
+  engine as `In::Store`, always taken (engine/vocabulary.md, 2.4). What else it
   reads or calls of the core, its children's state and its methods, it
   reaches through the engine's access while the move runs
   (engine/vocabulary.md, 2.3), and its own quiescence reads them as
@@ -187,15 +190,15 @@ iterate, after the step:
 - **A task that comes due asks its root once.** In the decision that
   makes a task due, the core asks its root with `Now::Activate`, so an
   activation runs in that decision. The root answers with
-  `Event::Activate`: `ready`, whether it can carry an activation, and
-  `busy`, whether it has no room to read a transcript, read in the step
-  that runs the activation. The core goes on with an admitted agent in
-  that step, and hands its root a step of a run's preparation only where
-  a root does real work: the transcript window it names
-  (`Now::StartPreparation`), for which `busy` kept the room, the brief
+  `Event::Activate`: `ready`, whether it can carry an activation, read
+  in the step that runs the activation. The core goes on with an
+  admitted agent in that step, loading the transcript window it names
+  through the store's port when a load is free (engine/vocabulary.md,
+  2.4; engine/decisions.md, 1.3), and hands its root a step of a run's
+  preparation only where a root does real work: the brief
   (`Now::BriefCorePlanned`, `Now::CompleteBrief`) and the workspace
   (`Now::WorkspaceRequest`). A task the root is not ready for, and an
-  admitted agent with a window to load while the root is busy, wait in
+  admitted agent with a window to load while no load is free, wait in
   the core's due set; the root takes the next with `take_due` when it
   has room to carry it, as it takes a restart's
   (`jig/docs/design/rails.md`, 1.4).
@@ -257,18 +260,32 @@ It inspects nothing it holds. What jig asks of it:
   the ops world holds the connector's whole route in `jig-ops-world`,
   `orders::an_application_route_finishes_before_the_next_entrance`.
 - **Store answers keep their arrival order.** `store_answers_fifo`
-  requires queued answers to be routed before later store answers,
-  including while new work waits at the watermark. The core world
-  holds this in `jig-core-world`,
+  requires the engine's store answers (`In::Store`) to be routed in the
+  order the store gave them, each after the work of the root's in
+  progress before it and before any later store answer, including while
+  new work waits at the watermark. The engine routes each in the step it
+  is given and keeps none (engine/vocabulary.md, 2.4); a root that keeps
+  work of its own between steps holds a store answer behind it, in a
+  queue counted in its backlog (temper's,
+  `temper/docs/design/domain/root.md`, 4; the test root's, section 14).
+  The core world holds this in `jig-core-world`,
   `orders::queued_read_answers_keep_their_arrival_order_under_load`;
-  the ops world holds it in `jig-ops-world`,
-  `orders::read_answers_keep_completion_arrival_order_under_load`.
+  the ops world in `jig-ops-world`,
+  `orders::store_answers_keep_their_arrival_order_under_load`, and for
+  its connectors' reads in
+  `orders::read_answers_keep_completion_arrival_order_under_load`;
+  temper's engine world in `temper-engine-domain-world`,
+  `orders::queued_read_answers_keep_their_arrival_order_under_load`.
 - **A kept turn precedes its terminal acknowledgement.**
   `prior_held_delivery_dispatched` requires the earlier released
   delivery to be dispatched before the later acknowledgement, including
   callbacks addressed to a child. The core and ops worlds hold this
   under load in `jig-core-world` and `jig-ops-world`, each in
-  `orders::turn_kept_precedes_terminal_acknowledgement_under_load`.
+  `orders::turn_kept_precedes_terminal_acknowledgement_under_load`, and
+  temper's engine world in `temper-engine-domain-world`,
+  `orders::turn_kept_precedes_terminal_acknowledgement_under_callback_pressure`.
+  A root's order of release may otherwise differ (section 14): each keeps
+  these two.
 - **An early account request follows the previous move's dispatch.**
   `dispatching_move` holds another early account request back until
   every stage of the previous move is dispatched. The accounts'

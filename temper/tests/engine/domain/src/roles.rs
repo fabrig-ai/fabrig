@@ -11,6 +11,7 @@ use crate::roles_referee::{Referee, Replacement};
 use crate::store::Store;
 use crate::walking;
 use jig_domain_authority as authority;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
@@ -591,9 +592,28 @@ impl World {
                     let result = self.store.read(range);
                     self.queue(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }), 0);
                 }
-                engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
-                    let result = self.store.read(range);
-                    self.queue(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }), 0);
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                    load,
+                    range:
+                        range @ (engine_store::Range::Read(_)
+                        | engine_store::Range::Record(_)
+                        | engine_store::Range::Proposal { .. }
+                        | engine_store::Range::Notes(_)),
+                })) => {
+                    let result = self.store.load(range);
+                    self.queue(
+                        engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result })),
+                        0,
+                    );
+                }
+                engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
+                    load,
+                    range: engine_store::Range::Window { task, from },
+                })) => {
+                    let pages = self.store.window(load, task, from);
+                    for answer in pages {
+                        self.queue(engine::Event::Store(engine::StoreInput::Engine(answer)), self.settings.page_delay);
+                    }
                 }
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     self.pages += 1;
@@ -602,7 +622,7 @@ impl World {
                         self.queue(engine::Event::Store(missing), self.settings.page_delay);
                     }
                     self.queue(
-                        engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: None }),
+                        engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next }),
                         self.settings.page_delay,
                     );
                 }

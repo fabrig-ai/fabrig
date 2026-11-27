@@ -1,4 +1,5 @@
 use core::mem::size_of;
+use jig_domain_core::engine::store as engine_store;
 use root::loads::{self, Failure, Limits, Loads, Request};
 use skein_lib::{Queue, Token, Wall};
 use temper_engine_domain::{self as root, Key, Range, Record, TurnRecord};
@@ -47,32 +48,43 @@ fn begin(loads: &mut Loads, after: Option<Key>, most: u32, out: &mut Queue<Reque
     owner
 }
 
-/// temper/docs/design/domain/root.md, 7: a waiter that stops between pages releases its slot.
+/// A window that ends while another page is coming gives up the engine load, not a root slot.
 #[test]
-fn an_uncontinued_transcript_page_releases_its_slot_at_reclaim() {
+fn an_abandoned_window_fences_its_continuation_before_reclaim() {
+    use super::preparation::{parked_windows, transcript_in_flight};
+    use temper_engine_domain_world::direct::{say_ask, window_reply};
     for abandon in [false, true] {
-        let mut loads = Loads::new(&LIMITS);
-        let mut out = Queue::with_capacity(1);
-        let waiter = Token::new(51);
-        let range = Range::Core(root::CoreRange::TaskTranscript { task: 1, from: (1, 1) });
-        let owner = loads::begin(&mut loads, waiter, range.clone(), None, 1, &mut out).expect("first page admitted");
-        out.pop().expect("page issued");
-        loads::loaded(&mut loads, owner, Box::new([row(1, 1)]), Some(key(1)), &mut out);
-        assert!(matches!(out.pop(), Some(Request::Loaded { next: Some(_), cut: None, .. })));
-        assert!(!loads.quiescent(), "the page holds its slot through the answering pass");
-        assert_eq!(loads::next(&mut loads, Token::new(52), key(1), 1, &mut out), None, "waiter is fenced");
-        assert_eq!(loads::next(&mut loads, waiter, key(2), 1, &mut out), None, "cursor is fenced");
-        loads::loaded(&mut loads, owner, Box::new([]), None, &mut out);
-        loads::unloaded(&mut loads, owner, &mut out);
-        assert!(out.is_empty(), "the answered page has exactly one terminal");
+        let (mut driver, parked) = parked_windows(&[3]);
+        let task = parked[0].0.task;
+        driver.send(say_ask(driver.session(), task, 51));
+        let load = transcript_in_flight(&mut driver, task);
+        let mut pages: Vec<_> = driver.take_window_replies(load);
+        assert_eq!(pages.len(), 2, "one held window spans two pages");
+        assert!(matches!(
+            &pages[0],
+            root::Event::Store(root::StoreInput::Engine(engine_store::In::Loaded {
+                result: engine_store::Answer::Rows(engine_store::Rows::Turns { more: true, .. }),
+                ..
+            }))
+        ));
+        driver.send(window_reply(Token::new(u64::MAX), engine_store::Answer::Failed(engine_store::Failure::Failed)));
+        driver.send(pages.remove(0));
+        assert!(driver.root.core().transcripts.contains_key(&task), "foreign terminal cannot take the window");
         if abandon {
-            loads::abandon(&mut loads, owner);
+            driver.send(say_ask(driver.session(), task, 52));
         }
-        loads::reclaim(&mut loads);
-        assert!(loads.quiescent(), "an uncontinued page leaks no slot, abandon={abandon}");
-        assert_eq!(loads::next(&mut loads, waiter, key(1), 1, &mut out), None, "reclaimed waiter is fenced");
-        let next = loads::begin(&mut loads, waiter, range, None, 1, &mut out).expect("a later window can begin");
-        assert_ne!(owner, next);
+        driver.send(pages.remove(0));
+        driver.send(window_reply(load, engine_store::Answer::Failed(engine_store::Failure::Failed)));
+        driver.pump();
+        driver.fire_at(skein_lib::Duration::from_secs(2));
+        driver.pump();
+        assert_eq!(driver.last_assignment().task, task, "terminal or cancellation releases the preparation");
+        assert_ne!(driver.last_assignment().attempt, parked[0].0.attempt);
+        assert!(driver.root.quiescent(), "no load slot was leaked");
+        assert_eq!(driver.windows.len(), if abandon { 2 } else { 1 });
+        if abandon {
+            assert_ne!(driver.windows[1].0, load, "the replacement has a fresh token");
+        }
     }
 }
 
@@ -427,7 +439,9 @@ fn an_ended_conversation_query_joins_its_owner_and_read_position_after_restart()
         rows: 4,
         bytes: 65_536,
     }));
-    let reads::Loaded::Page { rows, next } = loaded else { panic!("ended query page") };
+    let engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) = loaded else {
+        panic!("ended query page")
+    };
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].value, index);
     assert_eq!(rows[0].owner.as_ref().map(|owner| owner.number), Some(TASK));
@@ -545,7 +559,7 @@ fn startup_rows_bytes_and_soft_cuts_retain_range_and_failed_step_before_switch()
             ),
             _ => unreachable!(),
         };
-        driver.send(root::Event::Store(root::StoreInput::Loaded { owner, rows, next: None, texts: None }));
+        driver.send(root::Event::Store(root::StoreInput::Loaded { owner, rows, next: None }));
         driver.pump();
         assert!(driver.stopped);
         assert_eq!(
@@ -617,12 +631,7 @@ fn a_later_forge_load_fit_failure_keeps_its_range_and_connector_step() {
     let owner = owner.expect("startup reached forge after core and census");
     driver.events.clear();
     let bytes = usize::try_from(driver.env.limits.loads.reply_bytes).expect("valid bounded fixture") + 1;
-    driver.send(root::Event::Store(root::StoreInput::Loaded {
-        owner,
-        rows: Box::new([row(1, bytes)]),
-        next: None,
-        texts: None,
-    }));
+    driver.send(root::Event::Store(root::StoreInput::Loaded { owner, rows: Box::new([row(1, bytes)]), next: None }));
     driver.pump();
     assert_eq!(
         driver.root.start_stop(),

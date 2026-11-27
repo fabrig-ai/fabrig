@@ -70,6 +70,7 @@ fn deliver(engine: &mut Engine, delivery: root::Delivery) {
         root::Delivery::Fleet(event) => engine.events.push(root::Event::Core(core::Event::Fleet(event))),
         root::Delivery::Procedure { .. } => stop::unavailable(engine, b"procedures"),
         root::Delivery::Core(held) => core_held(engine, held),
+        root::Delivery::Store(load) => crate::store::request(engine, jig_test_store::StoreOut::Engine(load)),
         held @ (root::Delivery::ApplicationDocument { .. }
         | root::Delivery::ApplicationRead { .. }
         | root::Delivery::Application { .. }) => {
@@ -162,17 +163,6 @@ pub(super) fn system(engine: &mut Engine, number: u16) -> &mut crate::system::Sy
 
 fn immediate(engine: &mut Engine, now: core::Now) {
     match now {
-        value @ (core::Now::SeenConversation { .. }
-        | core::Now::LoadEndedRead { .. }
-        | core::Now::EndedPersonTask { .. }
-        | core::Now::EndedTask { .. }
-        | core::Now::PartyInputs { .. }
-        | core::Now::EndedProposal { .. }
-        | core::Now::DecidedProposal { .. }
-        | core::Now::EndedEscalation { .. }
-        | core::Now::StartPreparation { .. }) => {
-            crate::store::request(engine, jig_test_store::StoreOut::Now(value));
-        }
         // Configuration is parsed whole; inactive account components receive no requests.
         core::Now::Account(request) => {
             if let Some(accounts) = &mut engine.accounts {
@@ -262,12 +252,9 @@ fn core_held(engine: &mut Engine, held: core::Held) {
             unreachable!("link translates host-wide source commands")
         }
         core::Held::Drained => stop::drained(engine),
-        core::Held::Load(load) => immediate(engine, *load),
-        core::Held::ReadLoad { load, range } => {
-            crate::store::request(engine, jig_test_store::StoreOut::ReadLoad { load, range });
-        }
-        core::Held::NotesLoad { owner, range } => {
-            crate::store::request(engine, jig_test_store::StoreOut::NotesLoad { owner, range });
+
+        core::Held::Store(load) => {
+            crate::store::request(engine, jig_test_store::StoreOut::Engine(load));
         }
         held @ (core::Held::PublicRead { .. }
         | core::Held::Read { .. }

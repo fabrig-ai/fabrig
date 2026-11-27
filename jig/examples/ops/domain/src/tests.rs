@@ -286,6 +286,7 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
             | Output::Load { .. }
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
+            | Output::Store(_)
             | Output::Core(_)
             | Output::Now(_)
             | Output::Observability(_)
@@ -332,6 +333,7 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
                 }
                 other @ (Output::ReadResult { .. }
                 | Output::CoreLoad(_)
+                | Output::Store(_)
                 | Output::Core(_)
                 | Output::Now(_)
                 | Output::Observability(_)
@@ -391,17 +393,16 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Output]> {
                 Output::ToChild(value) => step(domain, env, Event::Released(value)),
                 Output::Load { phase, .. } => step(domain, env, Event::Store(Store::Restored(phase))),
                 Output::Switch => step(domain, env, Event::Store(Store::Switched)),
-                Output::Core(core::Held::NotesLoad { owner, .. }) => step(
-                    domain,
-                    env,
-                    Event::Core(core::Event::Notes(jig_domain_notes::Event::Loaded {
-                        owner,
-                        rows: jig_domain_notes::Rows { records: List::with_capacity(env.limits.core.notes.load_rows) },
+                Output::Store(core::engine::store::Out::Load { load, range: core::engine::store::Range::Notes(_) }) => {
+                    let result = core::engine::store::Answer::Rows(core::engine::store::Rows::Records {
+                        records: Box::new([]),
                         more: false,
-                    })),
-                ),
+                    });
+                    step(domain, env, Event::Store(Store::Engine(core::engine::store::In::Loaded { load, result })));
+                }
                 other @ (Output::ReadResult { .. }
                 | Output::CoreLoad(_)
+                | Output::Store(_)
                 | Output::Core(_)
                 | Output::Now(_)
                 | Output::Observability(_)
@@ -473,6 +474,7 @@ fn started_chat_with_contract(contract: u16) -> (Domain, Env<Limits>, Token) {
             | Output::Load { .. }
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
+            | Output::Store(_)
             | Output::Core(_)
             | Output::Now(_)
             | Output::Observability(_)
@@ -511,6 +513,7 @@ fn started_chat_with_contract(contract: u16) -> (Domain, Env<Limits>, Token) {
             | Output::Load { .. }
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
+            | Output::Store(_)
             | Output::Core(_)
             | Output::Now(_)
             | Output::Observability(_)
@@ -656,6 +659,7 @@ fn connector_documents_and_reads_share_the_last_connector_commit_barrier() {
             | Output::Load { .. }
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
+            | Output::Store(_)
             | Output::Core(_)
             | Output::Now(_)
             | Output::Observability(_)
@@ -768,44 +772,6 @@ fn either_start_refusal_cause_assembles_a_permanent_end() {
         );
         assert!(work.is_empty());
     }
-}
-
-#[test]
-fn a_loaded_transcript_passes_its_protocol_rendered_text_to_the_brief() {
-    let (mut domain, env) = fixture();
-    domain.engine.core_mut().begin_transcript(1, 1, Some((1, 1)));
-    step(
-        &mut domain,
-        &env,
-        Event::Store(Store::Transcript {
-            task: 1,
-            rows: Box::new([(
-                core::TurnRecord {
-                    task: 1,
-                    attempt: 1,
-                    turn: 1,
-                    spent: 0,
-                    read: None,
-                    opens_window: true,
-                    at: Wall::EPOCH,
-                    transcript: Box::from(&[0xff, 0x80][..]),
-                },
-                Some(Box::from(&b"assistant: conversation before restart\n"[..])),
-            )]),
-            done: false,
-        }),
-    );
-    assert_eq!(
-        core::read_brief_part(
-            domain.engine.core(),
-            core::BriefTextLimits { parts: 1, read_bytes: 128, brief_bytes: 128 },
-            1,
-            core::BriefPart::TranscriptTail
-        )
-        .expect("ops preparation tail")
-        .as_ref(),
-        b"assistant: conversation before restart\n"
-    );
 }
 
 #[test]

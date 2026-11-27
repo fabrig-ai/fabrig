@@ -140,7 +140,7 @@ fn call(domain: &mut crate::Domain, env: &Env<crate::Limits>, key: crate::CallKe
         };
         assert_eq!(
             range,
-            crate::Range::Core(crate::CoreRange::Notes(notes::Range::Lines { scope: scope(), after: None }))
+            crate::Range::Core(crate::CoreRange::ApplicationNotes(notes::Range::Lines { scope: scope(), after: None }))
         );
         assert_eq!(after, None);
     }
@@ -178,14 +178,17 @@ fn load(domain: &mut crate::Domain, count: usize, split: bool) {
         };
         assert_eq!(
             range,
-            crate::Range::Core(crate::CoreRange::Notes(notes::Range::Lines { scope: scope(), after: Some(NAMES[0]) }))
+            crate::Range::Core(crate::CoreRange::ApplicationNotes(notes::Range::Lines {
+                scope: scope(),
+                after: Some(NAMES[0])
+            }))
         );
         remember::loaded(domain, waiter, tail.into_boxed(), None, None, &mut out);
     } else {
         remember::loaded(domain, waiter, rows, None, None, &mut out);
     }
     if let Some(crate::Request::Store(crate::StoreRequest::Load { range, .. })) = out.pop() {
-        let crate::Range::Core(crate::CoreRange::Notes(notes::Range::Entry { name })) = range else {
+        let crate::Range::Core(crate::CoreRange::ApplicationNotes(notes::Range::Entry { name })) = range else {
             panic!("change entry")
         };
         let entry = notes::Entry {
@@ -459,7 +462,7 @@ fn a_refused_remember_call_writes_nothing() {
         let (mut domain, env, key) = root(requester);
         if let Load::Busy = load {
             for _ in 0..domain.archive_reads.capacity() {
-                domain.archive_reads.insert(Some(crate::boundary::Read::Notes { owner: Token::new(1) })).unwrap();
+                domain.archive_reads.insert(None).unwrap();
             }
         }
         call(&mut domain, &env, key, action.clone());
@@ -483,7 +486,10 @@ fn a_refused_remember_call_writes_nothing() {
                 crate::restart::request_load(
                     &mut domain,
                     waiter,
-                    crate::Range::Core(crate::CoreRange::Notes(notes::Range::Lines { scope: scope(), after: None })),
+                    crate::Range::Core(crate::CoreRange::ApplicationNotes(notes::Range::Lines {
+                        scope: scope(),
+                        after: None,
+                    })),
                     None,
                     &mut out,
                 );

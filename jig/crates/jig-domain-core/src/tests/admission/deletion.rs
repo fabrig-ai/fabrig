@@ -1,4 +1,5 @@
 //! Core deletion decisions and kept-step recovery (jig/docs/design/domain/people/acts.md, 2).
+use crate::engine::store as engine_store;
 use crate::tests::*;
 
 fn core() -> (Core, Limits) {
@@ -767,17 +768,9 @@ fn settle_notes(core: &mut Core, limits: &Limits, mut pending: Queue<Request>) -
     let mut requests = List::uncapped();
     while let Some(request) = pending.pop() {
         if let Request::Held(held) = &request
-            && let Held::NotesLoad { owner, .. } = &**held
+            && let Held::Store(engine_store::Out::Load { load: owner, range: engine_store::Range::Notes(_) }) = &**held
         {
-            let mut follow = step(
-                core,
-                &environment(limits),
-                Event::Notes(notes::Event::Loaded {
-                    owner: *owner,
-                    rows: notes::Rows { records: List::with_capacity(limits.notes.load_rows) },
-                    more: false,
-                }),
-            );
+            let mut follow = crate::routing::step_store(core, &environment(limits), point_answer(*owner, None, false));
             while let Some(request) = follow.pop() {
                 pending.push(request);
             }
@@ -818,7 +811,7 @@ fn a_kept_deletion_advances_after_fleet_inputs_and_timers() {
         let mut loads = 0_u32;
         for request in collect(requests) {
             if let Request::Held(held) = request
-                && let Held::ReadLoad { range, .. } = *held
+                && let Held::Store(engine_store::Out::Load { range: engine_store::Range::Read(range), .. }) = *held
                 && range.scope == crate::reads::Scope::TaskSummaries
             {
                 loads += 1;

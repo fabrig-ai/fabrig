@@ -154,6 +154,7 @@ pub fn decode(component: &mut store::Store, env: &Env<store::Limits>, raw: &[u8]
                 | Event::Secret { .. }
                 | Event::SecretsLoaded { .. }
                 | Event::SecretsNotReady { .. }
+                | Event::WindowFailed { .. }
                 | Event::Corrupt { .. }
                 | Event::Decoded { .. }
                 | Event::Undecodable { .. }

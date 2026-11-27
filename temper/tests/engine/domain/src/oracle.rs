@@ -336,7 +336,6 @@ impl Driver {
             }
             Delivery::Push(_)
             | Delivery::Start(_)
-            | Delivery::NotesLoad { .. }
             | Delivery::ProjectMade { .. }
             | Delivery::Bound { .. }
             | Delivery::ProjectReleased { .. }
@@ -360,7 +359,6 @@ impl Driver {
             | Delivery::ForgeCall { .. }
             | Delivery::Procedure { .. }
             | Delivery::Relay { .. }
-            | Delivery::ReadEscalationDecision { .. }
             | Delivery::Fleet(_)
             | Delivery::Assigned { .. }
             | Delivery::WebReply { .. }
@@ -368,7 +366,7 @@ impl Driver {
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::PartLoad { .. }
-            | Delivery::ReadLoad { .. }
+            | Delivery::EngineStore(_)
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }
             | Delivery::Document { .. }

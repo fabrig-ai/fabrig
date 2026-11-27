@@ -270,13 +270,13 @@ fn due_agent_preparation_waits_until_open() {
     ));
     crate::tests::runs::run_choice::host(&mut core, &env.limits, Token::new(7), &[b"scripted"]);
     let context = core.tasks.run_context(DUE).expect("due agent");
-    let before = crate::step(&mut core, &env, Event::Activate { context, ready: true, busy: false });
+    let before = crate::step(&mut core, &env, Event::Activate { context, ready: true });
     assert!(before.is_empty());
     let _action = core.start_done(&env, Phase::AdoptRuns, &mut out);
     open(&mut core, &env, &mut out);
     let context = core.take_due().expect("next Resume takes due agent");
     assert_eq!(context.task, DUE);
-    let after = crate::step(&mut core, &env, Event::Activate { context, ready: true, busy: false });
+    let after = crate::step(&mut core, &env, Event::Activate { context, ready: true });
     assert_eq!(core.tasks.task(DUE).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
     assert!(core.contexts.contains_key(&DUE));
     assert!(!after.is_empty(), "due agent begins its brief");

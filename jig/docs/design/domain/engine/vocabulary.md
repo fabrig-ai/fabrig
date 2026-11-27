@@ -4,8 +4,8 @@
 
 ### 1.1 What it hears
 
-- **from the store,** through the root: the answers to its loads, in
-  pages; the records restored at a restart; that the loading it asked for
+- **from the store,** through the root: the answers to its loads, by the
+  store's port (2.4); the records restored at a restart; that the loading it asked for
   is done. It does not hear commits' answers: the journal does (../root.md,
   section 4), and feeds back what the core asked to resume after one;
 - **from hosts:** a host's hello with its slots, what it hosts and its
@@ -49,7 +49,7 @@ Each request the core makes says which of three it is:
 - **held:** what must wait for the decision's commit to be durable: an
   assignment, a message relayed to a run, a cancel, an acknowledgement,
   an answer to a call or to a party, a load (so that it sees every commit
-  before it), an outbox entry to make, a resumption of the core's own; and
+  before it; 2.4), an outbox entry to make, a resumption of the core's own; and
   a party's read's answer and a watch's delivery, behind the last commit
   made (`decisions.md`, 1.2);
 - **now:** what decides nothing and shows nothing durable: a run's text
@@ -141,8 +141,9 @@ step its last answer arrives.
 ## 2. The engine
 
 What a root calls: `Engine`, the core behind five free functions, and its vocabulary, `In` and
-`Out` (`temper/docs/design/draft/jig-domain-api.md`, 4.1 and 4.5). For now it passes through:
-what crosses it is section 1's vocabulary whole, and it changes no behaviour of the core's.
+`Out` (`temper/docs/design/draft/jig-domain-api.md`, 4.1 and 4.5). For now it passes through
+what has no port yet: section 1's vocabulary, whole but for the store's loads, which cross by
+the store's port (2.4).
 
 ### 2.1 Its functions
 
@@ -150,7 +151,9 @@ what crosses it is section 1's vocabulary whole, and it changes no behaviour of 
   `Core::new` does, refusing what that refuses with the same `Problem`.
 - **`step(engine, env, input, out)`** takes one input as one decision and appends its outputs to
   `out`, in the order the core made them. For `In::Core(event)` they are exactly what the core's
-  own step returns for `event`, each as `Out::Core`.
+  own step returns for `event`, each as `Out::Core`, but for its loads, each of which leaves as
+  `Out::Held(Peer::Store(..))` at its place (2.4). `In::Store` is taken the same way, as one
+  decision.
 - **`fire(engine, env, timer, out)`** fires one due timer the same way, as the core's `fire` does.
 - **`due(engine, now, wall, admit)` and `next_deadline(engine, now, wall, admit)`** keep today's
   timers, clocks and admission: `now` is the engine's clock and `wall` the wall's, since a
@@ -176,7 +179,8 @@ what crosses it is section 1's vocabulary whole, and it changes no behaviour of 
 - **The ports come beside `In::Core` and `Out::Core`.** Each port of the draft
   (`temper/docs/design/draft/jig-domain-api.md`, 4.2 and 5) arrives as variants of `In` and `Out`
   and takes its cases out of `In::Core` and `Out::Core`, a milestone at a time, until they are
-  empty and go.
+  empty and go. The store's is the first (2.4): `In::Store`, and `Out::Held` with its peer,
+  `Peer::Store`. The other marks (`Write`, `Ask`, `Now`) and peers come with their ports.
 
 ### 2.3 The core, while the move runs
 
@@ -205,8 +209,106 @@ what crosses it is section 1's vocabulary whole, and it changes no behaviour of 
   is checked by every root's suites as each root adopts it, and each later move is a real one
   (`temper/docs/design/draft/jig-domain-api.md`, 15).
 
+### 2.4 The store's port
+
+The engine's loads take one shape (`temper/docs/design/draft/jig-domain-api.md`, 5.1): one
+output, a load, held, and one input, its answer, typed. What a load is for is the engine's
+alone: a root carries the load to its store and the answer back, and reads neither.
+
+```rust
+// jig-domain-core-vocabulary's engine::store, re-exported along the same path by jig-domain-core
+pub enum Out { Load { load: Token, range: Range } }      // Peer::Store, held
+pub enum In { Loaded { load: Token, result: Answer } }   // In::Store, always taken
+
+pub enum Range {
+    Record(Key),                             // one of the core's records, by its key
+    Proposal { task: u64, proposal: u64 },   // a task's proposal, from its retained history
+    Window { task: u64, from: (u64, u32) },  // a task's current transcript window, from its first turn
+    Notes(notes::Range),                     // a page of notes
+    Read(Box<reads::Range>),                 // a party's or a run's read
+}
+
+pub enum Answer {
+    Rows(Rows),
+    Cut { turn: TurnRecord, bytes: u64, more: bool },  // a window's turn past its page's room
+    Failed(Failure),
+}
+
+pub enum Rows {
+    Records { records: Box<[Record]>, more: bool },
+    Turns { turns: Box<[TranscriptRow]>, more: bool },
+    Read { rows: Box<[reads::Row]>, next: Option<reads::Position> },
+}
+
+pub enum Failure {
+    Busy,                       // the store had no room for it, and kept nothing
+    Gone,                       // a read's range is no longer there
+    TooLinked { joins: u32 },   // a read's first row needs more joins than the read's bound
+    TurnProblem { task: u64, attempt: u64, turn: u32, owner: Box<tasks::TaskRecord>, why: reads::TurnFailure },
+    Unread,                     // a window's first turn not found, or a frame past pages already given
+                                // unread or refused: ends the load and discards those pages
+    Failed,                     // the store could not read it
+}
+```
+
+The engine's own enums gain the port (2.2): `In::Store(store::In)`, and `Out::Held(Peer)` with
+`Peer::Store(store::Out)`.
+
+- **Held, always.** Every load leaves as `Out::Held(Peer::Store(Out::Load { .. }))`, released
+  once every commit made before it is durable, so that it sees them (`decisions.md`, 1.3). The
+  root holds it as it holds any held output, gives it to its store once released, and gives
+  each answer back as `In::Store(In::Loaded { .. })`, which it always takes (`../root.md`, 3).
+- **One token per load,** unique among the engine's loads in flight and the load's until its
+  last answer. A `Window` is answered page by page, in the order its turns are read, each page
+  but the last with `more`; every other range by one answer, whose `more` or `next` says only
+  that rows remain past it, for the engine to load if it wants them. An answer whose token names
+  no load in flight is dropped: what waited on it has gone first (`decisions.md`, 1.3).
+- **What each range is answered with:**
+  - `Record`: `Records` holding the record, or none where the store has none; or `Failed`.
+    These are the engine's records loaded by key: an ended task, a party's read position over
+    an ended conversation, a decided proposal or escalation (`../../protocol/store/keys.md`).
+  - `Proposal`: `Records` holding the history record that keeps the proposal, which the store
+    finds through the task's live record and the position it keeps of the proposal, or none; or
+    `Failed`.
+  - `Window`: `Turns`, each turn with its text as the protocol layer renders it, or `Cut`, a
+    turn past its page's room, alone in its page, with its fields, its transcript empty and its
+    length (`executors-transcripts.md`, 1; `../../protocol/store/transcripts.md`, 3); or
+    `Unread`, its first turn not found or a frame past the pages already given unread or refused
+    (`../../protocol/store/transcripts.md`, 3). `Unread` ends the load and discards the pages
+    already given (`executors-transcripts.md`, 1). `Failed` also ends the load.
+  - `Notes`: `Records` holding the page's notes records, `more` if any remain past it; or
+    `Failed`.
+  - `Read`: `Read`, the page's rows, each with its joins, and the position the next page
+    begins at; or `Busy`, `Gone`, `TooLinked` or `TurnProblem`
+    (`../../protocol/store/loads.md`, 3). A read answered `Failed` ends as one answered
+    `Busy` does: the store could not serve it now.
+  - An answer its range cannot have is read as `Failed`.
+- **Paced by the engine** (`decisions.md`, 1.3): no root answers for room, and none keeps a
+  load waiting for one.
+- **In the order given.** The engine routes each answer in the step it is given, as one
+  decision, and keeps none for a later step, so its store answers keep the order the root gives
+  them. A root that keeps work of its own in progress between steps gives a store answer after
+  the work before it (`../root.md`, 5, `store_answers_fifo`). A load's place among the held
+  outputs keeps it behind those held before it, and a callback the journal releases to the
+  engine comes back at its place in the release order (`../root.md`, 5,
+  `prior_held_delivery_dispatched`).
+- **Nothing stored or sent changes.** The port is an in-process value between the engine, its
+  root and the store's routing (`../../protocol/store/README.md`, 3); the records and keys it
+  loads are the store's as they are, and no wire carries it.
+- **Why one answer for every load:** the engine knows what each load is for, so a root needs no
+  arm per load and keeps no flag for one, while the reasons stay typed. A window is the one range
+  the store pages by itself, so its later pages keep the load its first took and wait for no
+  commit, and a window of any length loads once begun.
+
 ## 3. Later
 
+- **The store's reports and the start's exchanges** (`temper/docs/design/draft/jig-domain-api.md`,
+  5.1): `Fill` and `Census` as inputs of the store's port, and each phase of the start through
+  the ports, the engine's own restart loads among them, with the start's milestone.
+- **The public reads' cap.** A public read loads nothing (`../people/public-reading.md`, 9), so
+  the cap that temper's root and the test root keep on public reads in flight stays theirs, with
+  their public watermark, until the parties' port and admission take it
+  (`temper/docs/design/draft/jig-domain-api.md`, 4.4 and 5.3).
 - **The engine as the API** (`temper/docs/design/draft/jig-domain-api.md`, 4 to 6, by its
   execution file): the ports beside `In::Core` and `Out::Core`; connectors' declarations given to
   `Engine::new`; one class per input, and `idle` in place of `quiescent` and `finish_owed`; then

@@ -39,11 +39,10 @@ fn member(authority: &tasks::Authority, resource: u64) -> core::Delegate {
 }
 
 fn delegate(world: &mut World, parent: (u64, u64), completion: u32, members: Vec<core::Delegate>) {
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9000 + u64::from(completion))),
         key: core::CallKey { task: parent.0, attempt: parent.1, completion, position: 0 },
         batch: members.into_boxed_slice(),
-        stubs: Box::new([]),
     }));
 }
 

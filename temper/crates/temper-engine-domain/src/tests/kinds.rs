@@ -4,6 +4,7 @@ mod limit_reads;
 use super::*;
 use crate::{Domain, KindValue, Limits as RootLimits, Work};
 use jig_domain_authority as authority;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::{Event, effects::connector, settings::application};
 use skein_lib::Env;
 use temper_client_protocol_wire::v1::Record as CodecRecord;
@@ -708,13 +709,13 @@ fn read_forge_with_revision(
         while let Some(request) = out.pop() {
             match request {
                 crate::Request::Party(crate::PartyRequest::Deliver(delivery)) => return delivery,
-                crate::Request::Store(crate::StoreRequest::Read { load, .. }) => {
+                crate::Request::Store(crate::StoreRequest::Engine(engine_store::Out::Load { load, .. })) => {
                     crate::try_step(
                         domain,
                         env,
-                        crate::Event::Store(crate::StoreInput::ReadLoaded {
+                        crate::Event::Store(crate::StoreInput::Engine(engine_store::In::Loaded {
                             load,
-                            result: jig_domain_core::reads::Loaded::Page {
+                            result: engine_store::Answer::Rows(engine_store::Rows::Read {
                                 rows: match revision {
                                     None => Box::from([]),
                                     Some(revision) => Box::from([jig_domain_core::reads::Row {
@@ -735,8 +736,8 @@ fn read_forge_with_revision(
                                     }]),
                                 },
                                 next: None,
-                            },
-                        }),
+                            }),
+                        })),
                     )
                     .unwrap();
                 }

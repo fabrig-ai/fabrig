@@ -4,7 +4,7 @@
 use crate::{Event, Limits, Output, Record, Released, Store, Write};
 use alloc::boxed::Box;
 use jig_domain_core as core;
-use jig_domain_core::engine::{self, Admit, Engine, In};
+use jig_domain_core::engine::{self, Admit, Engine, In, store as engine_store};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_link::Bounds;
@@ -249,6 +249,7 @@ impl Domain {
 pub(crate) enum Work {
     Event(Event),
     Core(core::Event),
+    Store(engine_store::In),
     Effect { owner: Token, origin: core::EffectOrigin, effect: infrastructure::Effect },
     ResumeFleet,
     Finish,
@@ -290,7 +291,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         | Event::Agent(_)
         | Event::AgentContent { .. }
         | Event::Store(
-            Store::Switched | Store::Restore(_) | Store::Restored(_) | Store::Transcript { .. } | Store::Loaded(_),
+            Store::Switched | Store::Restore(_) | Store::Restored(_) | Store::Loaded(_) | Store::Engine(_),
         )
         | Event::Released(_)
         | Event::Restart { .. }
@@ -317,6 +318,7 @@ pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
         Work::Finish => true,
         Work::Event(_)
         | Work::Core(_)
+        | Work::Store(_)
         | Work::Effect { .. }
         | Work::ResumeFleet
         | Work::Infrastructure(_)
@@ -400,7 +402,7 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) 
     }
     if domain.journal.idle() && domain.ready() {
         if let Some(context) = domain.engine.core_mut().take_due() {
-            decide(domain, env, Work::Core(core::Event::Activate { context, ready: true, busy: false }));
+            decide(domain, env, Work::Core(core::Event::Activate { context, ready: true }));
         } else if domain.host.is_ready()
             || domain.engine.core().fleet.is_ready()
             || domain.engine.core().finish_owed()

@@ -18,6 +18,7 @@ pub mod engine;
 mod funding;
 mod inbox;
 mod limits;
+mod loads;
 use jig_domain_core_vocabulary::numbers;
 pub mod public;
 pub mod reads;
@@ -118,7 +119,7 @@ pub use crate::{
     vocabulary::{
         Ask, Assignment, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsRefusal, Limits, LinkNow,
         NamedAction, Now, PayloadRefusal, PlannedDocument, ProposalChoice, PublicIndexLimits, Request, RetentionLimits,
-        StepRefusal, Timer, ToolKind, TranscriptLoad, WatchRefusal, Write,
+        StepRefusal, Timer, ToolKind, WatchRefusal, Write,
     },
 };
 
@@ -187,7 +188,7 @@ pub struct Core {
     /// Subjects owned by the parent; the child echoes each watch token.
     pub(crate) view_names: skein_lib::Slab<WatchedSubject>,
     pub(crate) changed_views: skein_lib::Set<skein_lib::Id<WatchedSubject>>,
-    pub(crate) reads: skein_lib::Slab<reads::Pending>,
+    pub(crate) loads: loads::Loads,
     /// Retained dependency results held for preparation.
     pub(crate) dependency_results: Map<u64, Box<[RetainedResult]>>,
     /// Retained result positions waiting to be delivered.
@@ -454,7 +455,7 @@ impl Core {
             seed_projects: config.seed_projects,
             view_names: skein_lib::Slab::with_capacity(limits.views.watchers),
             changed_views: skein_lib::Set::with_capacity(limits.views.watchers),
-            reads: skein_lib::Slab::with_capacity(limits.load_slots.saturating_add(2)),
+            loads: loads::Loads::new(limits.load_slots.saturating_add(2), limits.tasks.tasks),
             part_kinds: config.parts,
             ended_groups: ended_groups::Marks::new(limits.tasks.tasks),
             dependency_results: Map::with_capacity(limits.tasks.tasks),

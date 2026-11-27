@@ -35,7 +35,24 @@ pub struct Driver {
 impl Driver {
     #[must_use]
     pub fn started(seed: u64) -> Self {
-        let (configuration, limits) = crate::conformance::config::root(seed);
+        Self::start(seed, None)
+    }
+
+    /// Configure the read lane before the core allocates its table.
+    #[must_use]
+    pub fn started_with_read_slots(seed: u64, slots: u32) -> Self {
+        Self::start(seed, Some(slots))
+    }
+
+    fn start(seed: u64, read_slots: Option<u32>) -> Self {
+        let (configuration, mut limits) = crate::conformance::config::root(seed);
+        if let Some(slots) = read_slots {
+            limits.core.load_slots = slots;
+            // The order story signs in each reader and a separate commit writer.
+            let parties = slots.checked_add(1).expect("readers and one writer");
+            limits.core.people.people = parties;
+            limits.core.people.sign_ins = parties;
+        }
         let world_configuration_providers = configuration.core.settings.llm_providers.clone();
         let mut world = Self {
             domain: root::Domain::new(configuration, &limits).expect("fixture core configuration"),
@@ -178,13 +195,17 @@ impl Driver {
                     }
                     self.events.push_back(root::Event::Released(child));
                 }
-                root::Output::Core(core::Held::NotesLoad { owner, .. }) => {
-                    self.events.push_back(root::Event::Core(core::Event::Notes(jig_domain_notes::Event::Loaded {
-                        owner,
-                        rows: jig_domain_notes::Rows {
-                            records: skein_lib::List::with_capacity(self.env.limits.core.notes.load_rows),
-                        },
+                root::Output::Store(core::engine::store::Out::Load {
+                    load,
+                    range: core::engine::store::Range::Notes(_),
+                }) => {
+                    let result = core::engine::store::Answer::Rows(core::engine::store::Rows::Records {
+                        records: Box::new([]),
                         more: false,
+                    });
+                    self.events.push_back(root::Event::Store(root::Store::Engine(core::engine::store::In::Loaded {
+                        load,
+                        result,
                     })));
                 }
                 root::Output::Load { phase, .. } => {
@@ -196,6 +217,7 @@ impl Driver {
                 | root::Output::IncidentAssociationRefused { .. }
                 | root::Output::Application { .. }
                 | root::Output::CoreLoad(_)
+                | root::Output::Store(_)
                 | root::Output::Core(_)
                 | root::Output::Now(_)
                 | root::Output::Observability(_)

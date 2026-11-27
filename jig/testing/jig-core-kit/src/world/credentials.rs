@@ -25,7 +25,7 @@ impl World {
         let mut authority = self.assigned.as_ref().expect("assigned caller").run.authority.clone();
         authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
         authority.budget.spend = 20;
-        self.send(root::Event::Core(core::Event::DelegateValidated {
+        self.send(root::Event::Core(core::Event::Delegate {
             to: ReplyTo::new(Token::new(201)),
             key: self.call_key(1),
             batch: Box::new([core::Delegate {
@@ -49,7 +49,6 @@ impl World {
                 dependencies: Box::new([]),
                 wake: Some(tasks::WakePolicy::DEFAULT),
             }]),
-            stubs: Box::new([]),
         }));
     }
 }

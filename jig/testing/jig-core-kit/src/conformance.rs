@@ -317,6 +317,7 @@ impl Observer {
             | root::Delivery::Link { .. }
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
+            | root::Delivery::Store(_)
             | root::Delivery::Start(_)
             | root::Delivery::System { .. } => {}
         }

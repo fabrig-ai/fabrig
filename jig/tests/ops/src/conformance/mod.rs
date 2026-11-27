@@ -10,6 +10,7 @@ mod protocol;
 mod scripts;
 pub use scripts::agent_bounds;
 mod scenarios;
+pub(crate) use scenarios::reads::point;
 mod store;
 mod systems;
 
@@ -24,7 +25,7 @@ use jig_ops_domain_infrastructure as infra;
 use jig_ops_domain_observability as obs;
 use jig_ops_fake_production as production;
 pub use observations::Store;
-use skein_lib::{Duration, Env, List, Queue, ReplyTo, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 pub use systems::Systems;
 
 /// Ops-specific stories beside the shared adversarial scenarios.
@@ -371,6 +372,7 @@ impl Application for Ops {
                 | root::Output::Load { .. }
                 | root::Output::ReadResult { .. }
                 | root::Output::CoreLoad(_)
+                | root::Output::Store(_)
                 | root::Output::Core(_)
                 | root::Output::Now(_)
                 | root::Output::Observability(_)
@@ -729,35 +731,49 @@ impl Application for Ops {
                 let _ = person;
                 Vec::new()
             }
-            root::Output::Core(core::Held::NotesLoad { owner, .. }) => {
-                vec![Input::Event(root::Event::Core(peers::notes_loaded(owner, List::with_capacity(0), false)))]
+            root::Output::Store(core::engine::store::Out::Load {
+                load,
+                range: core::engine::store::Range::Notes(_),
+            }) => {
+                let result = core::engine::store::Answer::Rows(core::engine::store::Rows::Records {
+                    records: Box::new([]),
+                    more: false,
+                });
+                vec![Input::Event(root::Event::Store(root::Store::Engine(core::engine::store::In::Loaded {
+                    load,
+                    result,
+                })))]
             }
-            root::Output::CoreLoad(core::Now::StartPreparation { task, from, .. }) => {
+            root::Output::Store(core::engine::store::Out::Load {
+                load,
+                range: core::engine::store::Range::Window { task, from },
+            }) => {
+                use core::engine::store as port;
                 let records = observations::core_store(store).rows;
-                let rows = match peers::transcript(&records, task, from) {
-                    Ok(rows) => rows,
-                    Err(event) => return Ok(vec![Input::Event(root::Event::Core(*event))]),
+                let result = match peers::transcript(&records, task, from) {
+                    Ok(rows) => port::Answer::Rows(port::Rows::Turns {
+                        turns: rows
+                            .into_iter()
+                            .map(|row| {
+                                let bound = u32::try_from(row.transcript.len()).expect("stored turn bound");
+                                let limits = jig_protocol_transcript::Limits::new(
+                                    bound,
+                                    jig_client_domain::contract::TurnLimits {
+                                        messages: u32::MAX,
+                                        blocks: u32::MAX,
+                                        text: bound,
+                                        outcome: bound,
+                                    },
+                                );
+                                let text = jig_protocol_transcript::brief_text(&limits, &row.transcript).ok();
+                                (row, text)
+                            })
+                            .collect(),
+                        more: false,
+                    }),
+                    Err(failure) => port::Answer::Failed(failure),
                 };
-                vec![Input::Event(root::Event::Store(root::Store::Transcript {
-                    task,
-                    rows: rows
-                        .into_iter()
-                        .map(|row| {
-                            let limits = jig_protocol_transcript::Limits::new(
-                                u32::try_from(row.transcript.len()).expect("stored turn bound"),
-                                jig_client_domain::contract::TurnLimits {
-                                    messages: u32::MAX,
-                                    blocks: u32::MAX,
-                                    text: u32::try_from(row.transcript.len()).expect("stored turn bound"),
-                                    outcome: u32::try_from(row.transcript.len()).expect("stored turn bound"),
-                                },
-                            );
-                            let text = jig_protocol_transcript::brief_text(&limits, &row.transcript).ok();
-                            (row, text)
-                        })
-                        .collect(),
-                    done: true,
-                }))]
+                vec![Input::Event(root::Event::Store(root::Store::Engine(port::In::Loaded { load, result })))]
             }
             root::Output::ApplicationDocument { watcher, document } => {
                 documents::delivered(peers, store, document);
@@ -779,6 +795,7 @@ impl Application for Ops {
             | root::Output::Core(_)
             | root::Output::Now(_)
             | root::Output::CoreLoad(_)
+            | root::Output::Store(_)
             | root::Output::ProjectMade { .. } => Vec::new(),
             root::Output::Agent(request) => protocol::agent(peers, request),
             root::Output::Commit { .. } | root::Output::Stop => unreachable!("harness consumed commit/stop"),

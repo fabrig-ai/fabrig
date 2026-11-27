@@ -1013,7 +1013,7 @@ fn the_standard_archive_load_holds_a_whole_note_row() {
     let owner = loads::begin(
         &mut domain,
         Token::new(1),
-        engine::Range::Core(engine::CoreRange::Notes(notes::Range::Entry { name: 1 })),
+        engine::Range::Core(engine::CoreRange::ApplicationNotes(notes::Range::Entry { name: 1 })),
         None,
         1,
         &mut out,
