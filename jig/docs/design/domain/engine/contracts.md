@@ -9,10 +9,9 @@ The shapes the changes of the goal that carries connectors' declarations share
 - **`Core::new(config, connectors, limits)`,** `connectors` a `&[jig_domain_contract::Declaration]`,
   the same as `Engine::new` takes, which `Engine::new` passes through; it checks and refuses as
   `vocabulary.md`, 2.1 says, with the same `jig_domain_link::Problem`.
-- **The core keeps every declaration given,** for the life of the core: its resource kinds
-  installed in the tasks child (`../tasks/holds.md`, 2), its effect kinds read by
-  `Core::effect_kind(&self, connector: u16, kind: u16) -> Option<&EffectKind>`, `pub(crate)`, the
-  declared kind of that number of that connector, or none.
+- **The core keeps every declaration given,** for the life of the core, in the order given: its
+  resource kinds installed in the tasks child (`../tasks/holds.md`, 2), its effect kinds for the
+  descriptions it judges (3).
 - **A test that builds a core** gives a declaration for each connector its configuration names,
   with the kinds the test relies on; one with none gives `Declaration::empty(connector)`,
   `pub fn empty(connector: u16) -> Declaration`, its two lists empty.
@@ -28,5 +27,11 @@ The shapes the changes of the goal that carries connectors' declarations share
 ## 3. Descriptions
 
 - **`EffectDescription { connector, purpose, effect }`** once the description gives up its kind's
-  fields: `form`, `recovery` and `waits_for_dependencies` go; its kind is `effect.kind` of
-  `effect.connector`, looked up by `Core::effect_kind`.
+  fields: `form`, `recovery` and `waits_for_dependencies` go.
+- **Its kind** is `effect.kind` of `effect.connector`, read by
+  `Core::effect_kind(&self, connector: u16, kind: u16) -> Option<&EffectKind>`, `pub(crate)`: the
+  declared kind of that number of that connector, or none.
+- **Each root's declared effect kinds** are what its descriptions say of each kind before they give
+  up the fields, but temper's forge's kind 4, a merge, which waits for dependencies as the forge's
+  own table says (`temper-engine-domain-forge-vocabulary`, `waits_for_dependencies`), its landing's
+  merges among them.
