@@ -12,6 +12,7 @@ use smith_domain_session::End;
 use smith_domain_session::llm::Failure;
 use smith_session_world::provider::SLOT_NAMES;
 use smith_session_world::shapes::{Answer, Class, Reference, Sample, answer};
+use smith_session_world::translate::Decodings;
 use smith_session_world::{Ended, World, noisy, submit_noisily};
 
 const ITERATIONS: u32 = 100_000;
@@ -66,6 +67,7 @@ const EXPECTED_ENDS: [&str; 11] =
 #[expect(clippy::too_many_lines, reason = "the reach checks share one fixed seed sweep")]
 fn random_worlds_settle_with_every_session_ended() {
     let mut sample = Sample::new("random_worlds_settle_with_every_session_ended");
+    let mut decodings = Decodings::default();
     let mut ends = BTreeSet::new();
     let mut stops = BTreeSet::new();
     let (mut stale, mut invalid, mut not_run, mut parallel, mut op_timeouts) = (0, 0, 0, 0, 0);
@@ -90,7 +92,7 @@ fn random_worlds_settle_with_every_session_ended() {
         let mut world = World::new(settings);
         world.omit_trace();
         submit_noisily(&mut world, &settings, seed);
-        world.run(ITERATIONS);
+        world.run_with_decodings(ITERATIONS, &mut decodings);
         count_slots(&world, &mut slot_cases, &mut job_draws);
         sample.ran(&world.reached()).expect("the case holds only shapes in form");
         stale += world.stats().stale;
@@ -307,14 +309,17 @@ fn no_drawn_session_ends_because_its_history_grew() {
 #[test]
 fn observations_are_lossless_without_a_session_fact_allowance_over_many_seeds() {
     let mut sample = Sample::new("observations_are_lossless_without_a_session_fact_allowance_over_many_seeds");
+    let mut decodings = Decodings::default();
     for seed in 0..100 {
         let mut run = |fold_shapes| {
             let settings = noisy(seed);
             let mut world = World::new(settings);
             submit_noisily(&mut world, &settings, seed);
-            world.run(ITERATIONS);
             if fold_shapes {
+                world.run_with_decodings(ITERATIONS, &mut decodings);
                 sample.ran(&world.reached()).expect("the case holds only shapes in form");
+            } else {
+                world.run(ITERATIONS);
             }
             (world.stats(), world.told(), world.trace().to_vec())
         };
@@ -337,6 +342,7 @@ fn drawn_ratios_and_rendered_sizes_send_nothing_past_the_line() {
     let (mut guarded, mut refused, mut expanded) = (0, 0, 0);
     let mut rng = Rng::new(4102);
     let mut sample = Sample::new("drawn_ratios_and_rendered_sizes_send_nothing_past_the_line");
+    let mut decodings = Decodings::default();
     for seed in 0..SEEDS {
         let calm = Settings::calm(seed);
         let settings = Settings { nudges: Count { min: 0, max: 2 }, ..calm };
@@ -344,7 +350,7 @@ fn drawn_ratios_and_rendered_sizes_send_nothing_past_the_line() {
         let line = rng.between(LINE_MIN, LINE_MAX);
         let bytes = usize::try_from(rng.between(1, TASK_BYTES)).expect("small task");
         let opener = world.submit(Time::ZERO, smith_domain_session::Spec { line, ..spec(&vec![b'x'; bytes]) });
-        world.run(ITERATIONS);
+        world.run_with_decodings(ITERATIONS, &mut decodings);
         sample.ran(&world.reached()).expect("the case holds only shapes in form");
         for prompt in &world.session(opener).measures {
             guarded += u32::from(prompt.guard.is_some());

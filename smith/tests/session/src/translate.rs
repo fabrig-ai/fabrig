@@ -4,6 +4,8 @@
 //! into typed calls, and renders owned outcomes as the product does
 //! (smith/docs/design/protocol/llm.md, sections 5 and 8).
 
+use std::collections::BTreeMap;
+
 use smith_domain_session::Event;
 use smith_domain_session::llm as agent;
 
@@ -107,10 +109,10 @@ pub(crate) fn outcome(
     tickets: &mut Tickets,
     opener: u64,
     served: &[agent::Descriptor],
-    limits: &smith_protocol_llm::Limits,
+    decoder: &mut Decoder,
 ) -> Event {
     match result {
-        Ok(answer) => Event::Completed { owner, completion: completion(answer, tickets, opener, served, limits) },
+        Ok(answer) => Event::Completed { owner, completion: completion(answer, tickets, opener, served, decoder) },
         Err(error) => Event::Failed {
             retry_ok: true,
             owner,
@@ -169,7 +171,7 @@ fn completion(
     tickets: &mut Tickets,
     opener: u64,
     served: &[agent::Descriptor],
-    limits: &smith_protocol_llm::Limits,
+    decoder: &mut Decoder,
 ) -> agent::Completion {
     let stop = match answer.finish {
         provider::Finish::Stop => agent::Stop::EndTurn,
@@ -185,7 +187,7 @@ fn completion(
         cache_write_tokens: cache_write,
         reasoning_tokens: reasoning,
     };
-    let content = answer.parts.into_iter().map(|part| block(part, tickets, opener, served, limits)).collect();
+    let content = answer.parts.into_iter().map(|part| block(part, tickets, opener, served, decoder)).collect();
     agent::Completion { reasoning_dropped: Box::default(), content, stop, usage }
 }
 
@@ -194,7 +196,7 @@ fn block(
     tickets: &mut Tickets,
     opener: u64,
     served: &[agent::Descriptor],
-    limits: &smith_protocol_llm::Limits,
+    decoder: &mut Decoder,
 ) -> agent::Block {
     match part {
         provider::Part::Text { text } => agent::Block::Text { text, replay: None },
@@ -210,7 +212,7 @@ fn block(
                         effect,
                     }
                 }
-                None => decode_bounded(&name, &arguments, limits),
+                None => decoder.call(&name, &arguments),
             };
             agent::Block::ToolCall(agent::ToolCall { id, name, input: arguments, call, replay: None })
         }
@@ -250,7 +252,7 @@ pub fn decode(name: &[u8], arguments: &[u8]) -> agent::Decoded {
     decode_bounded(name, arguments, &decode_limits(&crate::TOOLS))
 }
 
-pub(crate) fn decode_limits(tools: &smith_domain_tools::Limits) -> smith_protocol_llm::Limits {
+fn decode_limits(tools: &smith_domain_tools::Limits) -> smith_protocol_llm::Limits {
     let mut client = skein_llm_kit::limits();
     // Like the profile, leave room for the longest path and Write's JSON
     // framing, then apply the native escape factor (limits-derivation.md, 1).
@@ -260,6 +262,74 @@ pub(crate) fn decode_limits(tools: &smith_domain_tools::Limits) -> smith_protoco
     client.input = client.input.min(input.saturating_mul(escape));
     let stated = smith_protocol_llm::Stated::from_tools(tools, client.input).expect("finite workspace fixture");
     smith_protocol_llm_fixtures::small(client, stated)
+}
+
+type Inputs<T> = BTreeMap<Box<[u8]>, T>;
+type Calls = BTreeMap<(u32, u32), Inputs<Inputs<agent::Decoded>>>;
+
+/// Per-sweep memo of pure decoding results; it owns no world state or slot classes.
+#[derive(Default)]
+pub struct Decodings {
+    calls: Calls,
+    fields: Inputs<(bool, bool)>,
+    entries: usize,
+}
+
+// Keep the memo small even for a sweep of distinct or oversized provider inputs.
+const CACHED_INPUT_BYTES: usize = 1024;
+const CACHED_INPUTS: usize = 2048;
+
+pub(crate) struct Decoder {
+    limits: smith_protocol_llm::Limits,
+    pub(crate) memo: Option<Decodings>,
+}
+
+impl Decoder {
+    pub(crate) fn new(tools: &smith_domain_tools::Limits) -> Self {
+        Self { limits: decode_limits(tools), memo: None }
+    }
+
+    fn call(&mut self, name: &[u8], arguments: &[u8]) -> agent::Decoded {
+        let Some(memo) = self.memo.as_mut().filter(|_| arguments.len() <= CACHED_INPUT_BYTES) else {
+            return decode_bounded(name, arguments, &self.limits);
+        };
+        // With fixed workspace grants and no served tools the decoder uses only
+        // these two limits, to admit the original JSON before reading fields.
+        let bounds = (self.limits.client.input, self.limits.client.depth);
+        if let Some(decoded) =
+            memo.calls.get(&bounds).and_then(|tools| tools.get(name)).and_then(|calls| calls.get(arguments))
+        {
+            return decoded.clone();
+        }
+        let decoded = decode_bounded(name, arguments, &self.limits);
+        if memo.entries < CACHED_INPUTS
+            && !matches!(decoded, agent::Decoded::Invalid { problem: agent::Problem::UnknownTool, .. })
+        {
+            memo.calls
+                .entry(bounds)
+                .or_default()
+                .entry(name.into())
+                .or_default()
+                .insert(arguments.into(), decoded.clone());
+            memo.entries += 1;
+        }
+        decoded
+    }
+
+    pub(crate) fn path_fields(&mut self, arguments: &[u8]) -> (bool, bool) {
+        let Some(memo) = self.memo.as_mut().filter(|_| arguments.len() <= CACHED_INPUT_BYTES) else {
+            return crate::shapes::path_fields(arguments);
+        };
+        if let Some(&fields) = memo.fields.get(arguments) {
+            return fields;
+        }
+        let fields = crate::shapes::path_fields(arguments);
+        if memo.entries < CACHED_INPUTS {
+            memo.fields.insert(arguments.into(), fields);
+            memo.entries += 1;
+        }
+        fields
+    }
 }
 
 fn decode_bounded(name: &[u8], arguments: &[u8], limits: &smith_protocol_llm::Limits) -> agent::Decoded {

@@ -602,7 +602,7 @@ pub struct World {
     rng: Rng,
     settings: Settings,
     rendered_result: u32,
-    decoder: smith_protocol_llm::Limits,
+    decoder: translate::Decoder,
 
     agent: agent::Domain,
     agent_stage: Stage<agent::Limits, agent::Event, agent::Request>,
@@ -713,7 +713,7 @@ impl World {
             rng,
             settings,
             rendered_result: translate::render_bound(&settings.agent),
-            decoder: translate::decode_limits(&settings.agent.tools),
+            decoder: translate::Decoder::new(&settings.agent.tools),
             agent,
             agent_stage: Stage::uncapped(settings.agent),
             provider,
@@ -844,6 +844,13 @@ impl World {
     /// settled world. Panics if it takes more than `iterations`.
     pub fn run(&mut self, iterations: u32) {
         self.run_observed(iterations, |_, _| {});
+    }
+
+    /// Runs the same checks, sharing only pure argument decodings across a sweep's worlds.
+    pub fn run_with_decodings(&mut self, iterations: u32, memo: &mut translate::Decodings) {
+        self.decoder.memo = Some(std::mem::take(memo));
+        self.run(iterations);
+        *memo = self.decoder.memo.take().expect("the run owns the sweep's memo");
     }
 
     /// Runs the same loop with a scenario observing both sides of each reclaim point.
@@ -1693,7 +1700,7 @@ impl World {
                             crate::provider::report(&mut answer.usage, input);
                         }
                         let event =
-                            translate::outcome(owner, result, &mut self.tickets, opener, &served, &self.decoder);
+                            translate::outcome(owner, result, &mut self.tickets, opener, &served, &mut self.decoder);
                         self.agent_stage.push(event);
                     } else {
                         self.stats.late_answers += 1;
