@@ -136,9 +136,9 @@ and adds to them is `places.md`.
   as drive lines, from `web reload "/projects/1"`, opening Hello, to the fake
   model's answer, a `tui see` of it that waits, then `web reload "/"`,
   a step that is no `see`, so that the answer's `see` stays a step
-  (`../../client/recipe.md`, 3.1); its check `tui see "/chats 1"`, the
-  chat's row on the launchpad of the TUI the check starts afresh after
-  the walk's `tui stop` (`../../client/recipe.md`, 5.1;
+  (`../../client/recipe.md`, 3.1); its check `tui see "Where you left off"`,
+  the section listing the chat on the launchpad of the TUI the check
+  starts afresh after the walk's `tui stop` (`../../client/recipe.md`, 5.1;
   `../../client/tui/pages/launchpad.md`, 4). It reaches Hello
   with an Ask temper chat asked and answered from the TUI, and serves
   the TUI's chat screen (`../../client/tui/pages/chat.md`) and the web

@@ -1,6 +1,6 @@
 use core::cell::RefCell;
 
-use crate::faults::FaultLedger;
+use crate::faults::{FaultLedger, Kind};
 use crate::sweep::Sweep;
 use crate::sweep::cases::{Case, Test, cases_in, dispatch_hook, input_in};
 use crate::test_env::Mode;
@@ -187,11 +187,18 @@ fn a_finding_stops_the_sweep_and_names_the_case() {
     }
 }
 
+fn ledger_with_ineligible_draw() -> FaultLedger {
+    const FAULT: Kind = Kind { family: "forge", name: "busy" };
+    let mut ledger = FaultLedger::new();
+    ledger.ineligible(FAULT);
+    ledger
+}
+
 #[test]
 fn folding_ledgers_counts_only_the_cases_in_each_mode() {
     const GATE_CASES: u64 = 3;
     const REPLAY_CASES: u64 = 1;
-    let ledger = FaultLedger::new();
+    let ledger = ledger_with_ineligible_draw();
     for (mode, expected) in [(Mode::Gate, GATE_CASES), (CAMPAIGN, GATE_CASES), (Mode::Replay(42), REPLAY_CASES)] {
         let mut sweep = Sweep::new("folding");
         let counts = RefCell::new(Vec::new());
@@ -215,7 +222,7 @@ fn folding_ledgers_counts_only_the_cases_in_each_mode() {
 #[test]
 fn folding_ledgers_counts_each_call_before_and_after_a_case() {
     const ONE_FOLD: u64 = 1;
-    let ledger = FaultLedger::new();
+    let ledger = ledger_with_ineligible_draw();
     for result in [Ok(()), Err("boom")] {
         let mut sweep = Sweep::new("folding");
         let mut counts = Vec::new();

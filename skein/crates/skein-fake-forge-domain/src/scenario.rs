@@ -183,6 +183,21 @@ pub fn refuse_close(domain: &mut Domain, repository: &[u8], number: u64, refused
     }
 }
 
+/// Sets the per-mille chance that a job of this workflow never reports.
+/// A job already running keeps the scheduling decision made when it started.
+pub fn set_workflow_silent(domain: &mut Domain, repository: &[u8], file: &[u8], silent: u32) {
+    let id = domain.id(repository);
+    let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
+    let mut selected = None;
+    for workflow in &mut repository.workflows {
+        if workflow.file.as_ref() == file {
+            selected = Some(workflow);
+            break;
+        }
+    }
+    selected.expect("a configured workflow").silent = silent;
+}
+
 /// Limits simultaneous dispatched jobs across the forge; `None` removes the pool.
 /// Existing jobs keep their runner until they end (testing/fakes/forge.md, 2.3).
 pub fn runners(domain: &mut Domain, runners: Option<u32>) {
@@ -440,6 +455,22 @@ pub fn set_opening(domain: &mut Domain, repository: &[u8], context: &[u8], bytes
         .opening
         .get_mut(found.expect("a context of the repository's checks"))
         .expect("one opening per context") = copy_of(bytes);
+}
+
+/// Omit the report if this in-flight dispatch next completes with a failure.
+/// A subsequent attempt runs with the workflow's usual report.
+///
+/// # Errors
+/// Returns `Missing` for an unknown dispatch, or `Refused` if it has ended.
+pub fn omit_report_once(domain: &mut Domain, repository: &[u8], run: u64) -> Result<(), Error> {
+    let id = domain.id(repository);
+    let repository = domain.repositories.get(id).expect("a repository of the forge");
+    let kept = repository.dispatched.get(&run).ok_or(Error::Missing(What::Job))?;
+    if kept.run.state == crate::api::RunState::Completed {
+        return Err(Error::Refused);
+    }
+    domain.omit_report = Some(run);
+    Ok(())
 }
 
 /// Replaces one dispatched job's step log within the repository's content bound
