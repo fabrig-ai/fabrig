@@ -143,49 +143,60 @@ Name/places/secret digest; remove withdraws name; reset needs a default.
 - withdrawn:bool;Absent: false; true is read-only. Withdraw by a removed edit.
 
 ## catalogue
-Numbered runtime model; display facts.
-- number:u32;Permanent number, 1 to 64, matching setting.number.
-- model:model;runtime model, whole.
-- shown:t[4096]|null;name for showing, or null.
-- description:t[512]|null;description, or null.
-- picker:bool;Whether a model picker shows it.
-- withdrawn:bool;Whether it is withdrawn; its number and name stay.
-- source:choice;Where the model came from. `stock`: binary. `list`: provider list. `person`: person.
-- estimated:bool;Whether its prices are provider defaults.
+Numbered model and its display facts.
+- number:u32;Keeps setting.number (1..64).
+- model:model;Whole model.
+- shown:t[4096]|null;Display name.
+- description:t[512]|null;Description.
+- picker:bool;Show in picker?
+- withdrawn:bool;Withdrawn? Number and name stay.
+- source:choice;Origin. `stock`: binary. `list`: provider list. `person`: person.
+- estimated:bool;Provider default prices?
 
 ## model
-Whole runtime model; charter fields except `effort` match config, else `reference` refusal.
-- provider:u32;configured LLM provider that serves it; 1 when absent.
-- dialect:u32;Configured model protocol.
-- endpoint:u32;Configured serving endpoint's number.
-- program:t[32]|null;Configured program running it, or null for none.
+Prices: spend per `price_unit` tokens. Charter fields except `effort` match config (`reference`).
+- provider:u32;Serving LLM provider; absent: 1.
+- dialect:u32;Model protocol.
+- endpoint:u32;Endpoint number.
+- program:t[32]|null;Serving program, if any.
 - name:t[4096];Provider's model name.
-- window:u32;most tokens of input it reads.
-- output:u32;Most tokens per completion, thinking included.
-- input_price:u64;Fresh input cost: spend units per `price_unit` tokens.
-- cached_price:u64;Cached input cost: spend units per `price_unit` tokens.
-- cache_write_price:u64|null;Cache write cost per `price_unit` tokens; null uses fresh-input price.
-- output_price:u64;Output cost: spend units per `price_unit` tokens.
-- price_unit:u32;number of tokens each price is for.
-- efforts:[16] t[32];Configured efforts, in order.
-- effort:t[32]|null;One of `efforts`; null: default effort.
+- window:u32;Input token limit.
+- output:u32;Completion tokens, thinking included.
+- input_price:u64;Fresh input price.
+- cached_price:u64;Cached input price.
+- cache_write_price:u64|null;Cache write price; null uses input price.
+- output_price:u64;Output price.
+- price_unit:u32;Tokens per price.
+- efforts:[16] t[32];Efforts, in order.
+- effort:t[32]|null;One of `efforts`; null: default.
+- speeds:[4] setting-speed;Ordered; absent: [].
+- speed:t[32]|null;Default from `speeds` (else `shape`); absent/null: standard.
+
+## setting-speed
+Faster speed, model price unit.
+- name:t[32];Provider speed name.
+- also:[2] t[32]|null;Reported aliases; absent/null: [].
+- input_price:u64;Fresh input cost.
+- cached_price:u64;Cached input cost.
+- cache_write_price:u64|null;Cache writes; absent/null: input price.
+- output_price:u64;Output cost.
 
 ## wake
 Wake by message kind; proposals, escalations and cancels always wake.
-- words:wake_rule;Task and deployment words; a person's always wake it at once.
-- notices:wake_rule;Notices: referenced task done/held, proposal passing through, awaited hold.
-- news:wake_rule;News its connectors class as waking for it.
+- words:wake_rule;Task/deployment words; a person's wake at once.
+- notices:wake_rule;Referenced task done/held; passing proposal; awaited hold.
+- news:wake_rule;News its connectors class as waking.
 - results:choice;delegates' results. `never`: None wakes it. `each`: Each delegate's result wakes it. `last_or_failure`: last delegate's result, or any failure.
-- questions:bool;Whether a delegate's question wakes it.
-- answers:bool;Whether an answer to its own question wakes it.
-- timers:bool;Whether its timers wake it.
+- questions:bool;Wake for delegate's question?
+- answers:bool;Wake for answer to own question?
+- timers:bool;Wake for its timers?
 
 ## wake_rule
 Wake by message kind: a word or one-member object.
 - `never`:It waits for the task's next run.
 - `immediate`:It wakes the task at once.
 - batch:wake_batch;Once enough arrive or the oldest waits long enough.
-- paced:ns;At most once per span from last run start; first after quiet wakes now. Positive, else `shape` refusal.
+- paced:ns;At most once per positive span from run start. First after quiet wakes now. Nonpositive: `shape`.
 
 ## wake_batch
 Message batch waking a task once.

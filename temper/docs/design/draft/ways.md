@@ -127,7 +127,7 @@ Each row already has its default and, mostly, its per-work choice. A way adds th
   - `gates.base` and `gates.held`: the gates such changes take, each a recipe in `ways.toml`'s own `[tasks]`, written as a way's are;
   - `[defaults.reaches]`, a classes table as a way's;
   - `questions`;
-  - `[[defaults.sets]]`, path sets of the defaults' own, each a name and patterns, and `[[defaults.rules]]`, rules by path across ways: a rule adds `ci`, `up_to_date`, gates or approvals to a change that touches one of its `sets`, or, with `unless_only`, to every change but one touching only its sets ("CI unless only documentation"), a form the floor's rules don't have.
+  - `[[defaults.sets]]`, path sets of the defaults' own, each a name and patterns, and `[[defaults.rules]]`, rules by path across ways: a rule adds `ci`, `up_to_date`, gates or approvals to a change that touches one of its `sets`, or, with `unless_only`, to every change but one touching only its sets ("CI unless only documentation"), a form the floor's rules don't have. A default rule joins every change's criteria, as the floor's rules do, and no way or piece of work lifts it: it changes only by a landing, where the floor changes only by its owners (the gallery's validation, 2026-11-27).
 - **The stock's,** where `ways.toml` says none: CI and up to date into the landing branch, the stock review, no approval, as stock rule 1 asks today; into a held branch, neither `ci` nor `up_to_date`; Agents review's classes; `questions = "up"`.
 - **Defaults, not the floor:** a way's value, or a piece of work's, wins over a default, as section 5 says, and a later landing can change them. What must hold whatever any landing says is the floor's, in settings: an owner puts it in a kind 2 rule.
 

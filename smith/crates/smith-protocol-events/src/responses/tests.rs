@@ -225,6 +225,7 @@ fn internal_owner_tokens_do_not_replace_public_activation_and_conversation_numbe
 
 pub(crate) fn seen_completion() -> llm::Completion {
     llm::Completion {
+        served: llm::ServedSpeed::Unreported,
         reasoning_dropped: Box::new([]),
         content: Box::new([
             llm::Said::ToolCall {
@@ -493,6 +494,7 @@ fn conversation_totals_keep_each_reported_counter_and_no_report_remains_unknown(
                     content: Box::new([]),
                     stop: llm::Stop::EndTurn,
                     usage,
+                    served: llm::ServedSpeed::Unreported,
                     reasoning_dropped: Box::new([]),
                 };
                 book.received(request, &completion);

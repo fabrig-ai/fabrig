@@ -1348,6 +1348,7 @@ fn smallest_charter() -> Box<[u8]> {
         account: None,
         model: Box::default(),
         effort: None,
+        speed: None,
         window: 0,
         output: 0,
         prices,

@@ -20,6 +20,7 @@ use std::{
 #[derive(Debug)]
 pub struct Call {
     pub owner: Token,
+    compaction: bool,
     pub receiving: Receiving,
     pub request: Vec<u8>,
     pub started: (Time, Wall),
@@ -489,7 +490,11 @@ impl Protocol {
                             .unwrap_or_else(|| format!("request {}", call.owner.raw()));
                         self.faults.call(*token, query.credential, name);
                         let seen = match crate::referee::NativeRequest::from_http(&call.request) {
-                            Ok(request) => crate::referee::Seen::Request { owner: call.owner, request },
+                            Ok(request) => crate::referee::Seen::Request {
+                                owner: call.owner,
+                                request,
+                                compaction: call.compaction,
+                            },
                             Err(finding) => crate::referee::Seen::RequestFinding(finding),
                         };
                         self.referee.observe(self.env.now, seen, &mut Vec::new());
@@ -541,6 +546,7 @@ impl Backend for Protocol {
         self.pending.push_back(Pending { index, model: prompt.model.clone(), system: prompt.system.clone() });
         self.calls.push(Call {
             owner,
+            compaction: matches!(prompt.purpose, llm::Purpose::Compaction { .. }),
             receiving: bounds,
             request: Vec::new(),
             started: (now, wall),

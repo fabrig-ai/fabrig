@@ -169,6 +169,56 @@ fn keep_gaps_follow_value_type_order_not_wire_or_root_order() {
 }
 
 #[test]
+fn an_older_agent_keeps_only_charters_without_a_speed() {
+    use smith_charter::v5 as charter;
+    const WORDS: &[u8] = b"the worker's layout cannot keep smith-charter Llm.speed: field";
+    let older = replace(smith_charter::SCHEMA, " speed: option Speed = none", "");
+    let older = replace(&older, "record Speed { name: text 32 also: list 2 text 32 prices: Prices }\n", "");
+    let older = parse(&older);
+    let current = parse(smith_charter::SCHEMA);
+    let mut peer = Plans::new(&[crate::SCHEMA, smith_charter::SCHEMA], &List::uncapped())
+        .expect("engine texts")
+        .judge(&[stated(&parse(crate::SCHEMA)), stated(&older)])
+        .expect("worker layout fits");
+    let mut original = Buffer::with_capacity(ROOM);
+    draw(&current, current.find(b"Charter").expect("charter root"), &mut Rng::new(0x0508), &mut original, true);
+    let bytes = original.as_slice();
+    let mut value = charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(bytes)).expect("charter");
+    let mut converted = Buffer::with_capacity(ROOM);
+    peer.down(Nested::Charter, bytes, &mut converted).expect("none can be dropped");
+    let mut restored = Buffer::with_capacity(ROOM);
+    Shim::new(Mode::Read, &older, &current, "Charter")
+        .convert(converted.as_slice(), &mut restored)
+        .expect("the new layout reads the old one");
+    assert_eq!(restored.as_slice(), bytes);
+
+    let speed = charter::Speed {
+        name: b"ultrafast".as_slice().into(),
+        also: List::uncapped(),
+        prices: value.main.prices.clone(),
+    };
+    value.main.speed = Some(speed.clone());
+    for alternative_only in [false, true] {
+        if alternative_only {
+            value.main.speed = None;
+            let mut model = value.main.clone();
+            model.speed = Some(speed.clone());
+            value.models = List::from_boxed(Box::new([model]));
+        }
+        let bytes = value.encode(&smith_charter::CEILINGS).expect("the current layout holds the speed");
+        let refused = peer.down(Nested::Charter, &bytes, &mut converted).expect_err("some speed cannot be dropped");
+        assert_eq!(refused.cause, Cause::Field);
+        assert_eq!(&*refused.kept(), WORDS);
+        assert!(converted.is_empty());
+    }
+    let gaps = peer.gaps();
+    assert_eq!(gaps.len(), 1);
+    let gap = gaps.get(0).expect("one charter gap");
+    assert_eq!((gap.site, gap.why), (Site::Charter, Refused::Field));
+    assert_eq!(&*gap.words(), WORDS);
+}
+
+#[test]
 fn cached_kind_bounds_follow_the_supplied_limits() {
     const ASK_BYTES: u32 = 5;
     // Ask has three u64 fields and a u32 length before its bytes.

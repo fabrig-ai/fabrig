@@ -64,6 +64,7 @@ pub(crate) fn cut_count(scripts: &[Script]) -> Option<u32> {
                     | Line::Pieces { .. }
                     | Line::Text { .. }
                     | Line::Opaque { .. }
+                    | Line::Served { .. }
                     | Line::Call { .. } => {}
                 }
             }
@@ -338,6 +339,7 @@ fn regular_turn(
             | Line::Pieces { .. }
             | Line::Text { .. }
             | Line::Opaque { .. }
+            | Line::Served { .. }
             | Line::Call { .. },
         )
         | None => None,
@@ -407,7 +409,8 @@ fn replay_parts(minted: &mut u64, turn: &Turn) -> Result<Box<[Part]>, Error> {
             | Line::Cut { .. }
             | Line::Fail { .. }
             | Line::Pieces { .. }
-            | Line::Opaque { .. } => {
+            | Line::Opaque { .. }
+            | Line::Served { .. } => {
                 unreachable!("replay admission checks the line shapes")
             }
         };
@@ -589,9 +592,9 @@ fn cut_arguments(arguments: &[u8]) -> Box<[u8]> {
 fn answer(query: &Query, parts: Box<[Part]>, finish: Finish, tokens: u64, cut: Box<[Part]>) -> Answer {
     let most = u64::from(query.max_tokens);
     if tokens > most {
-        return Answer { parts: cut, finish: Finish::Length, usage: usage(query, most) };
+        return Answer { parts: cut, finish: Finish::Length, usage: usage(query, most), served: None };
     }
-    Answer { parts, finish, usage: usage(query, tokens) }
+    Answer { parts, finish, usage: usage(query, tokens), served: None }
 }
 
 impl Played {
@@ -742,15 +745,22 @@ fn scripted(
     for line in &turn.lines {
         match line {
             Line::Drawn { .. } => unreachable!("stretches use the random batch path"),
-            Line::Take { .. } | Line::Cut { .. } => count = count.checked_sub(1).expect("one fewer part per take"),
+            Line::Take { .. } | Line::Cut { .. } | Line::Served { .. } => {
+                count = count.checked_sub(1).expect("a control line emits no part");
+            }
             Line::Text { .. } | Line::Call { .. } | Line::Opaque { .. } | Line::Pieces { .. } | Line::Fail { .. } => {}
         }
     }
     let mut parts = List::with_capacity(count);
+    let mut served = None;
     for (index, line) in turn.lines.iter().enumerate() {
         let earlier = turn.lines.get(..index).expect("line prefix");
         let part = match line {
             Line::Drawn { .. } => unreachable!("stretches use the random batch path"),
+            Line::Served { name } => {
+                served = Some(name);
+                continue;
+            }
             Line::Take { .. } => continue,
             Line::Cut { times } => {
                 if cutting(cuts, place, index, *times) {
@@ -799,7 +809,9 @@ fn scripted(
         }
         Some(Part::Opaque { .. } | Part::Text { .. } | Part::ToolOutput { .. }) | None => cut_text(),
     };
-    Ok(answer(query, parts.into_boxed(), turn.finish, turn.tokens, cut))
+    let mut result = answer(query, parts.into_boxed(), turn.finish, turn.tokens, cut);
+    result.served = served.cloned();
+    Ok(result)
 }
 
 fn cut_failure(mut parts: List<Part>) -> Failure {

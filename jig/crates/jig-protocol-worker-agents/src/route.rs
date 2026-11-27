@@ -121,7 +121,7 @@ fn refused(refusal: smith::Refusal) -> &'static [u8] {
                 smith::Rate::CacheWrite => b"agent cache write price invalid",
                 smith::Rate::Output => b"agent output price invalid",
             },
-            smith::RunInvalid::Llm => b"agent llm invalid",
+            smith::RunInvalid::Llm | smith::RunInvalid::ProgramSpeed { .. } => b"agent llm invalid",
             smith::RunInvalid::Conversation => b"agent conversation invalid",
             smith::RunInvalid::Endpoint => b"agent endpoint invalid",
             smith::RunInvalid::Effort => b"agent effort invalid",

@@ -3,7 +3,7 @@
 ## 1. Vocabulary and ownership
 
 A `Prompt` holds instructions, a model, conversation messages, tool
-definitions, a tool choice, reasoning effort, an affinity and an optional
+definitions, a tool choice, reasoning effort, a speed (1.3), an affinity and an optional
 output-token cap. A message holds ordered text, refusals, tool calls,
 tool results and reasoning blocks; a completion may also hold the
 per-call outcomes of section 1.4. Provider-owned
@@ -56,7 +56,8 @@ refusal names its cause (admission.md). An
 accepted client has one call, named by the caller's opaque token. Every
 accepted call has one terminal: `Completed`, `Failed` or `Cancelled`.
 Completed blocks and deltas are separate events; completion includes all
-completed blocks in provider order, its stop reason and token usage.
+completed blocks in provider order, its stop reason, token usage and
+the speed that served it (1.3).
 Delta indexes are the provider's output/content indexes, not the order in
 which completed blocks are delivered. A part's index within an item, a
 message's content part or a reasoning summary's part, is not an output
@@ -174,6 +175,23 @@ pub struct Usage {
 - **`reasoning` is part of `output`,** never added to it.
 - Each dialect maps its own fields (`wire.md`, sections 1.7 and 1.8). A cumulative
   patch replaces a field only when it reports that field.
+- **A speed asked for.** `Prompt.speed: Option<Box<[u8]>>` is the speed
+  a call asks its provider to serve it at, by the provider's own name
+  (`fast`, `ultrafast`, `default`), sent as it is (`wire.md`, 1.7 and
+  1.8); `None` sends nothing, the provider's or the project's default.
+  A name is 1 to 32 bytes of lower-case letters, digits, `-` and `_`;
+  admission refuses any other as `Invalid`. The caller keeps it fixed
+  for a conversation, as its model: a provider may cache each speed
+  apart.
+- **The speed that served.** `Completion.served: Option<Box<[u8]>>`,
+  beside its usage, is the speed its response names as having served
+  it, as the provider names it: Responses' `response.service_tier`,
+  Anthropic's `usage.speed`. `None` where the response names none. Like
+  usage, it never fails a completion: a name past 32 bytes, or of any
+  other byte than a prompt's speed may hold, is `None`. Which name is a
+  dialect's standard speed is `Provider::standard_speed`, `default` for
+  OpenAI's and `standard` for Anthropic's, so that a caller pricing what
+  served needs no name of its own.
 
 ### 1.4 Per-call outcomes
 

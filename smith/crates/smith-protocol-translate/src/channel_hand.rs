@@ -39,3 +39,33 @@ pub(crate) fn delivery_failure_to_domain(record: wire::DeliveryFailure) -> run::
 pub(crate) fn host_reply_to_domain(record: wire::HostReply) -> Result<run::HostAnswer, wire::Problem> {
     run::HostAnswer::new(record.text, record.error).ok_or(wire::paths::HOST_REPLY_TEXT.problem(Reason::Bound))
 }
+
+/// Project the agent's named program-speed refusal to the channel's `llm` reason.
+pub(crate) fn invalid_start_to_record(value: &run::Invalid) -> wire::InvalidStart {
+    use crate::generated::channel as mapped;
+    use run::Invalid;
+    use wire::InvalidStart;
+
+    match value {
+        Invalid::CharterVersion => InvalidStart::CharterVersion,
+        Invalid::MalformedCharter => InvalidStart::MalformedCharter,
+        Invalid::Activation => InvalidStart::Activation,
+        Invalid::Window => InvalidStart::Window,
+        Invalid::Conventions => InvalidStart::Conventions,
+        Invalid::TooLarge => InvalidStart::TooLarge,
+        Invalid::Workspace => InvalidStart::Workspace,
+        Invalid::Grants => InvalidStart::Grants,
+        Invalid::Outcome => InvalidStart::Outcome,
+        Invalid::Budget(reason) => {
+            InvalidStart::Budget(wire::BudgetRefusalValue { value: mapped::budget_refusal_to_record(reason) })
+        }
+        Invalid::Price(rate) => InvalidStart::Price(wire::PriceRateValue { value: mapped::price_rate_to_record(rate) }),
+        Invalid::Llm | Invalid::ProgramSpeed { .. } => InvalidStart::Llm,
+        Invalid::Conversation => InvalidStart::Conversation,
+        Invalid::Endpoint => InvalidStart::Endpoint,
+        Invalid::Messages => InvalidStart::Messages,
+        Invalid::HostPart { bound } => InvalidStart::HostPart(wire::WindowBound { bound: *bound }),
+        Invalid::Room { bound } => InvalidStart::Room(wire::WindowBound { bound: *bound }),
+        Invalid::Effort => InvalidStart::Effort,
+    }
+}

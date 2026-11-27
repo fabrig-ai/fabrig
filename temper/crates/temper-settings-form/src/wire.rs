@@ -907,6 +907,23 @@ pub(crate) fn settings_restore_setting_model(value: &w::SettingModel) -> Result<
     for item in &value.efforts {
         efforts.push(settings_text(item, 32)?).expect("same capacity");
     }
+    let mut speeds = List::with_capacity(value.speeds.len());
+    for speed in &value.speeds {
+        let mut also = List::with_capacity(speed.also.len());
+        for name in &speed.also {
+            also.push(settings_text(name, 32)?).expect("same capacity");
+        }
+        speeds
+            .push(c::SettingSpeed {
+                name: settings_text(&speed.name, 32)?,
+                also,
+                input_price: speed.input_price,
+                cached_price: speed.cached_price,
+                cache_write_price: speed.cache_write_price,
+                output_price: speed.output_price,
+            })
+            .expect("same capacity");
+    }
     Ok(c::SettingModel {
         provider: value.provider,
         dialect: value.dialect,
@@ -926,6 +943,11 @@ pub(crate) fn settings_restore_setting_model(value: &w::SettingModel) -> Result<
         efforts,
         effort: match &value.effort {
             Some(item) => Some(settings_text(item, 32)?),
+            None => None,
+        },
+        speeds,
+        speed: match &value.speed {
+            Some(name) => Some(settings_text(name, 32)?),
             None => None,
         },
     })
@@ -1598,6 +1620,23 @@ pub(crate) fn settings_wire_setting_model(value: &c::SettingModel) -> w::Setting
     for item in &value.efforts {
         efforts.push(bytes::copy_of(item.bytes())).expect("same capacity");
     }
+    let mut speeds = List::with_capacity(value.speeds.len());
+    for speed in &value.speeds {
+        let mut also = List::with_capacity(speed.also.len());
+        for name in &speed.also {
+            also.push(bytes::copy_of(name.bytes())).expect("same capacity");
+        }
+        speeds
+            .push(w::SettingSpeed {
+                name: bytes::copy_of(speed.name.bytes()),
+                also,
+                input_price: speed.input_price,
+                cached_price: speed.cached_price,
+                cache_write_price: speed.cache_write_price,
+                output_price: speed.output_price,
+            })
+            .expect("same capacity");
+    }
     w::SettingModel {
         provider: value.provider,
         dialect: value.dialect,
@@ -1613,6 +1652,8 @@ pub(crate) fn settings_wire_setting_model(value: &c::SettingModel) -> w::Setting
         price_unit: value.price_unit,
         efforts,
         effort: optional_text(value.effort.as_ref()),
+        speeds,
+        speed: optional_text(value.speed.as_ref()),
     }
 }
 

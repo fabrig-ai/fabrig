@@ -59,7 +59,7 @@ pub use crate::{
         host_rule::HostRule,
         live::LiveAsk,
         state::{
-            EFFORT_BYTES, EFFORTS, MODEL_DESCRIPTION_BYTES, MODEL_NAME_BYTES, Model, RunCharter, RunPolicy,
+            EFFORT_BYTES, EFFORTS, MODEL_DESCRIPTION_BYTES, MODEL_NAME_BYTES, Model, RunCharter, RunPolicy, Speed,
             most_costly, reserve_floor,
         },
         transcript_text::TranscriptRow,

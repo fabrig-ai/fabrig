@@ -427,6 +427,41 @@ pub fn encode_setting_model(value: &c::SettingModel, out: &mut Encoder) {
         }
         None => out.null(),
     }
+    if !value.speeds.is_empty() {
+        out.key(b"speeds");
+        out.array_start();
+        for speed in &value.speeds {
+            encode_setting_speed(speed, out);
+        }
+        out.array_end();
+    }
+    if let Some(name) = &value.speed {
+        out.key(b"speed");
+        encode_text(name, out);
+    }
+    out.object_end();
+}
+fn encode_setting_speed(value: &c::SettingSpeed, out: &mut Encoder) {
+    out.object_start();
+    out.key(b"name");
+    encode_text(&value.name, out);
+    out.key(b"also");
+    out.array_start();
+    for name in &value.also {
+        encode_text(name, out);
+    }
+    out.array_end();
+    out.key(b"input_price");
+    out.unsigned(value.input_price);
+    out.key(b"cached_price");
+    out.unsigned(value.cached_price);
+    out.key(b"cache_write_price");
+    match value.cache_write_price {
+        Some(price) => out.unsigned(price),
+        None => out.null(),
+    }
+    out.key(b"output_price");
+    out.unsigned(value.output_price);
     out.object_end();
 }
 pub fn encode_setting_hosts(value: &c::SettingHosts, out: &mut Encoder) {
