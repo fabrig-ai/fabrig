@@ -996,7 +996,6 @@ fn joinable(d: &Domain, project: u32, task: u64) -> bool {
 }
 
 /// Formed landings are sealed (domain/landing.md, 4.1).
-pub(crate) fn join(_d: &mut Domain, _task: u64, _member: policy::Member, _after: &[u64], _out: &mut Queue<Request>) {}
 pub(crate) fn order(_d: &mut Domain, _task: u64, _changes: &[u64], _out: &mut Queue<Request>) {}
 
 fn member_position(row: &LandingRow, prior: &LandingRow, old: u16) -> Option<u16> {

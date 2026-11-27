@@ -2463,11 +2463,6 @@ pub enum Event {
         task: u64,
         changes: Box<[u64]>,
     },
-    JoinLanding {
-        task: u64,
-        member: landing::Member,
-        after: Box<[u64]>,
-    },
     Landing {
         row: LandingRow,
     },

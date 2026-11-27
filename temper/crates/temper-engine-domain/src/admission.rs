@@ -68,7 +68,6 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::MakingActed { .. }
             | forge::Event::MakingAgain { .. }
             | forge::Event::OrderLanding { .. }
-            | forge::Event::JoinLanding { .. }
             | forge::Event::Landing { .. }
             | forge::Event::TrainRefusal { .. }
             | forge::Event::VetoLanding { .. }
