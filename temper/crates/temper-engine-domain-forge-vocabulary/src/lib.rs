@@ -895,8 +895,14 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(tasks) => skein_lib::len_u64(tasks.len()),
                 None => 0,
             };
+            let caught_up = match &row.closer.caught_up {
+                Some(tasks) => skein_lib::len_u64(tasks.len()),
+                None => 0,
+            };
             let mut total = closed
+                .checked_add(caught_up)?
                 .checked_add(skein_lib::len_u64(row.close_changes.len()))?
+                .checked_add(skein_lib::len_u64(row.catch_up_changes.len()))?
                 .checked_add(skein_lib::len_u64(row.superseded.len()))?
                 .checked_add(skein_lib::len_u64(row.landing_changes.len()))?
                 .checked_mul(8)?

@@ -7362,6 +7362,7 @@ pub fn closing_step_to_record(value: &temper_engine_domain_forge_closer::Step) -
     match value {
         temper_engine_domain_forge_closer::Step::Close => crate::v25::ClosingStep::Close,
         temper_engine_domain_forge_closer::Step::Land => crate::v25::ClosingStep::Land,
+        temper_engine_domain_forge_closer::Step::CatchUp => crate::v25::ClosingStep::CatchUp,
     }
 }
 
@@ -7370,6 +7371,7 @@ pub fn closing_step_to_domain(record: crate::v25::ClosingStep) -> temper_engine_
     match record {
         crate::v25::ClosingStep::Close => temper_engine_domain_forge_closer::Step::Close,
         crate::v25::ClosingStep::Land => temper_engine_domain_forge_closer::Step::Land,
+        crate::v25::ClosingStep::CatchUp => temper_engine_domain_forge_closer::Step::CatchUp,
     }
 }
 

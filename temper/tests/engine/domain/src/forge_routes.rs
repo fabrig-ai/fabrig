@@ -1311,14 +1311,6 @@ impl World {
                 bound.result = bound.result.min(limits.tasks.result_bytes);
                 config.core.jobs = if omit_prepare { Box::new([]) } else { Box::new([bound]) };
             }
-            if merge_kind {
-                let mut bound = protocol::merge_bound();
-                bound.spec = bound.spec.min(limits.tasks.spec_bytes);
-                bound.result = bound.result.min(limits.tasks.result_bytes);
-                let mut jobs = config.core.jobs.to_vec();
-                jobs.push(bound);
-                config.core.jobs = jobs.into_boxed_slice();
-            }
             if merge_authority {
                 let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
                 let mut extended = kinds.to_vec();
@@ -1462,6 +1454,15 @@ impl World {
             }
             if let Some((command, authority)) = &timing.close_job {
                 configure_close_job(&mut config, &mut limits, command.as_deref(), *authority);
+            }
+            if merge_kind {
+                let mut bound = protocol::merge_bound();
+                bound.spec = bound.spec.min(limits.tasks.spec_bytes);
+                bound.result = bound.result.min(limits.tasks.result_bytes);
+                let mut jobs = config.core.jobs.to_vec();
+                jobs.push(bound);
+                jobs.sort_by_key(|job| job.kind.0);
+                config.core.jobs = jobs.into_boxed_slice();
             }
             if timing.goal_closer {
                 configure_goal_closer(&mut config, &mut limits);

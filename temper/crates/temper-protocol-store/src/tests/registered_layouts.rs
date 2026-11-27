@@ -88,6 +88,7 @@ fn an_earlier_closer_defaults_to_an_unread_report() {
         closer: Closer::new(),
         making: None,
         close_changes: Box::new([]),
+        catch_up_changes: Box::new([]),
         superseded: Box::new([]),
         landing_changes: Box::new([]),
         relay: Relay::new(),
