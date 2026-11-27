@@ -15,7 +15,31 @@ browser-temper = [
 ]
 
 campaign-jig = [
+    "jig-accounts-world",
+    "jig-brief-world",
+    "jig-channel-world",
+    "jig-client-protocol-http",
+    "jig-client-protocol-world",
+    "jig-client-views-world",
+    "jig-client-wire-world",
+    "jig-client-world",
+    "jig-conformance-world",
     "jig-core-world",
+    "jig-engine-clients-world",
+    "jig-engine-workers-world",
+    "jig-fleet-world",
+    "jig-host-world",
+    "jig-notes-world",
+    "jig-one-process-world",
+    "jig-ops-world",
+    "jig-people-world",
+    "jig-protocol-accounts-world",
+    "jig-store-codecs-world",
+    "jig-store-world",
+    "jig-tasks-world",
+    "jig-test-connector-world",
+    "jig-worker-link-world",
+    "jig-worker-wire-world",
 ]
 
 campaign-temper = [
