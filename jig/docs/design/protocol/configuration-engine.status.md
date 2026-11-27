@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [configuration-engine.md](configuration-engine.md).
 
-- **Not yet:** 1: a model's `speeds` and `speed` in the document [in flight: change 20554].
 
 - **Not yet:** 1: a provider's `direct` endpoint, its checks, and a list read on it [in flight: change 927].
 - **Not yet:** 1: a template's `ended_by` `standing` and a model's `cache_life_ms` (`../domain/tasks/standing.md`, section 7).
