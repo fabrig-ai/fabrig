@@ -1405,7 +1405,10 @@ impl Host {
         self.went(Address::Home { project });
     }
     fn went(&mut self, address: Address) {
-        let left = self.leaving_box();
+        self.went_from(address, self.leaving_box());
+    }
+
+    fn went_from(&mut self, address: Address, left: Option<(BoxKey, Box<[u8]>)>) {
         self.tell(Told::Place { command: None });
         self.start_at(address);
         self.enter_box(left);
@@ -1431,7 +1434,14 @@ impl Host {
             && let Some(me) = self.root.pages().me(self.root.client())
             && let Some(project) = me.projects.get(0)
         {
-            self.went(Address::Home { project: project.project });
+            // Reading `me` can open an empty root composer before we leave the start address.
+            let words = self.state().command_words();
+            let left = if self.state().place().is_none() && !words.is_empty() {
+                Some((BoxKey::Launchpad, words.into()))
+            } else {
+                self.leaving_box()
+            };
+            self.went_from(Address::Home { project: project.project }, left);
         }
     }
 
