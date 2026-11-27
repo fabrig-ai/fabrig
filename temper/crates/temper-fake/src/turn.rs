@@ -212,7 +212,7 @@ fn check_answer(turn: &api::Turn, p: &Path) -> Result<(), Refusal> {
                 bytes
             }
             Line::Fail { credentials, .. } => credentials.len().checked_mul(size_of::<u32>()).expect("sixteen indices"),
-            Line::Opaque { .. } => unreachable!("no opaque document lines"),
+            Line::Opaque { .. } | Line::Served { .. } => unreachable!("not a document line"),
         };
         size = size.checked_add(u64::try_from(bytes).expect("bounded line")).expect("sixteen bounded lines");
     }

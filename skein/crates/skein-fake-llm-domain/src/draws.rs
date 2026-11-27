@@ -286,9 +286,12 @@ fn valid_turn(turn: &Turn) -> bool {
         let valid = match line {
             Line::Call { .. } => turn.finish == Finish::ToolCalls,
             Line::Text { .. } => turn.finish == Finish::Stop && turn.lines.len() == 1,
-            Line::Cut { .. } | Line::Take { .. } | Line::Fail { .. } | Line::Pieces { .. } | Line::Opaque { .. } => {
-                false
-            }
+            Line::Cut { .. }
+            | Line::Take { .. }
+            | Line::Fail { .. }
+            | Line::Pieces { .. }
+            | Line::Served { .. }
+            | Line::Opaque { .. } => false,
         };
         if !valid {
             return false;
@@ -306,6 +309,7 @@ fn is_call(line: Option<&Line>) -> bool {
             | Line::Take { .. }
             | Line::Fail { .. }
             | Line::Pieces { .. }
+            | Line::Served { .. }
             | Line::Opaque { .. },
         )
         | None => false,

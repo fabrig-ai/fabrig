@@ -544,6 +544,7 @@ fn standard_profile_accepts_conversation_history_with_workspace_results() {
         input: input.into_boxed_slice(),
         effort: None,
         prompt_cache_key: None,
+        service_tier: None,
         choice: skein_llm::ToolChoice::Auto,
     };
     let encoded = openai::encode_request(&request, &limits).expect("workspace results fit the request");

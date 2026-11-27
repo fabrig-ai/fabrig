@@ -121,7 +121,7 @@ pub(crate) fn scripts(scripts: &[Script]) -> Option<u64> {
                     Line::Take { name, before, after } => {
                         bytes(name)?.checked_add(bytes(before)?)?.checked_add(bytes(after)?)?
                     }
-                    Line::Text { text } => bytes(text)?,
+                    Line::Text { text } | Line::Served { name: text } => bytes(text)?,
                     Line::Opaque { bytes: value } => bytes(value)?,
                     Line::Call { name, arguments } => bytes(name)?.checked_add(bytes(arguments)?)?,
                 };
@@ -160,6 +160,10 @@ pub(crate) fn scripted_answer(turn: &Turn) -> Option<u64> {
             }
             Line::Fail { report, credentials, .. } => {
                 report_bytes(report)?.checked_add(array(credentials.len(), size_of::<u32>())?)?
+            }
+            Line::Served { name } => {
+                total = total.checked_sub(u64::try_from(size_of::<Part>()).ok()?)?;
+                bytes(name)?
             }
             Line::Take { .. } | Line::Cut { .. } => {
                 total = total.checked_sub(u64::try_from(size_of::<Part>()).ok()?)?;
@@ -206,6 +210,7 @@ pub(crate) fn replay(capture: &Capture) -> Option<u64> {
                 | Line::Take { .. }
                 | Line::Fail { .. }
                 | Line::Pieces { .. }
+                | Line::Served { .. }
                 | Line::Opaque { .. } => {
                     return None;
                 }

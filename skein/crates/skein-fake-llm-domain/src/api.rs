@@ -304,6 +304,8 @@ pub struct Answer {
     ///
     /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub usage: Usage,
+    /// Optional serving-speed report chosen by the script.
+    pub served: Option<Box<[u8]>>,
 }
 
 /// Why the fake provider stopped; the agent translator supplies its own corresponding vocabulary.
@@ -514,6 +516,8 @@ pub struct Turn {
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Line {
+    /// Reports the serving speed for this turn without emitting a part.
+    Served { name: Box<[u8]> },
     /// Cuts the first `times` calls reaching this line; zero is refused.
     Cut { times: u32 },
     /// Binds a conversation value for later text and call arguments; emits no part.

@@ -134,6 +134,7 @@ fn translate(
             choice: native_choice,
             messages: translated.into_boxed(),
             reasoning_effort: effort,
+            speed: None,
             affinity: Some(skein_llm::Affinity { key: affinity.key, thread: affinity.thread }),
             max_output_tokens: Some(max_tokens),
         },

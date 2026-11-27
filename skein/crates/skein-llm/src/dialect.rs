@@ -18,7 +18,7 @@ pub(crate) enum Output {
     ToolStart { index: u32, id: Box<[u8]>, name: Box<[u8]> },
     ArgumentsDelta { index: u32, delta: Box<[u8]> },
     ReasoningDelta { index: u32, summary_index: u32, text: Box<[u8]> },
-    Completed { stop: Stop, usage: Usage },
+    Completed { stop: Stop, usage: Usage, served: Option<Box<[u8]>> },
     Failed { failure: Failure, report: Report, detail: Box<[u8]> },
     Progress,
 }
@@ -185,7 +185,7 @@ fn responses_outputs(
             openai::Output::ReasoningDelta { index, summary_index, text } => {
                 Output::ReasoningDelta { index, summary_index, text }
             }
-            openai::Output::Completed { stop, usage } => Output::Completed { stop, usage },
+            openai::Output::Completed { stop, usage, served } => Output::Completed { stop, usage, served },
             openai::Output::Failed { failure, detail } => Output::Failed { failure, report: Report::none(), detail },
             openai::Output::Progress => Output::Progress,
         };
@@ -207,7 +207,7 @@ fn anthropic_outputs(raw: &mut Queue<anthropic::Output>, limits: &openai::Limits
             anthropic::Output::ReasoningDelta { index, summary_index, text } => {
                 Output::ReasoningDelta { index, summary_index, text }
             }
-            anthropic::Output::Completed { stop, usage } => Output::Completed { stop, usage },
+            anthropic::Output::Completed { stop, usage, served } => Output::Completed { stop, usage, served },
             anthropic::Output::Failed { failure, detail } => Output::Failed { failure, report: Report::none(), detail },
             anthropic::Output::Progress => Output::Progress,
         };

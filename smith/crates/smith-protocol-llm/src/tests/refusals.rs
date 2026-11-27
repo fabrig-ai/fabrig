@@ -219,6 +219,7 @@ fn guard_render_and_completion_refusals_name_their_causes() {
             }]),
             stop: skein_llm::Stop::EndTurn,
             usage: skein_llm::Usage::NONE,
+            served: None,
         },
     )
     .expect_err("completion cannot hold a result");

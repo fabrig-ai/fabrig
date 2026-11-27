@@ -18,6 +18,7 @@ mod filter;
 pub mod list;
 pub mod openai;
 mod replay;
+mod speed;
 mod translate;
 mod types;
 mod wire;

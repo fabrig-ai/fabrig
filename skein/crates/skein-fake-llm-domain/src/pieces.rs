@@ -27,11 +27,18 @@ pub(crate) fn valid(scripts: &[Script]) -> bool {
     for script in scripts {
         for turn in &script.turns {
             let mut ended = false;
+            let mut served = false;
             for (index, line) in turn.lines.iter().enumerate() {
                 if ended {
                     return false;
                 }
                 match line {
+                    Line::Served { .. } => {
+                        if served {
+                            return false;
+                        }
+                        served = true;
+                    }
                     Line::Cut { times } => {
                         if *times == 0 {
                             return false;
@@ -105,6 +112,7 @@ fn at(scripts: &[Script], place: Place) -> &[Piece] {
             | Line::Fail { .. }
             | Line::Text { .. }
             | Line::Opaque { .. }
+            | Line::Served { .. }
             | Line::Call { .. },
         )
         | None => {

@@ -250,6 +250,7 @@ impl Service {
     /// for `down`; an unmatched or closed route returns the owned update as `Err`.
     ///
     /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
+    #[expect(clippy::result_large_err, reason = "both routes return the owned update without allocating")]
     pub fn target(&self, request: domain::Request) -> Result<(Token, domain::Request), domain::Request> {
         let (token, request) = match request {
             domain::Request::Reply { to, result } => {
@@ -464,7 +465,7 @@ pub fn down(
                 response_error(server, service, env, failure);
             } else {
                 let parts = core::mem::replace(&mut failure.parts, Box::new([]));
-                let answer = api::Answer { parts, finish: api::Finish::Stop, usage: api::Usage::NONE };
+                let answer = api::Answer { parts, finish: api::Finish::Stop, usage: api::Usage::NONE, served: None };
                 if !answer_fits(&answer, &env.limits.documents) {
                     close(server, service, env, above, below);
                     return;
@@ -947,7 +948,10 @@ fn answer_fits(answer: &api::Answer, limits: &documents::Limits) -> bool {
     if answer.parts.len() > usize_of(limits.openai.output_items.min(limits.anthropic.output_items)) {
         return false;
     }
-    let mut length = Some(0_usize);
+    let mut length = Some(match &answer.served {
+        Some(name) => name.len(),
+        None => 0,
+    });
     for part in &answer.parts {
         let size = match part {
             api::Part::Text { text } | api::Part::Opaque { bytes: text } => Some(text.len()),

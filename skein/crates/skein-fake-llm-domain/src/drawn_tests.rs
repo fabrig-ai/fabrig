@@ -92,6 +92,7 @@ fn assert_golden(domain: &mut Domain, config: &Config, cued: &Query, random: &Qu
         Ok(Answer {
             parts: Box::new([part]),
             finish,
+            served: None,
             usage: Usage {
                 input: Some(0),
                 cache_read: Some(0),

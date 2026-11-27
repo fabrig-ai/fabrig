@@ -108,6 +108,7 @@ fn input(provider: Provider, owner: u64) -> Call {
             tools: Box::new([]),
             messages: Box::new([text_message("Reply with exactly: skein-live-ok")]),
             reasoning_effort: effort,
+            speed: None,
             affinity: None,
             choice: skein_llm::ToolChoice::Auto,
             max_output_tokens: max_tokens,
