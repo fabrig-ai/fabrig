@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [branches.md](branches.md).
 
-- **Not yet:** 2, *A close found outdated* and *A catch-up only for its close*: the closer makes no catch-up, and reads a close step's change ended with no change as done [in flight: change 21261].
 - **Design departs:** 2, *A close found outdated*, *Kept*: the request of 2026-11-27 asks for the catch-up once per goal tip; the closer asks it once per close request, since its own catch-up moves the goal's branch's tip, so a rule by tip would catch up again after it. The intent, one catch-up for the goal's work and none in a loop, is kept. Decided by the goal's designer, 2026-11-27.
 
 

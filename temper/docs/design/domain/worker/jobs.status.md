@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [jobs.md](jobs.md).
 
-- **Not yet:** 1, *The close kind*: its spec asks for no outdated finding, and the worker sets no `TEMPER_CLOSE_OUTDATED=3` [in flight: change 21256].
 
 
 `jobs.md`'s close kind is built: kind 4 is declared with its bounds,

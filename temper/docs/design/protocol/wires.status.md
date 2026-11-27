@@ -2,7 +2,6 @@
 
 2026-11-27. Where temper's code lags or departs from [wires.md](wires.md).
 
-- **Not yet:** 8, *A close asks for its outdated finding in its spec too*: `JobSpec` has no `outdated` [in flight: change 21256].
 
 - **Not yet:** 5: the engine fits a start to the room at its own layout before converting it, and fits nothing again after: a start that would fit at the worker's layout once cut is refused as invalid, and one that grows past the room is refused without the cuts that would fit it. A converted frame past the room takes `Bound::Room` and is answered `Invalid(Start)`, not *untranslated*.
 - **Not yet:** 7: no host-tool adapter can answer a call itself. An adapter returns a mapped tool and input or a problem, and the engine passes every successful mapping to the current decoder.

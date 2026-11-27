@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [repairs-releases.md](repairs-releases.md).
 
-- **Not yet:** 1, *Outdated*: a close job's outdated finding is read as the command's failure, and `CloseAt` keeps no `outdated` [in flight: change 21257].
 
 
 
