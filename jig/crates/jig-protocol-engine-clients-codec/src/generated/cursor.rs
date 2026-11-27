@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 2;
 pub const LAYOUT: [u8; 32] = [
-    0xb8, 0x84, 0x41, 0xe5, 0x46, 0xef, 0x83, 0x9e, 0x71, 0x7f, 0xc8, 0xc6, 0x80, 0x2d, 0xfd, 0x19, 0x31, 0x55, 0x03,
-    0x79, 0x97, 0xe2, 0x53, 0xe3, 0xd2, 0x97, 0x9e, 0x2f, 0x0e, 0x5b, 0xe2, 0x52,
+    0x3d, 0x7a, 0x38, 0x22, 0x09, 0x78, 0xeb, 0xdc, 0x6d, 0x49, 0x17, 0xc8, 0xee, 0xf1, 0xf0, 0x63, 0xa5, 0x1f, 0x67,
+    0x04, 0xd4, 0x6a, 0x74, 0xfe, 0x47, 0x1c, 0x87, 0x79, 0xe2, 0x50, 0x1b, 0x3a,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -200,6 +200,8 @@ pub mod paths {
     pub const TREE_TAIL: Path = Path::new("Tree (tail)");
     pub const OWNER_CURSOR: Path = Path::new("Owner.cursor");
     pub const OWNER_TAIL: Path = Path::new("Owner (tail)");
+    pub const WINDOW_AFTER: Path = Path::new("Window.after");
+    pub const WINDOW_TAIL: Path = Path::new("Window (tail)");
     pub const FORM_TAG: Path = Path::new("Form (tag)");
     pub const HELD_LAYOUT: Path = Path::new("Held.layout");
     pub const HELD_FORM: Path = Path::new("Held.form");
@@ -2634,11 +2636,62 @@ impl Record for Owner {
     }
 }
 
+// Type: Window.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Window {
+    pub after: DocumentCursor,
+}
+
+// Record: Window.
+impl Window {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("DocumentCursor"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 36;
+}
+
+impl Record for Window {
+    type Limits = Limits;
+    const TAIL: Path = paths::WINDOW_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Window")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Window")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.after, limits, out, paths::WINDOW_AFTER)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            after: field::read(field::Nested, limits, reader, paths::WINDOW_AFTER)?,
+        })
+    }
+}
+
 // Type: Form.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Form {
     Owner(Owner),
     Tree(Tree),
+    Window(Window),
 }
 
 // Record: Form.
@@ -2646,7 +2699,8 @@ impl Form {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Named("Owner"),
         skein_codec::bounds::Node::Named("Tree"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+        skein_codec::bounds::Node::Named("Window"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -2678,6 +2732,7 @@ impl Record for Form {
         match self {
             Self::Owner(value) => { field::put(out, &[0], paths::FORM_TAG)?; value.write(limits, out) },
             Self::Tree(value) => { field::put(out, &[1], paths::FORM_TAG)?; value.write(limits, out) },
+            Self::Window(value) => { field::put(out, &[2], paths::FORM_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -2686,7 +2741,8 @@ impl Record for Form {
         match tag {
             0 => Ok(Self::Owner(Owner::read(limits, reader)?)),
             1 => Ok(Self::Tree(Tree::read(limits, reader)?)),
-            2..=u8::MAX => Err(Problem { path: paths::FORM_TAG, reason: skein_codec::Reason::Tag }),
+            2 => Ok(Self::Window(Window::read(limits, reader)?)),
+            3..=u8::MAX => Err(Problem { path: paths::FORM_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -2791,6 +2847,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "WaitPlace", nodes: WaitPlace::SHAPE },
     skein_codec::bounds::Declaration { name: "WaitPosition", nodes: WaitPosition::SHAPE },
     skein_codec::bounds::Declaration { name: "WaitQuery", nodes: WaitQuery::SHAPE },
+    skein_codec::bounds::Declaration { name: "Window", nodes: Window::SHAPE },
 ];
 
 static CEILING_VALUES: &[u32] = &[
