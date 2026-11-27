@@ -26,6 +26,8 @@ pub struct Spec {
     pub refusal: bool,
     /// The engine’s limit on a typed refusal result.
     pub result: u32,
+    /// Whether to ask the command for an outdated finding.
+    pub outdated: bool,
 }
 
 /// Parent to capability.

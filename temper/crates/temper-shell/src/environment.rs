@@ -170,3 +170,13 @@ pub const CLOSE_RESULT_BYTES: Variable = Variable {
     absent: "The close checker uses 512 bytes, also used for values that are not whole decimals of at least 512.",
     notes: "",
 };
+
+pub const CLOSE_OUTDATED: Variable = Variable {
+    name: "TEMPER_CLOSE_OUTDATED",
+    set: Set::Public,
+    form: "3",
+    way: Way::Sets,
+    line: "Asks the close command to report an outdated finding with exit status 3.",
+    absent: "The close command runs without the outdated ask.",
+    notes: "",
+};

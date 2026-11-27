@@ -1,6 +1,7 @@
 use super::*;
 
 mod amended_review;
+mod close;
 mod empty_repair;
 mod execution;
 mod fence;

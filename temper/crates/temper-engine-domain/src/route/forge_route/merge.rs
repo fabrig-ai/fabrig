@@ -27,6 +27,7 @@ pub(super) fn spec(
         request: request.into_boxed(),
         refusal: false,
         result: temper_protocol_worker_wire::DEFAULT_JOB_RESULT_BYTES,
+        outdated: false,
     };
     if spec.measure(&v1::CEILINGS).ok()? > bound {
         return None;

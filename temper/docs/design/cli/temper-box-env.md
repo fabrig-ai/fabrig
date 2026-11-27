@@ -28,6 +28,14 @@ Generated from temper-box's table (`skein/docs/design/runtime/shell-table.md`, 1
 - **Absent:** The close checker uses 512 bytes, also used for values that are not whole decimals of at least 512.
 - Maximum bytes in the close command's typed refusal, including its newline.
 
+### `TEMPER_CLOSE_OUTDATED`
+
+- **Set:** public
+- **Sets**
+- **Form:** 3
+- **Absent:** The close command runs without the outdated ask.
+- Asks the close command to report an outdated finding with exit status 3.
+
 ### `TEMPER_CHECKPOINT`
 
 - **Set:** public

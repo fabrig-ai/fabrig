@@ -75,7 +75,7 @@ pub enum ItemsRefusal {
     Version(jig_domain_host::Mismatch),
 }
 
-/// A job's command, request bytes and typed refusal ask, decoded by the service
+/// A job's command, request bytes and close asks, decoded by the service
 /// (temper/docs/design/domain/worker/jobs.md).
 #[derive(PartialEq, Eq, Debug)]
 pub struct JobSpec {
@@ -84,6 +84,7 @@ pub struct JobSpec {
     pub refusal: bool,
     /// The engine’s limit on a typed refusal result.
     pub result: u32,
+    pub outdated: bool,
 }
 
 /// The repositories a run works in (`domain/worker/hosted-runs.md`, 1.1). The checkout

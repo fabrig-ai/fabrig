@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-24. Where the tree's code lags or departs from [testing.md](testing.md).
+2026-11-27. Where the tree's code lags or departs from [testing.md](testing.md).
 
 
 - **Not yet:** 2, 3, 6: the tier holds twelve test functions. Its merged
@@ -21,9 +21,10 @@
   share. Those figures read a 131,072-byte window; reading's histories are now
   sized to the tier's 32,768 (3), their code lines scaled with it and no reply,
   paragraph or step fewer, and their wall at that size is unmeasured.
-- **Not yet:** 3: no whole-tier run on record establishes that the repaired
-  tier fits its 127.5 CPU-second budget, 85 raised by half by the user's word
-  of 11-08, for now, to be revisited. The flagged run, of 17 tests, was
+- **Not yet:** 3: the tier's budget is 140 CPU seconds, the user's word of
+  11-27 (`tools/tiers/budgets.toml`). The after-landing tier's 29 whole runs
+  held to four cores' time, from 2026-11-26 01:06Z to 11-27 16:01Z, took 95.4
+  to 133.8 CPU s, all within it and 8 over the 127.5 before it. The flagged run, of 17 tests, was
   129.4 CPU s, 70.8 s wall. With ctl history and a 131,072-byte window,
   all twelve final comparison runs passed, with CPU medians of
   20.858273 s for long, 9.178371 s for Latest and 8.399148 s for unanchored,

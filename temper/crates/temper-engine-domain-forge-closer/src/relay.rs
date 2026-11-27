@@ -300,6 +300,7 @@ pub fn relay(state: &Relay, goal: u64, ended: bool, room: Room, bound: u32, at: 
                     match open.step {
                         Step::Close => b"status settlement",
                         Step::Land => b"landing",
+                        Step::CatchUp => b"catch-up",
                     },
                 );
                 append(&mut text, b", asks:\n\n");

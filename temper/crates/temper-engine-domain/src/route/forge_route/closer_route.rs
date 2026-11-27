@@ -1,8 +1,10 @@
 //! A goal's mechanical close, landing and report (temper/docs/design/domain/forge/branches.md, 2).
 //! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use super::{Box, Decision, Domain, Env, Limits, List, ProcedureStep, StepEnd, Work, append, forge, tasks};
+use forge::closer_words::{append_ending, branch_reason};
 use jig_domain_core::StepCancel;
 use temper_engine_domain_forge_closer as c;
+mod catch_up;
 pub(crate) mod goal_report;
 mod relay;
 #[derive(Hash, Debug)]
@@ -66,6 +68,7 @@ pub(crate) fn start_closer_step(
         closer: c::Closer::new(),
         making: None,
         close_changes: Box::new([]),
+        catch_up_changes: Box::new([]),
         superseded: Box::new([]),
         landing_changes: Box::new([]),
         relay: c::relay::Relay::new(),
@@ -124,12 +127,7 @@ pub(crate) fn start_closer_step(
         }
         None => None,
     };
-    let close_job = match hooks {
-        None => None,
-        Some(forge::Hooks::Legacy) => Some(domain.forge.close_job(context.project).is_some()),
-        Some(forge::Hooks::Directory { close, .. }) => Some(close),
-    };
-    let facts = facts(domain, &row, branch.as_deref(), base_holds, close_job, observation);
+    let facts = facts(domain, &row, branch.as_deref(), base_holds, hooks, observation);
     let stepped = c::step(&row.closer, &facts);
     let mut replacement = None;
     let (decision, wait) = match stepped.decision {
@@ -202,15 +200,12 @@ pub(crate) fn start_closer_step(
             let branch = branch.expect("only a held goal branch makes a step");
             let step = match kind {
                 c::Step::Land => ClosingStep::Land,
+                c::Step::CatchUp => ClosingStep::CatchUp,
                 c::Step::Close => ClosingStep::Close {
-                    hook: if let Some(forge::Hooks::Directory { close: true, .. }) = hooks {
-                        Some(forge::CLOSE_HOOK)
-                    } else {
-                        None
-                    },
+                    hook: if let Some(forge::Hooks::Directory { close, .. }) = hooks { close } else { false },
                 },
             };
-            let draft = delegate(domain, env, &row, &repository, &branch, &goal_words, step);
+            let draft = delegate(domain, env, &row, &repository, &branch, &goal_words, step, &facts.landed);
             let mut next = stepped.closer;
             if supersedes.is_some() {
                 // Keep the old attempt until cancellation and replacement are admitted together.
@@ -220,7 +215,8 @@ pub(crate) fn start_closer_step(
             let delegate = match draft {
                 Ok(delegate) => delegate,
                 Err(short) => {
-                    if supersedes.is_none() {
+                    let retrying_catch_up = kind == c::Step::CatchUp && running_catch_up(&row.closer);
+                    if supersedes.is_none() && (row.closer.running.is_none() || retrying_catch_up) {
                         row.closer.retry = Some(kind);
                     }
                     let decision = if short.is_spend() && goal_run_live(domain, goal) {
@@ -254,7 +250,7 @@ pub(crate) fn start_closer_step(
             row.closer = stepped.closer;
             let decision = ProcedureStep::new(StepEnd::HoldFrom {
                 why: tasks::Hold::Procedure,
-                source: Box::new(super::holds::source(domain, None, hold_words(domain, &row, hold))),
+                source: Box::new(super::holds::source(domain, None, hold_words(domain, &row, hold, hooks))),
             });
             (decision, Some(forge::CloserPark::DelegateOrHeld))
         }
@@ -286,11 +282,18 @@ pub(crate) fn start_closer_step(
     submit_replacing(domain, env, row, decision, wait, replacement);
 }
 
+fn running_catch_up(closer: &c::Closer) -> bool {
+    match closer.running {
+        Some(c::Running { step: c::Step::CatchUp, .. }) => true,
+        Some(c::Running { step: c::Step::Close | c::Step::Land, .. }) | None => false,
+    }
+}
+
 fn live_closer_delegate(domain: &Domain, row: &forge::CloserRow) -> bool {
     if let Some(running) = row.closer.running {
         match child(domain, running.change, running.step) {
             c::Child::Pending | c::Child::Idle { .. } => return true,
-            c::Child::Done | c::Child::Ended { .. } => {}
+            c::Child::Done | c::Child::Outdated | c::Child::Ended { .. } => {}
         }
     }
     if let Some(task) = row.closer.landing {
@@ -324,7 +327,7 @@ fn facts(
     row: &forge::CloserRow,
     branch: Option<&[u8]>,
     base_holds: Option<bool>,
-    close_job: Option<bool>,
+    hooks: Option<forge::Hooks>,
     report: c::ReportRead,
 ) -> c::Facts {
     let mut landed = List::uncapped();
@@ -337,7 +340,11 @@ fn facts(
             landed.push(number).expect("goal tree bounds landed changes");
         }
     }
-    let pending = !domain.engine.core().tasks.task(row.task).expect("live closer").waiting_on.is_empty();
+    let task = domain.engine.core().tasks.task(row.task).expect("live closer");
+    let pending = !task.waiting_on.is_empty();
+    let released = task.due_reason == tasks::Why::Released;
+    let releasing_catch_up =
+        if let Some(c::Hold::ClosingStep { step: c::Step::CatchUp, .. }) = &row.closer.hold { released } else { false };
     let running = match row.closer.running {
         Some(run) => child(domain, run.change, run.step),
         None => c::Child::Done,
@@ -349,7 +356,16 @@ fn facts(
     c::Facts {
         report,
         goal_branch: branch.is_some(),
-        close_job,
+        close_job: match hooks {
+            None => None,
+            Some(forge::Hooks::Legacy) => Some(domain.forge.close_job(task.project).is_some()),
+            Some(forge::Hooks::Directory { close, .. }) => Some(close),
+        },
+        catch_up: if running == c::Child::Outdated || row.closer.retry == Some(c::Step::CatchUp) || releasing_catch_up {
+            catch_up::observed(domain, row, task, hooks)
+        } else {
+            None
+        },
         pending,
         landed: landed.into_boxed(),
         base_holds,
@@ -358,7 +374,7 @@ fn facts(
         land_ended: ended_count(domain, row, c::Step::Land),
         bound: attempt_bound(domain, row.task),
         landing_child,
-        released: domain.engine.core().tasks.task(row.task).expect("live closer").due_reason == tasks::Why::Released,
+        released,
     }
 }
 
@@ -418,6 +434,7 @@ fn goal_branch(
 
 fn original(domain: &Domain, closer: &forge::CloserRow, row: &forge::ChangeRow) -> bool {
     if closer.close_changes.contains(&row.task)
+        || closer.catch_up_changes.contains(&row.task)
         || closer.superseded.contains(&row.task)
         || closer.landing_changes.contains(&row.task)
     {
@@ -478,6 +495,9 @@ fn child(domain: &Domain, task: u64, step: c::Step) -> c::Child {
     }
     match domain.forge.change(task) {
         Some(row) => match ending(row) {
+            Some(forge::Ending::NoChange) if step == c::Step::Close && catch_up::finding(row).is_some() => {
+                c::Child::Outdated
+            }
             Some(forge::Ending::Landed | forge::Ending::NoChange) => c::Child::Done,
             Some(forge::Ending::Cancelled | forge::Ending::Failed { .. }) => {
                 c::Child::Ended { branch: branch_reason(row.change.ended_held).is_some() }
@@ -565,6 +585,7 @@ fn ended_count(domain: &Domain, row: &forge::CloserRow, kind: c::Step) -> u32 {
     let changes = match kind {
         c::Step::Close => &row.close_changes,
         c::Step::Land => &row.landing_changes,
+        c::Step::CatchUp => unreachable!("a catch-up does not count attempts"),
     };
     let mut count = 0_u32;
     for task in changes {
@@ -579,30 +600,6 @@ fn ended_count(domain: &Domain, row: &forge::CloserRow, kind: c::Step) -> u32 {
         }
     }
     count
-}
-
-fn branch_reason(held: Option<super::forge_change::Cause>) -> Option<&'static [u8]> {
-    use super::forge_change::Cause;
-    match held {
-        Some(Cause::Repairs) => Some(b"repairs"),
-        Some(Cause::Runner) => Some(b"its CI runner's re-runs"),
-        Some(Cause::Resolutions) => Some(b"conflict resolutions"),
-        Some(Cause::Rejected) => Some(b"a rejection"),
-        Some(Cause::PullClosed) => Some(b"its pull request closed"),
-        Some(Cause::BranchMissing) => Some(b"its branch missing"),
-        Some(
-            Cause::Stalled
-            | Cause::Updates
-            | Cause::BranchMoved
-            | Cause::Retargeted
-            | Cause::Failed
-            | Cause::RedStands
-            | Cause::CloseRefused
-            | Cause::Authority(_)
-            | Cause::Questions,
-        )
-        | None => None,
-    }
 }
 
 fn close_request(domain: &Domain, closer: &forge::CloserRow, branch: &[u8]) -> Box<[u8]> {
@@ -770,10 +767,15 @@ fn change_tasks(given: u32, room: u32, bound: u8, ended: u32) -> u32 {
 }
 
 enum ClosingStep {
-    Close { hook: Option<&'static [u8]> },
+    Close { hook: bool },
     Land,
+    CatchUp,
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the step uses the resolved destination and the goal's latest landed work"
+)]
 fn delegate(
     domain: &Domain,
     env: &Env<Limits>,
@@ -782,6 +784,7 @@ fn delegate(
     branch: &[u8],
     goal_words: &[u8],
     step: ClosingStep,
+    landed: &[u64],
 ) -> Result<super::super::Delegate, Short> {
     let context = domain.engine.core().tasks.delegation(row.task).ok_or(Short::Terms)?;
     let goal = domain.engine.core().tasks.delegation(row.goal).ok_or(Short::Terms)?;
@@ -800,29 +803,47 @@ fn delegate(
         .saturating_sub(context.numbers.reserved);
     let spend = available.checked_div(2).expect("nonzero divisor");
     let minimum = domain.engine.core().authority.rules().minimum_run_spend;
-    let (kind, words, base, own) = match step {
+    let origin =
+        super::ChangeOrigin { authority: context.authority.clone(), tasks_left: context.tasks_left, source: None };
+    let (kind, draft) = match step {
         ClosingStep::Close { .. } => {
             let mut words = List::uncapped();
             append(&mut words, b"Settle goal ");
             append(&mut words, &super::decimal(row.goal));
             append(&mut words, b"'s status.");
-            (c::Step::Close, words.into_boxed(), branch.into(), None)
+            let change = questions_up(words.into_boxed());
+            (c::Step::Close, super::chat_change(domain, env, &origin, &change, repository, branch.into(), None, spend))
         }
         ClosingStep::Land => {
-            (c::Step::Land, landing_words(goal_words), repository.landing.clone(), Some(branch.into()))
+            let change = questions_up(landing_words(goal_words));
+            (
+                c::Step::Land,
+                super::chat_change(
+                    domain,
+                    env,
+                    &origin,
+                    &change,
+                    repository,
+                    repository.landing.clone(),
+                    Some(branch.into()),
+                    spend,
+                ),
+            )
+        }
+        ClosingStep::CatchUp => {
+            let close = catch_up::last_close(domain, row).expect("a catch-up follows an outdated close");
+            (c::Step::CatchUp, catch_up::delegate(domain, env, &origin, repository, close, row.goal, spend))
         }
     };
-    let mut change = crate::ChangeCall::words(words, None);
-    change.questions = Some(crate::ChangeQuestions::Up);
-    let origin =
-        super::ChangeOrigin { authority: context.authority.clone(), tasks_left: context.tasks_left, source: None };
-    let mut delegate = match super::chat_change(domain, env, &origin, &change, repository, base, own, spend) {
+    let mut delegate = match draft {
         Ok(delegate) => delegate,
         Err(why) => return Err(short_refusal(why, available, minimum, room)),
     };
-    let ended = ended_count(domain, row, kind);
-    delegate.authority.delegation.tasks =
-        change_tasks(delegate.authority.delegation.tasks, room, attempt_bound(domain, row.task), ended);
+    let (bound, ended) = match kind {
+        c::Step::CatchUp => (1, 0),
+        c::Step::Close | c::Step::Land => (attempt_bound(domain, row.task), ended_count(domain, row, kind)),
+    };
+    delegate.authority.delegation.tasks = change_tasks(delegate.authority.delegation.tasks, room, bound, ended);
     let mut kinds = List::uncapped();
     for kind in &delegate.authority.delegation.kinds {
         kinds.push(*kind).expect("uncapped executor list");
@@ -836,17 +857,25 @@ fn delegate(
         for parameter in delegate.spec.parameters {
             expanded.push(parameter).expect("uncapped parameter list");
         }
-        expanded
-            .push(tasks::Parameter::Bytes { name: 17, value: close_request(domain, row, branch) })
-            .expect("uncapped parameter list");
-        if let Some(hook) = hook {
+        let request = match catch_up::reclose_request(domain, row, landed) {
+            Some(request) => request.into(),
+            None => close_request(domain, row, branch),
+        };
+        expanded.push(tasks::Parameter::Bytes { name: 17, value: request }).expect("uncapped parameter list");
+        if hook {
             expanded
-                .push(tasks::Parameter::Bytes { name: 20, value: Box::from(hook) })
+                .push(tasks::Parameter::Bytes { name: 20, value: Box::from(forge::CLOSE_HOOK) })
                 .expect("uncapped parameter list");
         }
         delegate.spec.parameters = expanded.into_boxed();
     }
     Ok(delegate)
+}
+
+fn questions_up(words: Box<[u8]>) -> crate::ChangeCall {
+    let mut change = crate::ChangeCall::words(words, None);
+    change.questions = Some(crate::ChangeQuestions::Up);
+    change
 }
 
 fn why(row: &forge::ChangeRow, ending: forge::Ending) -> c::Why {
@@ -896,9 +925,9 @@ fn report(domain: &Domain, closer: &forge::CloserRow, words: &[u8], branch: Opti
         }
         let row = domain.forge.change(number).expect("enumerated change");
         let is_original = original(domain, closer, row);
-        let close = closer.close_changes.contains(&number);
+        let settlement = closer.close_changes.contains(&number) || closer.catch_up_changes.contains(&number);
         let landing = closer.landing_changes.contains(&number);
-        if !is_original && !close && !landing {
+        if !is_original && !settlement && !landing {
             continue;
         }
         let Some(ended) = ending(row) else { continue };
@@ -1007,14 +1036,18 @@ fn report_hold_words(closer: &c::Closer) -> Box<[u8]> {
     skein_lib::bytes::concat(&[PREFIX, &line])
 }
 
-fn hold_words(domain: &Domain, closer: &forge::CloserRow, hold: c::Hold) -> Box<[u8]> {
+fn hold_words(domain: &Domain, closer: &forge::CloserRow, hold: c::Hold, hooks: Option<forge::Hooks>) -> Box<[u8]> {
     let c::Hold::ClosingStep { step, change } = hold;
+    if let Some(words) = catch_up::hold_words(domain, closer, step, change, hooks) {
+        return words;
+    }
     let mut words = List::uncapped();
     append(
         &mut words,
         match step {
             c::Step::Close => b"the close step's change T",
             c::Step::Land => b"the landing T",
+            c::Step::CatchUp => unreachable!("a catch-up hold names the outdated close"),
         },
     );
     append(&mut words, &super::decimal(change));
@@ -1023,16 +1056,7 @@ fn hold_words(domain: &Domain, closer: &forge::CloserRow, hold: c::Hold) -> Box<
         Some(row) => ending(row),
         None => None,
     };
-    match ended {
-        Some(forge::Ending::Cancelled) => append(&mut words, b"cancelled"),
-        Some(forge::Ending::Failed { line }) => {
-            append(&mut words, b"failed: ");
-            append(&mut words, c::first_line(&line));
-        }
-        Some(forge::Ending::NoChange) => append(&mut words, b"with no change"),
-        Some(forge::Ending::Landed) => append(&mut words, b"landed"),
-        None => append(&mut words, b"without an ending account"),
-    }
+    append_ending(&mut words, ended);
     let branch = match domain.forge.change(change) {
         Some(row) => branch_reason(row.change.ended_held),
         None => None,
@@ -1078,6 +1102,7 @@ pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>
         let prior = match kind {
             c::Step::Close => &row.close_changes,
             c::Step::Land => &row.landing_changes,
+            c::Step::CatchUp => &row.catch_up_changes,
         };
         let mut tasks = List::uncapped();
         for task in prior {
@@ -1086,6 +1111,11 @@ pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>
         tasks.push(child).expect("admitted closer step");
         match kind {
             c::Step::Close => row.close_changes = tasks.into_boxed(),
+            c::Step::CatchUp => {
+                let close = catch_up::last_close(domain, &row).expect("an admitted catch-up follows an outdated close");
+                row.closer.caught_up = Some(catch_up::request_tasks(close));
+                row.catch_up_changes = tasks.into_boxed();
+            }
             c::Step::Land => {
                 row.landing_changes = tasks.into_boxed();
                 row.closer.landing = Some(child);
@@ -1125,6 +1155,8 @@ pub(crate) fn refused(domain: &mut Domain, task: u64, step: u64, why: &jig_domai
             if let Some(mut row) = domain.forge.closer(task).cloned() {
                 if row.making == Some(c::Step::Close) {
                     row.closer.closed = None;
+                } else if row.making == Some(c::Step::CatchUp) && running_catch_up(&row.closer) {
+                    row.closer.retry = Some(c::Step::CatchUp);
                 }
                 row.making = None;
                 row.done = false;

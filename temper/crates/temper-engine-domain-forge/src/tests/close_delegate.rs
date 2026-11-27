@@ -5,12 +5,13 @@ use temper_engine_domain_forge_change as change;
 
 const CHILD: u64 = 90;
 const TIPS: change::CloseAt =
-    change::CloseAt { branch: fixtures::HEAD, landing: fixtures::BASE, asked: true, refused: None };
+    change::CloseAt { branch: fixtures::HEAD, landing: fixtures::BASE, asked: true, refused: None, outdated: None };
 const PREVIOUS: change::CloseAt = change::CloseAt {
     branch: fixtures::BASE,
     landing: fixtures::BASE,
     asked: true,
     refused: Some(change::CloseRefused { counts: None }),
+    outdated: None,
 };
 
 fn close_change(close_at: Option<change::CloseAt>) -> Domain {

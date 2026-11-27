@@ -845,7 +845,13 @@ source commit, counts marked unavailable, an invalid window) and
 a `HEAD` holding no commit of their window, a goal older than main's last
 twenty landings, are not judged: close breaks at once (section 6, *Its
 outcome*), naming which, and for the second asks for an update from
-main. Neither refuses nor passes with a warning, since a refusal holds
+main, as it does for a source whose ancestry is too incomplete to find
+its base in (`source ancestry is incomplete`). Where its job asks, those
+two are typed as its outdated finding (*Its typed refusal*, below),
+which the goal's closer answers with the goal's catch-up from main and
+a close again, once
+(`temper/docs/design/domain/forge/branches.md`, 2, *A close found
+outdated*). Neither refuses nor passes with a warning, since a refusal holds
 until the goal's branch or main moves
 (`temper/docs/design/domain/forge/change/repairs-releases.md`, 1), and
 none may stand on counts that weren't there yet; a check that broke is
@@ -909,6 +915,19 @@ value, and in close mode alone:
 - **Passed,** it exits 0, and settlement's result stands.
 - **A refusal it can't write** (no `TEMPER_JOB`, a write that fails) is
   an error of its own: it exits 2.
+
+A worker that carries the outdated finding sets `TEMPER_CLOSE_OUTDATED=3`
+too; with exactly that value, in close mode alone, whatever
+`TEMPER_CLOSE_REFUSAL` holds, a close not judged because its `HEAD`
+holds no commit of the counts' window, or because its ancestry is too
+incomplete to find one, prints its line as before, writes its finding
+over `$TEMPER_JOB/result.json` and exits 3:
+`{"outdated":{"head":H,"why":W}}`, H the commit its checkout's `HEAD` is
+at, W `window` or `ancestry`, compact JSON with members in that order,
+ending in a newline (`temper/docs/design/protocol/tooling.md`, 4.2). A
+finding it can't write is an error of its own, exit 2, as a refusal's
+is. Without the value, it breaks as above. Counts it can't read for any
+other reason are no finding: an update from main brings none.
 
 The refusal is the tooling protocol's form
 (`temper/docs/design/protocol/tooling.md`, 4.2),

@@ -570,6 +570,10 @@ def close_measurements(runs, partial_binaries):
 
 def budget_input(counts, repository, env, data):
     """Select the applicable published counts while the real checkout is available."""
+    if data is None:
+        return None
+    # Only selection in this checkout can make an outdated finding.
+    data = {key: value for key, value in data.items() if key != 'outdated'}
     if 'unavailable' in data:
         return data
     if not (repository / '.git').exists() or git(['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'],
@@ -580,11 +584,15 @@ def budget_input(counts, repository, env, data):
             not re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', commit) for commit in window):
         return {'unavailable': 'invalid published commit window'}
     base = counts['base'](data, repository, env)
+    selected = {**data, 'base': base}
     if base is None:
         shallow = git(['rev-parse', '--is-shallow-repository'], repository, env)
-        if shallow.stdout.strip() != b'false' or git(['rev-list', '--count', 'HEAD'], repository, env).returncode:
-            return {'unavailable': 'source ancestry is incomplete; update from main and close again'}
-    return {**data, 'base': base}
+        incomplete = shallow.stdout.strip() != b'false' or git(['rev-list', '--count', 'HEAD'], repository, env).returncode
+        if incomplete:
+            selected = {'unavailable': 'source ancestry is incomplete; update from main and close again'}
+        if isinstance(data.get('profiles'), dict):
+            selected['outdated'] = 'ancestry' if incomplete else 'window'
+    return selected
 
 
 def budget_problem(data):
@@ -1468,7 +1476,7 @@ def refusal_bytes(head, tree, base, counts, failures, bound):
 
 
 def finish(tree_id, base_id, errors, root, env, scope, commits, heads, lints=(), tests=(), warnings=(), base_name=None,
-           *, counts_ref=None):
+           *, counts_ref=None, outdated=None):
     groups = failure_groups(errors)
     verdict = outcome(groups)
     head = heads[0] if heads else None
@@ -1476,21 +1484,30 @@ def finish(tree_id, base_id, errors, root, env, scope, commits, heads, lints=(),
     summary(base_id, lints, tests, groups, verdict, location, warnings, scope, base_name)
     if verdict == 'passed':
         return 0
-    if not typed_close(scope, env):
-        return 1
-    if verdict == 'broke':
-        return 2
+    finding = outdated if scope == 'close' and env.get('TEMPER_CLOSE_OUTDATED') == '3' and verdict == 'broke' else None
+    if finding is None:
+        if not typed_close(scope, env):
+            return 1
+        if verdict == 'broke':
+            return 2
     try:
         job = env.get('TEMPER_JOB')
         if not job:
             raise ValueError('TEMPER_JOB is missing')
-        if not head or not tree_id:
-            raise ValueError('the close did not identify its head and tree')
-        names = [error['name'] for error in groups['new']]
-        result = refusal_bytes(head, tree_id, base_id, counts_ref, names, close_result_bound(env))
-        replace_file(Path(job) / 'result.json', result)
+        if finding is not None:
+            if not head or not re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', head):
+                raise ValueError('the close did not identify its head')
+            data = json.dumps({'outdated': {'head': head, 'why': finding}}, ensure_ascii=True, separators=(',', ':'))
+            data = (data + '\n').encode('ascii')
+        else:
+            if not head or not tree_id:
+                raise ValueError('the close did not identify its head and tree')
+            names = [error['name'] for error in groups['new']]
+            data = refusal_bytes(head, tree_id, base_id, counts_ref, names, close_result_bound(env))
+        replace_file(Path(job) / 'result.json', data)
     except (OSError, ValueError) as error:
-        print_broke(f'cannot write close refusal: {error}')
+        kind = 'outdated finding' if finding is not None else 'refusal'
+        print_broke(f'cannot write close {kind}: {error}')
         return 2
     return 3
 
@@ -1680,7 +1697,7 @@ def check(scope, commits):
     env.setdefault('CARGO_TARGET_DIR', str(root / 'target'))
     env.pop('TIERS_LEDGER', None)
     errors, outcomes, warnings, lints, tests = [], {}, [], [], []
-    tree_id = base_id = base_name = receipt_head = counts_ref = None
+    tree_id = base_id = base_name = receipt_head = counts_ref = outdated = None
     has_git = False
 
     def current_head():
@@ -1711,6 +1728,8 @@ def check(scope, commits):
                 base_id, base_name, no_base = scope_base(root, source_env, scope, has_git, published)
                 if no_base:
                     errors.append(broken('base', no_base))
+                    if published is not None:
+                        outdated = published.get('outdated')
                 else:
                     paths = changed_paths(root, source_env, base_id)
                     print(f'pre-pr: base {base_id}, {base_name}: {len(paths)} changed paths', flush=True)
@@ -1761,7 +1780,7 @@ def check(scope, commits):
             print_broke(errors[0]['broke'])
             return 2 if typed_close(scope, env) else 1
         return finish(tree_id, base_id, errors, root, env, scope, commits, [receipt_head], lints, tests, warnings,
-                      base_name, counts_ref=counts_ref)
+                      base_name, counts_ref=counts_ref, outdated=outdated)
 
     if has_git and scope == 'delivery':
         results = None

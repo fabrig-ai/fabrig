@@ -212,7 +212,8 @@ own, never a change's:
   goal closes once that change has landed it (`branches.md`); otherwise
   kept as the goal closes. A goal takes the base only by a catch-up
   (`updates.md`, section 1) for one of its changes that needs what the
-  base gained since its branch was made, never to stay current
+  base gained since its branch was made, or by its closer's for a close
+  found outdated (2, *A close found outdated*), never to stay current
   (`../../draft/squash-in.md`, 4): its landing takes the base at the
   front of the base's queue, as any change does (`change/README.md`,
   2), and a conflict goes to the merge job and a resolution
@@ -263,11 +264,13 @@ comes and lands its branch, and the report carries what the run said
      makes its branch at the goal's branch's tip, its producer the job,
      no agent, and lands as any change into the branch does; nothing
      staged ends it with no change. A refusal of the close's check holds
-     it at once, and a check that broke holds it once its job's tries are
-     spent (`change/repairs-releases.md`, 1). Where the tip has no close
-     command, or the goal holds no goal branch, this step is skipped. A
-     close step superseded by more landed changes reads again for its
-     new change.
+     it at once, a check that broke holds it once its job's tries are
+     spent, and a check that found the goal outdated ends it with no
+     change (`change/repairs-releases.md`, 1), for the closer to catch
+     the goal up from main and close again (*A close found outdated*,
+     below). Where the tip has no close command, or the goal holds no
+     goal branch, this step is skipped. A close step superseded by more
+     landed changes reads again for its new change.
   2. **Land,** where the goal holds a goal branch whose tip its base
      does not hold: the goal's landing, a change on the goal's held
      branch into its base, as the goal's `"branch": "mine"` would make
@@ -567,8 +570,49 @@ comes and lands its branch, and the report carries what the run said
     so nothing reopened it once the repair landed, and a release made a
     fresh job at once with the old request, at a branch the repair had
     not reached.
-- **Never a catch-up:** the closer makes none; a goal it ends makes
-  one only for a change that needs it (1).
+- **A close found outdated** (`change/repairs-releases.md`, 1,
+  *Outdated*) is no attempt. With no new work pending or landed since
+  its close step (else the close step is made again for it, as ever),
+  the closer catches the goal up from main, once per close request:
+  - *The catch-up:* a change into the goal's branch made as a goal's
+    catch-up is (`updates.md`, 1), its commit main's tip as the close's
+    change read it (`CloseAt`'s landing commit), its words `Catch goal G
+    up from main at M.`, questions `up`, funded as the other steps are,
+    one attempt left. Landed, or ended with no change, it makes the
+    close step again at once, with the same request.
+  - *Held at once,* `ClosingStep` on the step and its change, escalating
+    to the goal, its words cut to the hold's bytes, G and M 12 hex
+    digits, F the close's finding as its words give it:
+    - found outdated again after the catch-up, same request: `the close
+      step's change TN found the goal's branch at G outdated again, after
+      its catch-up from main at M, change TK, landed: F. Catch the goal up
+      from main with a change naming main's tip and release the closer,
+      or release it to close again as it stands.`;
+    - the catch-up ended without landing: `the catch-up from main at M,
+      change TK, ended WHY, after the close step's change TN found the
+      goal's branch at G outdated: F. Catch the goal up from main with a
+      change naming main's tip and release the closer, or release it to
+      catch up again.`, WHY as the other holds word an ending (*Attempts,
+      and the project's bound*, above);
+    - none it can make: `the close step's change TN found the goal's
+      branch at G outdated: F; the closer can't catch it up from main:
+      WHY. Merge main into the goal's branch and release the closer to
+      close again.`, WHY `the project names no merge_job` or `its
+      authority does not delegate to the merge job`.
+  - *Released,* the held step's change is made again, after any new
+    work: the close, which holds at once again if outdated for a request
+    already caught up, or the catch-up.
+  - *Kept* on its row: the request it last caught up for (`Closer`'s
+    `caught_up`) and its catch-up changes, its own and out of the goal's
+    changes; fields added with defaults, so no version moves. Per
+    request, not per tip, since the catch-up moves the tip itself.
+  - *Why* (2026-11-27, `../../draft/test-budgets.md`, 3): the update the
+    check asks for is one the closer can make on a goal's own catch-up
+    path, so no one waits for it; a second finding, or a catch-up that
+    can't land, is past what another update mends.
+- **A catch-up only for its close:** the closer makes one only for a
+  close found outdated (above); a goal it ends makes one only for a
+  change that needs it (1).
 - **Whether the base holds the goal's tip** is read afresh before a land
   step is made and before the closer reports: the goal branch's tip, or
   the merge a squash landing recorded for it, against the base's tip,

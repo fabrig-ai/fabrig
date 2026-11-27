@@ -142,6 +142,7 @@ fn assign(world: &mut World, head: u64, base: u64, program: &[u8]) -> Result<(),
             request: b"request".as_slice().into(),
             refusal: false,
             result: 512,
+            outdated: false,
         }),
     })?;
     Ok(())

@@ -616,7 +616,7 @@ fn measuring_a_refused_close_runs_one_fresh_job_at_unchanged_tips() {
     assert_eq!((accepted.revision, accepted.measure), (revision, true));
     assert_eq!(
         row.close_at,
-        Some(change::CloseAt { branch: translate::commit(tip), landing, asked: true, refused: None })
+        Some(change::CloseAt { branch: translate::commit(tip), landing, asked: true, refused: None, outdated: None })
     );
     finish_job(&mut world, &fresh);
     assert!(matches!(close_ending(&mut world, task), tasks::Ending::Done(tasks::TaskResult::NoChange { .. })));
@@ -645,6 +645,7 @@ fn moving_main_alone_rechecks_a_refused_close() {
             landing: translate::commit(landing),
             asked: true,
             refused: None,
+            outdated: None,
         })
     );
     finish_job(&mut world, &fresh);

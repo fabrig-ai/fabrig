@@ -103,6 +103,7 @@ fn a_job_specs_fields_stop_at_their_bounds_when_encoded_and_decoded() {
                 request: if command { b"{}".as_slice().into() } else { skein_lib::bytes::zeroed(length) },
                 refusal: false,
                 result: 512,
+                outdated: false,
             };
             let value = parts;
             let built = value.encode(&limits);

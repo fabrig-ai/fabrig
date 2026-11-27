@@ -3,9 +3,14 @@
 use jig_client_protocol_http::{PublicPath, public_target};
 use jig_protocol_engine_clients::PublicRead;
 use jig_protocol_engine_clients_http::public_path;
-use skein_checks::{MutationBatch, count, mutation};
+use skein_checks::{MutationBatch, mutation};
 use skein_lib::{List, Rng};
-use std::fmt::{Arguments, Write as _};
+use skein_world::sweep::{Test, cases};
+use std::{
+    convert::Infallible,
+    fmt::{Arguments, Write as _},
+    ops::Range,
+};
 
 const EDGES: [u16; 8] = [0, 1, 9, 10, 255, 256, 65_534, u16::MAX];
 
@@ -154,9 +159,9 @@ fn mutations(batch: &mut MutationBatch, seed: u64, rng: &mut Rng, bytes: &[u8], 
 }
 
 /// Check arbitrary and generated public targets for each seed, optionally asserting canonical forms.
-pub fn sweep(first_seed: u64, seeds: u64, arbitrary: u32, canonical_samples: u32, canonical: bool) {
+pub fn sweep(test: Test, seeds: Range<u64>, arbitrary: u32, canonical_samples: u32, canonical: bool) {
     let mut batch = MutationBatch::default();
-    for seed in first_seed..first_seed.checked_add(seeds).expect("seed range") {
+    cases(test, seeds, |seed| {
         let mut rng = Rng::new(seed);
         let mut bytes = [0; 256];
         for sample in 0..arbitrary {
@@ -182,7 +187,8 @@ pub fn sweep(first_seed: u64, seeds: u64, arbitrary: u32, canonical_samples: u32
                 assert!(read.is_none(), "decimal layout was accepted, seed {seed:#x}, input {decimal_target:?}");
             }
         }
-    }
+        Ok::<(), Infallible>(())
+    })
+    .expect("public targets satisfy the parser checks");
     batch.finish();
-    count("seed", seeds);
 }

@@ -254,7 +254,13 @@ fn compare(world: &mut World, task: u64, doc: &c::Task, draft: &c::Authority, ke
     assert_eq!(actual, expected, "key {key}: {predicted:?}, {outcome:?}");
 }
 
+// The focused caller counts its pinned seeds here; fuzzy cases count through the seam.
 pub(crate) fn sweep(seed: u64) {
+    case(seed);
+    skein_checks::count("seed", 1);
+}
+
+pub(crate) fn case(seed: u64) {
     let mut rng = Rng::new(seed);
     for own in [true, false] {
         let mut world = World::new(Setup { seed, ..Setup::default() });
@@ -294,5 +300,4 @@ pub(crate) fn sweep(seed: u64) {
             compare(&mut world, task, &doc, &after, 110 + case);
         }
     }
-    skein_checks::count("seed", 1);
 }

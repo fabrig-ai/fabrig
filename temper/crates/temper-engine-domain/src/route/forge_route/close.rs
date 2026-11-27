@@ -17,6 +17,7 @@ pub(super) fn spec(repository: &[u8], command: &[u8], request: &[u8], bound: u32
         request: copy_of(request),
         refusal: true,
         result: temper_protocol_worker_wire::CLOSE_RESULT_BYTES,
+        outdated: true,
     };
     if spec.measure(&v1::CEILINGS).ok()? > bound {
         return None;

@@ -278,6 +278,7 @@ fn a_job_spec_that_does_not_decode_reaches_the_root_undecodable() {
         request: b"{}".as_slice().into(),
         refusal: true,
         result: 512,
+        outdated: true,
     };
     let valid = valid.encode(&v1::CEILINGS).unwrap();
     let mut trailing = Writer::new(valid.len().checked_add(1).unwrap());
@@ -320,6 +321,7 @@ fn a_job_spec_that_does_not_decode_reaches_the_root_undecodable() {
                     request: b"{}".as_slice().into(),
                     refusal: true,
                     result: 512,
+                    outdated: true,
                 })
             } else {
                 Err(root::wire::Undecodable)

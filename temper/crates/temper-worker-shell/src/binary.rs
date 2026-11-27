@@ -21,6 +21,7 @@ pub const WORKER: Table = Table {
         &environment::JOB,
         &environment::CLOSE_REFUSAL,
         &environment::CLOSE_RESULT_BYTES,
+        &environment::CLOSE_OUTDATED,
         &temper_service_shell::DISK_BUDGET,
         &INTERNAL_WORKSPACE_REUSE,
         &environment::INTERNAL_DUMP_LLM,
