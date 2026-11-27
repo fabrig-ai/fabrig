@@ -319,9 +319,37 @@ and `check_fell` after the last.
   keeps its seeds on its own loop or `each_seed`, and says why beside
   it. Each such binary keeps its checks counts and its instructions
   within the growth allowance (sweeps.md, 4.5).
+- **A batch on one seed is a sweep of one case:** a test whose one seed
+  draws a batch of inputs (a decoder's arbitrary bytes and mutations,
+  say) takes that seed through `cases` too, so a campaign draws it a
+  fresh batch. A check over the batch that only its pinned seed is known
+  to meet (both outcomes reached, each variant drawn) runs only where
+  `gate()` holds; each input's own check runs in every mode. A sweep
+  over a fixed enumeration, every commit cut or every byte flip of one
+  fixture, draws nothing from a seed and keeps its loop.
+- **A case keeps what its test is named for:** where a test's seeds are
+  the gate's seeds whose first draw gives the start, the pair or the
+  story the test is named for, a fresh case takes that start, pair or
+  story whatever its seed's first draw, the rest drawn from its seed, or
+  draws again from its own stream until it gives it. Either keeps the
+  gate's seeds' draws, and the case never runs another test's start nor
+  is skipped. A loop that pairs each of its stories with a seed gives
+  each story a part, and its seed.
+- **A seed counts once:** where a loop counts its own seeds, `cases`'s
+  `seed` count takes its place in that loop, and a helper serving a
+  focused test too keeps its own count for that caller alone.
 - **The pair** `campaign-jig` lists each binary whose loops take part
   (`tools/tiers/layers.md`, 9.3), first the core world's suite with
-  these sweeps.
+  these sweeps: every binary of jig's worlds with a loop on the seam,
+  whatever else it runs. A listed binary's other fuzzy tests run in a
+  round as at the gate, each named with its time
+  (`tools/tiers/campaign.md`, 3). Where those times show them
+  outweighing the binary's sweeps, a later change moves them to a
+  binary of their own or takes the binary off the list, by layers.md's
+  rule: no figure says so before a campaign has run.
+- **Where nothing takes part:** the core world's `disk` binary, whose
+  one fuzzy test kills a restart at each of its operations, a fixed
+  enumeration.
 
 ## 8. Testing
 
