@@ -78,6 +78,7 @@ fn planned(out: &[Request]) -> List<u64> {
 fn a_resumed_run_waits_for_its_decided_effects_outcome() {
     let (mut core, limits) = ready();
     let key = CallKey { task: FIRST, attempt: 1, completion: 2, position: 1 };
+    assert!(core.reserve_connector_call(key));
     core.record_call(key, CallPart::Effect { connector: 1, entry: 9, deadline: Wall::EPOCH, outcome: None });
     let before = core.tasks.task(FIRST).unwrap().clone();
     let out = prepare(&mut core, &limits, FIRST);

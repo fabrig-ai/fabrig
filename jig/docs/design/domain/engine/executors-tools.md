@@ -186,6 +186,36 @@ lives, so the LLM is told the outcome rather than trying anew; an
 effect's key is derived from the call that asked for it (../connectors-effects.md,
 1.4).
 
+**Their room is one, of pending and retained calls.** The core's named
+calls hold `core.call_records` places between them: a call the core is
+still deciding is pending, and one it decided is retained for replay
+until it retires as above. Parts kept between turns have a room of their
+own (`executors-transcripts.md`, 1). Each place is its call's, and each
+use checks it (skein/docs/foundation/programming-model.md, 10.4):
+
+- **Admitted, or answered busy.** A call is admitted only where no call
+  of its name is pending or retained and the pending and retained
+  together are below the bound. A call asked again while its first is
+  pending, and a new call past the bound, are answered busy, as a value
+  the root relays; a call asked again once retained replays its answer
+  and takes no place.
+- **Taken by its admission.** A pending call is recorded only in the
+  step that admitted it, and recording it asserts that no call of its
+  name is pending or retained and that the room had its place, naming
+  the call.
+- **Moved once by its decision.** Deciding a call moves its place from
+  pending to retained: the decision asserts the call was pending and is
+  not yet retained, naming it. A decision for an attempt that has since
+  moved drops the pending call and keeps nothing, as now.
+- **Given back once.** A pending call that ends undecided (an effect
+  refused, described busy or discarded, a note answered busy, a wait
+  cleared) gives its place back, asserting it was pending. Retirement
+  erases only the retained calls it found, so each goes once.
+- **A stale input is a value.** An answer, a description or a fact
+  naming a call the core no longer holds, a connector's late answer or
+  an attempt that has moved, is looked up first and dropped. Only a step
+  that holds the call's place asserts it.
+
 Three tools a run has are not the engine's: `wait`, which the run and its
 host serve, holding the slot until a message arrives (4); `finish`,
 which the run serves, checking its result against the contract (smith's

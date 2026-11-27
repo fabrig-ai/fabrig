@@ -232,16 +232,32 @@ pub(super) fn answered(
     result: Result<Answer, Error>,
     out: &mut Queue<Request>,
 ) {
-    let Some(mut pending) = d.makings.remove(&owner) else { return };
-    if d.stopping || !held(d, &pending) {
+    let Some(pending) = d.makings.get(&owner) else { return };
+    if d.stopping || !held(d, pending) {
+        drop_making(d, owner);
         return;
     }
-    pending.last_answer = result.as_ref().err().copied();
+    let task = pending.task;
+    if let Ok(Answer::Commit(commit)) = result
+        && pending.default
+    {
+        let repository =
+            skein_forge::api::Repository { forge: pending.name.forge, repository: pending.name.repository };
+        if !d.repositories.contains_key(&repository) {
+            drop_making(d, owner);
+            return;
+        }
+        make(d, env, owner, task, commit, out);
+        return;
+    }
     if let Err(Error::Unavailable | Error::Timeout) = result {
+        let Some(pending) = d.makings.get_mut(&owner) else {
+            unreachable!("making {owner:?} for task {task} keeps its row while retrying the read");
+        };
+        pending.last_answer = result.err();
         pending.state = LostReadState::WaitingForRetry;
         pending.retry_at = Some(env.now.saturating_add(pending.backoff));
         pending.backoff = pending.backoff.saturating_add(pending.backoff).min(env.limits.client.slow);
-        d.makings.insert(owner, pending).expect("making keeps its read slot");
         return;
     }
     let read_state = match result {
@@ -250,13 +266,18 @@ pub(super) fn answered(
         Ok(_) | Err(_) => None,
     };
     if let Some(state) = read_state {
+        let Some(pending) = d.makings.get_mut(&owner) else {
+            unreachable!("making {owner:?} for task {task} keeps its row while waiting to read");
+        };
+        pending.last_answer = result.err();
         pending.state = state;
-        d.makings.insert(owner, pending).expect("making keeps its read slot");
         if state == LostReadState::WaitingForRoom {
             read_line::join(d, Waiter::Making(owner), env.now, out);
         }
         return;
     }
+    let mut pending = take_making(d, owner, task);
+    pending.last_answer = result.as_ref().err().copied();
     pending.backoff = env.limits.client.backoff;
     read_result(d, env, owner, pending, result, out);
 }
@@ -276,7 +297,6 @@ fn read_result(
         return;
     }
     match result {
-        Ok(Answer::Commit(commit)) if pending.default => make(d, env, owner, pending, commit, out),
         Ok(Answer::Commit(commit)) => {
             if let Some(entry) = held_entry(d, &pending.name) {
                 let expected = match entry.effect.write {
@@ -336,7 +356,7 @@ fn read_result(
 
 /// Missing with no creation entry, a making joins the line and asks nothing
 /// before the outbox settles (temper/docs/design/domain/forge/branches.md, 1).
-fn missing(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Making, out: &mut Queue<Request>) {
+fn missing(d: &mut Domain, env: &Env<Limits>, owner: Token, pending: Making, out: &mut Queue<Request>) {
     if let Some(entry) = held_entry(d, &pending.name) {
         super::resolve(d, env, entry.number, true, out);
         return;
@@ -348,14 +368,27 @@ fn missing(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Making,
         wait_for_room(d, env, owner, pending, out);
         return;
     }
-    let resource = to_client(&pending.name, &env.limits).expect("validated held branch");
-    let repository = d.repositories.get(&resource.repository).expect("held repository");
+    let task = pending.task;
+    let inserted = d.makings.insert(owner, pending);
+    assert!(inserted.is_ok(), "making {owner:?} of task {task} keeps its row for the default-branch read");
+    read_default(d, env, owner, task, out);
+}
+
+fn read_default(d: &mut Domain, env: &Env<Limits>, owner: Token, task: u64, out: &mut Queue<Request>) {
+    let Some(pending) = d.makings.get_mut(&owner) else {
+        unreachable!("making {owner:?} for task {task} keeps its row while starting its read");
+    };
+    let Some(resource) = to_client(&pending.name, &env.limits) else {
+        unreachable!("making {owner:?} of task {task} has a validated held branch");
+    };
+    let Some(repository) = d.repositories.get(&resource.repository) else {
+        unreachable!("making {owner:?} of task {task} has an adopted held repository");
+    };
     let branch = repository.landing.clone();
     pending.default = true;
     pending.since = env.wall;
     pending.last_answer = None;
     pending.state = LostReadState::Asked;
-    d.makings.insert(owner, pending).expect("replaces making read");
     child(
         d,
         env,
@@ -368,11 +401,16 @@ fn make(
     d: &mut Domain,
     env: &Env<Limits>,
     owner: Token,
-    pending: Making,
+    task: u64,
     commit: skein_forge::api::Commit,
     out: &mut Queue<Request>,
 ) {
-    let number = pending.entry.expect("a taking supplies its entry");
+    let Some(pending) = d.makings.get(&owner) else {
+        unreachable!("making {owner:?} for task {task} keeps its row at its default-branch answer");
+    };
+    let Some(number) = pending.entry else {
+        unreachable!("making {owner:?} for task {task} has its entry number at its default-branch answer");
+    };
     let resource = to_client(&pending.name, &env.limits).expect("validated held branch");
     let branch = match resource.what {
         skein_forge_client::What::Branch(branch) => branch,
@@ -391,21 +429,29 @@ fn make(
         Some(_) => None,
     };
     if let Some(reason) = reason {
+        let pending = take_making(d, owner, task);
         wake(d, &pending.name, out);
         failed(pending.task, pending.name, reason, out);
         released(d, pending.task, out);
         return;
     }
     if d.entries.contains_key(&number) {
+        let pending = take_making(d, owner, task);
         wake(d, &pending.name, out);
         failed(pending.task, pending.name, &entry_in_use(number), out);
         released(d, pending.task, out);
         return;
     }
     if !crate::room::check(d, &env.limits, Some(crate::room::Waiter::Making(owner))) {
+        // A passed-over waiter may still have the old turn's read in flight.
+        // It keeps its place, including the pass, until its task is released.
+        let Some(pending) = d.makings.remove(&owner) else {
+            unreachable!("making {owner:?} for task {task} keeps its row when waiting again for room");
+        };
         wait_for_room(d, env, owner, pending, out);
         return;
     }
+    let pending = take_making(d, owner, task);
     let hold = d.holds.get_mut(&pending.name).expect("making's hold");
     hold.writer = Some(Writer::Entry(number));
     save_hold(out, hold.clone());
@@ -419,7 +465,6 @@ fn make(
         failures: 0,
         queued: false,
     };
-    crate::room::leave(d, crate::room::Waiter::Making(owner));
     keep_entry(d, entry, Some(number), out);
 }
 
@@ -437,10 +482,9 @@ fn entry_in_use(number: u64) -> Box<[u8]> {
     words.finish()
 }
 
-/// A wait gives up its reservation without giving up its position
+/// A wait keeps its position while giving up its entry number
 /// (temper/docs/design/domain/forge/branches.md, 1).
 fn wait_for_room(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Making, out: &mut Queue<Request>) {
-    crate::room::leave(d, crate::room::Waiter::Making(owner));
     if pending.outbox_wait.is_none() {
         pending.outbox_wait = Some(RoomWait { order: crate::room::next_place(d), since: env.wall });
     }
@@ -509,9 +553,22 @@ pub(super) fn continue_making(d: &mut Domain, env: &Env<Limits>, task: u64, entr
         }
     }
     let Some(owner) = selected else { return };
-    let mut pending = d.makings.remove(&owner).expect("making waiting for its entry");
+    let Some(pending) = d.makings.get(&owner) else {
+        unreachable!("selected goal branch making {owner:?} for task {task} waits for its fresh entry");
+    };
+    if pending.outbox_wait.is_some() {
+        crate::room::assert_asked(d, crate::room::Waiter::Making(owner));
+    }
+    if let Some(kept) = held_entry(d, &pending.name) {
+        drop_making(d, owner);
+        super::resolve(d, env, kept.number, true, out);
+        return;
+    }
+    let Some(pending) = d.makings.get_mut(&owner) else {
+        unreachable!("goal branch making {owner:?} for task {task} keeps its room while starting its read");
+    };
     pending.entry = Some(entry);
-    missing(d, env, owner, pending, out);
+    read_default(d, env, owner, task, out);
 }
 
 pub(super) fn retry_task(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
@@ -600,11 +657,9 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
 }
 
 fn fail_read_wait(d: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
-    let pending = d.makings.remove(&owner).expect("expired making read");
-    d.read_line.leave(Waiter::Making(owner));
+    let pending = expire_making(d, owner);
     d.read_line.wake();
     super::outage::forget_read(d, owner);
-    crate::room::leave(d, crate::room::Waiter::Making(owner));
     let what = match branch_read(d, &env.limits, &pending) {
         Some((_, branch)) => skein_lib::bytes::concat(&[b"branch ", &branch]),
         None => Box::from(b"the branch tip".as_slice()),
@@ -671,9 +726,7 @@ fn wake(d: &mut Domain, name: &Name, out: &mut Queue<Request>) {
     }
 }
 pub(crate) fn room_failed(d: &mut Domain, owner: Token, reason: &[u8], out: &mut Queue<Request>) {
-    let pending = d.makings.remove(&owner).expect("making waiting for outbox room");
-    d.read_line.leave(Waiter::Making(owner));
-    crate::room::leave(d, crate::room::Waiter::Making(owner));
+    let pending = expire_making(d, owner);
     wake(d, &pending.name, out);
     failed(pending.task, pending.name, reason, out);
     released(d, pending.task, out);
@@ -702,7 +755,7 @@ pub(super) fn restart(d: &mut Domain, env: &Env<Limits>, since: Wall, out: &mut 
     }
 }
 
-pub(super) fn held(d: &Domain, pending: &Making) -> bool {
+pub(crate) fn held(d: &Domain, pending: &Making) -> bool {
     match d.holds.get(&pending.name) {
         Some(hold) => hold.task == pending.task,
         None => false,
@@ -756,8 +809,7 @@ pub(super) fn retire(d: &mut Domain, forge: u16) {
         }
     }
     for owner in owners.into_boxed() {
-        d.makings.remove(&owner);
-        d.read_line.leave(Waiter::Making(owner));
+        drop_making(d, owner);
     }
 }
 
@@ -769,7 +821,44 @@ pub(super) fn release_repository(d: &mut Domain, repository: skein_forge::api::R
         }
     }
     for key in keys.into_boxed() {
-        let _row = d.makings.remove(&key).expect("collected makings");
-        d.read_line.leave(Waiter::Making(key));
+        drop_making(d, key);
+    }
+}
+
+fn take_making(d: &mut Domain, owner: Token, task: u64) -> Making {
+    crate::room::leave(d, crate::room::Waiter::Making(owner));
+    d.read_line.leave(Waiter::Making(owner));
+    let Some(pending) = d.makings.remove(&owner) else {
+        unreachable!("ending goal branch making {owner:?} for task {task} still holds its row");
+    };
+    assert_eq!(pending.task, task, "ending goal branch making {owner:?} belongs to task {task}");
+    pending
+}
+
+fn expire_making(d: &mut Domain, owner: Token) -> Making {
+    let Some(pending) = d.makings.get(&owner) else {
+        unreachable!("expiring goal branch making {owner:?} still has its owner task");
+    };
+    take_making(d, owner, pending.task)
+}
+
+pub(crate) fn drop_making(d: &mut Domain, owner: Token) {
+    if let Some(pending) = d.makings.get(&owner) {
+        take_making(d, owner, pending.task);
+    } else {
+        d.read_line.leave(Waiter::Making(owner));
+    }
+}
+
+pub(crate) fn end_room_waits(d: &mut Domain, task: u64) {
+    let mut owners = List::with_capacity(d.makings.len());
+    for (owner, pending) in &d.makings {
+        if pending.task == task && pending.outbox_wait.is_some() {
+            let pushed = owners.push(*owner);
+            assert!(pushed.is_ok(), "ending room-waiting making {owner:?} for task {task} fits the collection");
+        }
+    }
+    for owner in owners.into_boxed() {
+        take_making(d, owner, task);
     }
 }

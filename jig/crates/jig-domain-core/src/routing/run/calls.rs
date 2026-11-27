@@ -5,7 +5,7 @@
 use super::{Call, Proposing};
 use crate::{
     CallKey, CallPart, CallRecord, Core, CoreRecord, EscalationChoice, Event, Held, Limits, NamedAction,
-    PayloadRefusal, ProposalChoice, Record, Request, RoutedCall, ToolKind, Write,
+    PayloadRefusal, PendingCall, ProposalChoice, Record, Request, RoutedCall, ToolKind, Write,
     routing::{NoteRoute, Work, run::delegation::propose_batch},
 };
 use alloc::boxed::Box;
@@ -16,14 +16,35 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Token};
 
 pub(crate) fn call_decision(core: &mut Core, out: &mut Queue<Request>, to: ReplyTo, key: CallKey, part: CallPart) {
-    if core.decide_named_call(key, part.clone()) {
-        out.push(Request::Write(Write::Save(Record::Core(CoreRecord::Call(CallRecord {
-            key,
-            part: part.clone(),
-            settled: core.call_settled.get(&key).cloned(),
-        })))));
+    if !core.decide_pending_call(key, part.clone()) {
+        return;
     }
+    out.push(Request::Write(Write::Save(Record::Core(CoreRecord::Call(CallRecord {
+        key,
+        part: part.clone(),
+        settled: core.call_settled.get(&key).cloned(),
+    })))));
     out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part })));
+}
+
+pub(crate) fn admit_named_call(
+    core: &mut Core,
+    out: &mut Queue<Request>,
+    to: ReplyTo,
+    key: CallKey,
+) -> Option<ReplyTo> {
+    if !core.current_proof(key.task, key.attempt) {
+        return None;
+    }
+    if let Some(part) = core.call_parts.get(&key) {
+        out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part: part.clone() })));
+        return None;
+    }
+    if !core.reserve_call(key, PendingCall::Routed) {
+        out.push(Request::Now(Box::new(crate::Now::CallBusy { to })));
+        return None;
+    }
+    Some(to)
 }
 
 pub(crate) fn escalation_refused(
@@ -85,7 +106,6 @@ pub(crate) fn named_proposal_accept(
         let Some(message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
             return proposal_refused(core, to, key, tasks::Refusal::Busy);
         };
-        assert!(core.pending_calls.insert(key, true).is_ok(), "release acceptance call room");
         let token = core.fly_call(token, RoutedCall::Decide { key, proposal: proposal.number });
         work.push(Work::Event(Event::Tasks(tasks::Event::DecideProposal {
             reply_to: ReplyTo::new(token),
@@ -99,7 +119,6 @@ pub(crate) fn named_proposal_accept(
     }
     match proposal.action {
         tasks::ProposalAction::Effect { connector, .. } | tasks::ProposalAction::ProcedureEffect { connector, .. } => {
-            assert!(core.pending_calls.insert(key, true).is_ok(), "effect acceptance call room");
             let owner = core.effect_owner();
             return crate::effects::start(
                 core,
@@ -217,7 +236,6 @@ pub(crate) fn named_proposal_accept(
             }
         }
     };
-    assert!(core.pending_calls.insert(key, true).is_ok(), "proposal acceptance room reserved");
     let token = core.fly_call(
         token,
         RoutedCall::Accepting { key, proposer: proposal.proposer, proposal: proposal.number, message },
@@ -270,7 +288,6 @@ pub(crate) fn named_proposal_decide(
         tasks::ProposalDecision::Accept => unreachable!("accept routed through action"),
     };
     let token = to.into_token();
-    assert!(core.pending_calls.insert(key, true).is_ok(), "proposal decision room reserved");
     let token = core.fly_call(token, RoutedCall::Decide { key, proposal });
     work.push(Work::Event(Event::Tasks(tasks::Event::DecideProposal {
         reply_to: ReplyTo::new(token),
@@ -338,7 +355,6 @@ pub(crate) fn named_propose(
         return proposal_refused(core, to, key, tasks::Refusal::Busy);
     };
     let token = to.into_token();
-    assert!(core.pending_calls.insert(key, true).is_ok(), "proposal call room reserved");
     let token = core.fly_call(token, RoutedCall::Propose { key, proposal: number });
     work.push(Work::Event(Event::Tasks(tasks::Event::Propose {
         reply_to: ReplyTo::new(token),
@@ -413,7 +429,6 @@ pub(crate) fn named_escalation(
         tasks::EscalationDecision::Release | tasks::EscalationDecision::Reject { .. } => None,
     };
     let token = to.into_token();
-    assert!(core.pending_calls.insert(key, true).is_ok(), "task escalation call room reserved");
     let token = core.fly_call(token, RoutedCall::Escalation { key, task, revision, passed_up });
     work.push(Work::Event(Event::Tasks(tasks::Event::DecideEscalation {
         reply_to: ReplyTo::new(token),
@@ -435,7 +450,9 @@ pub(crate) fn named_action(
     key: CallKey,
     action: NamedAction,
 ) -> Queue<Request> {
-    assert!(core.current_proof(key.task, key.attempt), "named action belongs to current claim");
+    if !core.current_proof(key.task, key.attempt) {
+        return Queue::uncapped();
+    }
     let action = match action {
         NamedAction::ReadTask { task, field, from, room } => {
             return crate::reads::run_task::run(
@@ -471,24 +488,16 @@ pub(crate) fn named_action(
         | NamedAction::NoteDelete { .. }
         | NamedAction::Recall { .. }) => action,
     };
-    if let Some(part) = core.call_parts.get(&key) {
-        let mut out = Queue::uncapped();
-        out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part: part.clone() })));
-        return out;
-    }
-    if crate::routing::party::amendment_reads::waiting(core, key) {
-        return Queue::uncapped();
-    }
+    let mut out = Queue::uncapped();
+    let Some(to) = admit_named_call(core, &mut out, to, key) else { return out };
     if let NamedAction::NoteDelete { scope, name, recalled } = action {
         return crate::routing::party::delete(core, work, Call { to, key }, scope, name, recalled);
     }
     if let Some(part) = core.authorize_tool(key, named_tool_kind(&action)) {
-        let mut out = Queue::uncapped();
         call_decision(core, &mut out, to, key, part);
         return out;
     }
     let token = to.into_token();
-    let mut out = Queue::uncapped();
     if malformed_recording(&action, env.limits.tasks.inbox_messages) {
         call_decision(
             core,
@@ -516,7 +525,6 @@ pub(crate) fn named_action(
             );
         }
         NamedAction::MarkRead { messages } => {
-            assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
             let token = core.fly_call(token, RoutedCall::MarkRead(key));
             work.push(Work::Event(Event::Tasks(tasks::Event::RecordWords {
                 reply_to: ReplyTo::new(token),
@@ -572,7 +580,6 @@ pub(crate) fn named_action(
                 );
                 return out;
             };
-            assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
             let token = core.fly_call(token, RoutedCall::Message(key));
             work.push(Work::Event(Event::Tasks(tasks::Event::Message {
                 reply_to: ReplyTo::new(token),
@@ -592,7 +599,6 @@ pub(crate) fn named_action(
             })));
         }
         NamedAction::Introduce { left, right } => {
-            assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
             let token = core.fly_call(token, RoutedCall::Introduce(key));
             work.push(Work::Event(Event::Tasks(tasks::Event::Introduce {
                 reply_to: ReplyTo::new(token),
@@ -617,7 +623,6 @@ pub(crate) fn named_action(
                 );
                 return out;
             };
-            assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
             let token = core.fly_call(token, RoutedCall::Subscribe { key, subscription });
             work.push(Work::Event(Event::Tasks(tasks::Event::Subscribe {
                 reads_project: false,
@@ -627,7 +632,6 @@ pub(crate) fn named_action(
             })));
         }
         NamedAction::Unsubscribe { subscription } => {
-            assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
             let token = core.fly_call(token, RoutedCall::Unsubscribe(key));
             work.push(Work::Event(Event::Tasks(tasks::Event::Unsubscribe {
                 reply_to: ReplyTo::new(token),
@@ -695,7 +699,6 @@ pub(crate) fn named_action(
                     return out;
                 }
             };
-            assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
             let token = core.fly_call(token, RoutedCall::Control { key, target, revised: true });
             work.push(Work::Event(Event::Tasks(tasks::Event::Release {
                 reply_to: ReplyTo::new(token),
@@ -726,14 +729,20 @@ pub(crate) fn named_action(
         }
         NamedAction::WithdrawProposal { proposal } => {
             if core.tasks.proposal(key.task, proposal).is_none() {
-                assert!(core.pending_calls.insert(key, true).is_ok(), "proposal call room reserved");
+                core.handoff_call(key, PendingCall::Routed, PendingCall::DecidedProposal(proposal));
                 let point = crate::loads::point::Point::Proposal { to: ReplyTo::new(token), key, proposal };
                 if !crate::loads::try_point(core, &env.limits, &mut out, point) {
-                    call_decision(core, &mut out, ReplyTo::new(token), key, CallPart::Unavailable);
+                    return crate::routing::party::ended::decided_proposal(
+                        core,
+                        ReplyTo::new(token),
+                        key,
+                        proposal,
+                        None,
+                        true,
+                    );
                 }
                 return out;
             }
-            assert!(core.pending_calls.insert(key, true).is_ok(), "proposal call room reserved");
             let token = core.fly_call(token, RoutedCall::Withdraw { key, proposal, moved: None });
             work.push(Work::Event(Event::Tasks(tasks::Event::WithdrawProposal {
                 reply_to: ReplyTo::new(token),
@@ -780,7 +789,6 @@ pub(crate) fn named_action(
                 entry.name = name;
             }
             entry.author = notes::Author::Task { task: key.task, attempt: key.attempt };
-            assert!(core.pending_calls.insert(key, true) == Ok(None), "note call record room reserved");
             let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key, records });
             work.push(Work::Event(Event::Notes(notes::Event::Write { owner, entry, recalled })));
         }
@@ -790,14 +798,12 @@ pub(crate) fn named_action(
                 return out;
             }
             entry.author = notes::Author::Task { task: key.task, attempt: key.attempt };
-            assert!(core.pending_calls.insert(key, true) == Ok(None), "note call record room reserved");
             let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key, records });
             work.push(Work::Event(Event::Notes(notes::Event::WriteLines { owner, entry, recalled, range })));
         }
         NamedAction::NoteDelete { .. } => unreachable!("party deletion routed after replay"),
         NamedAction::Recall { by, page } => {
             let records = Box::new([]);
-            assert!(core.pending_calls.insert(key, true) == Ok(None), "recall call record room reserved");
             let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key, records });
             work.push(Work::Event(Event::Notes(notes::Event::Recall { owner, by, page })));
         }
@@ -868,7 +874,19 @@ pub(crate) fn named_tool_kind(action: &NamedAction) -> ToolKind {
 }
 
 pub(crate) fn route_named_answer(core: &mut Core, to: ReplyTo, key: CallKey, part: CallPart) -> Queue<Request> {
-    assert!(core.current_proof(key.task, key.attempt), "named call belongs to current claim");
+    // A translated answer can complete a reserved application call or be the
+    // whole decision of a new call (for example, a refusal of its input).
+    if core.pending_calls.get(&key) == Some(&PendingCall::Application) {
+        return route_pending_answer(core, to, key, part);
+    }
+    let mut out = Queue::uncapped();
+    if let Some(to) = admit_named_call(core, &mut out, to, key) {
+        call_decision(core, &mut out, to, key, part);
+    }
+    out
+}
+
+pub(crate) fn route_pending_answer(core: &mut Core, to: ReplyTo, key: CallKey, part: CallPart) -> Queue<Request> {
     let mut out = Queue::uncapped();
     call_decision(core, &mut out, to, key, part);
     out
@@ -1012,7 +1030,6 @@ pub(crate) fn named_amend(
     };
     let current = core.tasks.task(target).expect("amend admission found target");
     let funder = crate::routing::amendment_funder(core, &current.authority, &amendment, tasks::Funder::Task(key.task));
-    assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
     let token = core.fly_call(token, RoutedCall::Control { key, target, revised: true });
     work.push(Work::Event(Event::Tasks(tasks::Event::Amend {
         reads_project: false,

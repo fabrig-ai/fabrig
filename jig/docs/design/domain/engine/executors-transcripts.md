@@ -105,7 +105,11 @@
   for the cut turn and plans it afresh, as before parts. A committed turn retires
   every part of its task from an earlier attempt and those of its own
   attempt whose turn is at most its number; the task's end retires the
-  rest. A resumed run is given those kept, by attempt, then number,
+  rest. Each use checks the part's own place
+  (skein/docs/foundation/programming-model.md, 10.4): keeping a part
+  asserts that its key is new to the room and that the room had its
+  place in the same step, naming the part and its task, and a
+  retirement erases only the parts it found, so each goes once. A resumed run is given those kept, by attempt, then number,
   when its window resumes and the window's bytes and theirs fit the
   resume limit: main's parts first, then each sub-agent's all or none in
   call order while they fit, none where main's do not. A run that

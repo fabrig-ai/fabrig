@@ -52,30 +52,160 @@ pub(crate) fn new_core(config: Config, limits: &Limits) -> Result<Core, Problem>
     Core::new(config, &connectors, limits)
 }
 
+const ROOM_CALL: CallKey = CallKey { task: 1, attempt: 1, completion: 1, position: 0 };
+const ROOM_NEXT: CallKey = CallKey { completion: 2, ..ROOM_CALL };
+const ROOM_FRESH: CallKey = CallKey { completion: 3, ..ROOM_CALL };
+const ROOM_REPLY: Token = Token::new(85);
+
+fn claimed_call_room() -> (Core, Limits) {
+    let (mut core, limits) = core();
+    assert_eq!(limits.call_records, 2);
+    make_task(&mut core, &limits, ROOM_CALL.task);
+    let mut row = core.tasks.task(ROOM_CALL.task).expect("live call owner").clone();
+    row.attempt = ROOM_CALL.attempt;
+    row.phase = tasks::Phase::Active(tasks::Active::Running { attempt: ROOM_CALL.attempt });
+    fixtures::restore(&mut core, &limits, Box::new([row]));
+    core.proofs
+        .insert(ROOM_CALL.task, RunProof::claimed(ROOM_CALL.task, ROOM_CALL.attempt, 1, None, fleet::HostKind::Worker))
+        .expect("current call proof");
+    (core, limits)
+}
+
+fn assert_retained(core: &Core, key: CallKey, expected: CallPart) {
+    let Some(CallReplay::Core(part)) = core.replay_call(key) else { panic!("retained call {key:?}") };
+    assert_eq!(part, expected);
+}
+
 #[test]
 fn call_room_counts_pending_calls_and_allows_retained_replay_at_capacity() {
-    let limits = limits();
-    let mut core = new_core(config(41), &limits).expect("fixture core configuration");
-    let pending = CallKey { task: 1, attempt: 1, completion: 1, position: 0 };
-    let retained = CallKey { position: 1, ..pending };
-    let fresh = CallKey { position: 2, ..pending };
-    assert_eq!(limits.call_records, 2);
-    assert!(core.call_room(pending));
-    assert!(core.call_room(fresh));
-
-    core.pending_calls.insert(pending, true).expect("first call fits");
-    assert!(!core.call_room(pending));
-    assert!(core.call_room(retained));
-    core.call_parts.insert(retained, CallPart::Controlled).expect("second call fits");
-    assert!(!core.call_room(pending));
-    assert!(core.call_room(retained));
-    assert!(!core.call_room(fresh));
+    let (mut core, limits) = claimed_call_room();
+    assert!(core.reserve_connector_call(ROOM_CALL));
+    assert!(core.call_room(ROOM_NEXT), "there is spare room, but not for a duplicate");
+    assert!(!core.reserve_connector_call(ROOM_CALL));
+    assert!(core.decide_named_call(ROOM_CALL, CallPart::Controlled));
+    assert!(!core.reserve_connector_call(ROOM_CALL));
+    assert!(core.call_room(ROOM_NEXT));
+    assert!(core.reserve_connector_call(ROOM_NEXT));
     assert_eq!(core.pending_calls.len(), 1);
     assert_eq!(core.call_parts.len(), 1);
+    assert!(!core.call_room(ROOM_NEXT));
+    assert!(!core.call_room(ROOM_FRESH));
+    assert!(core.call_room(ROOM_CALL));
+    for key in [ROOM_NEXT, ROOM_FRESH, ROOM_CALL] {
+        assert!(!core.reserve_connector_call(key), "no second place for {key:?}");
+    }
 
-    assert_eq!(core.pending_calls.remove(&pending), Some(true));
-    assert!(core.call_room(fresh));
-    assert!(core.call_room(retained));
+    let action = |key| Event::NamedAction {
+        to: ReplyTo::new(ROOM_REPLY),
+        key,
+        action: NamedAction::Introduce { left: 2, right: 3 },
+    };
+    for key in [ROOM_NEXT, ROOM_FRESH] {
+        let out = watch_outputs(&mut core, &limits, action(key));
+        let [Request::Now(now)] = out.as_ref() else { panic!("busy with no writes for {key:?}: {out:?}") };
+        let Now::CallBusy { to } = now.as_ref() else { panic!("named call {key:?} is busy") };
+        assert_eq!(*to, ReplyTo::new(ROOM_REPLY));
+    }
+    let out = watch_outputs(&mut core, &limits, action(ROOM_CALL));
+    let [Request::Held(held)] = out.as_ref() else { panic!("replay with no writes: {out:?}") };
+    let Held::CallAnswer { to, key, part } = held.as_ref() else { panic!("retained call answer") };
+    assert_eq!((*key, part), (ROOM_CALL, &CallPart::Controlled));
+    assert_eq!(*to, ReplyTo::new(ROOM_REPLY));
+    assert_eq!(core.pending_calls.len(), 1);
+    assert_eq!(core.call_parts.len(), 1);
+}
+
+#[test]
+fn a_decision_keeps_its_place_until_the_turn_retires_it() {
+    let (mut core, limits) = claimed_call_room();
+    // Use a second answer in the following completion, which this turn must not retire.
+    assert!(core.decide_named_call(ROOM_NEXT, CallPart::Controlled));
+    assert!(core.reserve_connector_call(ROOM_CALL));
+    assert!(core.decide_named_call(ROOM_CALL, CallPart::Introduced));
+    assert!(!core.pending_calls.contains_key(&ROOM_CALL));
+    assert_retained(&core, ROOM_CALL, CallPart::Introduced);
+    assert!(!core.reserve_connector_call(ROOM_FRESH), "moving a place doesn't free it");
+
+    let out = watch_outputs(
+        &mut core,
+        &limits,
+        Event::AcceptedTurn {
+            task: ROOM_CALL.task,
+            attempt: ROOM_CALL.attempt,
+            turn: ROOM_NEXT.completion,
+            accepted: tasks::Accepted::New,
+            cumulative: 0,
+            read: None,
+            transcript: b"turn carrying the call answer".as_slice().into(),
+            opens_window: false,
+        },
+    );
+    let mut erased = List::with_capacity(limits.call_records);
+    for row in &out {
+        if let Request::Write(Write::Erase(Key::Core(CoreKey::Call(key)))) = row {
+            erased.push(*key).expect("at most the bounded calls retire");
+        }
+    }
+    assert_eq!(erased.as_slice(), [ROOM_CALL], "retirement erases only the carried call");
+    assert!(core.replay_call(ROOM_CALL).is_none());
+    assert_retained(&core, ROOM_NEXT, CallPart::Controlled);
+    assert!(core.reserve_connector_call(ROOM_FRESH));
+    assert!(!core.call_room(ROOM_CALL), "the other retained call still takes its place");
+}
+
+#[test]
+fn a_busy_effect_description_gives_back_only_its_own_place() {
+    let (mut core, limits) = claimed_call_room();
+    assert!(core.decide_named_call(ROOM_CALL, CallPart::Controlled));
+    let owner = core.effect_owner();
+    let out = watch_outputs(
+        &mut core,
+        &limits,
+        Event::EffectStart {
+            owner,
+            connector: 1,
+            origin: EffectOrigin::Call { to: ReplyTo::new(ROOM_REPLY), key: ROOM_NEXT, deadline: Wall::EPOCH },
+        },
+    );
+    let [Request::Ask { ask: Ask::Effect(connector::Ask::Describe { owner: asked }), .. }] = out.as_ref() else {
+        panic!("the admitted call asks for a description: {out:?}")
+    };
+    assert_eq!(*asked, owner);
+    assert!(!core.reserve_connector_call(ROOM_FRESH));
+
+    let busy = || Event::EffectConnector(connector::Event::DescribeBusy { owner });
+    let out = watch_outputs(&mut core, &limits, busy());
+    let [Request::Ask { ask: Ask::Effect(connector::Ask::Drop { owner: dropped, .. }), .. }, Request::Now(now)] =
+        out.as_ref()
+    else {
+        panic!("busy, without a call row: {out:?}")
+    };
+    assert_eq!(*dropped, owner);
+    let Now::EffectAnswer { to, key, part } = now.as_ref() else { panic!("retryable effect answer") };
+    assert_eq!((*key, part), (ROOM_NEXT, &CallPart::Unavailable));
+    assert_eq!(*to, ReplyTo::new(ROOM_REPLY));
+    assert!(core.replay_call(ROOM_NEXT).is_none());
+    assert!(core.reserve_connector_call(ROOM_FRESH));
+    assert!(watch_outputs(&mut core, &limits, busy()).is_empty(), "the late description owns nothing");
+    assert!(!core.call_room(ROOM_NEXT));
+    assert_retained(&core, ROOM_CALL, CallPart::Controlled);
+}
+
+#[test]
+fn a_stale_named_decision_returns_the_place_without_retaining_an_answer() {
+    let (mut core, _) = claimed_call_room();
+    assert!(core.decide_named_call(ROOM_CALL, CallPart::Controlled));
+    assert!(core.reserve_connector_call(ROOM_NEXT));
+    assert!(!core.call_room(ROOM_FRESH));
+    core.proofs.get_mut(&ROOM_NEXT.task).expect("fenced old proof").attempt = 2;
+
+    for _ in 0_u8..2 {
+        assert!(!core.decide_named_call(ROOM_NEXT, CallPart::Introduced));
+        assert!(core.replay_call(ROOM_NEXT).is_none());
+        assert_retained(&core, ROOM_CALL, CallPart::Controlled);
+        assert!(core.call_room(ROOM_FRESH));
+    }
+    assert!(core.reserve_connector_call(CallKey { attempt: 2, ..ROOM_FRESH }));
 }
 
 pub(crate) fn limits() -> Limits {

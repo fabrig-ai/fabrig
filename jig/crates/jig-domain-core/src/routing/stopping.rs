@@ -1,5 +1,5 @@
 //! Admission while the engine drains (domain/engine/restart.md, 5).
-use crate::{Core, Event, Held, Limits, Now, Request, effects::projections, routing};
+use crate::{CallKey, Core, Event, Held, Limits, Now, PendingCall, Request, effects::projections, routing};
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
@@ -124,6 +124,13 @@ fn call(to: ReplyTo) -> Queue<Request> {
     answer(Some(Request::Now(Box::new(Now::CallBusy { to }))))
 }
 
+fn continued_call(core: &mut Core, to: ReplyTo, key: CallKey) -> Queue<Request> {
+    if core.pending_calls.get(&key) == Some(&PendingCall::Application) {
+        core.release_pending_call(key);
+    }
+    call(to)
+}
+
 pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request>> {
     if !core.stopping {
         return Ok(event);
@@ -153,10 +160,8 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         }
         Event::People(event) => people_gate(event),
         Event::Watch { watcher, .. } | Event::WatchRun { watcher, .. } => Err(watch(watcher)),
-        Event::NamedAction { to, .. }
-        | Event::NamedAnswer { to, .. }
-        | Event::Delegate { to, .. }
-        | Event::SettledCall { to, .. } => Err(call(to)),
+        Event::NamedAnswer { to, key, .. } | Event::Delegate { to, key, .. } => Err(continued_call(core, to, key)),
+        Event::NamedAction { to, .. } | Event::SettledCall { to, .. } => Err(call(to)),
         Event::Fleet(fleet::Event::Hello { worker: 0, channel, .. }) => {
             Err(answer(Some(Request::Held(Box::new(Held::Refuse { channel, hello: None })))))
         }

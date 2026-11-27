@@ -91,7 +91,13 @@ fn every_operational_entrance_consumes_input() {
                 core.remember_unpriced_terminal(Token::new(1), Token::new(1), tasks::End::Parked);
             },
         },
-        Entrance { name: "record_call", input: |core, _| core.record_call(call_key(), crate::CallPart::Controlled) },
+        Entrance {
+            name: "record_call",
+            input: |core, _| {
+                assert!(core.reserve_call(call_key(), crate::PendingCall::Routed));
+                core.record_call(call_key(), crate::CallPart::Controlled);
+            },
+        },
         Entrance {
             name: "retire_calls",
             input: |core, _| {

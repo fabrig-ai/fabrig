@@ -6,11 +6,11 @@ use crate::routing::{HoldingsNeed, Work, effect::procedure::ProcedureCall};
 
 use crate::loads::point::Point;
 use crate::{
-    Ask, CallKey, CallPart, Core, Delegate, Dependency, Event, HoldingsRefusal, Limits, ProcedureStep, Request,
-    StepRefusal, ToolKind,
+    Ask, CallKey, CallPart, Core, Delegate, Dependency, Event, HoldingsRefusal, Limits, PendingCall, ProcedureStep,
+    Request, StepRefusal, ToolKind,
     routing::{
         BatchKind, DelegateCreation, ProcedureCreation,
-        run::calls::{call_decision, named_propose, proposal_refused},
+        run::calls::{admit_named_call, call_decision, named_propose, proposal_refused},
     },
 };
 use alloc::boxed::Box;
@@ -44,13 +44,18 @@ pub(crate) fn delegate(
     batch: Box<[Delegate]>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    if !core.current_proof(key.task, key.attempt) || core.loads.delegate_waiting(key) {
-        return out;
-    }
-    if let Some(part) = core.call_parts.get(&key) {
-        out.push(Request::Held(Box::new(crate::Held::CallAnswer { to, key, part: part.clone() })));
-        return out;
-    }
+    let to = if core.pending_calls.get(&key) == Some(&PendingCall::Application) {
+        // A connector that loaded words for this batch passes the same place to the engine.
+        if !core.current_proof(key.task, key.attempt) {
+            core.release_pending_call(key);
+            return out;
+        }
+        core.handoff_call(key, PendingCall::Application, PendingCall::Routed);
+        to
+    } else {
+        let Some(to) = admit_named_call(core, &mut out, to, key) else { return out };
+        to
+    };
     if let Some(part) = core.authorize_tool(key, ToolKind::Delegate) {
         call_decision(core, &mut out, to, key, part);
         return out;
@@ -70,7 +75,7 @@ pub(crate) fn delegate(
         return delegate_validated(core, env, to, key, batch, Box::new([]));
     }
     let stubs = List::with_capacity(u32::try_from(ids.len()).expect("bounded input IDs"));
-    assert!(core.pending_calls.insert(key, true).is_ok(), "reserved call record room");
+    core.handoff_call(key, PendingCall::Routed, PendingCall::DelegateInput);
     load_input(core, env, DelegateInput { to, key, batch, ids, at: 0, project, stubs })
 }
 
@@ -87,6 +92,7 @@ pub(crate) struct DelegateInput {
 
 fn load_input(core: &mut Core, env: &Env<Limits>, read: DelegateInput) -> Queue<Request> {
     let mut out = Queue::uncapped();
+    assert!(core.pending_calls.get(&read.key) == Some(&PendingCall::DelegateInput), "input load owns {:?}", read.key);
     if core.loads.room(&env.limits) {
         assert!(
             crate::loads::try_point(core, &env.limits, &mut out, Point::DelegateInput(Box::new(read))),
@@ -104,8 +110,11 @@ pub(crate) fn input_loaded(
     mut read: DelegateInput,
     row: Option<Box<tasks::TaskRecord>>,
 ) -> Queue<Request> {
+    if core.pending_calls.get(&read.key) != Some(&PendingCall::DelegateInput) {
+        return Queue::uncapped();
+    }
     if core.stopping() || !core.current_proof(read.key.task, read.key.attempt) {
-        let _pending = core.pending_calls.remove(&read.key);
+        core.release_pending_call(read.key);
         return Queue::uncapped();
     }
     let wanted = *read.ids.get(read.at).expect("pending input");
@@ -121,6 +130,7 @@ pub(crate) fn input_loaded(
     if read.at < read.ids.len() {
         load_input(core, env, read)
     } else {
+        core.handoff_call(read.key, PendingCall::DelegateInput, PendingCall::Routed);
         delegate_validated(core, env, read.to, read.key, read.batch, read.stubs.into_boxed())
     }
 }
@@ -137,12 +147,7 @@ fn delegate_validated(
     mut batch: Box<[Delegate]>,
     stubs: Box<[tasks::Stub]>,
 ) -> Queue<Request> {
-    assert!(core.current_proof(key.task, key.attempt), "delegation belongs to current claim");
-    if let Some(part) = core.call_parts.get(&key) {
-        let mut out = Queue::uncapped();
-        out.push(Request::Held(Box::new(crate::Held::CallAnswer { to, key, part: part.clone() })));
-        return out;
-    }
+    assert!(core.pending_calls.get(&key) == Some(&PendingCall::Routed), "delegation holds the routed call {key:?}");
     if let Some(part) = core.authorize_tool(key, ToolKind::Delegate) {
         let mut out = Queue::uncapped();
         call_decision(core, &mut out, to, key, part);
@@ -233,9 +238,6 @@ fn delegate_validated(
     }
     let request = to.into_token();
     let members = created.into_boxed();
-    if !core.pending_calls.contains_key(&key) {
-        assert!(core.pending_calls.insert(key, true) == Ok(None), "delegation call record room reserved");
-    }
     let remaining = u32::try_from(core.connectors.len()).expect("configured connector count fits u32");
     assert!(remaining > 0, "delegation has a numbered connector");
     let asked = holdings_need(root, &members, env.limits.tasks.batch);

@@ -441,39 +441,34 @@ fn setup_with_limits(limits: &Limits) -> Domain {
             ),
         )
         .expect("project");
-    d.landing
-        .rows
-        .insert(
-            LANDING,
-            LandingRow {
-                read_hold: None,
-                gate_hold: None,
-                last_event: None,
-                turn_since: None,
-                waiting: None,
-                follows: None,
-                flake_reruns: Box::new([]),
-                room: None,
-                job: None,
-                landing: policy::Landing {
-                    last_left: None,
-                    searched: None,
-                    round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+    let row = LandingRow {
+        read_hold: None,
+        gate_hold: None,
+        last_event: None,
+        turn_since: None,
+        waiting: None,
+        follows: None,
+        flake_reruns: Box::new([]),
+        room: None,
+        job: None,
+        landing: policy::Landing {
+            last_left: None,
+            searched: None,
+            round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
-                    task: LANDING,
-                    project: 5,
-                    phase: policy::Phase::Turn { at: env().wall },
-                    members: Box::new([member(CHANGE), member(SECOND)]),
-                    preparation: 2,
-                    stale_proofs: 3,
-                    last_prepare: None,
-                    branch: Box::from(b"main".as_slice()),
-                },
-                previous_asks: Box::new([]),
-                entries: Box::new([]),
-            },
-        )
-        .expect("landing");
+            task: LANDING,
+            project: 5,
+            phase: policy::Phase::Turn { at: env().wall },
+            members: Box::new([member(CHANGE), member(SECOND)]),
+            preparation: 2,
+            stale_proofs: 3,
+            last_prepare: None,
+            branch: Box::from(b"main".as_slice()),
+        },
+        previous_asks: Box::new([]),
+        entries: Box::new([]),
+    };
+    assert!(d.landing.remember(row).is_none());
     d.landing
         .receipts
         .insert(
@@ -817,7 +812,9 @@ fn the_newest_landing_and_a_pin_only_member_obey_the_same_filter() {
     let mut newer = d.landing.rows.get(&LANDING).expect("landing").clone();
     newer.landing.task = LANDING.checked_add(1).expect("newer");
     newer.landing.members.get_mut(1).expect("member").change = 0;
-    d.landing.rows.insert(newer.landing.task, newer).expect("newer room");
+    // Both live rows name CHANGE only in a restored store.
+    d.landing.restore_row(newer);
+    d.landing.restore_memberships().unwrap();
     assert!(!change(&d, &public).in_landing);
     assert!(d.public(&ask(w::PUBLIC_LANDING, Some(CHANGE), &public), &LIMITS).is_none());
     assert_eq!(landings(&d, &public).landings.len(), 2);
@@ -907,43 +904,36 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
     let members = members.into_boxed();
     for offset in 0..65_u64 {
         let task = LANDING.checked_add(10_000).expect("landing task").checked_add(offset).expect("fixture task");
-        d.landing
-            .rows
-            .insert(
-                task,
-                LandingRow {
-                    read_hold: None,
-                    gate_hold: None,
-                    last_event: None,
-                    turn_since: None,
-                    waiting: None,
-                    follows: None,
-                    flake_reruns: Box::new([]),
-                    room: None,
-                    job: None,
-                    landing: policy::Landing {
-                        last_left: None,
-                        searched: None,
-                        round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+        let row = LandingRow {
+            read_hold: None,
+            gate_hold: None,
+            last_event: None,
+            turn_since: None,
+            waiting: None,
+            follows: None,
+            flake_reruns: Box::new([]),
+            room: None,
+            job: None,
+            landing: policy::Landing {
+                last_left: None,
+                searched: None,
+                round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
-                        task,
-                        project: 5,
-                        phase: policy::Phase::Landed,
-                        members: members.clone(),
-                        preparation: u16::MAX,
-                        stale_proofs: u32::MAX,
-                        last_prepare: None,
-                        branch: Box::from(b"main".as_slice()),
-                    },
-                    previous_asks: Box::new([]),
-                    entries: Box::new([]),
-                },
-            )
-            .expect("landing");
+                task,
+                project: 5,
+                phase: policy::Phase::Landed,
+                // The newest private landing must be filtered before the 64-row panel bound.
+                members: if offset == 64 { Box::new([member(0)]) } else { members.clone() },
+                preparation: u16::MAX,
+                stale_proofs: u32::MAX,
+                last_prepare: None,
+                branch: Box::from(b"main".as_slice()),
+            },
+            previous_asks: Box::new([]),
+            entries: Box::new([]),
+        };
+        assert!(d.landing.remember(row).is_none());
     }
-    // The newest private landing must be filtered before the 64-row panel bound.
-    let private = LANDING.checked_add(10_064).expect("private landing");
-    d.landing.rows.get_mut(&private).expect("private row").landing.members = Box::new([member(0)]);
     let public = public.into_boxed();
     (d, limits, public)
 }
@@ -1156,7 +1146,6 @@ fn a_public_search_names_the_bounds_by_member_and_prefix_including_the_base() {
     row.round.search = Some(policy::Search { tests: policy::SearchTests::Whole, green: 0, red: 2 });
     for (index, member) in row.members.iter_mut().enumerate() {
         member.landed = None;
-        member.left = None;
         member.unit = u16::try_from(index).unwrap();
         member.candidate = Some(if index == 0 { CANDIDATE } else { MERGE });
     }
@@ -1167,10 +1156,11 @@ fn a_public_search_names_the_bounds_by_member_and_prefix_including_the_base() {
     assert_eq!((search.green.member, &search.green.prefix), (0, &BASE));
     assert_eq!((search.red.member, &search.red.prefix), (2, &MERGE));
     assert_eq!(&search.probe, &Some(CANDIDATE));
-    let row = &mut d.landing.rows.get_mut(&LANDING).unwrap().landing;
-    row.round.search = Some(policy::Search { tests: policy::SearchTests::Whole, green: 1, red: 2 });
-    row.members[1].candidate = None;
-    row.members[1].left = Some(policy::Leave::Blamed { gate: 0, run: 7, red: MERGE, green: CANDIDATE });
+    let mut row = d.landing(LANDING).unwrap().clone();
+    row.landing.round.search = Some(policy::Search { tests: policy::SearchTests::Whole, green: 1, red: 2 });
+    row.landing.members[1].candidate = None;
+    row.landing.members[1].left = Some(policy::Leave::Blamed { gate: 0, run: 7, red: MERGE, green: CANDIDATE });
+    assert!(d.landing.remember(row).is_some());
     let m = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &handed());
     let got = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&m.record)).unwrap();
     let search = got.search.as_ref().unwrap();
@@ -1182,9 +1172,10 @@ fn a_public_search_names_the_bounds_by_member_and_prefix_including_the_base() {
 #[test]
 fn a_public_blamed_member_keeps_its_gate_and_both_prefixes() {
     let mut d = setup();
-    let row = &mut d.landing.rows.get_mut(&LANDING).unwrap().landing;
-    row.phase = policy::Phase::Landed;
-    row.members[0].left = Some(policy::Leave::Blamed { gate: 3, run: 7, red: CANDIDATE, green: BASE });
+    let mut row = d.landing(LANDING).unwrap().clone();
+    row.landing.phase = policy::Phase::Landed;
+    row.landing.members[0].left = Some(policy::Leave::Blamed { gate: 3, run: 7, red: CANDIDATE, green: BASE });
+    assert!(d.landing.remember(row).is_some());
     let m = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &handed());
     let got = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&m.record)).unwrap();
     let Some(w::PublicLeave::Blamed(blamed)) = &got.members.get(0).unwrap().left else { panic!("blamed, not failed") };
@@ -1194,10 +1185,11 @@ fn a_public_blamed_member_keeps_its_gate_and_both_prefixes() {
 #[test]
 fn a_public_landing_keeps_squash_and_prefix_evidence_without_forge_names() {
     let mut d = setup();
-    let row = &mut d.landing.rows.get_mut(&LANDING).unwrap().landing;
-    row.phase = policy::Phase::Landed;
-    row.round.combined = Some(policy::Combine::Squash);
-    row.round.judging = true;
+    let mut row = d.landing(LANDING).unwrap().clone();
+    row.landing.phase = policy::Phase::Landed;
+    row.landing.round.combined = Some(policy::Combine::Squash);
+    row.landing.round.judging = true;
+    assert!(d.landing.remember(row).is_some());
     for task in [CHANGE, SECOND] {
         let row = d.changes.get_mut(&task).unwrap();
         row.verdicts = Box::new([c::GateReport { revision: 0, number: 9, head: CANDIDATE, status: c::Status::Passed }]);
@@ -1241,12 +1233,13 @@ fn a_public_landing_keeps_only_the_wait_name() {
         (Some(Awaited::Open), Some(1), w::PublicLandingPhase::Turn, Some(w::PublicLandingWait::Room)),
         (Some(Awaited::Run { member: 0, gate: 0 }), None, w::PublicLandingPhase::Cancelled, None),
     ] {
-        let row = d.landing.rows.get_mut(&LANDING).unwrap();
+        let mut row = d.landing(LANDING).unwrap().clone();
         row.waiting = waiting;
         row.room = room;
         if phase == w::PublicLandingPhase::Cancelled {
             row.landing.phase = policy::Phase::Cancelled;
         }
+        assert!(d.landing.remember(row).is_some());
         let mut oracle = expected_landing();
         oracle.wait = expected;
         if phase == w::PublicLandingPhase::Cancelled {

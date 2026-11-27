@@ -89,6 +89,7 @@ pub use crate::{
     },
     runs::{
         brief_text::{BriefPart, BriefTextLimits, note_index_text, read_brief_part},
+        calls::PendingCall,
         conversation::{DeliveryOutcome, Settled, SettledAnswer, SettledCall},
         delegation::{
             Delegate, Delegating, Dependency, ProcedureStep, StepAmendment, StepCancel, StepEnd, StepMessage,
@@ -227,7 +228,7 @@ pub struct Core {
     /// Immutable settings for core decisions.
     pub settings: Settings,
     /// Named calls awaiting their routed decision.
-    pub pending_calls: Map<CallKey, bool>,
+    pub pending_calls: Map<CallKey, PendingCall>,
     /// Durable live named-call decisions, with connector payloads retained by
     /// their owner and represented here only by connector number.
     pub call_parts: Map<CallKey, CallPart>,

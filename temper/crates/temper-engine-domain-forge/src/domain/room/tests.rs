@@ -230,7 +230,7 @@ fn drop_requires_a_full_table_and_no_landing_member_even_after_landing_ends() {
                 previous_asks: Box::new([]),
                 entries: Box::new([]),
             };
-            d.landing.rows.insert(60, row).unwrap();
+            let _previous = d.landing.remember(row);
             assert!(!d.droppable(fixtures::CHANGE));
             assert!(!d.droppable_last(fixtures::CHANGE));
             assert!(dropped(&mut d, &env).is_empty());
@@ -365,57 +365,52 @@ fn erased_change_stays_while_a_landing_names_it() {
     let (mut d, mut env) = full();
     env.limits.changes = 128;
     let row = d.change(fixtures::CHANGE).unwrap().clone();
-    d.landing
-        .rows
-        .insert(
-            60,
-            crate::LandingRow {
-                read_hold: None,
-                gate_hold: None,
-                last_event: None,
-                turn_since: None,
-                waiting: None,
-                follows: None,
-                flake_reruns: Box::new([]),
-                room: None,
-                job: None,
-                landing: landing::Landing {
-                    last_left: None,
-                    searched: None,
-                    round: landing::Round::new(Box::new([])),
-                    task: 60,
-                    project: 5,
-                    phase: landing::Phase::Landed,
-                    members: Box::new([landing::Member {
-                        round: None,
-                        unit: 0,
-                        branch: b"temper/1/l60".as_slice().into(),
-                        combined: None,
-                        recorded: false,
-                        told: false,
-                        judging: false,
-                        leave_told: false,
-                        left: None,
-                        change: fixtures::CHANGE,
-                        repository: landing::Repository { forge: 1, repository: 2 },
-                        pull: 1,
-                        head: None,
-                        base: None,
-                        candidate: None,
-                        gates: Box::new([]),
-                        asked: None,
-                        landed: None,
-                    }]),
-                    preparation: 0,
-                    stale_proofs: 0,
-                    last_prepare: None,
-                    branch: b"main".as_slice().into(),
-                },
-                previous_asks: Box::new([]),
-                entries: Box::new([]),
-            },
-        )
-        .unwrap();
+    let landing = crate::LandingRow {
+        read_hold: None,
+        gate_hold: None,
+        last_event: None,
+        turn_since: None,
+        waiting: None,
+        follows: None,
+        flake_reruns: Box::new([]),
+        room: None,
+        job: None,
+        landing: landing::Landing {
+            last_left: None,
+            searched: None,
+            round: landing::Round::new(Box::new([])),
+            task: 60,
+            project: 5,
+            phase: landing::Phase::Landed,
+            members: Box::new([landing::Member {
+                round: None,
+                unit: 0,
+                branch: b"temper/1/l60".as_slice().into(),
+                combined: None,
+                recorded: false,
+                told: false,
+                judging: false,
+                leave_told: false,
+                left: None,
+                change: fixtures::CHANGE,
+                repository: landing::Repository { forge: 1, repository: 2 },
+                pull: 1,
+                head: None,
+                base: None,
+                candidate: None,
+                gates: Box::new([]),
+                asked: None,
+                landed: None,
+            }]),
+            preparation: 0,
+            stale_proofs: 0,
+            last_prepare: None,
+            branch: b"main".as_slice().into(),
+        },
+        previous_asks: Box::new([]),
+        entries: Box::new([]),
+    };
+    assert!(d.landing.remember(landing).is_none());
     let mut out = Queue::uncapped();
     super::super::step(&mut d, &env, Event::DropErased { task: fixtures::CHANGE }, &mut out);
     assert_eq!(d.change(fixtures::CHANGE), Some(&row));

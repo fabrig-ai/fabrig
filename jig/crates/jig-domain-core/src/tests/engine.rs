@@ -465,8 +465,12 @@ fn a_notes_load_refuses_full_room_once_and_a_project_drop_retries_after_the_wind
     let crate::Held::Store(engine::store::Out::Load { load: window, .. }) = *window else { panic!("store window") };
     assert_notes_busy(&notes_request(&mut engine, &env, recall(owner)), owner);
     let key = crate::CallKey { task: 3, attempt: 1, completion: 1, position: 1 };
+    let proof = crate::RunProof::claimed(key.task, key.attempt, 1, None, jig_domain_fleet::HostKind::Worker);
+    let core = engine.core_mut();
+    core.proofs.insert(key.task, proof).expect("current call proof");
+    assert!(core.reserve_call(key, crate::PendingCall::Routed));
     let to = ReplyTo::new(owner);
-    let call = engine.core_mut().begin_note_route(crate::routing::NoteRoute::Call { to, key, records: Box::new([]) });
+    let call = core.begin_note_route(crate::routing::NoteRoute::Call { to, key, records: Box::new([]) });
     let mut seen = false;
     for output in &notes_request(&mut engine, &env, recall(call)) {
         no_store_request(output);
@@ -480,6 +484,7 @@ fn a_notes_load_refuses_full_room_once_and_a_project_drop_retries_after_the_wind
         }
     }
     assert!(seen);
+    assert!(engine.core().call_room(key), "the busy recall returned the call's place");
     assert!(!engine.core().notes.busy());
     let out = notes_request(&mut engine, &env, notes::Event::DropProject { owner, project: 3 });
     for output in &out {

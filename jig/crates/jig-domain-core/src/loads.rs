@@ -58,17 +58,6 @@ impl Loads {
         self.flights.is_empty() && self.waiting.is_empty() && self.note_retry.is_none()
     }
 
-    pub(crate) fn delegate_waiting(&self, key: crate::CallKey) -> bool {
-        for (_, flight) in &self.flights {
-            if let Flight::Point(Some(Point::DelegateInput(read))) = flight
-                && read.key == key
-            {
-                return true;
-            }
-        }
-        false
-    }
-
     pub(crate) fn read_slots_full(&self) -> bool {
         self.reads() == self.read_slots
     }
