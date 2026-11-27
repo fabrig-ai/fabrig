@@ -31,5 +31,6 @@ pub mod public;
 
 pub mod cluster_start;
 pub mod model_list;
+pub mod parks;
 pub mod push;
 pub mod tools;
