@@ -36,9 +36,15 @@ fn payloads() -> [(Carried, &'static str, Box<[u8]>); 8] {
         (
             Carried::JobSpec,
             "JobSpec",
-            v1::JobSpec { command: b"tool".as_slice().into(), request: b"{}".as_slice().into(), refusal: false }
-                .encode(&limits)
-                .unwrap(),
+            v1::JobSpec {
+                command: b"tool".as_slice().into(),
+                request: b"{}".as_slice().into(),
+                refusal: false,
+                find: false,
+                fallback: Box::new([]),
+            }
+            .encode(&limits)
+            .unwrap(),
         ),
         (Carried::Grant, "Identity", identity.expose().into()),
         (Carried::Ask, "Ask", crate::ask(&v1::Ask::Landed(v1::Head { head: [11; 32] }))),
@@ -115,11 +121,11 @@ fn temper_roots_round_trip_in_their_carried_directions() {
     // default on the way back. The payloads use the real temper encoders.
     let mut text = wire::TEXT.replace("account: option u64 save:", "dropped account: option u64 = none save:");
     for end in [
-        "rerun: option u32 = none }",
+        "hook_timeout_max_seconds: u32 = 3600 }",
         "landed: list 64 Landed }",
         "repositories: list 64 SavedRepository }",
         "record Tag { tag: u64 }",
-        "refusal: bool = false }",
+        "fallback: bytes 4096 = 0x }",
         "email: text 256 }",
         "record Head { head: fixed 32 }",
         "reds: list 256 Red }",
@@ -151,33 +157,63 @@ fn temper_roots_round_trip_in_their_carried_directions() {
     }
 }
 
-/// temper/docs/design/protocol/wires.md, 8: an older worker can only keep a job that doesn't ask.
+fn before_hook_fields() -> Box<str> {
+    wire::TEXT
+        .replace(" find: bool = false fallback: bytes 4096 = 0x", "")
+        .replace(" droppable hook_timeout_max_seconds: u32 = 3600", "")
+        .into_boxed_str()
+}
+
+/// temper/docs/design/protocol/wires.md, 8: an older worker can only keep a job that doesn't ask for a field it lacks.
 #[test]
-#[expect(clippy::disallowed_macros, reason = "the fixture derives an older schema text")]
-fn an_older_worker_cannot_keep_a_jobs_refusal_ask() {
+fn an_older_worker_cannot_keep_a_jobs_refusal_or_find_ask() {
     use jig_protocol_worker_wire::layouts::{Cause, Nested};
     use skein_codec::{layout::Mode, schema::parse};
     let engine = parse(wire::TEXT.as_bytes()).unwrap();
-    let (before, field) = wire::TEXT.split_once(" refusal:").expect("the appended JobSpec field");
-    let (_, after) = field.split_once(" }").expect("the end of JobSpec");
-    let text = format!("{before} }}{after}");
-    let worker = parse(text.as_bytes()).unwrap();
-    let mut peer = peer(&worker);
-    let mut value = v1::JobSpec { command: b"tool".as_slice().into(), request: b"{}".as_slice().into(), refusal: true };
+    let previous = before_hook_fields();
+    let before_refusal = previous.replace(" refusal: bool = false", "");
     let limits = fixtures::limits();
     let root = Nested::Carried(Carried::JobSpec);
-    let mut out = skein_lib::Buffer::with_capacity(1024);
+    for (text, refused, kept, find) in [
+        (
+            before_refusal.as_str(),
+            b"the worker's layout cannot keep temper-worker-wire JobSpec.refusal: field".as_slice(),
+            false,
+            false,
+        ),
+        (
+            previous.as_ref(),
+            b"the worker's layout cannot keep temper-worker-wire JobSpec.find: field".as_slice(),
+            true,
+            true,
+        ),
+    ] {
+        let worker = parse(text.as_bytes()).unwrap();
+        let mut peer = peer(&worker);
+        let mut out = skein_lib::Buffer::with_capacity(1024);
+        let mut value = v1::JobSpec {
+            command: b"tool".as_slice().into(),
+            request: b"{}".as_slice().into(),
+            refusal: true,
+            find,
+            fallback: Box::new([]),
+        };
+        let asked = value.encode(&limits).unwrap();
+        let problem = peer.down(root, &asked, &mut out).expect_err("old workers cannot keep the ask");
+        assert_eq!(problem.cause, Cause::Field);
+        assert_eq!(problem.kept().as_ref(), refused);
+        assert_eq!(out.as_slice(), []);
 
-    let asked = value.encode(&limits).unwrap();
-    let problem = peer.down(root, &asked, &mut out).expect_err("old workers cannot keep the ask");
-    assert_eq!(problem.cause, Cause::Field);
-    assert_eq!(&*problem.kept(), b"the worker's layout cannot keep temper-worker-wire JobSpec.refusal: field");
-    assert_eq!(out.as_slice(), []);
-
-    value.refusal = false;
-    let unasked = value.encode(&limits).unwrap();
-    peer.down(root, &unasked, &mut out).expect("old workers keep the default");
-    assert_eq!(transcode(Mode::Read, &worker, &engine, "JobSpec", out.as_slice()), unasked);
+        value.refusal = kept;
+        value.find = false;
+        let unasked = value.encode(&limits).unwrap();
+        peer.down(root, &unasked, &mut out).expect("old workers keep the default");
+        assert_ne!(out.as_slice(), &*unasked, "the older layout lacks the hook fields");
+        let current = transcode(Mode::Read, &worker, &engine, "JobSpec", out.as_slice());
+        let mut reader = skein_lib::Reader::new(&current);
+        assert_eq!(v1::JobSpec::decode(&limits, &mut reader).unwrap(), value);
+        assert!(reader.is_empty());
+    }
 }
 
 #[test]
@@ -236,23 +272,25 @@ fn admission_ask_and_answers_round_trip() {
 }
 
 #[test]
-fn an_older_worker_cannot_keep_a_projects_rerun_bound() {
+fn an_older_worker_drops_the_hook_ceiling_but_not_the_rerun_bound() {
     use jig_protocol_worker_wire::layouts::{Cause, Nested};
     use skein_codec::{layout::Mode, schema::parse};
     let engine = parse(wire::TEXT.as_bytes()).unwrap();
-    let text = wire::TEXT.replace(" rerun: option u32 = none", "");
+    let previous = before_hook_fields();
+    let text = previous.replace(" rerun: option u32 = none", "");
     let worker = parse(text.as_bytes()).unwrap();
-    let mut peer = peer(&worker);
+    let mut older = peer(&worker);
     let root = Nested::Carried(Carried::Items);
     let mut out = skein_lib::Buffer::with_capacity(1024);
     let mut value = fixtures::items(1);
     let limits = fixtures::limits();
+    value.hook_timeout_max_seconds = 1800;
 
     for bound in [0, 3] {
         value.rerun = Some(bound);
         let bytes = crate::items(&value);
         assert_eq!(v1::Items::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap(), value);
-        let problem = peer.down(root, &bytes, &mut out).expect_err("untranslated for this worker");
+        let problem = older.down(root, &bytes, &mut out).expect_err("untranslated for this worker");
         assert_eq!(problem.cause, Cause::Field);
         assert_eq!(&*problem.kept(), b"the worker's layout cannot keep temper-worker-wire Items.rerun: field");
         assert_eq!(out.as_slice(), []);
@@ -260,10 +298,24 @@ fn an_older_worker_cannot_keep_a_projects_rerun_bound() {
 
     value.rerun = None;
     let bytes = crate::items(&value);
-    peer.down(root, &bytes, &mut out).expect("old workers keep the default");
+    older.down(root, &bytes, &mut out).expect("old workers keep the default");
     assert_ne!(out.as_slice(), &*bytes, "the previous layout has no field for rerun");
     let converted = transcode(Mode::Read, &worker, &engine, "Items", out.as_slice());
+    value.hook_timeout_max_seconds = 3600;
     assert_eq!(v1::Items::decode(&limits, &mut skein_lib::Reader::new(&converted)).unwrap(), value);
+
+    // The immediately previous layout can keep the rerun bound while dropping the ceiling.
+    let previous = parse(previous.as_bytes()).unwrap();
+    value.rerun = Some(3);
+    value.hook_timeout_max_seconds = 1800;
+    let bytes = crate::items(&value);
+    peer(&previous).down(root, &bytes, &mut out).expect("the hook ceiling is droppable");
+    assert_ne!(out.as_slice(), &*bytes, "the previous layout has no hook ceiling field");
+    let converted = transcode(Mode::Read, &previous, &engine, "Items", out.as_slice());
+    value.hook_timeout_max_seconds = 3600;
+    let mut reader = skein_lib::Reader::new(&converted);
+    assert_eq!(v1::Items::decode(&limits, &mut reader).unwrap(), value);
+    assert!(reader.is_empty());
 }
 
 #[test]

@@ -4827,6 +4827,8 @@ fn the_job_root_names_the_declaration_the_engine_encodes() {
         assert_ne!(spec.command.as_ref(), []);
         assert_ne!(spec.request.as_ref(), []);
         assert_eq!(spec.refusal, refusal);
+        assert!(!spec.find);
+        assert!(spec.fallback.is_empty());
     }
 }
 

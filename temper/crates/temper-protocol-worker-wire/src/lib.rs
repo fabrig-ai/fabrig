@@ -55,6 +55,7 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         items_repositories: bounds.repositories,
         job_spec_command: v1::CEILINGS.job_spec_command,
         job_spec_request: v1::CEILINGS.job_spec_request,
+        job_spec_fallback: v1::CEILINGS.job_spec_fallback,
         left_landed: bounds.repositories,
         saved_repositories: bounds.repositories,
         files_files: bounds.conflicts,

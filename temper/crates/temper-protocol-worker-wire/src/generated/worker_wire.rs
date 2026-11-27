@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 12;
 pub const LAYOUT: [u8; 32] = [
-    0xf3, 0x2f, 0xde, 0x6b, 0xf6, 0x81, 0xc2, 0xfa, 0x22, 0x53, 0xe1, 0x79, 0xd6, 0x8d, 0x62, 0x2f, 0x39, 0x7d, 0x1f,
-    0x97, 0xc5, 0xee, 0xa3, 0xef, 0x04, 0xdd, 0x10, 0x87, 0x61, 0x65, 0x10, 0x4e,
+    0x45, 0x12, 0x68, 0x33, 0xfb, 0xba, 0xe6, 0xb0, 0x07, 0x17, 0x18, 0x4a, 0x70, 0x32, 0xe0, 0x40, 0x7e, 0xbc, 0x75,
+    0x65, 0xdb, 0x05, 0xfd, 0xce, 0xf5, 0x2d, 0x5f, 0xbe, 0xbf, 0x7f, 0x8d, 0x02,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -32,6 +32,7 @@ pub struct Limits {
     pub items_repositories: u32,
     pub job_spec_command: u32,
     pub job_spec_request: u32,
+    pub job_spec_fallback: u32,
     pub left_landed: u32,
     pub files_files: u32,
     pub files_files_item: u32,
@@ -76,6 +77,7 @@ pub const CEILINGS: Limits = Limits {
     items_repositories: 64,
     job_spec_command: 4_096,
     job_spec_request: 1_048_576,
+    job_spec_fallback: 4_096,
     left_landed: 64,
     files_files: 1_024,
     files_files_item: 4_096,
@@ -120,6 +122,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "items_repositories",
     "job_spec_command",
     "job_spec_request",
+    "job_spec_fallback",
     "left_landed",
     "files_files",
     "files_files_item",
@@ -167,6 +170,7 @@ impl Limits {
             self.items_repositories,
             self.job_spec_command,
             self.job_spec_request,
+            self.job_spec_fallback,
             self.left_landed,
             self.files_files,
             self.files_files_item,
@@ -215,6 +219,7 @@ impl Limits {
             items_repositories: self.items_repositories.min(most),
             job_spec_command: self.job_spec_command.min(most),
             job_spec_request: self.job_spec_request.min(most),
+            job_spec_fallback: self.job_spec_fallback.min(most),
             left_landed: self.left_landed.min(most),
             files_files: self.files_files.min(most),
             files_files_item: self.files_files_item.min(most),
@@ -261,6 +266,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::ITEMS_REPOSITORIES,
     paths::JOB_SPEC_COMMAND,
     paths::JOB_SPEC_REQUEST,
+    paths::JOB_SPEC_FALLBACK,
     paths::LEFT_LANDED,
     paths::FILES_FILES,
     paths::FILES_FILES,
@@ -334,11 +340,14 @@ pub mod paths {
     pub const REPOSITORY_TAIL: Path = Path::new("Repository (tail)");
     pub const ITEMS_REPOSITORIES: Path = Path::new("Items.repositories");
     pub const ITEMS_RERUN: Path = Path::new("Items.rerun");
+    pub const ITEMS_HOOK_TIMEOUT_MAX_SECONDS: Path = Path::new("Items.hook_timeout_max_seconds");
     pub const ITEMS_VERSION: Path = Path::new("Items (version)");
     pub const ITEMS_TAIL: Path = Path::new("Items (tail)");
     pub const JOB_SPEC_COMMAND: Path = Path::new("JobSpec.command");
     pub const JOB_SPEC_REQUEST: Path = Path::new("JobSpec.request");
     pub const JOB_SPEC_REFUSAL: Path = Path::new("JobSpec.refusal");
+    pub const JOB_SPEC_FIND: Path = Path::new("JobSpec.find");
+    pub const JOB_SPEC_FALLBACK: Path = Path::new("JobSpec.fallback");
     pub const JOB_SPEC_TAIL: Path = Path::new("JobSpec (tail)");
     pub const LANDED_TAG: Path = Path::new("Landed.tag");
     pub const LANDED_COMMIT: Path = Path::new("Landed.commit");
@@ -976,6 +985,7 @@ impl Record for Repository {
 pub struct Items {
     pub repositories: List<Repository>,
     pub rerun: Option<u32>,
+    pub hook_timeout_max_seconds: u32,
 }
 
 // Record: Items.
@@ -985,11 +995,12 @@ impl Items {
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, items_repositories), item: 0, size: size_of::<Repository>() },
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Option { item: 2 },
-        skein_codec::bounds::Node::Record { prefix: 2, fields: &[1, 3] },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[1, 3, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 11;
+    pub const ENCODED_AT_ZERO: u64 = 15;
 }
 
 impl Record for Items {
@@ -1017,6 +1028,7 @@ impl Record for Items {
         field::put(out, &VERSION.to_be_bytes(), paths::ITEMS_VERSION)?;
         field::write(field::Sequence { limit: limits.items_repositories.min(CEILINGS.items_repositories), minimum: 30, item: field::Nested }, &self.repositories, limits, out, paths::ITEMS_REPOSITORIES)?;
         field::write(field::Optional { item: field::U32 }, &self.rerun, limits, out, paths::ITEMS_RERUN)?;
+        field::write(field::U32, &self.hook_timeout_max_seconds, limits, out, paths::ITEMS_HOOK_TIMEOUT_MAX_SECONDS)?;
         Ok(())
     }
 
@@ -1025,6 +1037,7 @@ impl Record for Items {
         Ok(Self {
             repositories: field::read(field::Sequence { limit: limits.items_repositories.min(CEILINGS.items_repositories), minimum: 30, item: field::Nested }, limits, reader, paths::ITEMS_REPOSITORIES)?,
             rerun: field::read(field::Optional { item: field::U32 }, limits, reader, paths::ITEMS_RERUN)?,
+            hook_timeout_max_seconds: field::read(field::U32, limits, reader, paths::ITEMS_HOOK_TIMEOUT_MAX_SECONDS)?,
         })
     }
 }
@@ -1035,6 +1048,8 @@ pub struct JobSpec {
     pub command: Box<[u8]>,
     pub request: Box<[u8]>,
     pub refusal: bool,
+    pub find: bool,
+    pub fallback: Box<[u8]>,
 }
 
 // Record: JobSpec.
@@ -1043,11 +1058,13 @@ impl JobSpec {
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, job_spec_command) },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, job_spec_request) },
         skein_codec::bounds::Node::Scalar(1),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, job_spec_fallback) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 9;
+    pub const ENCODED_AT_ZERO: u64 = 14;
 }
 
 impl Record for JobSpec {
@@ -1075,6 +1092,8 @@ impl Record for JobSpec {
         field::write(field::Bytes { limit: limits.job_spec_command.min(CEILINGS.job_spec_command) }, &self.command, limits, out, paths::JOB_SPEC_COMMAND)?;
         field::write(field::Bytes { limit: limits.job_spec_request.min(CEILINGS.job_spec_request) }, &self.request, limits, out, paths::JOB_SPEC_REQUEST)?;
         field::write(field::Boolean, &self.refusal, limits, out, paths::JOB_SPEC_REFUSAL)?;
+        field::write(field::Boolean, &self.find, limits, out, paths::JOB_SPEC_FIND)?;
+        field::write(field::Bytes { limit: limits.job_spec_fallback.min(CEILINGS.job_spec_fallback) }, &self.fallback, limits, out, paths::JOB_SPEC_FALLBACK)?;
         Ok(())
     }
 
@@ -1083,6 +1102,8 @@ impl Record for JobSpec {
             command: field::read(field::Bytes { limit: limits.job_spec_command.min(CEILINGS.job_spec_command) }, limits, reader, paths::JOB_SPEC_COMMAND)?,
             request: field::read(field::Bytes { limit: limits.job_spec_request.min(CEILINGS.job_spec_request) }, limits, reader, paths::JOB_SPEC_REQUEST)?,
             refusal: field::read(field::Boolean, limits, reader, paths::JOB_SPEC_REFUSAL)?,
+            find: field::read(field::Boolean, limits, reader, paths::JOB_SPEC_FIND)?,
+            fallback: field::read(field::Bytes { limit: limits.job_spec_fallback.min(CEILINGS.job_spec_fallback) }, limits, reader, paths::JOB_SPEC_FALLBACK)?,
         })
     }
 }
@@ -2868,6 +2889,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.items_repositories,
     CEILINGS.job_spec_command,
     CEILINGS.job_spec_request,
+    CEILINGS.job_spec_fallback,
     CEILINGS.left_landed,
     CEILINGS.files_files,
     CEILINGS.files_files_item,

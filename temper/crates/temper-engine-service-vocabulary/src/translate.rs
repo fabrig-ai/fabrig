@@ -110,7 +110,7 @@ pub(crate) fn workspace_items(
         let value = repository_item(repository, save, forges, tokens, limits)?;
         repositories.push(value).or(Err(problem(v1::paths::ITEMS_REPOSITORIES)))?;
     }
-    Ok(Some(v1::Items { repositories, rerun: workspace.rerun }))
+    Ok(Some(v1::Items { repositories, rerun: workspace.rerun, hook_timeout_max_seconds: 3600 }))
 }
 fn repository_item(
     repository: &engine::ForgeRepository,

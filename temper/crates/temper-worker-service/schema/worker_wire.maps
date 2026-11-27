@@ -14,8 +14,8 @@ record Writable
 record Prefixes { branches slice }
 enum Access = w::Access
 record Repository = w::Repository
-record Items = w::Workspace { repositories slice }
-record JobSpec = w::JobSpec
+record Items by hand
+record JobSpec by hand
 record Landed = w::Landed to record
 record Left by hand
 record Files by hand
