@@ -237,6 +237,11 @@ impl World {
             );
             f.closed = Some((*number, entry, self.env.now.saturating_add(Duration::from_secs(2))));
         }
+        if let api::Op::Read(api::Read::Pull { number, .. }) = op
+            && f.due(kinds::MERGED_BY_ANOTHER)
+        {
+            self.workload_other_merge(&mut f, *number);
+        }
         if f.due(kinds::JOB_LOG)
             && let api::Op::Read(api::Read::Job { attempt, max_bytes, .. }) = op
             && let Ok(raw::Answer::Run(run)) = self.forge.inspect(REMOTE, &raw::Read::Run { run: attempt.run })
@@ -285,6 +290,44 @@ impl World {
         self.observe_gate_call(&mut f, op);
         self.workload_faults = Some(f);
         config
+    }
+
+    fn workload_other_merge(&mut self, f: &mut Faults, number: u64) {
+        let kind = kinds::MERGED_BY_ANOTHER;
+        let forge = self.root.forge();
+        let Some((task, row)) = forge.inspection_changes().iter().find(|(_, row)| row.pull == Some(number)) else {
+            return;
+        };
+        if self.task_goal(*task) != f.target(kind) {
+            return;
+        }
+        let Ok(raw::Answer::Pull(pull)) = self.forge.inspect(REMOTE, &raw::Read::Pull { number }) else { return };
+        // Strike the goal's pull into main, not a child's pull into the goal branch.
+        if pull.state != raw::State::Open || pull.base.as_ref() != b"main" {
+            return;
+        }
+        if let Some(scenario) = f.other_merge_exclusion {
+            use temper_engine_domain_forge_change::State;
+            let mut members = forge.inspection_landings().iter().flat_map(|(_, row)| row.landing.members.iter());
+            if members.clone().any(|member| member.pull == number && !member.recorded)
+                || (matches!(row.change.state, State::Ready { .. } | State::Queued { .. })
+                    && !members.any(|member| member.pull == number && member.recorded))
+            {
+                f.ledger.leave_out(scenario, kind, self.env.now);
+                return;
+            }
+        }
+        let outside = raw::Write::Merge { number, head: pull.commit, how: raw::MergeHow::Style };
+        let result = self.forge.api(REMOTE, 2, raw::Op::Write(outside));
+        assert!(matches!(result, Ok(raw::Answer::Merged(_))), "outside merge of pull {number}: {result:?}");
+        let goal = f.fire(kind);
+        let entry = f.ledger.inject(
+            kind,
+            self.env.now,
+            Struck { candidate: Some(hex(pull.commit)), request: Some(goal), ..Struck::default() },
+        );
+        f.ledger.stop(entry, self.env.now).expect("outside merge");
+        f.stopped(self.env.now);
     }
 
     pub(in crate::composed) fn hold_workload_close(

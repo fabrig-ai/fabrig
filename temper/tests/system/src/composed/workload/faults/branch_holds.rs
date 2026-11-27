@@ -41,31 +41,53 @@ impl World {
 
     pub(in crate::composed::workload) fn release_branch_load(&mut self, tasks: &[tasks::ViewTask]) {
         let Some(admission) = self.workload_faults.as_ref().and_then(|f| f.branch_holds.as_ref()) else { return };
-        // Restored task rows can precede restored holds. Read both and offer
-        // the party's answer only once the root has opened.
+        // Restored task rows can precede restored holds. Read both only once
+        // the root has opened.
         if !self.opened {
             return;
         }
+        let story = self.workload.as_ref().expect("workload");
         let ready = tasks.iter().find_map(|view| {
             let row = self.root.tasks().task(view.number)?;
             let tasks::Party::Task(owner) = row.requester else { return None };
-            if admission.get(&owner) != Some(&Load::Waiting) || !row.spec.words.starts_with(ROOM_CUE.as_bytes()) {
+            if !row.spec.words.starts_with(ROOM_CUE.as_bytes()) || story.answered.contains(&row.number) {
                 return None;
             }
             let goal = self.workload().goal(self.workload_names().logical(owner)?)?;
-            self.branch_load_fits(admission, goal).then_some((owner, goal.party, row.number, row.revisions.spec))
+            match admission.get(&owner)? {
+                Load::Waiting if self.branch_load_fits(admission, goal) => Some((owner, goal.party, None)),
+                Load::Admitted if goal.changes.iter().all(|change| story.names.task(&change.name).is_some()) => {
+                    Some((owner, goal.party, Some((row.number, row.revisions.spec))))
+                }
+                _ => None,
+            }
         });
-        if let Some((owner, party, task, revision)) = ready {
-            eprintln!("goal {owner}: admitting the deferred change batch at {:?}", self.env.now);
-            let admission = self.workload_faults.as_mut().and_then(|f| f.branch_holds.as_mut()).expect("planned holds");
-            admission.insert(owner, Load::Admitted);
+        let Some((owner, party, report)) = ready else { return };
+        if let Some((task, revision)) = report {
+            self.workload.as_mut().expect("workload").answered.insert(task);
             self.workload_enqueue(
                 party,
                 people::Ask::AnswerPerson {
                     project: 1,
                     task,
                     revision,
-                    result: people::PersonResult::Report { words: b"There is room for the changes.".as_slice().into() },
+                    result: people::PersonResult::Report {
+                        words: b"The batch of changes has started.".as_slice().into(),
+                    },
+                },
+            );
+        } else {
+            eprintln!("goal {owner}: admitting the deferred change batch at {:?}", self.env.now);
+            let admission = self.workload_faults.as_mut().and_then(|f| f.branch_holds.as_mut()).expect("planned holds");
+            admission.insert(owner, Load::Admitted);
+            // Words wake the coordinator. Answering its only delegate before
+            // the batch exists would make the closer instead (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
+            self.workload_enqueue(
+                party,
+                people::Ask::Say {
+                    project: 1,
+                    task: owner,
+                    words: b"There is room for the changes.".as_slice().into(),
                 },
             );
         }

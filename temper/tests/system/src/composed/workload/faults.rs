@@ -57,6 +57,7 @@ pub const CAMPAIGN_KINDS: &[Kind] = &[
     // bounds
     // refusing
     forge_faults::CLOSE_REFUSED,
+    forge_faults::MERGED_BY_ANOTHER,
     // ci
     temper_blame::WRONG_TREE,
     temper_blame::SET_UP,
@@ -104,6 +105,7 @@ pub(in crate::composed) struct Faults {
     close_calls: VecDeque<forge::CloseCall>,
     close_refusal: Option<forge::CloseRefusal>,
     close_refusal_exclusion: Option<&'static str>,
+    other_merge_exclusion: Option<&'static str>,
     close_permission_restored: Option<u64>,
     restored: Option<u64>,
     stale_release: Option<u64>,
@@ -188,6 +190,7 @@ impl Faults {
             close_calls: VecDeque::new(),
             close_refusal: None,
             close_refusal_exclusion: None,
+            other_merge_exclusion: None,
             close_permission_restored: None,
             restored: None,
             stale_release: None,
@@ -246,6 +249,13 @@ impl World {
         self.workload_faults.as_mut().expect("faulted workload").close_refusal_exclusion = sweep
             .leaves_out(forge_faults::CLOSE_REFUSED, temper_engine_forge_world::open::CLOSE_REFUSED_WHEN)
             .map(|exclusion| exclusion.scenario);
+    }
+
+    /// Keep the shared exclusion for outside merges before a change's record.
+    pub fn exclude_workload_other_merge(&mut self, sweep: &skein_world::sweep::Sweep) {
+        let exclusion = temper_engine_forge_world::open::MERGED_BY_ANOTHER_UNRECORDED;
+        self.workload_faults.as_mut().expect("faulted workload").other_merge_exclusion =
+            sweep.leaves_out(exclusion.fault, exclusion.when).map(|exclusion| exclusion.scenario);
     }
 
     #[must_use]

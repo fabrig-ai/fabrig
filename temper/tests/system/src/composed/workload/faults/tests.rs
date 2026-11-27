@@ -695,6 +695,55 @@ fn close_refused_draws_its_own_coin_target_and_moment() {
 }
 
 #[test]
+fn merged_by_another_draws_its_own_coin_non_train_goal_and_moment() {
+    use forge_faults::{CLOSE_REFUSED, MERGED_BY_ANOTHER};
+
+    assert!(CAMPAIGN_KINDS.windows(2).any(|pair| pair == [CLOSE_REFUSED, MERGED_BY_ANOTHER]));
+    assert!(!GATE_KINDS.contains(&MERGED_BY_ANOTHER));
+    let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+    let without: Vec<_> = kinds.iter().copied().filter(|&kind| kind != MERGED_BY_ANOTHER).collect();
+    let (mut planned, mut skipped) = (false, false);
+    for seed in (0..64).chain([u64::MAX]) {
+        let streams = Streams::new(seed);
+        let workload = Workload::draw(&streams, &COMPOSED);
+        let draw = FaultDraw::new(seed, &kinds);
+        let baseline = FaultDraw::new(seed, &without);
+        assert_eq!(
+            draw.plans.iter().filter(|plan| plan.kind != MERGED_BY_ANOTHER).collect::<Vec<_>>(),
+            baseline.plans.iter().collect::<Vec<_>>(),
+            "seed {seed}: other injection plans"
+        );
+        assert_eq!(
+            draw.planned().into_iter().filter(|&(kind, _)| kind != MERGED_BY_ANOTHER).collect::<Vec<_>>(),
+            baseline.planned(),
+            "seed {seed}: other planned kinds"
+        );
+        assert_eq!(draw.ineligible(), baseline.ineligible(), "seed {seed}: ineligible kinds");
+        assert_eq!(draw.acts(), baseline.acts(), "seed {seed}: party acts");
+
+        let mut rng = streams.rng(Stream::Faults, "refusing/merged_by_another");
+        let expected = if rng.below(2) == 0 {
+            skipped = true;
+            None
+        } else {
+            planned = true;
+            let goals: Vec<_> = workload.goals.iter().filter(|goal| !goal.train).collect();
+            let index =
+                usize::try_from(rng.below(u64::try_from(goals.len()).expect("bounded goals"))).expect("goal index");
+            Some((goals[index].name.as_str(), rng.below(16)))
+        };
+        let actual: Vec<_> = draw
+            .plans
+            .iter()
+            .filter(|plan| plan.kind == MERGED_BY_ANOTHER)
+            .map(|plan| (plan.goal.as_str(), plan.after))
+            .collect();
+        assert_eq!(actual, expected.as_slice(), "seed {seed}: outside merge's coin, non-train goal and moment");
+    }
+    assert!(planned && skipped);
+}
+
+#[test]
 fn wrong_tree_is_observed_without_a_coin_when_a_change_can_go_red() {
     use temper_blame::WRONG_TREE;
     let (mut planned, mut ineligible) = (false, false);

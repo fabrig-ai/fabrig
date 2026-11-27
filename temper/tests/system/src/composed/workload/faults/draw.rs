@@ -26,6 +26,7 @@ const INJECTED_CATALOGUE: &[(Kind, Eligible)] = &[
     (forge_faults::MERGE_LATE, |goal| goal.train),
     // refusing
     (forge_faults::CLOSE_REFUSED, |_| true),
+    (forge_faults::MERGED_BY_ANOTHER, |goal| !goal.train),
     // ci
     (temper_blame::SET_UP, |_| true),
     (temper_blame::SILENT, |_| true),

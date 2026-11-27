@@ -4,7 +4,7 @@ use skein_world::faults::Kind;
 use skein_world::sweep::{Exclusion, Sweep};
 use temper_engine_domain_forge::LandingRow;
 use temper_engine_domain_forge_landing::Combine;
-use temper_faults::forge::MERGE_LATE;
+use temper_faults::forge::{MERGE_LATE, MERGED_BY_ANOTHER};
 
 pub const A_PATH_DELETED_ON_THE_BASE: Kind = Kind { family: "stale", name: "a path deleted on the base" };
 pub const CLOSE_REFUSED_WHEN: &[&str] = &["the refused close occupies a slot in a full forge client call table"];
@@ -14,6 +14,14 @@ pub const BRANCH_HOLDS_CAPACITY: Exclusion = Exclusion::new(
     "failure worlds: repaired as a red",
     temper_faults::bounds::BRANCH_HOLDS,
     &["the holds and pending prepares, including the new change or train, exceed capacity"],
+);
+
+/// An outside merge before a ready or batched change's record can strand its landing.
+pub const MERGED_BY_ANOTHER_UNRECORDED: Exclusion = Exclusion::new(
+    "a_member_merged_by_another_lands_like_any_landing",
+    "landing train",
+    MERGED_BY_ANOTHER,
+    &["a change ready or queued for landing, or a batch member, until its record"],
 );
 
 /// A late manual record of an already-landed squash can strand its train.
@@ -55,6 +63,9 @@ pub fn exclude(sweep: &mut Sweep, configured: &[Kind]) -> Result<(), String> {
             temper_faults::forge::CLOSE_REFUSED,
             CLOSE_REFUSED_WHEN,
         ))?;
+    }
+    if configured.contains(&MERGED_BY_ANOTHER) {
+        sweep.exclude(MERGED_BY_ANOTHER_UNRECORDED)?;
     }
     if configured.contains(&temper_faults::people::CANCELS_A_GOAL) {
         sweep.exclude(Exclusion::new(
