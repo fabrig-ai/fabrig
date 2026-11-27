@@ -99,7 +99,6 @@ pub(super) fn copy(s: &mut Started, files: &[(&[u8], &[u8])], short: bool) -> Li
             | Op::Sync { .. }
             | Op::Lock { .. }
             | Op::Stat { .. }
-            | Op::ReadLink { .. }
             | Op::HardLink { .. }
             | Op::List { .. }
             | Op::Spawn { .. }

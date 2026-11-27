@@ -257,7 +257,6 @@ impl Disk {
                 | Op::Append { .. }
                 | Op::Sync { .. }
                 | Op::Stat { .. }
-                | Op::ReadLink { .. }
                 | Op::HardLink { .. }
                 | Op::Rename { .. }
                 | Op::Spawn { .. }
@@ -342,7 +341,6 @@ impl Disk {
             | Op::Append { .. }
             | Op::Sync { .. }
             | Op::Stat { .. }
-            | Op::ReadLink { .. }
             | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Spawn { .. }

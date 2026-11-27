@@ -465,7 +465,6 @@ impl skein_world::Machine for Adapter {
             | Ask::Truncate { .. }
             | Ask::Sync { .. }
             | Ask::Stat { .. }
-            | Ask::ReadLink { .. }
             | Ask::HardLink { .. }
             | Ask::Rename { .. }
             | Ask::Remove { .. }

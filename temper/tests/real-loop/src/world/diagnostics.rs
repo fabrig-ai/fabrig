@@ -270,7 +270,6 @@ fn kind(op: &Op) -> &'static str {
         Op::Stat { .. } => "stat",
         Op::Rename { .. } => "rename",
         Op::HardLink { .. } => "hard-link",
-        Op::ReadLink { .. } => "read-link",
         Op::Remove { .. } => "remove",
         Op::MakeDirectory { .. } => "make-directory",
         Op::List { .. } => "list",

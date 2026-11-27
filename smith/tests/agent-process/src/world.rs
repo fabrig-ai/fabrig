@@ -318,7 +318,6 @@ impl Parent {
             | Op::Truncate { .. }
             | Op::Sync { .. }
             | Op::Stat { .. }
-            | Op::ReadLink { .. }
             | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Remove { .. }

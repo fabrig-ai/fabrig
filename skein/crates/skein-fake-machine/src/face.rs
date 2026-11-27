@@ -61,14 +61,6 @@ pub fn step(machine: &mut Machine, call: Call, answers: &mut Queue<Answer>) {
             Ok(bytes) => Ok(Reply::Read(bytes.into_boxed_slice())),
             Err(refusal) => Err(kernel_error(refusal)),
         },
-        Ask::ReadLink { dir, name, room } => match machine.read_link(opened(dir), &name) {
-            Ok(Some(target)) if !target.is_empty() && target.len() < skein_lib::usize_of(room) => {
-                Ok(Reply::Read(target.into()))
-            }
-            Ok(None) => Err(Error::NotALink),
-            Ok(Some(_)) => Err(Error::Other(75)), // EOVERFLOW: a full buffer cannot prove the target was not cut.
-            Err(refusal) => Err(kernel_error(refusal)),
-        },
         Ask::Write { file, at, bytes } => match machine.write(opened(file), at, &bytes) {
             Ok(()) => Ok(Reply::Done),
             Err(refusal) => Err(kernel_error(refusal)),

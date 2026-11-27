@@ -25,5 +25,5 @@ mod tests;
 pub use boundary::{End, Event, Exit, Kind, Request, Spec};
 pub use domain::Domain;
 pub use domain::step;
-pub use hooks::{CONFIG, CONFIG_BYTES, Fault, Times, cut_text, hook_failure, hook_link_target, hook_path, times};
+pub use hooks::{CONFIG, CONFIG_BYTES, Fault, Times, cut_text, hook_failure, hook_path, times};
 pub use limits::{Invalid, Limits, valid};

@@ -217,12 +217,6 @@ pub fn hook_failure(path: &[u8], why: &[u8]) -> Box<[u8]> {
     bytes::concat(&[b"hook `", &one_line(path), b"`: ", why])
 }
 
-/// Why a link that does not name a sibling was refused.
-#[must_use]
-pub fn hook_link_target(target: &[u8]) -> Box<[u8]> {
-    bytes::concat(&[b"a link to `", &one_line(target), b"`, not to an executable file beside it"])
-}
-
 fn one_line(input: &[u8]) -> Box<[u8]> {
     let mut len = 0_usize;
     for byte in input {

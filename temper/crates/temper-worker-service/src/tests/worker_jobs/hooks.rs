@@ -20,51 +20,25 @@ fn request(worker: &mut Worker, program: &[u8], verb: &[u8]) {
 struct Step {
     op: Op,
     result: Result<Done, Error>,
-    target: &'static [u8],
 }
 
 fn directory() -> Step {
     Step {
         op: Op::Open { root: ROOT, path: HOOK_DIRECTORY.into(), how: OpenHow::DirectoryNoFollow },
         result: Ok(Done::Fd(HOOKS)),
-        target: b"",
     }
 }
 
-fn read_link(name: &[u8], result: Result<Done, Error>, target: &'static [u8]) -> Step {
-    Step {
-        op: Op::ReadLink { dir: HOOKS, name: name.into(), buf: skein_lib::bytes::zeroed(kernel::LINK_BYTES) },
-        result,
-        target,
-    }
-}
-
-fn a_file(name: &[u8]) -> Step {
-    read_link(name, Err(Error::NotALink), b"")
-}
-
-fn a_link(name: &[u8], target: &'static [u8]) -> Step {
-    read_link(name, Ok(Done::Count(u32::try_from(target.len()).unwrap())), target)
-}
-
-fn open_file(name: &[u8]) -> Step {
-    Step {
-        op: Op::Open { root: HOOKS, path: name.into(), how: OpenHow::PathNoFollow },
-        result: Ok(Done::Fd(FILE)),
-        target: b"",
-    }
+fn open_file(name: &[u8], result: Result<Done, Error>) -> Step {
+    Step { op: Op::Open { root: HOOKS, path: name.into(), how: OpenHow::PathSiblingFile }, result }
 }
 
 fn stat(kind: Kind, mode: u32) -> Step {
-    Step {
-        op: Op::Stat { fd: FILE },
-        result: Ok(Done::Stat(Stat { kind, mode, owner: 1000, size: 7, links: 1 })),
-        target: b"",
-    }
+    Step { op: Op::Stat { fd: FILE }, result: Ok(Done::Stat(Stat { kind, mode, owner: 1000, size: 7, links: 1 })) }
 }
 
 fn close(fd: Fd) -> Step {
-    Step { op: Op::Close { fd }, result: Ok(Done::Nothing), target: b"" }
+    Step { op: Op::Close { fd }, result: Ok(Done::Nothing) }
 }
 
 fn complete(worker: &mut Worker, submit: Submit, result: Result<Done, Error>, now: Time) {
@@ -74,13 +48,8 @@ fn complete(worker: &mut Worker, submit: Submit, result: Result<Done, Error>, no
 fn step(worker: &mut Worker, row: Step, now: Time) {
     assert!(worker.io().is_empty(), "nothing spawns before the check drains");
     assert!(worker.events.is_empty(), "the check still owns the job");
-    let mut submit = worker.submitted().pop().expect("next check operation");
+    let submit = worker.submitted().pop().expect("next check operation");
     assert_eq!(submit.kind, row.op);
-    if let Op::ReadLink { buf, .. } = &mut submit.kind {
-        for (slot, byte) in buf.iter_mut().zip(row.target) {
-            *slot = *byte;
-        }
-    }
     complete(worker, submit, row.result, now);
 }
 
@@ -98,7 +67,7 @@ fn a_merge_hook_runs_after_its_executable_is_checked() {
     request(worker, MERGE, b"merge");
     steps(
         worker,
-        [directory(), a_file(b"merge"), open_file(b"merge"), stat(Kind::File, 0o651), close(FILE), close(HOOKS)],
+        [directory(), open_file(b"merge", Ok(Done::Fd(FILE))), stat(Kind::File, 0o651), close(FILE), close(HOOKS)],
     );
     let (_, spawn) = take_spawn(worker);
     assert_eq!(spawn.program.as_ref(), b"/worker/workspaces/7/repo/.temper/hooks/merge");
@@ -117,14 +86,8 @@ fn a_close_hook_can_link_to_an_executable_sibling() {
     request(worker, CLOSE, b"close");
     steps(
         worker,
-        [
-            directory(),
-            a_link(b"close", b"checked"),
-            open_file(b"checked"),
-            stat(Kind::File, 0o755),
-            close(FILE),
-            close(HOOKS),
-        ],
+        // The kernel returns the sibling descriptor from the hook name itself.
+        [directory(), open_file(b"close", Ok(Done::Fd(FILE))), stat(Kind::File, 0o755), close(FILE), close(HOOKS)],
     );
     let (_, spawn) = take_spawn(worker);
     assert_eq!(spawn.program.as_ref(), b"/worker/workspaces/7/repo/.temper/hooks/close");
@@ -142,54 +105,33 @@ fn refused(worker: &mut Worker, exit: Exit, tail: &[u8]) {
 /// temper/docs/design/protocol/hooks.md, 2.2 and 4.3: a bad entry fails, never a fallback or no hook.
 #[test]
 fn an_invalid_hook_fails_and_spawns_nothing() {
-    for (program, verb, inspection, tail) in [
+    for (inspection, why) in [
         (
-            MERGE,
-            b"merge",
-            Box::<[Step]>::from([read_link(b"merge", Err(Error::NotFound), b"")]),
-            b"hook `.temper/hooks/merge`: missing".as_slice(),
+            Box::<[Step]>::from([open_file(b"close", Err(Error::NotFound))]),
+            b"hook `.temper/hooks/close`: missing".as_slice(),
         ),
         (
-            MERGE,
-            b"merge",
-            Box::<[Step]>::from([a_file(b"merge"), open_file(b"merge"), stat(Kind::File, 0o644), close(FILE)]),
-            b"hook `.temper/hooks/merge`: not executable".as_slice(),
+            Box::<[Step]>::from([open_file(b"close", Ok(Done::Fd(FILE))), stat(Kind::File, 0o644), close(FILE)]),
+            b"hook `.temper/hooks/close`: not executable".as_slice(),
         ),
         (
-            CLOSE,
-            b"close",
-            Box::<[Step]>::from([a_link(b"close", b"../close.sh")]),
-            b"hook `.temper/hooks/close`: a link to `../close.sh`, not to an executable file beside it".as_slice(),
+            Box::<[Step]>::from([open_file(b"close", Err(Error::TooManyLinks))]),
+            b"hook `.temper/hooks/close`: a link that names no regular file beside it".as_slice(),
         ),
         (
-            CLOSE,
-            b"close",
-            Box::<[Step]>::from([a_link(b"close", b"sub/checked")]),
-            b"hook `.temper/hooks/close`: a link to `sub/checked`, not to an executable file beside it".as_slice(),
+            Box::<[Step]>::from([open_file(b"close", Ok(Done::Fd(FILE))), stat(Kind::Directory, 0o755), close(FILE)]),
+            b"hook `.temper/hooks/close`: not a regular file".as_slice(),
         ),
         (
-            CLOSE,
-            b"close",
-            Box::<[Step]>::from([
-                a_link(b"close", b"checked"),
-                open_file(b"checked"),
-                stat(Kind::Symlink, 0o777),
-                close(FILE),
-            ]),
-            b"hook `.temper/hooks/close`: link target is another link".as_slice(),
-        ),
-        (
-            MERGE,
-            b"merge",
-            Box::<[Step]>::from([a_file(b"merge"), open_file(b"merge"), stat(Kind::Directory, 0o755), close(FILE)]),
-            b"hook `.temper/hooks/merge`: not a regular file".as_slice(),
+            Box::<[Step]>::from([open_file(b"close", Ok(Done::Fd(FILE))), stat(Kind::Other, 0o755), close(FILE)]),
+            b"hook `.temper/hooks/close`: not a regular file".as_slice(),
         ),
     ] {
         let mut stand = fixtures::started_worker();
         let worker = &mut stand.worker;
-        request(worker, program, verb);
+        request(worker, CLOSE, b"close");
         steps(worker, [directory()].into_iter().chain(inspection).chain([close(HOOKS)]));
-        refused(worker, Exit::NotRun, tail);
+        refused(worker, Exit::NotRun, why);
     }
 }
 
@@ -227,7 +169,7 @@ fn a_hook_checked_at_its_deadline_does_not_spawn() {
     let mut stand = fixtures::started_worker();
     let worker = &mut stand.worker;
     request(worker, MERGE, b"merge");
-    steps(worker, [directory(), a_file(b"merge"), open_file(b"merge"), stat(Kind::File, 0o755), close(FILE)]);
+    steps(worker, [directory(), open_file(b"merge", Ok(Done::Fd(FILE))), stat(Kind::File, 0o755), close(FILE)]);
     step(worker, close(HOOKS), DEADLINE);
     refused(worker, Exit::Deadline, b"");
 }
