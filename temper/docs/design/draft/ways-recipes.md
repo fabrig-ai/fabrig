@@ -34,9 +34,10 @@ Split from [ways.md](ways.md), its section 3, on 2026-11-27, and part of that dr
 | `contract` | an agent, a person | what counts as done: `report`, `verdict` or `change` | an agent's `report`, a person's `verdict` |
 | `labels` | a verdict | its closed list | `approve`, `request-changes` |
 | `lens`, `advisory`, `freshness` | an agent judging as a gate (3) | what it judges by; whether its verdict only advises; `exact` or `clean` | none; blocking; `clean` |
-| `holds` | an agent, a gathering | `branch`, a branch of its own; `copy`, a branch and a warm checkout of its own, an agent's alone ([pair.md](pair.md)) | none |
+| `holds` | an agent, a gathering | `branch`, a branch of its own; `copy`, an agent's alone: a copy and an offer ref of its own and a warm checkout, which never land ([pair.md](pair.md), 3.1) | none |
 | `conversation` | an agent | whether its requester talks with it | `false` |
 | `delegates` | an agent | which of the way's tasks it may start, each with `at_most` | none; `at_most` left out is the policy's task bound |
+| `offers` | an agent holding a copy | the change recipe its offers open: an edge only its requester crosses, by "Land this", making a change rooted at them, not the agent's delegate ([pair.md](pair.md), 3.5) | none |
 | `wakes` | an agent | when it runs: `results`, `questions`, `news`, `words`, `timers` | the charter's wake policy |
 | `budget`, `deadline`, `priority`, `tracked` | every task | its spend asked for, a span from its start in whole seconds, its place in its queue, and whether it is tracked | the template's |
 | `lands`, `into`, `landing`, `gates`, `share`, `catch_up` | a task holding a branch | how its branch lands (3) | `"whole"`, `"base"`, the defaults (`ways.md`, 5.3), `"when-needed"` |
@@ -44,7 +45,7 @@ Split from [ways.md](ways.md), its section 3, on 2026-11-27, and part of that dr
 | `into`, `producer`, `gates`, `landing`, `questions`, `share` | a change | 3 | 3 |
 
 - **Left out, false, empty:** a member left out takes the layer below it (`ways.md`, section 5). `false`, `[]` and `0` are values, the way's own.
-- **Derived, not written:** what jig needs that a recipe implies. A task holding a branch is tracked and ended by its closer, as a goal's template is today (`../domain/forge/branches.md`, sections 1 and 2); one in a conversation is listed; a gathering is ended by its requester; a contract's bounds are the stock's for its kind (jig's `domain/tasks/README.md`, section 3). The landing check refuses a recipe whose members contradict: a `copy` on a gathering, `lands` without a branch, `gathers` on an agent.
+- **Derived, not written:** what jig needs that a recipe implies. A task holding a branch is tracked and ended by its closer, as a goal's template is today (`../domain/forge/branches.md`, sections 1 and 2); one holding a copy has no closer, and is ended by its result or its requester; one in a conversation is listed; a gathering is ended by its requester; a contract's bounds are the stock's for its kind (jig's `domain/tasks/README.md`, section 3). The landing check refuses a recipe whose members contradict: a `copy` on a gathering, `offers` without a `copy`, `lands` without a branch, `gathers` on an agent.
 - **An agent's charter** is a charter's name (`ways.md`, section 9), or one composed in place, as jig holds a charter: `agent = { instructions = ["common", "lead"], parts = [{ on = ["first"], file = "designer" }, { on = ["question", "result"], file = "coordinator" }] }`, each file a charter file of the project's (`ways-charters.md`, 2). It runs by the settings `settings` names, else those of its first file's `settings`. The stock goal charter's designer and coordinator are its parts so: one agent, its first run and its later wakes.
 - **Its model** is the catalogue's, by name, with an effort and a speed (`model-speeds.md`); one the deployment doesn't hold, or that its `settings` charter doesn't offer, is ignored, and the preview says so (`ways-charters.md`, 4), so that a way runs on any deployment.
 - **Resolved as templates:** the engine makes each of a way's tasks a template of the project's own, at its repository revision (`ways-temper-dir.md`, 5), whose executor, contract, budget, deadline, tracking, flags, model choice and resources are the recipe's (jig's `protocol/configuration-templates.md`, section 1). Work started in the way is made from those templates.
@@ -59,7 +60,7 @@ Split from [ways.md](ways.md), its section 3, on 2026-11-27, and part of that dr
 A task with `executor = "change"` is temper's change procedure, code and no agent:
 
 - `into`: `"parent"`, the branch its requester holds, or `"base"`, the repository's landing branch.
-- `producer`: which of the way's tasks writes it, an agent with `contract = "change"`; or `"handed"`, a head its requester hands in, as a pair's "Land this" hands in its delivery ([pair.md](pair.md), 3.4; `../domain/forge/change/opened.md`).
+- `producer`: which of the way's tasks writes it, an agent with `contract = "change"`; or `"handed"`, a head its requester hands in, as a pair's "Land this" hands in its offer ([pair.md](pair.md), 3.5; `../domain/forge/change/opened.md`).
 - `gates`: which of the way's tasks judge it, each an agent recipe with `contract = "verdict"` and its `lens`, `advisory` and `freshness` (2). `[]` is none.
 - `landing`: `ci` and `up_to_date`, booleans, and `approvals`, a list of `{ role, people, freshness }`, `role` a project role by its name in the project's policy, `owner` the stock's role 0, as a landing rule's own fields without the pattern and path sets that say which changes a rule covers (`../protocol/configuration/settings-kinds.md`, section 1). With `gates`, it makes the work's own rule (`ways.md`, 5.4). An approval is checked as a landing rule's is when it's set: a way or a piece of work asking more people of a role than can sign on the forge, or an enforcing approval on a playground, is refused at its start or amendment, never left to wait for ever (`../protocol/configuration/settings-kinds.md`, section 1).
 - `questions`: `up` or `none`, how its producer's questions travel.
@@ -101,7 +102,7 @@ executor = { agent = "pair" }
 contract = "report"
 conversation = true
 holds = ["copy"]
-delegates = { land = {} }
+offers = "land"
 [tasks.land]
 executor = "change"
 into = "base"

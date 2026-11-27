@@ -20,7 +20,7 @@ executor = { agent = "pair", model = "claude-opus-5-5", effort = "high" }
 contract = "report"
 conversation = true
 holds = ["copy"]
-delegates = { land = {} }
+offers = "land"
 
 [tasks.land]
 executor = "change"
