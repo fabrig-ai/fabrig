@@ -148,7 +148,6 @@ Documents:
 - `providers.md`: LLM providers in the store.
 - `stock.md`: stock defaults.
 - `reference.md`: the reference configuration.
-- `names-contracts.md`: the names goal's contracts, while it runs.
 
 ## 2. The document
 
