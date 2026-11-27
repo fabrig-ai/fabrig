@@ -36,7 +36,7 @@ use crate::{
     *,
 };
 use fixtures::CurrentFixtures;
-use jig_domain_link::{Form, Hello, Hosting, Phase, Scheme};
+use jig_domain_link::{Form, Hello, Hosting, Phase, Problem, Scheme};
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
 fn empty_declarations(config: &Config) -> Box<[Declaration]> {
@@ -47,7 +47,7 @@ fn empty_declarations(config: &Config) -> Box<[Declaration]> {
     declarations.into_boxed()
 }
 
-pub(crate) fn new_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
+pub(crate) fn new_core(config: Config, limits: &Limits) -> Result<Core, StartProblem> {
     let connectors = empty_declarations(&config);
     Core::new(config, &connectors, limits)
 }
@@ -740,12 +740,16 @@ fn clear_projects(core: &mut Core, limits: &Limits) {
     core.template_overrides = Map::with_capacity(limits.authority.projects);
 }
 
-fn seeded_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
+fn seeded_core(config: Config, limits: &Limits) -> Result<Core, StartProblem> {
     let declarations = empty_declarations(&config);
     seeded_core_with_declarations(config, &declarations, limits)
 }
 
-fn seeded_core_with_declarations(config: Config, connectors: &[Declaration], limits: &Limits) -> Result<Core, Problem> {
+fn seeded_core_with_declarations(
+    config: Config,
+    connectors: &[Declaration],
+    limits: &Limits,
+) -> Result<Core, StartProblem> {
     let needs = fleet_needs::configured(&config, limits);
     let mut core = Core::new(config, connectors, limits)?;
     fixtures::restore_needs(&mut core.fleet, limits, needs);
@@ -3974,7 +3978,7 @@ fn startup_refuses_too_many_configured_workers() {
     let mut limits = limits();
     let config = config(41);
     limits.fleet.configured_workers = 1;
-    assert_eq!(new_core(config, &limits).err(), Some(Problem::Workers { limit: 1 }));
+    assert_eq!(new_core(config, &limits).err(), Some(StartProblem::Membership(Problem::Workers { limit: 1 })));
 }
 #[test]
 fn startup_refuses_an_oversized_worker_name() {
@@ -3989,7 +3993,7 @@ fn startup_refuses_an_oversized_worker_name() {
     }]);
     assert_eq!(
         new_core(config, &limits).err(),
-        Some(Problem::WorkerName { worker: 0, limit: limits.fleet.worker_name_bytes })
+        Some(StartProblem::Membership(Problem::WorkerName { worker: 0, limit: limits.fleet.worker_name_bytes }))
     );
 }
 

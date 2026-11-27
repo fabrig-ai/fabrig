@@ -47,10 +47,9 @@ use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
-use jig_domain_contract::Declaration;
+use jig_domain_contract::{Declaration, StartProblem};
 pub use jig_domain_core_vocabulary::limits::problems as worker_membership;
 use jig_domain_fleet as fleet;
-use jig_domain_link::Problem;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -333,8 +332,11 @@ impl Core {
     /// # Errors
     /// Worker membership exceeds its bounds or the connector declarations do not hold.
     #[expect(clippy::too_many_lines, reason = "construct all bounded children, bindings and subject marks together")]
-    pub fn new(mut config: Config, connectors: &[Declaration], limits: &Limits) -> Result<Core, Problem> {
-        let worker_names = limits::problems(&config.defaults.workers, limits)?;
+    pub fn new(mut config: Config, connectors: &[Declaration], limits: &Limits) -> Result<Core, StartProblem> {
+        let worker_names = match limits::problems(&config.defaults.workers, limits) {
+            Ok(names) => names,
+            Err(problem) => return Err(StartProblem::Membership(problem)),
+        };
         assert!(limits.people.words <= limits.tasks.message_bytes, "party words fit one run message");
         assert!(limits.tasks.message_bytes >= 24, "projection refusal news fits one run message");
         assert!(config.settings.tools.valid(), "each engine tool has one configured authority bit");

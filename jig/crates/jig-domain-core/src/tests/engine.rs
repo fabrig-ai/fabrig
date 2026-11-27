@@ -1,11 +1,13 @@
 //! Pass-through decisions and timer admission (`jig/docs/design/domain/engine/vocabulary.md`, 2).
 
 use crate::{
-    Config, Core, Event, Limits, Problem, Request, Timer,
+    Config, Core, Event, Limits, Request, Timer,
     engine::{self, Admit, Engine, In, Out},
     tests::{config, fixtures, limits},
 };
 use core::hash::{BuildHasher, BuildHasherDefault};
+use jig_domain_contract::StartProblem;
+use jig_domain_link::Problem;
 use jig_domain_notes as notes;
 use skein_lib::{Env, List, Queue, ReplyTo, Time, Token, Wall};
 use std::hash::DefaultHasher;
@@ -156,7 +158,7 @@ fn construction_preserves_the_core_membership_refusal() {
     over.fleet.configured_workers = limit;
     let declarations = super::empty_declarations(&config);
     let problem = Core::new(config.clone(), &declarations, &over).expect_err("worker membership over its bound");
-    assert_eq!(problem, Problem::Workers { limit });
+    assert_eq!(problem, StartProblem::Membership(Problem::Workers { limit }));
     assert_eq!(Engine::new(config, &declarations, &over).expect_err("same worker membership refusal"), problem);
 }
 
@@ -522,14 +524,14 @@ fn declarations_are_checked_in_construction_order() {
     let duplicate_effect = Declaration { effects: Box::new([effect, effect]), ..first.clone() };
     let paired = Declaration { resources: Box::new([resource]), effects: Box::new([effect]), ..first.clone() };
     let full = Declaration { resources: Box::new([resource, other]), ..second.clone() };
-    let refusals: [(Box<[Declaration]>, Problem); 7] = [
-        (Box::new([first.clone()]), Problem::Undeclared { connector: 2 }),
-        (Box::new([first.clone(), first.clone(), second.clone()]), Problem::Declared { connector: 1 }),
-        (Box::new([first, second.clone(), unknown]), Problem::Declared { connector: 3 }),
-        (Box::new([duplicate_resource, second.clone()]), Problem::ResourceKind { connector: 1, kind: 4 }),
-        (Box::new([duplicate_effect.clone(), second.clone()]), Problem::EffectKind { connector: 1, kind: 4 }),
-        (Box::new([duplicate_effect]), Problem::EffectKind { connector: 1, kind: 4 }),
-        (Box::new([paired.clone(), full]), Problem::HoldKinds { limit: 2 }),
+    let refusals: [(Box<[Declaration]>, StartProblem); 7] = [
+        (Box::new([first.clone()]), StartProblem::Undeclared { connector: 2 }),
+        (Box::new([first.clone(), first.clone(), second.clone()]), StartProblem::Declared { connector: 1 }),
+        (Box::new([first, second.clone(), unknown]), StartProblem::Declared { connector: 3 }),
+        (Box::new([duplicate_resource, second.clone()]), StartProblem::ResourceKind { connector: 1, kind: 4 }),
+        (Box::new([duplicate_effect.clone(), second.clone()]), StartProblem::EffectKind { connector: 1, kind: 4 }),
+        (Box::new([duplicate_effect]), StartProblem::EffectKind { connector: 1, kind: 4 }),
+        (Box::new([paired.clone(), full]), StartProblem::HoldKinds { limit: 2 }),
     ];
     for (declarations, problem) in refusals {
         assert_eq!(Engine::new(config.clone(), &declarations, &limits).unwrap_err(), problem, "{declarations:?}");
