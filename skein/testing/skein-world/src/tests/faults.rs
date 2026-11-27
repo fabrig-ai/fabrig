@@ -19,6 +19,15 @@ fn started(struck: Struck) -> (FaultLedger, Injection) {
     (ledger, entry)
 }
 
+#[test]
+fn ineligible_draw_is_not_a_fault_entry() {
+    const STARTED_ENTRIES: usize = 1; // `started` injects only LOST_RUNNER.
+    let (mut ledger, _) = started(Struck::default());
+    ledger.ineligible(RATE_WINDOW);
+    assert_eq!(ledger.entries().len(), STARTED_ENTRIES);
+    assert_eq!(ledger.fell(), BTreeSet::from([LOST_RUNNER]));
+}
+
 fn runner() -> Struck {
     Struck { runner: Some("r".into()), gate_run: Some("7".into()), ..Struck::default() }
 }
