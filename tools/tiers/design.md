@@ -35,9 +35,9 @@ Provisional, 2026-10-29. Run one tree's slow tier with its prerequisites.
   runs a binary's tests in one process and measures CPU per process
   (section 11); nextest's path stays as it is.
 - **Campaigns:** `tools/tiers/campaign TREE` runs rounds of a tree's
-  campaign pair through this runner, with fresh seeds, after landing, and
-  replays each failing case alone, and each finding's first case at the
-  last campaign's commit (`tools/tiers/campaign.md`).
+  campaign pair through this runner, with fresh seeds, after landing,
+  replays each failing case alone, and marks each finding the last
+  campaign also had (`tools/tiers/campaign.md`).
 - **Visible evidence:** print each step's command; nextest prints its
   summary, and what a wrapper prints stays visible. Prerequisite failures
   name their step.
