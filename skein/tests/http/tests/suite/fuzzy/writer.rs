@@ -1,18 +1,15 @@
-//! The event stream writer's machine world, swept (testing-strategy.md, 8;
-//! http.md, 6): many runs of generated events and comments, now and then
-//! flawed, under limits and neighbours drawn from each seed, what was
-//! written read back by the reference reader and the reader's own world.
-//! This stands in for the fuzz target, which waits for a nightly
-//! toolchain.
-//!
-//! A sweep asserts that what it injects fell (testing-strategy.md, 3):
-//! each answer and each refusal, an event in pieces, the stream's end and
-//! room after it, a failure idle and while writing, and a close in each
-//! state.
+//! The event stream writer's machine world, swept (`skein/docs/design/net/http/testing.md`, 6).
+//! Each case reads back what was written with the reference reader and the
+//! reader's world. The gate checks answer, refusal and neighbour reach
+//! across its seeds (`skein/docs/design/testing/sweeps.md`, 4).
+
+use std::convert::Infallible;
 
 use skein_http_world::writer_world::{self, Run, Settings};
 use skein_lib::Rng;
 use skein_protocol_kit::seen::Seen;
+use skein_world::sweep::{cases, gate};
+use skein_world::this_test;
 
 const ROUNDS: u64 = 5_000;
 
@@ -46,14 +43,23 @@ fn record(tally: &mut Seen, run: &Run) {
 #[test]
 fn generated_events_are_written_and_read_back_as_written_whatever_the_neighbours() {
     let mut tally = Seen::default();
-    for round in 0..ROUNDS {
-        let seed = 0x00a0_0000 + round;
+    let at_gate = gate();
+    let base = 0x00a0_0000;
+    let test = this_test!("generated_events_are_written_and_read_back_as_written_whatever_the_neighbours");
+    cases::<_, Infallible, _>(test, base..base + ROUNDS, |seed| {
         let mut rng = Rng::new(seed);
         let items = writer_world::items(&mut rng);
         let limits = writer_world::limits(&mut rng);
         let settings = Settings::chaotic(&mut rng, limits, 400);
         let run = writer_world::check(&items, &settings, seed);
-        record(&mut tally, &run);
+        if at_gate {
+            record(&mut tally, &run);
+        }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if !at_gate {
+        return;
     }
     for what in [
         "Sent",

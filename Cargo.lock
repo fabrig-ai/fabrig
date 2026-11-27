@@ -3754,6 +3754,7 @@ dependencies = [
  "skein-lib",
  "skein-protocol-kit",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
