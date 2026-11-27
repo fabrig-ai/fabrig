@@ -41,7 +41,7 @@ Provisional, 2026-11-27. The vocabulary in which smith's worlds, and the jig and
 ## 5. Versioned
 
 - **`smith/2`** is this document's list. A word added, removed or given another meaning, or a shape's text written otherwise, moves the version, and the shapes a sweep writes name the version they are in. `smith/1` was the list without jig's and temper's tools, answers, the number references and `ended`; every world writes `smith/2` now, and no code keeps `smith/1`.
-- **One list, one owner:** the words are the code's, one set of enumerations written from section 3 in smith's tests (beside smith's session world's shapes), which jig's and temper's worlds use, never a list of their own. No list is taken from a deployment.
+- **One list, one owner:** the words are the code's, one set of enumerations written from section 3 in the `smith-shapes` test kit (`smith/testing/smith-shapes`), which smith's, jig's and temper's worlds use, never a list of their own. No list is taken from a deployment.
 - **Nothing raw:** a shape holds only these words, never a path, a value or an id the world drew.
 
 ## 6. Why

@@ -5,7 +5,7 @@ use skein_world::{
     sweep::{Sweep, cases, gate},
     this_test,
 };
-use smith_session_world::shapes::Sample;
+use smith_shapes::Sample;
 use temper_faults::restarts;
 use temper_system_world::composed::{
     CAMPAIGN_KINDS, GATE_KINDS, World,

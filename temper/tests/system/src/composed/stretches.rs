@@ -6,7 +6,7 @@ use smith_domain_session::{
     llm::{Block, Returned},
     record,
 };
-use smith_session_world::shapes::{Answer, Call, Class, Reached, Reference, Sample, Tool};
+use smith_shapes::{Answer, Call, Class, Reached, Reference, Sample, Tool};
 use std::{
     collections::{BTreeMap, BTreeSet},
     ops::Range,

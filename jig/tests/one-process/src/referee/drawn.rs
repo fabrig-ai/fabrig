@@ -5,7 +5,7 @@ use jig_channel_kit::world::store::Store;
 use jig_domain_core::{CoreRecord, Record};
 use skein_fake_llm_domain::api::{Part, Role};
 use skein_fake_peers::llm::Observation;
-use smith_session_world::shapes::{Answer, Call, Class, Reached, Reference, Sample, Tool};
+use smith_shapes::{Answer, Call, Class, Reached, Reference, Sample, Tool};
 use std::collections::{BTreeMap, BTreeSet};
 
 enum Reply {

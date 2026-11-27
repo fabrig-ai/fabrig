@@ -1766,7 +1766,7 @@ dependencies = [
  "smith-host-protocol",
  "smith-protocol-channel",
  "smith-protocol-llm",
- "smith-session-world",
+ "smith-shapes",
 ]
 
 [[package]]
@@ -5547,7 +5547,24 @@ dependencies = [
  "smith-domain-tools-fixtures",
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
+ "smith-shapes",
  "smith-tools-world",
+]
+
+[[package]]
+name = "smith-shapes"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-llm",
+ "skein-llm-kit",
+ "skein-world",
+ "smith-domain",
+ "smith-domain-session",
+ "smith-domain-tools",
+ "smith-domain-tools-fixtures",
+ "smith-protocol-llm",
+ "smith-protocol-llm-fixtures",
 ]
 
 [[package]]
@@ -8515,7 +8532,7 @@ dependencies = [
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
  "smith-protocol-llm-world",
- "smith-session-world",
+ "smith-shapes",
  "smith-transcript",
  "temper-agent-fixtures",
  "temper-blame",

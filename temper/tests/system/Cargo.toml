@@ -53,7 +53,7 @@ smith-protocol-channel.workspace = true
 smith-charter.workspace = true
 smith-channel.workspace = true
 smith-agent-world.workspace = true
-smith-session-world.workspace = true
+smith-shapes.workspace = true
 temper-engine-domain.workspace = true
 temper-engine-domain-world = { path = "../engine/domain" }
 jig-domain-people.workspace = true
