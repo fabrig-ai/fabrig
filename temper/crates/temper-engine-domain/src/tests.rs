@@ -708,6 +708,8 @@ fn held_assignment() -> crate::Assignment {
                     price_unit: 1,
                     efforts: Box::new([]),
                     effort: None,
+                    speeds: Box::default(),
+                    speed: None,
                 },
                 alternatives: Box::new([]),
                 inspect: false,

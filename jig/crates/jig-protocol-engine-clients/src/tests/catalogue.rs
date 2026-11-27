@@ -33,6 +33,8 @@ fn catalogue() -> Box<[CatalogueModel]> {
         price_unit: 1_000_000,
         efforts: Box::new([]),
         effort: None,
+        speeds: Box::default(),
+        speed: None,
     };
     let row = |number, model| CatalogueModel {
         first_read: None,

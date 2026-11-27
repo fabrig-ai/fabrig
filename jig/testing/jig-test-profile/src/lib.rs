@@ -304,6 +304,8 @@ pub fn scripted_model() -> core::Model {
         price_unit: 1_000_000,
         efforts: Box::new([b"low".as_slice().into(), b"high".as_slice().into()]),
         effort: None,
+        speeds: Box::default(),
+        speed: None,
     }
 }
 

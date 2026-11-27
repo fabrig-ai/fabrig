@@ -170,7 +170,7 @@ pub fn overlay_policy_bytes(overlay: &crate::settings::Overlay) -> Option<u64> {
     bytes.checked_add(largest)
 }
 
-/// A model's name, its efforts' names and its chosen one's, at most its longest (domain/tasks/README.md, 3).
+/// A model's owned bytes, including its declared speeds and its chosen effort, at most its longest.
 fn model_owned_bytes(model: &crate::Model) -> Option<u64> {
     let mut longest = 0_u64;
     let mut bytes = len_u64(model.name.len())
@@ -185,6 +185,17 @@ fn model_owned_bytes(model: &crate::Model) -> Option<u64> {
     }
     if let Some(program) = &model.program {
         bytes = bytes.checked_add(len_u64(program.len()))?;
+    }
+    bytes = bytes.checked_add(len_u64(model.speeds.len()).checked_mul(sizeof(size_of::<crate::Speed>())?)?)?;
+    for speed in &model.speeds {
+        bytes = bytes.checked_add(len_u64(speed.name.len()))?;
+        bytes = bytes.checked_add(len_u64(speed.also.len()).checked_mul(sizeof(size_of::<Box<[u8]>>())?)?)?;
+        for name in &speed.also {
+            bytes = bytes.checked_add(len_u64(name.len()))?;
+        }
+    }
+    if let Some(speed) = &model.speed {
+        bytes = bytes.checked_add(len_u64(speed.len()))?;
     }
     bytes.checked_add(longest)
 }

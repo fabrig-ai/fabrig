@@ -49,6 +49,8 @@ pub fn charter() -> engine::Charter {
         price_unit: 1_000_000,
         efforts: Box::new([]),
         effort: None,
+        speeds: Box::default(),
+        speed: None,
     };
     charter.policy.turns = 64;
     charter.policy.time = Duration::from_secs(3600);

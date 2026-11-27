@@ -59,6 +59,8 @@ pub(crate) fn model_from_record(value: w::SettingModel) -> c::Model {
         price_unit: v.price_unit,
         efforts: v.efforts.into_boxed(),
         effort: v.effort,
+        speeds: Box::default(),
+        speed: None,
     }
 }
 fn wake_rule(value: w::WakeRule) -> t::WakeRule {

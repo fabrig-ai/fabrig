@@ -25,6 +25,8 @@ fn model() -> core::Model {
         price_unit: 1000,
         efforts: Box::new([Box::from(b"low".as_slice()), Box::from(b"high".as_slice())]),
         effort: Some(Box::from(b"high".as_slice())),
+        speeds: Box::default(),
+        speed: None,
     }
 }
 

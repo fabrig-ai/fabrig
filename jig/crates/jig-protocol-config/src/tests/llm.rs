@@ -199,6 +199,118 @@ fn a_model_takes_the_efforts_it_names_in_order() {
     let high: Box<[u8]> = Box::from(&b"high"[..]);
     assert_eq!(model(&bytes).efforts.as_ref(), [low, high]);
 }
+const FAST: &str =
+    r#"{"name":"fast","also":["priority","fast-preview"],"prices":{"input":2,"cached":2,"cache_write":3,"output":3}}"#;
+const ULTRAFAST: &str = r#"{"name":"ultrafast","prices":{"input":4,"cached":4,"output":6}}"#;
+
+#[expect(clippy::disallowed_macros, reason = "test-only JSON fixture composition")]
+fn with_speeds(speeds: &str, default: &str) -> Box<[u8]> {
+    let members =
+        format!(r#""prices": {{"input":1,"cached":1,"output":1,"unit":1000}}, "speeds": [{speeds}]{default}"#);
+    fixtures::with(
+        fixtures::ENGINE_SMALL,
+        br#""prices": {"input": 1, "cached": 1, "output": 1, "unit": 1000}"#,
+        members.as_bytes(),
+    )
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "test-only JSON fixture composition")]
+fn a_model_takes_its_speeds_in_order_and_names_a_default() {
+    use jig_domain_core_vocabulary::Speed;
+
+    let standard = model(fixtures::ENGINE_SMALL);
+    assert!(standard.speeds.is_empty());
+    assert_eq!(standard.speed, None);
+    let speeds = format!("{FAST},{ULTRAFAST}");
+    let bytes = with_speeds(&speeds, r#", "speed": "ultrafast""#);
+    let mut expected = standard;
+    expected.speeds = Box::new([
+        Speed {
+            name: b"fast".as_slice().into(),
+            also: Box::new([b"priority".as_slice().into(), b"fast-preview".as_slice().into()]),
+            input_price: 2,
+            cached_price: 2,
+            cache_write_price: Some(3),
+            output_price: 3,
+        },
+        Speed {
+            name: b"ultrafast".as_slice().into(),
+            also: Box::default(),
+            input_price: 4,
+            cached_price: 4,
+            cache_write_price: None,
+            output_price: 6,
+        },
+    ]);
+    // At ultrafast, a turn rounds up to 39 and the two-turn floor is 78.
+    let problems = fixtures::engine(&bytes).unwrap_err();
+    assert_eq!(problems.problems.get(0).unwrap().what, What::Budget { charter: 1 });
+    let bytes = fixtures::with(&bytes, br#""spend": 20"#, br#""spend": 78"#);
+    let engine = fixtures::engine(&bytes).expect("spend at the speed's floor");
+    expected.speed = Some(b"ultrafast".as_slice().into());
+    assert_eq!(engine.llm.models[0].model, expected);
+    assert_eq!(engine.charters[0].policy.model, expected);
+    expected.speed = None;
+    assert_eq!(model(&with_speeds(&speeds, "")), expected);
+}
+
+#[test]
+fn a_zero_speed_price_is_refused_at_its_path() {
+    let path = model_path(b"speeds").child(crate::Segment::Index(0)).member(b"prices");
+    for (price, zero, field) in [
+        (r#""input":2"#, r#""input":0"#, b"input".as_slice()),
+        (r#""cached":2"#, r#""cached":0"#, b"cached"),
+        (r#""output":3"#, r#""output":0"#, b"output"),
+        (r#""cache_write":3"#, r#""cache_write":0"#, b"cache_write"),
+    ] {
+        let bytes = with_speeds(&FAST.replace(price, zero), "");
+        let problems = fixtures::engine(&bytes).unwrap_err();
+        assert_eq!(problems.problems.get(0), Some(&crate::Problem { path: path.member(field), what: What::Bound }));
+    }
+}
+
+#[test]
+fn an_undeclared_default_speed_is_refused_at_its_path() {
+    let bytes = with_speeds(FAST, r#", "speed": "priority""#);
+    let problems = fixtures::engine(&bytes).unwrap_err();
+    assert_eq!(problems.problems.get(0), Some(&crate::Problem { path: model_path(b"speed"), what: What::Form }));
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "test-only JSON fixture composition")]
+fn the_document_refuses_the_same_speed_shapes_as_settings() {
+    let speeds_path = model_path(b"speeds");
+    for bad in [
+        FAST.replace("priority", "default"),
+        FAST.replace("fast-preview", "fast"),
+        FAST.replace(r#""fast""#, r#""Fast""#),
+        format!("{FAST},{FAST}"),
+    ] {
+        let problems = fixtures::engine(&with_speeds(&bad, "")).unwrap_err();
+        assert_eq!(problems.problems.get(0), Some(&crate::Problem { path: speeds_path.clone(), what: What::Form }));
+    }
+    let prices = with_speeds(FAST, "");
+    let prices = fixtures::with(&prices, br#""cached":1"#, br#""cached":3"#);
+    let prices = fixtures::with(&prices, br#""spend": 20"#, br#""spend": 70"#);
+    let anthropic = with_speeds(ULTRAFAST, "");
+    let anthropic = fixtures::with(&anthropic, br#""dialect": 3"#, br#""dialect": 2"#);
+    for bytes in [&prices, &anthropic] {
+        let problems = fixtures::engine(bytes).unwrap_err();
+        assert_eq!(problems.problems.get(0), Some(&crate::Problem { path: speeds_path.clone(), what: What::Form }));
+    }
+    for (bad, path) in [
+        (format!("{FAST},{FAST},{FAST},{FAST},{FAST}"), speeds_path.clone()),
+        (
+            FAST.replace(r#""fast-preview""#, r#""fast-preview","third""#),
+            speeds_path.child(crate::Segment::Index(0)).member(b"also"),
+        ),
+    ] {
+        let problems = fixtures::engine(&with_speeds(&bad, "")).unwrap_err();
+        assert_eq!(problems.problems.get(0), Some(&crate::Problem { path, what: What::Bound }));
+    }
+}
+
 #[test]
 fn a_model_names_its_default_apart_from_effort_order() {
     // EFFORT_BYTES (protocol/configuration-engine.md, 1): the second name reaches the byte bound.
