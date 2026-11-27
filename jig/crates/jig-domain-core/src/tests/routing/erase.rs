@@ -1,4 +1,5 @@
 //! Whole-task erasure decisions and store-page continuations.
+use crate::engine::store as engine_store;
 use crate::{
     routing::task::erase::{Select, scan},
     tests::*,
@@ -18,7 +19,8 @@ fn load(out: &Queue<Request>) -> (Token, crate::reads::Range) {
     let mut found = None;
     for request in out {
         if let Request::Held(held) = request
-            && let Held::ReadLoad { load, range } = held.as_ref()
+            && let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) =
+                held.as_ref()
         {
             assert!(found.is_none(), "one next page");
             found = Some((*load, range.as_ref().clone()));
@@ -49,7 +51,7 @@ fn page(
         &env(limits),
         &mut Queue::uncapped(),
         load,
-        crate::reads::Loaded::Page { rows: rows.into_boxed(), next },
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows: rows.into_boxed(), next }),
     )
 }
 
@@ -341,7 +343,13 @@ fn a_busy_page_is_asked_again() {
     let (mut core, limits) = make_tree();
     let out = start(&mut core, &limits, 1);
     let (token, range) = load(&out);
-    let out = crate::reads::loaded(&mut core, &env(&limits), &mut Queue::uncapped(), token, crate::reads::Loaded::Busy);
+    let out = crate::reads::loaded(
+        &mut core,
+        &env(&limits),
+        &mut Queue::uncapped(),
+        token,
+        engine_store::Answer::Failed(engine_store::Failure::Busy),
+    );
     let (new, retried) = load(&out);
     assert_ne!(new, token);
     assert_eq!(retried, range);
@@ -356,7 +364,13 @@ fn a_busy_page_is_asked_again() {
         None,
     );
     let (token, range) = load(&out);
-    let out = crate::reads::loaded(&mut core, &env(&limits), &mut Queue::uncapped(), token, crate::reads::Loaded::Busy);
+    let out = crate::reads::loaded(
+        &mut core,
+        &env(&limits),
+        &mut Queue::uncapped(),
+        token,
+        engine_store::Answer::Failed(engine_store::Failure::Busy),
+    );
     assert_eq!(load(&out).1, range, "a busy task page also retries");
 }
 
@@ -408,13 +422,18 @@ fn an_erasure_can_load_and_retry_while_client_read_slots_are_full() {
         let Request::Held(held) = &out[0] else {
             panic!("client load");
         };
-        let Held::ReadLoad { .. } = held.as_ref() else {
+        let Held::Store(_) = held.as_ref() else {
             panic!("retained task load");
         };
     }
     let out = start(&mut core, &limits, 1);
     let (token, range) = load(&out);
-    let retry =
-        crate::reads::loaded(&mut core, &env(&limits), &mut Queue::uncapped(), token, crate::reads::Loaded::Busy);
+    let retry = crate::reads::loaded(
+        &mut core,
+        &env(&limits),
+        &mut Queue::uncapped(),
+        token,
+        engine_store::Answer::Failed(engine_store::Failure::Busy),
+    );
     assert_eq!(load(&retry).1, range);
 }

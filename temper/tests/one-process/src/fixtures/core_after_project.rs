@@ -203,10 +203,12 @@ fn call(name: &str, arguments: &Value) -> Value {
 }
 fn provider_document() -> temper_fake::llm::Document {
     let mut value: Value = serde_json::from_slice(temper_playground::stories::A.llm).expect("fixture provider");
+    // Landing news can cross the first finish. The next model turn then retries after reading it.
+    let finish_goal = call("finish", &json!({"form":"report","text":"Done: earlier goal ended","fields":{}}));
     value["cued"] = json!([
         {"cue":"@incident-goal","turns":[
             call("change", &json!({"words":"@incident-edit"})), call("wait", &json!({})),
-            call("finish", &json!({"form":"report","text":"Done: earlier goal ended","fields":{}}))]},
+            finish_goal, finish_goal]},
         {"cue":"@incident-edit","turns":[
             call("shell", &json!({"command":"echo fixed > conflict.txt"})),
             call("finish", &json!({"form":"change","text":"","fields":{"title":"Earlier change","body":"Fixed"}}))]},

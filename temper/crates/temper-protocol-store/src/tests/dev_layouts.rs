@@ -230,6 +230,22 @@ fn a_change_hot_round_trips_its_cohort_mark_and_defaults_it_for_dev() {
 }
 
 #[test]
+fn a_change_hot_keeps_its_read_behind_wait_and_defaults_it_for_dev() {
+    let (_, mut hot) =
+        fixtures::change_row(temper_engine_domain_forge_change::State::Checking { head: [7; 32] }).split();
+    hot.behind_wait = Some(d::BehindWait {
+        since: Wall::from_nanos(1_000_000_000),
+        until: Wall::from_nanos(21_000_000_000),
+        evidence: d::ReadBehind { read: d::BehindRead::Branch, expected: Some([7; 32]), found: Some([6; 32]) },
+    });
+    let stored = d::Stored::ChangeHot(Box::new(hot.clone()));
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(&records::encode(&stored), &bounds).unwrap(), stored);
+    hot.behind_wait = None;
+    converts("change_hot", (stored, d::Stored::ChangeHot(Box::new(hot))));
+}
+
+#[test]
 fn dev_findings_default_blame_clearing_and_many() {
     converts("finding", finding());
 }

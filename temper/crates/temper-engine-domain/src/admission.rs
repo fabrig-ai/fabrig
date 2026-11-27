@@ -68,7 +68,6 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::MakingActed { .. }
             | forge::Event::MakingAgain { .. }
             | forge::Event::OrderLanding { .. }
-            | forge::Event::JoinLanding { .. }
             | forge::Event::Landing { .. }
             | forge::Event::TrainRefusal { .. }
             | forge::Event::VetoLanding { .. }
@@ -134,6 +133,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Hold { .. }
             | forge::Event::Claim { .. }
             | forge::Event::Answered { .. }
+            | forge::Event::Finished { .. }
             | forge::Event::Lost { .. }
             | forge::Event::KeepProposedEffect { .. }
             | forge::Event::DropProposedEffect { .. }
@@ -150,7 +150,6 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Priority { .. }
             | forge::Event::QueueRepairStarted { .. }
             | forge::Event::Delegated { .. }
-            | forge::Event::CloseDelegated { .. }
             | forge::Event::DelegateAdmissionRefused { .. }
             | forge::Event::DelegateRefused { .. }
             | forge::Event::WaitsRefused { .. }
@@ -169,6 +168,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::ParkCloser { .. }
             | forge::Event::ReadCloserSelection { .. }
             | forge::Event::CheckCloser { .. }
+            | forge::Event::ReadCloserClose { .. }
             | forge::Event::ChangeEnding { .. }
             | forge::Event::RetireFailedClose { .. }
             | forge::Event::ReleaseChange { .. }
@@ -212,7 +212,7 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
     crate::domain::invalidate_input(domain, &event);
     match event {
         event @ Event::Store(
-            StoreInput::ReadLoaded { .. }
+            StoreInput::Engine(_)
             | StoreInput::PartLoaded { .. }
             | StoreInput::Switched
             | StoreInput::Checkpointed { .. }
@@ -287,7 +287,8 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
 
 fn worker_completes(worker: &WorkerInput) -> bool {
     match worker {
-        WorkerInput::CheckResults { .. }
+        WorkerInput::Admit { .. }
+        | WorkerInput::CheckResults { .. }
         | WorkerInput::Asked { .. }
         | WorkerInput::Opened { .. }
         | WorkerInput::DecodedHostCall { .. }

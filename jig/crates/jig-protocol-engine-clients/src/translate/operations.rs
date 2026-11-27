@@ -146,6 +146,7 @@ pub(crate) fn refused(record: &w::Ask, limits: &w::Limits) -> Result<Option<w::K
         | w::Ask::Take(_)
         | w::Ask::HandBack(_)
         | w::Ask::Decide(_)
+        | w::Ask::Measure(_)
         | w::Ask::Release(_)
         | w::Ask::Amend(_)
         | w::Ask::Stop(_)

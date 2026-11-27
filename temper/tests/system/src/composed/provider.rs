@@ -1,11 +1,12 @@
 //! Optional native provider wire under the same composed agent loop.
-use skein_fake_llm_domain::api::{Query, Script};
+use skein_fake_llm_domain::api::{Query, Script, Seeds};
 use skein_lib::{Time, Token, Wall};
 use smith_agent_world::{
     Settings,
     backend::{Backend, Progress, Typed},
 };
 use smith_domain::Request;
+use std::ops::Range;
 
 use smith_protocol_llm_world::{Peer, Protocol, fixture};
 
@@ -15,6 +16,7 @@ pub struct Playback {
     configuration: fixture::Configuration,
     peer: Peer,
     pub(super) limits: smith_protocol_llm::Limits,
+    pub(super) stretch: Option<(u64, Range<usize>)>,
 }
 
 impl Playback {
@@ -30,7 +32,14 @@ impl Playback {
         limits.stated.call_input_bytes = limits.client.input;
         limits.history_bytes = u64::from(limits.client.request);
         limits.rendered_result = 8192;
-        Self { configuration, peer: Peer::new(document.domain(seed), document.limits()), limits }
+        Self { configuration, peer: Peer::new(document.domain(seed), document.limits()), limits, stretch: None }
+    }
+
+    /// Judge the drawn rounds at these zero-based positions in one producer's document.
+    #[must_use]
+    pub fn with_stretch(mut self, task: u64, rounds: Range<usize>) -> Self {
+        self.stretch = Some((task, rounds));
+        self
     }
 }
 
@@ -73,11 +82,16 @@ impl Provider {
         script: &Script,
         wire: bool,
         playback: Option<&Playback>,
+        draw: Option<Seeds>,
         grants: &[super::worker::agent::Grant],
     ) -> Self {
         if !wire {
             assert!(playback.is_none(), "documents play through the wire");
-            return Self::Typed(Typed::scripted(settings, Box::new([script.clone()])));
+            let scripts = Box::new([script.clone()]);
+            return Self::Typed(match draw {
+                Some(seeds) => Typed::scripted_with_menu(settings, scripts, super::stretches::menu(), seeds),
+                None => Typed::scripted(settings, scripts),
+            });
         }
         let [grant] = grants else { panic!("one source pays for the provider story") };
         let initial = smith_domain::GrantName { account: grant.account, generation: 1 };

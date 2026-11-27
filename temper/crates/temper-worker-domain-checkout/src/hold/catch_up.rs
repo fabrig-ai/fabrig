@@ -19,20 +19,6 @@ pub(super) enum Step {
     KeepMerge,
 }
 
-pub(super) fn waiting(step: &PushStep) -> bool {
-    match step {
-        PushStep::Dependency { .. } => true,
-        PushStep::CatchUp { .. }
-        | PushStep::Prefix { .. }
-        | PushStep::VerifyPrefix { .. }
-        | PushStep::Design { .. }
-        | PushStep::CompareLanding { .. }
-        | PushStep::Commit { .. }
-        | PushStep::Push { .. }
-        | PushStep::Verify { .. } => false,
-    }
-}
-
 pub(super) fn eligible(holding: &Holding, to: &To, repository: u32, parent: Commit) -> bool {
     match to {
         To::Saved => false,

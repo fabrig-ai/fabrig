@@ -35,13 +35,14 @@ fn ready() -> (Core, Limits) {
 
 fn prepare(core: &mut Core, limits: &Limits, task: u64) -> Box<[Request]> {
     let context = core.tasks.run_context(task).expect("live task");
-    watch_outputs(core, limits, Event::Activate { context, ready: true, busy: false })
+    watch_outputs(core, limits, Event::Activate { context, ready: true })
 }
 
 fn load(out: &[Request]) -> Option<Token> {
     for request in out {
         if let Request::Held(held) = request
-            && let Held::NotesLoad { owner, .. } = held.as_ref()
+            && let Held::Store(engine_store::Out::Load { load: owner, range: engine_store::Range::Notes(_) }) =
+                held.as_ref()
         {
             return Some(*owner);
         }
@@ -77,6 +78,7 @@ fn planned(out: &[Request]) -> List<u64> {
 fn a_resumed_run_waits_for_its_decided_effects_outcome() {
     let (mut core, limits) = ready();
     let key = CallKey { task: FIRST, attempt: 1, completion: 2, position: 1 };
+    assert!(core.reserve_connector_call(key));
     core.record_call(key, CallPart::Effect { connector: 1, entry: 9, deadline: Wall::EPOCH, outcome: None });
     let before = core.tasks.task(FIRST).unwrap().clone();
     let out = prepare(&mut core, &limits, FIRST);
@@ -110,19 +112,11 @@ fn preparing() -> (Core, Limits, Token) {
 }
 
 fn failed(core: &mut Core, limits: &Limits, owner: Token) -> Box<[Request]> {
-    watch_outputs(core, limits, Event::Notes(notes::Event::LoadFailed { owner }))
+    watch_store_outputs(core, limits, point_answer(owner, None, true))
 }
 
 fn empty_page(core: &mut Core, limits: &Limits, owner: Token) -> Box<[Request]> {
-    watch_outputs(
-        core,
-        limits,
-        Event::Notes(notes::Event::Loaded {
-            owner,
-            rows: notes::Rows { records: List::with_capacity(limits.notes.load_rows) },
-            more: false,
-        }),
-    )
+    watch_store_outputs(core, limits, point_answer(owner, None, false))
 }
 
 fn same_accounting(before: &tasks::TaskRecord, after: &tasks::TaskRecord) {
@@ -375,7 +369,7 @@ fn a_later_due_activation_prepares_the_refused_brief_again() {
     let before = core.tasks.task(FIRST).expect("preparing task").clone();
     failed(&mut core, &limits, owner);
     let context = core.take_due().expect("the ready host makes the deferred task eligible");
-    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false });
+    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
     let mut owner = load(&out).expect("later preparation issues a fresh load");
     let row = core.tasks.task(FIRST).expect("preparing again");
     assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Preparing));
@@ -445,8 +439,8 @@ fn preparation_without_a_transcript_reaches_the_brief_inside_the_core() {
     assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
     assert!(load(&out).is_some(), "preparation reached the notes stage of the brief");
     for request in out {
-        if let Request::Now(now) = request
-            && let Now::StartPreparation { .. } = *now
+        if let Request::Held(held) = request
+            && let Held::Store(engine_store::Out::Load { range: engine_store::Range::Window { .. }, .. }) = *held
         {
             panic!("a preparation without a transcript needs no load handoff");
         }
@@ -454,53 +448,104 @@ fn preparation_without_a_transcript_reaches_the_brief_inside_the_core() {
 }
 
 #[test]
-fn preparation_with_a_transcript_requests_one_load_then_reaches_the_brief() {
+fn a_transcript_continuation_keeps_its_slot_while_every_other_slot_is_taken() {
+    use crate::engine::{self, Engine, In, Out, Peer};
     let (mut core, limits) = ready();
     previous_window(&mut core, &limits, 0, false);
     let context = core.tasks.run_context(FIRST).unwrap();
-    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false });
-    let mut loads = 0_u32;
-    for request in out {
+    let mut engine = Engine::from_core(core);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut out = Queue::uncapped();
+    engine::step(&mut engine, &env, In::Core(Event::Activate { context, ready: true }), &mut out);
+    let mut load_token = None;
+    while let Some(request) = out.pop() {
         match request {
-            Request::Write(_) => {}
-            Request::Now(now) => {
-                let Now::StartPreparation { task: FIRST, from: (1, 1), .. } = *now else {
-                    panic!("only the transcript load leaves preparation");
-                };
-                loads += 1;
+            Out::Core(Request::Write(_)) => {}
+            Out::Held(Peer::Store(engine_store::Out::Load {
+                load,
+                range: engine_store::Range::Window { task: FIRST, from: (1, 1) },
+            })) => {
+                assert!(load_token.replace(load).is_none(), "one held request for the entire window");
             }
-            other @ (Request::ProjectMade { .. } | Request::Ask { .. } | Request::Held(_)) => {
-                panic!("unexpected preparation output: {other:?}");
-            }
+            other @ (Out::Core(_) | Out::Held(_)) => panic!("unexpected preparation output: {other:?}"),
         }
     }
-    assert_eq!(loads, 1, "only one transcript load leaves the core");
-    assert_eq!(core.note_flights(), 0);
-    let out = watch_outputs(
-        &mut core,
-        &limits,
-        Event::TranscriptLoaded {
-            task: FIRST,
-            load: TranscriptLoad::Page {
-                rows: Box::new([(
-                    TurnRecord {
-                        task: FIRST,
-                        attempt: 1,
-                        turn: 1,
-                        spent: 0,
-                        read: None,
-                        opens_window: true,
-                        at: Wall::EPOCH,
-                        transcript: b"turn".as_slice().into(),
-                    },
-                    Some(b"text".as_slice().into()),
-                )]),
-                done: true,
-            },
-        },
+    let token = load_token.expect("the engine loads the window on the held port");
+    for n in 1..limits.load_slots {
+        fixture_window(engine.core_mut(), u64::from(n) + 100, (1, 1));
+    }
+    assert!(!engine.core().loads.room(&limits));
+    assert_eq!(engine.core().note_flights(), 0);
+    engine::step(
+        &mut engine,
+        &env,
+        In::Store(engine_store::In::Loaded {
+            load: token,
+            result: engine_store::Answer::Rows(engine_store::Rows::Turns {
+                turns: Box::new([turn(1), turn(2)]),
+                more: true,
+            }),
+        }),
+        &mut out,
     );
-    assert!(load(&out).is_some(), "the load answer reached the brief");
-    assert!(core.transcripts.get(&FIRST).unwrap().loaded);
+    assert!(out.is_empty(), "the store, not the engine, issues the continuation");
+    assert!(!engine.core().loads.room(&limits), "the nonterminal page keeps its slot");
+    assert_eq!(engine.core().note_flights(), 0);
+    engine::step(
+        &mut engine,
+        &env,
+        In::Store(engine_store::In::Loaded {
+            load: token,
+            result: engine_store::Answer::Rows(engine_store::Rows::Turns { turns: Box::new([turn(3)]), more: false }),
+        }),
+        &mut out,
+    );
+    assert!(!loads::awaited(engine.core(), token), "the final page retires the window's token");
+    let mut notes_page = None;
+    for request in &out {
+        if let Out::Held(Peer::Store(engine_store::Out::Load { load, range: engine_store::Range::Notes(_) })) = request
+        {
+            assert!(notes_page.replace(*load).is_none());
+        }
+    }
+    let notes_page = notes_page.expect("notes take the freed slot in the same decision");
+    assert_ne!(notes_page, token);
+    assert!(!engine.core().loads.room(&limits), "notes now hold the last slot");
+    assert!(engine.core().note_flights() > 0, "all three turns reached the brief");
+    let window = engine.core().transcripts.get(&FIRST).unwrap();
+    assert!(window.loaded);
+    assert_eq!(window.turns.len(), 3);
+    let rendered = read_brief_part(
+        engine.core(),
+        BriefTextLimits { parts: 1, read_bytes: 256, brief_bytes: 256 },
+        FIRST,
+        BriefPart::TranscriptTail,
+    )
+    .unwrap();
+    assert_eq!(rendered.as_ref(), b"assistant: conversation before restart\nassistant: conversation before restart\nassistant: conversation before restart\n");
+    let mut next = Some(notes_page);
+    for _ in 0..SCOPES {
+        let out = empty_page(engine.core_mut(), &limits, next.expect("next cold notes scope"));
+        next = load(&out);
+    }
+    assert!(next.is_none());
+    assert!(engine.core().loads.room(&limits), "the last notes page returns the slot");
+}
+
+fn turn(number: u32) -> TranscriptRow {
+    (
+        TurnRecord {
+            task: FIRST,
+            attempt: 1,
+            turn: number,
+            spent: 0,
+            read: None,
+            opens_window: number == 1,
+            at: Wall::EPOCH,
+            transcript: Box::from([0xff, 0x80].as_slice()),
+        },
+        Some(b"assistant: conversation before restart\n".as_slice().into()),
+    )
 }
 
 fn previous_window(core: &mut Core, limits: &Limits, transient: u32, closed: bool) {
@@ -520,8 +565,9 @@ fn previous_window(core: &mut Core, limits: &Limits, transient: u32, closed: boo
 fn preparation_loads(out: &[Request]) -> List<(u64, (u64, u32))> {
     let mut loads = List::with_capacity(TASKS);
     for request in out {
-        if let Request::Now(now) = request
-            && let Now::StartPreparation { task, from } = now.as_ref()
+        if let Request::Held(held) = request
+            && let Held::Store(engine_store::Out::Load { range: engine_store::Range::Window { task, from }, .. }) =
+                held.as_ref()
         {
             loads.push((*task, *from)).expect("fixture task count bounds loads");
         }
@@ -530,28 +576,56 @@ fn preparation_loads(out: &[Request]) -> List<(u64, (u64, u32))> {
 }
 
 #[test]
-fn a_busy_root_keeps_an_agent_with_a_window_to_load_due() {
+fn a_full_store_work_lane_keeps_a_windowed_agent_due() {
     for (transient, closed) in [(0, false), (1, true), (1, false)] {
         let (mut core, limits) = ready();
         previous_window(&mut core, &limits, transient, closed);
+        for n in 0..limits.load_slots {
+            fixture_window(&mut core, u64::from(n) + 100, (1, 1));
+        }
+        assert!(!core.loads.room(&limits));
         let context = core.tasks.run_context(FIRST).unwrap();
-        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: true });
+        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
         assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Due));
         assert_eq!(core.due.len(), 1);
         assert_eq!(core.due.iter().next().expect("deferred activation").task, FIRST);
         assert!(!core.contexts.contains_key(&FIRST));
         assert!(!core.transcripts.contains_key(&FIRST));
         assert!(preparation_loads(&out).is_empty());
-        let context = core.take_due().expect("busy activation stays eligible");
+        assert_eq!(core.tasks.task(FIRST).unwrap().tries.transient, transient);
+        assert!(!core.due_ready());
+        assert!(core.take_due().is_none(), "blocked windows do not spin the root");
+        core.loads.cancel_window(100);
+        let context = core.take_due().expect("a freed load makes the activation eligible");
         assert_eq!(context.task, FIRST);
-        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: false });
+        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
         assert_eq!(preparation_loads(&out).as_slice(), [(FIRST, (1, 1))]);
         assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
     }
 }
 
+fn warm_first_notes(core: &mut Core, limits: &Limits) {
+    let task = core.tasks.task(FIRST).expect("fixture task");
+    let mut scopes = List::with_capacity(SCOPES);
+    scopes
+        .push(notes::Scope::Goal { project: task.project, goal: core.note_goal(task).expect("fixture goal") })
+        .unwrap();
+    scopes.push(notes::Scope::Project { project: task.project }).unwrap();
+    scopes.push(notes::Scope::Deployment).unwrap();
+    let mut out = watch_outputs(
+        core,
+        limits,
+        Event::Notes(notes::Event::Index { owner: Token::new(700), scopes, most: limits.notes.lines }),
+    );
+    for _ in 0..SCOPES {
+        let page = load(&out).expect("one cold scope");
+        out = empty_page(core, limits, page);
+    }
+    assert!(load(&out).is_none());
+}
+
 #[test]
-fn a_busy_root_still_prepares_an_agent_with_nothing_to_load() {
+fn a_full_store_work_lane_does_not_delay_an_agent_without_a_window() {
     fn retry() -> (Core, Limits) {
         let (mut core, limits) = ready();
         previous_window(&mut core, &limits, 1, false);
@@ -560,13 +634,42 @@ fn a_busy_root_still_prepares_an_agent_with_nothing_to_load() {
     }
     for setup in [ready, retry] {
         let (mut core, limits) = setup();
+        warm_first_notes(&mut core, &limits);
+        for n in 0..limits.load_slots {
+            fixture_window(&mut core, u64::from(n) + 100, (1, 1));
+        }
+        assert!(!core.loads.room(&limits));
         let context = core.tasks.run_context(FIRST).unwrap();
-        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true, busy: true });
+        let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
         assert!(preparation_loads(&out).is_empty());
         assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
         assert!(core.due.is_empty());
         assert!(core.contexts.contains_key(&FIRST));
         assert_eq!(core.transcripts.get(&FIRST).unwrap().window, None);
-        assert!(load(&out).is_some(), "no transcript load is needed before the brief");
+        assert!(load(&out).is_none(), "warm notes need no room either");
+        assert_eq!(planned(&out).as_slice(), [FIRST]);
     }
+}
+
+#[test]
+fn cold_notes_yield_the_preparation_without_spending_a_try_when_windows_hold_the_room() {
+    let (mut core, limits) = ready();
+    let before = core.tasks.task(FIRST).expect("due task").clone();
+    for n in 0..limits.load_slots {
+        fixture_window(&mut core, u64::from(n) + 100, (1, 1));
+    }
+    let out = prepare(&mut core, &limits, FIRST);
+    assert!(load(&out).is_none());
+    assert!(!activates(&out), "no same-decision retry");
+    no_brief_failure(&out);
+    let after = core.tasks.task(FIRST).expect("returned to due");
+    assert_eq!(after.phase, tasks::Phase::Active(tasks::Active::Due));
+    same_accounting(&before, after);
+    assert!(core.contexts.is_empty());
+    assert_eq!(core.note_flights(), 0);
+    core.loads.cancel_window(100);
+    let context = core.take_due().expect("the task stays due for a later activation");
+    assert_eq!(context.task, FIRST);
+    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
+    assert!(load(&out).is_some(), "the preparation can ask for cold notes once room returns");
 }

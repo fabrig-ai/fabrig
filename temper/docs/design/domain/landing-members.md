@@ -69,6 +69,37 @@ change does with an ask stays `landing.md`, section 3.
 - No running decision makes a claim: it is a store an earlier build
   wrote.
 
+### 2.3 Each member checked as it joins and leaves
+
+From `../draft/misbehaving-agents.md`, 3.2: a landing's members are its
+own, and each step that adds or removes one checks it
+(skein/docs/foundation/programming-model.md, 10.4).
+
+- **Joined from no other live landing.** A landing's row is admitted
+  with its members only where forming took each change from no live
+  landing and the members fit `forge.landing_members` (`landing.md`,
+  12); a landing that cannot form is refused as a value
+  (`landing-forming.md`, 3). The admission, and each index entry it adds
+  in the same decision, assert that each member is new to the row and
+  that no live landing's entry maps its change, naming the change, the
+  landing and the one that holds it. Only the start's index meets a
+  change two rows claim, from a store an earlier build wrote, and 2.2
+  holds the newer.
+- **Leaves once, from its own landing.** A member leaves (refused,
+  cancelled, moved, held, failed, blamed, or with its unit or a
+  dependency, `landing.md`, 4.3) only while it is in its landing and has
+  neither landed nor left. Each step that marks it asserts so, naming
+  the change, the landing and why it leaves, and the index entry it
+  drops (3.5) is asserted to be that landing's. A landed member never
+  leaves: it stays until its landing ends (2.1).
+- **A fact for another landing's change is a value.** A cancel or a
+  fact routed by a change's task finds the change's landing in the
+  index first; a change in no live landing, or in another, changes
+  nothing in this one.
+- **Ends with its landing.** A landing that ends removes only its own
+  entries (3.5), each asserted as its, and leaves an entry the start
+  gave an older landing (2.2) to that one.
+
 ## 3. The asks a landing hands
 
 ### 3.1 An ask
@@ -225,6 +256,12 @@ Focused and fuzzy suites only.
 - **The claim:** a store with two live rows holding one change starts
   with the change in the older and the newer held in 2.2's words; a
   release holds it again.
+- **The checks (2.3)** are shown by what they guard, and none is
+  tripped: a landing formed at `forge.landing_members` members and one
+  refused past it; a member that leaves once, its unit-mate with it,
+  and the next landing formed from it; a cancel of a change in another
+  landing changing nothing in this one; an ended landing's members free
+  to form again.
 - **The queue:** one per kind and landing, a newer replacing an older;
   `landed` first; an ask handed while a step was decided survives the
   step; each kind taken as 3.3 says, once, across a restart between

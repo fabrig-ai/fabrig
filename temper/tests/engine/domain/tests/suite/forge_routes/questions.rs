@@ -586,13 +586,7 @@ fn a_resolution_that_saves_and_asks_reads_its_next_pull_brief_at_the_saved_head(
         b"Unchecked: work in progress, saved before a question",
     )
     .expect("the worker commits the unchecked resolved tree");
-    assert_eq!(
-        world.external(
-            2,
-            raw::Op::Git(raw::Git::Push { branch: branch.clone(), commit: saved, expected: Some(previous) })
-        ),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    world.run_push(&resolution, &branch, saved, 2);
     let question = ask(&mut world, &resolution, change);
     let state = row(&world, change).change.state.clone();
     // A save returns the same pushed-head part as a delivery, without a checked result.
@@ -674,13 +668,7 @@ fn a_resolution_whose_save_is_not_reported_rebriefs_at_the_reread_head() {
         b"Unchecked: work in progress, saved before a question",
     )
     .expect("the worker commits the unchecked resolved tree");
-    assert_eq!(
-        world.external(
-            2,
-            raw::Op::Git(raw::Git::Push { branch: branch.clone(), commit: saved, expected: Some(previous) })
-        ),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    world.run_push(&resolution, &branch, saved, 2);
     let question = ask(&mut world, &resolution, change);
     let state = row(&world, change).change.state.clone();
     let delegate = row(&world, change).delegate;
@@ -844,7 +832,13 @@ fn past_its_bound_the_change_holds_naming_the_question() {
     assert_eq!(words.as_ref(), expected.as_bytes());
     assert!(matches!(
         row(&world, change).change.state,
-        temper_engine_domain_forge_change::State::Held { why: temper_engine_domain_forge_change::Hold::Questions, .. }
+        temper_engine_domain_forge_change::State::Held {
+            hold: temper_engine_domain_forge_change::Hold {
+                cause: temper_engine_domain_forge_change::Cause::Questions,
+                ..
+            },
+            ..
+        }
     ));
     assert!(replies(&world, requester.task, change).iter().any(|word| word.words.as_ref() == expected.as_bytes()));
     assert_eq!(row(&world, change).questions.open[0].stands, Stands::Taken);
@@ -977,7 +971,7 @@ fn a_resolution_that_ends_with_a_relayed_question_still_holds_its_change() {
         }
     }
     assert!(
-        matches!(&row(&world, change).change.state, State::Held { was, why: temper_engine_domain_forge_change::Hold::Failed }
+        matches!(&row(&world, change).change.state, State::Held { was, hold: temper_engine_domain_forge_change::Hold { cause: temper_engine_domain_forge_change::Cause::Failed, .. } }
         if matches!(was.as_ref(), State::Resolving { .. }))
     );
     let tasks::Phase::Held { why: tasks::Hold::Procedure, source: Some(source), .. } = &live_task(&world, change).phase

@@ -33,7 +33,7 @@ fn a_real_engine_question_offers_exactly_its_admitted_answer_act() {
     world.front().session.driver.send(
         now,
         clock(now),
-        jig_test_domain::Event::Core(jig_domain_core::Event::DelegateValidated {
+        jig_test_domain::Event::Core(jig_domain_core::Event::Delegate {
             to: skein_lib::ReplyTo::new(Token::new(9850)),
             key: jig_domain_core::CallKey {
                 task: assignment.task,
@@ -62,7 +62,6 @@ fn a_real_engine_question_offers_exactly_its_admitted_answer_act() {
                 dependencies: Box::new([]),
                 wake: Some(jig_domain_tasks::WakePolicy::DEFAULT),
             }]),
-            stubs: Box::new([]),
         }),
     );
     world.person(member, vec![Step::Pause { span: Duration::from_millis(1) }]);

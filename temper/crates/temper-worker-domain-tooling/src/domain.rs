@@ -362,6 +362,7 @@ fn exited_job(job: &mut Job, env: &Env<Limits>, owner: Token, exit: Exit, out: &
         }
         Exit::Code(code) => End::Failed { detail: diagnostic(&exit_words(b"exit ", code), &job.tail) },
         Exit::Signal => End::Failed { detail: diagnostic(b"signal", &job.tail) },
+        Exit::NotRun => End::Failed { detail: job.tail.clone() },
         Exit::Deadline => End::Deadline,
     };
     job.state = State::Ending;

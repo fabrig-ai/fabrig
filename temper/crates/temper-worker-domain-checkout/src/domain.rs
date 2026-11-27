@@ -131,6 +131,7 @@ impl Domain {
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::DependencyLanded { hold, landed } => hold::dependency_landed(domain, env, hold, landed, out),
+        Event::PushAdmission { hold, answer } => hold::push_admission(domain, env, hold, answer, out),
         Event::Reds { hold, action } => hold::reds(domain, env, hold, action, out),
         Event::Prepare { client, spec } => hold::prepare(domain, env, client, spec, out),
         Event::PushUnchecked { hold } => hold::unchecked(domain, env, hold, out),

@@ -74,12 +74,14 @@ fn each_step_and_held_step_comes_from_the_retained_record() {
         ),
     ];
     for (state, step) in rows {
-        for hold in [None, Some(change::Hold::Stalled)] {
+        for hold in [None, Some(change::Cause::Stalled)] {
             let mut row = fixtures::opening_row();
             row.change.last_head = Some(head);
             row.change.ready_since = Some(since);
             row.change.state = match hold {
-                Some(why) => change::State::Held { was: Box::new(state.clone()), why },
+                Some(why) => {
+                    change::State::Held { was: Box::new(state.clone()), hold: change::Hold::new(why, Wall::EPOCH) }
+                }
                 None => state.clone(),
             };
             let d = with_row(row.clone());
@@ -212,7 +214,7 @@ fn queue_entry_and_departure_mark_the_nearest_followers_within_the_subject_bound
         ]
     );
     // Refusing an outstanding delegate holds the queued change, taking it out.
-    outputs(&mut d, Event::Delegated { task: 51, child: 90, kind: change::Delegate::Produce });
+    outputs(&mut d, Event::Delegated { task: 51, child: 90, kind: change::Delegate::Produce, close_at: None });
     let got = outputs(&mut d, Event::DelegateRefused { task: 51, child: 90 });
     let Some([Request::Save { .. }, Request::Marked { tasks }]) = got.last_chunk::<2>() else {
         panic!("save and mark: {got:?}")
@@ -527,15 +529,18 @@ fn a_preparing_change_has_a_panel() {
         let mut row = fixtures::opening_row();
         row.change.way = change::Way::Turn;
         let state = change::State::Preparing { from: fixtures::HEAD, main: fixtures::BASE, ready_since: env().wall };
-        row.change.state =
-            if held { change::State::Held { was: Box::new(state), why: change::Hold::Stalled } } else { state };
+        row.change.state = if held {
+            change::State::Held { was: Box::new(state), hold: change::Hold::new(change::Cause::Stalled, Wall::EPOCH) }
+        } else {
+            state
+        };
         let mut d = with_row(row);
         add_panel_landing(&mut d);
         let got = panel(&d);
         assert_eq!(got.step, PanelStep::Preparing { landing: Some(61) });
         assert_eq!(got.way, change::Way::Turn);
         assert_eq!(got.in_landing, Some(61));
-        assert_eq!(got.hold, if held { Some(change::Hold::Stalled) } else { None });
+        assert_eq!(got.hold, if held { Some(change::Cause::Stalled) } else { None });
     }
 }
 

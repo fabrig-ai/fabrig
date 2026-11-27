@@ -215,7 +215,7 @@ pub(crate) fn request_words(
         person_words: row.spec.words.clone(),
     });
     if read.position == 0 {
-        ready(domain, env, decision, *read);
+        ready(domain, env, *read);
         return;
     }
     let range = crate::Range::Core(crate::CoreRange::RequesterWord { task: key.task, position: read.position });
@@ -228,12 +228,7 @@ pub(crate) fn request_words(
     super::emit(decision, &env.limits, crate::Delivery::Load { waiter, range, after: None });
 }
 
-pub(crate) fn ready(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    decision: &mut super::Decision,
-    read: crate::boundary::GoalWords,
-) {
+pub(crate) fn ready(domain: &mut Domain, env: &Env<Limits>, read: crate::boundary::GoalWords) {
     let to = skein_lib::ReplyTo::new(read.to);
     let result = match domain.engine.core().tasks.delegation(read.key.task) {
         Some(context) => goal(domain, env, read.key.task, &context, read.words, false, Some(read.person_words)),
@@ -241,7 +236,7 @@ pub(crate) fn ready(
     };
     match result {
         Ok(member) => {
-            super::delegate_call(domain, env, decision, to, read.key, Box::new([member]), false, Box::new([]));
+            super::delegate_call(domain, env, to, read.key, Box::new([member]));
         }
         Err(why) => domain.work.push(super::Work::Core(jig_domain_core::Event::NamedAnswer {
             to,

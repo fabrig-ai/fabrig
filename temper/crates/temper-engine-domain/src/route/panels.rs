@@ -1,6 +1,7 @@
 //! Make the forge's whole document in the decision that asked (domain/routing.md, 1).
 use super::{Decision, Delivery, Domain, Env, Limits, Queue, Token, core, emit};
 use alloc::boxed::Box;
+use jig_domain_core::engine::{In, Out};
 use jig_domain_people::ApplicationScope;
 use jig_domain_views as views;
 
@@ -69,11 +70,14 @@ pub(crate) fn document(
     } else {
         views::Made::Gone { why: views::End::Gone }
     };
-    let mut requests =
-        crate::engine::step(&mut domain.engine, env, core::Event::View(views::Event::Made { watcher, outcome }));
+    let mut requests = crate::engine::step(
+        &mut domain.engine,
+        env,
+        In::Core(core::Event::View(views::Event::Made { watcher, outcome })),
+    );
     for _ in 0..requests.len() {
         let request = requests.pop().expect("document completion output");
-        if let core::Request::Held(held) = &request
+        if let Out::Core(core::Request::Held(held)) = &request
             && let core::Held::ApplicationDelivery { watcher: due, connector: owner, subject: named } = &**held
         {
             assert!(*owner == connector && *named == subject, "document keeps its subject");
@@ -115,7 +119,7 @@ pub(crate) fn document(
         } else {
             let mut forward = Queue::with_capacity(1);
             forward.push(request);
-            super::route_core_requests(domain, env, decision, forward);
+            super::route_engine_requests(domain, env, decision, forward);
         }
     }
     assert!(

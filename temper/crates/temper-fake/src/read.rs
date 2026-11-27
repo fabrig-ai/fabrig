@@ -159,7 +159,10 @@ pub fn pace(o: &mut config::read::Object, d: &Document, name: &[u8], p: &Path) -
     Ok(u32::try_from(ms).expect("pace bounded to 60000 milliseconds"))
 }
 pub fn list(d: &Document, at: u32, min: u32, p: &Path) -> Result<List<u32>, Refusal> {
-    match config::read::list(d, at, crate::ENTRIES) {
+    bounded_list(d, at, min, crate::ENTRIES, p)
+}
+pub(crate) fn bounded_list(d: &Document, at: u32, min: u32, max: u32, p: &Path) -> Result<List<u32>, Refusal> {
+    match config::read::list(d, at, max) {
         Ok(v) if v.len() >= min => Ok(v),
         Ok(_) => Err(why(p, b"must be non-empty")),
         Err(w) => Err(kind(p, w)),

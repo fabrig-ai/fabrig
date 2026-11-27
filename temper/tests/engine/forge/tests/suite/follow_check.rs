@@ -7,7 +7,7 @@ use temper_engine_domain_forge_change as c;
 use temper_engine_domain_forge_tiers as p;
 use temper_engine_forge_world::{
     REPO, World,
-    changes::{change_row, change_step},
+    changes::{branch_name, change_row, change_step},
     translate,
 };
 const STEPS: u64 = 120; // A 10-second workflow, fault-free polls, repair and the queue window.
@@ -99,10 +99,10 @@ fn the_follow_workflow_repairs_from_its_report_then_lands_and_keeps_green_parity
         task: 51,
         child: 52,
         kind: c::Delegate::Repair(c::Repair::Gate(c::FOLLOW_CHECK_GATE)),
+        close_at: None,
     });
-    world.push_as(b"temper/51", b"failures", b"", 1);
+    let repaired = world.push_attempt(&branch_name(b"temper/51"), (52, 1), b"temper/51", b"failures", b"");
     world.status(b"temper/51", raw::Check::Passed);
-    let repaired = translate::commit(world.branch(b"temper/51"));
     world.event(top::Event::DelegateResult {
         ended_at: None,
         task: 51,

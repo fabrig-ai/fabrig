@@ -19,7 +19,7 @@
 
 
 ───────────────────────────────────── Demo / Design session on 127.0.0.1:8367 ──
-❯ Say what to design, or Esc to go back.
+❯ Say what to design, or ← to go back.
 ────────────────────────────────────────────────────────────────────────────────
  ● Live · Demo · model · high
 --
@@ -44,7 +44,7 @@
 ................................................................................
 ................................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbaaabbbbbbbbbbbbbbccccccccccccccccccaaa
-ddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa........................................
+ddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..........................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 .eeeeeeaaaccccaaacccccccccccc...................................................
 --

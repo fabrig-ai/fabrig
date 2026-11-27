@@ -1,6 +1,8 @@
 # branches: status
 
-2026-11-25. Where the tree's code lags or departs from [branches.md](branches.md).
+2026-11-27. Where the tree's code lags or departs from [branches.md](branches.md).
+
+
 
 
 
@@ -100,6 +102,7 @@ a change's merge job from the engine through its worker to the fake forge
   -  participating objects and external merges remain `README.status.md`, 7.
   -  upstream contributions remain `README.status.md`, 8.
   -  the rule-change gate stories remain `change/gates.status.md`, 3.
+
 
 - **Not yet:** 3: a goal with a confirmed goal branch and a modifying charter delivers to
   its own run branch and lands through a change into g; later runs merge r into g's tip before delivering

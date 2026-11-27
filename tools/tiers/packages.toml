@@ -53,8 +53,17 @@ campaign-skein = [
     "skein-world-tests",
 ]
 
+campaign-smith = [
+    "smith-agent-world",
+    "smith-run-world",
+    "smith-session-world",
+    "smith-tools-world",
+]
+
 campaign-temper = [
     "temper-engine-domain-world",
+    "temper-engine-forge-world",
+    "temper-system-world",
 ]
 
 conformance-hearth = [
@@ -172,6 +181,7 @@ browser-temper = [
 ]
 campaign-hearth = []
 campaign-skein = []
+campaign-smith = []
 campaign-temper = []
 conformance-hearth = []
 live-jig = []

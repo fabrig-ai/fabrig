@@ -384,6 +384,7 @@ impl Engine {
                 | root::Delivery::Fleet(_)
                 | root::Delivery::System { .. }
                 | root::Delivery::LostRead { .. }
+                | root::Delivery::Store(_)
                 | root::Delivery::Start(_)
                 | root::Delivery::Procedure { .. } => {}
             }
@@ -443,7 +444,6 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::PartsMarked { .. }
         | core::Event::Waits { .. }
         | core::Event::Marked { .. }
-        | core::Event::ReadLoaded { .. }
         | core::Event::Read { .. }
         | core::Event::PublicRead { .. }
         | core::Event::PublicAnswered { .. }
@@ -477,7 +477,6 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::ConnectorRepair { .. }
         | core::Event::PersonTask { .. }
         | core::Event::Period { .. }
-        | core::Event::TranscriptLoaded { .. }
         | core::Event::People(_)
         | core::Event::Fleet(_)
         | core::Event::PartPayload { .. }
@@ -486,19 +485,10 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::AcceptedTurn { .. }
         | core::Event::RefusedPayload { .. }
         | core::Event::Activate { .. }
-        | core::Event::EndedReadLoaded { .. }
-        | core::Event::SeenConversationLoaded { .. }
-        | core::Event::EndedProposal { .. }
-        | core::Event::DecidedProposal { .. }
-        | core::Event::EndedPersonTask { .. }
-        | core::Event::EndedTaskLoaded { .. }
-        | core::Event::PartyInputsLoaded { .. }
-        | core::Event::EndedEscalation { .. }
         | core::Event::NamedAnswer { .. }
         | core::Event::SubscribeTopic { .. }
         | core::Event::NamedAction { .. }
-        | core::Event::DelegateValidated { .. }
-        | core::Event::DelegateInputFailed { .. }
+        | core::Event::Delegate { .. }
         | core::Event::DelegateHoldings { .. }
         | core::Event::ProcedureHoldings { .. }
         | core::Event::ProcedureStep { .. }

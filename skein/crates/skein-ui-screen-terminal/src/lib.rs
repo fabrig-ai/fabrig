@@ -5,7 +5,7 @@ extern crate alloc;
 mod keys;
 pub use keys::{Decoder, Key};
 mod command;
-pub use command::{Command, command};
+pub use command::{Command, alias, command};
 mod draw;
 pub use draw::{ASK_BACKGROUND, Depth, ENTER, LEAVE, draw, draw_bound};
 mod terminal;

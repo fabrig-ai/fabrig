@@ -145,10 +145,10 @@ fn a_whole_goals_words_only_child_lands_into_its_goal_branch() {
     settle_scope_question(&mut world, &goal, child, &producer, 110, b"May I commit the source draft?", false);
     settle_scope_question(&mut world, &goal, child, &producer, 120, b"May I commit the product document?", true);
     let change_branch = row(&world, child).branch.clone();
-    push_goal_child(&mut world, child, &branch, b"draft.md", b"");
-    let head =
-        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &change_branch, b"product.md", b"design", 1)
-            .expect("producer pushes the product document");
+    push_goal_child(&mut world, &producer, &branch, b"draft.md", b"");
+    let draft = branch_tip(&mut world, &change_branch);
+    let head = world.worker_commit(draft, b"product.md", b"design");
+    world.run_push(&producer, &change_branch, head, 1);
     status(&mut world, head, raw::Check::Passed);
     finish_goal_change(&mut world, child, &producer);
     let number = row(&world, child).pull.expect("child pull");
@@ -369,7 +369,7 @@ fn a_whole_goals_batched_omissions_stay_on_its_goal_branch() {
                 .parameters
                 .contains(&tasks::Parameter::Bytes { name: 2, value: branch.clone() })
         );
-        push_goal_child(&mut world, child.task, &branch, &child.task.to_be_bytes(), b"");
+        push_goal_child(&mut world, producer, &branch, &child.task.to_be_bytes(), b"");
         finish_goal_change(&mut world, child.task, producer);
     }
     finish_goal(&mut world, &goal);
@@ -413,7 +413,7 @@ fn a_whole_goals_subtree_inherits_its_landing_and_refuses_the_base() {
     );
     let child = made[0].task;
     let producer = questions::next_producer(&mut world, child);
-    push_goal_child(&mut world, child, &branch, b"subtree", b"");
+    push_goal_child(&mut world, &producer, &branch, b"subtree", b"");
     finish_goal_change(&mut world, child, &producer);
     finish_run(&mut world, &coordinator, tasks::TaskResult::Report { words: b"Done".as_slice().into() });
     for _ in 0..STEPS {
@@ -539,33 +539,24 @@ pub(super) fn producing_into_goal_with_message(
     let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("goal change admitted: {answer:?}") };
     let change = made[0].task;
     let producer = reviews::next_assignment(world, assigned);
-    push_goal_child(world, change, branch, file, message);
+    push_goal_child(world, &producer, branch, file, message);
     (change, producer)
 }
 
-fn push_goal_child(world: &mut World, change: u64, branch: &[u8], file: &[u8], message: &[u8]) {
-    let change_branch = row(world, change).branch.clone();
+fn push_goal_child(world: &mut World, producer: &engine::Assignment, branch: &[u8], file: &[u8], message: &[u8]) {
+    let change_branch = producer.workspace.repositories[0].push.as_ref().expect("producer branch");
     let base = branch_tip(world, branch);
     let head = if message.is_empty() {
-        assert_eq!(
-            world.external(1, raw::Op::Git(raw::Git::Create { branch: change_branch.clone(), commit: base })),
-            raw::Answer::Branch(raw::Created::Created)
-        );
-        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &change_branch, file, b"added", 1)
-            .expect("producer pushes its change")
+        world.worker_commit(base, file, b"added")
     } else {
         let mut tree = world.fake.object(base).expect("goal base").tree.clone();
         tree.insert(file.into(), b"added".as_slice().into()).expect("room for the producer's file");
         let files = tree.iter().map(|(path, content)| raw::File { path: path.clone(), content: content.clone() });
-        let head = fake::commit(&mut world.fake, &world.fake_env.limits, base, files.collect(), message)
+        fake::commit(&mut world.fake, &world.fake_env.limits, base, files.collect(), message)
             .expect("producer's commit fits")
-            .expect("producer changed the tree");
-        assert_eq!(
-            world.external(1, raw::Op::Git(raw::Git::PushNew { branch: change_branch, commit: head })),
-            raw::Answer::PushNew { existing: None }
-        );
-        head
+            .expect("producer changed the tree")
     };
+    world.run_push(producer, change_branch, head, 1);
     status(world, head, raw::Check::Passed);
 }
 
@@ -724,7 +715,7 @@ fn a_closers_landing_checks_its_updates_head_and_lands_with_or_without_a_close_o
 
 #[test]
 fn a_push_from_outside_during_a_closers_landing_update_holds_with_both_heads() {
-    use temper_engine_domain_forge_change::{Hold, State};
+    use temper_engine_domain_forge_change::{Cause, State};
     let (mut world, goal, branch, _, landing) = super::goal_closer::updating_landing(false);
     let expected = row(&world, landing).change.last_head.expect("own head");
     world.hold_write_answers = Some(HoldWrite::All);
@@ -748,7 +739,10 @@ fn a_push_from_outside_during_a_closers_landing_update_holds_with_both_heads() {
             break;
         }
     }
-    assert!(matches!(row(&world, landing).change.state, State::Held { why: Hold::BranchMoved, .. }));
+    assert!(matches!(
+        row(&world, landing).change.state,
+        State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::BranchMoved, .. }, .. }
+    ));
     let tasks::Phase::Held { source: Some(source), why: tasks::Hold::Drift, .. } = &live_task(&world, landing).phase
     else {
         panic!("drift's task account: {:?}", live_task(&world, landing).phase)
@@ -756,15 +750,17 @@ fn a_push_from_outside_during_a_closers_landing_update_holds_with_both_heads() {
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("drift account") };
     let before = forge_top::commit_text(&expected);
     let after = forge_top::commit_text(&translate::commit(head));
-    assert_eq!(
-        words.as_ref(),
-        format!(
-            "its branch moved: expected {}, found {}",
-            core::str::from_utf8(&before[..12]).unwrap(),
-            core::str::from_utf8(&after[..12]).unwrap()
-        )
-        .as_bytes()
+    let prefix = format!(
+        "its branch moved: expected {}, found {}; temper's last write on it: open pull of ",
+        core::str::from_utf8(&before[..12]).unwrap(),
+        core::str::from_utf8(&after[..12]).unwrap()
     );
+    let revision = live_task(&world, landing).revisions.hold;
+    let tail = format!(
+        "; resolve this reason, then task release {landing} --hold {revision}; or task cancel {landing} REASON"
+    );
+    let account = words.strip_suffix(tail.as_bytes()).expect("current hold's recovery tail");
+    assert!(account.starts_with(prefix.as_bytes()) && account.ends_with(b", confirmed"), "{words:?}");
     world.hold_write_answers = None;
     world.events.extend(world.held_write_answers.drain(..));
     world.signed_in = None;
@@ -806,7 +802,7 @@ fn a_change_into_the_goal_branch_while_its_landing_is_checked_is_its_new_head() 
 
 #[test]
 fn a_move_of_the_goal_branch_by_another_identity_holds_its_landing_for_drift() {
-    use temper_engine_domain_forge_change::{Hold, State};
+    use temper_engine_domain_forge_change::{Cause, State};
     let (mut world, goal, branch, landing, old) = checking_landing();
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"outside", b"pushed", 2)
         .expect("another identity moves the goal branch");
@@ -824,14 +820,19 @@ fn a_move_of_the_goal_branch_by_another_identity_holds_its_landing_for_drift() {
     })));
     for _ in 0..STEPS {
         world.tick();
-        if matches!(row(&world, landing).change.state, State::Held { why: Hold::BranchMoved, .. })
-            && matches!(live_task(&world, landing).phase, tasks::Phase::Held { .. })
+        if matches!(
+            row(&world, landing).change.state,
+            State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::BranchMoved, .. }, .. }
+        ) && matches!(live_task(&world, landing).phase, tasks::Phase::Held { .. })
             && forge_hold(&world, &branch).is_some_and(|hold| hold.drift.is_some())
         {
             break;
         }
     }
-    assert!(matches!(row(&world, landing).change.state, State::Held { why: Hold::BranchMoved, .. }));
+    assert!(matches!(
+        row(&world, landing).change.state,
+        State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::BranchMoved, .. }, .. }
+    ));
     assert!(matches!(live_task(&world, landing).phase, tasks::Phase::Held { .. }));
     let hold = forge_hold(&world, &branch).expect("the goal retains its branch");
     assert_eq!(hold.task, goal.task);
@@ -839,7 +840,7 @@ fn a_move_of_the_goal_branch_by_another_identity_holds_its_landing_for_drift() {
         hold.drift.as_ref().expect("the hold names the outside move").change,
         forge_top::DriftChange::Branch { expected: translate::commit(old), observed: Some(translate::commit(head)) }
     );
-    assert_eq!(row(&world, landing).drift, Some(Hold::BranchMoved));
+    assert_eq!(row(&world, landing).drift, Some(Cause::BranchMoved));
     assert_eq!(world.merges, PLAN_MERGES, "only the plan landed; the goal landing merges nothing");
     let number = row(&world, landing).pull.expect("goal landing pull");
     assert!(!world.writes.iter().any(|write| matches!(write,

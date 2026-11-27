@@ -79,6 +79,7 @@ mod replaced;
 mod settings_proposals;
 
 mod startup;
+mod writers;
 
 #[test]
 fn valid_refuses_each_unrepresentable_limit() {

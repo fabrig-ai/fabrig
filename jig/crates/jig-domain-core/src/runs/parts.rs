@@ -1,4 +1,4 @@
-//! Parts kept between turns (domain/engine/executors.md, 2).
+//! Parts kept between turns (jig/docs/design/domain/engine/executors-transcripts.md, 1).
 use crate::{Core, CoreKey, CoreRecord, Held, Key, PartRecord, Record, Request, Write, start};
 use alloc::boxed::Box;
 use jig_domain_link::KeptPart;
@@ -7,17 +7,25 @@ use skein_lib::{List, Map, Queue, Set, length::len_u64};
 impl Core {
     pub(crate) fn restore_part(&mut self, record: PartRecord) -> bool {
         self.start_input();
-        assert!(self.start_loading(), "parts load before Link");
-        assert!(!self.kept_parts.contains_key(&record.key), "duplicate part");
+        let key = record.key;
+        assert!(self.start_loading(), "kept part {key:?} loads before Link");
+        assert!(!self.kept_parts.contains_key(&key), "kept part {key:?} loads only once");
         if !self.start_room(
             start::LiveSet::Parts,
-            Key::Core(CoreKey::Part(record.key)),
+            Key::Core(CoreKey::Part(key)),
             self.kept_parts.len(),
             self.kept_parts.capacity(),
         ) {
             return false;
         }
-        self.kept_parts.insert(record.key, record).is_ok()
+        self.insert_part(record);
+        true
+    }
+
+    fn insert_part(&mut self, record: PartRecord) {
+        let key = record.key;
+        let inserted = self.kept_parts.insert(key, record);
+        assert!(inserted == Ok(None), "kept part {key:?} takes a vacant place in the admitted part room");
     }
 
     pub(crate) fn keep_part(&mut self, record: PartRecord) -> Queue<Request> {
@@ -46,7 +54,7 @@ impl Core {
                 // the cut turn and plans it afresh (domain/engine/executors-transcripts.md, 1).
                 self.retire_parts(key.task, None, &mut out);
             } else {
-                assert!(self.kept_parts.insert(key, record.clone()).is_ok(), "kept part room checked");
+                self.insert_part(record.clone());
                 out.push(Request::Write(Write::Save(Record::Core(CoreRecord::Part(record)))));
             }
         }
@@ -67,11 +75,13 @@ impl Core {
                 None => true,
             };
             if key.task == task && moot {
-                retired.push(key).expect("retired parts fit retained parts");
+                let found = retired.push(key);
+                assert!(found.is_ok(), "enumerated kept part {key:?} fits the retirement list");
             }
         }
         for key in retired.into_boxed() {
-            self.kept_parts.remove(&key);
+            let removed = self.kept_parts.remove(&key).is_some();
+            assert!(removed, "enumerated kept part {key:?} still holds its place at retirement");
             out.push(Request::Write(Write::Erase(Key::Core(CoreKey::Part(key)))));
         }
     }

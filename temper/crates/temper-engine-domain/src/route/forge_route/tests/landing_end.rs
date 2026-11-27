@@ -1,7 +1,7 @@
 //! A landing's end wakes its train alone (domain/landing.md, 4.2, and domain/landing-turn.md, 2).
 use super::super::{Work, forge, landing, landing_route, tasks};
 use alloc::boxed::Box;
-use skein_lib::{List, Queue};
+use skein_lib::List;
 
 const STUCK: landing::Stuck = landing::Stuck::Train { landing: 41 };
 const REASON: &[u8] = b"cannot move: landing 41 holds its train";
@@ -21,12 +21,7 @@ fn ending_wakes(choice: landing::Decision) {
         forge::Stored::Change(Box::new(goal)),
         forge::Stored::Change(Box::new(other)),
     ] {
-        forge::step(
-            &mut domain.forge,
-            &crate::translate::environment_forge(&env),
-            forge::Event::Restore { record },
-            &mut Queue::uncapped(),
-        );
+        super::restore_forge_with_engine_waits(&mut domain, &env, record);
     }
     // Admit one main member without driving other trains or starting any reads.
     super::super::start_landing(&mut domain, &env, 7);
@@ -41,12 +36,7 @@ fn ending_wakes(choice: landing::Decision) {
     row.landing.phase =
         if choice == landing::Decision::Finish { landing::Phase::Landed } else { landing::Phase::Cancelled };
     row.landing.members[0].left = Some(landing::Leave::Cancelled);
-    forge::step(
-        &mut domain.forge,
-        &crate::translate::environment_forge(&env),
-        forge::Event::Restore { record: forge::Stored::Landing(row) },
-        &mut Queue::uncapped(),
-    );
+    super::restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Landing(row));
     // A member that left is unlinked and ready again when the end is routed.
     assert_eq!(domain.forge.landing_of(7), None);
     landing_route::landing_decision(&mut domain, &env, task, choice, &[]);
@@ -65,7 +55,7 @@ fn ending_wakes(choice: landing::Decision) {
         assert_eq!(*by, tasks::Party::Deployment { project: 1 });
         assert_eq!(operation.task, task);
         assert_eq!(operation.reason.as_ref(), REASON);
-        tasks::step(&mut domain.engine.core_mut().tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
+        super::task_event(&mut domain, &env, event);
         let tasks::Phase::Closing(closing) = &domain.engine.core().tasks.task(task).expect("landing task").phase else {
             panic!("jig accepted the cancel")
         };
@@ -74,12 +64,7 @@ fn ending_wakes(choice: landing::Decision) {
 
         let mut change = domain.forge.change(7).expect("member").clone();
         change.goal = Some(9);
-        forge::step(
-            &mut domain.forge,
-            &crate::translate::environment_forge(&env),
-            forge::Event::Restore { record: forge::Stored::Change(Box::new(change)) },
-            &mut Queue::uncapped(),
-        );
+        super::restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Change(Box::new(change)));
         let step = forge::LandingNews::Cancelled(STUCK);
         super::forge_request(&mut domain, &env, forge::Request::LandingNews { task, member: 0, step });
         let Some(Work::Tasks(tasks::Event::Notice { task: goal, word })) = domain.work.pop() else {

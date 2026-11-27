@@ -2,7 +2,7 @@
 
 pub use jig_domain_core_vocabulary::stored::*;
 
-use crate::{Core, Counters, Family, Limits, fresh};
+use crate::{CallHolder, Core, Counters, Family, Limits, fresh};
 
 /// Result of restoring one core-owned row during the live-range startup.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -23,16 +23,25 @@ impl Core {
     #[must_use]
     pub fn decide_named_call(&mut self, key: CallKey, part: CallPart) -> bool {
         self.start_input();
-        let _pending = self.pending_calls.remove(&key);
-        let current = match self.proofs.get(&key.task) {
-            Some(proof) => proof.attempt == key.attempt,
-            None => false,
-        };
-        if !current {
+        // The application can also decide a synchronous call in its admission step.
+        if !self.pending_calls.contains_key(&key)
+            && (!self.current_proof(key.task, key.attempt) || !self.reserve_call(key, CallHolder::Application))
+        {
             return false;
         }
-        let _number = fresh(&mut self.counters, Family::Call).expect("admitted call counter");
+        self.decide_pending_call(key, part)
+    }
+
+    /// Only the route that holds this place can move it to retained.
+    #[must_use]
+    pub(crate) fn decide_pending_call(&mut self, key: CallKey, part: CallPart) -> bool {
+        if !self.current_proof(key.task, key.attempt) {
+            self.release_pending_call(key);
+            return false;
+        }
         self.record_call(key, part);
+        let number = fresh(&mut self.counters, Family::Call);
+        assert!(number.is_some(), "named call {key:?} has its admitted call counter");
         true
     }
 

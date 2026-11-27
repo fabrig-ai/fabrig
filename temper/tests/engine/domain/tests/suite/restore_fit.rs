@@ -16,15 +16,18 @@ fn driver(pending: bool) -> Driver {
     driver.advance_to(Time::from_nanos(100));
     driver
 }
-fn forge_page(driver: &mut Driver, previous: Option<Token>) -> Token {
-    for _ in 0_u32..300 {
-        driver.advance(true);
-        if let Some((owner, Range::Forge)) = driver.loads.last()
-            && Some(*owner) != previous
-        {
+fn forge_page(driver: &mut Driver, since: usize, previous: Option<Token>) -> Token {
+    for remaining in (0_u32..=300).rev() {
+        // Sending the preceding page can already have collected the next load.
+        if let Some((owner, _)) = driver.loads[since..].iter().find(|(_, range)| *range == Range::Forge) {
             let owner = *owner;
+            assert_ne!(Some(owner), previous, "each forge page has a fresh load owner");
+            // Replace the fake store's queued answer with the scripted page.
             driver.events.clear();
             return owner;
+        }
+        if remaining != 0 {
+            driver.advance(true);
         }
     }
     panic!("forge restore load");
@@ -64,12 +67,7 @@ fn a_forge_fit_failure_names_its_step_and_releases_no_wires() {
         }
         let owner = driver.loads.last().expect("forge load was issued").0;
         driver.send(root::Event::Store(root::StoreInput::Unloaded { owner }));
-        driver.send(root::Event::Store(root::StoreInput::Loaded {
-            owner,
-            rows: Box::new([binding(99)]),
-            next: None,
-            texts: None,
-        }));
+        driver.send(root::Event::Store(root::StoreInput::Loaded { owner, rows: Box::new([binding(99)]), next: None }));
         assert_eq!(driver.root.forge_fit_failure(), Some(&first));
         assert_eq!(driver.loads.len(), loads, "no continuation after the failed page");
         assert_eq!(driver.switches.len(), 0);
@@ -96,7 +94,7 @@ fn application_pages_use_the_restart_entry_wall_observation() {
         for over_limit in [false, true] {
             let mut driver = driver(false);
             driver.broken("scripted application pages replace the store inventory and may refuse fit");
-            let owner = forge_page(&mut driver, None);
+            let owner = forge_page(&mut driver, 0, None);
             // Equality expires; future-at-start rows stay, despite alternating clock movement between pages.
             let count = driver.env.limits.forge.applications;
             let mut rows = Vec::new();
@@ -122,11 +120,11 @@ fn application_pages_use_the_restart_entry_wall_observation() {
                         u64::try_from((index + 1) * most).expect("bounded page cursor"),
                     )))
                 };
+                let loads_before = driver.loads.len();
                 driver.send(root::Event::Store(root::StoreInput::Loaded {
                     owner: page_owner,
                     rows: page.to_vec().into_boxed_slice(),
                     next,
-                    texts: None,
                 }));
                 if done && over_limit {
                     assert_eq!(
@@ -143,7 +141,7 @@ fn application_pages_use_the_restart_entry_wall_observation() {
                     assert_eq!(driver.root.forge_fit_failure(), None);
                 }
                 if !done {
-                    page_owner = forge_page(&mut driver, Some(page_owner));
+                    page_owner = forge_page(&mut driver, loads_before, Some(page_owner));
                 }
             }
             assert_eq!(driver.stopped, over_limit);

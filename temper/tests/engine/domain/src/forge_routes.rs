@@ -4,6 +4,7 @@ use crate::forge_routes as paths;
 use crate::journal_limits as journal;
 use jig_domain_authority as authority;
 use jig_domain_core::documents;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_host as host;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -16,7 +17,7 @@ use temper_engine_domain_forge as forge_top;
 use temper_engine_domain_world::protocol::{self, Protocol};
 use temper_engine_domain_world::{store::Store, walking};
 use temper_engine_forge_world::{self as forge_world, translate};
-use temper_protocol_worker_wire::v1::Record as WorkerRecord;
+use temper_protocol_worker_wire::v1::{self as worker_wire, Record as WorkerRecord};
 
 #[path = "restarts.rs"]
 pub mod restarts;
@@ -127,6 +128,8 @@ pub struct World {
     pub env: Env<engine::Limits>,
     pub out: Queue<engine::Request>,
     pub events: VecDeque<engine::Event>,
+    /// Let a story inspect and fault note answers before they reach the root.
+    pub defer_note_answers: bool,
     pub store: Store,
     /// Task row keys saved by the most recent tick's durable transaction.
     pub changed_tasks: Vec<Key>,
@@ -155,6 +158,7 @@ pub struct World {
     /// Assignments queued at the engine boundary, not yet received by a worker.
     pub held_assignments: Option<Vec<engine::Assignment>>,
     pub jobs: Vec<host::JobAssignment>,
+    push_answers: BTreeMap<u64, host::AskAnswer>,
     pub job_workspaces: BTreeMap<u64, engine::ForgeWorkspace>,
     /// Inbox messages delivered after an assignment, as a real worker receives them.
     pub delivered_messages: BTreeMap<(u64, u64), Vec<u64>>,
@@ -1827,6 +1831,7 @@ impl World {
             assigned: Vec::new(),
             held_assignments: None,
             jobs: Vec::new(),
+            push_answers: BTreeMap::new(),
             job_workspaces: BTreeMap::new(),
             auto_prepare: turn,
             delivered_messages: BTreeMap::new(),
@@ -1837,6 +1842,7 @@ impl World {
             approvals: Vec::new(),
             protocol: Protocol::default(),
             immediate: VecDeque::new(),
+            defer_note_answers: false,
             period: None,
             period_budget,
             fail_job_reads: false,
@@ -2119,6 +2125,7 @@ impl World {
     /// Push the worker's prefixes without answering, for a lost or delayed answer.
     pub fn push_prepare(&mut self) -> Box<[u8]> {
         let job = self.jobs.iter().find(|job| job.kind == jig_domain_link::JobKind(1)).expect("prepare job");
+        let attempt = (Token::new(7), job.run.raw(), job.attempt.raw());
         let workspace = self.job_workspaces.get(&job.run.raw()).expect("typed prepare items").clone();
         let item = &workspace.repositories[0];
         let landing = job.workspace.as_ref().expect("prepare workspace").workstream;
@@ -2196,19 +2203,123 @@ impl World {
                 assert!(squash || self.fake.is_ancestor(head, existing), "merge prefix contains the member");
                 base = existing;
             } else {
-                assert_eq!(
-                    self.external_at(
-                        repository,
-                        1,
-                        raw::Op::Git(raw::Git::PushNew { branch: saved.branch.clone(), commit: candidate })
-                    ),
-                    raw::Answer::PushNew { existing: None }
-                );
+                self.worker_push(attempt, item, &saved.branch, candidate, 1);
                 base = candidate;
             }
             combined.push(serde_json::json!({"member": position + 1, "by": if squash { "squash" } else { "merge" }}));
         }
         serde_json::to_vec(&serde_json::json!({"combined": combined})).expect("result").into()
+    }
+
+    /// Let the engine commit the ask before this scripted worker moves a branch.
+    pub fn ask_push(
+        &mut self,
+        attempt: (Token, u64, u64),
+        tag: u64,
+        branch: &[u8],
+        expected: Option<u64>,
+        commit: u64,
+    ) -> Option<worker_wire::Answer> {
+        let (number, event) = self.protocol.admit(
+            attempt,
+            worker_wire::Admit {
+                tag,
+                branch: branch.into(),
+                expected: expected.map(translate::commit),
+                commit: translate::commit(commit),
+            },
+        );
+        self.send(event);
+        for _ in 0..STEPS {
+            if let Some(answer) = self.push_answers.remove(&number) {
+                return match answer {
+                    host::AskAnswer::Bytes(bytes) => Some(
+                        worker_wire::Answer::decode(&worker_wire::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+                            .expect("encoded push answer"),
+                    ),
+                    host::AskAnswer::Refused => None,
+                };
+            }
+            // Drain the ready store and link steps without moving the clock or
+            // re-entering the prepare job that may be waiting on this answer.
+            self.iteration += 1;
+            self.changed_tasks.clear();
+            self.tick_at_now(None, true, false);
+        }
+        panic!("push ask {number} for {attempt:?} to {branch:?} did not answer");
+    }
+
+    /// A worker push is leased on the head it just read, including absence.
+    pub fn worker_push(
+        &mut self,
+        attempt: (Token, u64, u64),
+        item: &engine::ForgeRepository,
+        branch: &[u8],
+        commit: u64,
+        user: u64,
+    ) {
+        let repository = skein_lib::bytes::concat(&[&item.owner, b"/", &item.name]);
+        let expected = self.fake.branch(&repository, branch);
+        assert_eq!(
+            self.ask_push(attempt, item.tag, branch, expected, commit),
+            Some(worker_wire::Answer::Admitted),
+            "push to {branch:?} for {attempt:?}"
+        );
+        let op = if expected.is_some() {
+            raw::Git::Push { branch: branch.into(), commit, expected }
+        } else {
+            raw::Git::PushNew { branch: branch.into(), commit }
+        };
+        let answer = self.external_at(&repository, user, raw::Op::Git(op));
+        assert_eq!(
+            answer,
+            if expected.is_some() {
+                raw::Answer::Pushed(raw::Pushed::Pushed)
+            } else {
+                raw::Answer::PushNew { existing: None }
+            }
+        );
+    }
+
+    /// Push to the named branch of this run's only checkout.
+    pub fn run_push(&mut self, run: &engine::Assignment, branch: &[u8], commit: u64, user: u64) {
+        self.worker_push((Token::new(7), run.task, run.attempt), &run.workspace.repositories[0], branch, commit, user);
+    }
+
+    /// Edit one file at the tip of an existing branch and push it as this run.
+    pub fn run_push_edit(
+        &mut self,
+        run: &engine::Assignment,
+        branch: &[u8],
+        path: &[u8],
+        content: &[u8],
+        user: u64,
+    ) -> u64 {
+        let item = &run.workspace.repositories[0];
+        let repository = skein_lib::bytes::concat(&[&item.owner, b"/", &item.name]);
+        let parent = self.fake.branch(&repository, branch).expect("branch to edit");
+        let commit = self.worker_commit(parent, path, content);
+        self.run_push(run, branch, commit, user);
+        commit
+    }
+
+    /// The hosted job's only writable repository, from its assignment.
+    pub fn job_push(&mut self, channel: Token, job: &host::JobAssignment, branch: &[u8], commit: u64, user: u64) {
+        let item = self.job_workspaces.get(&job.run.raw()).expect("job items").repositories[0].clone();
+        self.worker_push((channel, job.run.raw(), job.attempt.raw()), &item, branch, commit, user);
+    }
+
+    /// Store a commit as checkout does before asking to move its destination.
+    pub fn worker_commit(&mut self, parent: u64, path: &[u8], content: &[u8]) -> u64 {
+        let tree = &self.fake.object(parent).expect("parent of the delivery").tree;
+        let mut files: Vec<raw::File> = tree
+            .iter()
+            .filter(|(name, _)| name.as_ref() != path)
+            .map(|(path, content)| raw::File { path: path.clone(), content: content.clone() })
+            .collect();
+        files.push(raw::File { path: path.into(), content: content.into() });
+        fake::commit_tree(&mut self.fake, &self.fake_env.limits, parent, None, files.into_boxed_slice(), b"added")
+            .expect("worker commit fits")
     }
 
     /// Configure the project's delivery checks' bound before startup.
@@ -2369,6 +2480,23 @@ impl World {
         self.flush();
     }
 
+    fn offer_forge_call(&mut self, event: fake::Event, delay: Option<Duration>) {
+        if delay.is_none() && self.restart_calls.is_none() {
+            fake::step(&mut self.fake, &self.fake_env, event, &mut self.fake_out);
+            return;
+        }
+        let mut limits = self.fake_env.limits.clone();
+        if let Some(delay) = delay {
+            limits.latency_min = delay;
+            limits.latency_max = delay;
+        }
+        if let Some(calls) = &mut self.restart_calls {
+            calls.push((event, limits));
+        } else {
+            fake::step(&mut self.fake, &self.fake_env.with(limits), event, &mut self.fake_out);
+        }
+    }
+
     /// Step every input waiting at once: the one sent, then what the
     /// protocol layer answered at once, as the root's door gives them.
     pub fn flush(&mut self) {
@@ -2511,6 +2639,7 @@ impl World {
         self.ends.restarted(self.env.now);
         self.out = Queue::uncapped();
         self.events.clear();
+        self.store.discard_engine_loads();
         self.held_write_answers.clear();
         self.held_ancestry_answers.clear();
         self.hold_ancestry_answers = false;
@@ -2523,7 +2652,7 @@ impl World {
         self.adopted.clear();
         self.period = None;
         self.events.push_back(engine::Event::Restart { pending: self.store.pending_generation });
-        if self.oracle_peer.is_some() || !self.assigned.is_empty() {
+        if self.oracle_peer.is_some() || !self.assigned.is_empty() || !self.jobs.is_empty() {
             let mut bounds = protocol::bounds();
             bounds.message_bytes = self.env.limits.tasks.message_bytes.max(self.env.limits.tasks.result_bytes);
             let mut hello = protocol::hello_with(
@@ -2533,10 +2662,10 @@ impl World {
                 bounds,
                 self.assigned
                     .iter()
-                    .filter(|assignment| matches!(self.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)))), Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) if matches!(row.phase, tasks::Phase::Active(tasks::Active::Running { attempt }) if attempt == assignment.attempt)))
-                    .map(|assignment| {
-                        protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active)
-                    })
+                    .map(|run| (run.task, run.attempt))
+                    .chain(self.jobs.iter().map(|job| (job.run.raw(), job.attempt.raw())))
+                    .filter(|&(task, attempt)| self.hosted_attempt(task, attempt))
+                    .map(|(task, attempt)| protocol::hosting(task, attempt, jig_domain_link::Phase::Active))
                     .collect(),
             );
             if let Some(worker) = &self.workload_worker
@@ -2551,6 +2680,14 @@ impl World {
             }
             self.events.push_back(hello);
         }
+    }
+
+    fn hosted_attempt(&self, task: u64, attempt: u64) -> bool {
+        matches!(
+            self.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task)))),
+            Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row))))
+                if row.phase == tasks::Phase::Active(tasks::Active::Running { attempt })
+        )
     }
 
     /// Refuse full comparisons at the protocol body bound; ancestry reads still reach the fake.
@@ -2617,12 +2754,7 @@ impl World {
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
                     self.events.extend(self.store.take_missing(owner).into_iter().map(engine::Event::Store));
-                    self.events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
-                        owner,
-                        rows,
-                        next,
-                        texts: None,
-                    }));
+                    self.events.push_back(engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next }));
                 }
                 engine::Request::Forge { call, repository, op } => {
                     if self.unavailable {
@@ -2926,27 +3058,15 @@ impl World {
                     self.pending_repositories.insert(call, Box::from(name));
                     let wire = Token::new(u64::from(self.forge_calls));
                     assert!(self.wire_calls.insert(wire, call).is_none(), "unique physical reply right");
-                    let mut limits = self.fake_env.limits.clone();
-                    if slow {
-                        limits.latency_min = self.slow_branch_latency;
-                        limits.latency_max = self.slow_branch_latency;
-                    }
-                    if let Some(delay) = review_delay.or(comparison_delay).or(ci_delay) {
-                        limits.latency_min = delay;
-                        limits.latency_max = delay;
-                    }
-                    let fake_env = self.fake_env.with(limits);
                     let event = fake::Event::Call {
                         reply_to: ReplyTo::new(wire),
                         user: 1,
                         repository: Box::from(name),
                         op: raw,
                     };
-                    if let Some(calls) = &mut self.restart_calls {
-                        calls.push((event, fake_env.limits));
-                    } else {
-                        fake::step(&mut self.fake, &fake_env, event, &mut self.fake_out);
-                    }
+                    let delay =
+                        review_delay.or(comparison_delay).or(ci_delay).or(slow.then_some(self.slow_branch_latency));
+                    self.offer_forge_call(event, delay);
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => match delivery {
@@ -2973,6 +3093,9 @@ impl World {
                     Delivery::Document { watcher, document } => self.documents.push((watcher, *document)),
                     Delivery::ForgeRead { answer: engine::ForgeReadAnswer::Milestone(totals), .. } => {
                         self.milestone_reads.push(totals);
+                    }
+                    Delivery::Link { down: host::LinkDown::Asked { number, answer, .. }, .. } => {
+                        assert!(self.push_answers.insert(number, answer).is_none(), "one answer per ask");
                     }
                     Delivery::Link { down: host::LinkDown::Message { run, attempt, name, .. }, .. } => {
                         self.delivered_messages.entry((run.raw(), attempt.raw())).or_default().push(name.raw());
@@ -3238,14 +3361,14 @@ impl World {
     /// Drain the current terminals before choosing a committed restart cut.
     pub fn drain_cut(&mut self) {
         for _ in 0..STEPS {
-            if self.store.pending.is_empty() && self.pending.is_empty() && self.events.is_empty() {
+            if self.store.idle() && self.pending.is_empty() && self.events.is_empty() {
                 self.check_quiet();
                 return;
             }
             self.tick();
         }
         assert!(
-            self.store.pending.is_empty() && self.pending.is_empty() && self.events.is_empty(),
+            self.store.idle() && self.pending.is_empty() && self.events.is_empty(),
             "restart cut drains within the fixture's bound"
         );
     }
@@ -3445,7 +3568,9 @@ impl World {
         }
         self.tick_with_reply_cut(None, true);
         self.check_ends()?;
-        if self.auto_prepare {
+        // A surviving job can use its link again only after the new engine
+        // has adopted the worker's hello, not merely opened its store.
+        if self.auto_prepare && self.root.ready() && self.root.core().fleet.channel_worker(Token::new(7)).is_some() {
             self.complete_prepare();
         }
         Ok(())
@@ -3478,26 +3603,18 @@ impl World {
         self.changed_tasks.clear();
         // A Busy retry keeps the offered change step in flight. Drain that
         // read's timer before snapshotting; an idle procedure's poll is not work.
-        let retrying_change = self.oracle_running
+        let retry = if self.oracle_running
             && self.events.is_empty()
             && self.immediate.is_empty()
             && self.pending.is_empty()
             && self.store.idle()
-            && self.store.rows.values().any(|row| {
-                matches!(row,
-                Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
-                if matches!(task.executor, tasks::Executor::Procedure { code: 2, .. })
-                    && task.phase == tasks::Phase::Active(tasks::Active::Due))
-            });
-        let retrying_change = retrying_change
-            && self
-                .root
-                .next_deadline(&self.env)
-                .is_some_and(|due| due <= self.env.now.saturating_add(Duration::from_secs(1)));
-        let mut next = self.env.now;
-        if retrying_change && let Some(due) = self.root.next_deadline(&self.env) {
-            next = next.max(due);
-        }
+            && self.store.has_due_change()
+        {
+            self.root.next_deadline(&self.env).filter(|due| *due <= self.env.now.saturating_add(Duration::from_secs(1)))
+        } else {
+            None
+        };
+        let mut next = retry.map_or(self.env.now, |due| self.env.now.max(due));
         if self.oracle_running {
             if !self.pending.is_empty()
                 && let Some(due) = self.fake.next_deadline()
@@ -3521,7 +3638,7 @@ impl World {
             self.fake.reclaim();
             return false;
         }
-        self.tick_at_now(target, resume, retrying_change) || lost
+        self.tick_at_now(target, resume, retry.is_some()) || lost
     }
 
     /// Move the story's clock through every kept bound, draining its timers at
@@ -3593,6 +3710,7 @@ impl World {
     )]
     fn tick_at_now(&mut self, target: Option<u64>, resume: bool, retrying_change: bool) -> bool {
         let mut lost = false;
+        let store_loads = self.store.queued_engine_loads();
         if let Some(index) = self.events.iter().position(|event| !crate::waits_for_start(&self.root, event)) {
             let event = self.events.remove(index).expect("selected eligible input");
             self.send(event);
@@ -3628,6 +3746,8 @@ impl World {
             // temper's own source (domain/root-translation.md, 2.1).
             self.send(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
         }
+        // Store work submitted by an earlier root pass becomes input for a later pass.
+        self.events.extend(self.store.advance_engine_loads(store_loads).into_iter().map(engine::Event::Store));
         if self.fake.is_due(self.fake_env.now) {
             fake::fire(&mut self.fake, &self.fake_env, &mut self.fake_out);
         }
@@ -3732,7 +3852,7 @@ impl World {
         for _ in 0..200 {
             self.tick();
             let done = match target {
-                Until::Ready => self.root.quiescent() && self.events.is_empty() && self.store.pending.is_empty(),
+                Until::Ready => self.root.quiescent() && self.events.is_empty() && self.store.idle(),
                 Until::SignedIn => self.signed_in.is_some(),
                 Until::Adopted => !self.adopted.is_empty(),
                 Until::Assigned => !self.assigned.is_empty(),
@@ -4445,7 +4565,7 @@ impl World {
         party: u64,
         scope: jig_domain_core::reads::Scope,
         after: Option<jig_domain_core::reads::Position>,
-    ) -> jig_domain_core::reads::Loaded {
+    ) -> engine_store::Answer {
         self.store.read(Box::new(jig_domain_core::reads::Range {
             party,
             scope,
@@ -4457,16 +4577,47 @@ impl World {
     }
 
     pub(super) fn stored_read(&mut self, request: engine::Request) -> Option<engine::Request> {
-        if let engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) = request {
-            let result = self.store.read(range);
-            self.immediate.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
-            None
-        } else if let engine::Request::Store(engine::StoreRequest::Read { load, range }) = request {
-            let result = self.store.read(range);
-            self.immediate.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
-            None
+        match request {
+            engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) => {
+                let result = self.store.read(range);
+                self.store_answer(engine::StoreInput::PartLoaded { waiter, result }, false);
+            }
+            engine::Request::Store(engine::StoreRequest::Engine(
+                load @ engine_store::Out::Load { range: engine_store::Range::Window { .. }, .. },
+            )) => self.store.queue_engine_load(load),
+            engine::Request::Store(engine::StoreRequest::Engine(
+                load @ engine_store::Out::Load { range: engine_store::Range::Notes(_), .. },
+            )) if !self.defer_note_answers => self.store.queue_engine_load(load),
+            engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load { load, range })) => {
+                let defer = matches!(range, engine_store::Range::Notes(_));
+                let result = self.store.load_result(load, range);
+                self.store_answer(engine::StoreInput::Engine(engine_store::In::Loaded { load, result }), defer);
+            }
+            other => return Some(other),
+        }
+        None
+    }
+
+    fn store_answer(&mut self, answer: engine::StoreInput, defer: bool) {
+        let event = engine::Event::Store(answer);
+        // A completion on the immediate path cannot pass an earlier queued answer.
+        if defer
+            || self.events.iter().any(|event| {
+                matches!(
+                    event,
+                    engine::Event::Store(
+                        engine::StoreInput::Engine(_)
+                            | engine::StoreInput::PartLoaded { .. }
+                            | engine::StoreInput::Switched
+                            | engine::StoreInput::Checkpointed { .. }
+                            | engine::StoreInput::CheckpointRefused { .. }
+                    )
+                )
+            })
+        {
+            self.events.push_back(event);
         } else {
-            Some(request)
+            self.immediate.push_back(event);
         }
     }
 }

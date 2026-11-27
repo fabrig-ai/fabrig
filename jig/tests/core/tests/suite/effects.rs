@@ -1,3 +1,4 @@
+use crate::first_support::{effect_kind, with_effects};
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_authority as authority;
@@ -203,7 +204,8 @@ fn retained_effect_core(seed: u64) -> (core::Core, core::Limits, core::CallKey) 
     let key = world.call_key(1);
     let (configuration, limits) = jig_core_world::world::fixture(seed, false);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.core };
-    let domain = super::start_links::recovered(&world, configuration.core, &env);
+    let core = with_effects(configuration.core, &env.limits, &[effect_kind(5, false)]);
+    let domain = super::start_links::recovered_with_core(&world, core, &env);
     assert!(domain.current_proof(key.task, key.attempt));
     assert!(matches!(domain.tasks.task(key.task).expect("restored caller").phase,
         tasks::Phase::Active(tasks::Active::Claimed { attempt } | tasks::Active::Running { attempt }) if attempt == key.attempt));
@@ -251,7 +253,6 @@ fn kept_effect(
         core::Event::EffectConnector(core::effects::connector::Event::Described {
             owner,
             description: Box::new(core::effects::connector::EffectDescription {
-                waits_for_dependencies: false,
                 connector: 1,
                 purpose: 19,
                 effect: authority::Effect {
@@ -266,8 +267,6 @@ fn kept_effect(
                     additional: Box::new([]),
                     guards: Box::new([]),
                 },
-                form: core::effects::connector::EffectForm::Set,
-                recovery: core::effects::connector::Recovery::Keyed,
             }),
         }),
     );

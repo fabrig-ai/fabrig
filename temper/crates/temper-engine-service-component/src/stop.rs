@@ -159,6 +159,7 @@ pub(crate) fn root(engine: &mut Engine) {
             },
         },
         Some(root::StartStop::ForgeFit { phase, failure }) => Stop::ForgeFit { phase, failure },
+        Some(root::StartStop::BranchWrites(name, count)) => Stop::BranchWrites(name, count),
         Some(root::StartStop::ForgeLink { phase, link }) => Stop::ForgeLink { phase, link },
         Some(root::StartStop::Binding) => Stop::Binding,
         Some(root::StartStop::Setting(key)) => Stop::Setting(key),

@@ -56,6 +56,14 @@ pub enum Observation {
         branches: Option<Branches>,
         by: u64,
     },
+    /// The open pull `number` changed its base from `from` to `to`.
+    Retargeted {
+        repository: Box<[u8]>,
+        number: u64,
+        from: Box<[u8]>,
+        to: Box<[u8]>,
+        by: u64,
+    },
     Closed {
         repository: Box<[u8]>,
         number: u64,

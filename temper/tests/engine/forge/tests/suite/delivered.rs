@@ -28,7 +28,7 @@ fn producer(kind: change::Delegate) -> World {
     row.change.task = TASK;
     row.branch = BRANCH.into();
     world.event(top::Event::Change { row });
-    world.event(top::Event::Delegated { task: TASK, child: CHILD, kind });
+    world.event(top::Event::Delegated { task: TASK, child: CHILD, kind, close_at: None });
     world.event(top::Event::Client(skein_forge_client::Event::Keep {
         owner: Token::new(444),
         watches: Box::new([skein_forge_client::Watch {
@@ -87,9 +87,9 @@ fn a_checked_answer_is_delivered_after_its_observed_push_only_once() {
     claim(&mut world, 2);
     answer(&mut world, 2, head, true);
     assert_eq!(deliveries(&world), delivered, "a later answer accepting the same head is no delivery");
-    world.push(BRANCH, b"new delivery");
-    let next = translate::commit(world.branch(BRANCH));
     claim(&mut world, 3);
+    let next = world.push_attempt(&name(), (CHILD, 3), BRANCH, b"file", b"new delivery");
+    world.event(top::Event::Finished { task: CHILD, attempt: 3, lost: false });
     answer(&mut world, 3, next, true);
     let delivered = deliveries(&world);
     assert_eq!(delivered.len(), 2);
@@ -146,6 +146,7 @@ fn a_turned_member_starts_no_repair_interval() {
         task: landings::CHANGE,
         child: CHILD,
         kind: change::Delegate::Repair(change::Repair::Ci),
+        close_at: None,
     });
     assert_eq!(world.history(landings::CHANGE).len(), before);
 }

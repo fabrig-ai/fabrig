@@ -575,11 +575,10 @@ fn dependency_records_use_addition_time_and_keep_the_count_past_the_cap() {
 
 #[test]
 fn resource_wait_names_the_holder_and_counts_from_the_latest_join() {
-    let (mut core, limits) = tree_core();
+    let (mut core, limits) = tree_core_with_write_hold();
     let name = tasks::Name { connector: 2, path: Box::new([b"one".as_slice().into()]) };
     let hold = tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits };
     for event in [
-        tasks::Event::Kinds { connector: 2, kinds: Box::new([tasks::Kind { connector: 2, kind: 1, hold }]) },
         tasks::Event::Resource { name: name.clone(), hold },
         tasks::Event::ResourceAccess { project: 1, name: name.clone(), access: tasks::ResourceAccess::Writable },
     ] {

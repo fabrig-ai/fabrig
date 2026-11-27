@@ -263,7 +263,8 @@ fn a_refused_claim_keeps_the_conversation_for_the_next_resume() {
         panic!("durable proof")
     };
     let limits = jig_test_profile::limits().core;
-    let mut core = core::Core::new(jig_test_profile::config(120).core, &limits).expect("fixture core configuration");
+    let mut core =
+        jig_test_profile::new_core(jig_test_profile::config(120).core, &limits).expect("fixture core configuration");
     core.replaced.insert(task, saved.clone()).expect("one durable replacement");
     let mut pending = saved.clone();
     pending.attempt += 1;

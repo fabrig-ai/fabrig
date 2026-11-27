@@ -832,6 +832,7 @@ impl Component {
             | store::Event::Read { .. }
             | store::Event::Got { .. }
             | store::Event::Turns { .. }
+            | store::Event::WindowFailed { .. }
             | store::Event::Unread { .. }
             | store::Event::Carried { .. }
             | store::Event::Erased { .. }
@@ -1106,6 +1107,7 @@ impl Component {
                 | store::Event::Read { .. }
                 | store::Event::Got { .. }
                 | store::Event::Turns { .. }
+                | store::Event::WindowFailed { .. }
                 | store::Event::Unread { .. }
                 | store::Event::SecretsNotReady { .. }
                 | store::Event::Corrupt { .. } => {

@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
     self as tasks, Active, Amendment, Cancel, Cause, End, Ending, Event, Executor, Funder, Hold, HoldKind, Holding,
-    Key, Kind, Line, Name, Party, PersonAddress, Phase, ProcedureDecision, ProcedureEnd, Refusal, Release,
+    Key, Line, Name, Party, PersonAddress, Phase, ProcedureDecision, ProcedureEnd, Refusal, Release, ResourceKind,
     SavedResource, Status, Stored, Taken, TaskResult,
 };
 use jig_tasks_world::{LIMITS, PERSON, PERSON_PARTY, Reply, World, done, refused, response, task};
@@ -418,7 +418,7 @@ fn resource() -> Holding {
 #[test]
 fn a_waiter_given_a_dependency_leaves_the_queue_and_returns_ahead_of_a_later_waiter() {
     let mut world = World::new(856, LIMITS);
-    world.configure_holds(1, vec![Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
+    world.configure_holds(1, vec![ResourceKind { kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
     for number in [1, 2, 3] {
         let mut new = task(number, &[]);
         new.holdings = Box::new([resource()]);
@@ -443,7 +443,7 @@ fn a_waiter_given_a_dependency_leaves_the_queue_and_returns_ahead_of_a_later_wai
 #[test]
 fn a_holder_after_a_task_whose_delegate_queues_behind_it_is_a_circle() {
     let mut world = World::new(860, LIMITS);
-    world.configure_holds(1, vec![Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
+    world.configure_holds(1, vec![ResourceKind { kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
     let mut holder = task(1, &[]);
     holder.holdings = Box::new([resource()]);
     world.make(PERSON_PARTY, vec![holder, task(2, &[])]);

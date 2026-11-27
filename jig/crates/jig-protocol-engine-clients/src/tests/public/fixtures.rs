@@ -44,7 +44,7 @@ pub fn kept() -> Kept {
     Kept { digest: key(), expires: Wall::from_nanos(u64::MAX) }
 }
 pub fn read(kind: u16, ids: &[u64]) -> PublicRead {
-    PublicRead { owner: 0, layout: Some(wire::PUBLIC_LAYOUT), kind, ids: Box::from(ids) }
+    PublicRead { owner: 0, layout: wire::PUBLIC_LAYOUT, kind, ids: Box::from(ids) }
 }
 pub struct Step {
     pub component: Component,

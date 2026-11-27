@@ -44,7 +44,10 @@ fn the_newest_ruling_reaches_the_resolution() {
             break;
         }
     }
-    assert!(matches!(change_row(&world, task).change.state, change::State::Held { why: change::Hold::Failed, .. }));
+    assert!(matches!(
+        change_row(&world, task).change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::Failed, .. }, .. }
+    ));
     amend(&mut world, task, 95, NEW);
     let revision = task_row(&world, task).expect("held change").revisions.hold;
     person(&mut world, 96, people::Ask::Release { project: 1, task, revision, again: None });
@@ -68,7 +71,7 @@ fn the_newest_ruling_reaches_the_resolution() {
     // The scripted resolver follows only the current ruling, deleting file.
     let merged = merge_job::push_merge_tree(
         &mut world,
-        task,
+        merge_job::Writer::Run(&next),
         head,
         base,
         Box::new([raw::File {

@@ -66,7 +66,7 @@ and the engine's link fits their answers to its room
 (`../../protocol/channel/liveness.status.md`, 1).
 
 `executors-transcripts.md`, section 1, and `briefs.md`, section 1 have no known gap in *A turn too large for a page*.
-`TranscriptLoad::Cut` hands the core a turn's fields and length.
+The store's answer `Answer::Cut` (`vocabulary.md`, 2.4) hands the core a turn's fields and length.
 `Core::append_cut_transcript` admits it as `append_transcript` admits a
 turn, counting its length and 4 bytes. It keeps `CUT_TURN_TEXT`,
 `[a turn too large to load]`, in the tail and sets `Transcript.cut`, so

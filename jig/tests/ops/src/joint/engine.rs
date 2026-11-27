@@ -6,6 +6,7 @@ use jig_client_kit::harness::Observed;
 use jig_client_kit::joint::truth::Truth;
 use jig_conformance::{Application, Clock, Input, Output, referee};
 use jig_domain_core as core;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_people as people;
 use jig_ops_domain as root;
 use skein_lib::Time;
@@ -81,7 +82,7 @@ fn task_row(store: &super::reads::Store, number: u64) -> Option<&jig_domain_task
 
 /// The independent store supplies real withdrawn proposal history too. The
 /// core world's minimal read peer intentionally does not select this family.
-fn read_page(store: &Rows, range: &core::reads::Range, tree_tasks: u32) -> core::reads::Loaded {
+fn read_page(store: &Rows, range: &core::reads::Range, tree_tasks: u32) -> engine_store::Answer {
     let store = core_store(store);
     let core::reads::Scope::Proposal { proposer: core::documents::Proposer::Task(task), proposal } = range.scope else {
         return super::reads::page(&store, range, tree_tasks);
@@ -142,7 +143,7 @@ fn read_page(store: &Rows, range: &core::reads::Range, tree_tasks: u32) -> core:
         let size = row.owned_bytes().expect("whole actual history row pricing");
         if rows.len() == range.rows as usize || size > range.bytes - bytes {
             if rows.is_empty() {
-                return core::reads::Loaded::Busy;
+                return engine_store::Answer::Failed(engine_store::Failure::Busy);
             }
             more = true;
             break;
@@ -151,7 +152,7 @@ fn read_page(store: &Rows, range: &core::reads::Range, tree_tasks: u32) -> core:
         last = Some(position);
         rows.push(row);
     }
-    core::reads::Loaded::Page { rows: rows.into(), next: if more { last } else { None } }
+    engine_store::Answer::Rows(engine_store::Rows::Read { rows: rows.into(), next: if more { last } else { None } })
 }
 
 impl Application for OpsApplication {
@@ -262,22 +263,26 @@ impl Application for OpsApplication {
                 return Ops::deliver(&mut peers.conformance, systems, store, clock, other);
             }
         };
-        if let root::Output::CoreLoad(core::Now::SeenConversation { request, task }) = delivery {
-            let row = store.rows.values().find_map(|record| match record {
-                root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Ended(row))) if row.number == task => {
-                    Some(row.clone())
+        if let root::Output::Store(engine_store::Out::Load { load, range }) = delivery {
+            let result = match range {
+                range @ (engine_store::Range::Window { .. } | engine_store::Range::Notes(_)) => {
+                    return Ops::deliver(
+                        &mut peers.conformance,
+                        systems,
+                        store,
+                        clock,
+                        Delivery::Root(Box::new(root::Output::Store(engine_store::Out::Load { load, range }))),
+                    );
                 }
-                root::Record::Core(_) | root::Record::Infrastructure(_) | root::Record::Observability(_) => None,
-            });
-            return Ok(vec![Input::Event(root::Event::Core(core::Event::SeenConversationLoaded {
-                request,
-                row,
-                busy: false,
-            }))]);
-        }
-        if let root::Output::Core(core::Held::ReadLoad { load, range }) = delivery {
-            let loaded = read_page(store, &range, peers.tree_tasks);
-            return Ok(vec![Input::Event(root::Event::Core(core::Event::ReadLoaded { load, result: loaded }))]);
+                engine_store::Range::Read(range) => read_page(store, &range, peers.tree_tasks),
+                range @ (engine_store::Range::Record(_) | engine_store::Range::Proposal { .. }) => {
+                    conformance::point(store, &range)
+                }
+            };
+            return Ok(vec![Input::Event(root::Event::Store(root::Store::Engine(engine_store::In::Loaded {
+                load,
+                result,
+            })))]);
         }
         match &delivery {
             root::Output::ApplicationDocument { document, .. }
@@ -292,6 +297,7 @@ impl Application for OpsApplication {
             | root::Output::Load { .. }
             | root::Output::ReadResult { .. }
             | root::Output::CoreLoad(_)
+            | root::Output::Store(_)
             | root::Output::Core(_)
             | root::Output::Now(_)
             | root::Output::Observability(_)
@@ -327,7 +333,7 @@ impl Application for OpsApplication {
             ) => true,
             root::Output::Core(
                 core::Held::ApplicationDelivery { .. }
-                | core::Held::ReadLoad { .. }
+                | core::Held::Store(_)
                 | core::Held::PublicRead { .. }
                 | core::Held::PublicWait { .. }
                 | core::Held::Applied { .. }
@@ -361,8 +367,6 @@ impl Application for OpsApplication {
                 | core::Held::Refuse { .. }
                 | core::Held::TurnBusy { .. }
                 | core::Held::StopRun { .. }
-                | core::Held::Load(..)
-                | core::Held::NotesLoad { .. }
                 | core::Held::NotesWritten { .. }
                 | core::Held::Acted { .. }
                 | core::Held::NotesDeleted { .. },
@@ -388,21 +392,12 @@ impl Application for OpsApplication {
                 | core::Now::NoteBusy { .. }
                 | core::Now::DropAssignment { .. }
                 | core::Now::Activate { .. }
-                | core::Now::StartPreparation { .. }
-                | core::Now::SeenConversation { .. }
-                | core::Now::LoadEndedRead { .. }
-                | core::Now::EndedProposal { .. }
-                | core::Now::DecidedProposal { .. }
-                | core::Now::EndedPersonTask { .. }
-                | core::Now::EndedTask { .. }
-                | core::Now::PartyInputs { .. }
                 | core::Now::CompleteBrief { .. }
                 | core::Now::BriefCorePlanned { .. }
                 | core::Now::WorkspaceRequest { .. }
                 | core::Now::RunPreparationFailed { .. }
                 | core::Now::BriefFailed { .. }
                 | core::Now::RunPrepared { .. }
-                | core::Now::EndedEscalation { .. }
                 | core::Now::PartBusy { .. }
                 | core::Now::RestoreRefused,
             )
@@ -412,6 +407,7 @@ impl Application for OpsApplication {
             | root::Output::Load { .. }
             | root::Output::ReadResult { .. }
             | root::Output::CoreLoad(_)
+            | root::Output::Store(_)
             | root::Output::Observability(_)
             | root::Output::Infrastructure(_)
             | root::Output::Read { .. }

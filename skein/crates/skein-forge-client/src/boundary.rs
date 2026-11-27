@@ -254,7 +254,6 @@ pub enum Event {
     /// Read sooner after a provider hint.
     Hint { hint: skein_forge::api::Hint },
     /// Mark whether a writer slot is taken.
-    Writer { resource: Resource, taken: bool },
     /// Record a head pushed by a task’s run.
     Pushed { resource: Resource, commit: Commit },
     /// Ignore answers of keep reads sent before this fence and reread at hinted (forge/client.md, 4).
@@ -301,7 +300,7 @@ pub enum Request {
     /// Report a fresh observation of a live resource.
     Changed { resource: Resource, result: Result<Answer, Error> },
     /// Report a branch move outside its current writer.
-    Drift { resource: Resource, expected: Commit, observed: Option<Commit> },
+    Moved { resource: Resource, expected: Commit, observed: Option<Commit>, actor: Option<u64> },
     /// Save a client working-set record in the parent’s decision.
     Save { record: Stored },
     /// Updated execution position for an entry durably owned by the top.

@@ -390,7 +390,7 @@ fn a_starts_restore_asks_once_with_a_persons_model() {
     apply(&mut world, signed, set(value.clone()));
     let (config, _) = configured(1);
     let env = world.env().with(world.env().limits.core);
-    let mut restored = core::Core::new(config.core, &env.limits).expect("restart core");
+    let mut restored = jig_test_profile::new_core(config.core, &env.limits).expect("restart core");
     fixtures::phase(&restored.start_begin(false, env.wall), core::start::Phase::LoadCore);
     for range in core::RestoreRange::LIVE {
         for (key, row) in &world.store.rows {

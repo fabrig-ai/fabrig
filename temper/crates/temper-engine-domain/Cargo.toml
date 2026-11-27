@@ -24,6 +24,7 @@ skein-lib.workspace = true
 skein-json.workspace = true
 skein-push.workspace = true
 smith-domain-run.workspace = true
+jig-domain-contract.workspace = true
 jig-domain-core.workspace = true
 jig-domain-core-vocabulary.workspace = true
 jig-domain-people.workspace = true

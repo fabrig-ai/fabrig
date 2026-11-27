@@ -1,5 +1,6 @@
 use super::*;
-use temper_engine_domain_world::direct::say_ask;
+use jig_domain_core::engine::store as port;
+use temper_engine_domain_world::direct::{answer_token, say_ask, window_reply};
 
 const CHANNEL: Token = Token::new(7);
 // The direct fixture also bounds settlement at 200 steps.
@@ -31,14 +32,9 @@ fn parked_window(closed: bool) -> (Driver, engine::Assignment) {
 /// Keep the existing store's answer back at the public store/core seam.
 fn take_transcript_reply(driver: &mut Driver, task: u64) -> engine::Event {
     for _ in 0..STEPS {
-        if let Some(owner) = driver.loads.iter().rev().find_map(|(owner, range)| {
-            matches!(range, engine::Range::Core(engine::CoreRange::TaskTranscript { task: named, .. })
-                if *named == task)
-            .then_some(*owner)
-        }) && let Some(index) = driver.events.iter().position(|event| {
-            matches!(event, engine::Event::Store(engine::StoreInput::Loaded { owner: named, .. })
-                if *named == owner)
-        }) {
+        if let Some(owner) = driver.windows.iter().rev().find_map(|(owner, named)| (*named == task).then_some(*owner))
+            && let Some(index) = driver.events.iter().position(|event| answer_token(event) == Some(owner))
+        {
             return driver.events.remove(index).expect("queued transcript answer");
         }
         driver.advance(true);
@@ -47,8 +43,11 @@ fn take_transcript_reply(driver: &mut Driver, task: u64) -> engine::Event {
 }
 
 fn owner(reply: &engine::Event) -> Token {
-    let engine::Event::Store(engine::StoreInput::Loaded { owner, .. }) = reply else { panic!("held store page") };
-    *owner
+    answer_token(reply).expect("held store page")
+}
+
+fn unread(load: Token) -> engine::Event {
+    window_reply(load, port::Answer::Failed(port::Failure::Unread))
 }
 
 fn assignments(driver: &Driver) -> usize {
@@ -60,7 +59,7 @@ fn unread_preparation(closed: bool) -> (Driver, engine::Assignment, Token) {
     driver.send(say_ask(driver.session(), first.task, 48));
     let reply = take_transcript_reply(&mut driver, first.task);
     let owner = owner(&reply);
-    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner }));
+    driver.send(unread(owner));
     (driver, first, owner)
 }
 
@@ -78,7 +77,7 @@ fn failed_preparations(driver: &mut Driver, task: u64) -> usize {
 #[test]
 fn unread_retires_once_and_ignores_a_stale_preparation() {
     let (mut driver, first, stale) = unread_preparation(false);
-    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: stale }));
+    driver.send(unread(stale));
     driver.pump();
     assert_eq!(failed_preparations(&mut driver, first.task), 1, "one unread terminal");
     assert_eq!(assignments(&driver), 0);
@@ -93,19 +92,19 @@ fn unread_retires_once_and_ignores_a_stale_preparation() {
     driver.pump();
     driver.answer(CHANNEL, fresh.task, fresh.attempt, 1, tasks::End::Parked, engine::Parts::none());
     driver.pump();
-    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: stale }));
+    driver.send(unread(stale));
     driver.pump();
     assert_eq!(failed_preparations(&mut driver, first.task), 0, "no current preparation to fail");
     driver.send(say_ask(driver.session(), first.task, 49));
     let current = take_transcript_reply(&mut driver, first.task);
     let current = owner(&current);
     assert_ne!(current, stale, "reclaimed waiters have a new generation");
-    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: stale }));
+    driver.send(unread(stale));
     driver.pump();
     assert_eq!(assignments(&driver), 1, "the current preparation still waits on its own read");
     assert_eq!(failed_preparations(&mut driver, first.task), 0, "stale waiter cannot reach a later preparation");
-    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: current }));
-    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: current }));
+    driver.send(unread(current));
+    driver.send(unread(current));
     driver.pump();
     assert_eq!(assignments(&driver), 1, "unread never offers the unusable open window");
     assert_eq!(failed_preparations(&mut driver, first.task), 1, "the current preparation receives unread once");
@@ -117,62 +116,35 @@ fn unread_retires_once_and_ignores_a_stale_preparation() {
 
 #[test]
 fn malformed_transcript_rows_and_texts_still_answer_failed() {
-    for name in ["row kind", "text count", "text bound", "cut body", "cut alone", "load seam cut"] {
+    for name in ["record rows", "read rows", "wrong task", "wrong first turn", "cut body", "busy"] {
         let (mut driver, first) = parked_window(false);
         driver.send(say_ask(driver.session(), first.task, 48));
         let reply = take_transcript_reply(&mut driver, first.task);
-        let engine::Event::Store(engine::StoreInput::Loaded { owner, rows, .. }) = reply else {
-            panic!("held transcript page")
+        let engine::Event::Store(engine::StoreInput::Engine(port::In::Loaded {
+            load: owner,
+            result: port::Answer::Rows(port::Rows::Turns { turns, .. }),
+        })) = reply
+        else {
+            panic!("held window")
         };
-        let row = rows.first().expect("one turn").clone();
-        let (rows, texts): (Box<[Record]>, Option<engine::TranscriptTexts>) = match name {
-            "row kind" => (
-                Box::new([Record::Forge {
-                    row: Box::new(temper_engine_domain_forge::Stored::Landed { commit: [1; 32], task: first.task }),
-                }]),
-                None,
-            ),
-            "text count" => (Box::new([row]), Some(Box::new([]))),
-            "text bound" => (
-                Box::new([row]),
-                Some(Box::new([engine::TurnText::Rendered(
-                    vec![0; usize::try_from(engine::TRANSCRIPT_TAIL_BYTES).expect("tail fits usize") + 1].into(),
-                )])),
-            ),
-            "cut body" => (Box::new([row]), Some(Box::new([engine::TurnText::Cut(1)]))),
-            "cut alone" => {
-                let mut row = row;
-                let Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) = &mut row
-                else {
-                    panic!("turn")
-                };
-                turn.transcript = Box::new([]);
-                let mut next = row.clone();
-                let Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) = &mut next
-                else {
-                    panic!("turn")
-                };
+        let (mut turn, text) = turns.into_vec().pop().expect("one turn");
+        let result = match name {
+            "record rows" => port::Answer::Rows(port::Rows::Records { records: Box::new([]), more: false }),
+            "read rows" => port::Answer::Rows(port::Rows::Read { rows: Box::new([]), next: None }),
+            "wrong task" => {
+                turn.task += 1;
+                port::Answer::Rows(port::Rows::Turns { turns: Box::new([(turn, text)]), more: false })
+            }
+            "wrong first turn" => {
                 turn.turn += 1;
-                (Box::new([row, next]), Some(Box::new([engine::TurnText::Cut(1), engine::TurnText::Unrendered])))
+                port::Answer::Rows(port::Rows::Turns { turns: Box::new([(turn, text)]), more: false })
             }
-            "load seam cut" => {
-                let mut row = row;
-                let Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) = &mut row
-                else {
-                    panic!("turn")
-                };
-                turn.transcript =
-                    vec![
-                        0;
-                        usize::try_from(driver.env.limits.loads.transcript_bytes).expect("row bound fits usize") + 1
-                    ]
-                    .into();
-                (Box::new([row]), None)
-            }
+            "cut body" => port::Answer::Cut { turn, bytes: 1, more: false },
+            "busy" => port::Answer::Failed(port::Failure::Busy),
             _ => unreachable!("named malformed page"),
         };
-        driver.send(engine::Event::Store(engine::StoreInput::Loaded { owner, rows, texts, next: None }));
-        driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner }));
+        driver.send(window_reply(owner, result));
+        driver.send(unread(owner));
         driver.pump();
         assert_eq!(failed_preparations(&mut driver, first.task), 1, "{name}: malformed page answers Failed once");
         assert_eq!(assignments(&driver), 0, "{name}: no malformed page enters an assignment");
@@ -202,18 +174,10 @@ fn a_closed_unread_window_assigns_fresh_without_counting_or_retrying() {
     assert_eq!(assignments(&driver), 1);
     assert_eq!(live(&driver, first.task).tries, tasks::Tries::NONE);
     assert_eq!(live(&driver, first.task).refusals, 0);
-    assert_eq!(
-        driver
-            .loads
-            .iter()
-            .filter(|(_, range)| matches!(range, engine::Range::Core(engine::CoreRange::TaskTranscript { .. })))
-            .count(),
-        1,
-        "one issued transcript load"
-    );
-    let loads = driver.loads.len();
+    assert_eq!(driver.windows.len(), 1, "one issued transcript load");
+    let loads = driver.windows.len();
     driver.pump();
-    assert_eq!(driver.loads.len(), loads, "no read retry loop");
+    assert_eq!(driver.windows.len(), loads, "no read retry loop");
     assert_eq!(assignments(&driver), 1, "one fresh assignment");
 }
 
@@ -250,7 +214,7 @@ fn a_stale_unread_terminal_cannot_fail_a_later_preparation() {
     driver.send(say_ask(driver.session(), first.task, 49));
     let reply = take_transcript_reply(&mut driver, first.task);
     assert_ne!(owner(&reply), stale, "the later IO has its own generational owner");
-    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: stale }));
+    driver.send(unread(stale));
     driver.pump();
     assert_eq!(assignments(&driver), 1, "later preparation still awaits its own page");
     driver.send(reply);

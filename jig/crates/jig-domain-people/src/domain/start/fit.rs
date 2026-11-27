@@ -236,6 +236,7 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
         | Ask::HandBackPerson { .. }
         | Ask::Conclude { .. }
         | Ask::Leave { .. }
+        | Ask::Measure { .. }
         | Ask::Release { .. } => Ok(()),
     }
 }

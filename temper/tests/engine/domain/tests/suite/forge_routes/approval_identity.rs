@@ -602,13 +602,38 @@ fn a_returning_signoff_follows_the_owner_and_yields_when_its_exact_gate_is_asked
     settle(&mut world);
     assert_eq!(world.merges, 1, "Y lands first");
     assert!(matches!(light_rules::change_row(&world, y).change.state, State::Landed { .. }));
-    let reviewer = change_gate(&mut world, x);
+    let reviewer = change_gate(&mut world, x, None);
     assert!(matches!(light_rules::change_row(&world, x).change.state, State::Gating { .. }));
     assert!(!light_rules::change_row(&world, x).change.owns_turn);
+    let first_head = light_rules::change_row(&world, x).change.state.pinned_head().expect("first updated head");
+    for _ in 0..200 {
+        if matches!(light_rules::change_row(&world, z).change.state, State::Landed { .. }) {
+            break;
+        }
+        world.tick();
+    }
+    assert!(matches!(light_rules::change_row(&world, z).change.state, State::Landed { .. }));
+    assert_eq!(world.merges, 2, "Z lands while X waits for its gate");
     reviews::finish_review(
         &mut world,
         &reviewer,
         tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"updated head approved".as_slice().into() },
+    );
+
+    // X takes Z's confirmed tip on its next turn. The verdict at the first
+    // updated head cannot stand for the exact gate at the second one.
+    let next = change_gate(&mut world, x, Some(first_head));
+    let row = light_rules::change_row(&world, x);
+    let State::Gating { head, .. } = row.change.state else { panic!("X gates after taking Z's tip: {row:?}") };
+    assert_ne!(head, first_head);
+    assert_ne!(next.task, reviewer.task);
+    assert_eq!(row.change.ready_since, since);
+    assert!(matches!(row.delegate, Some((task, temper_engine_domain_forge_change::Delegate::Gate { head: asked, .. }))
+        if task == next.task && asked == head));
+    reviews::finish_review(
+        &mut world,
+        &next,
+        tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"latest head approved".as_slice().into() },
     );
     settle(&mut world);
     assert_eq!(world.merges, 3);
@@ -625,12 +650,13 @@ fn a_returning_signoff_follows_the_owner_and_yields_when_its_exact_gate_is_asked
     world.close();
 }
 
-fn change_gate(world: &mut World, change: u64) -> engine::Assignment {
+fn change_gate(world: &mut World, change: u64, after: Option<skein_forge::api::Commit>) -> engine::Assignment {
+    use temper_engine_domain_forge_change::State;
     for _ in 0..200 {
-        if matches!(
-            light_rules::change_row(world, change).change.state,
-            temper_engine_domain_forge_change::State::Gating { .. }
-        ) && let Some((task, _)) = light_rules::change_row(world, change).delegate
+        let row = light_rules::change_row(world, change);
+        if let State::Gating { head, .. } = row.change.state
+            && Some(head) != after
+            && let Some((task, _)) = row.delegate
             && world.assigned.iter().any(|run| run.task == task)
         {
             break;
@@ -645,7 +671,7 @@ fn change_gate(world: &mut World, change: u64) -> engine::Assignment {
 }
 
 fn finish_change_gate(world: &mut World, change: u64) {
-    let reviewer = change_gate(world, change);
+    let reviewer = change_gate(world, change, None);
     reviews::finish_review(
         world,
         &reviewer,
@@ -759,8 +785,7 @@ fn repaired_request_waits_for_approval(world: &mut World, change: u64, repair: &
     let branch = row.branch.clone();
     let assigned = world.assigned.len();
     // A repair's new head asks the gate and the person's approval afresh.
-    let new = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"repaired edge", 2)
-        .expect("repair push");
+    let new = world.run_push_edit(repair, &branch, b"file", b"repaired edge", 2);
     assert_ne!(translate::commit(new), head);
     reviews::finish_review(
         world,
@@ -794,7 +819,7 @@ fn repaired_request_waits_for_approval(world: &mut World, change: u64, repair: &
 
 #[test]
 fn a_persons_request_for_changes_repairs_with_its_remarks() {
-    use temper_engine_domain_forge_change::{Delegate, Hold, Repair, State};
+    use temper_engine_domain_forge_change::{Cause, Delegate, Repair, State};
     for (body, remarks, moved_past, bound) in [
         (b"Please repair the edge.".as_slice(), true, false, false),
         (b"".as_slice(), false, false, false),
@@ -856,7 +881,13 @@ fn a_persons_request_for_changes_repairs_with_its_remarks() {
         } else if bound {
             assert_eq!(row.change.repairs, repairs);
             assert_eq!(world.assigned.len(), assigned, "no repair past the bound");
-            assert!(matches!(row.change.state, State::Held { why: Hold::Repairs, .. }), "{row:?}");
+            assert!(
+                matches!(
+                    row.change.state,
+                    State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::Repairs, .. }, .. }
+                ),
+                "{row:?}"
+            );
             assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
         } else {
             assert_eq!(row.change.repairs, repairs + 1, "{row:?}");

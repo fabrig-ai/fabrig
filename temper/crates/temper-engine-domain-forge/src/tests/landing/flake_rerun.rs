@@ -87,6 +87,7 @@ fn gather(d: &mut Domain, run: &api::Run, report: Result<Answer, api::Error>) ->
                 Ok(Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { fixtures::HEAD }))
             }
             Op::Read(Read::Commits { .. }) => Ok(Answer::Commits { commits: Box::new([]), more: false }),
+            Op::Read(Read::Pull { number: 2, .. }) => Ok(Answer::Pull(open_round_pull(fixtures::BASE))),
             Op::Read(Read::Pull { .. }) => Ok(Answer::Pull(fixtures::open_pull())),
             Op::Read(Read::Reviews { .. }) => Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
             Op::Read(Read::Runs { .. }) => Ok(Answer::Runs { runs: Box::new([run.clone()]), more: false }),

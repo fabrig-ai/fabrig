@@ -1,4 +1,5 @@
 //! Specification source facts through the public task document constructor.
+use crate::engine::store as engine_store;
 use crate::tests::*;
 use skein_lib::length::len_u64;
 
@@ -244,11 +245,13 @@ fn task_text_reads_live_sources_and_retained_suffixes_under_the_same_visibility(
     row.spec.words = Box::from(FAILURE_WORDS);
     for field in [TaskTextField::Specification, TaskTextField::Result] {
         let read = Read::TaskText { task: 99, field, from: 127 };
-        let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, read) else { panic!("retained load") };
-        let loaded = crate::reads::Loaded::Page {
+        let Held::Store(engine_store::Out::Load { load, .. }) = read_start(&mut core, &limits, 10, read) else {
+            panic!("retained load")
+        };
+        let loaded = engine_store::Answer::Rows(engine_store::Rows::Read {
             rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(row.clone()))), None)]),
             next: None,
-        };
+        });
         let Answer::TaskText(page) = loaded_answer(&mut core, &limits, load, loaded).unwrap() else {
             panic!("retained source chunk")
         };

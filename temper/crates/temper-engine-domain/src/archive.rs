@@ -1,14 +1,10 @@
-//! Loads of durable rows outside the working set: what a run's preparation
-//! reads (its transcript and inputs), notes, and
-//! the core's historical queries (jig's `domain/engine/executors-transcripts.md`, 1).
-//! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 7).
+//! Temper-owned loads of durable rows outside the working set (temper/docs/design/domain/root.md, 7).
 
-use crate::boundary::{EndedRead, Read, Request, Work};
+use crate::boundary::{Read, Request, Work};
 use crate::domain::Domain;
 use crate::restart::request_load;
 use crate::{Key, Range, Record, loads};
 use alloc::boxed::Box;
-use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_lib::{Id, List, Queue, ReplyTo, Token};
 
@@ -17,14 +13,9 @@ use skein_lib::{Id, List, Queue, ReplyTo, Token};
 pub(crate) enum Waiting {
     ChangeDelegate,
     History,
-    Escalation,
-    Proposal,
-    TaskProposal,
-    Ended,
-    Transcript,
-    Input,
+    ChangeFrom,
     GoalWords,
-    Notes,
+    SettingsNote,
     Document,
     CloserReport,
     Remember,
@@ -35,14 +26,9 @@ pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
     match domain.archive_reads.get(Id::from_token(waiter))? {
         Some(Read::ChangeDelegate { .. }) => Some(Waiting::ChangeDelegate),
         Some(Read::History { .. }) => Some(Waiting::History),
-        Some(Read::Escalation(_)) => Some(Waiting::Escalation),
-        Some(Read::Proposal(_)) => Some(Waiting::Proposal),
-        Some(Read::TaskProposal { .. }) => Some(Waiting::TaskProposal),
-        Some(Read::Ended(_)) => Some(Waiting::Ended),
-        Some(Read::Transcript { .. }) => Some(Waiting::Transcript),
-        Some(Read::InputCheck(_)) => Some(Waiting::Input),
+        Some(Read::ChangeFrom { .. }) => Some(Waiting::ChangeFrom),
         Some(Read::GoalWords(_)) => Some(Waiting::GoalWords),
-        Some(Read::Notes { .. } | Read::SettingsNote { .. }) => Some(Waiting::Notes),
+        Some(Read::SettingsNote { .. }) => Some(Waiting::SettingsNote),
         Some(Read::Document(_)) => Some(Waiting::Document),
         Some(Read::CloserReport(_)) => Some(Waiting::CloserReport),
         Some(Read::Parts(_)) => Some(Waiting::Parts),
@@ -51,132 +37,10 @@ pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
     }
 }
 
-/// Reserve both owners before the held load can wait on durability (domain/root.md, 7).
-pub(crate) fn reserve_ended(domain: &mut Domain, read: EndedRead) -> Token {
-    let EndedRead::EndedTask { task, .. } = &read else { unreachable!("only ended tasks wait for room") };
-    let task = *task;
-    let waiter = domain.archive_reads.insert(Some(Read::Ended(read))).expect("ended read room checked").token();
-    loads::reserve_result(&mut domain.loads, waiter, task);
-    waiter
-}
-
-/// The oldest waiting reads own reclaimed room before any newer read can take it.
-/// Their work emits held loads in a later decision, behind all earlier commits.
-pub(crate) fn reclaim_ended(domain: &mut Domain) {
-    if domain.engine.core().stopping() || domain.journal.stopped() || domain.start_stop().is_some() {
-        domain.ended_waiting.clear();
-        return;
-    }
-    for _ in 0..domain.limits.loads.loads {
-        if domain.archive_reads.is_full() || !domain.loads.has_room() {
-            return;
-        }
-        let Some(read) = domain.ended_waiting.pop() else { return };
-        let EndedRead::EndedTask { task, .. } = &read else { unreachable!("only ended tasks wait for room") };
-        let task = *task;
-        let waiter = reserve_ended(domain, read);
-        domain.work.push(Work::EndedLoad { waiter, task });
-    }
-}
-
 /// Free a reserved read slot the core no longer needs.
 pub(crate) fn retire_read(domain: &mut Domain, waiter: Token) {
     if take_read(domain, waiter).is_some() {
         domain.archive_reads.retire(Id::from_token(waiter));
-    }
-}
-
-pub(crate) fn input_failed(domain: &mut Domain, waiter: Token) {
-    let Some(Read::InputCheck(read)) = take_read(domain, waiter) else { return };
-    domain.archive_reads.retire(Id::from_token(waiter));
-    domain
-        .work
-        .push(Work::Core(jig_domain_core::Event::DelegateInputFailed { to: ReplyTo::new(read.to), key: read.key }));
-}
-
-pub(crate) fn input_loaded(
-    domain: &mut Domain,
-    waiter: Token,
-    rows: Box<[Record]>,
-    next: Option<Key>,
-    out: &mut Queue<Request>,
-) {
-    let Some(Some(Read::InputCheck(read))) = domain.archive_reads.get(Id::from_token(waiter)) else { return };
-    let wanted = *read.ids.get(usize::try_from(read.at).expect("bounded input index")).expect("requested input");
-    let project = read.project;
-    let creator = read.key.task;
-    if next.is_some() || rows.len() != 1 {
-        input_failed(domain, waiter);
-        return;
-    }
-    let row = match rows.into_iter().next().expect("one input result row") {
-        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row))) => row,
-        Record::Core(
-            jig_domain_core::Record::Core(
-                jig_domain_core::CoreRecord::Settings(_)
-                | jig_domain_core::CoreRecord::Part(_)
-                | jig_domain_core::CoreRecord::Call(_)
-                | jig_domain_core::CoreRecord::Deployment(_)
-                | jig_domain_core::CoreRecord::EscalationDecision(_)
-                | jig_domain_core::CoreRecord::ProposalDecision(_)
-                | jig_domain_core::CoreRecord::Turn(_)
-                | jig_domain_core::CoreRecord::RunProof(_)
-                | jig_domain_core::CoreRecord::Terminal(_)
-                | jig_domain_core::CoreRecord::Projection(_),
-            )
-            | jig_domain_core::Record::Tasks(_)
-            | jig_domain_core::Record::People(_)
-            | jig_domain_core::Record::Accounts(_)
-            | jig_domain_core::Record::Notes(_),
-        )
-        | Record::Forge { .. } => {
-            input_failed(domain, waiter);
-            return;
-        }
-    };
-    let Some(stub) = domain.engine.core().input_stub(creator, project, wanted, row) else {
-        input_failed(domain, waiter);
-        return;
-    };
-    let Some(Some(Read::InputCheck(read))) = domain.archive_reads.get_mut(Id::from_token(waiter)) else {
-        unreachable!("input read survives validation")
-    };
-    read.stubs.push(stub).expect("bounded historical input count");
-    read.at = read.at.checked_add(1).expect("bounded input index");
-    if let Some(&next) = read.ids.get(usize::try_from(read.at).expect("bounded input index")) {
-        request_load(domain, waiter, Range::Core(crate::CoreRange::TaskResult { task: next }), None, out);
-        return;
-    }
-    let Some(Read::InputCheck(read)) = take_read(domain, waiter) else { unreachable!("completed input read") };
-    domain.archive_reads.retire(Id::from_token(waiter));
-    domain.work.push(Work::Core(jig_domain_core::Event::DelegateValidated {
-        to: ReplyTo::new(read.to),
-        key: read.key,
-        batch: read.batch,
-        stubs: read.stubs.into_boxed(),
-    }));
-}
-
-pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Token> {
-    match take_read(domain, waiter) {
-        Some(Read::Notes { owner }) => Some(owner),
-        Some(
-            Read::ChangeDelegate { .. }
-            | Read::History { .. }
-            | Read::Parts(_)
-            | Read::CloserReport(_)
-            | Read::Document(_)
-            | Read::Remember(_)
-            | Read::SettingsNote { .. }
-            | Read::Ended(_)
-            | Read::Escalation(_)
-            | Read::Proposal(_)
-            | Read::TaskProposal { .. }
-            | Read::Transcript { .. }
-            | Read::InputCheck(_)
-            | Read::GoalWords(_),
-        )
-        | None => None,
     }
 }
 
@@ -193,280 +57,39 @@ pub(crate) fn note_failed(domain: &mut Domain, waiter: Token) {
         let to = *to;
         retire_read(domain, waiter);
         crate::route::host_route::note_refused(domain, ReplyTo::new(to), b"settings note could not be loaded");
-        return;
     }
-    let Some(owner) = take_note_owner(domain, waiter) else { return };
-    domain.archive_reads.retire(Id::from_token(waiter));
-    domain.work.push(Work::Core(jig_domain_core::Event::Notes(jig_domain_notes::Event::LoadFailed { owner })));
 }
 
-pub(crate) fn note_loaded(
+pub(crate) fn settings_note_loaded(
     domain: &mut Domain,
     waiter: Token,
     rows: Box<[Record]>,
     next: Option<Key>,
     cut: Option<loads::Cut>,
 ) {
-    if let Some(Some(Read::SettingsNote { .. })) = domain.archive_reads.get(Id::from_token(waiter)) {
-        let Some(Read::SettingsNote { to, call }) = take_read(domain, waiter) else { unreachable!("note waiter") };
-        domain.archive_reads.retire(Id::from_token(waiter));
-        crate::route::host_route::settings_note_loaded(
-            domain,
-            ReplyTo::new(to),
-            *call,
-            rows,
-            next.is_some() || cut.is_some(),
-        );
-        return;
-    }
-    ordinary_note_loaded(domain, waiter, rows, next, cut);
+    let Some(Read::SettingsNote { to, call }) = take_read(domain, waiter) else { unreachable!("settings note waiter") };
+    domain.archive_reads.retire(Id::from_token(waiter));
+    crate::route::host_route::settings_note_loaded(
+        domain,
+        ReplyTo::new(to),
+        *call,
+        rows,
+        next.is_some() || cut.is_some(),
+    );
 }
 
-fn ordinary_note_loaded(
-    domain: &mut Domain,
-    waiter: Token,
-    rows: Box<[Record]>,
-    next: Option<Key>,
-    cut: Option<loads::Cut>,
-) {
-    if cut.is_some() {
-        note_failed(domain, waiter);
-        return;
-    }
-    let mut kept = List::with_capacity(u32::try_from(rows.len()).expect("bounded note page"));
-    for row in rows {
-        match row {
-            Record::Core(jig_domain_core::Record::Notes(record)) => {
-                let valid = match &record {
-                    notes::Record::Entry(entry) => notes::valid_entry(entry, &domain.limits.notes),
-                    notes::Record::Line(line) => notes::valid_line(line, &domain.limits.notes),
-                };
-                if !valid {
-                    note_failed(domain, waiter);
-                    return;
-                }
-                kept.push(record).expect("note page room");
-            }
-            Record::Core(
-                jig_domain_core::Record::Core(
-                    jig_domain_core::CoreRecord::Settings(_)
-                    | jig_domain_core::CoreRecord::Part(_)
-                    | jig_domain_core::CoreRecord::Call(_)
-                    | jig_domain_core::CoreRecord::Deployment(_)
-                    | jig_domain_core::CoreRecord::EscalationDecision(_)
-                    | jig_domain_core::CoreRecord::ProposalDecision(_)
-                    | jig_domain_core::CoreRecord::Turn(_)
-                    | jig_domain_core::CoreRecord::RunProof(_)
-                    | jig_domain_core::CoreRecord::Terminal(_)
-                    | jig_domain_core::CoreRecord::Projection(_),
-                )
-                | jig_domain_core::Record::Tasks(_)
-                | jig_domain_core::Record::People(_)
-                | jig_domain_core::Record::Accounts(_),
-            )
-            | Record::Forge { .. } => {
-                note_failed(domain, waiter);
-                return;
-            }
-        }
-    }
-    let Some(owner) = take_note_owner(domain, waiter) else { return };
+/// A provenance lookup is temper's own read, not an engine store load.
+pub(crate) fn change_from_loaded(domain: &mut Domain, waiter: Token, rows: Option<Box<[Record]>>) {
+    let Some(Read::ChangeFrom { task }) = take_read(domain, waiter) else { return };
     domain.archive_reads.retire(Id::from_token(waiter));
-    domain.work.push(Work::Core(jig_domain_core::Event::Notes(jig_domain_notes::Event::Loaded {
-        owner,
-        rows: jig_domain_notes::Rows { records: kept },
-        more: next.is_some(),
-    })));
-}
-
-/// One ended owner row the core asked for, or none when the store has none.
-pub(crate) fn ended_loaded(domain: &mut Domain, waiter: Token, rows: Box<[Record]>) {
-    let Some(Read::Ended(read)) = take_read(domain, waiter) else { return };
-    domain.archive_reads.retire(Id::from_token(waiter));
-    if let EndedRead::Position { request, task, party } = read {
-        let through = match rows.into_iter().next() {
-            Some(Record::Core(jig_domain_core::Record::People(jig_domain_people::Stored::EndedRead {
-                task: number,
-                party: owner,
-                through,
-            }))) if number == task && owner == party => through,
-            _ => 0,
-        };
-        domain.work.push(Work::Core(jig_domain_core::Event::EndedReadLoaded {
-            request,
-            task,
-            party,
-            through,
-            busy: false,
-        }));
-        return;
-    }
     let mut row = None;
-    if rows.len() == 1
+    if let Some(rows) = rows
+        && rows.len() == 1
         && let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(ended)))) = rows.into_iter().next()
     {
         row = Some(ended);
     }
-    ended_answer(domain, read, row, false);
-}
-
-pub(crate) fn ended_failed(domain: &mut Domain, waiter: Token) {
-    let Some(Read::Ended(read)) = take_read(domain, waiter) else { return };
-    domain.archive_reads.retire(Id::from_token(waiter));
-    ended_answer(domain, read, None, true);
-}
-
-/// Answer the core's ended-row question in its own vocabulary.
-pub(crate) fn ended_answer(domain: &mut Domain, read: EndedRead, row: Option<Box<tasks::TaskRecord>>, busy: bool) {
-    let event = match read {
-        EndedRead::ChangeFrom { task } => {
-            domain.work.push(Work::ChangeFromLoaded { task, row });
-            return;
-        }
-        EndedRead::EndedTask { request, .. } => jig_domain_core::Event::EndedTaskLoaded { request, row, busy },
-        EndedRead::SeenConversation { request, .. } => {
-            jig_domain_core::Event::SeenConversationLoaded { request, row, busy }
-        }
-        EndedRead::Position { request, task, party } => {
-            jig_domain_core::Event::EndedReadLoaded { request, task, party, through: 0, busy }
-        }
-        EndedRead::PartyInput { request, .. } => jig_domain_core::Event::PartyInputsLoaded { request, row, busy },
-        EndedRead::PersonTask { request, person, project, task } => {
-            jig_domain_core::Event::EndedPersonTask { request, person, project, task, row, busy }
-        }
-    };
-    domain.work.push(Work::Core(event));
-}
-
-pub(crate) fn transcript_failed(domain: &mut Domain, waiter: Token) {
-    let Some(Read::Transcript { task }) = take_read(domain, waiter) else { return };
-    domain.archive_reads.retire(Id::from_token(waiter));
-    // A stale read fails no current preparation.
-    if domain.engine.core().transcripts.contains_key(&task) {
-        domain.work.push(Work::Core(jig_domain_core::Event::TranscriptLoaded {
-            task,
-            load: jig_domain_core::TranscriptLoad::Failed,
-        }));
-    }
-}
-
-pub(crate) fn transcript_unread(domain: &mut Domain, waiter: Token) {
-    let Some(Read::Transcript { task }) = take_read(domain, waiter) else { return };
-    domain.archive_reads.retire(Id::from_token(waiter));
-    // The core owns the closed/open window policy (jig's `domain/engine/executors-transcripts.md`, 1).
-    if domain.engine.core().transcripts.contains_key(&task) {
-        domain.work.push(Work::Core(jig_domain_core::Event::TranscriptLoaded {
-            task,
-            load: jig_domain_core::TranscriptLoad::Unread,
-        }));
-    }
-}
-
-pub(crate) fn transcript_loaded(
-    domain: &mut Domain,
-    waiter: Token,
-    rows: Box<[Record]>,
-    texts: Option<crate::TranscriptTexts>,
-    next: Option<Key>,
-    cut: Option<loads::Cut>,
-    out: &mut Queue<Request>,
-) {
-    if cut.is_some() {
-        transcript_failed(domain, waiter);
-        return;
-    }
-    let Some(Some(Read::Transcript { task })) = domain.archive_reads.get(Id::from_token(waiter)) else { return };
-    let task = *task;
-    // A message can invalidate preparation while this store read is in
-    // flight; its old answer belongs to no current preparation (jig's
-    // `examples/ops/domain/src/restart.rs`).
-    if !domain.engine.core().transcripts.contains_key(&task) {
-        retire_read(domain, waiter);
-        return;
-    }
-    let Some(load) = transcript_page(rows, texts, next.is_none()) else {
-        transcript_failed(domain, waiter);
-        return;
-    };
-    domain.work.push(Work::Core(jig_domain_core::Event::TranscriptLoaded { task, load }));
-    if let Some(after) = next {
-        let mut issued = Queue::with_capacity(1);
-        loads::next(&mut domain.loads, waiter, after, domain.limits.loads.rows, &mut issued)
-            .expect("uncut transcript continuation keeps its load slot");
-        match issued.pop().expect("continuation issued") {
-            loads::Request::Load { owner, range, after, most, bytes } => {
-                out.push(Request::Store(crate::StoreRequest::Load { owner, range, after, most, bytes }));
-            }
-            loads::Request::Loaded { .. } | loads::Request::Unloaded { .. } => {
-                unreachable!("continuation only issues IO")
-            }
-        }
-        return;
-    }
-    let Some(Read::Transcript { .. }) = take_read(domain, waiter) else { unreachable!("finished transcript read") };
-    domain.archive_reads.retire(Id::from_token(waiter));
-}
-
-/// Validate row/text pairing before handing a page to the core (temper/docs/design/domain/root.md, 7).
-fn transcript_page(
-    rows: Box<[Record]>,
-    texts: Option<crate::TranscriptTexts>,
-    done: bool,
-) -> Option<jig_domain_core::TranscriptLoad> {
-    let count = rows.len();
-    if let Some(texts) = &texts
-        && texts.len() != count
-    {
-        return None;
-    }
-    let mut texts = match texts {
-        Some(texts) => texts,
-        None => Box::new([]),
-    }
-    .into_iter();
-    let mut loaded = List::with_capacity(u32::try_from(rows.len()).expect("bounded transcript page"));
-    for row in rows {
-        let turn = match row {
-            Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) => turn,
-            Record::Core(
-                jig_domain_core::Record::Core(
-                    jig_domain_core::CoreRecord::ProposalDecision(_)
-                    | jig_domain_core::CoreRecord::Settings(_)
-                    | jig_domain_core::CoreRecord::Part(_)
-                    | jig_domain_core::CoreRecord::Call(_)
-                    | jig_domain_core::CoreRecord::EscalationDecision(_)
-                    | jig_domain_core::CoreRecord::Deployment(_)
-                    | jig_domain_core::CoreRecord::RunProof(_)
-                    | jig_domain_core::CoreRecord::Terminal(_)
-                    | jig_domain_core::CoreRecord::Projection(_),
-                )
-                | jig_domain_core::Record::Tasks(_)
-                | jig_domain_core::Record::People(_)
-                | jig_domain_core::Record::Accounts(_)
-                | jig_domain_core::Record::Notes(_),
-            )
-            | Record::Forge { .. } => {
-                return None;
-            }
-        };
-        let text = match texts.next() {
-            Some(crate::TurnText::Cut(bytes)) => {
-                if count != 1 || !turn.transcript.is_empty() {
-                    return None;
-                }
-                return Some(jig_domain_core::TranscriptLoad::Cut { turn, bytes: u64::from(bytes), done });
-            }
-            Some(crate::TurnText::Rendered(text)) => {
-                if text.len() > usize::try_from(crate::TRANSCRIPT_TAIL_BYTES).expect("tail bound fits usize") {
-                    return None;
-                }
-                Some(text)
-            }
-            Some(crate::TurnText::Unrendered) | None => None,
-        };
-        loaded.push((turn, text)).expect("one transcript item per row");
-    }
-    Some(jig_domain_core::TranscriptLoad::Page { rows: loaded.into_boxed(), done })
+    domain.work.push(Work::ChangeFromLoaded { task, row });
 }
 
 pub(crate) fn take_read(domain: &mut Domain, waiter: Token) -> Option<Read> {
@@ -568,83 +191,4 @@ pub(crate) fn history_loaded(
         rows: stored.into_boxed(),
         next,
     }));
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::tests::resume_fixture::root;
-    use jig_domain_core as core;
-
-    const TASK: u64 = 1;
-    const PREVIOUS_ATTEMPT: u64 = 1;
-
-    fn transcript_read(domain: &mut Domain) -> Token {
-        domain.archive_reads.insert(Some(Read::Transcript { task: TASK })).expect("reserved transcript read").token()
-    }
-
-    #[test]
-    fn a_transcript_continuation_keeps_its_slot_while_every_other_slot_is_taken() {
-        let (mut domain, env) = root();
-        domain.engine.core_mut().begin_transcript(TASK, PREVIOUS_ATTEMPT, Some((PREVIOUS_ATTEMPT, 1)));
-        let waiter = transcript_read(&mut domain);
-        let range = Range::Core(crate::CoreRange::TaskTranscript { task: TASK, from: (PREVIOUS_ATTEMPT, 1) });
-        let mut issued = Queue::with_capacity(1);
-        let owner = loads::begin(&mut domain.loads, waiter, range.clone(), None, 1, &mut issued)
-            .expect("first transcript page admitted");
-        issued.pop().expect("first page issued");
-        for number in 1..env.limits.loads.loads {
-            loads::begin(
-                &mut domain.loads,
-                Token::new(u64::MAX - u64::from(number)),
-                Range::Core(crate::CoreRange::Tasks),
-                None,
-                1,
-                &mut issued,
-            )
-            .expect("other slot held");
-            issued.pop().expect("other load issued");
-        }
-        assert!(!domain.loads.has_room());
-        let row = crate::TurnRecord {
-            task: TASK,
-            attempt: PREVIOUS_ATTEMPT,
-            turn: 1,
-            spent: 1,
-            read: None,
-            at: skein_lib::Wall::EPOCH,
-            opens_window: true,
-            transcript: Box::new(*b"x"),
-        };
-        let rows = Box::new([Record::Core(core::Record::Core(core::CoreRecord::Turn(row)))]);
-        let after = Key::Core(core::Key::Core(core::CoreKey::Turn { task: TASK, attempt: PREVIOUS_ATTEMPT, turn: 1 }));
-        loads::loaded(&mut domain.loads, owner, rows, Some(after.clone()), &mut issued);
-        let Some(loads::Request::Loaded { waiter: found, rows, next, cut }) = issued.pop() else {
-            panic!("page delivered to its waiter");
-        };
-        assert_eq!(found, waiter);
-        let mut out = Queue::with_capacity(1);
-        transcript_loaded(&mut domain, waiter, rows, None, next, cut, &mut out);
-        assert_eq!(
-            out.pop(),
-            Some(Request::Store(crate::StoreRequest::Load {
-                owner,
-                range,
-                after: Some(after),
-                most: env.limits.loads.rows,
-                bytes: env.limits.loads.reply_bytes,
-            }))
-        );
-        let Some(Work::Core(core::Event::TranscriptLoaded {
-            task,
-            load: core::TranscriptLoad::Page { rows, done: false },
-        })) = domain.work.pop()
-        else {
-            panic!("the core hears its page, never Failed for room");
-        };
-        assert_eq!(task, TASK);
-        assert_eq!(rows.len(), 1);
-        assert!(domain.work.is_empty());
-        assert!(out.is_empty());
-    }
 }

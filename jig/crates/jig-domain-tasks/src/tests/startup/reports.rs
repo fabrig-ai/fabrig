@@ -151,7 +151,7 @@ fn configure(domain: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<Requ
         env,
         Event::Kinds {
             connector: CONNECTOR,
-            kinds: Box::new([crate::Kind { connector: CONNECTOR, kind: KIND, hold: HoldKind::Shared }]),
+            kinds: Box::new([crate::ResourceKind { kind: KIND, hold: HoldKind::Shared }]),
         },
         out,
     );

@@ -275,7 +275,8 @@ fn arrive(core: &mut Core, limits: &Limits, from: tasks::Party, kind: tasks::Mes
 fn notes_load(out: &[Request]) -> Token {
     for request in out {
         if let Request::Held(held) = request
-            && let Held::NotesLoad { owner, .. } = held.as_ref()
+            && let Held::Store(engine_store::Out::Load { load: owner, range: engine_store::Range::Notes(_) }) =
+                held.as_ref()
         {
             return *owner;
         }
@@ -288,18 +289,11 @@ fn finish_brief(core: &mut Core, limits: &Limits, mut owner: Token) {
     const SCOPES: u32 = 3;
     let mut out: Box<[Request]> = Box::new([]);
     for _ in 0..SCOPES {
-        out = watch_outputs(
-            core,
-            limits,
-            Event::Notes(notes::Event::Loaded {
-                owner,
-                rows: notes::Rows { records: List::with_capacity(limits.notes.load_rows) },
-                more: false,
-            }),
-        );
+        out = watch_store_outputs(core, limits, point_answer(owner, None, false));
         for request in &out {
             if let Request::Held(held) = request
-                && let Held::NotesLoad { owner: next, .. } = held.as_ref()
+                && let Held::Store(engine_store::Out::Load { load: next, range: engine_store::Range::Notes(_) }) =
+                    held.as_ref()
             {
                 owner = *next;
             }
@@ -356,6 +350,7 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
             let mut result = None;
             if arrival == Arrival::DuringResult {
                 let mut out = crate::routing::run::results::begin(&mut core, &mut Queue::uncapped(), 1, Box::new([12]));
+                loads::resume_waiting(&mut core, &limits, &mut out);
                 let mut requests = List::with_capacity(out.len());
                 while let Some(request) = out.pop() {
                     requests.push(request).unwrap();
@@ -364,11 +359,7 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
             }
             let mut owner = None;
             if arrival != Arrival::BeforeBrief && arrival != Arrival::DuringResult {
-                let out = watch_outputs(
-                    &mut core,
-                    &limits,
-                    Event::TranscriptLoaded { task: 1, load: TranscriptLoad::Page { rows: Box::new([]), done: true } },
-                );
+                let out = last_empty_window_page(&mut core, &limits, 1);
                 owner = Some(notes_load(&out));
             }
             if arrival == Arrival::BeforeComplete || arrival == Arrival::BeforeWorkspace {
@@ -388,18 +379,14 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
             }
             assert_eq!(core.contexts.get(&1), Some(&prepared), "{arrival:?}: prepared facts retained");
             if arrival == Arrival::BeforeBrief || arrival == Arrival::DuringResult {
-                let event = match result {
-                    Some(request) => Event::EndedTaskLoaded {
-                        request,
-                        row: Some(Box::new(fixtures::ended_report(12, tasks::Party::Person(1)))),
-                        busy: false,
-                    },
-                    None => Event::TranscriptLoaded {
-                        task: 1,
-                        load: TranscriptLoad::Page { rows: Box::new([]), done: true },
-                    },
+                let out = match result {
+                    Some(load) => watch_store_outputs(
+                        &mut core,
+                        &limits,
+                        ended_answer(load, Some(Box::new(fixtures::ended_report(12, tasks::Party::Person(1)))), false),
+                    ),
+                    None => last_empty_window_page(&mut core, &limits, 1),
                 };
-                let out = watch_outputs(&mut core, &limits, event);
                 owner = Some(notes_load(&out));
             }
             if arrival != Arrival::BeforeComplete && arrival != Arrival::BeforeWorkspace {

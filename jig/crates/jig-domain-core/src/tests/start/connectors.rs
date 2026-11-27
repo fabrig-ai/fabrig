@@ -1,4 +1,5 @@
 //! Connector loading and the durable output gate (jig/docs/design/domain/engine/restart.md).
+use crate::tests::new_core;
 use crate::{
     Ask, CoreRecord, Event, Held, Restored,
     effects::{connector, resources},
@@ -12,7 +13,7 @@ fn fresh() -> (Core, Env<crate::Limits>) {
     let mut configured = config(41);
     configured.connectors = Box::new([1, 2]);
     configured.grants = Box::new([]);
-    let mut core = Core::new(configured, &env.limits).expect("configured connectors");
+    let mut core = new_core(configured, &env.limits).expect("configured connectors");
     {
         step_phase(core.start_begin(false, env.wall), Phase::LoadCore);
     }

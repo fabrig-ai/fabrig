@@ -335,7 +335,8 @@ fn judge(row: &JobRow, present: &Present, bounds: &Bounds) -> Result<Judged, Job
             repositories.push(value.repository).expect("uncapped");
             RecordKind::Change
         }
-        Stored::LimitHold(_)
+        Stored::Writes(_)
+        | Stored::LimitHold(_)
         | Stored::Names { .. }
         | Stored::Call { .. }
         | Stored::Repository(_)

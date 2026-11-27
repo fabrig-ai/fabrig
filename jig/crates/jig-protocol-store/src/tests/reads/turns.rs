@@ -3,6 +3,7 @@ use super::{
     Box, CHILD, Token, assert_empty, assert_too_linked, child_store, core, corrupt_disk, fixtures, one_row,
     party_store, party_submit, read_disk, read_result, reads, reply_range, turn_range, turn_reply, waiting_party,
 };
+use jig_domain_core_vocabulary::engine::store as engine_store;
 
 #[test]
 fn a_goal_turn_reads_with_more_delegates_than_the_join_budget() {
@@ -24,7 +25,9 @@ fn an_unread_turn_is_malformed() {
     let (mut store, mut disk) = party_store();
     corrupt_disk(&mut disk);
     let below = waiting_party(&mut store, turn_range());
-    let reads::Loaded::TurnProblem { task, attempt, turn, owner, why } = read_disk(&mut store, below, &disk) else {
+    let engine_store::Answer::Failed(engine_store::Failure::TurnProblem { task, attempt, turn, owner, why }) =
+        read_disk(&mut store, below, &disk)
+    else {
         panic!("malformed evidence")
     };
     assert_eq!((task, attempt, turn), (CHILD, 1, 2));
@@ -38,7 +41,9 @@ fn a_turn_row_counts_its_joined_owner_against_the_byte_budget() {
     let mut range = turn_range();
     range.bytes = 1;
     let below = waiting_party(&mut store, range);
-    let reads::Loaded::Busy = read_disk(&mut store, below, &disk) else { panic!("evidence must fit") };
+    let engine_store::Answer::Failed(engine_store::Failure::Busy) = read_disk(&mut store, below, &disk) else {
+        panic!("evidence must fit")
+    };
 }
 
 #[test]
@@ -94,7 +99,9 @@ fn an_oversized_turn_keeps_its_payload_size() {
     let mut range = turn_range();
     range.bytes = row_bytes.checked_sub(1).expect("complete row");
     let below = waiting_party(&mut store, range);
-    let reads::Loaded::TurnProblem { task, attempt, turn, owner, why } = read_disk(&mut store, below, &disk) else {
+    let engine_store::Answer::Failed(engine_store::Failure::TurnProblem { task, attempt, turn, owner, why }) =
+        read_disk(&mut store, below, &disk)
+    else {
         panic!("size evidence")
     };
     assert_eq!((task, attempt, turn), (CHILD, 1, 2));

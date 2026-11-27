@@ -179,6 +179,21 @@ theirs: task show says whether you may. Releasing the stopped task
 itself lifts its hold, with every task the hold holds.
 ```
 
+## task measure
+
+```
+task measure TASK --hold REV [--key KEY]
+  TASK (task): a number; required. The task's number
+  --hold REV: a number; required. The hold's revision, as the task prints it
+Ask for one fresh measurement of what a held procedure judged
+Prints: `done: task N, release`
+--json: the record release.
+Key: --key KEY, optional.
+Lifts the procedure's own hold and asks it to measure its judgement
+once more. It cannot lift a placed hold or settle an uncertain effect.
+A measurement asked again under its key prints its first answer.
+```
+
 ## task stop
 
 ```

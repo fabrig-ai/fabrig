@@ -1,7 +1,7 @@
 //! Restart waiters judge only their repositories (domain/forge/catching-up.md, 2 and 4).
 use super::{
     Domain, Env, FreshStep, Limits, List, Name, Queue, Request, claim, continue_release_once, decide_step, emit,
-    finish_release_outcome, fresh_reads_in, repository_fresh, step_verified, wake_once,
+    finish_release_outcome, fresh_reads_in, repository_fresh, step_verified, take_entry, wake_once,
 };
 use skein_forge::api::Repository;
 
@@ -212,7 +212,8 @@ fn wake_outcomes(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         let (outcome, account) = d.waiting_release_outcomes.remove(&entry).expect("collected release outcome");
         finish_release_outcome(d, env, task, entry, outcome, account, out);
         // Keep the release and entry linked across a crash until this judgement is saved.
-        if outcome != skein_forge_client::Outcome::Held && d.entries.remove(&entry).is_some() {
+        if outcome != skein_forge_client::Outcome::Held && d.entries.contains_key(&entry) {
+            take_entry(d, entry, task);
             emit(out, Request::Erase { key: crate::Key::Entry(entry) });
         }
     }

@@ -202,7 +202,7 @@ fn a_large_tool_turn_keeps_its_place_between_other_texts() {
 fn transcript_core(window: (u64, u32)) -> core::Core {
     let limits = jig_test_profile::limits().core;
     let config = jig_test_profile::config(105).core;
-    let mut core = core::Core::new(config, &limits).expect("fixture core configuration");
+    let mut core = jig_test_profile::new_core(config, &limits).expect("fixture core configuration");
     core.begin_transcript(1, 3, None);
     core.transcripts.get_mut(&1).expect("begun transcript").window = Some(window);
     core

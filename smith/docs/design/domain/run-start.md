@@ -26,7 +26,8 @@ What the host gives a run to set it up:
   role's name. A run may have no tools but `finish`.
 - **Result contract:** what counts as done (`run.md`, section 7).
 - **Conventions:** where a workspace directory keeps its guide and its
-  checks (`run-delivery.md`, 1.1); smith's defaults when absent.
+  checks, one for every delivery or, in a hooks directory, one per
+  moment (`run-delivery.md`, 1.1); smith's defaults when absent.
 - **Budget:** what the whole run may spend across all its sessions, in
   the host's unit, with each model's prices; its wall time; its turns, a
   loop guard; and the reserve it keeps for finishing (`budget.md`).

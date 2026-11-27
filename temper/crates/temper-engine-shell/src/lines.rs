@@ -133,6 +133,7 @@ pub fn ending_with_binary(
                     failure.set, failure.held, failure.additional, failure.limit
                 )
             }
+            Stop::BranchWrites(name, count) => branch_writes(binary, name, *count),
             Stop::ForgeLink { phase, link } => {
                 let during = phase.map_or_else(|| "unknown phase".into(), start_phase);
                 format!(
@@ -194,6 +195,19 @@ pub fn ending_with_binary(
         }
     }
     (lines, u8::from(output_failed || end != Some(&End::Drained)))
+}
+
+fn branch_writes(binary: &str, name: &temper_engine_domain_forge::Name, count: usize) -> String {
+    let temper_engine_domain_forge::What::Branch(parts) = &name.what else {
+        unreachable!("only branch records are converted")
+    };
+    let branch = parts.iter().map(|part| String::from_utf8_lossy(part)).collect::<Vec<_>>().join("/");
+    format!(
+        "{binary} serve: restart refused during Link: branch {branch} (forge {}, repository {}) needs {count} write entries, limit {}\n",
+        name.forge,
+        name.repository,
+        temper_engine_domain_forge::WRITES
+    )
 }
 
 fn codec_restore(
@@ -351,15 +365,10 @@ fn restore_kind(kind: temper_engine_service::RestoreRangeKind) -> &'static str {
         Kind::RunProofs => "run proofs",
         Kind::People => "people",
         Kind::Calls => "calls",
-        Kind::EndedRead => "ended read position",
         Kind::TaskResult => "task result",
         Kind::RequesterWord => "requester word",
         Kind::Turns => "turns",
-        Kind::TaskTranscript => "task transcript",
         Kind::Notes => "notes",
-        Kind::ProposalDecision => "proposal decision",
-        Kind::TaskProposal => "task proposal",
-        Kind::EscalationDecision => "escalation decision",
         Kind::Census => "census",
         Kind::Forge => "forge",
         Kind::History => "history",

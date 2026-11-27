@@ -934,11 +934,10 @@ fn an_exclusive_resource_that_refuses_waiting_refuses_the_second_batch() {
     let first = delegate(&mut world, parent, 1, child);
     let before = world.assignments.len();
     let child = resource_member(&world, 1, b"second holder");
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9152)),
         key: core::CallKey { task: parent.0, attempt: parent.1, completion: 2, position: 0 },
         batch: Box::new([child]),
-        stubs: Box::new([]),
     }));
     assert_eq!(world.assignments.len(), before);
     assert!(matches!(
@@ -1084,11 +1083,10 @@ fn a_resource_becoming_unavailable_holds_its_waiter_and_refuses_a_new_hold() {
     }
     assert_eq!(world.assignments.len(), 2, "an unavailable waiter is not assigned");
     let spec = resource_member(&world, 1, b"new hold on unavailable resource");
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9155)),
         key: core::CallKey { task: parent.0, attempt: parent.1, completion: 3, position: 0 },
         batch: Box::new([spec]),
-        stubs: Box::new([]),
     }));
     assert!(matches!(world.answers.last().expect("unavailable batch answer").2,
         core::CallPart::DelegationRefused(ref problem) if problem.why == tasks::Refusal::ResourceUnavailable));

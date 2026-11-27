@@ -15,7 +15,7 @@ use temper_engine_domain_see::{
 /// Root to protocol: a relayed call to decode, or one the fleet dropped.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum HostRequest {
-    /// Decode an admitted application ask before reading its run's reds.
+    /// Decode an application ask already fenced by jig.
     Ask {
         channel: Token,
         run: Token,
@@ -54,6 +54,11 @@ pub enum AskHow {
 /// the hub's link names only as text (jig's `domain/hosts/README.md`, 2).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum HostDelivery {
+    /// A push admission's answer, after its write record has committed.
+    Asked {
+        asking: crate::wire::Asking,
+        answer: crate::wire::Answer,
+    },
     /// Settings reads have no durable call part; inventories include project repositories and people.
     Settings {
         to: ReplyTo,
@@ -448,11 +453,8 @@ fn admit(domain: &mut Domain, to: ReplyTo, key: CallKey, tool: &crate::Tool) -> 
     } else if crate::translate::is_core_read(tool) {
         None
     } else if !domain.engine.core().call_room(key) {
-        let reason = if domain.engine.core().pending_calls.contains_key(&key) {
-            "named call pending"
-        } else {
-            "call record room full"
-        };
+        let reason =
+            if domain.engine.core().call_pending(key) { "named call pending" } else { "call record room full" };
         Some(("core-call-room", reason, false))
     } else if super::call_needs_input(tool) && domain.archive_reads.len() >= domain.archive_reads.capacity() {
         Some(("archive-read-room", "archive read room full", false))
@@ -990,7 +992,9 @@ pub(crate) fn settings_note(domain: &mut Domain, env: &Env<Limits>, decision: &m
             &env.limits,
             Delivery::Load {
                 waiter: id.token(),
-                range: crate::Range::Core(crate::CoreRange::Notes(jig_domain_notes::Range::Entry { name: note })),
+                range: crate::Range::Core(crate::CoreRange::ApplicationNotes(jig_domain_notes::Range::Entry {
+                    name: note,
+                })),
                 after: None,
             },
         ),

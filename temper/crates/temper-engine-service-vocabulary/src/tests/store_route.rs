@@ -2,6 +2,7 @@ use super::fixtures;
 use crate::store::route::{self, CommitStop, RouteStop, Up};
 use ::core::mem::size_of;
 use jig_domain_core as core;
+use jig_domain_core::engine::store as engine_store;
 use jig_protocol_store as store;
 use skein_lib::{Queue, Token};
 use smith_transcript::Record;
@@ -126,14 +127,8 @@ fn each_root_range_asks_the_store_as_the_table_maps_it() {
         engine::Range::Census(core::Census { results: Box::new([]), questions: Box::new([]) }),
         engine::Range::Forge,
         engine::Range::Core(engine::CoreRange::TaskResult { task: 7 }),
-        engine::Range::Core(engine::CoreRange::ProposalDecision {
-            proposer: jig_domain_people::Proposer::Party(8),
-            proposal: 9,
-        }),
-        engine::Range::Core(engine::CoreRange::EscalationDecision { task: 7, revision: 2 }),
-        engine::Range::Core(engine::CoreRange::TaskTranscript { task: 7, from: (2, 3) }),
         engine::Range::Core(engine::CoreRange::Turns { task: 7, attempt: 2 }),
-        engine::Range::Core(engine::CoreRange::Notes(jig_domain_notes::Range::Entry { name: 5 })),
+        engine::Range::Core(engine::CoreRange::ApplicationNotes(jig_domain_notes::Range::Entry { name: 5 })),
     ];
     for (index, range) in ranges.into_iter().enumerate() {
         let request = route::down(&mut fixtures::routes(), load(range, None, 4, 4096)).unwrap();
@@ -169,27 +164,15 @@ fn check_range(index: usize, request: store::Request) {
             };
             assert_eq!(ranges.as_ref(), [skein_kv::Range { start: Box::new([]), end: Some(Box::new([128])) }]);
         }
-        7..=9 => {
-            let store::Request::Get { key: store::Get::Jig(key), .. } = request else { panic!("get {index}") };
-            let expected = [
-                core::Key::Tasks(jig_domain_tasks::Key::Ended(7)),
-                core::Key::Core(core::CoreKey::ProposalDecision {
-                    proposer: jig_domain_people::Proposer::Party(8),
-                    proposal: 9,
-                }),
-                core::Key::Core(core::CoreKey::EscalationDecision { task: 7, revision: 2 }),
-            ];
-            assert_eq!(key, expected[index.checked_sub(7).unwrap()], "{index}");
+        7 => {
+            let store::Request::Get { key: store::Get::Jig(key), .. } = request else { panic!("retained row get") };
+            assert_eq!(key, core::Key::Tasks(jig_domain_tasks::Key::Ended(7)));
         }
-        10..=11 => {
+        8 => {
             let store::Request::Transcript { read, rows: 4, bytes: 4096, .. } = request else { panic!("transcript") };
-            let expected = [
-                store::TranscriptRead::Window { task: 7, attempt: 2, turn: 3, after: None },
-                store::TranscriptRead::Page { task: 7, backwards: false, after: None },
-            ];
-            assert_eq!(read, expected[index.checked_sub(10).unwrap()]);
+            assert_eq!(read, store::TranscriptRead::Page { task: 7, backwards: false, after: None });
         }
-        12 => {
+        9 => {
             let store::Request::Load {
                 range: store::Load::Notes(jig_domain_notes::Range::Entry { name: 5 }),
                 after: None,
@@ -612,14 +595,12 @@ fn projection_row() -> core::Record {
 const TASK: u64 = 7;
 const PROPOSAL: u64 = 19;
 const REVISION: u64 = 3;
-const ONE_ROW: u32 = 1;
-const LOAD_BYTES: u32 = 8192;
 const LOAD_OUTPUTS: u32 = 2;
 
 struct DecidedRows {
     live: Option<jig_domain_tasks::TaskRecord>,
     history: Option<core::Record>,
-    expected: Box<[engine::Record]>,
+    expected: Box<[core::Record]>,
 }
 #[test]
 fn a_task_proposal_load_follows_the_live_owners_history_pointer() {
@@ -627,7 +608,7 @@ fn a_task_proposal_load_follows_the_live_owners_history_pointer() {
     assert_decided_load(DecidedRows {
         live: Some(proposal_owner()),
         history: Some(history.clone()),
-        expected: Box::new([engine::Record::Core(history)]),
+        expected: Box::new([history]),
     });
 }
 #[test]
@@ -655,12 +636,52 @@ fn proposal_owner() -> jig_domain_tasks::TaskRecord {
     live.proposal_rows = Box::new([jig_domain_tasks::ProposalRow { proposal: PROPOSAL, revision: REVISION }]);
     live
 }
+fn point(range: engine_store::Range) -> engine::StoreRequest {
+    engine::StoreRequest::Engine(engine_store::Out::Load { load: fixtures::OWNER, range })
+}
+
+fn point_answer(out: &mut Queue<Up>) -> (Token, engine_store::Answer) {
+    let Some(Up::Root(event)) = out.pop() else { panic!("one root event") };
+    let engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result })) = *event else {
+        panic!("point load answer")
+    };
+    (load, result)
+}
+
+#[test]
+fn point_keys_are_gets_and_an_unreadable_record_answers_once() {
+    for key in [
+        core::Key::Tasks(jig_domain_tasks::Key::Ended(7)),
+        core::Key::People(jig_domain_people::Key::EndedRead { task: 7, party: 8 }),
+        core::Key::Core(core::CoreKey::ProposalDecision {
+            proposer: jig_domain_people::Proposer::Party(8),
+            proposal: 9,
+        }),
+        core::Key::Core(core::CoreKey::EscalationDecision { task: 7, revision: 2 }),
+    ] {
+        let mut routes = fixtures::routes();
+        let Some(store::Request::Get { owner, key: store::Get::Jig(found) }) =
+            route::down(&mut routes, point(engine_store::Range::Record(key.clone())))
+        else {
+            panic!("point get")
+        };
+        assert_eq!(key, found);
+        let mut out = Queue::with_capacity(LOAD_OUTPUTS);
+        route::up(&mut routes, store::Event::Corrupt { owner }, &mut out);
+        let (load, result) = point_answer(&mut out);
+        assert_eq!(load, fixtures::OWNER);
+        let engine_store::Answer::Failed(engine_store::Failure::Failed) = result else { panic!("typed failure") };
+        route::up(&mut routes, store::Event::Corrupt { owner }, &mut out);
+        assert!(out.is_empty());
+        assert!(routes.idle());
+    }
+}
+
 fn assert_decided_load(rows: DecidedRows) {
     use jig_domain_tasks as tasks;
     let mut routes = fixtures::routes();
-    let range = engine::Range::Core(engine::CoreRange::TaskProposal { task: TASK, proposal: PROPOSAL });
-    let Some(store::Request::Get { owner, key }) = route::down(&mut routes, load(range, None, ONE_ROW, LOAD_BYTES))
-    else {
+    let range = engine_store::Range::Proposal { task: TASK, proposal: PROPOSAL };
+    let Some(store::Request::Get { owner, key }) = route::down(&mut routes, point(range)) else {
         panic!("live lookup")
     };
     let store::Get::Jig(key) = key else { panic!("jig owner") };
@@ -676,8 +697,11 @@ fn assert_decided_load(rows: DecidedRows) {
         let history = stored_history(rows.history);
         route::up(&mut routes, store::Event::Got { owner, row: history }, &mut out);
     }
-    let (load_owner, loaded, next) = page(&mut out);
-    assert_eq!((load_owner, loaded.as_ref(), next), (fixtures::OWNER, rows.expected.as_ref(), None));
+    let (load, result) = point_answer(&mut out);
+    let engine_store::Answer::Rows(engine_store::Rows::Records { records, more: false }) = result else {
+        panic!("records answer")
+    };
+    assert_eq!((load, records.as_ref()), (fixtures::OWNER, rows.expected.as_ref()));
     assert!(out.is_empty());
     assert!(routes.idle());
 }
@@ -687,6 +711,22 @@ fn stored_live(row: Option<jig_domain_tasks::TaskRecord>) -> Option<store::Row> 
 }
 fn stored_history(row: Option<core::Record>) -> Option<store::Row> {
     Some(store::Row::Jig(row?))
+}
+
+fn load_window(from: (u64, u32)) -> engine::StoreRequest {
+    engine::StoreRequest::Engine(engine_store::Out::Load {
+        load: fixtures::OWNER,
+        range: engine_store::Range::Window { task: 7, from },
+    })
+}
+
+fn window_reply(out: &mut Queue<Up>) -> engine_store::Answer {
+    let Some(Up::Root(event)) = out.pop() else { panic!("answer must precede the continuation") };
+    let engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load, result })) = *event else {
+        panic!("window answered by its own port: {event:?}");
+    };
+    assert_eq!(load, fixtures::OWNER);
+    result
 }
 
 /// temper/docs/design/domain/root.md, 7: size cuts retain the turn's fields and length.
@@ -710,61 +750,87 @@ fn window_turns_past_store_row_or_page_room_are_carried_cut() {
             bounds,
             skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).unwrap(),
         );
-        let range = engine::Range::Core(engine::CoreRange::TaskTranscript { task: 7, from: (1, 1) });
-        let mut after = None;
-        let large = window_turn(if prefix { 2 } else { 1 }, if store_cut { 0 } else { bytes });
-        let turns: Box<[core::TurnRecord]> =
-            if prefix { Box::new([window_turn(1, 1), large.clone()]) } else { Box::new([large.clone()]) };
+        let Some(store::Request::Transcript { owner, read, rows, bytes: budget }) =
+            route::down(&mut routes, load_window((1, 1)))
+        else {
+            panic!("{name}: window read");
+        };
+        let page = store::WindowPage {
+            row_bytes: limits.loads.transcript_bytes,
+            bytes: page_bound,
+            turn_overhead: u32::try_from(size_of::<engine::Record>()).unwrap(),
+        };
+        assert_eq!(
+            read,
+            store::TranscriptRead::Window { task: 7, attempt: 1, turn: 1, after: None, limits: Some(page) }
+        );
+        assert_eq!((rows, budget), (limits.loads.rows, u64::from(limits.loads.reply_bytes)));
         let mut out = Queue::uncapped();
-        for page_index in 0..=usize::from(prefix) {
-            let Some(store::Request::Transcript { owner, read, .. }) =
-                route::down(&mut routes, load(range.clone(), after.clone(), 4, limits.loads.reply_bytes))
-            else {
-                panic!("{name}: window read")
-            };
-            assert_eq!(read, store::TranscriptRead::Window { task: 7, attempt: 1, turn: 1, after: None });
+        if prefix {
+            // The component stops the page ahead of a row that would not fit.
             route::up(
                 &mut routes,
-                store::Event::Turns {
-                    owner,
-                    turns: turns.clone(),
-                    next: if more { Some(900) } else { None },
-                    cut: if store_cut { Some(bytes) } else { None },
-                },
+                store::Event::Turns { owner, turns: Box::new([window_turn(1, 1)]), next: Some(450), cut: None },
                 &mut out,
             );
-            let Some(Up::Root(event)) = out.pop() else { panic!("{name}: one loaded terminal") };
-            let engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: Some(texts) }) = *event
+            let engine_store::Answer::Rows(engine_store::Rows::Turns { turns, more: true }) = window_reply(&mut out)
             else {
-                panic!("{name}: cut is loaded, never unloaded or uncommitted: {event:?}")
+                panic!("{name}: a fitting prefix ends before the large row");
             };
-            assert_eq!(owner, fixtures::OWNER);
-            assert!(out.is_empty() && routes.idle(), "{name}: terminal retires its flight");
-            let [engine::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn)))] = rows.as_ref() else {
-                panic!("{name}: one turn alone")
+            assert_eq!(turns.as_ref(), [(window_turn(1, 1), None)]);
+            let Some(Up::Ask(store::Request::Transcript { owner: resumed, read, .. })) = out.pop() else {
+                panic!("next page")
             };
-            if prefix && page_index == 0 {
-                assert_eq!(*turn, window_turn(1, 1), "a fitting prefix ends before the large row");
-                let [engine::TurnText::Unrendered] = texts.as_ref() else { panic!("whole prefix text") };
-                assert_eq!(next, Some(rows[0].key()));
-                after = next;
-                continue;
-            }
-            let mut expected = large.clone();
-            expected.transcript = Box::new([]);
-            assert_eq!(*turn, expected, "{name}: fields preserved, body empty");
-            let [engine::TurnText::Cut(length)] = texts.as_ref() else { panic!("{name}: cut text") };
-            assert_eq!(*length, bytes, "{name}: length kept");
-            assert_eq!(next, if more || !store_cut { Some(rows[0].key()) } else { None });
-            if more {
-                let Some(store::Request::Transcript { read, .. }) =
-                    route::down(&mut routes, load(range.clone(), next, 4, limits.loads.reply_bytes))
-                else {
-                    panic!("store cut's continuation")
-                };
-                assert_eq!(read, store::TranscriptRead::Window { task: 7, attempt: 1, turn: 1, after: Some(900) });
-            }
+            assert_eq!(resumed, owner);
+            assert_eq!(
+                read,
+                store::TranscriptRead::Window { task: 7, attempt: 1, turn: 1, after: Some(450), limits: Some(page) }
+            );
+            assert!(!routes.idle() && out.is_empty());
         }
+        let mut expected = window_turn(if prefix { 2 } else { 1 }, if store_cut { 0 } else { bytes });
+        route::up(
+            &mut routes,
+            store::Event::Turns {
+                owner,
+                turns: Box::new([expected.clone()]),
+                next: more.then_some(900),
+                cut: store_cut.then_some(bytes),
+            },
+            &mut out,
+        );
+        let engine_store::Answer::Cut { turn, bytes: length, more: continues } = window_reply(&mut out) else {
+            panic!("{name}: a cut, never failed")
+        };
+        expected.transcript = Box::new([]);
+        assert_eq!(turn, expected, "{name}: fields preserved, body empty");
+        assert_eq!(length, u64::from(bytes), "{name}: length kept");
+        assert_eq!(continues, more);
+        if more {
+            let Some(Up::Ask(store::Request::Transcript { owner: resumed, read, .. })) = out.pop() else {
+                panic!("store cut's continuation")
+            };
+            assert_eq!(resumed, owner);
+            assert_eq!(
+                read,
+                store::TranscriptRead::Window { task: 7, attempt: 1, turn: 1, after: Some(900), limits: Some(page) }
+            );
+            assert!(!routes.idle());
+            let mut second = window_turn(2, 1);
+            second.transcript = assistant_turn(b"continued");
+            route::up(
+                &mut routes,
+                store::Event::Turns { owner, turns: Box::new([second.clone()]), cut: None, next: None },
+                &mut out,
+            );
+            let engine_store::Answer::Rows(engine_store::Rows::Turns { turns, more: false }) = window_reply(&mut out)
+            else {
+                panic!("final page")
+            };
+            assert_eq!(turns[0].0, second);
+            assert_eq!(turns[0].1.as_deref().unwrap(), b"assistant: continued\n");
+        }
+        assert!(out.is_empty() && routes.idle(), "{name}: terminal retires its flight");
     }
 }
 fn window_turn(turn: u32, bytes: u32) -> core::TurnRecord {
@@ -784,18 +850,55 @@ fn window_turn(turn: u32, bytes: u32) -> core::TurnRecord {
 
 #[test]
 fn unread_and_corrupt_window_pages_still_fail_the_load_once() {
-    for corrupt in [false, true] {
+    for kind in [0_u8, 1, 2] {
         let mut routes = fixtures::routes();
-        let Some(store::Request::Transcript { owner, .. }) = route::down(
-            &mut routes,
-            load(engine::Range::Core(engine::CoreRange::TaskTranscript { task: 7, from: (1, 1) }), None, 4, 8192),
-        ) else {
+        let Some(store::Request::Transcript { owner, .. }) = route::down(&mut routes, load_window((1, 1))) else {
             panic!("window read")
         };
         let mut out = Queue::uncapped();
-        let event = if corrupt { store::Event::Corrupt { owner } } else { store::Event::Unread { owner } };
+        let event = match kind {
+            0 => store::Event::Unread { owner },
+            1 => store::Event::Corrupt { owner },
+            _ => store::Event::WindowFailed { owner },
+        };
         route::up(&mut routes, event, &mut out);
-        failed_load(&mut routes, owner, &mut out);
+        let failure = window_reply(&mut out);
+        if kind == 0 {
+            let engine_store::Answer::Failed(engine_store::Failure::Unread) = failure else {
+                panic!("absent first turn was unread")
+            };
+        } else {
+            let engine_store::Answer::Failed(engine_store::Failure::Failed) = failure else {
+                panic!("store error fails the window")
+            };
+        }
+        assert!(out.is_empty() && routes.idle());
+        route::up(&mut routes, store::Event::WindowFailed { owner }, &mut out);
+        assert!(out.is_empty(), "one terminal per window");
+    }
+}
+
+#[test]
+fn a_cut_with_extra_rows_or_a_body_fails_at_the_store_route() {
+    for (rows, bytes) in [(2, 0), (1, 1)] {
+        let mut routes = fixtures::routes();
+        let Some(store::Request::Transcript { owner, .. }) = route::down(&mut routes, load_window((1, 1))) else {
+            panic!("window read")
+        };
+        let mut turns = skein_lib::List::with_capacity(rows);
+        for turn in 1..=rows {
+            turns.push(window_turn(turn, bytes)).unwrap();
+        }
+        let mut out = Queue::uncapped();
+        route::up(
+            &mut routes,
+            store::Event::Turns { owner, turns: turns.into_boxed(), next: Some(2), cut: Some(1) },
+            &mut out,
+        );
+        let engine_store::Answer::Failed(engine_store::Failure::Failed) = window_reply(&mut out) else {
+            panic!("malformed cut must fail the window")
+        };
+        assert!(out.is_empty() && routes.idle(), "malformed pages never continue");
     }
 }
 
@@ -830,11 +933,7 @@ fn assistant_turn(words: &[u8]) -> Box<[u8]> {
 
 fn loaded_tail(transcript: Box<[u8]>) -> Box<[u8]> {
     let mut routes = fixtures::routes();
-    let request = route::down(
-        &mut routes,
-        load(engine::Range::Core(engine::CoreRange::TaskTranscript { task: 7, from: (1, 1) }), None, 4, 8192),
-    )
-    .unwrap();
+    let request = route::down(&mut routes, load_window((1, 1))).unwrap();
     let store::Request::Transcript { owner, .. } = request else { panic!("window load") };
     let mut out = Queue::with_capacity(1);
     route::up(
@@ -856,23 +955,20 @@ fn loaded_tail(transcript: Box<[u8]>) -> Box<[u8]> {
         },
         &mut out,
     );
-    let Some(Up::Root(event)) = out.pop() else { panic!("loaded window") };
-    let engine::Event::Store(engine::StoreInput::Loaded { rows, texts: Some(texts), next: None, .. }) = *event else {
+    let engine_store::Answer::Rows(engine_store::Rows::Turns { turns, more: false }) = window_reply(&mut out) else {
         panic!("transcript loads carry protocol renderings")
     };
-    assert_eq!(rows.len(), texts.len(), "one rendering per stored turn");
+    assert_eq!(turns.len(), 1, "one rendering per stored turn");
     let settings = fixtures::engine();
     let config = jig_protocol_config::core(&settings.jig, [7; 16], 7);
-    let mut jig = core::engine::Engine::new(config, &settings.jig.limits.core).unwrap();
+    let mut declarations = skein_lib::List::with_capacity(u32::try_from(config.connectors.len()).unwrap());
+    for connector in &config.connectors {
+        declarations.push(jig_domain_contract::Declaration::empty(*connector)).unwrap();
+    }
+    let mut jig = core::engine::Engine::new(config, declarations.as_slice(), &settings.jig.limits.core).unwrap();
     jig.core_mut().begin_transcript(7, 1, None);
     jig.core_mut().transcripts.get_mut(&7).unwrap().window = Some((1, 1));
-    for (row, text) in rows.into_iter().zip(texts) {
-        let engine::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn))) = row else { panic!("turn row") };
-        let text = match text {
-            engine::TurnText::Rendered(text) => Some(text),
-            engine::TurnText::Unrendered => None,
-            engine::TurnText::Cut(_) => panic!("whole turn rendering"),
-        };
+    for (turn, text) in turns {
         assert!(jig.core_mut().append_transcript(7, turn, text));
     }
     core::read_brief_part(
@@ -1379,4 +1475,73 @@ fn the_components_census_is_handed_to_the_root_whole() {
     let engine::Event::Store(engine::StoreInput::Census(found)) = *event else { panic!("root census") };
     assert_eq!(found, census);
     assert!(out.is_empty(), "one report");
+}
+
+#[test]
+fn an_engine_notes_page_keeps_its_cursor_flag_and_refuses_an_oversized_row() {
+    use jig_domain_notes as notes;
+    let (mut root, _, _) = fixtures::store_limits();
+    root.notes.load_rows = 1;
+    root.loads.rows = 2;
+    root.loads.transcript_bytes = 16;
+    let bounds = temper_protocol_store::bounds(&root.forge, root.tasks.spec_bytes).expect("family bounds");
+    let mut routes = route::Routes::new(
+        2,
+        &root,
+        bounds,
+        skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).unwrap(),
+    );
+    let load = Token::new(41);
+    let scope = notes::Scope::Deployment;
+    let range = notes::Range::Lines { scope: scope.clone(), after: None };
+    let cases = [(b"tag".as_slice(), true, false), (b"too long for 16 B".as_slice(), false, true)];
+    let mut out = Queue::uncapped();
+    for (description, more, failed) in cases {
+        let request = route::down(
+            &mut routes,
+            engine::StoreRequest::Engine(engine_store::Out::Load {
+                load,
+                range: engine_store::Range::Notes(range.clone()),
+            }),
+        )
+        .expect("notes route");
+        let store::Request::Load { owner, range: store::Load::Notes(asked), after: None, rows, bytes } = request else {
+            panic!("notes page request")
+        };
+        assert_eq!(asked, range);
+        assert_eq!(rows, 1);
+        assert_eq!(bytes, u64::from(root.loads.bytes));
+        let row = core::Record::Notes(notes::Record::Line(notes::Line {
+            scope: scope.clone(),
+            name: 7,
+            description: description.into(),
+            revision: 1,
+        }));
+        let next = more.then_some(store::Cursor { interval: 0, after: Box::new([7]) });
+        route::up(
+            &mut routes,
+            store::Event::Loaded { owner, rows: Box::new([store::Row::Jig(row.clone())]), next },
+            &mut out,
+        );
+        let Some(Up::Root(event)) = out.pop() else { panic!("one engine answer") };
+        let engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { load: answered, result })) =
+            *event
+        else {
+            panic!("notes terminal")
+        };
+        assert_eq!(answered, load);
+        if failed {
+            let engine_store::Answer::Failed(engine_store::Failure::Failed) = result else {
+                panic!("oversized notes page fails")
+            };
+        } else {
+            let engine_store::Answer::Rows(engine_store::Rows::Records { records, more: continued }) = result else {
+                panic!("notes records")
+            };
+            assert_eq!(records.as_ref(), [row]);
+            assert_eq!(continued, more);
+        }
+        assert!(out.is_empty(), "the engine chooses whether to ask the next page");
+        assert!(routes.idle());
+    }
 }

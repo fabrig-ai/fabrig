@@ -31,7 +31,18 @@ impl World {
 
     /// A batch turn with a sweep's forge configuration and independent streams.
     #[must_use]
-    pub fn batch_turn_in(streams: &Streams, workflow: Option<raw::Workflow>, mut config: forge::Config) -> World {
+    pub fn batch_turn_in(streams: &Streams, workflow: Option<raw::Workflow>, config: forge::Config) -> World {
+        Self::batch_turn_with_checks(streams, workflow, config, None)
+    }
+
+    /// A batch turn in a repository that also has check contexts on pushed heads.
+    #[must_use]
+    pub fn batch_turn_with_checks(
+        streams: &Streams,
+        workflow: Option<raw::Workflow>,
+        mut config: forge::Config,
+        checks: Option<raw::Checks>,
+    ) -> World {
         config.limits.files = 8;
         Self::configured_repositories(
             streams.seed(),
@@ -48,7 +59,7 @@ impl World {
             4,
             None,
             Some(streams),
-            None,
+            checks,
         )
     }
 

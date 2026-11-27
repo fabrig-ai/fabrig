@@ -14,7 +14,7 @@ fn forge_read_waiters_keep_their_turn_under_interleaving() {
 
 #[test]
 fn branch_head_records_respect_capacity_and_refuse_only_new_names() {
-    use crate::{BranchHead, Hold, Name, Request, What, domain::heads};
+    use crate::{BranchHead, Hold, Name, Request, Stored, What, domain::heads, writes::Writes};
     use skein_lib::Queue;
     for seed in 0..256 {
         let mut rng = Rng::new(seed);
@@ -37,6 +37,7 @@ fn branch_head_records_respect_capacity_and_refuse_only_new_names() {
             };
             let fits = d.heads.contains_key(&name) || d.heads.len() < d.heads.capacity();
             let needed = u64::from(d.heads.len()).saturating_add(1);
+            let seeds_write_record = head.owned && !d.writes.contains_key(&name);
             let mut out = Queue::uncapped();
             assert_eq!(heads::record(&mut d, &env, head.clone(), Some(7), &mut out), fits, "seed {seed}");
             assert!(d.heads.len() <= env.limits.client.resources, "seed {seed}");
@@ -55,6 +56,22 @@ fn branch_head_records_respect_capacity_and_refuse_only_new_names() {
                     )
                     .unwrap();
                 assert_eq!(d.heads.get(&name), Some(&head), "seed {seed}");
+                if seeds_write_record {
+                    assert_eq!(
+                        out.pop(),
+                        Some(Request::Save {
+                            read_afresh: None,
+                            release: None,
+                            record: Stored::Writes(Writes {
+                                name: name.clone(),
+                                head: Some(head.commit),
+                                next: 1,
+                                entries: Box::new([]),
+                            }),
+                        }),
+                        "seed {seed}"
+                    );
+                }
                 assert!(out.is_empty(), "seed {seed}");
             } else {
                 assert_eq!(out.len(), 1, "seed {seed}");
@@ -80,6 +97,9 @@ fn sign_offs_are_a_bounded_ordered_union_and_times_do_not_change_verdicts() {
     let head = [1; 32];
     let clean = [[2; 32], [3; 32]];
     let evidence = ChangeEvidence {
+        behind: None,
+        readback_owed: false,
+        nearest_write: None,
         touched: crate::Touched::UNKNOWN,
         prior: tests::fixtures::opening_row().change,
         head: Some(head),

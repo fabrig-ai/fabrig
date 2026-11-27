@@ -145,7 +145,7 @@ pub(crate) fn apply_hold(
             source: Box::new(source.clone()),
         }),
     );
-    super::super::route_core_requests(domain, env, decision, requests);
+    super::super::route_engine_requests(domain, env, decision, requests);
     let Some(task) = domain.engine.core().tasks.task(row.task) else { return };
     let tasks::Phase::Held { source: Some(held), .. } = &task.phase else { return };
     if held.as_ref() != &source {
@@ -234,7 +234,7 @@ pub(crate) fn release(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
                 operation: tasks::Release { task, again: None, message: None },
             }),
         );
-        super::super::route_core_requests(domain, env, decision, requests);
+        super::super::route_engine_requests(domain, env, decision, requests);
         // A placed hold can have arrived since selection. Keep the wait if jig refused it.
         if let Some(waiting) = domain.forge_limit_holds.get_mut(&task) {
             waiting.queued = false;

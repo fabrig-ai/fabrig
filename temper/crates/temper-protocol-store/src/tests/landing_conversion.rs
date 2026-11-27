@@ -146,7 +146,7 @@ impl Store {
 
 fn link(domain: &mut forge::Domain, live: &[u64]) -> Vec<forge::Request> {
     let mut out = Queue::uncapped();
-    domain.start_links(&task_store(live), &ENV, &mut out).expect("link previous store");
+    domain.start_links(&task_store(live), &ENV, false, &mut out).expect("link previous store");
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {
         requests.push(request);

@@ -144,6 +144,7 @@ fn a_projection_ending_without_an_entry_returns_its_reserved_room() {
             &mut out,
         );
         assert!(!domain.forge.effect_room(&env.limits.forge), "projection reserves the last room");
+        assert_eq!(domain.forge.inspection_reservations().as_ref(), &[goal]);
         env.limits.authority.segments = if translate { 8 } else { 0 };
         let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
         crate::route::forge_route::outputs(&mut domain, &env, &mut decision, &mut out);
@@ -170,6 +171,7 @@ fn a_projection_ending_without_an_entry_returns_its_reserved_room() {
         };
         forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut out);
         assert!(domain.forge.effect_room(&env.limits.forge));
+        assert!(domain.forge.inspection_reservations().is_empty());
         assert!(domain.forge_effects.is_empty());
     }
 }

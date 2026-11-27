@@ -1,6 +1,7 @@
 //! Revisions keep the states their items replaced (jig/docs/design/domain/engine/settings.md, 10).
 use crate::routing::{party::dispatch::Routed, settings::dispatch};
 use crate::settings::{self as s, application as app};
+use crate::tests::new_core;
 use crate::tests::*;
 
 fn fixture() -> (Core, Limits) {
@@ -113,10 +114,10 @@ fn a_revision_records_what_each_item_replaced() {
 fn a_release_revision_records_its_items_as_default() {
     let configured = config(41);
     let limits = limits();
-    let stored = Core::new(configured, &limits).unwrap().current;
+    let stored = new_core(configured, &limits).unwrap().current;
     let mut configured = config(41);
     configured.defaults.charters[0].spend = configured.defaults.charters[0].spend.checked_add(1).unwrap();
-    let mut core = Core::new(configured, &limits).unwrap();
+    let mut core = new_core(configured, &limits).unwrap();
     let _begun = core.start_begin(false, Wall::EPOCH);
     for (&setting, default) in &stored.defaults {
         assert!(core.restore_setting(s::Record::Default { setting, default: default.clone() }, &limits));

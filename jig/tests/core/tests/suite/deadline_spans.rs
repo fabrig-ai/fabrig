@@ -193,11 +193,10 @@ fn a_delegate_span_past_its_creator_is_refused() {
             let child = delegate(&mut world, run, 1, child);
             assert_eq!(live_row(&world, child).authority.budget.deadline, Some(CREATOR_WALL));
         } else {
-            world.send(root::Event::Core(core::Event::DelegateValidated {
+            world.send(root::Event::Core(core::Event::Delegate {
                 to: ReplyTo::new(Token::new(9001)),
                 key: core::CallKey { task: run.0, attempt: run.1, completion: 1, position: 0 },
                 batch: Box::new([child]),
-                stubs: Box::new([]),
             }));
             let core::CallPart::DelegationDenied { findings, .. } = &world.answers.last().expect("refusal").2 else {
                 panic!("delegate denied: {:?}", world.answers)

@@ -147,6 +147,7 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
         | Ask::HandBackPerson { task, .. }
         | Ask::Conclude { task, .. }
         | Ask::Leave { task, .. }
+        | Ask::Measure { task, .. }
         | Ask::Release { task, .. } => *task != 0,
         Ask::AnswerPerson { task, result, .. } => *task != 0 && valid_person_result(limits, result),
         Ask::Adopt { adoption, .. } => valid_adoption(limits, adoption),
@@ -237,6 +238,7 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
         | Ask::Conclude { .. }
         | Ask::Lift { .. }
         | Ask::Leave { .. }
+        | Ask::Measure { .. }
         | Ask::Release { .. }
         | Ask::SetPool { .. }
         | Ask::Withdraw { .. }

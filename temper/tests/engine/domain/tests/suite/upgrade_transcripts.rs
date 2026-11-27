@@ -1,13 +1,14 @@
 //! Independent M1 checks of temper's transcript-load translation.
 //! domain/root-translation.md, 2.1, and domain/root.md, 7, and domain/root-restart.md, 1; jig's domain/engine/executors-transcripts.md 1.
 //! The public driver supplies already rendered text, not smith's renderer.
+use core::engine::store as port;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, ReplyTo, Token};
 use temper_engine_domain as engine;
 use temper_engine_domain_world::{
-    direct::{Driver, say_ask},
+    direct::{Driver, answer_token, say_ask},
     protocol,
     store::Store,
     walking::{config, limits},
@@ -29,11 +30,7 @@ fn proof_key(task: u64) -> engine::Key {
 fn pending_reply(driver: &mut Driver) -> engine::Event {
     for _ in 0..STEPS {
         let found = driver.events.iter().position(|event| {
-            if let engine::Event::Store(engine::StoreInput::Loaded { owner, .. }) = event {
-                driver.loads.iter().any(|(issued, range)| issued == owner && transcript_task(range).is_some())
-            } else {
-                false
-            }
+            answer_token(event).is_some_and(|load| driver.windows.iter().any(|(issued, _)| *issued == load))
         });
         if let Some(index) = found {
             return driver.events.remove(index).expect("selected issued transcript reply");
@@ -112,12 +109,16 @@ fn a_closed_window_supplies_text_to_its_new_conversation() {
 #[test]
 fn omitted_rendered_text_leaves_a_closed_tail_empty() {
     let (mut driver, first, _, mut reply) = waiting(true);
-    let engine::Event::Store(engine::StoreInput::Loaded { texts, .. }) = &mut reply else {
+    let engine::Event::Store(engine::StoreInput::Engine(port::In::Loaded {
+        result: port::Answer::Rows(port::Rows::Turns { turns, .. }),
+        ..
+    })) = &mut reply
+    else {
         panic!("selected transcript reply")
     };
-    // The renderer may omit a turn when its cut marker cannot fit. This
-    // checks the root/core handling of that result, not the renderer itself.
-    *texts = Some(Box::new([engine::TurnText::Rendered(Box::new([]))]));
+    assert_eq!(turns.len(), 1);
+    // The renderer may omit a turn when its cut marker cannot fit.
+    turns[0].1 = Some(Box::new([]));
     driver.send(reply);
     driver.settle();
     let assignment = driver.last_assignment();
@@ -175,19 +176,13 @@ fn parked_chats() -> (Driver, Vec<engine::Assignment>) {
     (driver, chats)
 }
 
-fn transcript_task(range: &engine::Range) -> Option<u64> {
-    if let engine::Range::Core(engine::CoreRange::TaskTranscript { task, .. }) = range { Some(*task) } else { None }
-}
-
 // Retain transcript replies in the driver's input queue, letting commits and other work drain.
 fn hold_replies(driver: &mut Driver) {
     for _ in 0..STEPS {
         let mut replies = Vec::new();
         let mut other = std::collections::VecDeque::new();
         while let Some(event) = driver.events.pop_front() {
-            if matches!(&event, engine::Event::Store(engine::StoreInput::Loaded { owner, .. })
-                if driver.loads.iter().any(|(issued, range)| issued == owner && transcript_task(range).is_some()))
-            {
+            if answer_token(&event).is_some_and(|load| driver.windows.iter().any(|(issued, _)| *issued == load)) {
                 replies.push(event);
             } else {
                 other.push_back(event);
@@ -200,7 +195,7 @@ fn hold_replies(driver: &mut Driver) {
 }
 
 fn transcript_tasks(driver: &Driver) -> Vec<u64> {
-    driver.loads.iter().filter_map(|(_, range)| transcript_task(range)).collect()
+    driver.windows.iter().map(|(_, task)| *task).collect()
 }
 
 fn waiting_for_room(driver: &Driver, chats: &[engine::Assignment]) {
@@ -215,10 +210,10 @@ fn waiting_for_room(driver: &Driver, chats: &[engine::Assignment]) {
 
 fn retire_read_and_prepare_waiter(driver: &mut Driver, chats: &[engine::Assignment]) {
     let reply = pending_reply(driver);
-    driver.send(reply);
-    // Complete the read terminal's queued core continuation before owner progress.
-    driver.send(engine::Event::Resume);
     let before = driver.transactions.len();
+    driver.send(reply);
+    // The final page frees its slot before reclaim. Resume takes the eligible task.
+    driver.send(engine::Event::Resume);
     driver.send(engine::Event::Resume);
     assert!(
         driver.transactions[before..].iter().flatten().any(|write| {
@@ -233,7 +228,7 @@ fn retire_read_and_prepare_waiter(driver: &mut Driver, chats: &[engine::Assignme
 }
 
 #[test]
-fn a_full_read_table_keeps_a_waking_chat_due_until_a_read_retires() {
+fn a_full_engine_load_table_keeps_a_waking_chat_due_until_a_window_ends() {
     let (mut driver, chats) = parked_chats();
     for (index, chat) in chats.iter().enumerate() {
         driver.send(say_ask(driver.session(), chat.task, FIRST_WAKE + u8::try_from(index).expect("three chats")));
@@ -247,7 +242,7 @@ fn a_full_read_table_keeps_a_waking_chat_due_until_a_read_retires() {
 }
 
 #[test]
-fn two_activations_in_one_decision_share_the_last_read_slot() {
+fn two_activations_in_one_decision_share_the_last_load_slot() {
     let (mut driver, chats) = parked_chats();
     driver.send(say_ask(driver.session(), chats[0].task, FIRST_WAKE));
     hold_replies(&mut driver);

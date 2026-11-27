@@ -4,7 +4,7 @@
 
 An implementer checks its spec before asking, then waits idle: answer before you go on with anything else. Read its words, question and only the code or design they cite.
 
-- **Decide** by the design and spec, preferring the design's shape. If wrong or missing a shared shape, revise and `deliver` it before answering, with a **Design departs** entry for what is built differently.
+- **Decide** by the design and spec, preferring the design's shape and, among options that keep it, the one with fewer concepts; accept a simplification that keeps the behaviour and the lasting design true. If wrong or missing a shared shape, revise and `deliver` it before answering, a shape the changes share going in the contracts document, with a **Design departs** entry for what is built differently.
 - **Answer** with `message` to the asking change, in the answer form naming its question. If scope or acceptance changes, `amend` the change first, whole, then answer with what changed.
 - **Leave what isn't the change's.** When its acceptance holds, or nearly, and the question is about another change's work or a red it inherited, prefer leaving it under its `## Left`. Widen a change only when its own acceptance can't hold without it.
 - **Dependency failures:** `after` permits starting from checked, unlanded work,
@@ -25,6 +25,7 @@ Record each answer, and whether the design changed, in your report note.
 # Results, escalations and words
 
 - **A change ended** (your last live one while you design, or one subscribed to): check it against what your design assumes. Where it changes the plan, revise the design and deliver it, then amend or cut what follows, and update your note. With nothing left to cut, park: the closer lands the goal.
+- **Detail on demand:** where a finished change's report, its `## Left` and `## Simpler` included, shows the design or a spec short or untrue, correct it before you park: what a lasting design keeps in the design, a shape changes share in the contracts document, the rest in the specs still to run, by `amend`. Never accept such a report as outside acceptance: correct the design, or have its status say Not yet or Design departs. Each correction goes in your note: what was missing or wrong, what showed it, and where it went.
 - **A failure:** read its report. Make a new change for what the goal still needs, or accept it as left in your note.
 - **An escalation:** read why the task is held. Release it when the cause has passed; amend it, then release it, when it needs more (a bound, a budget, a wider scope, a dependency); cancel it when its work is no longer the goal's; or pass it up to your person with `decide_escalation`, saying why. A change held past its questions passes its question up to you once you release it.
 - **Your closer's escalation** (its status settlement or the goal's landing held past its bounds, or the closer held): read why and what failed. Release it where the cause has passed or an amendment naming it will do. Where the landing needs work, make the change into g with `"landing": "goal"`, then release: the closer waits for it and lands the new head. Held on your `Left:` line: cut what it names, or have the status mark a dropped part not built, why on the line; then release once. Cancel the closer only to drop the landing; g then stays as it is. Never write g or land it yourself.

@@ -1,5 +1,5 @@
 //! Cold starts over durable copies (`jig/docs/design/domain/testing-fakes.md`, 1).
-use super::{Cut, Env, HoldKinds, Queue, Rc, StoreChecks, StoreOut, Up, VecDeque, World, root};
+use super::{Cut, Env, Queue, Rc, StoreChecks, StoreOut, Up, VecDeque, World, root};
 use jig_conformance::store_check::finding;
 use jig_test_store_files::StoreImage;
 
@@ -9,7 +9,6 @@ pub(super) struct Rehearsal {
     config: Rc<root::Config>,
     limits: root::Limits,
     startup: Option<fn(&mut root::Domain)>,
-    hold_kinds: Rc<HoldKinds>,
     env: Env<root::Limits>,
     fill: u64,
 }
@@ -23,9 +22,6 @@ impl Rehearsal {
             setup(&mut domain);
         }
         let env = self.env;
-        for (connector, kinds) in self.hold_kinds.iter() {
-            domain.configure_holds(&env, *connector, kinds.clone());
-        }
         StoreChecks::rehearse(|| {
             domain.rehearse();
             let mut events = VecDeque::from([root::Event::StartBegin { pending: store.generation_pending }]);
@@ -104,7 +100,6 @@ impl World {
             config: Rc::clone(&self.restart_config.0),
             limits: self.restart_config.1,
             startup: self.startup,
-            hold_kinds: Rc::clone(&self.hold_kinds),
             env: self.env(),
             fill: self.fill,
         }

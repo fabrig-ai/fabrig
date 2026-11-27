@@ -75,7 +75,7 @@
   | `tui-mark-cyan` | `#00C4FE`, both themes | | the mark's cyan cells (`pages/README.md`, 3) |
   | `tui-mark-blue` | `#1B76FD`, both themes | | the mark's blue cells |
   | `tui-mark-violet` | `#8E2CF8`, both themes | | the mark's violet cells |
-  | `tui-hint` | dim | | hints, the quiet line's words; the header's build and place; on the launchpad a row's kind, time and state, a need's " · asked AGO", "/chats N", "n walks them", Start's words, "n to walk"; the chat's number; a delegated task's state on its card in a chat; in a printed view, code's mark and words, a way's line and " · now", a card's `who`, "Drawing ADDRESS…" |
+  | `tui-hint` | dim | | hints, the quiet line's words; the header's build and place; on the launchpad a row's kind, time and state, a need's " · asked AGO", "/needs walks them", Start's words, "/needs", "Enter opens · Tab sections · Esc back to the box", and the box's words while its list holds the focus; the chat's number; a delegated task's state on its card in a chat; in a printed view, code's mark and words, a way's line and " · now", a card's `who`, "Drawing ADDRESS…" |
   | `tui-live` | good | | "Live" |
   | `tui-waiting` | dim | | "Connecting", the sign-in's progress |
   | `tui-down` | accent | | "Offline" and why (`pages/README.md`, *The link's state*), "Signed out", "Out of date", "Refused" |
@@ -102,7 +102,7 @@
   | `tui-spaced` | none | a blank row between two children | the launchpad's sections, with a blank row before the first, under the header (`pages/README.md`, 3); the conversation's entries |
   | `tui-bullets` | none | the mark `•`, no paint | the group around an agent's text's Markdown blocks |
   | `tui-left-off` | none | the mark " ", a space | the launchpad's left-off chats' list |
-  | `tui-picked` | accent, over the band where there is one | a band where the theme has one; the mark `❯`, accent | the launchpad's selected left-off chat |
+  | `tui-picked` | accent, over the band where there is one | a band where the theme has one; the mark `❯`, accent | the row picked in the launchpad's list (`pages/launchpad.md`, 7, *The list*) |
   | `tui-rule-title` | none | aligned to the end | each part of a chat's title in the rule above the box |
 
 ## 3. Focus, selection and glyphs

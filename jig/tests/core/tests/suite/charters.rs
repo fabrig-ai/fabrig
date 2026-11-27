@@ -54,11 +54,10 @@ fn a_runs_delegate_is_refused_a_model_outside_its_charter() {
     let mut world = two_charter_world(158);
     let before = task_records(&world);
     let member = research_on_first_charter(&world);
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9001)),
         key: world.call_key(1),
         batch: Box::new([member]),
-        stubs: Box::new([]),
     }));
     assert!(matches!(
         &world.answers.last().expect("delegation answered").2,

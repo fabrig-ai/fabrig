@@ -180,13 +180,6 @@ pub(crate) fn answered_resource(
         row.state = State::Due(Phase::Branch, Priority::Fresh);
         return;
     }
-    match phase {
-        Phase::BranchAncestry { before, after } => {
-            branch_ancestry_answered(d, env, key, before, after, result, out);
-            return;
-        }
-        Phase::Object | Phase::Pull | Phase::Reviews(_, _) | Phase::Branch => {}
-    }
     let answer = match result {
         Ok(answer) => answer,
         Err(error) => {
@@ -349,7 +342,7 @@ fn reviews_answered(
     let (more, cut) = paging;
     let (page, skip) = match phase {
         Phase::Reviews(page, skip) => (page, skip),
-        Phase::Object | Phase::Pull | Phase::Branch | Phase::BranchAncestry { .. } => unreachable!("reviews stage"),
+        Phase::Object | Phase::Pull | Phase::Branch => unreachable!("reviews stage"),
     };
     if more && !cut && page >= env.limits.inbox {
         failed_resource(d, env, key, phase, Error::TooLarge(api::Excess::unnamed()), out);
@@ -466,98 +459,23 @@ fn remember(stamps: &mut List<Delivery>, wanted: Delivery) -> bool {
 fn branch_answered(d: &mut Domain, env: &Env<Limits>, key: &Resource, commit: Commit, out: &mut Queue<Request>) {
     let row = d.keep.live.get_mut(key).expect("resource remains");
     row.branch_present = true;
-    if let Some((before, after)) = row.refused.ancestry
-        && (row.record.cached.tip != Some(before) || commit != after)
-    {
-        row.refused.ancestry = None;
-    }
-    if row.writer
-        && row.record.cached.tip != Some(commit)
-        && let Some(before) = row.record.cached.tip
-    {
-        let row = d.keep.live.get_mut(key).expect("resource remains");
-        let phase = Phase::BranchAncestry { before, after: commit };
-        if row.refused.contains(phase) {
-            rest_resource(d, env, key);
-        } else {
-            row.state = State::Due(phase, Priority::Fresh);
-        }
-        return;
-    }
-    branch_observed(d, env, key, commit, false, out);
-}
-fn branch_ancestry_answered(
-    d: &mut Domain,
-    env: &Env<Limits>,
-    key: &Resource,
-    before: Commit,
-    after: Commit,
-    result: Result<Answer, Error>,
-    out: &mut Queue<Request>,
-) {
-    let row = d.keep.live.get(key).expect("resource remains");
-    // A run answer can confirm a newer head while this ancestry read is in flight.
-    // The read cannot overwrite that confirmation.
-    if row.record.cached.tip != Some(before) {
-        let row = d.keep.live.get_mut(key).expect("resource remains");
-        row.state = State::Due(Phase::Branch, Priority::Fresh);
-        return;
-    }
-    let forward = match result {
-        Ok(Answer::Commits { commits, more }) => {
-            if !commits.is_empty() {
-                false
-            } else if more {
-                failed_resource(d, env, key, Phase::BranchAncestry { before, after }, Error::InvalidAnswer, out);
-                return;
-            } else {
-                true
-            }
-        }
-        Err(error @ Error::TooLarge(_)) => {
-            failed_resource(d, env, key, Phase::BranchAncestry { before, after }, error, out);
-            return;
-        }
-        result => {
-            let error = match result {
-                Err(error) => error,
-                Ok(_) => Error::InvalidAnswer,
-            };
-            failed_resource(d, env, key, Phase::BranchAncestry { before, after }, error, out);
-            return;
-        }
-    };
-    super::taken(d.keep.live.get_mut(key).expect("resource remains"), Phase::BranchAncestry { before, after });
-    branch_observed(d, env, key, after, !forward, out);
-}
-fn branch_observed(
-    d: &mut Domain,
-    env: &Env<Limits>,
-    key: &Resource,
-    commit: Commit,
-    backwards: bool,
-    out: &mut Queue<Request>,
-) {
-    let row = d.keep.live.get(key).expect("resource remains");
-    let outside = match row.pushed_by {
-        Some((head, actor)) if head == commit => !crate::identity::writer(d, key.repository, actor),
-        Some(_) | None => false,
-    };
-    let row = d.keep.live.get_mut(key).expect("resource remains");
     row.presence = super::Presence::Present;
     let changed = row.record.cached.tip != Some(commit);
-    let expected = if row.writer { row.record.cached.tip } else { row.record.pushed };
-    if (backwards || outside || !row.writer)
-        && changed
-        && let Some(expected) = expected
+    let actor = match row.pushed_by {
+        Some((head, actor)) if head == commit => {
+            row.pushed_by = None;
+            Some(actor)
+        }
+        Some(_) | None => None,
+    };
+    if let Some(expected) = row.record.pushed
         && expected != commit
     {
-        out.push(Request::Drift { resource: key.clone(), expected, observed: Some(commit) });
+        out.push(Request::Moved { resource: key.clone(), expected, observed: Some(commit), actor });
     }
-    row.pushed_by = None;
     row.record.cached.tip = Some(commit);
     out.push(Request::Save { record: Stored::Live(row.record.clone()) });
-    if changed && !row.writer {
+    if changed {
         out.push(Request::Changed { resource: key.clone(), result: Ok(Answer::Commit(commit)) });
     }
     rest_resource(d, env, key);
@@ -570,17 +488,16 @@ fn failed_resource(
     error: Error,
     out: &mut Queue<Request>,
 ) {
-    let ancestry = match phase {
-        Phase::BranchAncestry { .. } => true,
-        Phase::Object | Phase::Pull | Phase::Reviews(_, _) | Phase::Branch => false,
-    };
-    if error == Error::Missing && !ancestry {
+    if error == Error::Missing {
         let row = d.keep.live.get_mut(key).expect("resource remains");
         if row.presence != super::Presence::Missing {
             if let What::Branch(_) = key.what
-                && let Some(expected) = row.record.cached.tip.take()
+                && row.record.cached.tip.take().is_some()
             {
-                out.push(Request::Drift { resource: key.clone(), expected, observed: None });
+                if let Some(expected) = row.record.pushed {
+                    out.push(Request::Moved { resource: key.clone(), expected, observed: None, actor: None });
+                }
+                row.pushed_by = None;
                 out.push(Request::Save { record: Stored::Live(row.record.clone()) });
             }
             out.push(Request::Changed { resource: key.clone(), result: Err(error) });
@@ -614,7 +531,7 @@ pub(super) fn skip_resource(d: &mut Domain, env: &Env<Limits>, key: &Resource, p
         Phase::Pull if row.record.watch.participating && row.inbox.reviews_needed => {
             row.state = State::Due(Phase::Reviews(row.record.review_page, 0), super::priority(row));
         }
-        Phase::Pull | Phase::Reviews(_, _) | Phase::Branch | Phase::BranchAncestry { .. } => rest_resource(d, env, key),
+        Phase::Pull | Phase::Reviews(_, _) | Phase::Branch => rest_resource(d, env, key),
     }
 }
 fn rest_resource(d: &mut Domain, env: &Env<Limits>, key: &Resource) {

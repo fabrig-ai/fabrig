@@ -236,6 +236,17 @@ recipient.
   layout does not decode, and its read is answered unknown
   (`../README.md`, section 7). The wire's bound on a cursor's bytes leaves its
   `form` the room it had before it named its layout.
+- **A family window's continuation** is such a cursor too: the `after` of
+  an application's read or subject's window
+  (`../../client/domain/contract/watches.md`, 1.5) holds a `Held` in the
+  form `window`, `Window { after }`, `after` the document position its
+  owner gave. The engine's crate writes it for an application's
+  translation to put in its document (`translate::encode_window`, none
+  past the bound it is given) and reads it from the window, judging its
+  head as a page's cursor's. One of another version, another layout or
+  another form, a bare position among them, does not decode: the read is
+  answered unknown, as a page's cursor's is, and a watch's opening is
+  refused unknown; the application is asked nothing.
 - **Credential boundaries, on the client,** visibly end pending reads
   in the domain's `Page` forms: jig's `ReadNone::SignedOut` or
   a family's `None`, once each, on sign-out and unconditionally on

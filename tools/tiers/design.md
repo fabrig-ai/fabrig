@@ -36,7 +36,8 @@ Provisional, 2026-10-29. Run one tree's slow tier with its prerequisites.
   (section 11); nextest's path stays as it is.
 - **Campaigns:** `tools/tiers/campaign TREE` runs rounds of a tree's
   campaign pair through this runner, with fresh seeds, after landing, and
-  replays each failing case alone (`tools/tiers/campaign.md`).
+  replays each failing case alone, and each finding's first case at the
+  last campaign's commit (`tools/tiers/campaign.md`).
 - **Visible evidence:** print each step's command; nextest prints its
   summary, and what a wrapper prints stays visible. Prerequisite failures
   name their step.
@@ -808,7 +809,7 @@ change to the build command a caller wraps changes none of them.
   and 7).
 - `tools/tiers/cpu-run --out DIR --suite ID [--wall-hard SECONDS] -- ARGV...`
   (7.5).
-- `tools/tiers/campaign TREE [--rounds N] [--seed SEED] [--out DIR]`, from
+- `tools/tiers/campaign TREE [--rounds N] [--seed SEED] [--out DIR] [--last DIR]`, from
   the checkout root, with its exit statuses and files
   (`tools/tiers/campaign.md`, 2 and 6).
 - `tools/tiers/cpu-summary DIR [--budgets PATH] [--pair PAIR] [--expect ID ...] [--ledger PATH] [--base DIR] [--gate] [--json]`:

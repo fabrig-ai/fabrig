@@ -12,9 +12,11 @@ pub fn checked_call(mut body: Call, limits: &tasks::Limits, notes: &notes::Limit
     if let Some(why) = call_shape(&body.tool, limits) {
         body.tool = match body.tool {
             Tool::Message { .. } => Tool::RejectedMessage(why),
-            Tool::Amend { .. } | Tool::Cancel { .. } | Tool::Release { .. } | Tool::DecideEscalation { .. } => {
-                Tool::RejectedControl(why)
-            }
+            Tool::Amend { .. }
+            | Tool::Cancel { .. }
+            | Tool::Release { .. }
+            | Tool::Measure { .. }
+            | Tool::DecideEscalation { .. } => Tool::RejectedControl(why),
             Tool::Propose { .. } | Tool::Decide { .. } | Tool::Withdraw { .. } => Tool::RejectedProposal(why),
             Tool::Note { .. } | Tool::NoteLines { .. } | Tool::Recall { .. } => {
                 Tool::RejectedNote(jig_domain_notes::Refusal::Oversized)
@@ -83,6 +85,7 @@ fn note_shape(tool: &Tool, limits: &notes::Limits) -> Option<notes::Refusal> {
         | Tool::Amend { .. }
         | Tool::Cancel { .. }
         | Tool::Release { .. }
+        | Tool::Measure { .. }
         | Tool::Decide { .. }
         | Tool::DecideEscalation { .. }
         | Tool::Withdraw { .. }
@@ -159,7 +162,8 @@ fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::Refusal> {
         | Tool::ReadForge { .. }
         | Tool::EffectForge { .. }
         | Tool::Unsubscribe { .. }
-        | Tool::Release { .. } => None,
+        | Tool::Release { .. }
+        | Tool::Measure { .. } => None,
         Tool::Cancel { reason, .. } => {
             if reason.len() > skein_lib::usize_of(limits.result_bytes) {
                 Some(tasks::Refusal::Read)
@@ -287,7 +291,7 @@ pub fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
             jig_domain_core::ToolKind::Message { target: *target }
         }
         Tool::Introduce { left, .. } => jig_domain_core::ToolKind::Message { target: *left },
-        Tool::Decided(_) | Tool::Amend { .. } | Tool::Cancel { .. } | Tool::Release { .. } => {
+        Tool::Decided(_) | Tool::Amend { .. } | Tool::Cancel { .. } | Tool::Release { .. } | Tool::Measure { .. } => {
             jig_domain_core::ToolKind::Control
         }
         Tool::Decide { .. } | Tool::Withdraw { .. } | Tool::DecideEscalation { .. } => {
@@ -366,6 +370,7 @@ fn call_mode(tool: &Tool) -> (bool, bool) {
         | Tool::Amend { .. }
         | Tool::Cancel { .. }
         | Tool::Release { .. }
+        | Tool::Measure { .. }
         | Tool::Message { .. }
         | Tool::MarkRead { .. }
         | Tool::Introduce { .. }

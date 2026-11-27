@@ -344,7 +344,9 @@ fn person_application_reads_reach_the_connector_as_the_person() {
             }),
             &mut out,
         );
-        let Out::Core(request) = out.pop().expect("connector read or unknown");
+        let Out::Core(request) = out.pop().expect("connector read or unknown") else {
+            panic!("connector read loads no retained rows")
+        };
         if allowed {
             let core::Request::Ask { connector, ask: core::Ask::Read { reply, scope, read, party, window: received } } =
                 request

@@ -199,6 +199,7 @@ impl Parties {
             | root::Event::Answer { .. }
             | root::Event::WriterRead { .. }
             | root::Event::Timer(_)
+            | root::Event::Store(_)
             | root::Event::Committed { .. }
             | root::Event::Failed { .. }
             | root::Event::Connector { .. }
@@ -212,8 +213,7 @@ impl Parties {
             | root::Event::StartMissing { .. }
             | root::Event::StartPageRefused { .. }
             | root::Event::StartBegin { .. }
-            | root::Event::StartDone(_)
-            | root::Event::TranscriptLoaded { .. } => {}
+            | root::Event::StartDone(_) => {}
         }
     }
 
@@ -379,6 +379,7 @@ impl Parties {
             | root::Delivery::CallAnswer { .. }
             | root::Delivery::System { .. }
             | root::Delivery::LostRead { .. }
+            | root::Delivery::Store(_)
             | root::Delivery::Start(_)
             | root::Delivery::Procedure { .. } => {}
         }

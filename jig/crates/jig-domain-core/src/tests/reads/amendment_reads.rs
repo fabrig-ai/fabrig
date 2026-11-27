@@ -138,7 +138,7 @@ fn busy_and_stale_amendment_loads_leave_the_target_unchanged() {
         if !proof {
             core.proofs.remove(&AMENDER);
         }
-        let out = watch_outputs(&mut core, &limits, Event::EndedTaskLoaded { request, row: None, busy });
+        let out = watch_store_outputs(&mut core, &limits, ended_answer(request, None, busy));
         let answer = out.iter().find_map(|request| match request {
             Request::Held(held) => match held.as_ref() {
                 Held::CallAnswer { part, .. } => Some(part),
@@ -167,7 +167,7 @@ fn owner_cleanup_drops_all_waiting_amendments_and_late_answers() {
     crate::routing::run::results::clear(&mut core, AMENDER);
     assert_eq!(core.result_read_flights(), 0);
     assert!(!core.pending_calls.contains_key(&CALL));
-    let out = watch_outputs(&mut core, &limits, Event::EndedTaskLoaded { request, row: None, busy: false });
+    let out = watch_store_outputs(&mut core, &limits, ended_answer(request, None, false));
     assert!(out.is_empty());
     assert!(!core.call_parts.contains_key(&CALL));
 }

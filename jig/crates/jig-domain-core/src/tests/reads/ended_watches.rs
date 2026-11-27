@@ -1,4 +1,5 @@
 //! Retained task facts are final deliveries, not evidence inferred from a watch end.
+use crate::engine::store as engine_store;
 use crate::tests::*;
 
 const WATCHER: Token = Token::new(30);
@@ -24,22 +25,24 @@ fn ended_row(core: &Core, child: bool) -> tasks::TaskRecord {
 fn open_retained(core: &mut Core, limits: &Limits, subject: Watched) -> Token {
     let out = watch_outputs(core, limits, Event::Watch { watcher: WATCHER, sign_in: 10, subject, window: window() });
     let Request::Held(held) = &out[0] else { panic!("held load") };
-    let Held::ReadLoad { load, range } = held.as_ref() else { panic!("retained load") };
+    let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) = held.as_ref() else {
+        panic!("retained load")
+    };
     assert_eq!(range.scope, crate::reads::Scope::Task { task: RETAINED });
     assert!(finish_watch_outputs(core, limits).is_empty(), "construction waits for its terminal");
     *load
 }
 
 fn loaded(core: &mut Core, limits: &Limits, load: Token, row: tasks::TaskRecord) -> Box<[Request]> {
-    watch_outputs(
+    watch_store_outputs(
         core,
         limits,
-        Event::ReadLoaded {
+        engine_store::In::Loaded {
             load,
-            result: crate::reads::Loaded::Page {
+            result: engine_store::Answer::Rows(engine_store::Rows::Read {
                 rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(row))), None)]),
                 next: None,
-            },
+            }),
         },
     )
 }
@@ -71,7 +74,11 @@ fn an_ended_root_or_child_has_its_retained_tree_then_one_ending() {
         assert_one_watch_ending(&out, views::End::Gone);
         assert_eq!(core.watch_flights(), 0);
         assert!(watch_outputs(&mut core, &limits, Event::Delivered { watcher: WATCHER }).is_empty());
-        let late = watch_outputs(&mut core, &limits, Event::ReadLoaded { load, result: crate::reads::Loaded::Gone });
+        let late = watch_store_outputs(
+            &mut core,
+            &limits,
+            engine_store::In::Loaded { load, result: engine_store::Answer::Failed(engine_store::Failure::Gone) },
+        );
         assert!(late.is_empty(), "no duplicate terminal");
     }
 }
@@ -124,7 +131,11 @@ fn retained_construction_checks_current_sign_in_and_visibility() {
 fn missing_retained_facts_end_without_claiming_success() {
     let (mut core, limits) = watch_core();
     let load = open_retained(&mut core, &limits, Watched::Task { task: RETAINED });
-    let out = watch_outputs(&mut core, &limits, Event::ReadLoaded { load, result: crate::reads::Loaded::Gone });
+    let out = watch_store_outputs(
+        &mut core,
+        &limits,
+        engine_store::In::Loaded { load, result: engine_store::Answer::Failed(engine_store::Failure::Gone) },
+    );
     assert_one_watch_ending(&out, views::End::Gone);
 }
 

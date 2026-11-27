@@ -3,7 +3,7 @@ use super::questions::row as change_row;
 use super::*;
 use jig_domain_core::reads;
 use jig_domain_link::EndpointBound;
-use temper_engine_domain_forge_change::{Hold, State};
+use temper_engine_domain_forge_change::{Cause, State};
 
 const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 200;
@@ -255,8 +255,10 @@ fn a_failed_producers_words_reach_its_hold_and_its_chats_reply() {
     let (mut world, chat, change) = failed_production(REASON);
     assert_eq!(account(&world, change), REASON);
     let Some(row) = world.store.change(change) else { panic!("durable change") };
-    assert!(matches!(&row.change.state, State::Held { was, why: Hold::Failed }
-        if matches!(was.as_ref(), State::Producing { .. })));
+    assert!(
+        matches!(&row.change.state, State::Held { was, hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed, .. } }
+        if matches!(was.as_ref(), State::Producing { .. }))
+    );
     assert!(row.pull.is_none());
     assert_eq!(world.merges, 0);
     let resumed = super::reviews::next_assignment(&mut world, 2);
@@ -318,7 +320,10 @@ fn a_refused_failure_notice_still_holds_and_escalates_the_change() {
         }
     }
     assert_eq!(account(&world, change), REASON);
-    assert!(matches!(change_row(&world, change).change.state, State::Held { why: Hold::Failed, .. }));
+    assert!(matches!(
+        change_row(&world, change).change.state,
+        State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed, .. }, .. }
+    ));
     assert!(
         std::iter::from_fn(|| world.root.pop_fact())
             .any(|fact| matches!(fact, engine::Fact::StepRefused { task, .. } if task == change)),
@@ -377,7 +382,10 @@ fn a_restored_held_row_holds_its_idle_task_again() {
         }
     }
     assert_eq!(account(&world, change), REASON);
-    assert!(matches!(change_row(&world, change).change.state, State::Held { why: Hold::Failed, .. }));
+    assert!(matches!(
+        change_row(&world, change).change.state,
+        State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed, .. }, .. }
+    ));
     world.close();
 }
 
@@ -465,7 +473,7 @@ fn assert_production_hold(world: &mut World, task: u64, reason: &[u8], head: Opt
         if matches!(live_task(world, task).phase, tasks::Phase::Held { .. }) {
             assert_eq!(account(world, task), reason);
             assert!(matches!(&change_row(world, task).change.state,
-                State::Held { was, why: Hold::Failed } if matches!(was.as_ref(), State::Producing { .. })));
+                State::Held { was, hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed, .. } } if matches!(was.as_ref(), State::Producing { .. })));
             assert!(change_row(world, task).delegate.is_none());
             assert_eq!(
                 change_row(world, task).change.last_head,
@@ -617,9 +625,8 @@ fn pushed_failure() -> (World, engine::Assignment, u64, u64) {
 fn pushed_failure_with_message(message: &[u8]) -> (World, engine::Assignment, u64, u64) {
     let (mut world, _, first, task) = producing_goal();
     let branch = change_row(&world, task).branch.clone();
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"partial", message, 1)
-        .expect("producer pushes partial work");
+    let head = world.worker_commit(1, b"partial", message);
+    world.run_push(&first, &branch, head, 1);
     // Read the pushed branch before the terminal result reaches the connector.
     refresh(&mut world, task);
     world.advance_ticks(20);
@@ -665,8 +672,7 @@ fn a_released_failed_producer_with_a_head_makes_a_fresh_one() {
     let branch = change_row(&world, task).branch.clone();
     assert_eq!(fresh.workspace.repositories[0].start, engine::ForgeStart::Branch(branch.clone()));
     assert_eq!(live_task(&world, task).made, 3, "change and exactly two producers");
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"finished", b"complete", 1)
-        .expect("replacement pushes atop partial work");
+    world.run_push_edit(&fresh, &branch, b"finished", b"complete", 1);
     let title = b"Finish the partial update";
     let event = world.protocol.answer(
         CHANNEL,

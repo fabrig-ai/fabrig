@@ -3,7 +3,7 @@ use std::fmt::Write;
 
 /// The merge command's contract (temper/docs/design/protocol/tooling.md, 4.1).
 pub(super) fn command(out: &mut String) {
-    out.push_str("\n## The merge command\n\n`merge_job` names this command, a path in the repository being merged. It settles the conflicts its project's rules know, with no model, before an agent is asked. temper takes it from the merge in progress: a command file left in conflict, or absent from the merge, is its failure.\n\n- **What it is given:** its arguments, `merge` and the path of `request.json`, which holds `{\"version\":1,\"head\":\"HEAD\",\"base\":\"BASE\"}`: the head merged into, and the commit merged in. Its environment is `PATH` (`");
+    out.push_str("\n## The merge command\n\nThe command is the repository's `.temper/hooks/merge`, or the project's `merge_job` in a repository without `.temper/hooks/`. It settles the conflicts its project's rules know, with no model, before an agent is asked. temper takes it from the merge in progress: a command file left in conflict, or absent from the merge, is its failure.\n\n- **What it is given:** its arguments, `merge` and the path of `request.json`, which holds `{\"version\":1,\"head\":\"HEAD\",\"base\":\"BASE\"}`: the head merged into, and the commit merged in. Its environment is `PATH` (`");
     out.push_str(std::str::from_utf8(temper_service_core::limits::TOOLING_PATH).expect("tooling PATH is UTF-8"));
     out.push_str("`), `LANG` (`C.UTF-8`), and `HOME` and `TEMPER_JOB`, both the job's directory, which is its working directory too. No credential reaches it. It has ");
     write!(out, "{}", temper_service_core::limits::MERGE_DEADLINE.as_nanos() / 1_000_000_000).expect("string");

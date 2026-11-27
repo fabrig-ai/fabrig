@@ -85,7 +85,7 @@ fn fixture_with_delegates() -> (World, root::Config, u64, [u64; 2]) {
     };
     let mut delegates = [0; 2];
     for (index, slot) in delegates.iter_mut().enumerate() {
-        world.send(root::Event::Core(core::Event::DelegateValidated {
+        world.send(root::Event::Core(core::Event::Delegate {
             to: ReplyTo::new(Token::new(70_500 + u64::try_from(index).expect("close story fixture"))),
             key: core::CallKey {
                 task: run.0,
@@ -94,7 +94,6 @@ fn fixture_with_delegates() -> (World, root::Config, u64, [u64; 2]) {
                 position: 0,
             },
             batch: Box::new([delegate.clone()]),
-            stubs: Box::new([]),
         }));
         let core::CallPart::Delegated(numbers) = &world.answers.last().expect("close story fixture").2 else {
             panic!("delegates admitted: {:?}", world.answers)

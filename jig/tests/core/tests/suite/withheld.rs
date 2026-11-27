@@ -63,7 +63,7 @@ fn delegate(world: &mut World) -> (u64, root::Assignment) {
     authority.budget.spend = 20;
     let key = world.call_key(1);
     let parent = world.assigned.take().expect("parent run");
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(501)),
         key,
         batch: Box::new([core::Delegate {
@@ -87,7 +87,6 @@ fn delegate(world: &mut World) -> (u64, root::Assignment) {
             dependencies: Box::new([]),
             wake: Some(tasks::WakePolicy::DEFAULT),
         }]),
-        stubs: Box::new([]),
     }));
     let core::CallPart::Delegated(children) = &world.answers.last().expect("delegate answer").2 else {
         panic!("delegate refused")

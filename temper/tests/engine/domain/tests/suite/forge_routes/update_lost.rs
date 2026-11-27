@@ -3,7 +3,7 @@
 use super::early_start::{make, observe_push, push, stop};
 use super::light_rules::change_row;
 use super::reviews::next_assignment;
-use super::update_first::{assert_landed, finish, goal_world_stall, move_base, status};
+use super::update_first::{assert_landed, finish, goal_world_stall, status};
 use super::*;
 use skein_forge_client::Condition;
 use temper_engine_domain_forge_change as change;
@@ -16,13 +16,17 @@ fn update_writes(world: &World) -> usize {
     world.writes.iter().filter(|write| matches!(write, skein_forge::api::Write::Update { .. })).count()
 }
 
+fn move_base(world: &mut World, goal: &engine::Assignment, branch: &[u8]) -> u64 {
+    world.run_push_edit(goal, branch, b"other", b"base moved", 1)
+}
+
 fn pending_update(stall: Option<Duration>) -> (World, engine::Assignment, u64, u64, u64, Box<[u8]>) {
     let (mut world, goal, branch, main) = goal_world_stall(true, stall);
     let task = make(&mut world, &goal, b"Add change", &[]);
     let producer = next_assignment(&mut world, 1);
     let head = push(&mut world, &producer, main, b"change");
     status(&mut world, head, raw::Check::Pending);
-    let base = move_base(&mut world, &branch);
+    let base = move_base(&mut world, &goal, &branch);
     observe_push(&mut world, &producer);
     finish(&mut world, &producer);
     for _ in 0..STEPS {
@@ -85,7 +89,10 @@ fn held(world: &mut World, task: u64) {
     }
     let row = change_row(world, task);
     assert!(
-        matches!(row.change.state, change::State::Held { why: change::Hold::Updates, .. }),
+        matches!(
+            row.change.state,
+            change::State::Held { hold: change::Hold { cause: change::Cause::Updates, .. }, .. }
+        ),
         "state: {:?}; updates: {}; update writes: {}; now: {:?}; stall: {:?}; lifetime: {:?}; clock margin: {:?}; write attempts: {}",
         row.change.state,
         row.change.updates,
@@ -154,6 +161,7 @@ fn an_update_lost_for_good_holds_at_its_count_told_why() {
 fn a_released_update_holds_no_longer() {
     let (mut world, goal, task, head) = lost_for_good();
     world.lose_writes = 0;
+    let spent = change_row(&world, task).change;
     let revision = live_task(&world, task).revisions.hold;
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
@@ -169,6 +177,20 @@ fn a_released_update_holds_no_longer() {
             break;
         }
     }
+    // The change retains its predecessor until it reads back the uncertain update.
+    // A new hold is not allowed: only the original record may survive this wait.
+    for _ in 0..STEPS {
+        let row = change_row(&world, task);
+        if !matches!(row.change.state, change::State::Held { .. }) {
+            break;
+        }
+        assert_eq!(row.change.state, spent.state);
+        assert_eq!(row.change.updates, spent.updates);
+        assert_eq!(row.change.released, Some(change::Cause::Updates));
+        assert!(!matches!(live_task(&world, task).phase, tasks::Phase::Held { .. }));
+        world.tick();
+    }
+    assert_not_held(&world, task);
     let updated = checking(&mut world, task, head, 1);
     status(&mut world, updated, raw::Check::Passed);
     assert_landed(&mut world, task, updated, 1);
@@ -187,7 +209,7 @@ fn an_update_whose_base_went_on_while_lost_takes_the_new_tip() {
         }
     }
     assert_eq!(update_writes(&world), 1);
-    let next_base = move_base(&mut world, &branch);
+    let next_base = move_base(&mut world, &goal, &branch);
     for _ in 0..STEPS {
         world.tick();
         assert_not_held(&world, task);
@@ -227,7 +249,7 @@ fn an_updates_hold_without_a_lost_write_names_the_spent_allowance() {
             checked = head;
             let updated = world.fake.branch(b"org/repo", &change_row(&world, task).branch).expect("updated branch");
             status(&mut world, updated, raw::Check::Passed);
-            move_base(&mut world, &branch);
+            move_base(&mut world, &goal, &branch);
         }
         if matches!(live_task(&world, task).phase, tasks::Phase::Held { .. }) {
             break;

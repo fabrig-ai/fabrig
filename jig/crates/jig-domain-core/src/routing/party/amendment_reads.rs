@@ -5,7 +5,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
-use crate::{CallKey, CallPart, Core, Limits, Request};
+use crate::{CallHolder, CallKey, CallPart, Core, Limits, Request};
 
 #[derive(Hash, Debug)]
 pub(crate) enum Replay {
@@ -124,34 +124,10 @@ pub(crate) fn missing(
     None
 }
 
-pub(crate) fn waiting(core: &Core, key: CallKey) -> bool {
-    for (_, flight) in &core.flights {
-        let crate::routing::flight::Flight::ResultRead(read) = flight else { continue };
-        match &read.why {
-            crate::routing::run::results::ReadFor::DeploymentClose { .. }
-            | crate::routing::run::results::ReadFor::Conclude { .. }
-            | crate::routing::run::results::ReadFor::Delegate { .. }
-            | crate::routing::run::results::ReadFor::Batch(_)
-            | crate::routing::run::results::ReadFor::Preparation { .. } => {}
-            crate::routing::run::results::ReadFor::Amendment(read) => match &read.replay {
-                Replay::Agent { key: pending, .. } => {
-                    if *pending == key {
-                        return true;
-                    }
-                }
-                Replay::Person { .. } => {}
-            },
-        }
-    }
-    false
-}
-
 pub(crate) fn current(core: &Core, replay: &Replay) -> bool {
     match replay {
         Replay::Agent { key, .. } => {
-            core.current_proof(key.task, key.attempt)
-                && core.pending_calls.contains_key(key)
-                && !core.call_parts.contains_key(key)
+            core.current_proof(key.task, key.attempt) && core.pending_calls.get(key) == Some(&CallHolder::Routed)
         }
         // Owner departure clears the read without deciding the keyed request.
         Replay::Person { person, .. } => core.people.identity(*person).is_some(),

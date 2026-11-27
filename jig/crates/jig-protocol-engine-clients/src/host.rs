@@ -98,6 +98,7 @@ impl Bridge {
             | Event::Read { .. }
             | Event::Got { .. }
             | Event::Turns { .. }
+            | Event::WindowFailed { .. }
             | Event::Unread { .. }
             | Event::SecretsNotReady { .. }
             | Event::Corrupt { .. } => kit::SecretsAnswer::Failed,

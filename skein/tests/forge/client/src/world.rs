@@ -74,7 +74,6 @@ pub struct World {
     held: Map<u64, Entry>,
     queued: Map<u64, Held>,
     queue: bool,
-    writers: List<Resource>,
     read_afresh_done: u32,
     outbox_done: u32,
     planned: Map<u64, Entry>,
@@ -144,7 +143,6 @@ impl World {
             held: Map::with_capacity(limits.entries),
             queued: Map::with_capacity(limits.entries),
             queue: settings.queue,
-            writers: List::with_capacity(limits.resources),
             read_afresh_done: 0,
             outbox_done: 0,
             planned: Map::with_capacity(64),
@@ -405,7 +403,7 @@ impl World {
                 Request::Settled { .. } | Request::OutboxDone => {
                     self.outbox_done = self.outbox_done.checked_add(1).expect("world recovery bound");
                 }
-                Request::Drift { .. } => {}
+                Request::Moved { .. } => {}
             }
         }
         // The entire decision is committed before any Call is released.
@@ -418,7 +416,7 @@ impl World {
                 | Request::Outcome { .. }
                 | Request::Changed { .. }
                 | Request::Kept { .. }
-                | Request::Drift { .. }
+                | Request::Moved { .. }
                 | Request::Read { .. }
                 | Request::ReadAfreshDone
                 | Request::Settled { .. }

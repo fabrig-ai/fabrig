@@ -255,6 +255,7 @@ pub(crate) fn restore_refusal(state: Option<&LimitSettings>, stopped: &crate::St
         | crate::Stop::CodecRestore { .. }
         | crate::Stop::Room(_)
         | crate::Stop::RestorePage { .. }
+        | crate::Stop::BranchWrites(..)
         | crate::Stop::ForgeLink { .. }
         | crate::Stop::Binding
         | crate::Stop::Setting(_)
@@ -317,6 +318,7 @@ fn codec_lowering(
         | crate::Stop::CodecRestore { .. }
         | crate::Stop::Room(_)
         | crate::Stop::RestorePage { failure: None, .. }
+        | crate::Stop::BranchWrites(..)
         | crate::Stop::ForgeLink { .. }
         | crate::Stop::Binding
         | crate::Stop::Setting(_)
@@ -679,7 +681,8 @@ fn opening_value(
         | forge::Stored::HistoryEvent(_)
         | forge::Stored::HistoryChange(_)
         | forge::Stored::HistoryLanding(_)
-        | forge::Stored::HistoryLast(_) => return Err(()),
+        | forge::Stored::HistoryLast(_)
+        | forge::Stored::Writes(_) => return Err(()),
     };
     Ok(match row.edit {
         settings::Edit::Set(value) => Some(value.value),

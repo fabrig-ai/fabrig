@@ -433,11 +433,10 @@ impl Driver {
             member.authority.delegation.tasks = self.descendants(index);
             member.authority.delegation.depth = 2_u32.saturating_sub(parent_row.depth + 1);
             let completion = u32::try_from(index + 1).expect("bounded workload");
-            world.enqueue(root::Event::Core(core::Event::DelegateValidated {
+            world.enqueue(root::Event::Core(core::Event::Delegate {
                 to: ReplyTo::new(Token::new(9000 + u64::from(completion))),
                 key: core::CallKey { task: parent_number, attempt: parent_row.attempt, completion, position: 0 },
                 batch: Box::new([member]),
-                stubs: Box::new([]),
             }));
             self.progress[index].submitted = true;
             return Ok(true);

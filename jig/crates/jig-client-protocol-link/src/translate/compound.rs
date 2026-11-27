@@ -46,6 +46,7 @@ fn operation(value: &c::Operation, limits: &w::Limits) -> Result<w::Operation, w
         | w::Ask::Conclude(_)
         | w::Ask::Leave(_)
         | w::Ask::Lift(_)
+        | w::Ask::Measure(_)
         | w::Ask::ReadLists(_)
         | w::Ask::ChangeModel(_)
         | w::Ask::ChangeSettings(_)
@@ -140,6 +141,7 @@ pub(super) fn restore(value: w::Compound, limits: &Limits) -> Result<c::Ask, w::
             | c::Ask::SetVisibility { .. }
             | c::Ask::Rename { .. }
             | c::Ask::MakeProject { .. }
+            | c::Ask::Measure { .. }
             | c::Ask::SetPool { .. } => return Err(problem()),
         };
         operations.push(operation).expect("same capacity");

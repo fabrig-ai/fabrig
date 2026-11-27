@@ -118,6 +118,7 @@ impl Harness {
                 | Request::Close { .. }
                 | Request::Read { .. }
                 | Request::Probe { .. }
+                | Request::ProbeHooks { .. }
                 | Request::Check { .. }
                 | Request::Abort { .. }
                 | Request::Checking { .. }
@@ -377,6 +378,7 @@ pub(crate) fn charter() -> Charter {
         conventions: Some(crate::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: None,
         }),
         resume: false,
         waiting: Duration::from_secs(30),

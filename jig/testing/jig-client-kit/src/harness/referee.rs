@@ -557,6 +557,7 @@ fn decisions(ask: &Ask) -> Vec<(ObjectKey, ActKind)> {
         | Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
+        | Ask::Measure { .. }
         | Ask::Lift { .. }
         | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)

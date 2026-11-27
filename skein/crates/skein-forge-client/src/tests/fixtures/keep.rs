@@ -4,13 +4,14 @@ use crate::{
     fire, resume, step,
 };
 use alloc::boxed::Box;
-use skein_forge::api::{self, Answer, Error, Op, Read};
+use skein_forge::api::{self, Answer, Commit, Error, Op, Read};
 use skein_lib::{Env, List, Map, Queue, Token, Wall};
 // Fixture observation room: twenty records/calls, thirty changes and ten
 // terminals cover the keep stories without changing their protocol limits.
 const RECORD_ROOM: u32 = 20;
 const CHANGE_ROOM: u32 = 30;
 const TERMINAL_ROOM: u32 = 10;
+type Move = (Resource, Commit, Option<Commit>, Option<u64>);
 pub(in crate::tests) struct Harness {
     pub(in crate::tests) domain: Domain,
     pub(in crate::tests) env: Env<Limits>,
@@ -20,7 +21,7 @@ pub(in crate::tests) struct Harness {
     pub(in crate::tests) news: List<Answer>,
     pub(in crate::tests) kept: List<Result<(), Error>>,
     pub(in crate::tests) outcomes: List<Outcome>,
-    pub(in crate::tests) drift: u32,
+    pub(in crate::tests) moves: List<Move>,
     pub(in crate::tests) fresh_done: u32,
     pub(in crate::tests) outbox_done: u32,
     pub(in crate::tests) failures: List<Error>,
@@ -41,7 +42,7 @@ impl Harness {
             news: List::with_capacity(CHANGE_ROOM),
             kept: List::with_capacity(TERMINAL_ROOM),
             outcomes: List::with_capacity(TERMINAL_ROOM),
-            drift: 0,
+            moves: List::with_capacity(CHANGE_ROOM),
             fresh_done: 0,
             outbox_done: 0,
             failures: List::with_capacity(TERMINAL_ROOM),
@@ -81,7 +82,9 @@ impl Harness {
                 Request::Changed { result: Err(error), .. } => {
                     self.failures.push(error).expect("failure observations fit");
                 }
-                Request::Drift { .. } => self.drift = self.drift.saturating_add(1),
+                Request::Moved { resource, expected, observed, actor } => {
+                    self.moves.push((resource, expected, observed, actor)).expect("moves fit");
+                }
                 Request::Call { call, op, .. } => self.calls.push(Sent { call, op }),
                 Request::Outcome { outcome, .. } => {
                     self.outcomes.push(outcome).expect("outcome fits");

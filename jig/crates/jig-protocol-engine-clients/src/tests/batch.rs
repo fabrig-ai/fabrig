@@ -199,6 +199,22 @@ fn malformed_members_and_conflicting_closings_have_no_record() {
     done(&mut world, owner);
 }
 #[test]
+fn a_batch_answers_family_continuations_at_another_layout_with_unknown_records() {
+    let mut world = f::Exchange::new();
+    let stream = world.open_stream();
+    let family = f::family_owned(Box::new([77]), Some(f::foreign_window_cursor()));
+    let owner = send(
+        &mut world,
+        &[w::Member::Read(family.clone()), w::Member::Open(w::Open { stream, watch: 1, subject: family })],
+    );
+    assert!(world.out.is_empty(), "no application work");
+    assert_eq!(read_answer(part(&mut world, owner, 0)), f::read_none(w::ReadNone::Unknown));
+    let unknown = w::OpenAnswer::Refused(w::OpenAnswerRefused { why: w::WatchRefusal::Unknown });
+    assert_eq!(open_answer(part(&mut world, owner, 1)), unknown);
+    done(&mut world, owner);
+}
+
+#[test]
 fn a_bad_batch_is_refused_whole_before_authentication_or_work() {
     let members = [w::Member::Read(read())];
     let bytes = encoded(&members);

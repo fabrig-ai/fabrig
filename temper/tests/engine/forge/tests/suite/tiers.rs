@@ -619,8 +619,8 @@ fn goal_push(world: &mut World, path: &[u8], content: &[u8]) -> api::Commit {
         writes: Box::new([name.clone()]),
         holders: Box::new([]),
     });
-    world.push_file(b"temper/1/g201", path, content);
-    let commit = translate::commit(world.branch(b"temper/1/g201"));
+    let commit = world.push_attempt(&name, (GOAL, 1), b"temper/1/g201", path, content);
+    world.event(top::Event::Finished { task: GOAL, attempt: 1, lost: false });
     world.event(top::Event::Answered { task: GOAL, attempt: 1, pushed: Box::new([(name, commit, true)]) });
     // The restored tier supplies the tracked tip; the forge supplies runs and logs.
     let mut saved = row(world).clone();
