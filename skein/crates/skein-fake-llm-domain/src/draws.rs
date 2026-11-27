@@ -3,7 +3,9 @@
 use skein_lib::{List, Lru, Rng, Set, len_u64, usize_of};
 
 use crate::Config;
-use crate::api::{Caching, Capture, Drawn, Filled, Finish, Key, Line, Part, Query, Role, Seeds, Slot, Source, Turn};
+use crate::api::{
+    Caching, Capture, Drawn, Filled, Finish, Key, Line, Menu, Part, Query, Role, Seeds, Slot, Source, Turn,
+};
 use crate::limits;
 
 #[derive(Debug)]
@@ -24,6 +26,7 @@ struct Attempt {
 pub(crate) struct Draws {
     faults: Rng,
     parts: Option<Parts>,
+    pub(crate) menu_bound: Option<limits::MenuBound>,
     attempts: Lru<u64, Attempt>,
     replay: Capture,
     kept: List<Drawn>,
@@ -70,10 +73,14 @@ fn slot_room(remaining: Option<u32>, id: &[u8], value: &[u8], class: &[u8]) -> O
 
 impl Draws {
     pub(crate) fn attempt_bytes(config: &Config) -> Option<u64> {
+        if config.conversations == 0 {
+            // With no entries, neither index ever allocates a node.
+            return Some(0);
+        }
         Lru::<u64, Attempt>::price(config.conversations)
     }
 
-    pub(crate) fn new(config: &Config, seeds: Seeds, replay: Capture) -> Draws {
+    pub(crate) fn new(config: &Config, seeds: Seeds, menu: &Menu, replay: Capture) -> Draws {
         let (faults, parts) = match seeds {
             Seeds::One(seed) => (Rng::new(seed), None),
             Seeds::Parts { agent, faults, scheduling } => {
@@ -83,6 +90,7 @@ impl Draws {
         Draws {
             faults,
             parts,
+            menu_bound: limits::MenuBound::new(menu),
             attempts: Lru::with_capacity(config.conversations),
             replay,
             kept: List::with_capacity(config.capture_answers),

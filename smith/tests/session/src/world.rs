@@ -1,9 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::fmt;
 
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain as provider;
+use skein_fake_llm_domain::api::{Capture, Rules, Script, Scripts, Seeds};
 use skein_lib::{Duration, ReplyTo, Rng, Time, Token};
 use skein_world::domain::{Key, Ledger, Schedule, Span, Stage, Trace};
+use skein_world::streams::{Stream, Streams};
 use smith_domain_session as agent;
 use smith_domain_session::llm::{Block, Decoded, Descriptor, Endpoint, Failure, Prompt, Returned, Usage};
 
@@ -192,7 +195,7 @@ impl Settings {
                 cache_entries: 8,
                 strict: false,
                 unscoped_reads: 0,
-                conversations: 0,
+                conversations: 4,
                 capture_answers: 0,
                 capture_bytes: 0,
                 accounts: 0,
@@ -649,13 +652,44 @@ impl World {
 
     /// Construct the same world with explicit application tool turns for focused stories.
     #[must_use]
-    pub fn with_scripts(settings: Settings, scripts: Box<[provider::api::Script]>) -> World {
+    pub fn with_scripts(settings: Settings, scripts: Box<[Script]>) -> World {
+        Self::with_provider(settings, scripts, Capture::none())
+    }
+
+    /// Replays the fake model's captured answers with this world's own faults and timing.
+    #[must_use]
+    pub fn with_replay(settings: Settings, replay: Capture) -> World {
+        Self::with_provider(settings, Box::new([]), replay)
+    }
+
+    /// The fake model's retained answers and the classes the world gave its draws.
+    #[must_use]
+    pub fn capture(&self) -> Capture {
+        self.provider.capture()
+    }
+
+    fn with_provider(mut settings: Settings, scripts: Box<[Script]>, replay: Capture) -> World {
         assert!(agent::valid(&settings.agent), "the shell refuses invalid limits");
         let mut rng = Rng::new(settings.seed);
         let agent = agent::Domain::new(&settings.agent, rng.next_u64());
-        let provider =
-            provider::Domain::configured(&settings.provider, rng.next_u64(), scripts, crate::provider::menu())
-                .expect("application menu obeys provider admission");
+        // World delivery, tools and opener draws begin at the third draw.
+        let _ = rng.next_u64();
+        settings.provider.conversations = settings.provider.conversations.max(settings.agent.sessions);
+        let streams = Streams::new(settings.seed);
+        let seeds = Seeds::Parts {
+            agent: streams.seed_of(Stream::Parties, "agent/model"),
+            faults: streams.seed_of(Stream::Faults, "llm"),
+            scheduling: streams.seed_of(Stream::Scheduling, "llm"),
+        };
+        let provider = provider::Domain::drawn(
+            &settings.provider,
+            seeds,
+            Scripts { cued: scripts, asked: Box::new([]), otherwise: Box::new([]) },
+            crate::provider::menu(),
+            Rules { cued: Box::new([]), asked: Box::new([]) },
+            replay,
+        )
+        .expect("application menu, scripts and replay obey provider admission");
         let mut checkout = Checkout::new();
         fixture::script(&mut checkout);
         World {
@@ -805,7 +839,7 @@ impl World {
             agent::resume(&mut self.agent, &self.agent_stage.env, &mut self.agent_stage.out);
         }
         while let Some(event) = self.agent_stage.next_event() {
-            self.log(&format!("agent <- {}", describe_agent_event(&event)));
+            self.trace.log(self.now, EventLine(&event));
             if let agent::Event::Close { session } = &event
                 && let Some(opener) = self.openers.get(session)
             {
@@ -916,7 +950,7 @@ impl World {
     }
 
     fn agent_request(&mut self, request: agent::Request) {
-        self.log(&format!("agent -> {}", describe_agent_request(&request)));
+        self.trace.log(self.now, RequestLine(&request));
         match request {
             agent::Request::Part { .. } => panic!("parts not requested"),
             agent::Request::Turn { opener, turn } => self.recorded(opener.raw(), turn),
@@ -1898,84 +1932,103 @@ fn ended_run(event: &agent::Event) -> Option<Token> {
     }
 }
 
-fn describe_agent_event(event: &agent::Event) -> String {
-    match event {
-        agent::Event::ReadVersion { session, place, version } => {
-            format!("read version {} {place:?} {version:?}", session.raw())
+struct EventLine<'a>(&'a agent::Event);
+
+impl fmt::Display for EventLine<'_> {
+    fn fmt(&self, out: &mut fmt::Formatter<'_>) -> fmt::Result {
+        out.write_str("agent <- ")?;
+        match self.0 {
+            agent::Event::ReadVersion { session, place, version } => {
+                write!(out, "read version {} {place:?} {version:?}", session.raw())
+            }
+            agent::Event::BuiltinResult { session, id, text, error } => {
+                write!(out, "builtin result {} {id:?} {text:?} {error}", session.raw())
+            }
+            agent::Event::Yield { session } => write!(out, "yield completion {}", session.raw()),
+            agent::Event::CancelJobs { session } => write!(out, "cancel jobs {}", session.raw()),
+            agent::Event::AnswerWithheld { owner } => write!(out, "answer withheld {}", owner.raw()),
+            agent::Event::AnswerCancelled { owner, spent, .. } => {
+                write!(out, "answer cancelled {} {spent}", owner.raw())
+            }
+            agent::Event::Open { opener, opening } => write!(out, "open {} {opening:?}", opener.raw()),
+            agent::Event::Answered { owner, text, error, spent, after } => match after {
+                agent::After::Complete => write!(out, "answered {} {text:?} {error} {spent}", owner.raw()),
+                agent::After::Yield => write!(out, "answered and yield {} {text:?} {error} {spent}", owner.raw()),
+            },
+            agent::Event::Continue { session, content } => {
+                write!(out, "continue {} {:?}", session.raw(), String::from_utf8_lossy(content))
+            }
+            agent::Event::Cut { session } => write!(out, "cut {}", session.raw()),
+            agent::Event::Close { session } => write!(out, "close {}", session.raw()),
+            agent::Event::Completed { owner, completion } => {
+                write!(out, "completed {} {:?} with {} blocks", owner.raw(), completion.stop, completion.content.len())
+            }
+            agent::Event::Overflowed { owner, end } => write!(out, "overflowed {} {end:?}", owner.raw()),
+            agent::Event::Narrowed { owner, note, choice, names } => {
+                write!(out, "narrowed {} {note:?} {choice:?} {names:?}", owner.raw())
+            }
+            agent::Event::UnsentClosed { owner } => write!(out, "unsent closed {}", owner.raw()),
+            agent::Event::BudgetDenied { owner, reason } => write!(out, "budget denied {} {reason:?}", owner.raw()),
+            agent::Event::Failed { owner, failure, .. } => write!(out, "failed {} {failure:?}", owner.raw()),
+            agent::Event::Cancelled { owner } => write!(out, "cancelled {}", owner.raw()),
+            agent::Event::Done { owner, done } => write!(out, "done {} {done:?}", owner.raw()),
         }
-        agent::Event::BuiltinResult { session, id, text, error } => {
-            format!("builtin result {} {id:?} {text:?} {error}", session.raw())
-        }
-        agent::Event::Yield { session } => format!("yield completion {}", session.raw()),
-        agent::Event::CancelJobs { session } => format!("cancel jobs {}", session.raw()),
-        agent::Event::AnswerWithheld { owner } => format!("answer withheld {}", owner.raw()),
-        agent::Event::AnswerCancelled { owner, spent, .. } => format!("answer cancelled {} {spent}", owner.raw()),
-        agent::Event::Open { opener, opening } => format!("open {} {opening:?}", opener.raw()),
-        agent::Event::Answered { owner, text, error, spent, after } => match after {
-            agent::After::Complete => format!("answered {} {text:?} {error} {spent}", owner.raw()),
-            agent::After::Yield => format!("answered and yield {} {text:?} {error} {spent}", owner.raw()),
-        },
-        agent::Event::Continue { session, content } => {
-            format!("continue {} {:?}", session.raw(), String::from_utf8_lossy(content))
-        }
-        agent::Event::Cut { session } => format!("cut {}", session.raw()),
-        agent::Event::Close { session } => format!("close {}", session.raw()),
-        agent::Event::Completed { owner, completion } => {
-            format!("completed {} {:?} with {} blocks", owner.raw(), completion.stop, completion.content.len())
-        }
-        agent::Event::Overflowed { owner, end } => format!("overflowed {} {end:?}", owner.raw()),
-        agent::Event::Narrowed { owner, note, choice, names } => {
-            format!("narrowed {} {note:?} {choice:?} {names:?}", owner.raw())
-        }
-        agent::Event::UnsentClosed { owner } => format!("unsent closed {}", owner.raw()),
-        agent::Event::BudgetDenied { owner, reason } => format!("budget denied {} {reason:?}", owner.raw()),
-        agent::Event::Failed { owner, failure, .. } => format!("failed {} {failure:?}", owner.raw()),
-        agent::Event::Cancelled { owner } => format!("cancelled {}", owner.raw()),
-        agent::Event::Done { owner, done } => format!("done {} {done:?}", owner.raw()),
     }
 }
 
-fn describe_agent_request(request: &agent::Request) -> String {
-    match request {
-        agent::Request::Part { .. } => "part".into(),
-        agent::Request::JobsCancelled { opener } => format!("jobs cancelled {}", opener.raw()),
-        agent::Request::Turn { opener, turn } => format!("turn {} {turn:?}", opener.raw()),
-        agent::Request::Priced { opener, spent, own_spent } => {
-            format!("priced {} {spent} own {own_spent}", opener.raw())
+struct RequestLine<'a>(&'a agent::Request);
+
+impl fmt::Display for RequestLine<'_> {
+    fn fmt(&self, out: &mut fmt::Formatter<'_>) -> fmt::Result {
+        out.write_str("agent -> ")?;
+        match self.0 {
+            agent::Request::Part { .. } => out.write_str("part"),
+            agent::Request::JobsCancelled { opener } => write!(out, "jobs cancelled {}", opener.raw()),
+            agent::Request::Turn { opener, turn } => write!(out, "turn {} {turn:?}", opener.raw()),
+            agent::Request::Priced { opener, spent, own_spent } => {
+                write!(out, "priced {} {spent} own {own_spent}", opener.raw())
+            }
+            agent::Request::Opened { opener, session } => write!(out, "opened {} as {}", opener.raw(), session.raw()),
+            agent::Request::Yielded { opener, stop, text } => {
+                write!(out, "yielded {} {stop:?} {:?}", opener.raw(), String::from_utf8_lossy(text))
+            }
+            agent::Request::Used { opener, usage, .. } => write!(out, "used {} {usage:?}", opener.raw()),
+            agent::Request::Ended { opener, end, turns, usage, .. } => {
+                write!(out, "ended {} {end:?} after {turns} turns, {usage:?}", opener.raw())
+            }
+            agent::Request::RateLimitWait { opener, until } => {
+                write!(out, "rate limit wait {} until {}", opener.raw(), until.as_nanos())
+            }
+            agent::Request::RateLimitWaitDone { opener } => write!(out, "rate limit wait done {}", opener.raw()),
+            agent::Request::RateLimitOutlastsSession { opener, retry_after } => {
+                write!(out, "rate limit outlasts session {} by reset in {retry_after:?}", opener.raw())
+            }
+            agent::Request::Complete { owner, prompt, deadlines, .. } => {
+                let (messages, most) = (prompt.messages.len(), prompt.max_tokens);
+                write!(
+                    out,
+                    "complete {} with {messages} messages, at most {most} tokens, deadlines {deadlines:?}",
+                    owner.raw()
+                )
+            }
+            agent::Request::Yield { owner } => write!(out, "yield completion {}", owner.raw()),
+            agent::Request::Cancel { owner } => write!(out, "cancel {}", owner.raw()),
+            agent::Request::Io { owner, op, deadline } => {
+                write!(out, "io {} {op:?} by {}", owner.raw(), deadline.as_nanos())
+            }
+            agent::Request::Job { owner, act } => write!(out, "job {} {act:?}", owner.raw()),
+            agent::Request::CancelIo { owner } => write!(out, "cancel io {}", owner.raw()),
+            agent::Request::Delegate { owner, opener, call, deadline, origin } => {
+                write!(
+                    out,
+                    "delegate {} for {} {call:?} origin {origin:?} by {}",
+                    owner.raw(),
+                    opener.raw(),
+                    deadline.as_nanos()
+                )
+            }
+            agent::Request::Withdraw { owner } => write!(out, "withdraw {}", owner.raw()),
         }
-        agent::Request::Opened { opener, session } => format!("opened {} as {}", opener.raw(), session.raw()),
-        agent::Request::Yielded { opener, stop, text } => {
-            format!("yielded {} {stop:?} {:?}", opener.raw(), String::from_utf8_lossy(text))
-        }
-        agent::Request::Used { opener, usage, .. } => format!("used {} {usage:?}", opener.raw()),
-        agent::Request::Ended { opener, end, turns, usage, .. } => {
-            format!("ended {} {end:?} after {turns} turns, {usage:?}", opener.raw())
-        }
-        agent::Request::RateLimitWait { opener, until } => {
-            format!("rate limit wait {} until {}", opener.raw(), until.as_nanos())
-        }
-        agent::Request::RateLimitWaitDone { opener } => format!("rate limit wait done {}", opener.raw()),
-        agent::Request::RateLimitOutlastsSession { opener, retry_after } => {
-            format!("rate limit outlasts session {} by reset in {retry_after:?}", opener.raw())
-        }
-        agent::Request::Complete { owner, prompt, deadlines, .. } => {
-            let (messages, most) = (prompt.messages.len(), prompt.max_tokens);
-            format!("complete {} with {messages} messages, at most {most} tokens, deadlines {deadlines:?}", owner.raw())
-        }
-        agent::Request::Yield { owner } => format!("yield completion {}", owner.raw()),
-        agent::Request::Cancel { owner } => format!("cancel {}", owner.raw()),
-        agent::Request::Io { owner, op, deadline } => format!("io {} {op:?} by {}", owner.raw(), deadline.as_nanos()),
-        agent::Request::Job { owner, act } => format!("job {} {act:?}", owner.raw()),
-        agent::Request::CancelIo { owner } => format!("cancel io {}", owner.raw()),
-        agent::Request::Delegate { owner, opener, call, deadline, origin } => {
-            format!(
-                "delegate {} for {} {call:?} origin {origin:?} by {}",
-                owner.raw(),
-                opener.raw(),
-                deadline.as_nanos()
-            )
-        }
-        agent::Request::Withdraw { owner } => format!("withdraw {}", owner.raw()),
     }
 }
 

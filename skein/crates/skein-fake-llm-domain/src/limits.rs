@@ -247,29 +247,42 @@ pub(crate) fn slots(slots: &[crate::api::Slot]) -> Option<u64> {
     Some(total)
 }
 
-/// Bounds a random batch from the largest name and input, with slots at their never-issued values.
-pub(crate) fn random_answer(query: &Query, menu: &crate::api::Menu, count: u32) -> Option<u64> {
-    let mut name = 0;
-    let mut arguments = 0;
-    for tool in &query.tools {
-        name = name.max(bytes(&tool.name)?);
-    }
-    let unissued = crate::slots::unissued(&menu.slots);
-    for input in &menu.arguments {
-        let size = if menu.slots.is_empty() {
-            bytes(input)?
-        } else {
-            crate::slots::measure_bytes(input, &menu.slots, &unissued)?
-        };
-        arguments = arguments.max(size);
-    }
-    for input in &menu.invalid {
-        arguments = arguments.max(bytes(&input.arguments)?);
-        if let Some(replacement) = &input.name {
-            name = name.max(bytes(replacement)?);
+/// The menu's part of the random batch bound never depends on the query.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct MenuBound {
+    name: u64,
+    arguments: u64,
+}
+
+impl MenuBound {
+    pub(crate) fn new(menu: &crate::api::Menu) -> Option<Self> {
+        let mut name = 0;
+        let mut arguments = 0;
+        let unissued = crate::slots::unissued(&menu.slots);
+        for input in &menu.arguments {
+            let size = if menu.slots.is_empty() {
+                bytes(input)?
+            } else {
+                crate::slots::measure_bytes(input, &menu.slots, &unissued)?
+            };
+            arguments = arguments.max(size);
         }
+        for input in &menu.invalid {
+            arguments = arguments.max(bytes(&input.arguments)?);
+            if let Some(replacement) = &input.name {
+                name = name.max(bytes(replacement)?);
+            }
+        }
+        Some(Self { name, arguments })
     }
-    u64::from(count).checked_mul(random_call(name, arguments)?)
+
+    pub(crate) fn answer(self, query: &Query, count: u32) -> Option<u64> {
+        let mut name = self.name;
+        for tool in &query.tools {
+            name = name.max(bytes(&tool.name)?);
+        }
+        u64::from(count).checked_mul(random_call(name, self.arguments)?)
+    }
 }
 
 pub(crate) fn random_call(name: u64, arguments: u64) -> Option<u64> {

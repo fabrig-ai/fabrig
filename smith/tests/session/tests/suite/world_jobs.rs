@@ -350,3 +350,84 @@ fn a_fifth_yielding_shell_is_refused_and_close_drains_four() {
     assert_eq!(world.stats().op_cancels, job_cells, "close cancelled every held command");
     assert_eq!(world.told().jobs_ended, job_cells, "close reported all four unread ends");
 }
+
+#[test]
+fn drawn_job_slots_name_shown_and_unissued_jobs_and_replay() {
+    use skein_fake_llm_domain::api::Source;
+    use smith_session_world::provider::UNISSUED_JOB;
+
+    // The model polls the never-issued number, then a job whose end is held.
+    const DRAWN_POLLS_SEED: u64 = 1;
+    const DRAWN_ROUNDS: u32 = 10;
+    const CAPTURE_ANSWERS: u32 = 16;
+    const CAPTURE_BYTES: u32 = 16_384;
+    let mut settings = Settings::calm(DRAWN_POLLS_SEED);
+    settings.provider.tool_rounds = DRAWN_ROUNDS;
+    settings.provider.capture_answers = CAPTURE_ANSWERS;
+    settings.provider.capture_bytes = CAPTURE_BYTES;
+    settings.tool = Span::millis(TOOL_MS, TOOL_MS);
+    let opening = || {
+        let mut opening = spec(JOB_TASK);
+        opening.authority.grants = Grants { inspect: false, modify: false, shell: true };
+        opening
+    };
+    let mut world = World::new(settings);
+    let opener = world.submit(Time::ZERO, opening());
+    world.run(ITERATIONS);
+    let session = world.session(opener);
+    let capture = world.capture();
+    assert!(!capture.full);
+    let polls: Vec<_> = capture
+        .answers
+        .iter()
+        .flat_map(|drawn| {
+            drawn.slots.iter().filter(|slot| {
+                matches!(&drawn.answer.lines[usize::try_from(slot.call).expect("call position")],
+                    Line::Call { name, .. } if name.as_ref() == b"job")
+            })
+        })
+        .collect();
+    let named: Vec<_> = session.job_calls.iter().filter(|call| call.job.is_some()).collect();
+    assert_eq!(polls.len(), named.len(), "each named job call had a slot draw");
+    for (draw, mention) in polls.into_iter().zip(named) {
+        let number = mention.job.expect("a named job");
+        assert_eq!(&*draw.value, number.0.to_string().as_bytes());
+        assert_eq!(&*draw.class, mention.class.word());
+        assert_eq!(draw.source, if number.0 == UNISSUED_JOB { Source::Unissued } else { Source::Conversation },);
+    }
+    assert!(session.job_calls.iter().any(|call| {
+        call.class == JobClass::Unissued
+            && call.job == Some(JobNumber(UNISSUED_JOB))
+            && matches!(call.answer, Some(Returned::Invalid { problem: Problem::UnknownJob { job: UNISSUED_JOB } }))
+    }));
+    let read = session
+        .job_calls
+        .iter()
+        .find(|call| matches!(call.class, JobClass::Live | JobClass::Held))
+        .expect("a draw named the session's own job");
+    assert!(
+        session.records.iter().take_while(|turn| turn.sequence < read.sequence).any(|turn| {
+            turn.messages.iter().flat_map(|message| &message.content).any(|block| {
+            matches!(block, Block::ToolResult { result: Returned::Owned { outcome: Outcome::Running { job, .. } }, .. }
+                if Some(*job) == read.job)
+        })
+        }),
+        "the model was shown that job before the poll"
+    );
+
+    // Strict replay cannot silently redraw any answer that was not captured.
+    settings.provider.strict = true;
+    let mut replay = World::with_replay(settings, capture.clone());
+    let replay_opener = replay.submit(Time::ZERO, opening());
+    replay.run(ITERATIONS);
+    let played = replay.session(replay_opener);
+    assert_eq!(
+        (world.trace(), world.stats(), world.told(), world.now()),
+        (replay.trace(), replay.stats(), replay.told(), replay.now())
+    );
+    assert_eq!(
+        (&session.records, &session.job_calls, &session.yields, &session.ended),
+        (&played.records, &played.job_calls, &played.yields, &played.ended)
+    );
+    assert_eq!(capture, replay.capture());
+}

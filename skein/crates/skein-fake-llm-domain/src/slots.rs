@@ -124,7 +124,7 @@ impl Candidates {
 
     pub(crate) fn values<'q>(&self, query: &'q Query, slots: &'q [Slot], picks: [u8; SLOTS]) -> [&'q [u8]; SLOTS] {
         let mut values = unissued(slots);
-        for (index, pick) in picks.iter().enumerate() {
+        for (index, pick) in picks.iter().take(slots.len()).enumerate() {
             if let Some(rank) = pick.checked_sub(1) {
                 let places = self.slots.as_slice().get(index).expect("picked slot");
                 let place = places.get(u32::from(rank)).expect("picked candidate");
@@ -152,7 +152,11 @@ fn scan(query: &Query, slot: &Slot, earlier: &[List<Place>]) -> List<Place> {
 }
 
 fn in_text(query: &Query, source: Text, text: &[u8], slot: &Slot, earlier: &[List<Place>], places: &mut List<Place>) {
-    for start in (0..text.len()).rev() {
+    let first = slot.before.first().expect("admitted nonempty delimiter");
+    for (start, byte) in text.iter().enumerate().rev() {
+        if byte != first {
+            continue;
+        }
         let Some(span) = take::capture_at(text, start, &slot.before, &slot.after) else { continue };
         let value = span.value(text);
         if let Some(bounds) = slot.numeric
@@ -221,8 +225,7 @@ pub(crate) fn measure_bytes(body: &[u8], slots: &[Slot], values: &[&[u8]; SLOTS]
     Some(measure(body, slots, values)?.bytes)
 }
 
-pub(crate) fn expand(body: &[u8], slots: &[Slot], values: &[&[u8]; SLOTS]) -> Box<[u8]> {
-    let size = measure_bytes(body, slots, values).expect("measured before copying");
+pub(crate) fn expand(body: &[u8], slots: &[Slot], values: &[&[u8]; SLOTS], size: u64) -> Box<[u8]> {
     let mut out = Writer::new(usize_of(u32::try_from(size).expect("admitted answer bytes")));
     walk(body, slots, values, Some(&mut out)).expect("same measured expansion");
     out.finish()
@@ -230,27 +233,34 @@ pub(crate) fn expand(body: &[u8], slots: &[Slot], values: &[&[u8]; SLOTS]) -> Bo
 
 fn walk(body: &[u8], slots: &[Slot], values: &[&[u8]; SLOTS], mut out: Option<&mut Writer>) -> Option<Measure> {
     let mut used = [false; SLOTS];
-    let mut end = 0;
+    let mut literal = 0;
     let mut size = 0_u64;
-    'body: for (at, byte) in body.iter().enumerate() {
-        if at < end {
+    // Only an opening brace can start a use. Between uses, emit one literal slice.
+    'body: for (marker, byte) in body.iter().enumerate() {
+        if *byte != b'{' || marker < literal {
             continue;
         }
-        if *byte == b'{' || *byte == b'"' {
-            let suffix = body.get(at..)?;
-            for (index, slot) in slots.iter().enumerate() {
-                if let Some((width, numeric)) = take::use_at(suffix, &slot.name, true) {
-                    let value = values.get(index).expect("value for each slot");
-                    let len = if numeric { take::emit(&mut out, value) } else { take::escaped(&mut out, value)? };
-                    *used.get_mut(index).expect("admitted slot index") = true;
-                    size = size.checked_add(len)?;
-                    end = at.checked_add(width)?;
-                    continue 'body;
-                }
+        let mut at = marker;
+        if let Some(quote) = marker.checked_sub(1)
+            && quote >= literal
+            && body.get(quote..)?.starts_with(b"\"{{#")
+        {
+            at = quote;
+        }
+        let suffix = body.get(at..)?;
+        for (index, slot) in slots.iter().enumerate() {
+            if let Some((width, numeric)) = take::use_at(suffix, &slot.name, true) {
+                size = size.checked_add(take::emit(&mut out, body.get(literal..at)?))?;
+                let value = values.get(index).expect("value for each slot");
+                let len = if numeric { take::emit(&mut out, value) } else { take::escaped(&mut out, value)? };
+                *used.get_mut(index).expect("admitted slot index") = true;
+                size = size.checked_add(len)?;
+                literal = at.checked_add(width)?;
+                continue 'body;
             }
         }
-        size = size.checked_add(take::emit(&mut out, &[*byte]))?;
     }
+    size = size.checked_add(take::emit(&mut out, body.get(literal..)?))?;
     Some(Measure { bytes: size, used })
 }
 

@@ -159,7 +159,7 @@ pub(crate) fn by_input(
     query: &Query,
     now: Time,
 ) -> Response {
-    let mut draws = Draws::new(config, crate::api::Seeds::One(rng.state()), crate::api::Capture::none());
+    let mut draws = Draws::new(config, crate::api::Seeds::One(rng.state()), menu, crate::api::Capture::none());
     let result = with_draws(&mut draws, minted, config, played, rules, menu, query, now);
     *rng = Rng::new(draws.faults().state());
     result
@@ -316,6 +316,7 @@ fn random(
     menu: &crate::api::Menu,
     query: &Query,
 ) -> Response {
+    let bound = draws.menu_bound;
     let mut slots = draws.slot_capture();
     let mut named = draws.agent(key);
     let rng = match &mut named {
@@ -327,7 +328,16 @@ fn random(
         && tool_count(query, outside) != 0
         && !menu.arguments.is_empty()
     {
-        let calls = match random::batch(rng, minted, config, menu, query, outside, &mut slots) {
+        let count = u32::try_from(rng.between(1, config.calls_per_answer.max(1).into())).expect("drawn below a u32");
+        let bytes = match bound {
+            Some(bound) => bound.answer(query, count),
+            None => None,
+        };
+        if !limits::fits(bytes, config.answer_bytes) {
+            return Err((Error::ContextTooLong.into(), None));
+        }
+        let batch = random::Batch { count, outside };
+        let calls = match random::batch(rng, minted, config, menu, query, batch, &mut slots) {
             Ok(calls) => calls,
             Err(error) => return Err((error.into(), None)),
         };

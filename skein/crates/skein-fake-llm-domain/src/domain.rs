@@ -435,7 +435,7 @@ impl Domain {
             calls: Slab::with_capacity(config.calls),
             held: Set::with_capacity(config.calls),
             timers: Deadlines::with_capacity(config.calls),
-            draws: Draws::new(config, seeds, replay),
+            draws: Draws::new(config, seeds, &menu, replay),
             minted: 0,
             played,
             rules,

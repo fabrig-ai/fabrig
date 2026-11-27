@@ -141,7 +141,7 @@ pub fn check_job_call(call: &JobCall) -> Result<(), String> {
 }
 
 impl World {
-    pub(super) fn drawn_jobs(&self, opener: u64, content: &[Block]) -> Vec<JobCall> {
+    pub(super) fn drawn_jobs(&mut self, opener: u64, content: &[Block]) -> Vec<JobCall> {
         content
             .iter()
             .enumerate()
@@ -155,6 +155,10 @@ impl World {
                     Decoded::Invalid { .. } => (None, JobClass::Unknown),
                     _ => return None,
                 };
+                if self.settings.provider.capture_answers != 0 {
+                    // Scripts (and malformed calls without a filled body) need not have a slot draw.
+                    let _classified = self.provider.classify(&call.id, b"job", class.word());
+                }
                 Some(JobCall { sequence: 0, position, class, job, answer: None })
             })
             .collect()

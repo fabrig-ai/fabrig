@@ -1,6 +1,7 @@
 //! Random calls keep their tool, body and slot picks until the whole batch fits
 //! (skein/docs/design/testing/fakes/drawn-agent.md, 2).
 
+use alloc::boxed::Box;
 use skein_lib::{List, Rng, len_u64, usize_of};
 
 use crate::api::{Error, Menu, Part, Query, Source};
@@ -11,24 +12,25 @@ use crate::{limits, slots};
 
 use super::{allowed, call_id, tool_count};
 
+pub(super) struct Batch {
+    pub(super) count: u32,
+    pub(super) outside: bool,
+}
+
 pub(super) fn batch(
     rng: &mut Rng,
     minted: &mut u64,
     config: &Config,
     menu: &Menu,
     query: &Query,
-    outside: bool,
+    Batch { count, outside }: Batch,
     capture: &mut SlotCapture,
 ) -> Result<List<Part>, Error> {
-    let count = u32::try_from(rng.between(1, config.calls_per_answer.max(1).into())).expect("drawn below a u32");
-    if !limits::fits(limits::random_answer(query, menu, count), config.answer_bytes) {
-        return Err(Error::ContextTooLong);
-    }
     let mut calls = List::with_capacity(count);
     if menu.slots.is_empty() {
         for _ in 0..count {
             let call = draw(rng, minted, config, menu, query, outside)?;
-            let part = call.part(menu, query, None);
+            let part = call.part(menu, query, call.body(menu).into());
             calls.push(part).expect("room for each call");
         }
         return Ok(calls);
@@ -43,7 +45,7 @@ pub(super) fn batch(
         let mut picks = slots::UNISSUED;
         let mut used = [false; slots::SLOTS];
         let body = call.body(menu);
-        let bytes = match call.input {
+        let (base_bytes, bytes) = match call.input {
             Input::Body(_) => {
                 let measure = slots::measure(body, &menu.slots, &unissued).expect("admitted never-issued body");
                 used = measure.used;
@@ -53,26 +55,42 @@ pub(super) fn batch(
                     }
                     let scanned = candidates.as_ref().expect("scanned slots");
                     picks = scanned.draw(rng, &menu.slots, used);
-                    let values = scanned.values(query, &menu.slots, picks);
-                    slots::measure_bytes(body, &menu.slots, &values)
+                    let bytes = if picks == slots::UNISSUED {
+                        Some(measure.bytes)
+                    } else {
+                        let values = scanned.values(query, &menu.slots, picks);
+                        slots::measure_bytes(body, &menu.slots, &values)
+                    };
+                    (measure.bytes, bytes)
                 } else {
-                    Some(measure.bytes)
+                    (measure.bytes, Some(measure.bytes))
                 }
             }
-            Input::Invalid(_) => Some(len_u64(body.len())),
+            Input::Invalid(_) => {
+                let bytes = len_u64(body.len());
+                (bytes, Some(bytes))
+            }
         };
         drawn_size = batch_size(drawn_size, call.name(menu, query), bytes);
-        assert!(planned.push(Planned { call, picks, used }).is_ok(), "room for each call plan");
+        let plan = Planned { call, picks, used, base_bytes, bytes };
+        assert!(planned.push(plan).is_ok(), "room for each call plan");
     }
 
     let filled = limits::fits(drawn_size, config.answer_bytes);
     for planned in &planned {
         let picks = if filled { planned.picks } else { slots::UNISSUED };
         let values = match &candidates {
-            Some(candidates) if filled => candidates.values(query, &menu.slots, picks),
+            Some(candidates) if picks != slots::UNISSUED => candidates.values(query, &menu.slots, picks),
             Some(_) | None => unissued,
         };
-        let part = planned.call.part(menu, query, Some(&values));
+        let body = planned.call.body(menu);
+        let arguments = if planned.used.contains(&true) {
+            let bytes = if filled { planned.bytes.expect("each filled body was measured") } else { planned.base_bytes };
+            slots::expand(body, &menu.slots, &values, bytes)
+        } else {
+            body.into()
+        };
+        let part = planned.call.part(menu, query, arguments);
         if capture.active() {
             let Part::ToolCall { id, .. } = &part else { unreachable!("a random batch holds only calls") };
             record(capture, calls.len(), id, planned.used, &values, picks);
@@ -107,6 +125,8 @@ struct Planned {
     call: Call,
     picks: [u8; slots::SLOTS],
     used: [bool; slots::SLOTS],
+    base_bytes: u64,
+    bytes: Option<u64>,
 }
 
 #[derive(Clone, Copy)]
@@ -142,15 +162,7 @@ impl Call {
         }
     }
 
-    fn part(&self, menu: &Menu, query: &Query, values: Option<&[&[u8]; slots::SLOTS]>) -> Part {
-        let body = self.body(menu);
-        let arguments = match self.input {
-            Input::Body(_) => match values {
-                Some(values) => slots::expand(body, &menu.slots, values),
-                None => body.into(),
-            },
-            Input::Invalid(_) => body.into(),
-        };
+    fn part(&self, menu: &Menu, query: &Query, arguments: Box<[u8]>) -> Part {
         Part::ToolCall { id: call_id(self.id), name: self.name(menu, query).into(), arguments }
     }
 }

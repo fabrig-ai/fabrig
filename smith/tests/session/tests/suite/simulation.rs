@@ -63,7 +63,9 @@ fn out_of(spent: Dimension) -> End {
 
 #[test]
 fn a_session_runs_its_tool_rounds_and_yields_with_the_providers_answer() {
-    let mut world = World::new(Settings::calm(1));
+    // Two successful tool rounds precede the answer.
+    const TOOL_ROUNDS_SEED: u64 = 1;
+    let mut world = World::new(Settings::calm(TOOL_ROUNDS_SEED));
     let opener = world.submit(Time::ZERO, spec(b"fix the build"));
     world.run(ITERATIONS);
 
@@ -76,7 +78,9 @@ fn a_session_runs_its_tool_rounds_and_yields_with_the_providers_answer() {
 
 #[test]
 fn a_nudged_session_goes_on_until_its_opener_closes_it() {
-    let calm = Settings::calm(2);
+    // Each of the three messages gets two successful tool rounds.
+    const NUDGED_ROUNDS_SEED: u64 = 0;
+    let calm = Settings::calm(NUDGED_ROUNDS_SEED);
     let mut world = World::new(Settings { nudges: Count { min: 2, max: 2 }, ..calm });
     let opener = world.submit(Time::ZERO, spec(b"fix the build"));
     world.run(ITERATIONS);
@@ -91,7 +95,9 @@ fn a_nudged_session_goes_on_until_its_opener_closes_it() {
 
 #[test]
 fn malformed_calls_are_answered_with_their_problem_and_the_conversation_goes_on() {
-    let calm = Settings::calm(18);
+    // Multiple malformed calls are answered without tool effects.
+    const MALFORMED_BATCH_SEED: u64 = 18;
+    let calm = Settings::calm(MALFORMED_BATCH_SEED);
     let settings = Settings { provider: Config { malformed: 1000, calls_per_answer: 3, ..calm.provider }, ..calm };
     let mut world = World::new(settings);
     let opener = world.submit(Time::ZERO, spec(b"fix the build"));
@@ -142,7 +148,9 @@ fn reads_in_one_answer_run_side_by_side_and_writes_alone() {
 
 #[test]
 fn sessions_run_side_by_side_and_opens_beyond_the_slots_are_refused() {
-    let calm = Settings::calm(3);
+    // Both admitted sessions finish while three opens are refused.
+    const OVERLAPPING_OPENS_SEED: u64 = 3;
+    let calm = Settings::calm(OVERLAPPING_OPENS_SEED);
     let mut world = World::new(Settings { agent: Limits { sessions: 2, ..calm.agent }, ..calm });
     let openers: Vec<u64> = (0..5).map(|_| world.submit(Time::ZERO, spec(b"refactor"))).collect();
     world.run(ITERATIONS);
@@ -162,7 +170,9 @@ fn sessions_run_side_by_side_and_opens_beyond_the_slots_are_refused() {
 
 #[test]
 fn transient_failures_are_retried_until_calls_succeed() {
-    let calm = Settings::calm(4);
+    // Transient failures precede successful completions.
+    const RETRIED_CALLS_SEED: u64 = 4;
+    let calm = Settings::calm(RETRIED_CALLS_SEED);
     let settings = Settings {
         agent: Limits { retries: 10, ..calm.agent },
         provider: Config { overloaded: 200, rate_limited: 100, ..calm.provider },
@@ -202,7 +212,9 @@ fn a_session_fails_once_its_retries_run_out() {
 
 #[test]
 fn calls_slower_than_their_timeout_time_out_and_their_late_answers_are_dropped() {
-    let calm = Settings::calm(6);
+    // Every attempt answers after its head deadline.
+    const HEAD_TIMEOUT_SEED: u64 = 6;
+    let calm = Settings::calm(HEAD_TIMEOUT_SEED);
     let settings = Settings {
         agent: Limits { retries: 2, ..calm.agent },
         provider: Config {
@@ -239,7 +251,9 @@ fn calls_slower_than_their_timeout_time_out_and_their_late_answers_are_dropped()
 
 #[test]
 fn a_session_out_of_time_ends_once_at_the_whole_call_deadline() {
-    let calm = Settings::calm(7);
+    // The whole-call deadline expires before the answer returns.
+    const CALL_DEADLINE_SEED: u64 = 7;
+    let calm = Settings::calm(CALL_DEADLINE_SEED);
     let settings = Settings {
         provider: Config {
             latency_min: Duration::from_secs(30),
@@ -271,7 +285,9 @@ fn a_session_out_of_time_cancels_its_tool_in_flight() {
 
 #[test]
 fn a_session_left_yielded_runs_out_of_time_and_its_openers_late_close_is_dropped() {
-    let calm = Settings::calm(9);
+    // The session yields done before its time budget expires.
+    const YIELDED_DEADLINE_SEED: u64 = 9;
+    let calm = Settings::calm(YIELDED_DEADLINE_SEED);
     let mut world = World::new(Settings { think: Span::millis(3_600_000, 3_600_000), ..calm });
     let opener = world.submit(Time::ZERO, budgeted(Budget { time: Duration::from_secs(60), ..BUDGET }));
     world.run(ITERATIONS);
@@ -284,7 +300,9 @@ fn a_session_left_yielded_runs_out_of_time_and_its_openers_late_close_is_dropped
 
 #[test]
 fn an_opener_that_closes_a_calling_session_has_its_call_cancelled() {
-    let calm = Settings::calm(10);
+    // The opener closes before any turn counts.
+    const CALL_CANCELLED_SEED: u64 = 10;
+    let calm = Settings::calm(CALL_CANCELLED_SEED);
     let settings = Settings { abandon: 1000, abandon_after: Span::millis(0, 0), ..calm };
     let mut world = World::new(settings);
     let opener = world.submit(Time::ZERO, spec(b"fix the build"));
@@ -336,7 +354,9 @@ fn a_tool_call_that_runs_out_of_time_goes_back_to_the_llm_and_the_conversation_g
 
 #[test]
 fn a_call_that_wins_its_race_with_a_cancel_still_ends_the_session_and_counts() {
-    let calm = Settings::calm(21);
+    // One completion wins the cancel race and is charged.
+    const ANSWER_WINS_SEED: u64 = 21;
+    let calm = Settings::calm(ANSWER_WINS_SEED);
     let settings = Settings { abandon: 1000, abandon_after: Span::millis(0, 0), cancels_lost: 1000, ..calm };
     let mut world = World::new(settings);
     let opener = world.submit(Time::ZERO, spec(b"fix the build"));
@@ -378,7 +398,9 @@ fn served_only() -> Spec {
 
 #[test]
 fn a_finish_is_refused_once_then_accepted_and_the_opener_closes_the_session() {
-    let calm = Settings::calm(23);
+    // A refused finish is followed by an accepted one.
+    const FINISH_RETRIED_SEED: u64 = 23;
+    let calm = Settings::calm(FINISH_RETRIED_SEED);
     let settings = Settings { serve: 1000, provider: Config { tool_rounds: 20, ..calm.provider }, ..calm };
     let mut world = World::new(settings);
     let opener = world.submit(Time::ZERO, served_only());
@@ -392,8 +414,10 @@ fn a_finish_is_refused_once_then_accepted_and_the_opener_closes_the_session() {
 
 #[test]
 fn an_answer_races_its_withdraw() {
+    // The opener closes while a delegated answer is in flight.
+    const WITHDRAWAL_RACE_SEED: u64 = 24;
     for (lost, withdrawn, answered) in [(1000, 0, 1), (0, 1, 0)] {
-        let calm = Settings::calm(24);
+        let calm = Settings::calm(WITHDRAWAL_RACE_SEED);
         let settings = Settings {
             serve: 1000,
             serving: Span::millis(30_000, 30_000),
@@ -440,7 +464,9 @@ fn a_cancel_sent_after_its_run_ended_in_the_same_iteration_is_a_lost_race() {
 
 #[test]
 fn the_turn_budget_ends_a_session_that_keeps_calling_tools() {
-    let calm = Settings::calm(12);
+    // Every completion calls a tool until the turn budget is spent.
+    const TURN_BUDGET_SEED: u64 = 12;
+    let calm = Settings::calm(TURN_BUDGET_SEED);
     let mut world = World::new(Settings { provider: Config { tool_rounds: 100, ..calm.provider }, ..calm });
     let opener = world.submit(Time::ZERO, budgeted(Budget { turns: 3, ..BUDGET }));
     world.run(ITERATIONS);
@@ -453,7 +479,9 @@ fn the_turn_budget_ends_a_session_that_keeps_calling_tools() {
 
 #[test]
 fn the_output_budget_cuts_the_last_answer_short_and_ends_the_session() {
-    let calm = Settings::calm(15);
+    // Two tool calls leave only enough output for a truncated answer.
+    const OUTPUT_BUDGET_SEED: u64 = 15;
+    let calm = Settings::calm(OUTPUT_BUDGET_SEED);
     let settings =
         Settings { provider: Config { answer_tokens: 50, ..calm.provider }, nudges: Count { min: 5, max: 5 }, ..calm };
     let mut world = World::new(settings);
@@ -469,7 +497,9 @@ fn the_output_budget_cuts_the_last_answer_short_and_ends_the_session() {
 
 #[test]
 fn the_token_budgets_end_a_session_after_the_turn_that_uses_them_up() {
-    let calm = Settings::calm(16);
+    // Both cache budgets last more than a turn, then run out.
+    const CACHE_BUDGET_SEED: u64 = 16;
+    let calm = Settings::calm(CACHE_BUDGET_SEED);
     let settings = Settings { nudges: Count { min: 100, max: 100 }, ..calm };
     let budgets = [
         (Budget { cache_read: 100, ..BUDGET }, Dimension::CacheRead),
@@ -516,7 +546,10 @@ fn a_spec_that_asks_for_more_than_the_limits_is_refused() {
 
 #[test]
 fn a_seed_replays_to_the_same_run() {
-    let trace = skein_world::domain::assert_replays(13, 14, |seed| {
+    // Two noisy cases with nontrivial, distinct traces.
+    const REPLAYED_SEED: u64 = 13;
+    const OTHER_SEED: u64 = 14;
+    let trace = skein_world::domain::assert_replays(REPLAYED_SEED, OTHER_SEED, |seed| {
         let settings = noisy(seed);
         let mut world = World::new(settings);
         submit_noisily(&mut world, &settings, seed);
@@ -529,23 +562,26 @@ fn a_seed_replays_to_the_same_run() {
 /// Every native observation survives with no session fact allowance.
 #[test]
 fn observations_are_lossless_without_a_session_fact_allowance() {
-    let seed = 7;
+    // Sessions make calls and settle under noisy settings.
+    const OBSERVED_SEED: u64 = 7;
     let run = || {
-        let settings = noisy(seed);
+        let settings = noisy(OBSERVED_SEED);
         let mut world = World::new(settings);
-        submit_noisily(&mut world, &settings, seed);
+        submit_noisily(&mut world, &settings, OBSERVED_SEED);
         world.run(ITERATIONS);
         (world.stats(), world.told(), world.trace().to_vec())
     };
     let normal = run();
-    assert!(normal.1.ended > 0 && normal.0.calls > 0, "seed {seed}: calls settled");
-    assert_eq!(normal, run(), "seed {seed}: complete observations and request order survive");
+    assert!(normal.1.ended > 0 && normal.0.calls > 0, "seed {OBSERVED_SEED}: calls settled");
+    assert_eq!(normal, run(), "seed {OBSERVED_SEED}: complete observations and request order survive");
 }
 
 #[test]
 fn a_yielded_call_tail_becomes_not_run_only_after_the_continue() {
+    // The truncated answer retains a call across a yield.
+    const YIELDED_TAIL_SEED: u64 = 13;
     use smith_domain_session::llm::{Block, Returned};
-    let calm = Settings::calm(13);
+    let calm = Settings::calm(YIELDED_TAIL_SEED);
     let mut world = World::new(Settings { nudges: Count { min: 1, max: 1 }, ..calm });
     let opener = world.submit(Time::ZERO, Spec { output: 4, ..spec(b"fix the build") });
     world.run(ITERATIONS);
@@ -698,9 +734,11 @@ fn the_worlds_provider_counts_blocks_at_their_drawn_ratios() {
 
 #[test]
 fn a_guarded_request_past_the_line_is_refused_by_the_world() {
+    // The guard refuses one drawn request before it is sent.
+    const GUARD_REFUSAL_SEED: u64 = 104;
     const LINE: u64 = 200;
-    const DRAWN_NEW_PART: u64 = 601;
-    let mut world = World::new(Settings::calm(104));
+    const DRAWN_NEW_PART: u64 = 615;
+    let mut world = World::new(Settings::calm(GUARD_REFUSAL_SEED));
     let opener = world.submit(Time::ZERO, Spec { line: LINE, ..spec(b"fix the build") });
     world.run(ITERATIONS);
     let measures = &world.session(opener).measures;

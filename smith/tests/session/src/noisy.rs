@@ -5,6 +5,7 @@
 
 use skein_fake_llm_domain::Config;
 use skein_lib::{Duration, Rng, Time};
+use skein_world::streams::{Stream, Streams};
 use smith_domain_session::{Budget, Limits, Spec};
 use smith_domain_tools as tools;
 
@@ -12,6 +13,11 @@ use crate::{BUDGET, Count, Settings, Span, World, spec};
 
 /// Leave enough tool rounds within a session's turn budget to fill its job cells.
 const NOISY_TURNS: u64 = 20;
+
+/// Some worlds offer only shell and job tools, with room to poll a job again after its end.
+fn job_heavy(seed: u64) -> bool {
+    Streams::new(seed).rng(Stream::Workload, "tool-grants").chance(125)
+}
 
 /// Settings drawn from `seed`: small limits, faults, latencies that race the
 /// deadlines, and an opener that nudges, dawdles and abandons.
@@ -63,6 +69,7 @@ pub fn noisy(seed: u64) -> Settings {
         },
         provider: Config {
             calls: pick(1, 8),
+            conversations: sessions,
             latency_min: Duration::from_millis(10),
             latency_max,
             overloaded: pick(0, 300),
@@ -88,7 +95,8 @@ pub fn noisy(seed: u64) -> Settings {
         double_close: pick(0, 500),
         serve: pick(0, 800),
         granule: Duration::from_millis((pick(0, 1) * pick(100, 1_000)).into()),
-        serving: Span::millis(10, 3_000),
+        // Leave delegated answers in flight long enough for withdrawal to race them.
+        serving: Span::millis(10, 6_000),
         ..calm
     };
     // The 2000..8000 draw pressures retained payload; provider/result credit
@@ -101,6 +109,9 @@ pub fn noisy(seed: u64) -> Settings {
         .expect("bounded pressure plus credit envelope");
     // Draw the job cells last, keeping every earlier draw in its seed's place.
     settings.agent.tools.jobs = pick(1, u64::from(calm.agent.tools.jobs));
+    if job_heavy(seed) {
+        settings.provider.calls_per_answer = 1;
+    }
     settings
 }
 
@@ -110,6 +121,8 @@ pub fn noisy(seed: u64) -> Settings {
 /// short answers only.
 pub fn submit_noisily(world: &mut World, settings: &Settings, seed: u64) {
     let mut rng = Rng::new(seed.wrapping_add(2));
+    let job_heavy = job_heavy(seed);
+    let (cache_read, cache_write) = if job_heavy { (1_200, 512) } else { (600, 80) };
     let most = settings.agent.budget;
     for _ in 0..rng.between(1, 8) {
         let at = Time::from_nanos(rng.between(0, 60_000_000_000));
@@ -118,8 +131,8 @@ pub fn submit_noisily(world: &mut World, settings: &Settings, seed: u64) {
             turns: u32::try_from(rng.between(1, turns.into())).expect("a small number"),
             input: rng.between(5, 80),
             output: rng.between(5, 150),
-            cache_read: rng.between(10, 600),
-            cache_write: rng.between(5, 80),
+            cache_read: rng.between(10, cache_read),
+            cache_write: rng.between(5, cache_write),
             time: Duration::from_nanos(rng.between(1_000_000_000, most.time.as_nanos())),
         };
         if rng.chance(60) {
@@ -134,9 +147,11 @@ pub fn submit_noisily(world: &mut World, settings: &Settings, seed: u64) {
         }
         // Answers short enough that some are cut, a tool call included.
         let max_tokens = u32::try_from(rng.between(4, 64)).expect("a small number");
-        world.submit(
-            at,
-            Spec { progress: settings.progress, budget, output: max_tokens, ..spec(b"make the tests pass") },
-        );
+        let mut opening =
+            Spec { progress: settings.progress, budget, output: max_tokens, ..spec(b"make the tests pass") };
+        if job_heavy {
+            opening.authority.grants = tools::Grants { inspect: false, modify: false, shell: true };
+        }
+        world.submit(at, opening);
     }
 }

@@ -686,7 +686,9 @@ fn the_guards_refusal_compacts_the_window_once() {
 fn a_turn_counted_a_byte_a_token_is_refused_by_the_guard_then_compacted() {
     use smith_session_world::{Settings, World as Simulated, spec};
     const LINE: u64 = 200;
-    let mut world = Simulated::new(Settings::calm(123));
+    // The reply is counted at a byte a token; the guard sends a compaction instead.
+    const GUARD_THEN_COMPACT_SEED: u64 = 123;
+    let mut world = Simulated::new(Settings::calm(GUARD_THEN_COMPACT_SEED));
     let opener = world.submit(skein_lib::Time::ZERO, session::Spec { line: LINE, ..spec(b"fix the build") });
     world.run(SIMULATION_ITERATIONS);
     let measures = &world.session(opener).measures;

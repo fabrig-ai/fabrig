@@ -10,6 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use smith_domain_session::End;
 use smith_domain_session::llm::{Failure, Problem, Returned};
 use smith_domain_tools::{JobEnd, Outcome};
+use smith_session_world::provider::UNISSUED_JOB;
 use smith_session_world::{Ended, JobClass, World, noisy, submit_noisily};
 
 const ITERATIONS: u32 = 100_000;
@@ -58,6 +59,7 @@ fn random_worlds_settle_with_every_session_ended() {
     let mut races = [0; 4];
     let mut served = [0; 6];
     let (mut refused_write_read, mut unknown_jobs, mut full_jobs) = (0, 0, 0);
+    let (mut shown_draws, mut unissued_draws) = (0, 0);
     let mut held_peaks = [0; 5];
     let mut drawn_job_bounds = [0; 4];
     let mut job_calls: BTreeMap<_, BTreeMap<_, u32>> =
@@ -103,6 +105,13 @@ fn random_worlds_settle_with_every_session_ended() {
         for (_, session) in world.sessions() {
             concrete_turns += session.records.len();
             for call in &session.job_calls {
+                if let Some(job) = call.job {
+                    if job.0 == UNISSUED_JOB {
+                        unissued_draws += 1;
+                    } else {
+                        shown_draws += 1;
+                    }
+                }
                 *job_calls
                     .get_mut(call.class.word())
                     .expect("all job classes are counted")
@@ -129,15 +138,18 @@ fn random_worlds_settle_with_every_session_ended() {
             ends.insert(kind);
         }
     }
-    assert_eq!(ends, EXPECTED_ENDS.into_iter().map(String::from).collect());
-    assert!(concrete_turns > 0, "accepted provider completions emitted concrete checked Turns");
     println!(
         "canonical scheduled hits: concrete_turns={concrete_turns}, stale={stale}, invalid={invalid}, not_run={not_run}, parallel={parallel}, most_runs={most_runs}, op_timeouts={op_timeouts}, delegated={served:?}, races={races:?}, ends={ends:?}, stops={stops:?}, refused_write_read={refused_write_read}, unknown_jobs={unknown_jobs}, full_jobs={full_jobs}, held_peaks={held_peaks:?}, drawn_job_bounds={drawn_job_bounds:?}"
     );
     for (class, answers) in &job_calls {
         println!("job {}: {answers:?}", str::from_utf8(class).expect("class words are ASCII"));
     }
-    for class in [JobClass::Live, JobClass::Unissued] {
+    println!("job slot draws: conversation={shown_draws}, unissued={unissued_draws}; failures={failures:?}");
+    assert_eq!(ends, EXPECTED_ENDS.into_iter().map(String::from).collect());
+    assert!(concrete_turns > 0, "accepted provider completions emitted concrete checked Turns");
+    assert!(shown_draws > 0, "some job calls drew a number from the conversation");
+    assert!(unissued_draws > 0, "some job calls drew the never-issued number");
+    for class in [JobClass::Live, JobClass::Consumed, JobClass::Unissued] {
         assert!(!job_calls[class.word()].is_empty(), "the gate's seeds reach {class:?} job calls");
     }
     assert_eq!(stops, ["Done", "Malformed", "Refused", "Truncated"].into_iter().map(String::from).collect());
