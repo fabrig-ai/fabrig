@@ -30,20 +30,27 @@ import os
 from pathlib import Path
 import shutil
 import signal
+import subprocess
 import sys
 import time
 
 name = Path(sys.argv[0]).name
 args = sys.argv[1:]
-call = dict(name=name, args=args, env={key: os.environ.get(key) for key in (
-    'SKEIN_TEST_FUZZY_CAMPAIGN', 'SKEIN_TEST_FUZZY_CASE', 'CALLER_VAR', 'NEXTEST_DOUBLE_SPAWN')})
+call = dict(name=name, args=args, cwd=str(Path.cwd()), env={key: os.environ.get(key) for key in (
+    'SKEIN_TEST_FUZZY_CAMPAIGN', 'SKEIN_TEST_FUZZY_CASE', 'CALLER_VAR', 'NEXTEST_DOUBLE_SPAWN',
+    'CARGO_TARGET_DIR')})
+root = Path(os.environ['FIXTURE_ROOT'])
 if name == 'run':
     out = Path(args[1])
     report = json.loads((out.parent / 'campaign.json').read_text())
     call['rounds'] = [r['round'] for r in report['rounds']]
     call['replays'] = [c['replay']['verdict'] for r in report['rounds'] for c in r['cases']]
-    call['summary'] = (out.parent / 'summary.txt').read_text().splitlines()[2]
-with Path('calls.jsonl').open('a') as log:
+    summary = (out.parent / 'summary.txt').read_text()
+    call['summary'] = next(line for line in summary.splitlines() if line.startswith('Rounds: '))
+    if out.name.startswith('last-'):
+        call['head'] = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+        call['findings'] = [(f['last'], f['body']) for f in report['findings']]
+with (root / 'calls.jsonl').open('a') as log:
     print(json.dumps(call), file=log)
 
 if name == 'df':
@@ -60,7 +67,9 @@ elif name == 'wrapper' and args[:3] == ['cargo', 'nextest', 'list']:
     print(Path('listing.json').read_text())
     print('wrapper: after JSON')
 elif name == 'run':
-    if os.environ.get('INTERRUPT') and out.name == 'round-2':
+    if os.environ.get('BLOCK_WORKTREE') and out.name == 'round-1':
+        (out.parent / 'last-worktree').write_text('not a worktree')
+    if os.environ.get('INTERRUPT') and out.name == os.environ.get('INTERRUPT_STEP', 'round-2'):
         def stop(signum, frame):
             print(f'run got {signal.Signals(signum).name}', flush=True)
             sys.exit(23)
@@ -70,7 +79,7 @@ elif name == 'run':
         os.kill(os.getppid(), int(os.environ['INTERRUPT']))
         time.sleep(2)
         sys.exit(91)
-    recorded = Path('reports') / out.name
+    recorded = root / 'reports' / out.name
     if (recorded / 'output').is_file():
         print((recorded / 'output').read_text(), end='', flush=True)
     print(f'run: {out.name}', flush=True)
@@ -95,9 +104,13 @@ def testcase(name, *, binary=BINARY, output='', count=None, failure=None, messag
     return case
 
 
-def failed_case(name, seed, words, *, count=None):
-    return testcase(name, output=f'fuzzy case: fixture::{name} seed {seed}: {words}\n',
+def failed_case(name, seed, words, *, count=None, output=''):
+    return testcase(name, output=f'{output}\nfuzzy case: fixture::{name} seed {seed}: {words}\n',
                     count=count, failure='test failure')
+
+
+def input_line(name, seed, digest):
+    return f'fuzzy input: fixture::{name} seed {seed} {digest}\n' if digest is not None else ''
 
 
 class CampaignTests(unittest.TestCase):
@@ -108,9 +121,10 @@ class CampaignTests(unittest.TestCase):
         self.out = self.root / 'campaign output'
         self.env = dict(os.environ, PATH=f"{self.root / 'bin'}:{os.environ['PATH']}",
                         TIERS_WRAPPER='wrapper', TIERS_DISK_BYTES='80000000000',
-                        CALLER_VAR='left alone', NEXTEST_DOUBLE_SPAWN='1',
+                        CALLER_VAR='left alone', NEXTEST_DOUBLE_SPAWN='1', FIXTURE_ROOT=str(self.root),
+                        CARGO_TARGET_DIR=str(self.root / 'caller artifacts'),
                         **{CAMPAIGN_SEED: 'caller campaign', CASE_SEED: 'caller case'})
-        for key in ('LIST_FAIL', 'INTERRUPT'):
+        for key in ('LIST_FAIL', 'INTERRUPT', 'INTERRUPT_STEP', 'BLOCK_WORKTREE'):
             self.env.pop(key, None)
         self.calls = self.root / 'calls.jsonl'
         self.git('init', '-q')
@@ -128,11 +142,18 @@ auto_reap = ["fuzzy::numbered"]
 ''')
         for name in ('bin/cargo', 'bin/df', 'bin/wrapper', 'tools/tiers/run'):
             self.file(name, FAKE).chmod(0o700)
+        self.file('tracked.txt', 'last\n')
+        self.last = self.commit('Last')
         self.file('tracked.txt', 'landed\n')
-        self.git('add', '.')
-        self.git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test', 'commit', '-qm', 'Fixture')
-        self.head = self.git('rev-parse', 'HEAD').strip()
+        self.head = self.commit('Current')
+        self.previous = self.file('previous campaign/campaign.json',
+                                  json.dumps(dict(tree='temper', commit=self.last))).parent
         self.select('fuzzy::fixed')
+
+    def commit(self, message):
+        self.git('add', '.')
+        self.git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test', 'commit', '-qm', message)
+        return self.git('rev-parse', 'HEAD').strip()
 
     def git(self, *args):
         return subprocess.run(['git', *args], cwd=self.root, stdin=subprocess.DEVNULL, check=True,
@@ -159,7 +180,7 @@ auto_reap = ["fuzzy::numbered"]
     def campaign(self, *args, exit=0, out=True, **env):
         result = self.invoke('temper', *(['--out', str(self.out)] if out else []), *args, **env)
         self.assertEqual(result.returncode, exit, (result.stdout, result.stderr))
-        actual = Path(result.stdout.splitlines()[0])
+        actual = self.root / result.stdout.splitlines()[0]
         if out:
             self.assertEqual(actual, self.out)
         data = json.loads((actual / 'campaign.json').read_text())
@@ -226,6 +247,38 @@ auto_reap = ["fuzzy::numbered"]
                 self.assertFalse(self.calls.exists())
         self.assertEqual((self.out / 'other').read_text(), 'do not replace')
 
+    def test_last_refusals_do_not_list_or_run(self):
+        name = 'invalid last/campaign.json'
+        prefix = '--last invalid last'
+        report = dict(tree='temper', commit=self.last)
+        refusals = [
+            (None, 'holds no campaign: campaign.json is missing'),
+            ('', 'holds no campaign: invalid campaign.json'),
+            ('[]', 'holds no campaign: campaign.json is not a JSON object'),
+            (json.dumps(dict(report, tree=None)), 'holds no campaign: campaign.json has no tree string'),
+            (json.dumps(dict(report, commit='F' * 40)), 'holds no campaign: campaign.json has no commit of 40 or 64 lower-case hex digits'),
+            (json.dumps(dict(report, commit='a' * 41)), 'holds no campaign: campaign.json has no commit of 40 or 64 lower-case hex digits'),
+            (json.dumps(dict(report, tree='jig')), 'is a campaign of jig, not temper'),
+            (json.dumps(dict(report, commit='0' * 40)), f"ran at {'0' * 40}, which this repository doesn't have"),
+        ]
+        for content, why in refusals:
+            with self.subTest(content=content):
+                if content is not None:
+                    self.file(name, content)
+                result = self.invoke('temper', '--last', 'invalid last', '--out', str(self.out))
+                self.assertEqual(result.returncode, 2)
+                self.assertIn(f'{prefix} {why}', result.stderr)
+                self.assertFalse(self.calls.exists())
+                self.assertFalse(self.out.exists())
+        source = self.root / name
+        source.unlink()
+        source.mkdir()  # An existing campaign.json that cannot be read as a file.
+        result = self.invoke('temper', '--last', 'invalid last', '--out', str(self.out))
+        self.assertEqual(result.returncode, 2)
+        self.assertIn(f'{prefix} holds no campaign: campaign.json is unreadable', result.stderr)
+        self.assertFalse(self.calls.exists())
+        self.assertFalse(self.out.exists())
+
     def test_seeded_rounds_and_listing(self):
         for r in range(1, 4):
             self.round_report(f'round-{r}', testcase('fuzzy::fixed'))
@@ -245,7 +298,8 @@ auto_reap = ["fuzzy::numbered"]
         for r, (seed, call) in enumerate(zip(PINNED, calls[2:]), 1):
             self.assertEqual(call['args'], ['--cpu', str(self.out / f'round-{r}'), 'temper', 'campaign'])
             self.assertEqual(call['env'], {CAMPAIGN_SEED: seed, CASE_SEED: None,
-                                          'CALLER_VAR': 'left alone', 'NEXTEST_DOUBLE_SPAWN': '1'})
+                                          'CALLER_VAR': 'left alone', 'NEXTEST_DOUBLE_SPAWN': '1',
+                                          'CARGO_TARGET_DIR': self.env['CARGO_TARGET_DIR']})
             self.assertLess(result.stdout.index(f'campaign: round {r} of 3 seed {seed}'),
                             result.stdout.index(f'run: round-{r}'))
 
@@ -280,7 +334,8 @@ auto_reap = ["fuzzy::numbered"]
         self.round_report('round-1-replay-2', testcase('fuzzy::panic', count=1))
         _, data, text, calls = self.campaign('--seed', 'AB' * 8, exit=1)
         self.assertEqual(set(data), set('tree pair commit seed rounds_asked selection rounds findings '
-                                        'nonreplaying unreplayed reach never_fell ended'.split()))
+                                        'nonreplaying unreplayed reach never_fell ended last'.split()))
+        self.assertIsNone(data['last'])
         self.assertEqual((data['tree'], data['pair'], data['commit'], data['seed'], data['rounds_asked'], data['ended']),
                          ('temper', PAIR, self.head, 'ab' * 8, 1, None))
         report, = data['rounds']
@@ -308,12 +363,13 @@ auto_reap = ["fuzzy::numbered"]
                                         identity=f'fixture::{test}', command=command,
                                         replay=dict(directory=f'round-1-replay-{k}', why=None,
                                                     verdict='failed' if k == 1 else 'passed',
-                                                    first_line='expected 7, saw 8' if k == 1 else None)))
+                                                    first_line='expected 7, saw 8' if k == 1 else None, input=None)))
             call = calls[2 + k]
             self.assertEqual(call['args'], ['--cpu', str(self.out / f'round-1-replay-{k}'), 'temper',
                                             'campaign', '--', '-E', expr])
             self.assertEqual(call['env'], {CAMPAIGN_SEED: None, CASE_SEED: seed, 'CALLER_VAR': 'left alone',
-                                           'NEXTEST_DOUBLE_SPAWN': '1'})
+                                           'NEXTEST_DOUBLE_SPAWN': '1',
+                                            'CARGO_TARGET_DIR': self.env['CARGO_TARGET_DIR']})
             self.assertIn(command, text)
         self.assertEqual(data['nonreplaying'], [dict(case2, round=1)])
         nonreplaying, = data['nonreplaying']
@@ -322,7 +378,9 @@ auto_reap = ["fuzzy::numbered"]
         self.assertTrue((self.out / nonreplaying['replay']['directory'] / 'junit.xml').is_file())
         finding, = data['findings']
         self.assertEqual(set(finding), set('binary test identity signature first_line round command count '
-                                           'seeds title body'.split()))
+                                           'seeds title body last'.split()))
+        self.assertIsNone(finding['last'])
+        self.assertIn('Last campaign: none\n', text)
         self.assertEqual(finding['title'], 'fixture::fuzzy::numbered fails on a fresh seed: expected 3, saw 4')
         self.assertIn('kept detail', finding['body'])
         self.assertEqual(data['unreplayed'], [])
@@ -416,6 +474,182 @@ auto_reap = ["fuzzy::numbered"]
                                    '0 cases ran, expected one'])
         for reason in reasons:
             self.assertIn(reason, text)
+
+    def assert_last_removed(self):
+        worktree = self.out / 'last-worktree'
+        self.assertFalse(worktree.exists())
+        self.assertNotIn(str(worktree), self.git('worktree', 'list', '--porcelain'))
+
+    def test_last_without_findings_does_not_add_a_worktree(self):
+        self.round_report('round-1', testcase('fuzzy::fixed', count=1))
+        trace = self.root / 'git-trace'
+        _, data, text, calls = self.campaign('--last', self.previous.name, GIT_TRACE=str(trace))
+        self.assertEqual(data['last'], dict(directory=str(self.previous), commit=self.last))
+        self.assertIn(f'Last campaign: {self.last} ({self.previous})\n', text)
+        self.assertEqual(data['findings'], [])
+        self.assertEqual([c['args'][1] for c in calls if c['name'] == 'run'], [str(self.out / 'round-1')])
+        self.assertNotIn('git worktree add', trace.read_text())
+        self.assert_last_removed()
+
+    def test_last_replays_each_first_case_after_all_rounds(self):
+        name, other = 'numbered', 'alphabetically_first'
+        seed, other_seed, later_seed = ('%016x' % n for n in (10, 11, 12))
+        self.select(name, other)
+        first = failed_case(name, seed, 'count 7')
+        second = failed_case(other, other_seed, 'other failure')
+        later = failed_case(name, later_seed, 'count 5')
+        self.round_report('round-1', first, second, status=100)
+        self.round_report('round-1-replay-1', failed_case(name, seed, 'changed on replay'), status=100)
+        self.round_report('round-1-replay-2', second, status=100)
+        self.round_report('round-2', later, status=100)
+        self.round_report('round-2-replay-1', later, status=100)
+        self.round_report('last-1', failed_case(name, seed, 'count 12'), status=100)
+        self.round_report('last-2', testcase(other, count=1))
+        _, data, text, calls = self.campaign('--last', self.previous.name, '--rounds', '2',
+                                             '--out', self.out.name, exit=1, out=False)
+        runs = [c for c in calls if c['name'] == 'run']
+        self.assertEqual([Path(c['args'][1]).name for c in runs], [
+            'round-1', 'round-1-replay-1', 'round-1-replay-2', 'round-2', 'round-2-replay-1', 'last-1', 'last-2'])
+        worktree = self.out / 'last-worktree'
+        for f, (test, first_seed, call) in enumerate(zip((name, other), (seed, other_seed), runs[-2:]), 1):
+            self.assertEqual(call['args'], ['--cpu', str(self.out / f'last-{f}'), 'temper', 'campaign', '--',
+                                             '-E', f'binary_id(={BINARY}) & test(={test})'])
+            self.assertEqual((call['cwd'], call['head']), (str(worktree), self.last))
+            self.assertEqual(call['env'], {CAMPAIGN_SEED: None, CASE_SEED: first_seed, 'CALLER_VAR': 'left alone',
+                                           'NEXTEST_DOUBLE_SPAWN': '1', 'CARGO_TARGET_DIR': str(worktree / 'target')})
+            self.assertEqual(call['rounds'], [1, 2])
+            self.assertEqual(call['replays'], ['failed', 'failed', 'failed'])
+        first, second = data['findings']
+        self.assertEqual((first['test'], first['signature'], first['count']), (name, 'count N', 2))
+        self.assertEqual(first['seeds'], [dict(seed=seed, round=1), dict(seed=later_seed, round=2)])
+        self.assertEqual((second['test'], second['count']), (other, 1))
+        place = f"At the last campaign's commit, {self.last}: "
+        for last, body in runs[-2]['findings']:
+            self.assertEqual(last, dict(directory=None, verdict=None, why=None, first_line=None, input=None, compared=None))
+            self.assertIn(place + 'pending.\n', body)
+        self.assertEqual(runs[-1]['findings'][0], [first['last'], first['body']])
+        self.assertEqual(runs[-1]['findings'][1], runs[-2]['findings'][1])
+        for finding, verdict, words in ((first, 'same', 'failed the same way'), (second, 'passed', 'passed')):
+            self.assertEqual(finding['last']['verdict'], verdict)
+            self.assertEqual(finding['last']['compared'], 'not compared')
+            line = place + words + '; input not compared.'
+            self.assertIn(line, finding['body'].splitlines())
+            self.assertIn(line, text.splitlines())
+        self.assertIsNone(data['ended'])
+        self.assert_last_removed()
+
+    def test_last_absence_other_failures_and_unobserved_runs(self):
+        seed = '0000000000000011'
+        rows = [
+            ('build', (), dict(status=2, junit=False), 'unobserved', 'run did not run (exit 2)', None),
+            ('before', (), dict(timeout=True, junit=False), 'unobserved', 'cut short by the wall', None),
+            ('during', (testcase('during', failure='test timeout'),), dict(status=100), 'unobserved', 'test unfinished', None),
+            ('many', (testcase('many', count=1), testcase('extra', count=1)), {}, 'unobserved', '2 tests reported, expected one', None),
+            ('other', (testcase('other', binary='other', count=1),), {}, 'unobserved', 'another test ran', None),
+            ('gone', (), dict(status=4, junit=False), 'absent', 'no test selected (exit 4)', None),
+            ('no_seam', (testcase('no_seam', output='fuzzy cases: fixture::another 1'),), {},
+             'absent', 'no case count for fixture::no_seam', None),
+            ('differ', (failed_case('differ', seed, 'got stuck', output=
+                                    'fuzzy case: fixture::elsewhere seed 0000000000000011: unrelated'),),
+             dict(status=100), 'otherwise', None, 'got stuck'),
+            ('wrong_case', (failed_case('wrong_case', '000000000000000a', 'count 12'),),
+             dict(status=100), 'otherwise', None, 'count 12'),
+            ('outside', (testcase('outside', failure='test failure', message='setup failed'),),
+             dict(status=100), 'otherwise', None, 'setup failed'),
+        ]
+        cases = [failed_case(name, seed, 'count 7') for name, *_ in rows]
+        self.round_report('round-1', *cases, status=100)
+        for f, (case, (_, tests, options, *_)) in enumerate(zip(cases, rows), 1):
+            self.round_report(f'round-1-replay-{f}', case, status=100)
+            self.round_report(f'last-{f}', *tests, **options)
+        _, data, text, calls = self.campaign('--last', str(self.previous), exit=1)
+        self.assertIsNone(data['ended'])
+        self.assertEqual([Path(c['args'][1]).name for c in calls if 'head' in c],
+                         [f'last-{f}' for f in range(1, len(rows) + 1)])
+        self.assertEqual(len(data['findings']), len(rows))
+        words = {'unobserved': 'unobserved', 'absent': 'ran no case there', 'otherwise': 'failed otherwise'}
+        for f, (finding, (name, _, _, verdict, why, first_line)) in enumerate(zip(data['findings'], rows), 1):
+            with self.subTest(name=name):
+                self.assertEqual(finding['test'], name)
+                self.assertEqual(finding['last'], dict(directory=f'last-{f}', verdict=verdict, why=why,
+                                                       first_line=first_line, input=None, compared='not compared'))
+                line = (f"At the last campaign's commit, {self.last}: {words[verdict]}: "
+                        f'{why or first_line}; input not compared.')
+                self.assertIn(line, finding['body'].splitlines())
+                self.assertIn(line, text.splitlines())
+        self.assert_last_removed()
+
+    def test_last_compares_only_matching_inputs(self):
+        seed = '00000000000000ab'
+        a, b = '0a' * 32, '1b' * 32
+        rows = [('same', a, a, 'same', 'the same'), ('differs', a, b, 'differs', 'differs'),
+                ('neither', None, None, 'not compared', 'not compared'),
+                ('current_only', a, None, 'not compared', 'not compared'),
+                ('last_only', None, b, 'not compared', 'not compared')]
+        self.round_report('round-1', *(failed_case(name, seed, 'count 7', output=input_line(name, seed, b))
+                                      for name, *_ in rows), status=100)
+        for f, (name, current, previous, _, _) in enumerate(rows, 1):
+            decoys = (input_line('another', seed, b) + input_line(name, '00000000000000ac', b)
+                      + input_line(name, seed, 'B' * 64) + input_line(name, seed, 'c' * 63)
+                      + 'ignore ' + input_line(name, seed, b))
+            output = input_line(name, seed.upper(), current)
+            if current is not None:
+                output += input_line(name, seed, b)  # The first matching line wins.
+            self.round_report(f'round-1-replay-{f}', failed_case(name, seed, 'count 8', output=decoys + output), status=100)
+            self.round_report(f'last-{f}', testcase(name, count=1, output=decoys + input_line(name, seed, previous)))
+        _, data, text, _ = self.campaign('--last', str(self.previous), exit=1)
+        for case, finding, (name, current, previous, comparison, words) in zip(data['rounds'][0]['cases'], data['findings'], rows):
+            with self.subTest(name=name):
+                self.assertEqual((case['replay']['input'], finding['last']['input'], finding['last']['compared']),
+                                 (current, previous, comparison))
+                line = f"At the last campaign's commit, {self.last}: passed; input {words}."
+                self.assertIn(line, finding['body'].splitlines())
+                self.assertIn(line, text.splitlines())
+
+    def test_last_worktree_add_failure_is_unobserved(self):
+        case = failed_case('numbered', '0000000000000011', 'count 7')
+        self.round_report('round-1', case, status=100)
+        self.round_report('round-1-replay-1', case, status=100)
+        _, data, text, calls = self.campaign('--last', str(self.previous), exit=1, BLOCK_WORKTREE='1')
+        self.assertIsNone(data['ended'])
+        self.assertEqual([Path(c['args'][1]).name for c in calls if c['name'] == 'run'], ['round-1', 'round-1-replay-1'])
+        finding, = data['findings']
+        why = finding['last']['why']
+        self.assertIn('last-worktree', why)
+        self.assertNotIn('\n', why)
+        self.assertEqual(finding['last'], dict(directory=None, verdict='unobserved', why=why,
+                                               first_line=None, input=None, compared='not compared'))
+        self.assertIn(f"At the last campaign's commit, {self.last}: unobserved: {why}; input not compared.", text)
+        self.assertEqual((self.out / 'last-worktree').read_text(), 'not a worktree')
+
+    def test_early_end_keeps_last_replays_pending(self):
+        case = failed_case('numbered', '0000000000000011', 'count 7')
+        self.round_report('round-1', case, status=100)
+        self.round_report('round-1-replay-1', case, status=100)
+        self.stage('round-2', 2, 'build failed\n')
+        self.round_report('last-1', testcase('numbered', count=1))
+        _, data, text, calls = self.campaign('--last', str(self.previous), '--rounds', '2', exit=2)
+        self.assertEqual([Path(c['args'][1]).name for c in calls if c['name'] == 'run'],
+                         ['round-1', 'round-1-replay-1', 'round-2'])
+        self.assertEqual(data['ended']['step'], 'round')
+        self.assertIsNone(data['findings'][0]['last']['verdict'])
+        self.assertIn(f"At the last campaign's commit, {self.last}: pending.", text)
+        self.assert_last_removed()
+
+    def test_interruption_during_last_replay_removes_worktree(self):
+        first = failed_case('numbered', '0000000000000011', 'count 7')
+        second = failed_case('other', '0000000000000012', 'count 8')
+        self.round_report('round-1', first, second, status=100)
+        self.round_report('round-1-replay-1', first, status=100)
+        self.round_report('round-1-replay-2', second, status=100)
+        self.round_report('last-1', testcase('numbered', count=1))
+        _, data, text, _ = self.campaign('--last', str(self.previous), exit=2,
+                                         INTERRUPT=str(int(signal.SIGTERM)), INTERRUPT_STEP='last-2')
+        self.assertEqual([finding['last']['verdict'] for finding in data['findings']], ['passed', None])
+        self.assertEqual(data['ended'], dict(step='interrupted', round=None, replay=2, returncode=23,
+                                             output='run got SIGTERM'))
+        self.assertIn('Ended at interrupted', text)
+        self.assert_last_removed()
 
     def test_grouping_in_order_bounded_seeds_and_zero_reach(self):
         name, other = 'fuzzy::numbered', 'fuzzy::alphabetically_first'

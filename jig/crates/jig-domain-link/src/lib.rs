@@ -105,7 +105,7 @@ impl Worker {
     }
 }
 
-/// A startup value exceeds the priced configured membership.
+/// Configured worker membership exceeds its priced bounds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Problem {
     Workers { limit: u32 },

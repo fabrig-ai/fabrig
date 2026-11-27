@@ -75,7 +75,6 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::PartsMarked { .. }
         | core::Event::Waits { .. }
         | core::Event::Marked { .. }
-        | core::Event::ReadLoaded { .. }
         | core::Event::PublicAnswered { .. }
         | core::Event::PublicDurable { .. }
         | core::Event::Application { .. }
@@ -98,7 +97,6 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::ConnectorRepair { .. }
         | core::Event::PersonTask { .. }
         | core::Event::Period { .. }
-        | core::Event::TranscriptLoaded { .. }
         | core::Event::People(..)
         | core::Event::Fleet(..)
         | core::Event::PartPayload { .. }
@@ -107,18 +105,9 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::AcceptedTurn { .. }
         | core::Event::RefusedPayload { .. }
         | core::Event::Activate { .. }
-        | core::Event::EndedTaskLoaded { .. }
-        | core::Event::SeenConversationLoaded { .. }
-        | core::Event::EndedReadLoaded { .. }
-        | core::Event::PartyInputsLoaded { .. }
-        | core::Event::EndedProposal { .. }
-        | core::Event::DecidedProposal { .. }
-        | core::Event::EndedPersonTask { .. }
-        | core::Event::EndedEscalation { .. }
         | core::Event::NamedAnswer { .. }
         | core::Event::NamedAction { .. }
-        | core::Event::DelegateValidated { .. }
-        | core::Event::DelegateInputFailed { .. }
+        | core::Event::Delegate { .. }
         | core::Event::DelegateHoldings { .. }
         | core::Event::ProcedureHoldings { .. }
         | core::Event::ProcedureStep { .. }
@@ -222,13 +211,12 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Bound { .. }
         | root::Delivery::Procedure { .. }
         | root::Delivery::Relay { .. }
-        | root::Delivery::ReadEscalationDecision { .. }
         | root::Delivery::Fleet(_)
         | root::Delivery::AssignedJob { .. }
         | root::Delivery::Assigned { .. }
         | root::Delivery::ForgeRead { .. }
         | root::Delivery::PartLoad { .. }
-        | root::Delivery::ReadLoad { .. }
+        | root::Delivery::EngineStore(_)
         | root::Delivery::PublicWait { .. }
         | root::Delivery::Restarting { .. }
         | root::Delivery::LimitSettingsCommitted { .. }
@@ -236,7 +224,6 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Refuse { .. }
         | root::Delivery::PartBusy { .. }
         | root::Delivery::TurnBusy { .. }
-        | root::Delivery::NotesLoad { .. }
         | root::Delivery::Start(_)
         | root::Delivery::Load { .. } => None,
     }

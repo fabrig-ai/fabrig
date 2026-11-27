@@ -1,5 +1,7 @@
 //! Offered topic calls are reads before they enter the task hub (domain/authority-checks.md, 1.5).
-use crate::{CallKey, CallPart, Core, Event, Family, Held, Limits, Request, fresh, routing::Work};
+use crate::{
+    CallHolder, CallKey, CallPart, Core, Event, Family, Held, Limits, Request, RoutedCall, fresh, routing::Work,
+};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;
@@ -7,7 +9,7 @@ use skein_lib::{Env, Queue, ReplyTo};
 
 pub(crate) fn subscribe(
     core: &mut Core,
-    env: &Env<Limits>,
+    _env: &Env<Limits>,
     work: &mut Queue<Work>,
     to: ReplyTo,
     key: CallKey,
@@ -23,10 +25,7 @@ pub(crate) fn subscribe(
         out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part: record.part })));
         return out;
     }
-    if core.pending_calls.contains_key(&key)
-        || core.call_parts.len().saturating_add(core.pending_calls.len()) >= env.limits.call_records
-        || core.counters.deployment().calls == u64::MAX
-    {
+    if core.counters.deployment().calls == u64::MAX || !core.reserve_call(key, CallHolder::Routed) {
         out.push(Request::Now(Box::new(crate::Now::EffectAnswer { to, key, part: CallPart::Unavailable })));
         return out;
     }
@@ -46,7 +45,7 @@ pub(crate) fn subscribe(
         crate::routing::run::calls::call_decision(core, &mut out, to, key, part);
     } else if let Some(subscription) = fresh(&mut core.counters, Family::Message) {
         let token = to.into_token();
-        let token = core.reserve_connector_subscription(token, key, subscription).expect("topic call room preflighted");
+        let token = core.fly_call(token, RoutedCall::Subscribe { key, subscription });
         work.push(Work::Event(Event::Tasks(tasks::Event::SubscribeTopic {
             reply_to: ReplyTo::new(token),
             task: key.task,

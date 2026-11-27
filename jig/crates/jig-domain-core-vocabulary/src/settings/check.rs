@@ -950,9 +950,20 @@ fn authority_refs(
     connectors: &[u16],
     models: &[crate::Model],
 ) -> bool {
-    let count = u32::try_from(models.len()).expect("configured model count");
-    if !value.models.is_all() && value.models.bits().checked_shr(count).unwrap_or(0) != 0 {
-        return false;
+    if !value.models.is_all() {
+        let mut bits = value.models.bits();
+        for model in models {
+            if bits == 0 {
+                break;
+            }
+            if bits & 1 != 0 && model.is_hole() {
+                return false;
+            }
+            bits >>= 1_u32;
+        }
+        if bits != 0 {
+            return false;
+        }
     }
     for grant in &value.grants {
         if !connectors.contains(&grant.connector) {
@@ -1026,7 +1037,7 @@ pub fn count(setting: Setting, counts: &mut [u32; 3], limits: &Limits) -> Result
     *count = count.saturating_add(1);
     if *count > bound { Err(Failure { setting, fault: Fault::Count, detail: None }) } else { Ok(()) }
 }
-fn effort_valid(models: &[crate::Model], chosen: tasks::ModelEffort) -> bool {
+pub(super) fn effort_valid(models: &[crate::Model], chosen: tasks::ModelEffort) -> bool {
     let Some(model) = models.get(usize::from(chosen.model)) else { return false };
     if model.is_hole() {
         return false;

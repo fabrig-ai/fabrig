@@ -36,10 +36,8 @@ fn prepare_three(world: &mut World, job: &host::JobAssignment, conflicted: u64) 
         let candidate =
             fake::commit_tree(&mut world.fake, &world.fake_env.limits, base, Some(head), files, message.as_bytes())
                 .expect("clean prefix");
-        assert_eq!(
-            world.external(1, raw::Op::Git(raw::Git::PushNew { branch: member.branch.clone(), commit: candidate })),
-            raw::Answer::PushNew { existing: None }
-        );
+        assert!(world.fake.branch(b"org/repo", &member.branch).is_none(), "new prefix branch");
+        world.job_push(Token::new(7), job, &member.branch, candidate, 1);
         base = candidate;
         combined.push(serde_json::json!({"member": index + 1, "by": "merge"}));
     }
@@ -178,10 +176,7 @@ fn drill_16_a_batch_four_conflict_is_settled_by_the_merge_job_without_an_agent()
     let resolved =
         fake::commit_tree(&mut world.fake, &world.fake_env.limits, head, Some(base), files, b"Settle the conflict")
             .expect("merge job resolves");
-    assert_eq!(
-        world.external(1, raw::Op::Git(raw::Git::Push { branch, commit: resolved, expected: Some(head) })),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    world.job_push(Token::new(7), &merge, &branch, resolved, 1);
     let event = world.protocol.answer_job(
         Token::new(7),
         merge.run.raw(),

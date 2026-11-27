@@ -11,7 +11,9 @@ models and a charter name.
   (`../tasks/README.md`, section 3; `../authority.md`, section 3), so the store's and
   the wire's indices hold across a change and a release. The bound is
   `MODELS`, 64, for the deployment's life; a number no setting has is a
-  hole, which nothing offers or resolves. The binary's defaults take low
+  hole, which nothing offers or resolves: a template's choice or an
+  authority's bit naming one is refused as a number past the highest
+  is. The binary's defaults take low
   numbers, 1 to 32, and keep them; a model a person or a provider's list
   adds takes the highest free number from 64 down to 33, a deployment's
   own range (1), so a release's new default never meets one. With none
@@ -52,8 +54,12 @@ models and a charter name.
   project's chats (`../../client/domain/contract/documents.md`, 1).
 - **Who hears.** A decision or a start's restore that changes the
   catalogue asks the root to tell the clients' component and the store,
-  before its commit (`Ask::Catalogue`; `../../protocol/store/records.md`);
-  the tasks child hears the efforts with the charters (2), the fleet its
+  before its commit (`Ask::Catalogue`; `../../protocol/store/records.md`).
+  Both keep each model at its own number, whatever the gaps: the store's
+  names are one per number up to the highest, a hole's name and efforts
+  empty, as its names at open are, and the clients' copy is one row per
+  number, so a stored index or bit is the number less one. The
+  tasks child hears the efforts with the charters (2), the fleet its
   needs, and the views mark every `me`.
 - **An owner's act.** `ChangeModel` (`../../client/domain/contract/requests.md`, 2)
   turns one model's picker on or off, or adds a model by name, a provider

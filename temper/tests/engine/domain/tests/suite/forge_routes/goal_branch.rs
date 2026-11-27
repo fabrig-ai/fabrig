@@ -609,7 +609,7 @@ fn merging_siblings() -> (World, engine::Assignment, Box<[u8]>, u64) {
     let first_branch = super::goal_landing::row(&world, first[0].task).branch.clone();
     world.merges = 0;
     world.hold_write_answers = Some(HoldWrite::Merge);
-    change_tool::land_change(&mut world, &producer, &first_branch);
+    change_tool::deliver_change(&mut world, &producer, &first_branch, b"Small fix");
     for _ in 0..STEPS {
         if !world.held_write_answers.is_empty() {
             break;
@@ -620,7 +620,7 @@ fn merging_siblings() -> (World, engine::Assignment, Box<[u8]>, u64) {
     (world, goal, branch, second[0].task)
 }
 
-fn hint_goal_branch(world: &mut World, branch: &[u8]) {
+pub(super) fn hint_goal_branch(world: &mut World, branch: &[u8]) {
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
         hint: skein_forge::api::Hint {
             repository: forge_world::REPO,
@@ -788,14 +788,19 @@ fn goal_drift(movement: BranchMove) {
         BranchMove::Backwards | BranchMove::Deleted => {
             world.external(1, raw::Op::Write(raw::Write::DeleteBranch { branch: branch.clone() }));
             if matches!(movement, BranchMove::Backwards) {
-                world.external(1, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
+                assert_eq!(
+                    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
+                    raw::Answer::Branch(raw::Created::Created)
+                );
                 Some(1)
             } else {
                 None
             }
         }
     };
-    if matches!(movement, BranchMove::Outside) {
+    if matches!(movement, BranchMove::Outside | BranchMove::Backwards) {
+        // The backward move is to an older recorded tip. Its actor is what
+        // distinguishes the reset from a read behind temper's writes.
         world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
             hint: skein_forge::api::Hint {
                 repository: forge_world::REPO,
@@ -868,7 +873,8 @@ fn assert_drift_account(world: &World, goal: u64, branch: &[u8], expected: u64, 
         || "deletion".into(),
         |head| String::from_utf8(engine::commit_text(&translate::commit(head)).into()).expect("head text"),
     );
-    assert!(words.contains(&format!("observed {moved}")), "{words}");
+    assert!(words.contains(&format!("found {moved}")), "{words}");
+    assert!(words.contains("temper's last write on it: merge into branch"), "{words}");
 }
 
 #[test]
@@ -891,8 +897,18 @@ fn a_forward_move_without_a_goal_writer_names_the_resource_and_move() {
     goal_drift(BranchMove::Unowned);
 }
 
-fn delayed_goal_ancestry(world: &mut World, branch: &[u8]) -> engine::Event {
+fn delayed_goal_merge_readback(world: &mut World, branch: &[u8]) -> engine::Event {
+    use skein_forge::api::{Answer, Read, Write};
     let head = translate::commit(branch_tip(world, branch));
+    let number = world
+        .writes
+        .iter()
+        .rev()
+        .find_map(|write| match write {
+            Write::Merge { number, .. } => Some(*number),
+            _ => None,
+        })
+        .expect("merge sent");
     world.forge_reads = Some(Vec::new());
     hint_goal_branch(world, branch);
     for _ in 0..STEPS {
@@ -900,20 +916,20 @@ fn delayed_goal_ancestry(world: &mut World, branch: &[u8]) -> engine::Event {
         if let Some(index) = world.events.iter().position(|event| {
             matches!(event,
             engine::Event::Forge(event) if matches!(event.as_ref(), forge_top::Event::Client(
-                skein_forge_client::Event::Answered { call, result: Ok(skein_forge::api::Answer::Commits { .. }), .. }
-            ) if world.forge_reads.as_ref().expect("recorded reads").iter().any(|(asked, read)|
-                asked == call && matches!(read, skein_forge::api::Read::Commits { before, page: 1, .. } if *before == head))))
+                skein_forge_client::Event::Answered { call, result: Ok(Answer::Pull(pull)), .. }
+            ) if pull.merged == Some(head) && world.forge_reads.as_ref().expect("recorded reads").iter().any(|(asked, read)|
+                asked == call && *read == Read::Pull { number, ci: false })))
         }) {
-            return world.events.remove(index).expect("selected ancestry read");
+            return world.events.remove(index).expect("selected merge readback");
         }
     }
-    panic!("the keep reads the observed merge's ancestry before its confirmation")
+    panic!("the keep reads the observed merge's pull before its confirmation: {:?}", world.forge_reads)
 }
 
 #[test]
 fn a_goal_merge_confirmed_while_its_observation_is_being_compared_is_not_drift() {
     let (mut world, goal, branch, sibling) = merging_siblings();
-    let comparison = delayed_goal_ancestry(&mut world, &branch);
+    let comparison = delayed_goal_merge_readback(&mut world, &branch);
     world.release_write_answers();
     for _ in 0..STEPS {
         world.tick();
@@ -942,16 +958,15 @@ fn a_design_answer_before_a_late_merge_record_keeps_the_goals_newer_tip() {
             break;
         }
     }
-    let beside = forge_hold(&world, &branch).expect("held goal").beside.expect("design read beside the merge");
-    assert_eq!(beside.head, translate::commit(design));
-    assert_eq!(beside.waiting, None);
+    let hold = forge_hold(&world, &branch).expect("held goal");
+    assert!(hold.design_writers.is_empty());
+    assert!(hold.drift.is_none());
     world.release_write_answers();
     world.until(Until::Ready);
     observe_goal_branch(&mut world, &branch);
     assert_eq!(branch_tip(&mut world, &branch), design);
     let hold = forge_hold(&world, &branch).expect("held goal");
     assert!(hold.drift.is_none(), "{hold:?}");
-    assert_eq!(hold.beside, None);
     let name = hold.name.clone();
     assert!(world.store.rows.values().any(|row| matches!(row,
         Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::BranchHead(head)

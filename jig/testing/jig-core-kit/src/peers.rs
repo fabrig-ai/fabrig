@@ -234,6 +234,7 @@ impl Peers {
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
             | root::Delivery::System { .. }
+            | root::Delivery::Store(_)
             | root::Delivery::Start(_)
             | root::Delivery::Procedure { .. } => {}
         }

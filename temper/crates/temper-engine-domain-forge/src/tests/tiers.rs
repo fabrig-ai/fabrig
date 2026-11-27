@@ -201,7 +201,7 @@ fn a_tier_waits_when_a_call_has_reserved_the_last_room() {
     let waiting = tier_step(&mut d, DISPATCH, false);
     assert_eq!(choice(&waiting), Some(&TierDecision::Wait { until: None }));
     assert!(!d.entries.contains_key(&DISPATCH));
-    d.unreserve_call(&env(), owner, &mut Queue::uncapped());
+    d.unreserve_call(&env(), owner, 1, &mut Queue::uncapped());
     let sent = tier_step(&mut d, DISPATCH, false);
     assert!(sent.iter().any(|request| matches!(request, Request::Save { record: Stored::Entry { entry, .. }, .. } if entry.number == DISPATCH)));
     assert!(matches!(d.entries.get(&DISPATCH).unwrap().entry.effect.write, api::Write::Dispatch { .. }));

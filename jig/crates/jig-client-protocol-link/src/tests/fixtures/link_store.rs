@@ -85,6 +85,7 @@ pub fn store_asks() -> List<c::Ask> {
         },
         c::Ask::Lift { hold: u64::MAX, revision, with_tasks: true },
         c::Ask::Release { project: 7, task: u64::MAX, revision, again: Some(true) },
+        c::Ask::Measure { project: 7, task: u64::MAX, revision },
         c::Ask::Amend {
             project: 7,
             task: u64::MAX,
@@ -142,7 +143,7 @@ pub fn store_asks() -> List<c::Ask> {
 pub fn list<T, const N: usize>(values: [T; N]) -> List<T> {
     List::from_boxed(Box::new(values))
 }
-pub fn store_read(value: Saved) -> Record {
+pub fn store_read(value: RequestRecord<jig_client_domain::Held>) -> Record {
     let mut harness = Harness::new(&limits());
     harness.save(value);
     stored(&harness)
@@ -172,7 +173,7 @@ pub fn table_from_store(value: &Record) -> w::TableEntry {
     table
 }
 impl Harness {
-    pub fn save(&mut self, value: Saved) {
+    pub fn save(&mut self, value: RequestRecord<jig_client_domain::Held>) {
         self.link.step(Time::ZERO, Event::Save { record: value }, &mut self.out);
     }
     pub fn start_store(&mut self, kept: List<Record>) {
@@ -224,7 +225,7 @@ impl Harness {
         }
         count
     }
-    pub fn restored(&self, expected: &Saved) -> bool {
+    pub fn restored(&self, expected: &RequestRecord<jig_client_domain::Held>) -> bool {
         for value in &self.out {
             match value {
                 Request::Kept { record } if record == expected => return true,

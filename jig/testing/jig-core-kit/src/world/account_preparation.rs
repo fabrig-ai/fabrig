@@ -6,18 +6,14 @@ use skein_lib::Duration;
 /// The subject and display name every sign-in at the fake accounts' component answers with.
 const SIGNED_IN: &[u8] = b"signed-in";
 impl World {
-    pub(super) fn transcript_loaded(&mut self, now: core::Now) {
+    pub(super) fn load_window(&mut self, load: core::engine::store::Out) {
         if self.fail_account_before_workspace {
             self.fail_account_before_workspace = false;
             self.events.push_back(root::Event::Core(core::Event::Account(accounts::Event::Component(
                 accounts::FromComponent::Failed { account: 1, failure: accounts::Failure::SignInAgain },
             ))));
         }
-        if let core::Now::StartPreparation { .. } = &now {
-            self.store.ask(super::StoreOut::Now(now));
-        } else {
-            panic!("preparation route");
-        }
+        self.store.ask(super::StoreOut::Engine(load));
     }
 }
 

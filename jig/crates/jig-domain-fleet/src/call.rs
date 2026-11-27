@@ -54,6 +54,10 @@ fn live(domain: &Domain, id: Id<Attempt>) -> Live {
     if entry.job.is_some() {
         return Live::Not;
     }
+    placed(domain, entry)
+}
+
+fn placed(domain: &Domain, entry: &Attempt) -> Live {
     match &entry.state {
         State::Claimed { at: Where::On(channel), .. } => Live::On(channel::token(&domain.channels, *channel)),
         State::Claimed { at: Where::Adrift { .. }, .. } => Live::Adrift,
@@ -201,6 +205,14 @@ pub(crate) fn credential_notice(
     }
 }
 
+/// An application ask can also belong to a job. It must still name a live
+/// claim on the channel where the fleet placed it.
+fn owns_ask(domain: &Domain, channel: Token, run: Token, attempt: Token) -> bool {
+    let Some(&id) = domain.names.get(&(run, attempt)) else { return false };
+    let Some(entry) = domain.attempts.get(id) else { return false };
+    placed(domain, entry) == Live::On(channel)
+}
+
 /// Application asks keep no pending table: the root supplies their full address.
 pub(crate) fn ask(
     domain: &mut Domain,
@@ -211,7 +223,7 @@ pub(crate) fn ask(
     bytes: Box<[u8]>,
     out: &mut Queue<Request>,
 ) {
-    if owned(domain, channel, run, attempt).is_some() {
+    if owns_ask(domain, channel, run, attempt) {
         out.push(Request::Ask { channel, run, attempt, number, bytes });
     } else {
         out.push(Request::Asked { channel, run, attempt, number, answer: jig_domain_link::AskAnswer::Refused });
@@ -227,7 +239,7 @@ pub(crate) fn asked(
     answer: jig_domain_link::AskAnswer,
     out: &mut Queue<Request>,
 ) {
-    if owned(domain, channel, run, attempt).is_some() {
+    if owns_ask(domain, channel, run, attempt) {
         out.push(Request::Asked { channel, run, attempt, number, answer });
     }
 }

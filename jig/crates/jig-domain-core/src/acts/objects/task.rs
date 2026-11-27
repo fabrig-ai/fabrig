@@ -92,7 +92,7 @@ fn control(
                 Ok(())
             }
         },
-        Control::Release { .. } => match &row.phase {
+        Control::Release { .. } | Control::Measure => match &row.phase {
             tasks::Phase::Held { .. } => Ok(()),
             tasks::Phase::Closing(closing) => Err(crate::routing::refusals::ended(&closing.ending)),
             tasks::Phase::Ended(ending) => Err(crate::routing::refusals::ended(ending)),

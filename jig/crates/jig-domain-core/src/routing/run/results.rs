@@ -12,7 +12,7 @@ use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, Token};
 
-use crate::{Core, Event, Held, Limits, Now, Request, RetainedResult};
+use crate::{Core, Event, Limits, Request, RetainedResult};
 
 #[derive(Hash, Debug)]
 pub(crate) struct ResultRead {
@@ -72,6 +72,7 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
         }
         let Some(request) = request else { break };
         if let Some(read) = core.take_result_read(request) {
+            crate::loads::cancel_waiting_result(core, request);
             match read.why {
                 ReadFor::Delegate { .. }
                 | ReadFor::Conclude { .. }
@@ -80,7 +81,7 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
                 | ReadFor::Batch(_) => {}
                 ReadFor::Amendment(amendment) => match amendment.replay {
                     Replay::Agent { key, .. } => {
-                        let _pending = core.pending_calls.remove(&key);
+                        core.release_pending_call(key);
                     }
                     Replay::Person { .. } => {}
                 },
@@ -90,7 +91,7 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
 }
 
 pub(crate) fn begin(core: &mut Core, work: &mut Queue<Work>, task: u64, ids: Box<[u64]>) -> Queue<Request> {
-    let mut out = Queue::uncapped();
+    let out = Queue::uncapped();
     for (_, flight) in &core.flights {
         let crate::routing::flight::Flight::ResultRead(read) = flight else { continue };
         match read.why {
@@ -124,16 +125,16 @@ pub(crate) fn begin(core: &mut Core, work: &mut Queue<Work>, task: u64, ids: Box
             ids,
             at: 0,
         };
-        retain(core, &mut out, read);
+        retain(core, read);
     }
     out
 }
 
 // Held, so that it sees the commit that ended the dependency (`domain/engine/decisions.md`, 1.3).
-fn retain(core: &mut Core, out: &mut Queue<Request>, read: ResultRead) {
+fn retain(core: &mut Core, read: ResultRead) {
     let task = *read.ids.get(read.at).expect("pending result ID");
     let request = core.fly(crate::routing::flight::Flight::ResultRead(read));
-    out.push(Request::Held(Box::new(Held::Load(Box::new(Now::EndedTask { request, task })))));
+    crate::loads::wait_point(core, request, task);
 }
 
 #[expect(clippy::too_many_lines, reason = "each retained read resumes its owning route")]
@@ -150,7 +151,7 @@ pub(crate) fn loaded(
     let Some(mut read) = core.take_result_read(request) else { return out };
     match read.why {
         ReadFor::Delegate { party, task, ended } => {
-            delegate_loaded(core, env, work, &mut out, party, task, ended, row, busy);
+            delegate_loaded(core, env, work, party, task, ended, row, busy);
         }
         ReadFor::Conclude { party, task } => {
             let outcome = concluded_outcome(core, party, task, row, busy);
@@ -239,7 +240,7 @@ pub(crate) fn loaded(
             read.results.push(result).expect("one result per ID");
             read.at = read.at.checked_add(1).expect("bounded result position");
             if read.at < read.ids.len() {
-                retain(core, &mut out, read);
+                retain(core, read);
             } else {
                 assert!(
                     core.dependency_results.insert(task, read.results.into_boxed()).is_ok(),
@@ -264,29 +265,18 @@ pub(crate) fn wait(
         amendment_reads::busy(core, work, out, amendment.replay);
         return;
     }
-    match &amendment.replay {
-        Replay::Agent { key, .. } => {
-            assert!(core.pending_calls.insert(*key, true).is_ok(), "waiting amendment call room");
-        }
-        Replay::Person { .. } => {}
-    }
+    // An agent amendment keeps the same place across each read and replay.
     let read = ResultRead {
         why: ReadFor::Amendment(Box::new(amendment)),
         ids: Box::new([next]),
         at: 0,
         results: List::with_capacity(0),
     };
-    retain(core, out, read);
+    retain(core, read);
 }
 
 /// Uses the same held point read as amendments; no new stored or wire form.
-pub(crate) fn wait_batch(
-    core: &mut Core,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
-    next: u64,
-    batch: BatchRead,
-) {
+pub(crate) fn wait_batch(core: &mut Core, work: &mut Queue<Work>, next: u64, batch: BatchRead) {
     if core.result_read_flights() == core.flight_tasks_capacity {
         batch_reads::terminal(
             core,
@@ -298,7 +288,6 @@ pub(crate) fn wait_batch(
     }
     retain(
         core,
-        out,
         ResultRead {
             why: ReadFor::Batch(Box::new(batch)),
             ids: Box::new([next]),
@@ -338,6 +327,7 @@ pub(crate) fn clear_person(core: &mut Core, person: u64) {
         }
         let Some(request) = found else { break };
         if let Some(read) = core.take_result_read(request) {
+            crate::loads::cancel_waiting_result(core, request);
             match read.why {
                 ReadFor::Amendment(read) => discard_party(core, read.replay),
                 ReadFor::Batch(read) => batch_reads::discard(core, read.request),
@@ -351,14 +341,7 @@ pub(crate) fn clear_person(core: &mut Core, person: u64) {
 }
 
 /// A close of an ended chat uses the existing durable ended-task point load.
-pub(crate) fn closed_subject(
-    core: &mut Core,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
-    request: Token,
-    project: u32,
-    task: u64,
-) {
+pub(crate) fn closed_subject(core: &mut Core, work: &mut Queue<Work>, request: Token, project: u32, task: u64) {
     if core.result_read_flights() == core.flight_tasks_capacity {
         work.push(Work::Event(Event::People(jig_domain_people::Event::Decided {
             request,
@@ -372,7 +355,7 @@ pub(crate) fn closed_subject(
         at: 0,
         results: List::with_capacity(0),
     };
-    retain(core, out, read);
+    retain(core, read);
 }
 
 fn closed_outcome(
@@ -398,12 +381,32 @@ fn closed_outcome(
     }
 }
 
+/// Stopping accepts issued terminals but asks for no more waiting rows.
+pub(crate) fn discard(core: &mut Core, request: Token) {
+    let Some(read) = core.take_result_read(request) else { return };
+    match read.why {
+        ReadFor::Amendment(read) => discard_party(core, read.replay),
+        ReadFor::Batch(read) => batch_reads::discard(core, read.request),
+        ReadFor::Conclude { party, .. } | ReadFor::Delegate { party, .. } => {
+            drop(core.land_kind(party.request, crate::routing::flight::Kind::Party));
+        }
+        ReadFor::DeploymentClose { request, .. } => {
+            drop(core.land_kind(request, crate::routing::flight::Kind::Party));
+        }
+        ReadFor::Preparation { .. } => {}
+    }
+}
+
 fn discard_party(core: &mut Core, replay: Replay) {
     match replay {
         Replay::Person { request, .. } => {
             drop(core.land_kind(request, crate::routing::flight::Kind::Party));
         }
-        Replay::Agent { .. } => {}
+        Replay::Agent { key, .. } => {
+            if core.pending_calls.get(&key) == Some(&crate::CallHolder::Routed) {
+                core.release_pending_call(key);
+            }
+        }
     }
 }
 
@@ -411,7 +414,6 @@ fn discard_party(core: &mut Core, replay: Replay) {
 pub(crate) fn conclude(
     core: &mut Core,
     work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
     party: crate::routing::party::dispatch::Party,
     task: u64,
 ) {
@@ -421,7 +423,6 @@ pub(crate) fn conclude(
     }
     retain(
         core,
-        out,
         ResultRead {
             why: ReadFor::Conclude { party, task },
             ids: Box::new([task]),
@@ -466,7 +467,6 @@ fn concluded_outcome(
 pub(crate) fn delegate_subject(
     core: &mut Core,
     work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
     party: crate::routing::party::dispatch::Party,
     task: u64,
 ) {
@@ -476,7 +476,6 @@ pub(crate) fn delegate_subject(
     }
     retain(
         core,
-        out,
         ResultRead {
             why: ReadFor::Delegate { party, task, ended: None },
             ids: Box::new([task]),
@@ -494,7 +493,6 @@ fn delegate_loaded(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
     party: crate::routing::party::dispatch::Party,
     task: u64,
     ended: Option<(u64, jig_domain_people::Refusal)>,
@@ -554,7 +552,6 @@ fn delegate_loaded(
     } else if row.root != task && core.tasks.task(row.root).is_none() {
         retain(
             core,
-            out,
             ResultRead {
                 why: ReadFor::Delegate { party, task, ended: Some((row.root, refusal)) },
                 ids: Box::new([row.root]),

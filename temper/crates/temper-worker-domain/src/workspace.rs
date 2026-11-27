@@ -612,6 +612,7 @@ fn record_landings(next: &mut Items, landings: &[checkout::Landing], unchecked: 
             | checkout::Landing::DesignConflict { .. }
             | checkout::Landing::DesignCode { .. }
             | checkout::Landing::Explained { .. }
+            | checkout::Landing::Unadmitted { .. }
             | checkout::Landing::Failed
             | checkout::Landing::Refused
             | checkout::Landing::DesignMoving
@@ -869,6 +870,36 @@ pub(crate) fn job_directory(domain: &Domain, workspace: Token) -> (Token, Option
 /// The prepared checkout's repositories, in the assignment's order.
 pub(crate) fn job_roots(domain: &Domain, workspace: Token) -> &[Root] {
     &domain.workspaces.get(Id::from_token(workspace)).expect("a prepared job workspace").roots
+}
+
+/// A merge can leave an executable hook in the tree while the index still calls it unmerged.
+pub(crate) fn job_hook_conflict(
+    domain: &Domain,
+    workspace: Token,
+    repository: &[u8],
+    path: &[u8],
+) -> Option<&'static [u8]> {
+    let record = domain.workspaces.get(Id::from_token(workspace)).expect("a prepared job workspace");
+    for conflict in &record.conflicts {
+        let root = record.roots.get(skein_lib::usize_of(conflict.repository)).expect("known repository");
+        if root.name.as_ref() != repository {
+            continue;
+        }
+        for file in &conflict.files {
+            if file.as_ref() == path {
+                return Some(b"left in conflict");
+            }
+            if let Some(rest) = path.strip_prefix(file.as_ref())
+                && rest.starts_with(b"/")
+            {
+                return Some(b"left in conflict");
+            }
+        }
+        if conflict.cut {
+            return Some(b"could not check for conflicts: the list was cut");
+        }
+    }
+    None
 }
 
 /// The engine identity of the job whose workspace is being delivered.

@@ -3,13 +3,12 @@
 //! (domain/root.md, 3–4; skein's `programming-model.md`, 7.2).
 use crate::{Event, Limits, Output, Record, Released, Store, Write};
 use alloc::boxed::Box;
+use jig_domain_contract::StartProblem;
 use jig_domain_core as core;
-use jig_domain_core::engine::{self, Admit, Engine, In};
+use jig_domain_core::engine::{self, Admit, Engine, In, store as engine_store};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
-use jig_domain_link::Bounds;
-use jig_domain_link::{Hello, Problem};
-use jig_ops_domain_connectors::Connector;
+use jig_domain_link::{Bounds, Hello};
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
 use skein_lib::{Decision, Env, Journal, Queue, Token, length::len_u64};
@@ -90,8 +89,8 @@ impl Domain {
     /// Construct without issuing a request; the caller supplies the first input.
     ///
     /// # Errors
-    /// The core's configured workers exceed the priced membership bounds.
-    pub fn new(config: Config, limits: &Limits) -> Result<Self, Problem> {
+    /// The engine refuses its worker membership or connector declarations.
+    pub fn new(config: Config, limits: &Limits) -> Result<Self, StartProblem> {
         assert!(limits.routes > 0, "nonempty route");
         assert!(config.environment_close_grace <= limits.core.tasks.grace, "environment close grace bound");
         assert!(limits.host.slots == limits.core.fleet.engine_slots, "engine slot agreement");
@@ -122,24 +121,9 @@ impl Domain {
         let turn_rng = skein_lib::Rng::new(config.core.seed ^ 0x5455_524E_4255_5359);
         let mut core_config = config.core;
         core_config.hub_turns = limits.host.turns;
-        let mut engine = Engine::new(core_config, &limits.core)?;
+        let declarations = crate::translate::declarations(config.backend, limits);
+        let mut engine = Engine::new(core_config, &declarations, &limits.core)?;
         check_engine_hello(&mut engine.core_mut().fleet, &limits.core.fleet, config.agent_bounds, limits.host.slots);
-        // Connector hold rules are configuration, so a cold root installs
-        // the same translated vocabulary before restoring live task rows.
-        let mut configured = Queue::uncapped();
-        jig_domain_tasks::step(
-            &mut engine.core_mut().tasks,
-            &Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: limits.core.tasks },
-            jig_domain_tasks::Event::Kinds {
-                connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
-                kinds: crate::translate::hold_kinds(
-                    jig_ops_domain_connectors::number(Connector::Infrastructure),
-                    &limits.infrastructure.vocabulary,
-                ),
-            },
-            &mut configured,
-        );
-        assert!(configured.is_empty(), "configured hold rules decide nothing");
         assert!(
             limits.core.tasks.inbox_messages
                 <= observability::message_capacity(&limits.observability).expect("watch news bound"),
@@ -249,6 +233,7 @@ impl Domain {
 pub(crate) enum Work {
     Event(Event),
     Core(core::Event),
+    Store(engine_store::In),
     Effect { owner: Token, origin: core::EffectOrigin, effect: infrastructure::Effect },
     ResumeFleet,
     Finish,
@@ -290,7 +275,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         | Event::Agent(_)
         | Event::AgentContent { .. }
         | Event::Store(
-            Store::Switched | Store::Restore(_) | Store::Restored(_) | Store::Transcript { .. } | Store::Loaded(_),
+            Store::Switched | Store::Restore(_) | Store::Restored(_) | Store::Loaded(_) | Store::Engine(_),
         )
         | Event::Released(_)
         | Event::Restart { .. }
@@ -317,6 +302,7 @@ pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
         Work::Finish => true,
         Work::Event(_)
         | Work::Core(_)
+        | Work::Store(_)
         | Work::Effect { .. }
         | Work::ResumeFleet
         | Work::Infrastructure(_)
@@ -400,7 +386,7 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) 
     }
     if domain.journal.idle() && domain.ready() {
         if let Some(context) = domain.engine.core_mut().take_due() {
-            decide(domain, env, Work::Core(core::Event::Activate { context, ready: true, busy: false }));
+            decide(domain, env, Work::Core(core::Event::Activate { context, ready: true }));
         } else if domain.host.is_ready()
             || domain.engine.core().fleet.is_ready()
             || domain.engine.core().finish_owed()

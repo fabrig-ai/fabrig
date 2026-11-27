@@ -16,6 +16,8 @@ extern crate alloc;
 mod boundary;
 mod clock;
 mod domain;
+#[cfg(test)]
+mod fuzzy;
 mod passing;
 mod queue;
 mod relay;
@@ -24,14 +26,17 @@ mod tests;
 
 pub use boundary::{
     AMENDMENTS_KEPT, ANSWERS_KEPT, Amended, Answered, Ask, AuthorityHold, AuthorityLack, AuthorityRecovery, Below,
-    Blocked, Change, Ci, CloseAt, CloseRefused, Decision, Delegate, DelegateSpend, Early, Effect, EffectResult,
-    FOLLOW_CHECK_GATE, Facts, Fault, Freshness, Gate, GateFailure, GateKind, GateReport, Handed, Heard, Hold,
-    Judgement, Landed, Limits, Open, Pending, PendingKind, Pull, QUESTION_LINE, QUESTIONS_OPEN, Questions, Ready,
-    Recheck, Repair, Reply, Route, Stands, StartedFrom, State, Status, Stepped, Took, Verification, WORDS_WAITING,
-    Wait, Waiting, Way,
+    Blocked, Cause, Change, Ci, CloseAt, CloseRefused, Decision, Delegate, DelegateSpend, Early, Effect, EffectResult,
+    FOLLOW_CHECK_GATE, Facts, Fault, Freshness, Gate, GateFailure, GateKind, GateReport, Handed, Heard, Hold, Judged,
+    Judgement, Kind, Landed, Limits, MergeJob, Open, Pending, PendingKind, Pull, QUESTION_LINE, QUESTIONS_OPEN,
+    Questions, Ready, Recheck, Repair, Replay, Reply, Route, Stands, StartedFrom, State, Status, Stepped, Took,
+    Verification, WORDS_WAITING, Wait, Waiting, Way,
 };
 pub use clock::{Clock, Execution, Reading};
-pub use domain::{authority_words, gates_pass, held_on_ci, prefix_verdict, released, review_failed, step};
+pub use domain::{
+    ReleaseTrigger, authority_account, authority_recovery, authority_words, gates_pass, held_on_ci, prefix_verdict,
+    release, review_failed, step,
+};
 pub use passing::{Passed, WordAct, pass};
 pub use queue::first;
 pub use relay::{Asked, RelayAct, RelayAnswer, RelayHeard, Relayed, relay};

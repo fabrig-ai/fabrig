@@ -6,6 +6,7 @@ fn convention_path_payloads_fill_the_exact_charter_cap_and_cancel_discovery_sett
     selected.conventions = Some(crate::Conventions {
         guide: Box::new([b'g'; crate::Conventions::PATH_CAPACITY]),
         checks: Box::new([b'c'; crate::Conventions::PATH_CAPACITY]),
+        hooks: None,
     });
     let exact = crate::charter::cost(&selected).expect("bounded maximum paths")
         + crate::workspace::cost(Some(&workspace())).unwrap();
@@ -34,6 +35,7 @@ fn convention_path_payloads_fill_the_exact_charter_cap_and_cancel_discovery_sett
         conventions: Some(crate::Conventions {
             guide: Box::new([b'g'; crate::Conventions::PATH_CAPACITY]),
             checks: Box::new([b'c'; crate::Conventions::PATH_CAPACITY]),
+            hooks: None,
         }),
         instructions: {
             let brief = charter().instructions;

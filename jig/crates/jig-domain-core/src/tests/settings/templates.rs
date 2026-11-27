@@ -1,3 +1,5 @@
+use super::catalogue::sparse_catalogue;
+use crate::tests::new_core;
 use crate::tests::*;
 const OWNER: u64 = 1;
 const PROJECT: u32 = 1;
@@ -259,6 +261,35 @@ const FIRST_CHOICE: tasks::ModelEffort = tasks::ModelEffort { model: FIRST_MODEL
 const OTHER_CHOICE: tasks::ModelEffort = tasks::ModelEffort { model: OTHER_MODEL, effort: None };
 const NO_SUBAGENTS: &[tasks::ModelEffort] = &[];
 
+// Setting 8 is empty, setting 39 takes LOW, and the table ends at setting 64.
+const HOLE_CHOICE: tasks::ModelEffort = tasks::ModelEffort { model: 7, effort: None };
+const ADDED_CHOICE: tasks::ModelEffort = tasks::ModelEffort { model: 38, effort: Some(LOW) };
+const PAST_CATALOGUE: tasks::ModelEffort = tasks::ModelEffort { model: 64, effort: None };
+
+fn current_choice_fits(main: tasks::ModelEffort, subagents: &[tasks::ModelEffort]) -> bool {
+    let mut config = config(41);
+    config.settings.models = crate::settings::catalogue::rows(&sparse_catalogue());
+    let current = crate::settings::Current::new(config.defaults, &limits(), &[]);
+    let value = Template { llm: Some(choice(main, subagents)), ..template() };
+    templates::valid_current_executor(&current, &config.settings, &value, value.executor)
+}
+
+#[test]
+fn a_current_template_executor_refuses_a_catalogue_hole() {
+    for invalid in [HOLE_CHOICE, PAST_CATALOGUE] {
+        for (main, subagents) in [(invalid, NO_SUBAGENTS), (FIRST_CHOICE, [invalid].as_slice())] {
+            assert!(!current_choice_fits(main, subagents), "main {main:?}, subagents {subagents:?}");
+        }
+    }
+}
+
+#[test]
+fn a_current_template_executor_accepts_a_model_after_a_gap() {
+    for (main, subagents) in [(ADDED_CHOICE, NO_SUBAGENTS), (FIRST_CHOICE, [ADDED_CHOICE].as_slice())] {
+        assert!(current_choice_fits(main, subagents), "main {main:?}, subagents {subagents:?}");
+    }
+}
+
 #[test]
 fn compatible_merged_template_choices_are_accepted() {
     for (name, main, subagents, executor) in [
@@ -449,7 +480,7 @@ fn stored_template_overrides_keep_their_values_without_rechecking_admission() {
         ("unknown charter", Box::from([executor_override(UNKNOWN)])),
         ("duplicate template", Box::from([executor_override(PROJECT), executor_override(PROJECT)])),
     ] {
-        let mut core = Core::new(config(41), &limits).expect("restoring core");
+        let mut core = new_core(config(41), &limits).expect("restoring core");
         let _start = core.start_begin(false, Wall::EPOCH);
         let mut restored = before.clone();
         restored.period_spend = 1;

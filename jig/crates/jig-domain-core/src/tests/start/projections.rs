@@ -1,5 +1,6 @@
 //! Stored projection fits and links (jig/docs/design/domain/engine/restart.md).
 #![expect(clippy::disallowed_macros, reason = "dynamic stored-row fixtures exercise byte bounds")]
+use crate::tests::new_core;
 use crate::{
     CoreKey, CoreRecord, Limits, MilestoneId, ProjectionGoalHot, ProjectionMilestone, ProjectionRecord,
     ProjectionTaskHot, Restored,
@@ -15,7 +16,7 @@ fn loaded_policy(policy: bool) -> (Core, Limits) {
     let limits = limits();
     let configured = config(401);
     let project = &config(401).seed_projects[0];
-    let mut core = Core::new(configured, &limits).expect("configured core");
+    let mut core = new_core(configured, &limits).expect("configured core");
     {
         let _begin = core.start_begin(false, Wall::EPOCH);
     }

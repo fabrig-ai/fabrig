@@ -22,6 +22,7 @@ pub(crate) fn configuration(source: &root::Config) -> root::Config {
     let core = &source.core;
     let settings = &core.settings;
     root::Config {
+        resource_kinds: source.resource_kinds.clone(),
         first: source.first.clone(),
         second: source.second.clone(),
         core: core::Config {

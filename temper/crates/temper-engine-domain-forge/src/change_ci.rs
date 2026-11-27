@@ -14,6 +14,10 @@ pub(super) struct Failed {
     runs: Map<u64, Option<api::Run>>,
 }
 impl Failed {
+    pub(super) fn baseline(&self, head: Commit) -> Box<[JobAttempt]> {
+        release_baseline(&self.checks, head)
+    }
+
     pub(super) fn new(checks: Box<[api::Status]>) -> Self {
         // At most one run per check, plus the change's pinned recheck.
         let capacity = u32::try_from(checks.len()).expect("bounded checks").saturating_add(1);
@@ -197,7 +201,7 @@ impl Failed {
         None
     }
 
-    pub(super) fn account(&self, head: Commit, for_repair: bool) -> Option<Box<[u8]>> {
+    pub(super) fn account(&self, head: Commit, reason: Option<&[u8]>) -> Option<Box<[u8]>> {
         let attempt = self.job(head)?;
         let mut context = None;
         for check in &self.checks {
@@ -208,7 +212,10 @@ impl Failed {
         }
         let context = context?;
         let run = self.runs.get(&attempt.run)?.as_ref()?;
-        let reason = if for_repair { b"a repair changed nothing" } else { runner(run, attempt, head)? };
+        let reason = match reason {
+            Some(reason) => reason,
+            None => runner(run, attempt, head)?,
+        };
         let job = Decimal::of(attempt.job);
         let commit = crate::commit_text(&head);
         let head = commit.get(..12).expect("commit prefix");

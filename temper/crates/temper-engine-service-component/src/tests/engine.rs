@@ -414,7 +414,7 @@ fn an_io_listener_failure_stops_the_engine() {
 // Both note scopes and their store replies must fit before the held input is retried.
 const OWNER_PASSES: u32 = 16;
 const WATCHER: skein_lib::Token = skein_lib::Token::new(17);
-// A notes page leaves its Core::Notes::Loaded continuation for the next Resume.
+// A notes terminal waits behind an earlier deployment mark until Resume.
 fn a_notes_page_waiting_for_its_owner() -> crate::Service {
     use skein_lib::{Queue, ReplyTo, Token, Wall};
     let mut service = fixtures::signed_worker();
@@ -443,12 +443,11 @@ fn a_notes_page_waiting_for_its_owner() -> crate::Service {
             let event = service.engine.as_mut().expect("engine").store.host.above.pop().expect("notes page");
             let engine = service.engine.as_mut().expect("engine");
             crate::store::route::up(&mut engine.store.routes, event, &mut engine.store.routed);
-            let Some(crate::store::route::Up::Root(event)) =
-                service.engine.as_mut().expect("engine").store.routed.pop()
-            else {
+            let Some(crate::store::route::Up::Root(event)) = engine.store.routed.pop() else {
                 panic!("notes page routed to the root")
             };
-            service.engine.as_mut().expect("engine").step(*event);
+            engine.domain.mark_forges();
+            engine.step(*event);
             return service;
         }
     }

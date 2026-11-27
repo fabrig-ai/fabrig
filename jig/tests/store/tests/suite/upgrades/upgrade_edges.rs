@@ -44,7 +44,7 @@ fn committed(sets: OwnerSets, bodies: &[&[u8]]) -> World {
 
 fn starts() -> [TranscriptRead; 3] {
     [
-        TranscriptRead::Window { task: TASK, attempt: ATTEMPT, turn: FIRST_TURN, after: None },
+        TranscriptRead::Window { task: TASK, attempt: ATTEMPT, turn: FIRST_TURN, after: None, limits: None },
         TranscriptRead::Page { task: TASK, backwards: false, after: None },
         TranscriptRead::Page { task: TASK, backwards: true, after: None },
     ]
@@ -57,7 +57,7 @@ fn page(world: &mut World, read: TranscriptRead, rows: u32, bytes: u64) -> Vec<E
 fn continued(read: TranscriptRead, offset: u64) -> TranscriptRead {
     match read {
         TranscriptRead::Window { task, attempt, turn, .. } => {
-            TranscriptRead::Window { task, attempt, turn, after: Some(offset) }
+            TranscriptRead::Window { task, attempt, turn, after: Some(offset), limits: None }
         }
         TranscriptRead::Page { task, backwards, .. } => TranscriptRead::Page { task, backwards, after: Some(offset) },
         TranscriptRead::Turn { .. } => panic!("these cases use paged complete-turn reads"),

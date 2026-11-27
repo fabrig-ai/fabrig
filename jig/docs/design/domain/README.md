@@ -200,6 +200,7 @@ The domain's worlds and their kits are in `testing.md` and `testing-fakes.md`.
 | requirement, judge, verdict | facts an effect needs; the connector that judges them; met, wait or refuse |
 | guarded, observed | a requirement the effect's own system checks as it applies it; one judged only when the effect is decided, within a freshness |
 | connector | an external system as the engine sees it: the application's |
+| declaration | a connector's kinds, given to the engine once as it is built and checked there: its resource kinds' holds, its effect kinds' form, recovery class and waiting (connectors.md, 2) |
 | resource | what has an identity on a system, named by a connector's number and a path |
 | hold, pool slot | a resource a task writes alone; one of a pool's counted slots (tasks/holds.md) |
 | writer slot | the one run that may write a held resource at a time |

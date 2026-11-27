@@ -79,6 +79,8 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         reds_reds: bounds.reds,
         red_key: bounds.red_key_bytes,
         red_head: v1::CEILINGS.red_head,
+        admit_branch: bounds.name_bytes,
+        unadmitted_words: v1::CEILINGS.unadmitted_words,
     };
     match v1::check_limits(&limits) {
         Ok(()) => Some(limits),

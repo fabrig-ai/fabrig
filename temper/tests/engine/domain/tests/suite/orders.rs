@@ -5,6 +5,7 @@
 //! and completion outputs after their commits.
 
 use jig_domain_core as core;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::reads;
 use jig_domain_host as host;
 use jig_domain_people as people;
@@ -107,11 +108,9 @@ fn completed_history_callbacks_precede_a_later_party_change() {
 
 fn take_history_load(driver: &mut Driver) -> engine::Event {
     for _ in 0..STEPS {
-        if let Some(index) = driver
-            .events
-            .iter()
-            .position(|event| matches!(event, engine::Event::Store(engine::StoreInput::Loaded { .. })))
-        {
+        if let Some(index) = driver.events.iter().position(|event| {
+            matches!(event, engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { .. })))
+        }) {
             return driver.events.remove(index).expect("historical load terminal");
         }
         driver.advance(true);
@@ -142,7 +141,7 @@ fn keyed_replies(driver: &Driver) -> Vec<(Token, people::Reply)> {
 fn queued_read_answers_keep_their_arrival_order_under_load() {
     let (mut driver, assignment) = Driver::chat();
     driver.send(protocol::turn(WORKER, assignment.task, assignment.attempt, 1, 3, None, TURN_TEXT));
-    driver.settle();
+    until_commits(&mut driver, 1);
     let second = read_turn(&mut driver, &assignment, READ_B);
     let first = read_turn(&mut driver, &assignment, READ_A);
     // Completion order deliberately differs from request order.
@@ -181,12 +180,16 @@ fn read_turn(driver: &mut Driver, assignment: &engine::Assignment, reply: Token)
         sign_in: driver.session(),
         read: Box::new(reads::Read::Turn { task: assignment.task, attempt: assignment.attempt, turn: 1 }),
     }));
+    if !driver.store.pending.is_empty() {
+        assert!(
+            !driver.events.iter().any(|event| matches!(event, engine::Event::Store(engine::StoreInput::Engine(_)))),
+            "the load cannot reach the store before the turn's commit is answered"
+        );
+    }
     for _ in 0..STEPS {
-        if let Some(index) = driver
-            .events
-            .iter()
-            .position(|event| matches!(event, engine::Event::Store(engine::StoreInput::ReadLoaded { .. })))
-        {
+        if let Some(index) = driver.events.iter().position(|event| {
+            matches!(event, engine::Event::Store(engine::StoreInput::Engine(engine_store::In::Loaded { .. })))
+        }) {
             return driver.events.remove(index).expect("real read terminal");
         }
         driver.advance(true);

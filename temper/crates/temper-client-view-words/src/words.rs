@@ -2136,6 +2136,16 @@ pub enum Word {
     WelcomeTryLost,
     WelcomeTryCouldNotStart,
     WelcomeTryWaited,
+    WelcomeTryLimited,
+    WelcomeTryLimitPassed,
+    WelcomeTryLimitedUntil,
+    WelcomeTryLimitHasPassed,
+    WelcomeTryLimitedUnknownReset,
+    WelcomeTryUsageLimit,
+    WelcomeTryFiveHourLimit,
+    WelcomeTryWeeklyLimit,
+    WelcomeTryResetDate,
+    WelcomeTryResetUtc,
     WelcomeTryAgain,
     WelcomeSignInAgain,
     WelcomeClaudeNotYet,
@@ -2379,7 +2389,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
 // Landing waits add 17 literal phrases (client/web/public.md, 3).
-const PHRASES: u32 = 2954;
+const PHRASES: u32 = 2964;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2407,10 +2417,10 @@ const PHRASES: u32 = 2954;
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
 // Landing waits add 17 literal segments (client/web/public.md, 3).
-const SEGMENTS: u32 = 5497;
+const SEGMENTS: u32 = 5525;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 68827;
-const ALL: [Word; 2201] = [
+const ENGLISH_BYTES: u32 = 68952;
+const ALL: [Word; 2211] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -4448,6 +4458,16 @@ const ALL: [Word; 2201] = [
     Word::WelcomeTryLost,
     Word::WelcomeTryCouldNotStart,
     Word::WelcomeTryWaited,
+    Word::WelcomeTryLimited,
+    Word::WelcomeTryLimitPassed,
+    Word::WelcomeTryLimitedUntil,
+    Word::WelcomeTryLimitHasPassed,
+    Word::WelcomeTryLimitedUnknownReset,
+    Word::WelcomeTryUsageLimit,
+    Word::WelcomeTryFiveHourLimit,
+    Word::WelcomeTryWeeklyLimit,
+    Word::WelcomeTryResetDate,
+    Word::WelcomeTryResetUtc,
     Word::WelcomeTryAgain,
     Word::WelcomeSignInAgain,
     Word::WelcomeClaudeNotYet,
@@ -6740,6 +6760,16 @@ impl Word {
             Self::WelcomeTryLost => 3873,
             Self::WelcomeTryCouldNotStart => 3874,
             Self::WelcomeTryWaited => 3875,
+            Self::WelcomeTryLimited => 4262,
+            Self::WelcomeTryLimitPassed => 4263,
+            Self::WelcomeTryLimitedUntil => 4264,
+            Self::WelcomeTryLimitHasPassed => 4265,
+            Self::WelcomeTryLimitedUnknownReset => 4266,
+            Self::WelcomeTryUsageLimit => 4267,
+            Self::WelcomeTryFiveHourLimit => 4268,
+            Self::WelcomeTryWeeklyLimit => 4269,
+            Self::WelcomeTryResetDate => 4270,
+            Self::WelcomeTryResetUtc => 4271,
             Self::WelcomeTryAgain => 3735,
             Self::WelcomeSignInAgain => 3736,
             Self::WelcomeClaudeNotYet => 3381,
@@ -8110,6 +8140,16 @@ const fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'stati
         Word::WelcomeTryLost => (&[b"The machine running it went away."], &[]),
         Word::WelcomeTryCouldNotStart => (&[b"The try couldn't start."], &[]),
         Word::WelcomeTryWaited => (&[b"", b" didn\xe2\x80\x99t answer within a minute."], &[Name]),
+        Word::WelcomeTryLimited => (&[b"Limited"], &[]),
+        Word::WelcomeTryLimitPassed => (&[b"Limit passed"], &[]),
+        Word::WelcomeTryLimitedUntil => (&[b"", b" is at its ", b" until ", b"."], &[Name, Name, Name]),
+        Word::WelcomeTryLimitHasPassed => (&[b"", b"'s limit has passed."], &[Name]),
+        Word::WelcomeTryLimitedUnknownReset => (&[b"", b" reached its usage limit."], &[Name]),
+        Word::WelcomeTryUsageLimit => (&[b"usage limit"], &[]),
+        Word::WelcomeTryFiveHourLimit => (&[b"5-hour limit"], &[]),
+        Word::WelcomeTryWeeklyLimit => (&[b"weekly limit"], &[]),
+        Word::WelcomeTryResetDate => (&[b"", b" ", b", ", b""], &[Name, Number, Name]),
+        Word::WelcomeTryResetUtc => (&[b"", b" UTC"], &[Name]),
         Word::WelcomeTryAgain => (&[b"Try again"], &[]),
         Word::WelcomeSignInAgain => (&[b"Sign in again"], &[]),
         Word::WelcomeClaudeNotYet => (&[b"Claude Code isn\xe2\x80\x99t signed in here yet. Sign in again, then try again."], &[]),
@@ -9859,6 +9899,34 @@ impl Times {
         }
         words.say(Word::DraftDoing, &[Hole::Name(what), Hole::Number(seconds)])
     }
+    /// A trial's reset is a view wake, not a request (temper/docs/design/domain/trial.md, 6.1 and 6.4).
+    pub fn trial_reset(&mut self, words: &Words, reset: skein_lib::Wall) -> Option<Box<[u8]>> {
+        if self.now >= reset {
+            return None;
+        }
+        self.next = [self.next, Some(reset)].into_iter().flatten().min();
+        let local = match words.shell {
+            Shell::Browser => words.local_nanos(reset),
+            Shell::Terminal => i128::from(reset.as_nanos()),
+        };
+        let clock = words.clock_nanos(local);
+        if words.shell == Shell::Terminal {
+            return Some(words.say(Word::WelcomeTryResetUtc, &[Hole::Name(clock)]));
+        }
+        let day = words.calendar_day(reset);
+        if day == words.calendar_day(self.now) {
+            return Some(clock);
+        }
+        // The date drops away when the viewer enters the reset's local day.
+        let midnight = local.div_euclid(i128::from(DAY)).checked_mul(i128::from(DAY)).expect("local day fits");
+        let offset = local.checked_sub(i128::from(reset.as_nanos())).expect("zone offset fits");
+        if let Ok(midnight) = u64::try_from(midnight.checked_sub(offset).expect("wall day fits")) {
+            self.next = [self.next, Some(skein_lib::Wall::from_nanos(midnight))].into_iter().flatten().min();
+        }
+        let (_, month, day) = civil_date(day);
+        let month = skein_ui::date::month_name(u8::try_from(month).expect("month in year")).expect("month in year");
+        Some(words.say(Word::WelcomeTryResetDate, &[Hole::Name(copy_of(month)), Hole::Number(day), Hole::Name(clock)]))
+    }
     pub fn model_new(&mut self, model: &jig_client::contract::MeModel) -> bool {
         if model.source != jig_client::contract::ModelSource::List {
             return false;
@@ -10016,7 +10084,10 @@ impl Words {
     /// A turn under a day line has a fixed clock and needs no wake of its own.
     #[must_use]
     pub fn turn_clock(&self, at: skein_lib::Wall) -> Box<[u8]> {
-        let minute = self.local_nanos(at).div_euclid(i128::from(MINUTE));
+        self.clock_nanos(self.local_nanos(at))
+    }
+    fn clock_nanos(&self, nanos: i128) -> Box<[u8]> {
+        let minute = nanos.div_euclid(i128::from(MINUTE));
         let minute = u64::try_from(minute.rem_euclid(1440)).expect("minute in day");
         self.say(
             Word::TimeClock,

@@ -71,12 +71,11 @@ fn prepare_inbox(row: &mut Live, phase: Phase, priority: Priority, out: &mut Que
                 out.push(Request::Save { record: Stored::Live(row.record.clone()) });
             }
         }
-        Phase::Object | Phase::Pull | Phase::Reviews(_, _) | Phase::Branch | Phase::BranchAncestry { .. } => {}
+        Phase::Object | Phase::Pull | Phase::Reviews(_, _) | Phase::Branch => {}
     }
 }
 fn operation(row: &Live, key: &Resource, phase: Phase) -> Read {
     match phase {
-        Phase::BranchAncestry { before, after } => Read::Commits { before: after, after: before, page: 1 },
         Phase::Object => match key.what {
             What::Pull(number) | What::Issue(number) => Read::Item {
                 number,
@@ -125,25 +124,6 @@ pub(crate) fn due_repository(d: &mut Domain, key: Repository) {
         Scan::Idle => Scan::Due(Progress::first(row.record.mark)),
         Scan::Off | Scan::Due(_) | Scan::Busy(_) => unreachable!("idle repository alarm"),
     };
-}
-pub(crate) fn writer(d: &mut Domain, env: &Env<Limits>, key: &Resource, taken: bool) {
-    if !super::valid_resource(key, &env.limits) {
-        d.fact(Fact::Refused);
-        return;
-    }
-    if let Some(row) = d.keep.live.get_mut(key) {
-        if row.writer && !taken && row.active {
-            row.refused = super::Refusals::new();
-            match row.state {
-                State::Idle | State::Waiting(_, _) => {
-                    d.alarms.cancel(Alarm::Resource(row.alarm));
-                    row.state = State::Due(super::first(key), Priority::Fresh);
-                }
-                State::Due(_, _) | State::Busy(_, _) => row.hinted = true,
-            }
-        }
-        row.writer = taken;
-    }
 }
 pub(crate) fn pushed(d: &mut Domain, env: &Env<Limits>, key: &Resource, commit: Commit, out: &mut Queue<Request>) {
     if !super::valid_resource(key, &env.limits) {

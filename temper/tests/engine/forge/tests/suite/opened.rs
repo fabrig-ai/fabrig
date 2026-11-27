@@ -138,7 +138,7 @@ fn an_opened_changes_landing_repair_pins_the_rounds_newer_base_not_its_source() 
     let candidate = world.landing(LANDING).landing.members[0].candidate.expect("candidate");
     let why = change::Repair::LandingAt { gate, candidate, below: None };
     assert_eq!(step(&mut world, 300, Box::new([])), change::Decision::Delegate(change::Delegate::Repair(why)));
-    world.event(top::Event::Delegated { task: 51, child: 71, kind: change::Delegate::Repair(why) });
+    world.event(top::Event::Delegated { task: 51, child: 71, kind: change::Delegate::Repair(why), close_at: None });
     let receipt = world
         .stored()
         .iter()
@@ -197,8 +197,11 @@ fn another_identity_pushing_the_taken_branch_holds_it_as_drift() {
     let kept = world.change(51).kept;
     world.push_as(OWN, b"other", b"outside", 2);
     let found = translate::commit(world.branch(OWN));
-    assert_eq!(step(&mut world, 4, Box::new([])), change::Decision::Hold(change::Hold::BranchMoved));
+    assert_eq!(step(&mut world, 4, Box::new([])), change::Decision::Hold(change::Cause::BranchMoved));
     assert_eq!(world.change(51).kept, kept);
     assert_ne!(Some(found), kept);
-    assert!(matches!(world.change(51).change.state, change::State::Held { why: change::Hold::BranchMoved, .. }));
+    assert!(matches!(
+        world.change(51).change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::BranchMoved, .. }, .. }
+    ));
 }

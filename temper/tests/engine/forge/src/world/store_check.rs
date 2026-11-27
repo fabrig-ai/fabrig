@@ -143,7 +143,7 @@ impl RestoreConfig {
     ) -> Result<(), String> {
         let (mut restored, mut output) = self.restored(stored);
         output.clear();
-        StoreChecks::rehearse(|| restored.start_links(tasks, &self.env, &mut output))
+        StoreChecks::rehearse(|| restored.start_links(tasks, &self.env, false, &mut output))
             .map_err(|refusal| jig_conformance::store_check::finding(commit, "Link", &format!("{refusal:?}")))
     }
 }

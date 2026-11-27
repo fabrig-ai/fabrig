@@ -1,12 +1,13 @@
 //! Agent task reads use task relationships, never a person's visibility
 //! (jig/docs/design/domain/engine/executors-tools.md, 1).
 
-use super::{Destination, Loaded, Pending, Range, Scope, TaskTextField};
-use crate::{CallKey, Core, Held, Limits, Now, Request};
+use super::{Destination, Pending, Range, Scope, TaskTextField};
+use crate::engine::store as engine_store;
+use crate::{CallKey, Core, Limits, Now, Request};
 use alloc::boxed::Box;
 pub use jig_domain_core_vocabulary::reads::run_task::*;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, Id, Queue, ReplyTo};
+use skein_lib::{Env, Queue, ReplyTo, Token};
 
 fn related(core: &Core, caller: u64, row: &tasks::TaskRecord) -> bool {
     let Some(owner) = core.tasks.task(caller) else { return false };
@@ -182,7 +183,7 @@ pub(crate) fn run(core: &mut Core, env: &Env<Limits>, to: ReplyTo, key: CallKey,
 }
 
 fn load(core: &mut Core, env: &Env<Limits>, to: ReplyTo, key: CallKey, read: Read) -> Queue<Request> {
-    if core.reads.len() >= env.limits.load_slots {
+    if core.loads.reads() >= env.limits.load_slots {
         return answer(to, key, Err(tasks::Refusal::Busy));
     }
     let Read { task, field, from, .. } = read;
@@ -206,18 +207,18 @@ fn load(core: &mut Core, env: &Env<Limits>, to: ReplyTo, key: CallKey, read: Rea
         tasks: None,
         parts: None,
     };
-    let load = core.reads.insert(pending).expect("read room checked").token();
+    let load = core.loads.insert_read(pending).expect("read room checked");
     let mut out = Queue::uncapped();
-    out.push(Request::Held(Box::new(Held::ReadLoad { load, range: Box::new(range) })));
+    out.push(crate::loads::read(load, range));
     out
 }
 
-pub(super) fn loaded(core: &mut Core, env: &Env<Limits>, name: Id<Pending>, result: Loaded) -> Queue<Request> {
-    let pending = core.reads.get_mut(name).expect("pending task read");
+pub(super) fn loaded(core: &mut Core, env: &Env<Limits>, name: Token, result: engine_store::Answer) -> Queue<Request> {
+    let pending = core.loads.read_mut(name).expect("pending task read");
     let Destination::RunTask { to, key, read } = core::mem::replace(&mut pending.destination, Destination::Done) else {
         unreachable!("task read")
     };
-    core.reads.retire(name);
+    core.loads.retire(name);
     if !core.current_proof(key.task, key.attempt) {
         return Queue::uncapped();
     }
@@ -227,7 +228,7 @@ pub(super) fn loaded(core: &mut Core, env: &Env<Limits>, name: Id<Pending>, resu
         return out;
     }
     match result {
-        Loaded::Page { rows, .. } => {
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows, .. }) => {
             for row in rows {
                 if let crate::Record::Tasks(tasks::Stored::Ended(owner)) = &row.value
                     && owner.number == read.task
@@ -244,8 +245,17 @@ pub(super) fn loaded(core: &mut Core, env: &Env<Limits>, name: Id<Pending>, resu
             }
             answer(to, key, Err(tasks::Refusal::Reference))
         }
-        Loaded::Busy | Loaded::TooLinked { .. } => answer(to, key, Err(tasks::Refusal::Busy)),
-        Loaded::Gone | Loaded::TurnProblem { .. } => answer(to, key, Err(tasks::Refusal::Unknown)),
+        engine_store::Answer::Rows(engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. })
+        | engine_store::Answer::Cut { .. }
+        | engine_store::Answer::Failed(
+            engine_store::Failure::Busy
+            | engine_store::Failure::Failed
+            | engine_store::Failure::Unread
+            | engine_store::Failure::TooLinked { .. },
+        ) => answer(to, key, Err(tasks::Refusal::Busy)),
+        engine_store::Answer::Failed(engine_store::Failure::Gone | engine_store::Failure::TurnProblem { .. }) => {
+            answer(to, key, Err(tasks::Refusal::Unknown))
+        }
     }
 }
 
@@ -626,20 +636,23 @@ mod tests {
         (core, limits, row)
     }
 
-    fn retained_load(core: &mut Core, env: &Env<Limits>, task: u64, from: u64) -> Id<Pending> {
+    fn retained_load(core: &mut Core, env: &Env<Limits>, task: u64, from: u64) -> Token {
         let key = CallKey { task: 1, attempt: 9, completion: 1, position: 0 };
         let mut out = run(
             core,
             env,
-            ReplyTo::new(skein_lib::Token::new(90)),
+            ReplyTo::new(Token::new(90)),
             key,
             Read { joined: false, task, field: TaskTextField::Result, from, room: env.limits.documents.text_bytes },
         );
         let Some(Request::Held(held)) = out.pop() else { panic!("retained load") };
-        let Held::ReadLoad { load, range } = *held else { panic!("store read") };
+        let crate::Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) = *held
+        else {
+            panic!("store read")
+        };
         assert_eq!(range.scope, Scope::Task { task }, "load includes requester evidence");
         assert!(out.pop().is_none(), "loading decides nothing");
-        Id::from_token(load)
+        load
     }
 
     fn retained_reply(
@@ -651,7 +664,12 @@ mod tests {
         let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: *limits };
         let crate::Record::Tasks(tasks::Stored::Ended(owner)) = &row.value else { panic!("retained task") };
         let load = retained_load(core, &env, owner.number, from);
-        let mut out = loaded(core, &env, load, Loaded::Page { rows: Box::new([row]), next: None });
+        let mut out = loaded(
+            core,
+            &env,
+            load,
+            engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }),
+        );
         let Some(Request::Now(now)) = out.pop() else { panic!("unrecorded task read answer") };
         let Now::TaskRead { answer, .. } = *now else { panic!("task read") };
         assert!(out.pop().is_none(), "read changes no durable state");
@@ -659,12 +677,12 @@ mod tests {
         *answer
     }
 
-    fn specification_load(core: &mut Core, env: &Env<Limits>, task: u64) -> Id<Pending> {
+    fn specification_load(core: &mut Core, env: &Env<Limits>, task: u64) -> Token {
         let key = CallKey { task: 1, attempt: 9, completion: 1, position: 0 };
         let mut out = run(
             core,
             env,
-            ReplyTo::new(skein_lib::Token::new(90)),
+            ReplyTo::new(Token::new(90)),
             key,
             Read {
                 joined: false,
@@ -675,21 +693,32 @@ mod tests {
             },
         );
         let Some(Request::Held(held)) = out.pop() else { panic!("text load") };
-        let Held::ReadLoad { load, range } = *held else { panic!("store read") };
+        let crate::Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) = *held
+        else {
+            panic!("store read")
+        };
         assert_eq!(range.scope, Scope::TaskText { task, field: TaskTextField::Specification, from: 0 });
         assert!(out.pop().is_none());
-        Id::from_token(load)
+        load
     }
 
-    fn joined_specification_load(core: &mut Core, env: &Env<Limits>, row: &super::super::Row) -> Id<Pending> {
+    fn joined_specification_load(core: &mut Core, env: &Env<Limits>, row: &super::super::Row) -> Token {
         let load = specification_load(core, env, PRODUCER);
         let text = crate::tests::stored_row(row.value.clone(), None);
-        let mut out = loaded(core, env, load, Loaded::Page { rows: Box::new([text]), next: None });
+        let mut out = loaded(
+            core,
+            env,
+            load,
+            engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([text]), next: None }),
+        );
         let Some(Request::Held(held)) = out.pop() else { panic!("unproved text needs a joined load") };
-        let Held::ReadLoad { load, range } = *held else { panic!("joined read") };
+        let crate::Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) = *held
+        else {
+            panic!("joined read")
+        };
         assert_eq!(range.scope, Scope::Task { task: PRODUCER });
         assert!(out.pop().is_none());
-        Id::from_token(load)
+        load
     }
 
     fn read_answer(mut out: Queue<Request>) -> Result<TaskRead, tasks::Refusal> {
@@ -711,7 +740,7 @@ mod tests {
             let out = run(
                 &mut core,
                 &env,
-                ReplyTo::new(skein_lib::Token::new(90)),
+                ReplyTo::new(Token::new(90)),
                 CallKey { task: GOAL, attempt: 9, completion: 1, position: 0 },
                 Read { joined: false, task: PRODUCER, field, from: 0, room: limits.call_answer_bytes },
             );
@@ -737,8 +766,13 @@ mod tests {
             } else {
                 joined_specification_load(&mut core, &env, &row)
             };
-            let read = read_answer(loaded(&mut core, &env, load, Loaded::Page { rows: Box::new([row]), next: None }))
-                .expect("proven retained specification");
+            let read = read_answer(loaded(
+                &mut core,
+                &env,
+                load,
+                engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }),
+            ))
+            .expect("proven retained specification");
             assert_eq!(read.words.bytes.as_ref(), b"produce a patch");
             assert_eq!(read.words.field, TaskTextField::Specification);
             assert_eq!(read.state, TaskState::Ended(tasks::Status::Done));
@@ -747,7 +781,10 @@ mod tests {
 
     #[test]
     fn retained_specification_proof_keeps_load_bounds() {
-        for result in [Loaded::Busy, Loaded::TooLinked { joins: 1 }] {
+        for result in [
+            engine_store::Answer::Failed(engine_store::Failure::Busy),
+            engine_store::Answer::Failed(engine_store::Failure::TooLinked { joins: 1 }),
+        ] {
             let (mut core, limits, mut row) = retained_fixture();
             let mut env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
             let load = joined_specification_load(&mut core, &env, &row);
@@ -757,7 +794,12 @@ mod tests {
             row.linked = Box::new([]);
             env.limits.load_slots = 0;
             assert_eq!(
-                read_answer(loaded(&mut core, &env, load, Loaded::Page { rows: Box::new([row]), next: None })),
+                read_answer(loaded(
+                    &mut core,
+                    &env,
+                    load,
+                    engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None })
+                )),
                 Err(tasks::Refusal::Busy),
                 "the second load must acquire a slot"
             );
@@ -951,7 +993,7 @@ mod tests {
                 reads_project: false,
                 maker: None,
                 places: Box::new([]),
-                reply_to: ReplyTo::new(skein_lib::Token::new(number)),
+                reply_to: ReplyTo::new(Token::new(number)),
                 creator: tasks::Party::Task(requester),
                 batch: Box::new([new]),
             },
@@ -964,7 +1006,7 @@ mod tests {
     }
 
     fn finish_report(core: &mut Core, limits: &Limits, task: u64, result: tasks::TaskResult) -> Box<tasks::TaskRecord> {
-        let to = || ReplyTo::new(skein_lib::Token::new(task));
+        let to = || ReplyTo::new(Token::new(task));
         for event in [
             tasks::Event::Prepare { reply_to: to(), task },
             tasks::Event::Claim {
@@ -1091,7 +1133,12 @@ mod tests {
                 } else {
                     let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
                     let load = joined_specification_load(&mut core, &env, &row);
-                    read_answer(loaded(&mut core, &env, load, Loaded::Page { rows: Box::new([row]), next: None }))
+                    read_answer(loaded(
+                        &mut core,
+                        &env,
+                        load,
+                        engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }),
+                    ))
                 };
                 assert_eq!(answer, Err(tasks::Refusal::Reference), "fault {fault}, field {field:?}");
             }
@@ -1105,7 +1152,12 @@ mod tests {
         let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
         let load = retained_load(&mut core, &env, 21, 0);
         core.proofs.get_mut(&1).expect("goal").attempt = 10;
-        let mut out = loaded(&mut core, &env, load, Loaded::Page { rows: Box::new([row]), next: None });
+        let mut out = loaded(
+            &mut core,
+            &env,
+            load,
+            engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }),
+        );
         assert!(out.pop().is_none(), "a stale attempt cannot receive report bytes");
     }
 }

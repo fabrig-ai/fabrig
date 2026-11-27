@@ -6,7 +6,7 @@
 
  Needs you
    ? Hello   csv-export: comma or semicolon? · asked 9 h 42 min ago
-   ? Hello   csv-export: comma or semicolon? · asked 9 h 42 min ago                              n walks them
+   ? Hello   csv-export: comma or semicolon? · asked 9 h 42 min ago                         /needs walks them
 
  Team on Hello
    Prover    tests    NOW LINE
@@ -29,7 +29,7 @@
 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / for commands
 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
- ● Live · Hello · Claude Opus 5.5 · high                                               2 need you · n to walk
+ ● Live · Hello · Claude Opus 5.5 · high                                                  2 need you · /needs
 --
 ..............................................................................................................
 ..abbb...cccccc...............................................................................................
@@ -39,7 +39,7 @@
 ..............................................................................................................
 .ccccccccc....................................................................................................
 ...f.cccccccc...............................eeeeeeeeeeeeeeeeeeeeeee...........................................
-...f.cccccccc...............................eeeeeeeeeeeeeeeeeeeeeee..............................eeeeeeeeeeee.
+...f.cccccccc...............................eeeeeeeeeeeeeeeeeeeeeee.........................eeeeeeeeeeeeeeeee.
 ..............................................................................................................
 .ccccccccccccc................................................................................................
 ...cccccccccceeeeeeeeeeeeeeeee................................................................................
@@ -62,7 +62,7 @@
 gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 ffgggggggggggggggggggggggggggggggggggggggggggggggg............................................................
 gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
-.hhhhhhgggeeeeegggeeeeeeeeeeeeeeeeeeeeee...............................................ffffffffffgggeeeeeeeee.
+.hhhhhhgggeeeeegggeeeeeeeeeeeeeeeeeeeeee..................................................ffffffffffgggeeeeee.
 --
 a: fore #1B76FD
 b: fore #00C4FE

@@ -3,8 +3,9 @@
 //! current store, falling back to its exact ended identity. Current escalation
 //! revisions take precedence over ended decisions.
 
+use crate::loads::point::{self, Point};
 use crate::{
-    Core, Event, GoalRoute, Limits, Now, PersonProposalRoute, Request,
+    Core, Event, GoalRoute, Limits, PersonProposalRoute,
     routing::{
         PersonEscalation, Work,
         party::dispatch::{Party, Routed},
@@ -661,7 +662,7 @@ pub(crate) fn proposal_request(
                 return;
             }
             // Only a live proposal refuses running here; an ended proposal is
-            // judged by its recorded kind in Now::EndedProposal.
+            // judged by its recorded kind.
             if core.tasks.proposal(number, proposal).is_some() {
                 if running.is_some() {
                     pool_refused(
@@ -676,7 +677,7 @@ pub(crate) fn proposal_request(
             }
         }
     }
-    routed.out.push(Request::Now(Box::new(Now::EndedProposal { request, person, project, proposer, proposal })));
+    point::party(core, &env.limits, routed, request, Point::ProposalDecision { party, proposer, proposal });
 }
 
 pub(crate) fn escalation_request(
@@ -688,7 +689,7 @@ pub(crate) fn escalation_request(
     revision: u64,
     decision: people::EscalationDecision,
 ) {
-    let Party { request, person, project, role, .. } = party;
+    let Party { request, person, project, role } = party;
 
     if current_person_escalation(core, task, revision) {
         person_escalation_decide(core, env, routed, party, task, revision, decision);
@@ -720,7 +721,7 @@ pub(crate) fn escalation_request(
         );
         return;
     }
-    routed.out.push(Request::Now(Box::new(Now::EndedEscalation { request, person, project, task, revision })));
+    point::party(core, &env.limits, routed, request, Point::EscalationDecision { party, task, revision });
 }
 
 fn proposal_act(choice: &people::ProposalDecision) -> crate::acts::Act {

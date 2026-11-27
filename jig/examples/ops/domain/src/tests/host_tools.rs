@@ -91,6 +91,7 @@ fn subscription_answer(outputs: Box<[Output]>, key: core::CallKey) {
             | Output::Load { .. }
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
+            | Output::Store(_)
             | Output::Core(_)
             | Output::Now(_)
             | Output::Observability(_)

@@ -3,6 +3,7 @@
 //! Inputs have no protocol bytes or connector events. Root authorizes them,
 //! owns exact transport replay and commits related rows/effects atomically.
 use crate::{Authority, Class, Funder, Numbers, Tries};
+use crate::{HoldKind, ResourceKind};
 use alloc::boxed::Box;
 pub use jig_domain_contract::ops::{
     Active, Bound, ChangeTitle, Circle, Closing, Contract, Deadline, Ending, Exceeded, Executor, FieldRule, Hold,
@@ -264,26 +265,6 @@ pub enum ResultFollowups {
 /// The most bytes a wait source can carry.
 pub const WAIT_WORDS: u32 = 512;
 
-/// Whether a busy resource refuses admission or queues its next holder.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Taken {
-    /// Refuse a batch needing this resource and name its holder.
-    Refuses,
-    /// Admit the task with no holds until the complete set is free.
-    Waits,
-}
-
-/// Connector-configured admission rule for one resource kind.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum HoldKind {
-    /// The connector orders writes itself; no task hold is taken.
-    Shared,
-    /// One task holds the resource.
-    Exclusive { taken: Taken },
-    /// Up to the connector's current number of slots hold the pool.
-    Pooled { taken: Taken },
-}
-
 /// The one writer of an exclusively held resource (domain/tasks/holds.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Writer {
@@ -308,14 +289,6 @@ pub struct PoolSlots {
     pub number: u64,
     pub pool: Name,
     pub slots: u32,
-}
-
-/// One connector's configured resource kind.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Kind {
-    pub connector: u16,
-    pub kind: u16,
-    pub hold: HoldKind,
 }
 
 /// Revisions of the individual things a party decides, independent of history,
@@ -959,10 +932,10 @@ pub enum Event {
         name: Name,
         access: ResourceAccess,
     },
-    /// Root installs one connector's bounded resource-kind configuration.
+    /// Install one connector's bounded resource-kind configuration.
     Kinds {
         connector: u16,
-        kinds: Box<[Kind]>,
+        kinds: Box<[ResourceKind]>,
     },
     /// Connector reports its current slot count for one opaque pool.
     Slots {
@@ -1101,6 +1074,12 @@ pub enum Event {
         reply_to: ReplyTo,
         by: Party,
         operation: crate::Release,
+    },
+    /// Root-checked release of a held procedure for fresh measurement.
+    Measure {
+        reply_to: ReplyTo,
+        by: Party,
+        task: u64,
     },
     /// Root-checked amendment of a live delegate, with a fresh commit-order message number.
     Amend {

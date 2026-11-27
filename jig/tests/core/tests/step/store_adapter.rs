@@ -82,10 +82,17 @@ fn turn_commit(task: u64, turn: u32, bytes: &[u8]) -> Box<[root::Write]> {
     ])
 }
 fn window_turns(store: &mut Store, task: u64) -> Vec<Box<[u8]>> {
-    store.ask(StoreOut::Now(core::Now::StartPreparation { task, from: (1, 1) }));
+    use core::engine::store as port;
+    let load = skein_lib::Token::new(task);
+    store.ask(StoreOut::Engine(port::Out::Load { load, range: port::Range::Window { task, from: (1, 1) } }));
     let mut found = Vec::new();
     for answer in store.answers() {
-        if let Up::Root(root::Event::TranscriptLoaded { rows, .. }) = answer {
+        if let Up::Root(root::Event::Store(port::In::Loaded {
+            load: answered,
+            result: port::Answer::Rows(port::Rows::Turns { turns: rows, .. }),
+        })) = answer
+        {
+            assert_eq!(answered, load);
             found.extend(rows.into_vec().into_iter().map(|(row, _)| row.transcript));
         }
     }

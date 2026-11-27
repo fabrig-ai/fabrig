@@ -201,6 +201,41 @@ pub fn landing_stock(
     crate::route::policy_translate::landing_stock(deployment, projects, change, review)
 }
 
+/// The forge's connector kinds, in the engine's vocabulary.
+pub(crate) fn forge_declaration(connector: u16) -> jig_domain_contract::Declaration {
+    use jig_domain_contract::{
+        Declaration,
+        effects::{EffectForm, EffectKind, Recovery},
+        resources::{ResourceKind, Rule, Taken},
+    };
+    use temper_engine_domain_forge as forge;
+    let hold = match forge::resources::BRANCH_HOLD {
+        forge::resources::HoldKind::Exclusive { wait } => {
+            Rule::Exclusive { taken: if wait { Taken::Waits } else { Taken::Refuses } }
+        }
+        forge::resources::HoldKind::Shared => unreachable!("private branch kind takes exclusive holds"),
+    };
+    let count = u32::try_from(forge::EFFECT_KINDS.len()).expect("bounded forge kinds");
+    let mut effects = skein_lib::List::with_capacity(count);
+    for row in forge::EFFECT_KINDS {
+        let form = match row.form {
+            forge::EffectForm::Creation => EffectForm::Creation,
+            forge::EffectForm::Transition => EffectForm::Transition,
+            forge::EffectForm::Set => EffectForm::Set,
+        };
+        let recovery = match row.recovery {
+            forge::Recovery::Keyed => Recovery::Keyed,
+            forge::Recovery::Conditional => Recovery::Conditional,
+            forge::Recovery::Idempotent => Recovery::Idempotent,
+            forge::Recovery::Unrecoverable => Recovery::Unrecoverable,
+        };
+        effects
+            .push(EffectKind { kind: row.kind, form, recovery, waits_for_dependencies: row.waits_for_dependencies })
+            .expect("one declaration per forge write kind");
+    }
+    Declaration { connector, resources: Box::new([ResourceKind { kind: 1, hold }]), effects: effects.into_boxed() }
+}
+
 #[cfg(test)]
 mod proposal_tests {
     use super::checked_call;

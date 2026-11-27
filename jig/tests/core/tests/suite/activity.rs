@@ -71,7 +71,7 @@ fn a_chat_s_activity_holds_the_person_s_words_its_turns_and_its_delegate_s_resul
     authority.grants = Box::new([]);
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     authority.budget.spend = 20;
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(5002)),
         key: world.call_key(1),
         batch: Box::new([core::Delegate {
@@ -95,7 +95,6 @@ fn a_chat_s_activity_holds_the_person_s_words_its_turns_and_its_delegate_s_resul
             dependencies: Box::new([]),
             wake: Some(tasks::WakePolicy::DEFAULT),
         }]),
-        stubs: Box::new([]),
     }));
     let core::CallPart::Delegated(children) = &world.answers.last().expect("delegate answer").2 else {
         panic!("delegate was refused: {:?}", world.answers);

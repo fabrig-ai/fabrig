@@ -126,10 +126,10 @@ pub fn drift_change(words: &mut List<u8>, change: &forge::DriftChange) {
             append(words, &forge::commit_text(expected));
             match observed {
                 Some(head) => {
-                    append(words, b", observed ");
+                    append(words, b", found ");
                     append(words, &forge::commit_text(head));
                 }
-                None => append(words, b", observed deletion"),
+                None => append(words, b", found deletion"),
             }
         }
         forge::DriftChange::PullClosed { number } => {

@@ -47,6 +47,33 @@ fn merges(calls: &[api::Op], pull: u64) -> usize {
 }
 
 #[test]
+fn a_made_merge_waits_for_the_train_tip_and_lands_every_member_at_its_prefix() {
+    let mut world = at_turn(3);
+    let base = world.branch(b"main");
+    world.script_branch_tip(b"main", Some(base));
+    let pull = merge(&mut world);
+    world.run_for(20);
+    assert!(world.take_seen().iter().any(|request| matches!(
+        request,
+        top::Request::Outcome { outcome: skein_forge_client::Outcome::Made { found: false, .. }, .. }
+    )));
+    let candidate = world.landing(LANDING).landing.members[2].candidate.expect("candidate");
+    assert_eq!(translate::commit(world.branch(b"main")), candidate);
+    assert_ne!(translate::commit(base), candidate);
+    assert!(matches!(
+        landings::step_landing_raw(&mut world, LANDING, 2010),
+        landing::Decision::Wait { until: Some(_), on: landing::Awaited::Read }
+    ));
+    let row = world.landing(LANDING);
+    assert!(row.landing.round.ending.is_none());
+    assert!(row.landing.members.iter().all(|member| member.landed.is_none()));
+    world.script_branch_tip(b"main", None);
+    landings::drive_landing(&mut world, LANDING);
+    assert_landed(&world);
+    assert_eq!(merges(&world.take_calls(), pull), 1);
+}
+
+#[test]
 fn a_timed_out_merge_found_merged_lands_every_member_at_its_prefix() {
     let mut world = at_turn(3);
     world.timeout_merges(1);

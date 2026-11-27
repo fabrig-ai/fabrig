@@ -624,6 +624,7 @@ impl World {
                         | Ask::ReissueService { .. }
                         | Ask::Lift { .. }
                         | Ask::MarkSeen { .. }
+                        | Ask::Measure { .. }
                         | Ask::Release { .. }
                         | Ask::Amend { .. }
                         | Ask::Talk { .. }
@@ -953,6 +954,15 @@ impl World {
                                     &mut self.out,
                                 );
                             }
+                            Ask::Measure { .. } => {
+                                let outcome = Outcome::Refused(Refusal::NotOffered);
+                                people::step(
+                                    &mut self.domain,
+                                    &self.env,
+                                    Event::Decided { request, outcome },
+                                    &mut self.out,
+                                );
+                            }
                             Ask::Release { task, revision, again, .. } => {
                                 let outcome = match self.holds.get(&task) {
                                     Some(&(now, reason)) if revision != now => Outcome::Refused(Refusal::Moved {
@@ -1070,6 +1080,7 @@ impl World {
                                         | Ask::Delegate { .. }
                                         | Ask::Cancel { .. }
                                         | Ask::Lift { .. }
+                                        | Ask::Measure { .. }
                                         | Ask::Release { .. }
                                         | Ask::Move { .. }
                                         | Ask::DecideProposal { .. }

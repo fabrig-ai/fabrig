@@ -161,6 +161,9 @@ pub fn ask_to_record(value: &domain::Ask, limits: &wire::Limits) -> Result<wire:
                 None => None,
             },
         }),
+        domain::Ask::Measure { project, task, revision } => {
+            wire::Ask::Measure(wire::AskMeasure { project: *project, task: *task, revision: *revision })
+        }
         domain::Ask::TakePerson { project, task } => {
             wire::Ask::TakePerson(wire::AskTakePerson { project: *project, task: *task })
         }
@@ -372,6 +375,9 @@ pub fn ask_to_domain(record: wire::Ask, limits: &wire::Limits) -> Result<domain:
                 None => None,
             },
         },
+        wire::Ask::Measure(wire::AskMeasure { project, task, revision }) => {
+            domain::Ask::Measure { project, task, revision }
+        }
         wire::Ask::TakePerson(wire::AskTakePerson { project, task }) => domain::Ask::TakePerson { project, task },
         wire::Ask::HandBackPerson(wire::AskHandBackPerson { project, task }) => {
             domain::Ask::HandBackPerson { project, task }

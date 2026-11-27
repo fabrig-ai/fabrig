@@ -56,7 +56,7 @@ impl Model {
             &config,
             1,
             scripts,
-            model::Menu { arguments: Box::from([]), invalid: Box::from([]) },
+            model::Menu { arguments: Box::from([]), invalid: Box::from([]), slots: Box::new([]) },
             rules,
         )
         .expect("bounded model script");

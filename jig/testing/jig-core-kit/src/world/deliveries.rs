@@ -1,12 +1,12 @@
 //! Scripted peers consume each root delivery in order.
 use super::{Fault, ReplyTo, StoreOut, Token, World, connector, core, people, root};
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_link::{Login, LoginState};
 impl World {
     #[expect(clippy::too_many_lines, reason = "one exhaustive delivery handler drives the script's independent peers")]
     pub(super) fn delivered(&mut self, mut delivery: root::Delivery) -> Result<(), String> {
         self.observer.delivered(self.wall, &mut delivery)?;
-        let internal_read =
-            matches!(&delivery, root::Delivery::Core(core::Held::ReadLoad { range, .. }) if range.party == 0);
+        let internal_read = matches!(&delivery, root::Delivery::Store(engine_store::Out::Load { range: engine_store::Range::Read(range), .. }) if range.party == 0);
         if !internal_read
             && !matches!(delivery, root::Delivery::System { .. } | root::Delivery::LostRead { .. })
             && let Some(mut walking) = self.walking.take()
@@ -73,19 +73,26 @@ impl World {
                     reads.replied(reply, answer, &self.store);
                 }
             }
-            root::Delivery::Core(core::Held::ReadLoad { load, range }) => {
+            root::Delivery::Store(load @ engine_store::Out::Load { range: engine_store::Range::Window { .. }, .. }) => {
+                self.load_window(load);
+            }
+            root::Delivery::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) => {
                 let requests = if range.party == 0 {
                     assert!(self.internal_reads.insert(load), "one internal erasure load");
-                    vec![StoreOut::ReadLoad { load, range }]
+                    vec![StoreOut::Engine(engine_store::Out::Load { load, range: engine_store::Range::Read(range) })]
                 } else if let Some(reads) = &mut self.reads {
                     reads.load(load, *range, &self.store)
                 } else {
-                    vec![StoreOut::ReadLoad { load, range }]
+                    vec![StoreOut::Engine(engine_store::Out::Load { load, range: engine_store::Range::Read(range) })]
                 };
                 for request in requests {
                     self.store.ask(request);
                 }
             }
+            root::Delivery::Store(load @ engine_store::Out::Load { range: engine_store::Range::Notes(_), .. }) => {
+                self.store.ask(StoreOut::Engine(load));
+            }
+            root::Delivery::Store(load) => self.point_load(load),
             root::Delivery::Core(
                 core::Held::Applied { .. }
                 | core::Held::ApplicationDelivery { .. }
@@ -216,9 +223,8 @@ impl World {
                     ask: self.initial_ask.clone(),
                 })));
             }
-            root::Delivery::Core(core::Held::Load(load)) => self.ended_load(*load),
-            root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
-                self.store.ask(StoreOut::NotesLoad { owner, range });
+            root::Delivery::Core(core::Held::Store(_)) => {
+                unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)");
             }
             root::Delivery::Core(core::Held::CallAnswer { to, key, part }) => {
                 let token = to.into_token();

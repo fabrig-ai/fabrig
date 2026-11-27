@@ -2,3 +2,4 @@
 
 2026-11-26. Where the tree's code lags or departs from [crate-layout.md](crate-layout.md).
 
+No gap.

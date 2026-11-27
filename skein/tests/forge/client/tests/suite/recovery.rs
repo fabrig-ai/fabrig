@@ -44,8 +44,7 @@ fn a_deleted_uncertain_branch_is_held_after_its_deadline() {
 fn restart_reads_afresh_and_settles_without_renewing_an_attempt() {
     let mut world = World::new(Settings::calm(41));
     let resource = Resource { repository: REPO, what: What::Branch(Box::from(&b"main"[..])) };
-    world.keep(Box::new([Watch { resource: resource.clone(), participating: false }]));
-    world.writer(resource.clone(), true);
+    world.keep(Box::new([Watch { resource, participating: false }]));
     world.run_for(1);
     world.land_writes_late(skein_lib::Duration::from_secs(5));
     world.make(fixtures::issue(1));
@@ -63,7 +62,6 @@ fn restart_reads_afresh_and_settles_without_renewing_an_attempt() {
     assert_eq!(world.recovery_completions(), (1, 1));
     assert_eq!(world.stats().writes, 1);
     assert_eq!(world.stats().creations, 1);
-    world.writer(resource, false);
     world.finish();
 }
 

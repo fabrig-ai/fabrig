@@ -120,6 +120,8 @@ pub enum Stop {
         phase: Option<jig_domain_core::start::Phase>,
         failure: temper_engine_domain_forge::RestoreFit,
     },
+    /// Converting the branch would drop unsettled entries.
+    BranchWrites(temper_engine_domain_forge::Name, usize),
     /// A restored forge record links to a target the start does not hold, at `phase`.
     ForgeLink {
         phase: Option<jig_domain_core::start::Phase>,

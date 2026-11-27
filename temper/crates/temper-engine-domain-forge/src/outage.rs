@@ -2,7 +2,7 @@
 //! (temper/docs/design/domain/forge/keeping-up.md, 5). All waits and reachability
 //! marks are volatile; a restart asks afresh (section 16).
 use super::read_line::{self, Waiter};
-use super::{Domain, Env, Handoff, Limits, Request, Topic, erase_flight, keep_entry};
+use super::{Domain, Env, Handoff, Limits, Request, Topic, erase_flight, save_entry_progress};
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Error, Op, Read, Repository};
 use skein_forge_client::{Event, Outcome};
@@ -142,6 +142,10 @@ pub(crate) fn reading(d: &Domain, owner: Token) -> bool {
     }
 }
 
+pub(crate) fn exempts_change(d: &Domain, task: u64, owner: Token) -> bool {
+    reading(d, owner) && !super::read_session::waiting_on_record(d, task)
+}
+
 pub(super) fn recommitted(d: &Domain, entry: u64) -> bool {
     match &d.outage {
         Some(state) => state.recommitted(entry),
@@ -182,7 +186,6 @@ fn riding(d: &Domain, owner: Token) -> bool {
         || d.landing.pending.contains_key(&owner)
         || d.tier_ops.reads.contains_key(&owner)
         || d.closing.selection_reads.contains_key(&owner)
-        || d.rebase_fresh.contains_key(&owner)
         || crate::unmade::reader(d, owner).is_some()
 }
 /// Remember the exact fresh read, not a reconstruction from facts that may move.
@@ -239,7 +242,6 @@ pub(super) fn track(d: &mut Domain, env: &Env<Limits>, event: &Event) {
         Event::Settle
         | Event::Keep { .. }
         | Event::Hint { .. }
-        | Event::Writer { .. }
         | Event::Pushed { .. }
         | Event::Fence { .. }
         | Event::Make { .. }
@@ -252,7 +254,13 @@ pub(super) fn track(d: &mut Domain, env: &Env<Limits>, event: &Event) {
     }
 }
 /// An outage has no terminal at the procedure boundary. Its pending row stays put.
-pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result: &Result<Answer, Error>) -> bool {
+pub(super) fn read_ended(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    result: &Result<Answer, Error>,
+    out: &mut Queue<Request>,
+) -> bool {
     let Some(active) = &mut d.outage else { return false };
     let Some(mut reading) = active.reads.remove(&owner) else { return false };
     let outage = match result {
@@ -289,12 +297,13 @@ pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result
         state(d).reads.insert(owner, reading).expect("retains its pending read");
         return false;
     }
-    let capacity = (*result == Err(Error::Busy)
-        && (reading.outage || d.pending_ci.contains_key(&owner) || d.rebase_fresh.contains_key(&owner)))
-        || (*result == Err(Error::NotConnected) && d.rebase_fresh.contains_key(&owner));
+    let change = match d.steps.get(&owner) {
+        Some(pending) if !super::read_session::waiting_on_record(d, pending.task) => Some(pending.task),
+        Some(_) | None => None,
+    };
+    let capacity = *result == Err(Error::Busy) && (reading.outage || d.pending_ci.contains_key(&owner));
     if !d.stopping && reading.retry && riding(d, owner) && (outage || capacity) {
-        if let Some(pending) = d.steps.get(&owner) {
-            let task = pending.task;
+        if let Some(task) = change {
             super::read_session::pause(d, task);
             crate::waits::changed(d, task);
         }
@@ -304,22 +313,16 @@ pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result
         return true;
     }
     if reading.outage
-        && let Some(pending) = d.steps.get(&owner)
+        && let Some(task) = change
     {
-        let task = pending.task;
-        super::read_session::ended(d, env, task, env.wall);
+        super::read_session::ended(d, env, task, env.wall, out);
         crate::waits::changed(d, task);
-    }
-    if reading.outage
-        && let Some(pending) = d.steps.get(&owner)
-        && let Some(row) = d.changes.get_mut(&pending.task)
-    {
-        // since is stored, but this extension is in memory only. Only the
-        // unavailable part of this read chain is excluded; prior answered
-        // waiting still counts, and a later ordinary step can save its since.
-        let start = reading.asked.max(row.change.since);
-        let elapsed = env.wall.as_nanos().saturating_sub(start.as_nanos());
-        row.change.since = Wall::from_nanos(row.change.since.as_nanos().saturating_add(elapsed));
+        if let Some(row) = d.changes.get_mut(&task) {
+            // Only the unavailable part of this read chain is excluded.
+            let start = reading.asked.max(row.change.since);
+            let elapsed = env.wall.as_nanos().saturating_sub(start.as_nanos());
+            row.change.since = Wall::from_nanos(row.change.since.as_nanos().saturating_add(elapsed));
+        }
     }
     false
 }
@@ -374,7 +377,7 @@ pub(super) fn outcome(
     }
     active.writes.get_mut(&number).expect("retained write wait").again(env, true);
     erase_flight(d, entry.task, number, out);
-    keep_entry(d, entry, None, out);
+    save_entry_progress(d, entry, None, out);
     true
 }
 
@@ -423,7 +426,7 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
             row.handoff = Handoff::Uncommitted;
             let entry = row.entry.clone();
             // Ordinary durable fence: only Committed may hand it to Remake.
-            keep_entry(d, entry, Some(number), out);
+            save_entry_progress(d, entry, Some(number), out);
         } else {
             active.writes.remove(&number);
         }

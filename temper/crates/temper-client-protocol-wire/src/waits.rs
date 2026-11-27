@@ -53,6 +53,10 @@ pub const THING_RULE: u32 = 7;
 pub const THING_FORGE: u32 = 8;
 pub const THING_LANDINGS: u32 = 9;
 pub const THING_LANDING_MAKE: u32 = 10;
+/// A branch's write record, named by its entry capacity (domain/forge/writes.md, 6).
+pub const THING_WRITE_RECORD: u32 = 11;
+/// One admission order within that record.
+pub const THING_WRITE_ENTRY: u32 = 12;
 
 #[must_use]
 pub const fn step_name(code: u32) -> Option<&'static [u8]> {
@@ -112,6 +116,8 @@ pub const fn thing_name(code: u32) -> Option<&'static [u8]> {
         THING_FORGE => Some(b"forge"),
         THING_LANDINGS => Some(b"the forge's"),
         THING_LANDING_MAKE => Some(b"landing"),
+        THING_WRITE_RECORD => Some(b"branch write record, room for"),
+        THING_WRITE_ENTRY => Some(b"branch write"),
         _ => None,
     }
 }
@@ -122,6 +128,7 @@ pub const fn thing_suffix(code: u32) -> &'static [u8] {
     match code {
         THING_LANDINGS => b" landings",
         THING_LANDING_MAKE => b"'s make, refused by jig",
+        THING_WRITE_RECORD => b" writes",
         _ => b"",
     }
 }

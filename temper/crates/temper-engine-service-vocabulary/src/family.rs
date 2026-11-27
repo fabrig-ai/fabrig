@@ -828,22 +828,22 @@ pub(crate) fn reason_to_record(value: &change::Repair) -> w::Reason {
     }
 }
 
-fn panel_hold(value: Option<change::Hold>) -> Option<w::Hold> {
+fn panel_hold(value: Option<change::Cause>) -> Option<w::Hold> {
     Some(match value? {
-        change::Hold::Stalled => w::Hold::Stalled,
-        change::Hold::Repairs => w::Hold::Repairs,
-        change::Hold::Questions => w::Hold::Questions,
-        change::Hold::Resolutions => w::Hold::Resolutions,
-        change::Hold::Updates => w::Hold::Updates,
-        change::Hold::BranchMoved => w::Hold::Moved,
-        change::Hold::BranchMissing => w::Hold::Missing,
-        change::Hold::PullClosed => w::Hold::Closed,
-        change::Hold::Retargeted => w::Hold::Retargeted,
-        change::Hold::Failed | change::Hold::Runner | change::Hold::RedStands => w::Hold::Failed,
-        change::Hold::Flake => w::Hold::Flake,
-        change::Hold::NoTest => w::Hold::NoTest,
-        change::Hold::Rejected => w::Hold::Rejected,
-        change::Hold::Authority(cause) => {
+        change::Cause::Stalled => w::Hold::Stalled,
+        change::Cause::Repairs => w::Hold::Repairs,
+        change::Cause::Questions => w::Hold::Questions,
+        change::Cause::Resolutions => w::Hold::Resolutions,
+        change::Cause::Updates => w::Hold::Updates,
+        change::Cause::BranchMoved => w::Hold::Moved,
+        change::Cause::BranchMissing => w::Hold::Missing,
+        change::Cause::PullClosed => w::Hold::Closed,
+        change::Cause::Retargeted => w::Hold::Retargeted,
+        change::Cause::Failed | change::Cause::Runner | change::Cause::RedStands | change::Cause::CloseRefused => {
+            w::Hold::Failed
+        }
+        change::Cause::Rejected => w::Hold::Rejected,
+        change::Cause::Authority(cause) => {
             w::Hold::Authority(w::AuthorityHold { reason: change::authority_words(cause) })
         }
     })

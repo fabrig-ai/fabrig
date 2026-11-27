@@ -92,6 +92,8 @@ fn prepared(job: Option<JobKind>) -> (Harness, Token, Box<[Request]>) {
             | Request::ResultsIgnored { .. }
             | Request::RedsAsk { .. }
             | Request::RedsAnswer { .. }
+            | Request::AdmitAsk { .. }
+            | Request::AdmitAnswer { .. }
             | Request::ReadUsage { .. }
             | Request::ReadList { .. }
             | Request::CancelRead { .. }

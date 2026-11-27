@@ -173,6 +173,56 @@ fn admission_precedes_a_connectors_change_and_its_outputs_wait_for_the_commit() 
     assert!(!writes.is_empty(), "the retried decision retains its writes");
 }
 
+#[test]
+fn a_resumed_core_load_leaves_once_in_held_order() {
+    use core::engine::{In, store};
+    use jig_domain_notes as notes;
+
+    const PROJECT: u32 = 1;
+    let (mut domain, env) = fixture();
+    let mut full = env.with(env.limits.core);
+    full.limits.load_slots = 0;
+    let mut blocked = Queue::uncapped();
+    core::engine::step(
+        &mut domain.engine,
+        &full,
+        In::Core(core::Event::Notes(notes::Event::DropProject { owner: Token::new(1), project: PROJECT })),
+        &mut blocked,
+    );
+    assert!(blocked.is_empty(), "the notes page waits for load room");
+
+    let mut decision = domain.journal.decide();
+    let mut requests = Queue::uncapped();
+    requests.push(core::Request::Write(core::Write::Erase(core::Key::Notes(notes::Key::Entry { name: 1 }))));
+    requests.push(core::Request::ProjectMade { project: 2 });
+    let resumed = core::resume_fleet(domain.engine.core_mut(), &env.with(env.limits.core));
+    for request in resumed.into_boxed() {
+        requests.push(request);
+    }
+    requests.push(core::Request::ProjectMade { project: 3 });
+    crate::route::core_out(&mut domain, &env, &mut decision, requests, &mut Queue::uncapped());
+    domain.journal.accept(decision);
+
+    let before = take(&mut domain, &env);
+    let [Output::Commit { number, .. }] = before.as_ref() else {
+        panic!("nothing held leaves before the commit is durable");
+    };
+    step(&mut domain, &env, Event::Store(Store::Committed { number: *number, fill: 0 }));
+    let released = take(&mut domain, &env);
+    let [
+        Output::ProjectMade { project: 2 },
+        Output::Store(store::Out::Load {
+            range: store::Range::Notes(notes::Range::Project { project: PROJECT, after: None }),
+            ..
+        }),
+        Output::ProjectMade { project: 3 },
+    ] = released.as_ref()
+    else {
+        panic!("one held load at its place: {released:?}");
+    };
+    assert!(take(&mut domain, &env).is_empty());
+}
+
 fn connector_read(token: Token) -> Event {
     const READ_BYTES: u32 = 128;
     Event::Observability(observability::Event::Read {
@@ -286,6 +336,7 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
             | Output::Load { .. }
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
+            | Output::Store(_)
             | Output::Core(_)
             | Output::Now(_)
             | Output::Observability(_)
@@ -332,6 +383,7 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
                 }
                 other @ (Output::ReadResult { .. }
                 | Output::CoreLoad(_)
+                | Output::Store(_)
                 | Output::Core(_)
                 | Output::Now(_)
                 | Output::Observability(_)
@@ -391,17 +443,16 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Output]> {
                 Output::ToChild(value) => step(domain, env, Event::Released(value)),
                 Output::Load { phase, .. } => step(domain, env, Event::Store(Store::Restored(phase))),
                 Output::Switch => step(domain, env, Event::Store(Store::Switched)),
-                Output::Core(core::Held::NotesLoad { owner, .. }) => step(
-                    domain,
-                    env,
-                    Event::Core(core::Event::Notes(jig_domain_notes::Event::Loaded {
-                        owner,
-                        rows: jig_domain_notes::Rows { records: List::with_capacity(env.limits.core.notes.load_rows) },
+                Output::Store(core::engine::store::Out::Load { load, range: core::engine::store::Range::Notes(_) }) => {
+                    let result = core::engine::store::Answer::Rows(core::engine::store::Rows::Records {
+                        records: Box::new([]),
                         more: false,
-                    })),
-                ),
+                    });
+                    step(domain, env, Event::Store(Store::Engine(core::engine::store::In::Loaded { load, result })));
+                }
                 other @ (Output::ReadResult { .. }
                 | Output::CoreLoad(_)
+                | Output::Store(_)
                 | Output::Core(_)
                 | Output::Now(_)
                 | Output::Observability(_)
@@ -473,6 +524,7 @@ fn started_chat_with_contract(contract: u16) -> (Domain, Env<Limits>, Token) {
             | Output::Load { .. }
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
+            | Output::Store(_)
             | Output::Core(_)
             | Output::Now(_)
             | Output::Observability(_)
@@ -511,6 +563,7 @@ fn started_chat_with_contract(contract: u16) -> (Domain, Env<Limits>, Token) {
             | Output::Load { .. }
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
+            | Output::Store(_)
             | Output::Core(_)
             | Output::Now(_)
             | Output::Observability(_)
@@ -656,6 +709,7 @@ fn connector_documents_and_reads_share_the_last_connector_commit_barrier() {
             | Output::Load { .. }
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
+            | Output::Store(_)
             | Output::Core(_)
             | Output::Now(_)
             | Output::Observability(_)
@@ -768,44 +822,6 @@ fn either_start_refusal_cause_assembles_a_permanent_end() {
         );
         assert!(work.is_empty());
     }
-}
-
-#[test]
-fn a_loaded_transcript_passes_its_protocol_rendered_text_to_the_brief() {
-    let (mut domain, env) = fixture();
-    domain.engine.core_mut().begin_transcript(1, 1, Some((1, 1)));
-    step(
-        &mut domain,
-        &env,
-        Event::Store(Store::Transcript {
-            task: 1,
-            rows: Box::new([(
-                core::TurnRecord {
-                    task: 1,
-                    attempt: 1,
-                    turn: 1,
-                    spent: 0,
-                    read: None,
-                    opens_window: true,
-                    at: Wall::EPOCH,
-                    transcript: Box::from(&[0xff, 0x80][..]),
-                },
-                Some(Box::from(&b"assistant: conversation before restart\n"[..])),
-            )]),
-            done: false,
-        }),
-    );
-    assert_eq!(
-        core::read_brief_part(
-            domain.engine.core(),
-            core::BriefTextLimits { parts: 1, read_bytes: 128, brief_bytes: 128 },
-            1,
-            core::BriefPart::TranscriptTail
-        )
-        .expect("ops preparation tail")
-        .as_ref(),
-        b"assistant: conversation before restart\n"
-    );
 }
 
 #[test]
@@ -934,4 +950,107 @@ fn requirements_take_the_deployments_identifiers_and_thresholds() {
         crate::translate::requirement(9, &policy),
         Some(observability::Requirement::LoadBelow { percent: 12, for_seconds: 600 })
     );
+}
+
+#[test]
+fn declarations_follow_the_connectors_vocabulary_and_backend() {
+    use jig_domain_contract::{
+        effects::{EffectForm, EffectKind, Recovery},
+        resources::{ResourceKind, Rule, Taken},
+    };
+    let (_, mut env) = fixture();
+    let vocabulary = &mut env.limits.infrastructure.vocabulary;
+    vocabulary.service_hold = 31;
+    vocabulary.environment_hold = 32;
+    vocabulary.pool_slot_hold = 33;
+    vocabulary.restart_effect = 41;
+    vocabulary.scale_effect = 42;
+    vocabulary.rollback_effect = 43;
+    vocabulary.create_environment_effect = 44;
+    vocabulary.tear_down_effect = 45;
+    env.limits.observability.vocabulary.silence_effect = 46;
+    for (backend, restart) in [
+        (infrastructure::Backend::OperationIds, Recovery::Keyed),
+        (infrastructure::Backend::NoOperationIds, Recovery::Unrecoverable),
+    ] {
+        let [observability, infrastructure] = crate::translate::declarations(backend, &env.limits);
+        assert_eq!(observability.connector, 1);
+        assert!(observability.resources.is_empty());
+        assert_eq!(
+            observability.effects.as_ref(),
+            &[EffectKind { kind: 46, form: EffectForm::Set, recovery: Recovery::Keyed, waits_for_dependencies: false },]
+        );
+        assert_eq!(infrastructure.connector, 2);
+        assert_eq!(
+            infrastructure.resources.as_ref(),
+            &[
+                ResourceKind { kind: 31, hold: Rule::Exclusive { taken: Taken::Waits } },
+                ResourceKind { kind: 32, hold: Rule::Exclusive { taken: Taken::Waits } },
+                ResourceKind { kind: 33, hold: Rule::Pooled { taken: Taken::Waits } },
+            ]
+        );
+        let expected = [
+            (41, EffectForm::Transition, restart),
+            (42, EffectForm::Set, Recovery::Conditional),
+            (43, EffectForm::Transition, Recovery::Conditional),
+            (44, EffectForm::Creation, Recovery::Keyed),
+            (45, EffectForm::Transition, Recovery::Conditional),
+        ];
+        assert_eq!(infrastructure.effects.len(), expected.len());
+        for (declared, (kind, form, recovery)) in infrastructure.effects.iter().zip(expected) {
+            assert_eq!(*declared, EffectKind { kind, form, recovery, waits_for_dependencies: true });
+        }
+    }
+}
+
+#[test]
+fn declarations_preserve_effect_policy_for_each_backend() {
+    use jig_domain_contract::effects::{EffectForm, EffectKind, Recovery};
+    let (_, env) = fixture();
+    for (backend, restart_recovery) in [
+        (infrastructure::Backend::OperationIds, Recovery::Keyed),
+        (infrastructure::Backend::NoOperationIds, Recovery::Unrecoverable),
+    ] {
+        let [observability, infrastructure] = crate::translate::declarations(backend, &env.limits);
+        assert_eq!(
+            observability.effects.as_ref(),
+            &[EffectKind { kind: 1, form: EffectForm::Set, recovery: Recovery::Keyed, waits_for_dependencies: false }],
+        );
+        assert_eq!(
+            infrastructure.effects.as_ref(),
+            &[
+                EffectKind {
+                    kind: 1,
+                    form: EffectForm::Transition,
+                    recovery: restart_recovery,
+                    waits_for_dependencies: true
+                },
+                EffectKind {
+                    kind: 2,
+                    form: EffectForm::Set,
+                    recovery: Recovery::Conditional,
+                    waits_for_dependencies: true
+                },
+                EffectKind {
+                    kind: 3,
+                    form: EffectForm::Transition,
+                    recovery: Recovery::Conditional,
+                    waits_for_dependencies: true
+                },
+                EffectKind {
+                    kind: 4,
+                    form: EffectForm::Creation,
+                    recovery: Recovery::Keyed,
+                    waits_for_dependencies: true
+                },
+                EffectKind {
+                    kind: 5,
+                    form: EffectForm::Transition,
+                    recovery: Recovery::Conditional,
+                    waits_for_dependencies: true
+                },
+            ],
+            "{backend:?}",
+        );
+    }
 }

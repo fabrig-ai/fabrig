@@ -34,6 +34,7 @@ pub mod host;
 pub mod intervals;
 pub mod jobs;
 mod loads;
+pub use loads::notes_answer;
 pub mod logs;
 mod view;
 pub use jobs::{
@@ -349,6 +350,14 @@ impl Store {
     #[must_use]
     pub fn checked(&self) -> Checked {
         Checked { limits: self.limits, codec: self.codec_limits }
+    }
+
+    /// Whether the pending upgrade registered a value type absent from its source (protocol/store/layouts.md, 5).
+    /// A new layout of a previously registered type does not count.
+    #[must_use]
+    pub fn introduced_value_type(&self, family: &'static str, number: u16) -> bool {
+        let Some(pending) = directory::pending(self) else { return false };
+        pending.introduced.as_slice().contains(&(family, number))
     }
 
     /// Today's models, before a commit that holds them (domain/engine/settings-catalogue.md, 1).
@@ -730,8 +739,8 @@ pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, CheckpointRefusal, Checkpointed, CommitCheck,
     CommitFailure, Cursor, Event, Family, Generations, Get, HELD, Io, KeptOpening, KeptWire, KeptWorker, Load, Older,
     OpenRefusal, OpenedTerm, OpenedWire, Purpose, Reach, Request, Restore, RestoreRefusal, Restored, Root, Row,
-    SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead, Undecoded, Unkept, Unplanned, Unready, WorkerOpening,
-    Write,
+    SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead, Undecoded, Unkept, Unplanned, Unready, WindowPage,
+    WorkerOpening, Write,
 };
 
 #[cfg(test)]

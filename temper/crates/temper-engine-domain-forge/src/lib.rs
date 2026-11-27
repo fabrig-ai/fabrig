@@ -56,6 +56,8 @@ pub use brief_words::{BriefFate, BriefUnread};
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 use temper_engine_domain_forge_vocabulary::brief_words;
 mod capabilities;
+mod hooks;
+pub use hooks::{CLOSE_HOOK, Hooks};
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod workflows;
 pub use workflows::{WORKFLOW_BYTES, WORKFLOWS};
@@ -195,7 +197,7 @@ mod verification;
 pub use brief::{HOME_SECTION_BYTES, hex, home_access_reason};
 pub use commit::commit_text;
 pub use domain::{
-    DEFAULT_CHANGE_TITLE, Domain, RestoreFit, RestoreSet, StartLink, fire, resume, step, tag, untag, writer,
+    DEFAULT_CHANGE_TITLE, Domain, RestoreFit, RestoreSet, StartLink, TaskHold, fire, resume, step, tag, untag, writer,
 };
 pub use gates::{GateCandidate, GateLast, GatePattern, Requires, Touched, covers, covers_branch, touched};
 pub use judge::{Criterion, Freshness as JudgeFreshness, Reviewer, Verdict as JudgeVerdict};

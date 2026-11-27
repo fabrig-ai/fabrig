@@ -91,6 +91,30 @@ pub fn gate() -> bool {
     mode().gate()
 }
 
+/// Report the digest of what the calling thread's case drew, only under replay.
+pub fn input(digest: [u8; 32]) {
+    input_in(mode, digest, stderr);
+}
+
+pub(crate) fn input_in(mode: impl FnOnce() -> Mode, digest: [u8; 32], report: impl FnOnce(fmt::Arguments<'_>)) {
+    if let Ok(Some(Location { test, seed })) = ACTIVE.try_with(Cell::get)
+        && matches!(mode(), Mode::Replay(_))
+    {
+        report(format_args!("fuzzy input: {test} seed {seed:016x} {}", InputDigest(digest)));
+    }
+}
+
+struct InputDigest([u8; 32]);
+
+impl fmt::Display for InputDigest {
+    fn fmt(&self, out: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for byte in &self.0 {
+            write!(out, "{byte:02x}")?;
+        }
+        Ok(())
+    }
+}
+
 pub(crate) fn cases_in<S, E, F, R, C>(
     mode: Mode,
     test: Test,
@@ -160,6 +184,10 @@ impl fmt::Display for Location {
 
 std::thread_local! {
     static ACTIVE: Cell<Option<Location>> = const { Cell::new(None) };
+}
+
+pub(super) fn in_case() -> bool {
+    ACTIVE.get().is_some()
 }
 
 // The location belongs to the check, and is restored even if it unwinds.

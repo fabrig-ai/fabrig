@@ -40,11 +40,23 @@ impl State {
         }
     }
     pub(crate) fn reserve(&mut self, reservation: Reservation, task: u64, ended: Option<Wall>) {
-        if self.reservations.contains_key(&reservation) {
-            return;
-        }
-        self.sequence = self.sequence.checked_add(1).expect("reservation sequence fits a process");
-        self.reservations.insert(reservation, (self.sequence, task, ended)).expect("reservations fit outbox");
+        assert!(
+            !self.reservations.contains_key(&reservation),
+            "one full-report record for outbox reservation {reservation:?} of task {task}"
+        );
+        let Some(sequence) = self.sequence.checked_add(1) else {
+            unreachable!("sequence for outbox reservation {reservation:?} of task {task} fits the process");
+        };
+        self.sequence = sequence;
+        let inserted = self.reservations.insert(reservation, (self.sequence, task, ended));
+        assert!(inserted.is_ok(), "full-report record for outbox reservation {reservation:?} of task {task} fits");
+    }
+    pub(crate) fn assert_owner(&self, reservation: Reservation, task: u64) {
+        let owner = match self.reservations.get(&reservation) {
+            Some((_, owner, _)) => Some(*owner),
+            None => None,
+        };
+        assert_eq!(owner, Some(task), "outbox reservation {reservation:?} belongs to task {task}");
     }
     pub(crate) fn reserved_owner_ended(&self, reservation: Reservation) -> Option<Wall> {
         self.reservations.get(&reservation)?.2
@@ -129,7 +141,7 @@ pub(crate) fn update(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>
 }
 fn reservation_held(d: &Domain, reservation: Reservation) -> bool {
     match reservation {
-        Reservation::Asked(waiter) => d.room.asked.contains(&waiter),
+        Reservation::Asked(waiter) => crate::room::asked(d, waiter),
         Reservation::Call(owner) => d.call_room.contains(&owner),
         Reservation::Projection(entry) => d.projection_room.contains(&entry),
     }
@@ -238,9 +250,9 @@ fn append(holders: &mut List<Box<[u8]>>, text: &[u8]) {
         holders.push(safe_name(text)).expect("eight named holders");
     }
 }
-fn census(used: u32, limit: u32, holders: List<Box<[u8]>>, waiting: u32) -> Box<[u8]> {
+fn census(used: u64, limit: u32, holders: List<Box<[u8]>>, waiting: u32) -> Box<[u8]> {
     let mut words = bytes::concat(&[
-        Decimal::of(u64::from(used)).as_bytes(),
+        Decimal::of(used).as_bytes(),
         b" of ",
         Decimal::of(u64::from(limit)).as_bytes(),
         b", held by ",
@@ -251,9 +263,9 @@ fn census(used: u32, limit: u32, holders: List<Box<[u8]>>, waiting: u32) -> Box<
         words = bytes::concat(&[&words, separator, holder]);
         first = false;
     }
-    let more = used.saturating_sub(holders.len());
+    let more = used.saturating_sub(u64::from(holders.len()));
     if more > 0 {
-        words = bytes::concat(&[&words, b", and ", Decimal::of(u64::from(more)).as_bytes(), b" more"]);
+        words = bytes::concat(&[&words, b", and ", Decimal::of(more).as_bytes(), b" more"]);
     }
     if waiting > 0 {
         words = bytes::concat(&[&words, b"; ", Decimal::of(u64::from(waiting)).as_bytes(), b" waiting for room"]);
@@ -314,7 +326,7 @@ fn outbox_words(d: &Domain, limit: u32) -> Box<[u8]> {
             waiting = waiting.saturating_add(1);
         }
     }
-    census(d.entries.len().saturating_add(crate::room::reserved(d)), limit, holders, waiting)
+    census(crate::room::taken(d), limit, holders, waiting)
 }
 fn read_words(d: &Domain, limit: u32) -> Box<[u8]> {
     let calls = d.client.holders();
@@ -338,7 +350,7 @@ fn read_words(d: &Domain, limit: u32) -> Box<[u8]> {
             break;
         }
     }
-    census(used, limit, holders, 0)
+    census(u64::from(used), limit, holders, 0)
 }
 fn task(d: &Domain, owner: &CallOwner) -> Option<u64> {
     match owner {

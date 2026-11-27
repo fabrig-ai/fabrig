@@ -17,6 +17,17 @@ This document holds the landing turn and its trains, split from [`landing.md`](l
   waits `read`, and a run of such waits the forge keeps answering while
   the turn stays where it was holds past the stall (`landing-waits.md`,
   3), as a round's reads at preparing do.
+- **Through the record of temper's writes** (`forge/writes.md`). The
+  round's merge is admitted into the train branch's record and its pull
+  request's before it is sent (2 there), and each read of the train's
+  tip and of the round's pull request here and at readback is judged
+  against them (4 there). A tip the record finds behind, an older head
+  of temper's, is a read not there yet: it waits `read`, within the
+  landing's read wait (`landing-waits.md`, 3), never making the round
+  stale nor reading as a merge not made. A tip the record explains by
+  another write of temper's, a goal's design delivery among them, is a
+  push that moved the branch, stale as above; one no entry explains is
+  drift, stale too, and named so in the round's words.
 - **Then the branch fast-forwards to the round's proved prefix,** its
   candidate or, after a search, its green prefix, at which this
   section's candidate reads (`landing-search.md`, 5), by the merge of

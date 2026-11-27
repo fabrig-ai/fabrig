@@ -22,12 +22,11 @@ impl Domain {
         names: &mut Names,
     ) -> Option<w::PublicChange> {
         let l = &w::CEILINGS;
-        let mut state = &row.change.state;
-        let mut hold = None;
-        while let c::State::Held { was, why } = state {
-            hold = Some(hold_kind(*why));
-            state = was;
-        }
+        let (state, hold) = if let c::State::Held { was, hold } = &row.change.state {
+            (was.as_ref(), Some(hold_kind(hold.cause)))
+        } else {
+            (&row.change.state, None)
+        };
         let step = self.public_step(row, state)?;
         let mut gates = List::with_capacity(l.public_change_gates);
         for gate in &row.change.gates {
@@ -157,22 +156,20 @@ fn used(used: u32, limit: u32) -> Option<w::PublicUsed> {
         Some(value)
     }
 }
-fn hold_kind(why: c::Hold) -> w::PublicHold {
+fn hold_kind(why: c::Cause) -> w::PublicHold {
     match why {
-        c::Hold::Stalled => w::PublicHold::Stalled,
-        c::Hold::Repairs => w::PublicHold::Repairs,
-        c::Hold::Resolutions => w::PublicHold::Resolutions,
-        c::Hold::Updates => w::PublicHold::Updates,
-        c::Hold::BranchMoved => w::PublicHold::Moved,
-        c::Hold::BranchMissing => w::PublicHold::Missing,
-        c::Hold::PullClosed => w::PublicHold::Closed,
-        c::Hold::Retargeted => w::PublicHold::Retargeted,
-        c::Hold::Failed | c::Hold::Runner | c::Hold::RedStands => w::PublicHold::Failed,
-        c::Hold::Flake => w::PublicHold::Flake,
-        c::Hold::NoTest => w::PublicHold::NoTest,
-        c::Hold::Rejected => w::PublicHold::Rejected,
-        c::Hold::Authority(_) => w::PublicHold::Authority,
-        c::Hold::Questions => w::PublicHold::Questions,
+        c::Cause::Stalled => w::PublicHold::Stalled,
+        c::Cause::Repairs => w::PublicHold::Repairs,
+        c::Cause::Resolutions => w::PublicHold::Resolutions,
+        c::Cause::Updates => w::PublicHold::Updates,
+        c::Cause::BranchMoved => w::PublicHold::Moved,
+        c::Cause::BranchMissing => w::PublicHold::Missing,
+        c::Cause::PullClosed => w::PublicHold::Closed,
+        c::Cause::Retargeted => w::PublicHold::Retargeted,
+        c::Cause::Failed | c::Cause::Runner | c::Cause::RedStands | c::Cause::CloseRefused => w::PublicHold::Failed,
+        c::Cause::Rejected => w::PublicHold::Rejected,
+        c::Cause::Authority(_) => w::PublicHold::Authority,
+        c::Cause::Questions => w::PublicHold::Questions,
     }
 }
 fn worse(a: c::Status, b: c::Status) -> c::Status {

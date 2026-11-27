@@ -159,6 +159,8 @@ fn a_parked_producing_change_with_its_live_delegate_passes() {
 
 #[test]
 fn a_preparing_change_without_a_landing_waits_on_its_write() {
+    // The new gather meets Busy at 69.7 s in this fixture and retries one second later.
+    const READ_ADMISSION_RETRY: Time = Time::from_nanos(70_700_000_000);
     let (world, change) = super::forge_routes::reviews::preparing_review_repair(None);
     let row = world.root.forge().change(change).expect("preparing change");
     assert_eq!(world.root.forge().landing_of(row.task), None);
@@ -174,7 +176,7 @@ fn a_preparing_change_without_a_landing_waits_on_its_write() {
         }
         let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("change wait");
         assert_eq!(wait.kind, "change: preparing");
-        assert_eq!(wait.wakes, [Wake::Party(format!("forge: entry {entry}"))]);
+        assert_eq!(wait.wakes, [Wake::Party(format!("forge: entry {entry}")), Wake::Timer(READ_ADMISSION_RETRY)]);
         assert_eq!(wait.bound, None);
     }
     assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
@@ -253,16 +255,32 @@ fn a_restored_prepare_wait_without_its_job_is_a_root_finding() {
 
     let (mut world, _, change) = preparing();
     let row = world.root.forge().landing(change).expect("preparing row").clone();
-    // Finish the job without letting the landing start another prepare.
-    world.root.hold_landings(true);
+    // Let the landing leave its prepare wait normally and stop its merge
+    // before dispatch, so the job has ended but the landing still owns the train.
+    world.held_merge_calls = Some(Vec::new());
     world.automatic_prepare_jobs();
     world.tick();
-    world.until(Until::Ready);
-    // Consume the poll while the operator hold prevents another landing step.
+    for _ in 0..200 {
+        if world.held_merge_calls.as_ref().is_some_and(|calls| !calls.is_empty())
+            && !world.root.forge().inspection_landing_stepping(change)
+            && world.events.is_empty()
+            && world.store.idle()
+            && world.root.quiescent()
+        {
+            break;
+        }
+        world.tick();
+    }
+    assert_eq!(world.held_merge_calls.as_ref().expect("held merges").len(), 1);
+    // Consume the poll with a live write still waking the landing. Freezing
+    // the prepare wait itself would leave it unwakeable as soon as the job ends.
+    world.root.hold_landings(true);
     let poll = world.root.forge().inspection_landing_due(change).expect("landing poll");
     world.advance_to(Time::from_nanos(poll.as_nanos()));
     world.until(Until::Ready);
     world.root.hold_landings(false);
+    assert!(!world.root.forge().inspection_landing_stepping(change));
+    assert_eq!(world.root.forge().inspection_landing_due(change), None);
 
     // Restore the stale wait in place, preserving membership and train ownership.
     engine::step(
@@ -720,7 +738,10 @@ fn held_producing(why: tasks::Hold) -> (World, u64, u64) {
     let mut row = world.root.forge().change(change).expect("change row").clone();
     row.change.state = temper_engine_domain_forge_change::State::Held {
         was: Box::new(row.change.state),
-        why: temper_engine_domain_forge_change::Hold::Stalled,
+        hold: temper_engine_domain_forge_change::Hold::new(
+            temper_engine_domain_forge_change::Cause::Stalled,
+            skein_lib::Wall::EPOCH,
+        ),
     };
     engine::step(
         &mut world.root,

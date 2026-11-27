@@ -1,5 +1,6 @@
 //! Dense revision reads (domain/engine/settings-store.md, 1; client/domain/contract/reads.md, section 1).
 
+use crate::engine::store as engine_store;
 use crate::{
     Core, CoreRecord, Limits, Record, Request,
     reads::{
@@ -12,7 +13,7 @@ use alloc::boxed::Box;
 pub use jig_domain_core_vocabulary::reads::settings::*;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, List, Map, Queue, ReplyTo};
+use skein_lib::{Env, List, Map, Queue, ReplyTo, Token};
 
 #[must_use]
 pub fn oldest(core: &Core, limits: &Limits) -> u32 {
@@ -50,7 +51,7 @@ pub(crate) fn run_proposal(
         Err(crate::documents::Missing::TooLarge) => return refused(to, key, crate::CallPart::Unavailable),
         Err(crate::documents::Missing::Ended | crate::documents::Missing::Unknown) => {}
     }
-    if core.reads.is_full() || core.reads.len() >= env.limits.load_slots {
+    if core.loads.read_slots_full() || core.loads.reads() >= env.limits.load_slots {
         return refused(to, key, crate::CallPart::Unavailable);
     }
     let range = Range {
@@ -73,9 +74,9 @@ pub(crate) fn run_proposal(
         tasks: None,
         parts: None,
     };
-    let load = core.reads.insert(pending).expect("proposal read room checked").token();
+    let load = core.loads.insert_read(pending).expect("proposal read room checked");
     let mut out = Queue::uncapped();
-    out.push(Request::Held(Box::new(crate::Held::ReadLoad { load, range: Box::new(range) })));
+    out.push(crate::loads::read(load, range));
     out
 }
 
@@ -116,17 +117,17 @@ fn proposal_answer(to: ReplyTo, key: crate::CallKey, value: Answer) -> Queue<Req
 pub(super) fn proposal_loaded(
     core: &mut Core,
     env: &Env<Limits>,
-    name: skein_lib::Id<super::Pending>,
-    result: super::Loaded,
+    name: Token,
+    result: engine_store::Answer,
 ) -> Queue<Request> {
-    let pending = core.reads.get_mut(name).expect("pending proposal load");
+    let pending = core.loads.read_mut(name).expect("pending proposal load");
     let super::Destination::Proposal { to, key } =
         core::mem::replace(&mut pending.destination, super::Destination::Done)
     else {
         unreachable!("proposal destination")
     };
     let range = pending.range.clone();
-    core.reads.retire(name);
+    core.loads.retire(name);
     if !core.current_proof(key.task, key.attempt) {
         return Queue::uncapped();
     }
@@ -139,9 +140,18 @@ pub(super) fn proposal_loaded(
     }
     let project = core.tasks.task(key.task).expect("current reading task").project;
     let value = match result {
-        super::Loaded::Busy | super::Loaded::TooLinked { .. } => Answer::None(Why::Busy),
-        super::Loaded::Gone | super::Loaded::TurnProblem { .. } => Answer::None(Why::Unknown),
-        super::Loaded::Page { rows, next } => {
+        engine_store::Answer::Rows(engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. })
+        | engine_store::Answer::Cut { .. }
+        | engine_store::Answer::Failed(
+            engine_store::Failure::Busy
+            | engine_store::Failure::Failed
+            | engine_store::Failure::Unread
+            | engine_store::Failure::TooLinked { .. },
+        ) => Answer::None(Why::Busy),
+        engine_store::Answer::Failed(engine_store::Failure::Gone | engine_store::Failure::TurnProblem { .. }) => {
+            Answer::None(Why::Unknown)
+        }
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) => {
             super::rows::proposal_from_store(core, &env.limits, &range, rows, next, env.wall, project)
         }
     };
@@ -225,18 +235,27 @@ pub(super) fn answer(destination: super::Destination, value: Answer) -> Queue<Re
 pub(super) fn run_loaded(
     core: &mut Core,
     env: &Env<Limits>,
-    name: skein_lib::Id<super::Pending>,
-    result: super::Loaded,
+    name: Token,
+    result: engine_store::Answer,
 ) -> Queue<Request> {
-    let pending = core.reads.get_mut(name).expect("pending settings load");
+    let pending = core.loads.read_mut(name).expect("pending settings load");
     let destination = core::mem::replace(&mut pending.destination, super::Destination::Done);
     let range = pending.range.clone();
-    core.reads.retire(name);
+    core.loads.retire(name);
     let value = match result {
-        super::Loaded::TooLinked { .. } | super::Loaded::Busy => Answer::None(Why::Busy),
-        super::Loaded::Gone => Answer::None(Why::Gone),
-        super::Loaded::Page { rows, next } => super::rows::from_store(core, &env.limits, &range, rows, next, env.wall),
-        super::Loaded::TurnProblem { .. } => Answer::None(Why::Unknown),
+        engine_store::Answer::Rows(engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. })
+        | engine_store::Answer::Cut { .. }
+        | engine_store::Answer::Failed(
+            engine_store::Failure::TooLinked { .. }
+            | engine_store::Failure::Busy
+            | engine_store::Failure::Failed
+            | engine_store::Failure::Unread,
+        ) => Answer::None(Why::Busy),
+        engine_store::Answer::Failed(engine_store::Failure::Gone) => Answer::None(Why::Gone),
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) => {
+            super::rows::from_store(core, &env.limits, &range, rows, next, env.wall)
+        }
+        engine_store::Answer::Failed(engine_store::Failure::TurnProblem { .. }) => Answer::None(Why::Unknown),
     };
     answer(destination, value)
 }
@@ -575,10 +594,10 @@ fn project_proposal_scope(core: &Core, project: u32, proposer: people::Proposer,
 pub(super) fn project_proposal_loaded(
     core: &mut Core,
     env: &Env<Limits>,
-    name: skein_lib::Id<super::Pending>,
-    result: super::Loaded,
+    name: Token,
+    result: engine_store::Answer,
 ) -> Queue<Request> {
-    let pending = core.reads.get(name).expect("pending project proposal load");
+    let pending = core.loads.read(name).expect("pending project proposal load");
     let super::Destination::ProjectProposal { project, .. } = pending.destination else {
         unreachable!("project proposal destination")
     };
@@ -591,15 +610,24 @@ pub(super) fn project_proposal_loaded(
         Answer::None(Why::Unknown)
     } else {
         match result {
-            super::Loaded::Busy | super::Loaded::TooLinked { .. } => Answer::None(Why::Busy),
-            super::Loaded::Gone | super::Loaded::TurnProblem { .. } => Answer::None(Why::Unknown),
-            super::Loaded::Page { rows, next } => {
+            engine_store::Answer::Rows(engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. })
+            | engine_store::Answer::Cut { .. }
+            | engine_store::Answer::Failed(
+                engine_store::Failure::Busy
+                | engine_store::Failure::Failed
+                | engine_store::Failure::Unread
+                | engine_store::Failure::TooLinked { .. },
+            ) => Answer::None(Why::Busy),
+            engine_store::Answer::Failed(engine_store::Failure::Gone | engine_store::Failure::TurnProblem { .. }) => {
+                Answer::None(Why::Unknown)
+            }
+            engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) => {
                 super::rows::proposal_from_store(core, &env.limits, &pending.range, rows, next, env.wall, project)
             }
         }
     };
-    let reply = core.reads.get_mut(name).expect("pending project proposal load").take_reply();
-    core.reads.retire(name);
+    let reply = core.loads.read_mut(name).expect("pending project proposal load").take_reply();
+    core.loads.retire(name);
     terminal(reply, value)
 }
 
@@ -610,10 +638,10 @@ fn metadata_allowed(core: &Core, party: u64, project: u32) -> bool {
 pub(super) fn metadata_loaded(
     core: &mut Core,
     env: &Env<Limits>,
-    name: skein_lib::Id<super::Pending>,
-    result: super::Loaded,
+    name: Token,
+    result: engine_store::Answer,
 ) -> Queue<Request> {
-    let pending = core.reads.get(name).expect("pending revision metadata load");
+    let pending = core.loads.read(name).expect("pending revision metadata load");
     let super::Destination::RevisionMetadata { project, .. } = pending.destination else {
         unreachable!("revision metadata destination")
     };
@@ -623,16 +651,23 @@ pub(super) fn metadata_loaded(
         Answer::None(Why::Unknown)
     } else {
         match result {
-            super::Loaded::TooLinked { .. } | super::Loaded::Busy => Answer::None(Why::Busy),
-            super::Loaded::Gone => Answer::None(Why::Gone),
-            super::Loaded::TurnProblem { .. } => Answer::None(Why::Unknown),
-            super::Loaded::Page { rows, next } => {
+            engine_store::Answer::Rows(engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. })
+            | engine_store::Answer::Cut { .. }
+            | engine_store::Answer::Failed(
+                engine_store::Failure::TooLinked { .. }
+                | engine_store::Failure::Busy
+                | engine_store::Failure::Failed
+                | engine_store::Failure::Unread,
+            ) => Answer::None(Why::Busy),
+            engine_store::Answer::Failed(engine_store::Failure::Gone) => Answer::None(Why::Gone),
+            engine_store::Answer::Failed(engine_store::Failure::TurnProblem { .. }) => Answer::None(Why::Unknown),
+            engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) => {
                 metadata(from_store(core, &env.limits, &pending.range, rows, next), project)
             }
         }
     };
-    let reply = core.reads.get_mut(name).expect("pending revision metadata load").take_reply();
-    core.reads.retire(name);
+    let reply = core.loads.read_mut(name).expect("pending revision metadata load").take_reply();
+    core.loads.retire(name);
     terminal(reply, value)
 }
 
@@ -911,7 +946,10 @@ pub(crate) fn restore_load(
     party: u64,
 ) -> Option<Queue<Request>> {
     let rows = last.checked_sub(first)?.checked_add(1)?;
-    if core.reads.is_full() || core.reads.len() >= env.limits.load_slots || load_bytes(&env.limits, rows).is_none() {
+    if core.loads.read_slots_full()
+        || core.loads.reads() >= env.limits.load_slots
+        || load_bytes(&env.limits, rows).is_none()
+    {
         return None;
     }
     Some(load(core, env, Recipient { destination: super::Destination::Restore, sign_in: 0, party }, first, last, false))
@@ -920,14 +958,14 @@ pub(super) fn restore_loaded(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<crate::routing::Work>,
-    name: skein_lib::Id<super::Pending>,
-    result: super::Loaded,
+    name: Token,
+    result: engine_store::Answer,
 ) -> Queue<Request> {
-    let pending = core.reads.get_mut(name).expect("pending restore page");
+    let pending = core.loads.read_mut(name).expect("pending restore page");
     pending.destination = super::Destination::Done;
     let range = pending.range.clone();
-    core.reads.retire(name);
-    core.reads.reclaim();
+    core.loads.retire(name);
+    core.loads.reclaim();
     crate::routing::settings::restore::loaded(core, env, work, range, result)
 }
 
@@ -936,7 +974,7 @@ mod tests {
     use super::*;
     const PROJECT: u32 = 1;
     const SIGN_IN: u64 = 10;
-    const REPLY: ReplyTo = ReplyTo::new(skein_lib::Token::new(90));
+    const REPLY: ReplyTo = ReplyTo::new(Token::new(90));
     const REVISION: u32 = 2;
     // The application fixture declares an opaque value of eight bytes.
     const APPLICATION_BYTES: u32 = 8;
@@ -968,10 +1006,10 @@ mod tests {
         (core, env)
     }
 
-    fn metadata_load(core: &mut Core, env: &Env<Limits>) -> skein_lib::Token {
+    fn metadata_load(core: &mut Core, env: &Env<Limits>) -> Token {
         let mut out = revision_metadata(core, env, REPLY, SIGN_IN, PROJECT, REVISION);
         let Some(Request::Held(held)) = out.pop() else { panic!("metadata load") };
-        let crate::Held::ReadLoad { load, .. } = *held else { panic!("metadata load") };
+        let crate::Held::Store(engine_store::Out::Load { load, .. }) = *held else { panic!("metadata load") };
         assert!(out.is_empty());
         load
     }
@@ -1016,7 +1054,7 @@ mod tests {
             &env,
             &mut Queue::uncapped(),
             load,
-            crate::reads::Loaded::Page { rows, next: None },
+            engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }),
         );
         let Answer::Revision(answer) = read_answer(out) else { panic!("revision metadata") };
         let RevisionAnswer::Revision { revision, .. } = *answer else { panic!("revision metadata") };
@@ -1035,7 +1073,13 @@ mod tests {
             let (replacement, _) = metadata_core(role);
             core.people = replacement.people;
             env.wall = wall;
-            let out = crate::reads::loaded(&mut core, &env, &mut Queue::uncapped(), load, crate::reads::Loaded::Busy);
+            let out = crate::reads::loaded(
+                &mut core,
+                &env,
+                &mut Queue::uncapped(),
+                load,
+                engine_store::Answer::Failed(engine_store::Failure::Busy),
+            );
             assert_eq!(read_answer(out), Answer::None(why));
         }
     }
@@ -1064,7 +1108,7 @@ mod tests {
             &mut core.tasks,
             &env.with(env.limits.tasks),
             tasks::Event::Propose {
-                reply_to: ReplyTo::new(skein_lib::Token::new(91)),
+                reply_to: ReplyTo::new(Token::new(91)),
                 proposal: tasks::Proposal {
                     number: PROPOSAL,
                     proposer: PROPOSER,
@@ -1159,7 +1203,7 @@ mod tests {
             &mut core.tasks,
             &env.with(env.limits.tasks),
             tasks::Event::ProposePerson {
-                reply_to: ReplyTo::new(skein_lib::Token::new(92)),
+                reply_to: ReplyTo::new(Token::new(92)),
                 proposal: tasks::PersonProposal {
                     number: PROPOSAL,
                     proposer: PROPOSER,
@@ -1225,7 +1269,7 @@ mod tests {
                 &mut core.tasks,
                 &env.with(env.limits.tasks),
                 tasks::Event::DecidePersonProposal {
-                    reply_to: ReplyTo::new(skein_lib::Token::new(93)),
+                    reply_to: ReplyTo::new(Token::new(93)),
                     proposer: PROPOSER,
                     proposal: PROPOSAL,
                     by: tasks::Party::Person(1),
@@ -1269,10 +1313,16 @@ mod tests {
                 PROPOSAL + 1,
             );
             let Some(Request::Held(held)) = out.pop() else { panic!("proposal load") };
-            let crate::Held::ReadLoad { load, .. } = *held else { panic!("proposal load") };
+            let crate::Held::Store(engine_store::Out::Load { load, .. }) = *held else { panic!("proposal load") };
             core.people = metadata_core(role).0.people;
             env.wall = wall;
-            let out = crate::reads::loaded(&mut core, &env, &mut Queue::uncapped(), load, crate::reads::Loaded::Busy);
+            let out = crate::reads::loaded(
+                &mut core,
+                &env,
+                &mut Queue::uncapped(),
+                load,
+                engine_store::Answer::Failed(engine_store::Failure::Busy),
+            );
             assert_eq!(read_answer(out), Answer::None(why));
         }
     }

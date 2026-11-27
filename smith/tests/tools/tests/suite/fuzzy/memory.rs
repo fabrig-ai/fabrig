@@ -2,12 +2,15 @@
 //! a counting allocator: the tools child domain driven at random through every
 //! terminal io may give, its peak measured in every step.
 
+use std::convert::Infallible;
+
 use skein_lib::{Duration, Env, Queue, ReplyTo, Rng, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
+use skein_world::sweep::{Case, cases, gate};
 use smith_domain_tools::{
     Call, Domain, Done, Entry, Event, Exit, Expect, Fault, Hit, Kind, Limits, Op, Request, Version,
 };
-use smith_tools_world::memory::{LIMITS, authority, name, path, read, write};
+use smith_tools_world::memory::{LIMITS, authority, path, read, write};
 
 /// What an operation in flight asked for, as io would remember it.
 #[derive(Clone, Copy, Debug)]
@@ -80,7 +83,9 @@ fn churn(limits: Limits, seed: u64, rounds: u32, bound: u64) {
     }
     domain.reclaim();
     assert_eq!((domain.kits(), domain.flights()), (0, 0), "{limits:?}: nothing is left");
-    assert!(counted.iter().all(|count| *count > 10), "{limits:?}: every kind of operation ran: {counted:?}");
+    if gate() {
+        assert!(counted.iter().all(|count| *count > 10), "{limits:?}: every kind of operation ran: {counted:?}");
+    }
 }
 
 /// Takes what a step asked for, keeping what the driver needs to go on, and
@@ -184,11 +189,17 @@ fn random_done(limits: &Limits, rng: &mut Rng, asked: Asked) -> Done {
                 Done::Exited { exit, head: head.into(), tail: tail.into(), dropped: rng.below(1000) }
             }
             Asked::Search => {
-                let hits: Vec<Hit> = (0..rng.below(u64::from(limits.search_hits) + 1))
+                // Paths and text share one byte budget across all hits.
+                let path = b"src";
+                let bytes = usize::try_from(limits.search_bytes).expect("small");
+                let drawn = usize::try_from(rng.below(u64::from(limits.search_hits) + 1)).expect("small");
+                let count = drawn.min(bytes / path.len());
+                let text = bytes.checked_div(count).map_or(0, |share| share - path.len());
+                let hits: Vec<Hit> = (1..=count)
                     .map(|line| Hit {
-                        path: name(b"src").as_bytes().into(),
+                        path: path.as_slice().into(),
                         line: u32::try_from(line).expect("small"),
-                        text: vec![b'x'; usize::try_from(limits.search_bytes).expect("small")].into(),
+                        text: vec![b'x'; text].into(),
                     })
                     .collect();
                 Done::Found { hits: hits.into(), more: rng.below(3), timed_out: rng.chance(200) }
@@ -212,14 +223,19 @@ const RANDOM_TOOLS_CEILING: u64 = 11_000;
 const SMALL_RANDOM_TOOLS_CEILING: u64 = 18_000;
 
 #[test]
-fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_step() {
-    for seed in 0..20 {
-        churn(LIMITS, seed, 3_000, RANDOM_TOOLS_CEILING);
-        churn(
-            Limits { kits: 4, calls: 4, known_files: 8, file_bytes: 64, tool_payload: 32, ..LIMITS },
-            seed,
-            3_000,
-            SMALL_RANDOM_TOOLS_CEILING,
-        );
-    }
+fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_step() -> Result<(), Case<Infallible>> {
+    cases(
+        skein_world::this_test!("a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_step"),
+        0..20,
+        |seed| {
+            churn(LIMITS, seed, 3_000, RANDOM_TOOLS_CEILING);
+            churn(
+                Limits { kits: 4, calls: 4, known_files: 8, file_bytes: 64, tool_payload: 32, ..LIMITS },
+                seed,
+                3_000,
+                SMALL_RANDOM_TOOLS_CEILING,
+            );
+            Ok(())
+        },
+    )
 }

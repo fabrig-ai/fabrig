@@ -4,6 +4,7 @@ pub fn one_repository() -> wire::Workspace {
     wire::Workspace {
         rerun: None,
         repositories: Box::new([wire::Repository {
+            admit: false,
             save: None,
             git: None,
             tag: (1_u64 << 32) | 3,
@@ -128,6 +129,7 @@ fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
     if repository {
         repositories
             .push(v1::Repository {
+                admit: false,
                 save: Some(b"temper/saved-7".as_slice().into()),
                 git: None,
                 tag: (1_u64 << 32) | 3,

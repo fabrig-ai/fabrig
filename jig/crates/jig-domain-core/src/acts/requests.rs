@@ -29,6 +29,7 @@ pub(crate) fn request(
         // An account request's check is its holder's, which people made (domain/authority-checks.md, 1.4).
         people::Ask::Restore { .. }
         | people::Ask::Lift { .. }
+        | people::Ask::Measure { .. }
         | people::Ask::Propose { action: people::Action::Settings { .. }, .. }
         | people::Ask::ChangeSettings { .. }
         | people::Ask::PauseWorker { .. }
@@ -171,6 +172,7 @@ pub(crate) fn request(
         | people::Ask::TakePerson { .. }
         | people::Ask::HandBackPerson { .. }
         | people::Ask::Lift { .. }
+        | people::Ask::Measure { .. }
         | people::Ask::Release { .. }
         | people::Ask::Amend { .. }
         | people::Ask::Stop { .. }

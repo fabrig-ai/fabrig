@@ -185,7 +185,7 @@ impl Tui {
 
     /// Walks Needs you from the launchpad's empty box.
     pub fn walk_needs(&mut self, world: &mut World<Temper, Joint>) {
-        self.press(world, vec![Key::Char('n')]);
+        self.press(world, vec![Key::Paste(b"/needs".as_slice().into()), Key::Enter]);
     }
 
     /// The frame's rows without terminal padding.

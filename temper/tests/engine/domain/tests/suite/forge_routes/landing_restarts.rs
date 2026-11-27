@@ -98,18 +98,9 @@ pub(super) fn pushed_change(world: &mut World, owner: &engine::Assignment, call:
     let (change, producer) = make_change(world, owner, call, b"org/repo");
     let branch = producer.workspace.repositories[0].push.as_ref().expect("producer branch").clone();
     let base = world.fake.branch(b"org/repo", b"main").expect("main");
-    world.external(1, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base }));
     // Distinct paths stack without conflicts and keep successive landings' keys different.
-    fake::advance(
-        &mut world.fake,
-        &world.fake_env,
-        b"org/repo",
-        &branch,
-        format!("fix-{call}").as_bytes(),
-        b"fixed",
-        1,
-    )
-    .expect("distinct change");
+    let commit = world.worker_commit(base, format!("fix-{call}").as_bytes(), b"fixed");
+    world.run_push(&producer, &branch, commit, 1);
     (change, producer)
 }
 
@@ -1044,6 +1035,53 @@ fn a_taskless_turn_reads_the_candidate_and_hands_each_prefix() {
 }
 
 #[test]
+fn a_taskless_turn_waits_for_its_confirmed_merge_to_show_on_the_train() {
+    use forge_top::writes::{Operation, Sender, WriteState, Writes, Written};
+
+    let (mut world, changes) = ready_unmade_pair(Some(Tier::default()));
+    let prefixes = seed_taskless_turn(&mut world, &changes, ReadbackTip::Base);
+    let base = world.fake.branch(b"org/repo", MAIN).expect("main");
+    let repository = changes[0].repository;
+    seed_unmade(
+        &mut world,
+        vec![forge_top::Stored::Writes(Writes {
+            name: forge_top::Name {
+                forge: repository.forge,
+                repository: repository.repository,
+                what: forge_top::What::Branch(Box::new([MAIN.into()])),
+            },
+            head: Some(translate::commit(prefixes[1])),
+            next: 2,
+            entries: Box::new([Written {
+                order: 1,
+                sender: Sender::Entry { task: crate::reconcile::UNMADE, entry: 1 },
+                state: WriteState::Confirmed,
+                operation: Operation::MergedInto {
+                    pull: 91,
+                    before: Some(translate::commit(base)),
+                    after: Some(translate::commit(prefixes[1])),
+                },
+            }]),
+        })],
+    );
+    pause_taskless_turn_readback(&mut world, repository);
+    resume_taskless_turn_readback(&mut world);
+    for _ in 0..PAIR_TICKS {
+        tick(&mut world);
+    }
+    assert_eq!(world.root.forge().train_holder(repository, MAIN), Some(crate::reconcile::UNMADE));
+    assert_eq!(
+        world.external(
+            1,
+            raw::Op::Git(raw::Git::Push { branch: MAIN.into(), commit: prefixes[1], expected: Some(base) })
+        ),
+        raw::Answer::Pushed(raw::Pushed::Pushed)
+    );
+    expect_taskless_turn_landed(&mut world, &changes, prefixes);
+    close_taskless_turn_story(&mut world, &changes);
+}
+
+#[test]
 fn a_restart_repeats_a_taskless_turns_unfinished_readback() {
     let (mut world, changes) = ready_unmade_pair(Some(Tier::default()));
     let prefixes = seed_taskless_turn(&mut world, &changes, ReadbackTip::Descendant);
@@ -1106,6 +1144,7 @@ fn an_engine_restarts_in_each_turn_landing_phase() {
         if matches!(cut, Cut::Preparing) {
             let job = (world.jobs[0].run, world.jobs[0].attempt);
             restart(&mut world);
+            world.until(Until::Ready);
             assert_eq!(world.jobs.len(), 1);
             assert_eq!((world.jobs[0].run, world.jobs[0].attempt), job);
             answer_prepare(&mut world);

@@ -91,9 +91,9 @@ python3 -I -B tools/citations/test_status.py
 - **In flight:** a **Not yet** entry whose text, to the next section label or the end of its
   label's text, ends with a tag `[in flight: TEXT]`, as `tools/close/README.md` reads one: after
   the tag only sentence punctuation and spaces.
-- **Done:** it has labels and none has an entry, or it has none and its text is empty or
-  reads "No gap." alone. An empty text is what `close` leaves when it settles a file's last
-  entry, and it reads as done. A draft's status is also done when no label but **Design
+- **Done:** it has labels and none has an entry, or it has none and its text reads "No gap."
+  alone, as `close` leaves a file whose last entry it settles (`tools/close/README.md`). A
+  draft's status is also done when no label but **Design
   departs** has an entry, so when its **Design lags** and **Open** read none: departures
   record what the design does instead, and nothing closes them, since goals leave a draft's
   text as it is (`temper/docs/design/draft/design-upkeep.md`, 2.5 and 3.2). A design
@@ -101,8 +101,9 @@ python3 -I -B tools/citations/test_status.py
 - **Archived:** a status file under `docs/design/draft/archive/` counts no entry, neither in
   the open entries nor as a line of a status file with an open entry: its draft has gone.
   It is still read, and listed as unread when it is in neither form.
-- **Unread:** a file without the opening, or with no label and any text but "No gap.". It is
-  listed as unread, never as done, and counts no entry.
+- **Unread:** a file without the opening, or with no label and any text but "No gap.", an
+  empty text included: a status that says nothing. It is listed as unread, never as done, and
+  counts no entry.
 - **What it prints,** for each tree in the order named, or `temper`, `smith`, `skein`, `jig`,
   `hearth` when none is named, with a blank line between trees. Paths are from the repository
   root and sorted bytewise; a list with nothing in it prints `- none`; counts are plain and

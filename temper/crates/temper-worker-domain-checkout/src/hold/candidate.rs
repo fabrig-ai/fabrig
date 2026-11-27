@@ -417,7 +417,7 @@ pub(super) fn fits(repository: &Repository, request: &CandidateSpec, limits: &cr
     true
 }
 
-fn branch(holding: &Holding, repository: u32, member: u32) -> Box<[u8]> {
+pub(super) fn branch(holding: &Holding, repository: u32, member: u32) -> Box<[u8]> {
     let spec = nth(holding, repository);
     if spec.prefixes.is_empty() {
         spec.push.clone().expect("legacy prepare push")
@@ -445,6 +445,17 @@ pub(super) fn push_from(
     for member in from..stack(holding).outcomes.len() {
         match stack(holding).outcomes.get(member).expect("member") {
             Combination::Combined { commit, .. } => {
+                if spec.admit {
+                    return super::admission::read(
+                        holding,
+                        id,
+                        push,
+                        super::admission::Target::Prefix { repository, member },
+                        *commit,
+                        env,
+                        out,
+                    );
+                }
                 let op = Op::Create {
                     at: place(holding.disk, spec),
                     remote: spec.remote.clone(),
@@ -567,29 +578,13 @@ pub(super) fn pushed(
             | Done::Conflicted { .. } => unreachable!("prefix push terminal"),
         }
     };
-    let succeeded = match &landing {
-        crate::Landing::Landed { .. } => true,
-        crate::Landing::Prefixes { .. }
-        | crate::Landing::DesignMerged { .. }
-        | crate::Landing::DesignConflict { .. }
-        | crate::Landing::DesignCode { .. }
-        | crate::Landing::DesignMoving
-        | crate::Landing::DesignUnchecked
-        | crate::Landing::Conflicted { .. }
-        | crate::Landing::Explained { .. }
-        | crate::Landing::CaughtUp { .. }
-        | crate::Landing::CaughtUpConflict { .. }
-        | crate::Landing::CaughtUpSaved { .. }
-        | crate::Landing::Moved
-        | crate::Landing::Failed
-        | crate::Landing::Refused
-        | crate::Landing::Unchanged
-        | crate::Landing::Aborted => false,
-    };
-    if succeeded && asked == super::Asked::Nothing {
-        push_from(holding, id, push, repository, super::after(member), env, out)
+    let landing = if let crate::Landing::Landed { .. } = landing {
+        if asked == super::Asked::Nothing {
+            return push_from(holding, id, push, repository, super::after(member), env, out);
+        }
+        crate::Landing::Aborted
     } else {
-        let landing = if succeeded { crate::Landing::Aborted } else { landing };
-        super::complete_push(holding, id, push, repository, landing, asked, env, out)
-    }
+        landing
+    };
+    super::complete_push(holding, id, push, repository, landing, asked, env, out)
 }

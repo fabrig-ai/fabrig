@@ -37,6 +37,7 @@ skein-io.workspace = true
 workspace = true
 
 [dev-dependencies]
+jig-domain-contract.workspace = true
 jig-protocol-worker-wire.workspace = true
 skein-rows.workspace = true
 jig-domain-core.workspace = true

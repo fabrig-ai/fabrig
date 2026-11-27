@@ -39,7 +39,7 @@ pub(crate) fn create_request(core: &mut Core, env: &Env<Limits>, routed: &mut Ro
             return;
         }
         if core.tasks.task(task).is_none() {
-            crate::routing::run::results::delegate_subject(core, &mut routed.work, &mut routed.out, party, task);
+            crate::routing::run::results::delegate_subject(core, &mut routed.work, party, task);
             return;
         }
         if let Err(why) = parent(core, env, &creation) {

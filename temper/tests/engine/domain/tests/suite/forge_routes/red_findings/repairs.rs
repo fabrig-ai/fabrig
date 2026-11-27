@@ -514,8 +514,7 @@ fn a_landed_repair_still_red_returns_for_one_retry_then_asks_before_repairing_ag
     let first = made(&repair(&mut world, &triager, 180, number));
     let goal = assignment(&mut world, first);
     let branch = goal.workspace.repositories[0].push.clone().expect("repair goal branch");
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"repair", b"partial fix", 1)
-        .expect("repair goal pushed");
+    let head = world.run_push_edit(&goal, &branch, b"repair", b"partial fix", 1);
     goal_landing::status(&mut world, head, raw::Check::Passed);
     goal_closes::park_goal(&mut world, &goal);
     let closer = world

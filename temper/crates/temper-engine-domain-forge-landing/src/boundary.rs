@@ -386,13 +386,15 @@ pub struct MemberFacts {
     pub deleted: Status,
 }
 
-/// The round's pull request read afresh after a merge not made (domain/landing-turn.md, 1).
+/// The round's pull request, read afresh before a send or to settle an uncertain merge (domain/landing-turn.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RoundPull {
     Unread,
     Open,
     Merged(Commit),
     Closed,
+    /// No longer the pull for this round's head and base.
+    Changed,
 }
 
 /// The coherent snapshot supplied by the top.

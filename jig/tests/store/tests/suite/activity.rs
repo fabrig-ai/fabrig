@@ -1,3 +1,4 @@
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::{self as core, reads};
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{Event, Request, Write};
@@ -66,7 +67,7 @@ fn activity(world: &mut World, after: Option<reads::Position>) -> (Box<[reads::R
     bounded_activity(world, after, PAGE_ROWS, PAGE_BYTES)
 }
 
-fn loaded_activity(world: &mut World, after: Option<reads::Position>, rows: u32, bytes: u64) -> reads::Loaded {
+fn loaded_activity(world: &mut World, after: Option<reads::Position>, rows: u32, bytes: u64) -> engine_store::Answer {
     let events = world.request(Request::Read {
         owner: Token::new(1),
         range: reads::Range {
@@ -91,7 +92,9 @@ fn bounded_activity(
     bytes: u64,
 ) -> (Box<[reads::Row]>, Option<reads::Position>) {
     let result = loaded_activity(world, after, rows, bytes);
-    let reads::Loaded::Page { rows, next } = result else { panic!("activity page: {result:?}") };
+    let engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) = result else {
+        panic!("activity page: {result:?}")
+    };
     (rows, next)
 }
 
@@ -142,7 +145,9 @@ fn an_activity_first_turn_past_its_joins_is_too_linked() {
     let retry = reads::Position::Owner(core::Key::Tasks(tasks::Key::Activity { task: OWNER, position: 9 }));
     for after in [None, Some(retry)] {
         let result = loaded_activity(&mut world, after, PAGE_ROWS, PAGE_BYTES);
-        let reads::Loaded::TooLinked { joins } = result else { panic!("join refusal: {result:?}") };
+        let engine_store::Answer::Failed(engine_store::Failure::TooLinked { joins }) = result else {
+            panic!("join refusal: {result:?}")
+        };
         assert_eq!(joins, OWNER_JOINS);
     }
 }

@@ -4,7 +4,7 @@
 use super::{Answer, Destination, EndedGroup, Pending, Range, Scope, TaskPage, Why};
 use crate::{Core, Limits, MadePart, PartAsk, PartFailure, PartsAsk, Request, RowPart, documents};
 use alloc::{boxed::Box, vec::IntoIter};
-use skein_lib::{Env, Id, List, Map, Queue, Token};
+use skein_lib::{Env, List, Map, Queue, Token};
 
 pub(crate) fn assert_kinds(kinds: &[documents::parts::PartKind], connectors: &[u16]) {
     for (index, kind) in kinds.iter().enumerate() {
@@ -76,8 +76,8 @@ fn initialize(rows: &mut List<documents::TaskLine>, kinds: u32) {
     }
 }
 
-fn emit(core: &Core, name: Id<Pending>) -> Queue<Request> {
-    let pending = core.reads.get(name).expect("making answer");
+fn emit(core: &Core, name: Token) -> Queue<Request> {
+    let pending = core.loads.read(name).expect("making answer");
     let page = pending.tasks.as_ref().expect("making page");
     let making = pending.parts.as_ref().expect("making parts");
     let ended = match &page.ended {
@@ -101,19 +101,19 @@ fn emit(core: &Core, name: Id<Pending>) -> Queue<Request> {
         }
         out.push(Request::Ask {
             connector: *connector,
-            ask: crate::Ask::Parts(PartsAsk { token: name.token(), party: pending.party, kinds, rows }),
+            ask: crate::Ask::Parts(PartsAsk { token: name, party: pending.party, kinds, rows }),
         });
     }
     out
 }
 
-pub(super) fn loaded(core: &mut Core, env: &Env<Limits>, name: Id<Pending>, mut page: Box<TaskPage>) -> Queue<Request> {
-    let Scope::Tasks { query } = &core.reads.get(name).expect("task read").range.scope else {
+pub(super) fn loaded(core: &mut Core, env: &Env<Limits>, name: Token, mut page: Box<TaskPage>) -> Queue<Request> {
+    let Scope::Tasks { query } = &core.loads.read(name).expect("task read").range.scope else {
         unreachable!("task query")
     };
     let making = prepare(core, query, &mut page);
     let ready = making.waiting.is_empty();
-    let pending = core.reads.get_mut(name).expect("task read");
+    let pending = core.loads.read_mut(name).expect("task read");
     pending.tasks = Some(page);
     pending.parts = Some(making);
     if ready { finish(core, env, name) } else { emit(core, name) }
@@ -134,7 +134,8 @@ pub(super) fn read(
     if making.waiting.is_empty() {
         return super::answer(destination, Answer::Tasks(page));
     }
-    let occupied = core.reads.len().checked_sub(u32::from(continuing)).expect("continuation retains its retired slot");
+    let occupied =
+        core.loads.reads().checked_sub(u32::from(continuing)).expect("continuation retains its retired slot");
     if occupied >= env.limits.load_slots {
         return super::answer(destination, Answer::None(Why::Busy));
     }
@@ -146,7 +147,7 @@ pub(super) fn read(
         tasks: Some(page),
         parts: Some(making),
     };
-    let name = core.reads.insert(pending).expect("admitted part load slot");
+    let name = core.loads.insert_read(pending).expect("admitted part load slot");
     emit(core, name)
 }
 
@@ -168,7 +169,7 @@ pub(crate) fn watch(core: &mut Core, env: &Env<Limits>, watcher: Token, lines: d
     let mut page = Box::new(TaskPage { live: lines, live_next: None, ended: EndedGroup::None, ended_mark });
     let mut making = prepare(core, &query, &mut page);
     making.next = next;
-    if making.waiting.is_empty() || core.reads.len() >= env.limits.load_slots {
+    if making.waiting.is_empty() || core.loads.reads() >= env.limits.load_slots {
         for row in page.live.iter_mut() {
             for (_, slots) in &making.waiting {
                 for slot in slots {
@@ -184,8 +185,8 @@ pub(crate) fn watch(core: &mut Core, env: &Env<Limits>, watcher: Token, lines: d
         );
     }
     let name = core
-        .reads
-        .insert(Pending {
+        .loads
+        .insert_read(Pending {
             destination: Destination::Watch(watcher),
             sign_in,
             party,
@@ -201,11 +202,10 @@ pub(crate) fn answered(
     core: &mut Core,
     env: &Env<Limits>,
     connector: u16,
-    token: Token,
+    name: Token,
     parts: List<MadePart>,
 ) -> Queue<Request> {
-    let name = Id::<Pending>::from_token(token);
-    let Some(pending) = core.reads.get_mut(name) else { return Queue::uncapped() };
+    let Some(pending) = core.loads.read_mut(name) else { return Queue::uncapped() };
     let Some(making) = &mut pending.parts else { return Queue::uncapped() };
     let Some(slots) = making.waiting.remove(&connector) else { return Queue::uncapped() };
     let page = pending.tasks.as_mut().expect("making page");
@@ -248,8 +248,8 @@ fn fill(rows: &mut List<documents::TaskLine>, slots: &List<Slot>, parts: &mut In
     }
 }
 
-fn finish(core: &mut Core, env: &Env<Limits>, name: Id<Pending>) -> Queue<Request> {
-    let pending = core.reads.get_mut(name).expect("completed parts");
+fn finish(core: &mut Core, env: &Env<Limits>, name: Token) -> Queue<Request> {
+    let pending = core.loads.read_mut(name).expect("completed parts");
     let destination = core::mem::replace(&mut pending.destination, Destination::Done);
     let page = pending.tasks.take().expect("completed page");
     let making = pending.parts.take().expect("completed parts");
@@ -257,7 +257,7 @@ fn finish(core: &mut Core, env: &Env<Limits>, name: Id<Pending>) -> Queue<Reques
     let party = pending.party;
     let Scope::Tasks { query } = &pending.range.scope else { unreachable!("parts of task queries") };
     let query = query.clone();
-    core.reads.retire(name);
+    core.loads.retire(name);
     let allowed = documents::task_query::admission(core, party, &query).is_ok();
     if let Destination::Watch(watcher) = destination {
         let document = if core.people.person(sign_in, env.now, env.wall) != Some(party) {

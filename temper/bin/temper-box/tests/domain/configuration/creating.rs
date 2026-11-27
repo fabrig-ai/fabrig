@@ -57,7 +57,12 @@ fn stock_frame(engine: &jig_protocol_config::Engine) -> Frame {
         }),
     ]);
     let limits = engine.limits.core;
-    let mut jig = Engine::new(config, &limits).expect("stock core");
+    let mut declarations =
+        skein_lib::List::with_capacity(u32::try_from(config.connectors.len()).expect("connector count"));
+    for connector in &config.connectors {
+        declarations.push(jig_domain_contract::Declaration::empty(*connector)).expect("connector declaration");
+    }
+    let mut jig = Engine::new(config, declarations.as_slice(), &limits).expect("stock core");
     jig.core_mut().start_begin(false, Wall::EPOCH);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     for row in rows {

@@ -1,6 +1,6 @@
 # theme: status
 
-2026-11-18. Where the tree's code lags or departs from [theme.md](theme.md).
+2026-11-27. Where the tree's code lags or departs from [theme.md](theme.md).
 
 - **Not yet:** *Its regions* and *Its tokens*: no `tui-header`, and no
   `tui-mark-cyan`, `tui-mark-blue` or `tui-mark-violet` [in flight:

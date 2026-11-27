@@ -221,9 +221,40 @@ fn an_account_with_a_row_is_not_asked_again() {
     for address in trial_pages() {
         let (mut root, watch, trial_watch) = account_session(address);
         account(&mut root, watch, false);
-        deliver(&mut root, trial_watch, &[ended()]);
-        assert!(tries(account(&mut root, watch, true)).is_empty());
-        assert_eq!(root.forge().trial_asked(), None);
+        for trial in [ended(), limited(Some(u64::MAX))] {
+            deliver(&mut root, trial_watch, &[trial]);
+            assert!(tries(account(&mut root, watch, true)).is_empty());
+            assert_eq!(root.forge().trial_asked(), None);
+            account(&mut root, watch, false);
+        }
+    }
+}
+
+fn limited(reset: Option<u64>) -> w::TrialRow {
+    row(ACCOUNT, Some(TASK), w::TrialState::Limited(w::TrialLimited { reset }))
+}
+
+#[test]
+fn a_delivered_limited_row_keeps_its_optional_wall_reset() {
+    let (mut root, watch, _) = opened();
+    for reset in [Some(u64::MAX), None] {
+        deliver(&mut root, watch, &[limited(reset)]);
+        assert_eq!(
+            root.forge().trials(),
+            &[trials::Row {
+                account: ACCOUNT,
+                task: Some(TASK),
+                took: Some(OTHER),
+                run_wait: None,
+                step: trials::Step::Answers,
+                state: trials::State::Limited {
+                    reset: match reset {
+                        Some(reset) => Some(skein_lib::Wall::from_nanos(reset)),
+                        None => None,
+                    },
+                },
+            },]
+        );
     }
 }
 

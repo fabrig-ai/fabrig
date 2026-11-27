@@ -51,6 +51,7 @@ pub(super) enum Cause {
     Pending,
     Answered,
     NotThere,
+    Behind { order: u64 },
     Refused(Error),
 }
 
@@ -66,6 +67,11 @@ impl Cause {
             Self::Pending => Box::from(b"no answer".as_slice()),
             Self::Answered => Box::from(b"answered".as_slice()),
             Self::NotThere => Box::from(b"not there yet".as_slice()),
+            Self::Behind { order } => skein_lib::bytes::concat(&[
+                b"an older state of temper's writes, behind entry ",
+                Decimal::of(order).as_bytes(),
+                b"; the read may be stale or another's write",
+            ]),
             Self::Refused(error) => crate::effect_words::error_words(error),
         }
     }

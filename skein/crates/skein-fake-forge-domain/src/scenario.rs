@@ -183,6 +183,21 @@ pub fn refuse_close(domain: &mut Domain, repository: &[u8], number: u64, refused
     }
 }
 
+/// Sets the per-mille chance that a job of this workflow never reports.
+/// A job already running keeps the scheduling decision made when it started.
+pub fn set_workflow_silent(domain: &mut Domain, repository: &[u8], file: &[u8], silent: u32) {
+    let id = domain.id(repository);
+    let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
+    let mut selected = None;
+    for workflow in &mut repository.workflows {
+        if workflow.file.as_ref() == file {
+            selected = Some(workflow);
+            break;
+        }
+    }
+    selected.expect("a configured workflow").silent = silent;
+}
+
 /// Limits simultaneous dispatched jobs across the forge; `None` removes the pool.
 /// Existing jobs keep their runner until they end (testing/fakes/forge.md, 2.3).
 pub fn runners(domain: &mut Domain, runners: Option<u32>) {
@@ -304,6 +319,73 @@ pub fn advance(
     Ok(commit)
 }
 
+/// Another party resets an existing branch to a commit the repository holds.
+/// The branch is never absent: its open pulls follow the move as on a push.
+/// This is a scenario action, not an exception to the git lease's fast-forward rule.
+pub fn reset_branch(
+    domain: &mut Domain,
+    env: &Env<Config>,
+    repository: &[u8],
+    branch: &[u8],
+    commit: u64,
+    by: u64,
+) -> Result<(), Error> {
+    let id = domain.id(repository);
+    let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
+    let tip = *repository.branches.get(branch).ok_or(Error::Missing(What::Branch))?;
+    if !repository.has.contains(&commit) {
+        return Err(Error::Missing(What::Commit));
+    }
+    if tip != commit {
+        repository.branches.insert(copy_of(branch), commit).expect("the branch is there");
+        git::moved(domain, env, id, branch, Some(tip), commit, by);
+    }
+    Ok(())
+}
+
+/// Another party changes the base of an open pull without changing its
+/// number, head or state. This does not add a forge client operation.
+pub fn retarget_pull(
+    domain: &mut Domain,
+    env: &Env<Config>,
+    repository: &[u8],
+    number: u64,
+    base: &[u8],
+    by: u64,
+) -> Result<(), Error> {
+    let id = domain.id(repository);
+    let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
+    if !repository.branches.contains_key(base) {
+        return Err(Error::Missing(What::Branch));
+    }
+    for entry in &repository.queue {
+        if entry.number == number {
+            return Err(Error::Refused);
+        }
+    }
+    let item = repository.items.get_mut(&number).ok_or(Error::Missing(What::Pull))?;
+    let pull = item.pull.as_mut().ok_or(Error::Missing(What::Pull))?;
+    if item.state != crate::api::State::Open || &*pull.head == base {
+        return Err(Error::Refused);
+    }
+    if &*pull.base != base {
+        let from = core::mem::replace(&mut pull.base, copy_of(base));
+        // A snapshot of commits on the old pair of branches no longer applies.
+        pull.lagging = None;
+        repository.touch(number, crate::domain::clock(env).max(domain.floor));
+        let observation = crate::Observation::Retargeted {
+            repository: copy_of(&repository.name),
+            number,
+            from,
+            to: copy_of(base),
+            by,
+        };
+        let hook = crate::hooks::Hook::item(crate::api::Change::Pull, number, by);
+        crate::domain::changed(domain, env, id, observation, hook);
+    }
+    Ok(())
+}
+
 /// Stores a fixture's root commit without naming a reference or starting CI.
 /// # Errors
 /// Refuses a tree or object store past the fixture's limits.
@@ -373,6 +455,22 @@ pub fn set_opening(domain: &mut Domain, repository: &[u8], context: &[u8], bytes
         .opening
         .get_mut(found.expect("a context of the repository's checks"))
         .expect("one opening per context") = copy_of(bytes);
+}
+
+/// Omit the report if this in-flight dispatch next completes with a failure.
+/// A subsequent attempt runs with the workflow's usual report.
+///
+/// # Errors
+/// Returns `Missing` for an unknown dispatch, or `Refused` if it has ended.
+pub fn omit_report_once(domain: &mut Domain, repository: &[u8], run: u64) -> Result<(), Error> {
+    let id = domain.id(repository);
+    let repository = domain.repositories.get(id).expect("a repository of the forge");
+    let kept = repository.dispatched.get(&run).ok_or(Error::Missing(What::Job))?;
+    if kept.run.state == crate::api::RunState::Completed {
+        return Err(Error::Refused);
+    }
+    domain.omit_report = Some(run);
+    Ok(())
 }
 
 /// Replaces one dispatched job's step log within the repository's content bound

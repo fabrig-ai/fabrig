@@ -8,7 +8,8 @@ mod point;
 mod settings;
 use crate::{Below, Event, Phase, Store, loads};
 use alloc::boxed::Box;
-use jig_domain_core_vocabulary::reads::{Loaded, Range, Scope};
+use jig_domain_core_vocabulary::engine::store as engine_store;
+use jig_domain_core_vocabulary::reads::{Range, Scope};
 use skein_lib::{Queue, Token};
 
 pub(crate) struct Spent {
@@ -24,8 +25,8 @@ pub(crate) enum Failure {
     Corrupt,
 }
 
-pub(crate) fn empty() -> Loaded {
-    Loaded::Page { rows: Box::new([]), next: None }
+pub(crate) fn empty() -> engine_store::Answer {
+    engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([]), next: None })
 }
 pub(crate) use point::{finish, proposal_key};
 
@@ -61,7 +62,7 @@ pub(crate) fn read(store: &mut Store, owner: Token, range: Range, above: &mut Qu
         Scope::Activity { task } => {
             let result = paged::activity(store, &range, task, &mut spent);
             let result = match result {
-                Ok(Loaded::Page { rows, next }) => {
+                Ok(engine_store::Answer::Rows(engine_store::Rows::Read { rows, next })) => {
                     if crate::view::missing(store) {
                         return answer(store, owner, Ok(Some(empty())), above);
                     }
@@ -84,7 +85,7 @@ pub(crate) fn read(store: &mut Store, owner: Token, range: Range, above: &mut Qu
     answer(store, owner, ready(result), above);
 }
 
-pub(crate) fn ready(result: Result<Loaded, Failure>) -> Result<Option<Loaded>, Failure> {
+pub(crate) fn ready(result: Result<engine_store::Answer, Failure>) -> Result<Option<engine_store::Answer>, Failure> {
     match result {
         Ok(result) => Ok(Some(result)),
         Err(error) => Err(error),
@@ -94,14 +95,17 @@ pub(crate) fn ready(result: Result<Loaded, Failure>) -> Result<Option<Loaded>, F
 pub(crate) fn answer(
     store: &mut Store,
     owner: Token,
-    result: Result<Option<Loaded>, Failure>,
+    result: Result<Option<engine_store::Answer>, Failure>,
     above: &mut Queue<Event>,
 ) {
     match result {
         Ok(Some(result)) => above.push(Event::Read { owner, result }),
         Ok(None) => {}
         Err(Failure::Joins) => {
-            above.push(Event::Read { owner, result: Loaded::TooLinked { joins: store.limits.joins } });
+            above.push(Event::Read {
+                owner,
+                result: engine_store::Answer::Failed(engine_store::Failure::TooLinked { joins: store.limits.joins }),
+            });
         }
         Err(Failure::Cut) => above.push(Event::Read { owner, result: empty() }),
         Err(Failure::Corrupt) => loads::corrupt(store, owner, above),

@@ -77,7 +77,9 @@ answers to a run's reads.
 - **What is loaded, not held:** ended tasks and their results;
   transcripts; history; notes' entries; anything a client pages through.
 - **A load is a request** with a token and one terminal event, rows in
-  bounded pages (skein/docs/foundation/programming-model.md, 4.4). What waits on it is in a
+  bounded pages (skein/docs/foundation/programming-model.md, 4.4); a
+  window's pages are its answers in order, the last its terminal
+  (`vocabulary.md`, 2.4). What waits on it is in a
   state that says so: a brief gathering, a run being prepared to resume,
   a party's page, an amendment adding an ended task (../tasks/changes.md
   ). That amendment's request stays unanswered while the rows load,
@@ -97,16 +99,52 @@ answers to a run's reads.
   on the old record, and the later commit would undo the earlier.
 - **Bounded:** the loads in flight, and the bytes a load brings, are
   limits; a load past its bytes is cut, and says how much.
-- **Busy is a load that failed.** A load of an ended task
-  (`Now::EndedTask`) is answered with its row, with none, or busy: the
-  root or the store could not serve it. Room the root regains by itself
-  is no failure: a root with no slot to send that load keeps it until
-  one frees, sending it before any load asked after it, still held
-  behind every commit made before the core asked. Its waiting loads are
-  bounded by the core's read flights, which the core keeps within its
-  own limit (`briefs.md`, 1.1, `results: no read flight is free`). So a
-  run's preparation never fails for a slot, however many tasks a
-  restart makes due together (`briefs.md`, 1.1, *A dependency's result*).
+- **The engine paces its loads** (`temper/docs/design/draft/jig-domain-api.md`,
+  4.4), and no root answers for room. At most `Limits::load_slots` of
+  its loads are in flight, a window's later pages keeping the load its
+  first page took. Parties' and runs' reads are admitted apart, under
+  the same figure, by the reads they hold, as their own room: neither
+  waits on the other's. With no load free:
+  - **an agent's activation** that would load its window stays due, with
+    no try spent, and runs once a load frees; a window begun loads
+    whole, whatever else holds the loads (`briefs.md`, 1.1);
+  - **an ended task's load** (a run's dependencies' and inputs' results,
+    and the ended task an amendment, a batch or a decision reads) waits
+    in the engine, in the order asked, and is sent once a load frees,
+    before any load asked after it, held behind every commit made before
+    it is sent, so behind those made before the core asked. Its waiting
+    loads are bounded by the core's read flights, which the core keeps
+    within its own limit (`briefs.md`, 1.1, `results: no read flight is
+    free`). So a run's preparation never fails for a slot, however many
+    tasks a restart makes due together (`briefs.md`, 1.1, *A dependency's
+    result*);
+  - **any other record or proposal** a party's request or a run's call
+    needs (an ended conversation and its read position, a decided
+    escalation or proposal, a batch's inputs, a person's ended task) is
+    answered busy at once: a party's request `Again(Busy)`, a run's call
+    unavailable. A notes operation's page fails at once, and the notes
+    child answers busy (`briefs.md`, 2.2);
+  - **a project deletion's notes page** is the one that waits: the notes
+    child retries that page on its failure until the project's notes are
+    dropped (`briefs.md`, 2), so failing it at once would hand the child
+    its own retry in the same decision, again and again. The engine keeps
+    the one page the retry asks for, since notes serves one operation at
+    a time, and sends it once a load frees, after the ended tasks' loads
+    waiting then; a stopping engine drops it, and the deletion's kept
+    step takes the page up again after the restart.
+- **Busy is a load that failed.** A load of an ended task is answered
+  with its row, with none, or busy: the store could not serve it, its
+  answer `Failed` or `Busy` (`vocabulary.md`, 2.4). So is any other load
+  of a record or a proposal, busy reaching whoever waited on it once; a
+  window's failure is the window's (`executors-transcripts.md`, 1), and a
+  read's is the read's.
+- **Why the engine:** it knows what each load is for and what waits on
+  it, so the root keeps no table of the engine's loads and answers no
+  flag for them. The figure is the one temper's root bounded these loads
+  by, its `root.loads.loads`, which it gives the core as `load_slots`,
+  and reads keep their own room, so temper's room doesn't change with the
+  move; `ops`'s root and the test root, which bounded them by nothing,
+  gain the bound.
 - **Parties' reads** are documents and pages the client's contract lists
   (`../../client/domain/contract/reads.md`, section 1): from live state where the
   engine holds it, loaded otherwise, and answered once the last commit

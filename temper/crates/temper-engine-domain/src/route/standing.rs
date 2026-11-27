@@ -9,8 +9,14 @@ use skein_lib::{Env, List, Queue};
 
 /// The saved answer names the authenticated asker, even if they left the roster
 /// in this save. The continuation crosses the roles decision's commit barrier.
-pub(crate) fn saved(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, requests: &Queue<core::Request>) {
-    for request in requests {
+pub(crate) fn saved(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    requests: &Queue<core::engine::Out>,
+) {
+    for output in requests {
+        let core::engine::Out::Core(request) = output else { continue };
         let core::Request::Write(core::Write::Save(core::Record::People(people::Stored::Roles { project, .. }))) =
             request
         else {
@@ -27,7 +33,8 @@ pub(crate) fn saved(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decis
             continue;
         }
         let mut asker = None;
-        for request in requests {
+        for output in requests {
+            let core::engine::Out::Core(request) = output else { continue };
             if let core::Request::Write(core::Write::Save(core::Record::People(people::Stored::Answer {
                 key,
                 outcome: people::Outcome::RolesSet { project: saved },

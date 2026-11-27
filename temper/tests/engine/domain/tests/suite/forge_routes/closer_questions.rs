@@ -263,6 +263,9 @@ fn a_landing_repair_asks_while_the_closer_settles_status() {
     let job = close_job(&mut world);
     let tasks::Party::Task(settlement) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
     let repair = start_repair(&mut world, &branch, landing);
+    // The close's hooks read shares the forge rate window with the landing's
+    // CI read. Let that observation settle before the restart oracle's cut.
+    stall_hold::jump(&mut world, window);
     let (number, up) = ask(&mut world, goal.task, closer, landing, &repair);
     world.goal_answer(&goal, ANSWER_CALL, closer, up, ANSWER);
     let repair = resumed(&mut world, &repair, number);
@@ -285,8 +288,7 @@ fn a_landing_repair_asks_while_the_closer_settles_status() {
 }
 
 fn finish_repair(world: &mut World, branch: &[u8], repair: &engine::Assignment, check: raw::Check) {
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, b"repair", b"fixed", 1)
-        .expect("repair pushes");
+    let head = world.run_push_edit(repair, branch, b"repair", b"fixed", 1);
     status(world, head, check);
     finish_run(
         world,
@@ -382,13 +384,7 @@ fn a_landings_resolution_asks_the_goal_through_its_closer_and_goes_on() {
         b"Resolve conflict",
     )
     .expect("worker resolves");
-    assert_eq!(
-        world.external(
-            2,
-            raw::Op::Git(raw::Git::Push { branch: branch.clone(), commit: resolved, expected: Some(previous) })
-        ),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    world.run_push(&resolution, &branch, resolved, 2);
     status(&mut world, resolved, raw::Check::Passed);
     finish_run(
         &mut world,

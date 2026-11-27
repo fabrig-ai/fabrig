@@ -39,7 +39,8 @@ record TrialEnded { class: TrialClass }
 enum TrialWhy { ended: TrialEnded, refused, waited }
 record TrialAnswered { seconds: u32 }
 record TrialFailed { why: TrialWhy }
-enum TrialState { running, answered: TrialAnswered, failed: TrialFailed }
+record TrialLimited { reset: option u64 }
+enum TrialState { running, answered: TrialAnswered, failed: TrialFailed, limited: TrialLimited }
 record TrialRow { account: u32 task: option u64 took: option u32 step: TrialStep state: TrialState run_wait: option bytes 1024 }
 versioned record Trials { rows: list 64 TrialRow }
 

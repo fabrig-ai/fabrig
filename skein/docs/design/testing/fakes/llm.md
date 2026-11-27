@@ -21,6 +21,9 @@ tool-choice settings of section 2.1. `Domain::configured` consumes
 scripts and `Menu` together under `script_bytes`. The menu supplies complete
 argument bodies and deliberately invalid names/bodies. An empty menu produces
 no random tool calls. No application body or unknown tool name is invented.
+A body's slots, each random answer's draw by its request, the capture
+that replays them, and a script's stretches of drawn answers are
+[drawn-agent.md](drawn-agent.md)'s.
 `Line::Opaque` carries complete caller-supplied provider replay bytes; the
 domain counts and preserves them without parsing.
 

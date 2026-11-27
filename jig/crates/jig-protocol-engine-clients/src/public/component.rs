@@ -193,7 +193,7 @@ impl Component {
             public_reply(exchange, PublicReply::Unknown, out);
             return;
         }
-        if read.layout != Some(kind.layout) {
+        if read.layout != kind.layout {
             let record = not_served(kind, &env.limits.wire).expect("public versions checked at start");
             public_reply(exchange, PublicReply::NotServed { record }, out);
             return;

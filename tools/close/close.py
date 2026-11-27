@@ -15,6 +15,7 @@ TAG = re.compile(rb'(?:' + BREAK + rb'|[^\S\n])(?P<bracket>\[)in' + SPACE + rb'f
                  + SPACE + rb'(?P<text>(?:[^\]\r\n]|\r?\n(?=[ \t]))*)\]'
                  rb'[.,;:!?]*[ \t\r]*\n?\Z')
 CHANGE = re.compile(rb'change ([0-9]+)')
+DATE = re.compile(rb'[0-9]{4}-[0-9]{2}-[0-9]{2}\b')
 
 
 def git(repository, *args):
@@ -101,6 +102,30 @@ def settle(text, ends):
     return b''.join(lines), sorted(kept)
 
 
+def with_no_gap(text):
+    """Give a settled file with only its opening an explicit empty status."""
+    lines = file_lines(text)
+    heading = next((i for i, line in enumerate(lines) if line.strip()), len(lines))
+    if heading == len(lines) or not lines[heading].startswith(b'# '):
+        return text
+    start = heading + 1
+    while start < len(lines) and not lines[start].strip():
+        start += 1
+    if start == len(lines) or not DATE.match(lines[start]):
+        return text
+    end = start + 1
+    while end < len(lines) and lines[end].strip():
+        end += 1
+    if any(line.strip() for line in lines[end:]):
+        return text
+    last = lines[end - 1]
+    newline = b'\r\n' if last.endswith(b'\r\n') else b'\n'
+    opening = b''.join(lines[:end])
+    if not last.endswith(b'\n'):
+        opening += newline
+    return opening + newline + b'No gap.' + newline
+
+
 def result_bytes(settled, kept):
     def encode(result):
         return (json.dumps(result, ensure_ascii=True, separators=(',', ':')) + '\n').encode('utf-8')
@@ -131,7 +156,7 @@ def result_bytes(settled, kept):
 
 def main():
     if len(sys.argv) != 3 or sys.argv[1] != 'close':
-        raise ValueError('usage: .temper/close close <request.json>')
+        raise ValueError('usage: .temper/hooks/close close <request.json>')
     _, ends = parse_request(Path(sys.argv[2]).read_bytes())
     repository = Path(__file__).resolve().parents[2]
     result = Path(os.environ['TEMPER_JOB']) / 'result.json'
@@ -140,13 +165,13 @@ def main():
     paths = sorted(os.fsdecode(path) for path in git(repository, 'ls-files', '-z').split(b'\0')
                    if path)
     for path in paths:
-        if 'docs' not in Path(path).parts[:-1] or not path.endswith('.status.md'):
+        if not path.endswith('.status.md'):
             continue
         previous = (repository / path).read_bytes()
         updated, tags = settle(previous, ends)
         kept.extend(f'{path}:{line}: [in flight: {tag}]' for line, tag in tags)
         if updated != previous:
-            changed[path] = (previous, updated)
+            changed[path] = (previous, with_no_gap(updated))
     index = Path(os.fsdecode(git(repository, 'rev-parse', '--git-path', 'index')).strip())
     if not index.is_absolute():
         index = repository / index

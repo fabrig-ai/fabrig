@@ -164,8 +164,8 @@ fn an_own_name_opens_its_empty_place() {
             let name = core::str::from_utf8(command.name()).expect("command name");
             key_words(&mut host, prefix.unwrap_or(name));
             host.frame();
-            host.tell(Told::LeftOff { task: Some(NEWEST) });
-            host.tell(Told::Walk { by_key: true });
+            host.tell(Told::Picked { row: Some(Row::Chat { task: NEWEST }), in_list: true });
+            host.tell(Told::Walk { first: None });
             let address = host.root.pages().address().clone();
             if sent {
                 give(&mut host, Event::Send);
@@ -178,9 +178,9 @@ fn an_own_name_opens_its_empty_place() {
             assert!(host.root.pages().start().is_none());
             assert!(host.root.pages().tell().is_none());
             assert_eq!(host.words(), []);
-            assert_eq!(host.state().left_off(), None);
+            assert_eq!(host.state().picked(), None);
             assert!(host.state().walk().is_none());
-            assert!(text(&mut host).contains("or Esc to go back."));
+            assert!(text(&mut host).contains("or ← to go back."));
             for character in "fix the README".chars() {
                 empty(&host.report(Report::Key(Key::Char(character))));
             }
@@ -240,6 +240,50 @@ fn an_unoffered_name_with_space_is_a_chats_message() {
 }
 
 #[test]
+fn ask_restores_its_own_words_until_the_start_succeeds() {
+    let (mut host, _, _) = signed_host(true);
+    let ask = Event::Own { command: Own::Ask };
+    typed(&mut host, b"draft words");
+    no_box_writes(&give(&mut host, ask.clone()));
+    assert_eq!(host.words(), b"");
+    typed(&mut host, b"q");
+    no_box_writes(&give(&mut host, Event::Back));
+    assert_eq!(host.words(), b"draft words");
+    no_box_writes(&give(&mut host, ask.clone()));
+    assert_eq!(host.words(), b"q");
+
+    for refused in [true, false] {
+        host.frame();
+        assert_eq!(host.event_of(&Key::Enter), Some(Event::Send));
+        let duties = host.report(Report::Key(Key::Enter));
+        let mut duties = admit(&mut host, duties);
+        if sent_ask(&duties).is_empty() {
+            let due = root::next_deadline(&host.root).expect("start retry");
+            host.clocks(due, host.env.wall);
+            duties.asked.extend(host.report(Report::Due).asked);
+        }
+        let asks = sent_ask(&duties);
+        let [(exchange, w::Ask::Create(_))] = asks.as_slice() else { panic!("one Ask temper start: {asks:?}") };
+        if refused {
+            let answer = w::Final::Refused(w::Refused { refusal: w::Refusal::NotOffered, at: None });
+            let duties = reply(&mut host, *exchange, final_bytes(&answer));
+            admit(&mut host, duties);
+            assert_eq!(host.state().place(), Some(Own::Ask));
+            assert_eq!(host.words(), b"q", "refused words stay in Ask");
+        } else {
+            let duties = reply(&mut host, *exchange, created_bytes(NEWEST));
+            admit(&mut host, duties);
+        }
+    }
+    assert_eq!(host.state().place(), None);
+    assert_eq!(host.root.pages().address(), &Address::Chat { task: NEWEST });
+    no_box_writes(&give(&mut host, Event::Command { command: Command::New }));
+    assert_eq!(host.words(), b"draft words");
+    no_box_writes(&give(&mut host, ask));
+    assert_eq!(host.words(), b"", "a successful start empties Ask");
+}
+
+#[test]
 fn first_words_start_the_places_chat_and_a_refusal_can_be_sent_again() {
     for (command, from, label, expected) in [
         (Own::Ask, Address::Home { project: 3 }, 7, b"fix the README".as_slice()),
@@ -294,14 +338,14 @@ fn first_words_start_the_places_chat_and_a_refusal_can_be_sent_again() {
                 reply(&mut host, *exchange, created_bytes(NEWEST));
                 assert_eq!(host.root.pages().address(), &Address::Chat { task: NEWEST });
                 assert_eq!(host.state().place(), None);
-                assert!(!text(&mut host).contains("or Esc to go back."));
+                assert!(!text(&mut host).contains("or ← to go back."));
             }
         }
     }
 }
 
 #[test]
-fn back_ends_only_an_empty_place_and_a_list_gets_escape_first() {
+fn left_goes_back_from_a_place_and_escape_only_closes_its_list() {
     for screen in [Screen::Home, Screen::Chat, Screen::Talk] {
         let mut host = at(screen);
         let address = host.root.pages().address().clone();
@@ -323,20 +367,28 @@ fn back_ends_only_an_empty_place_and_a_list_gets_escape_first() {
         host.report(Report::Key(Key::Escape));
         assert_eq!(host.state().place(), Some(Own::Tell));
         host.frame();
-        assert_eq!(host.event_of(&Key::Escape), Some(Event::Back));
+        assert_eq!(host.event_of(&Key::Escape), None);
         empty(&host.report(Report::Key(Key::Escape)));
+        assert_eq!(host.state().place(), Some(Own::Tell));
+        assert_eq!(host.event_of(&Key::Left), Some(Event::Back));
+        empty(&host.report(Report::Key(Key::Left)));
         assert_eq!(host.state().place(), None);
         assert_eq!(host.root.pages().address(), &address, "{screen:?}: not Leave");
         assert!(host.state().notice().is_none());
     }
     let mut host = one_chat_host(false);
-    give(&mut host, Event::Own { command: Own::Change });
+    key_words(&mut host, "/ask");
+    host.report(Report::Key(Key::Enter));
+    host.frame();
+    assert_eq!(host.state().place(), Some(Own::Ask));
+    assert_eq!(host.event_of(&Key::Escape), None);
+    assert_eq!(host.event_of(&Key::Left), Some(Event::Back));
     // A start's intermediate NewChat, as left by a refused start.
     host.start_at(Address::NewChat { draft: false });
     host.report(Report::Due);
     host.frame();
-    assert_eq!(host.event_of(&Key::Escape), Some(Event::Back));
-    host.report(Report::Key(Key::Escape));
+    assert_eq!(host.event_of(&Key::Left), Some(Event::Back));
+    host.report(Report::Key(Key::Left));
     assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
     assert_eq!(host.state().place(), None);
 }
@@ -379,17 +431,17 @@ fn a_places_empty_box_has_no_launchpad_or_pane_keys() {
             Screen::Talk => unreachable!(),
         };
         give(&mut host, Event::Own { command: Own::Tell });
-        for key in [Key::Up, Key::Down, Key::Control(b'p')] {
+        for key in [Key::Up, Key::Down, Key::Control(b'o')] {
             host.frame();
             assert_eq!(host.event_of(&key), None, "{screen:?}, {key:?}");
             empty(&host.report(Report::Key(key)));
-            assert_eq!(host.state().left_off(), None);
+            assert_eq!(host.state().picked(), None);
         }
         key_words(&mut host, "n");
         assert_eq!(host.words(), b"n");
         assert!(host.state().walk().is_none());
-        assert!(!text(&mut host).contains("n to walk"));
-        assert!(!text(&mut host).contains("Ctrl-P"));
+        assert!(!text(&mut host).contains("needs you · /needs"));
+        assert!(!text(&mut host).contains("Ctrl-o"));
     }
 }
 
