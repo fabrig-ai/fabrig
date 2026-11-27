@@ -340,8 +340,9 @@ and `check_fell` after the last.
   focused test too keeps its own count for that caller alone.
 - **The pair** `campaign-jig` lists each binary whose loops take part
   (`tools/tiers/layers.md`, 9.3), first the core world's suite with
-  these sweeps: every binary of jig's worlds with a loop on the seam,
-  whatever else it runs. A listed binary's other fuzzy tests run in a
+  these sweeps: every jig test binary with a loop on the seam, a world's
+  or a crate's own (`jig-client-protocol-http::frames`), whatever else
+  it runs. A listed binary's other fuzzy tests run in a
   round as at the gate, each named with its time
   (`tools/tiers/campaign.md`, 3). Where those times show them
   outweighing the binary's sweeps, a later change moves them to a
