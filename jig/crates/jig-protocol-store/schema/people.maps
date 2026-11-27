@@ -4,6 +4,7 @@ use s = skein_codec::convert
 use h = crate::codec::people
 by hand h
 context crate::people_v17::Limits
+refuses crate::codec::convert::speed_name_to_domain
 refuses h::adoption_to_domain
 refuses h::adoption_to_record
 refuses s::text_to_domain
@@ -130,7 +131,7 @@ enum ResultsWake = p::ResultsWake
 record WakePolicy = p::WakePolicy
 record TrackingTracked
 enum Tracking = p::Tracking
-record ModelEffort = p::ModelEffort
+record ModelEffort = p::ModelEffort { speed via crate::codec::convert::speed_name }
 record LlmLater = p::LlmLater { subagents slice }
 record LlmChoice = p::LlmChoice { subagents slice }
 # dependencies are pieces and the total byte budget is checked.

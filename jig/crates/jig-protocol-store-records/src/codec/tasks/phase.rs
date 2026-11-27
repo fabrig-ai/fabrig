@@ -159,7 +159,7 @@ pub(super) fn read_member(source: wire::Member, limits: &wire::Limits) -> Result
         number,
         project,
         executor: mapped::executor_to_domain(executor),
-        llm: value::read_llm(llm),
+        llm: value::read_llm(llm)?,
         spec: value::read_spec(spec, limits)?,
         contract: value::read_contract(contract, limits)?,
         authority: value::read_authority(authority, limits)?,

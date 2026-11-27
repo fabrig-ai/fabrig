@@ -1681,8 +1681,8 @@ fn a_delegate_keeps_its_llm_preference() {
         Some(tasks::LlmChoice {
             later: None,
             account: Some(43),
-            main: tasks::ModelEffort { model: 2, effort: Some(1) },
-            subagents: Box::new([tasks::ModelEffort { model: 3, effort: None }]),
+            main: tasks::ModelEffort { model: 2, effort: Some(1), speed: None },
+            subagents: Box::new([tasks::ModelEffort { model: 3, effort: None, speed: None }]),
         })
     );
 }
@@ -1702,8 +1702,8 @@ fn an_amendment_keeps_its_llm_preference() {
         Some(tasks::LlmChoice {
             later: None,
             account: Some(43),
-            main: tasks::ModelEffort { model: 2, effort: Some(1) },
-            subagents: Box::new([tasks::ModelEffort { model: 3, effort: None }]),
+            main: tasks::ModelEffort { model: 2, effort: Some(1), speed: None },
+            subagents: Box::new([tasks::ModelEffort { model: 3, effort: None, speed: None }]),
         })
     );
 }
@@ -2073,7 +2073,7 @@ fn change_keeps_branch_repairs_producer_and_llm_together() {
     assert_eq!(changes[0].repairs, Some([0xab; 32]));
     assert_eq!(
         changes[0].llm.producer.as_ref().expect("producer choice").main,
-        tasks::ModelEffort { model: 0, effort: Some(1) }
+        tasks::ModelEffort { model: 0, effort: Some(1), speed: None }
     );
 }
 
@@ -2188,13 +2188,13 @@ fn change_decodes_a_producer_and_llm_by_role() {
             producer: Some(tasks::LlmChoice {
                 later: None,
                 account: None,
-                main: tasks::ModelEffort { model: 0, effort: Some(1) },
-                subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
+                main: tasks::ModelEffort { model: 0, effort: Some(1), speed: None },
+                subagents: Box::new([tasks::ModelEffort { model: 1, effort: None, speed: None }]),
             }),
             review: Some(tasks::LlmChoice {
                 later: None,
                 account: None,
-                main: tasks::ModelEffort { model: 0, effort: Some(0) },
+                main: tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
                 subagents: Box::new([]),
             }),
         },
@@ -2221,7 +2221,7 @@ fn change_decodes_a_producer_and_llm_by_role() {
                     review: Some(tasks::LlmChoice {
                         later: None,
                         account: None,
-                        main: tasks::ModelEffort { model: 1, effort: None },
+                        main: tasks::ModelEffort { model: 1, effort: None, speed: None },
                         subagents: Box::new([]),
                     }),
                 },
@@ -2233,7 +2233,7 @@ fn change_decodes_a_producer_and_llm_by_role() {
                     producer: Some(tasks::LlmChoice {
                         later: None,
                         account: None,
-                        main: tasks::ModelEffort { model: 0, effort: None },
+                        main: tasks::ModelEffort { model: 0, effort: None, speed: None },
                         subagents: Box::new([]),
                     }),
                     review: None,
@@ -2363,7 +2363,7 @@ fn change_batch_keeps_member_options(options: &str) {
         assert_eq!(change.questions, Some(engine::ChangeQuestions::Up));
         assert_eq!(
             change.llm.producer.as_ref().expect("producer choice").main,
-            tasks::ModelEffort { model: 0, effort: Some(1) }
+            tasks::ModelEffort { model: 0, effort: Some(1), speed: None }
         );
         expected.push(change.clone()).expect("four expected changes");
         members.push(member).expect("four batch members");

@@ -836,7 +836,11 @@ fn change_model_effort(value: &Value, models: &[engine::Model]) -> Result<tasks:
             }
             None => None,
         };
-        return Ok(tasks::ModelEffort { model: u8::try_from(index).or(Err(Problem::Range(b"model")))?, effort });
+        return Ok(tasks::ModelEffort {
+            model: u8::try_from(index).or(Err(Problem::Range(b"model")))?,
+            effort,
+            speed: None,
+        });
     }
     Err(Problem::Range(b"model"))
 }

@@ -2493,36 +2493,6 @@ pub fn change_result_to_domain(record: crate::v25::ChangeResult) -> temper_engin
 }
 
 #[must_use]
-pub fn model_effort_to_record(value: &jig_domain_tasks::ModelEffort) -> crate::v25::ModelEffort {
-    let jig_domain_tasks::ModelEffort { model: field_000000, effort: field_000001 } = value;
-    crate::v25::ModelEffort {
-        model: *field_000000,
-        effort: match field_000001 {
-            Some(item) => {
-                let converted = *item;
-                Some(converted)
-            }
-            None => None,
-        }
-    }
-}
-
-#[must_use]
-pub fn model_effort_to_domain(record: crate::v25::ModelEffort) -> jig_domain_tasks::ModelEffort {
-    let crate::v25::ModelEffort { model: field_000000, effort: field_000001 } = record;
-    jig_domain_tasks::ModelEffort {
-        model: field_000000,
-        effort: match field_000001 {
-            Some(item) => {
-                let converted = item;
-                Some(converted)
-            }
-            None => None,
-        }
-    }
-}
-
-#[must_use]
 pub fn open_to_record(value: &temper_engine_domain_forge_change::Open) -> crate::v25::Open {
     let temper_engine_domain_forge_change::Open { asker: field_000000, number: field_000001, line: field_000002, words: field_000003, stands: field_000004 } = value;
     crate::v25::Open {

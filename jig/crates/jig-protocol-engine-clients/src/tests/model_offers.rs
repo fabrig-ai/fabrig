@@ -37,6 +37,7 @@ fn me_with_offer(model: w::MeModel, defaults: List<w::MeDefault>) -> w::Me {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one round trip checks the offer and template preview together")]
 fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
     use crate as engine;
     let limits = fixtures::client_limits();
@@ -77,9 +78,13 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
         let preview = jig_domain_tasks::LlmChoice {
             later: None,
             account: None,
-            main: jig_domain_tasks::ModelEffort { model: 0, effort: if populated { Some(1) } else { None } },
+            main: jig_domain_tasks::ModelEffort {
+                model: 0,
+                effort: if populated { Some(1) } else { None },
+                speed: None,
+            },
             subagents: if populated {
-                Box::new([jig_domain_tasks::ModelEffort { model: 0, effort: Some(0) }])
+                Box::new([jig_domain_tasks::ModelEffort { model: 0, effort: Some(0), speed: None }])
             } else {
                 Box::new([])
             },

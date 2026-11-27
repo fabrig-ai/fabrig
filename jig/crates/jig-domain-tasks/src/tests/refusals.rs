@@ -394,7 +394,7 @@ fn a_job_refuses_an_llm_choice_and_recurrence() {
     member.llm = Some(crate::LlmChoice {
         later: None,
         account: None,
-        main: crate::ModelEffort { model: 0, effort: None },
+        main: crate::ModelEffort { model: 0, effort: None, speed: None },
         subagents: Box::new([]),
     });
     assert_eq!(

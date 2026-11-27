@@ -230,8 +230,8 @@ fn template_settings() -> Config {
     settings.defaults.templates = Box::new([Template {
         executor: people::TemplateExecutor::Charter(PROJECT),
         llm: Some(choice(
-            tasks::ModelEffort { model: FIRST_MODEL, effort: Some(HIGH) },
-            &[tasks::ModelEffort { model: OTHER_MODEL, effort: None }],
+            tasks::ModelEffort { model: FIRST_MODEL, effort: Some(HIGH), speed: None },
+            &[tasks::ModelEffort { model: OTHER_MODEL, effort: None, speed: None }],
         )),
         ..template()
     }]);
@@ -257,14 +257,14 @@ fn choice_fits(main: tasks::ModelEffort, subagents: &[tasks::ModelEffort], execu
     }
 }
 
-const FIRST_CHOICE: tasks::ModelEffort = tasks::ModelEffort { model: FIRST_MODEL, effort: Some(LOW) };
-const OTHER_CHOICE: tasks::ModelEffort = tasks::ModelEffort { model: OTHER_MODEL, effort: None };
+const FIRST_CHOICE: tasks::ModelEffort = tasks::ModelEffort { model: FIRST_MODEL, effort: Some(LOW), speed: None };
+const OTHER_CHOICE: tasks::ModelEffort = tasks::ModelEffort { model: OTHER_MODEL, effort: None, speed: None };
 const NO_SUBAGENTS: &[tasks::ModelEffort] = &[];
 
 // Setting 8 is empty, setting 39 takes LOW, and the table ends at setting 64.
-const HOLE_CHOICE: tasks::ModelEffort = tasks::ModelEffort { model: 7, effort: None };
-const ADDED_CHOICE: tasks::ModelEffort = tasks::ModelEffort { model: 38, effort: Some(LOW) };
-const PAST_CATALOGUE: tasks::ModelEffort = tasks::ModelEffort { model: 64, effort: None };
+const HOLE_CHOICE: tasks::ModelEffort = tasks::ModelEffort { model: 7, effort: None, speed: None };
+const ADDED_CHOICE: tasks::ModelEffort = tasks::ModelEffort { model: 38, effort: Some(LOW), speed: None };
+const PAST_CATALOGUE: tasks::ModelEffort = tasks::ModelEffort { model: 64, effort: None, speed: None };
 
 fn current_choice_fits(main: tasks::ModelEffort, subagents: &[tasks::ModelEffort]) -> bool {
     let mut config = config(41);
@@ -319,7 +319,7 @@ fn merged_template_choices_outside_the_effective_charter_are_refused() {
         ),
         (
             "unknown main model",
-            choice(tasks::ModelEffort { model: UNKNOWN_MODEL, effort: None }, NO_SUBAGENTS),
+            choice(tasks::ModelEffort { model: UNKNOWN_MODEL, effort: None, speed: None }, NO_SUBAGENTS),
             PROJECT,
             false,
         ),

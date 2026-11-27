@@ -452,6 +452,7 @@ impl StockBox {
                     .find(|model| model.name.as_ref() == name)
                     .filter(|model| !model.efforts.is_empty())
                     .map(|_| 0),
+                speed: None,
             },
             subagents: Box::new([]),
         });

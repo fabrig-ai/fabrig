@@ -330,7 +330,7 @@ fn task() -> d::Task {
         instructions: None,
         llm: Some(tasks::LlmChoice {
             account: None,
-            main: tasks::ModelEffort { model: 1, effort: None },
+            main: tasks::ModelEffort { model: 1, effort: None, speed: None },
             subagents: Box::new([]),
             later: None,
         }),

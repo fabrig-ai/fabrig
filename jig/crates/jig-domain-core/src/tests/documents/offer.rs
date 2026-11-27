@@ -202,7 +202,7 @@ fn choice(model: u8, effort: u8) -> tasks::LlmChoice {
     tasks::LlmChoice {
         later: None,
         account: None,
-        main: tasks::ModelEffort { model, effort: Some(effort) },
+        main: tasks::ModelEffort { model, effort: Some(effort), speed: None },
         subagents: Box::new([]),
     }
 }
@@ -382,13 +382,17 @@ fn previews_follow_charter_order_and_preserve_explicit_template_intent() {
         template(3, people::TemplateExecutor::Chosen, None),
     ]));
     let mut preview = choice(2, 1);
-    preview.subagents =
-        Box::new([tasks::ModelEffort { model: 1, effort: Some(0) }, tasks::ModelEffort { model: 0, effort: Some(0) }]);
+    preview.subagents = Box::new([
+        tasks::ModelEffort { model: 1, effort: Some(0), speed: None },
+        tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
+    ]);
     assert_eq!(defaults(&core, &limits), [(1, preview), (2, named.clone())]);
     account(&mut core, &limits, accounts::Event::Limited { account: SECOND_SOURCE, reset: None });
     let mut preview = choice(1, 0);
-    preview.subagents =
-        Box::new([tasks::ModelEffort { model: 2, effort: Some(1) }, tasks::ModelEffort { model: 0, effort: Some(0) }]);
+    preview.subagents = Box::new([
+        tasks::ModelEffort { model: 2, effort: Some(1), speed: None },
+        tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
+    ]);
     assert_eq!(defaults(&core, &limits), [(1, preview), (2, named.clone())]);
     account(&mut core, &limits, accounts::Event::Limited { account: SOURCE, reset: None });
     assert_eq!(defaults(&core, &limits), [(2, named)]);

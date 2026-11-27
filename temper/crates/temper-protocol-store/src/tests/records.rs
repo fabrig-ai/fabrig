@@ -722,14 +722,20 @@ fn a_changes_role_choices_round_trip_with_or_without_models() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     let producing = LlmChoice {
         later: None,
-        main: ModelEffort { model: 3, effort: Some(1) },
-        subagents: Box::new([ModelEffort { model: 0, effort: Some(0) }, ModelEffort { model: 2, effort: None }]),
+        main: ModelEffort { model: 3, effort: Some(1), speed: None },
+        subagents: Box::new([
+            ModelEffort { model: 0, effort: Some(0), speed: None },
+            ModelEffort { model: 2, effort: None, speed: None },
+        ]),
         account: Some(17),
     };
     let review = LlmChoice {
         later: None,
-        main: ModelEffort { model: 4, effort: Some(2) },
-        subagents: Box::new([ModelEffort { model: 1, effort: None }, ModelEffort { model: 3, effort: Some(1) }]),
+        main: ModelEffort { model: 4, effort: Some(2), speed: None },
+        subagents: Box::new([
+            ModelEffort { model: 1, effort: None, speed: None },
+            ModelEffort { model: 3, effort: Some(1), speed: None },
+        ]),
         account: None,
     };
     for (producing_llm, review_llm) in [(None, None), (Some(producing), Some(review))] {
@@ -4184,7 +4190,7 @@ fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
             use jig_domain_tasks::{LlmChoice, ModelEffort};
             use temper_engine_domain_forge_change::{Early, Open, Stands, StartedFrom};
             row.room = Some(random.next_u64());
-            let model = ModelEffort { model: 0, effort: None };
+            let model = ModelEffort { model: 0, effort: None, speed: None };
             row.producing_llm =
                 Some(LlmChoice { account: None, main: model, subagents: Box::new([model]), later: None });
             row.review_llm = row.producing_llm.clone();

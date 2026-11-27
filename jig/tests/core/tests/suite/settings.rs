@@ -722,7 +722,7 @@ fn live_tasks_with_llm_choices_the_newest_disallows_stay_and_are_all_counted() {
         batch[0].llm = Some(people::LlmChoice {
             later: None,
             account: None,
-            main: people::ModelEffort { model: 0, effort: None },
+            main: people::ModelEffort { model: 0, effort: None, speed: None },
             subagents: Box::new([]),
         });
         let people::Reply::Outcome(people::Outcome::Created { first, .. }) = ask(&mut world, signed, key, chat) else {

@@ -191,7 +191,9 @@ pub use funders::FundingRecord;
 pub use grace::Grace;
 pub use holds::{Report as ResourceReport, valid_name};
 pub use limits::{Limits, VERDICT_FIELDS, valid};
-pub use llm::{AccountWhy, CharterModels, LlmChoice, LlmFault, LlmLater, MODELS, ModelEffort};
+pub use llm::{
+    AccountWhy, CharterModels, DeclaredSpeed, LlmChoice, LlmFault, LlmLater, MODELS, ModelEffort, STANDARD_SPEED,
+};
 pub use moving::Move;
 pub use owned::{batch_bytes, phase_bound, phase_bytes, stored_bytes, task_bytes, terminal_bytes};
 pub use parts::{Part, PartKey, PartKind};

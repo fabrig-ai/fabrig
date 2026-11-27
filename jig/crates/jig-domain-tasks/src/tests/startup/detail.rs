@@ -257,10 +257,20 @@ fn placed_aggregate_names_the_inspected_hold_and_applies_party_cases() {
 #[test]
 fn configured_choice_failure_preserves_main_or_subagent_and_reason() {
     for (chosen, why, efforts, models) in [
-        (crate::ModelEffort { model: 7, effort: Some(3) }, Why::Unconfigured, vec![0], vec![0]),
-        (crate::ModelEffort { model: 1, effort: None }, Why::Charter, vec![0, 0], vec![0]),
-        (crate::ModelEffort { model: 0, effort: Some(2) }, Why::Effort, vec![2], vec![0]),
-        (crate::ModelEffort { model: 0, effort: None }, Why::Effort, vec![2], vec![0]),
+        (crate::ModelEffort { model: 7, effort: Some(3), speed: None }, Why::Unconfigured, vec![0], vec![0]),
+        (crate::ModelEffort { model: 1, effort: None, speed: None }, Why::Charter, vec![0, 0], vec![0]),
+        (crate::ModelEffort { model: 0, effort: Some(2), speed: None }, Why::Effort, vec![2], vec![0]),
+        (crate::ModelEffort { model: 0, effort: None, speed: None }, Why::Effort, vec![2], vec![0]),
+        (
+            crate::ModelEffort {
+                model: 0,
+                effort: None,
+                speed: Some(skein_lib::Name::from_checked(b"ultrafast").unwrap()),
+            },
+            Why::Speed,
+            vec![0],
+            vec![0],
+        ),
     ] {
         for (subagent, later) in [(false, false), (true, false), (false, true), (true, true)] {
             let mut source = one_task();
@@ -269,7 +279,7 @@ fn configured_choice_failure_preserves_main_or_subagent_and_reason() {
                 later: None,
                 account: None,
                 main: if subagent {
-                    crate::ModelEffort { model: 0, effort: if efforts[0] == 0 { None } else { Some(0) } }
+                    crate::ModelEffort { model: 0, effort: if efforts[0] == 0 { None } else { Some(0) }, speed: None }
                 } else {
                     chosen
                 },
@@ -278,7 +288,8 @@ fn configured_choice_failure_preserves_main_or_subagent_and_reason() {
             if later {
                 let choice = row.llm.as_mut().unwrap();
                 choice.later = Some(crate::LlmLater { main: choice.main, subagents: choice.subagents.clone() });
-                choice.main = crate::ModelEffort { model: 0, effort: if efforts[0] == 0 { None } else { Some(0) } };
+                choice.main =
+                    crate::ModelEffort { model: 0, effort: if efforts[0] == 0 { None } else { Some(0) }, speed: None };
                 choice.subagents = Box::new([]);
             }
             let mut cold = empty(&LIMITS);
@@ -288,6 +299,7 @@ fn configured_choice_failure_preserves_main_or_subagent_and_reason() {
                 number: 1,
                 revision: 1,
                 models: Some(models.clone().into_boxed_slice()),
+                speeds: Box::default(),
             }]);
             for record in source.stored.values().filter(|row| row.key().live()) {
                 assert_eq!(cold.send(Event::Restore { record: record.clone() }).len(), 0);
@@ -302,6 +314,33 @@ fn configured_choice_failure_preserves_main_or_subagent_and_reason() {
 }
 
 #[test]
+fn a_retained_speed_restores_under_its_held_charter() {
+    const CHARTER: u32 = 1;
+    const HELD: u32 = 1;
+    const NEWEST: u32 = 2;
+    const MODEL: u8 = 0;
+    let mut source = one_task();
+    let speed = skein_lib::Name::from_checked(b"fast").unwrap();
+    let chosen = crate::ModelEffort { model: MODEL, effort: None, speed: Some(speed) };
+    let choice = crate::LlmChoice { account: None, main: chosen, subagents: Box::new([]), later: None };
+    let Some(Stored::Live(record)) = source.stored.get_mut(&Key::Live(DUE)) else { panic!("live task") };
+    record.llm = Some(choice.clone());
+    let held = crate::CharterModels {
+        number: CHARTER,
+        resumes: false,
+        revision: HELD,
+        models: Some(Box::new([MODEL])),
+        speeds: Box::new([crate::DeclaredSpeed { model: MODEL, name: speed }]),
+    };
+    let newest = crate::CharterModels { revision: NEWEST, speeds: Box::default(), ..held.clone() };
+    let mut restored = cold(&source);
+    restored.send(Event::Charters { newest: NEWEST, charters: Box::new([held, newest]), efforts: Box::new([0]) });
+    let checked = restored.send(Event::Check);
+    assert_eq!(checked.len(), 0, "{:?}", restored.domain.restore_failure());
+    assert_eq!(restored.domain.task(DUE).unwrap().llm, Some(choice));
+}
+
+#[test]
 fn nonagent_choice_is_kept_without_rejudging_admission() {
     for executor in
         [crate::Executor::Procedure { connector: 1, code: 1 }, crate::Executor::Person(crate::PersonAddress::Person(9))]
@@ -312,7 +351,7 @@ fn nonagent_choice_is_kept_without_rejudging_admission() {
         row.llm = Some(crate::LlmChoice {
             later: None,
             account: None,
-            main: crate::ModelEffort { model: 7, effort: Some(9) },
+            main: crate::ModelEffort { model: 7, effort: Some(9), speed: None },
             subagents: Box::new([]),
         });
         let mut restored = cold(&source);
@@ -526,7 +565,7 @@ fn nonparty_placed_owners_do_not_acquire_the_party_bound() {
 fn retained_choices_do_not_rejudge_authority_or_duplicate_models() {
     let mut source = one_task();
     let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DUE)) else { panic!("row") };
-    let chosen = crate::ModelEffort { model: 0, effort: None };
+    let chosen = crate::ModelEffort { model: 0, effort: None, speed: None };
     row.llm =
         Some(crate::LlmChoice { later: None, account: None, main: chosen, subagents: Box::new([chosen, chosen]) });
     row.authority.models = crate::Models::Named(0);

@@ -10,7 +10,11 @@ use jig_tasks_world::{LIMITS, PERSON, Reply, World, authority, domain, task};
 const LLM_REQUESTER: Party = Party::Person(1);
 
 fn effort(model: u8, effort: Option<u8>) -> ModelEffort {
-    ModelEffort { model, effort }
+    ModelEffort { model, effort, speed: None }
+}
+
+fn speed(model: ModelEffort, name: &[u8]) -> ModelEffort {
+    ModelEffort { speed: Some(skein_lib::Name::from_checked(name).expect("fixture speed")), ..model }
 }
 
 fn choice(main: ModelEffort, subagents: &[ModelEffort]) -> LlmChoice {
@@ -96,6 +100,7 @@ fn a_choice_is_kept_through_a_restart_amended_and_given_to_a_delegate() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "all the LLM refusal cases run the same batch and direct checks")]
 fn a_choice_is_refused_naming_its_first_failing_model_and_why() {
     let procedure = Executor::Procedure { connector: 1, code: 1 };
     let person = Executor::Person(PersonAddress::Person(PERSON));
@@ -151,10 +156,41 @@ fn a_choice_is_refused_naming_its_first_failing_model_and_why() {
             3,
             LlmFault::Charter,
         ),
+        (
+            Executor::Agent { charter: 1 },
+            0b1111,
+            choice(speed(effort(0, Some(0)), b"unknown"), &[]),
+            0,
+            LlmFault::Speed,
+        ),
+        (
+            Executor::Agent { charter: 1 },
+            0b1111,
+            choice(speed(effort(0, Some(0)), b"priority"), &[]),
+            0,
+            LlmFault::Speed,
+        ),
+        (
+            Executor::Agent { charter: 1 },
+            0b1111,
+            choice(effort(0, Some(0)), &[speed(effort(1, None), b"fast")]),
+            1,
+            LlmFault::Speed,
+        ),
+        (Executor::Agent { charter: 1 }, 0b1111, later(speed(effort(1, None), b"fast"), &[]), 1, LlmFault::Speed),
+        (
+            Executor::Agent { charter: 1 },
+            0b1111,
+            later(effort(1, None), &[speed(effort(2, Some(0)), b"fast")]),
+            2,
+            LlmFault::Speed,
+        ),
         (procedure, 0b1111, choice(effort(1, None), &[]), 1, LlmFault::Procedure),
         (person, 0b1111, choice(effort(1, None), &[]), 1, LlmFault::Procedure),
     ];
     let mut charters = jig_tasks_world::charters();
+    charters[0].speeds =
+        Box::new([tasks::DeclaredSpeed { model: 0, name: skein_lib::Name::from_checked(b"fast").unwrap() }]);
     charters[1].resumes = true;
     let domain = Domain::new(
         &LIMITS,
@@ -194,6 +230,16 @@ fn a_delegates_choice_is_refused_outside_its_charters_models_without_writes() {
 }
 
 #[test]
+fn standard_and_none_pass_without_declared_speeds() {
+    for main in [effort(1, None), speed(effort(1, None), tasks::STANDARD_SPEED)] {
+        let mut world = World::new(76, LIMITS);
+        let llm = later(main, &[speed(effort(2, Some(0)), tasks::STANDARD_SPEED)]);
+        assert_eq!(domain(&LIMITS, 76).check_llm(1, Models::ALL, &llm), Ok(()));
+        assert_eq!(world.make(LLM_REQUESTER, vec![chosen(1, 0b111, llm)]), Reply::Made(vec![1]));
+    }
+}
+
+#[test]
 fn a_choice_checked_alone_fits_or_names_an_unoffered_charter() {
     let domain = domain(&LIMITS, 76);
     let mut fitting = choice(effort(0, Some(1)), &[effort(1, None), effort(2, Some(0))]);
@@ -205,8 +251,14 @@ fn a_choice_checked_alone_fits_or_names_an_unoffered_charter() {
 #[test]
 fn a_choice_checked_alone_uses_the_newest_charter_including_its_removal() {
     let mut charters = jig_tasks_world::charters().into_vec();
-    charters.push(CharterModels { resumes: false, number: 1, revision: 2, models: Some(Box::new([1])) });
-    charters.push(CharterModels { resumes: false, number: 2, revision: 2, models: None });
+    charters.push(CharterModels {
+        resumes: false,
+        number: 1,
+        revision: 2,
+        models: Some(Box::new([1])),
+        speeds: Box::default(),
+    });
+    charters.push(CharterModels { resumes: false, number: 2, revision: 2, models: None, speeds: Box::default() });
     let domain = Domain::new(
         &LIMITS,
         jig_domain_tasks::Kept { revisions: 4, versions: 8 },

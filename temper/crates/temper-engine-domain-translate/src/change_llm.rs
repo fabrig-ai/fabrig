@@ -96,7 +96,7 @@ fn read_entry(text: &[u8]) -> Option<tasks::ModelEffort> {
         Some((model, effort)) => (model, Some(u8::try_from(decimal(effort)?).ok()?)),
         None => (text, None),
     };
-    Some(tasks::ModelEffort { model: u8::try_from(decimal(model)?).ok()?, effort })
+    Some(tasks::ModelEffort { model: u8::try_from(decimal(model)?).ok()?, effort, speed: None })
 }
 
 #[cfg(test)]
@@ -106,7 +106,7 @@ mod tests {
         tasks::LlmChoice {
             later: None,
             account: None,
-            main: tasks::ModelEffort { model, effort },
+            main: tasks::ModelEffort { model, effort, speed: None },
             subagents: Box::new([]),
         }
     }
@@ -124,8 +124,8 @@ mod tests {
                 crate::ChangeLlm {
                     producer: Some(tasks::LlmChoice {
                         subagents: Box::new([
-                            tasks::ModelEffort { model: 0, effort: Some(0) },
-                            tasks::ModelEffort { model: 2, effort: None },
+                            tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
+                            tasks::ModelEffort { model: 2, effort: None, speed: None },
                         ]),
                         ..choice(3, Some(1))
                     }),

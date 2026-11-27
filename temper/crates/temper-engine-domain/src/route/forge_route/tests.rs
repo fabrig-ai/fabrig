@@ -3466,13 +3466,13 @@ fn change_delegates_take_their_roles_saved_llm_choice() {
     env.limits.tasks.spec_bytes = SPEC_BYTES;
     let producing = tasks::LlmChoice {
         later: None,
-        main: tasks::ModelEffort { model: 3, effort: Some(1) },
+        main: tasks::ModelEffort { model: 3, effort: Some(1), speed: None },
         subagents: Box::new([]),
         account: None,
     };
     let review = tasks::LlmChoice {
         later: None,
-        main: tasks::ModelEffort { model: 2, effort: Some(0) },
+        main: tasks::ModelEffort { model: 2, effort: Some(0), speed: None },
         subagents: Box::new([]),
         account: None,
     };
@@ -3503,7 +3503,7 @@ fn choice(model: u8, effort: Option<u8>) -> super::tasks::LlmChoice {
     super::tasks::LlmChoice {
         later: None,
         account: None,
-        main: super::tasks::ModelEffort { model, effort },
+        main: super::tasks::ModelEffort { model, effort, speed: None },
         subagents: Box::new([]),
     }
 }
@@ -3522,8 +3522,8 @@ fn change_llm_text_round_trips_each_role_and_optional_effort() {
             crate::ChangeLlm {
                 producer: Some(tasks::LlmChoice {
                     subagents: Box::new([
-                        tasks::ModelEffort { model: 0, effort: Some(0) },
-                        tasks::ModelEffort { model: 2, effort: None },
+                        tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
+                        tasks::ModelEffort { model: 2, effort: None, speed: None },
                     ]),
                     ..choice(3, Some(1))
                 }),
@@ -3975,8 +3975,8 @@ fn a_changes_start_keeps_parameter_elevens_charter_and_role_choices() {
             crate::ChangeLlm {
                 producer: Some(tasks::LlmChoice {
                     subagents: Box::new([
-                        tasks::ModelEffort { model: 0, effort: Some(0) },
-                        tasks::ModelEffort { model: 2, effort: None },
+                        tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
+                        tasks::ModelEffort { model: 2, effort: None, speed: None },
                     ]),
                     ..choice(3, Some(1))
                 }),

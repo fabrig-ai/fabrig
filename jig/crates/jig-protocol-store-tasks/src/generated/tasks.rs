@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 13;
 pub const LAYOUT: [u8; 32] = [
-    0xff, 0x49, 0xbb, 0x25, 0x1a, 0x95, 0xfb, 0xa9, 0x68, 0x6a, 0x11, 0x0c, 0x1f, 0xbb, 0x3b, 0x1e, 0xf9, 0xb9, 0x08,
-    0x07, 0x18, 0xe0, 0x86, 0x7b, 0xc3, 0x21, 0xe4, 0x1f, 0x29, 0x18, 0xd4, 0x43,
+    0xc6, 0xbb, 0x02, 0xff, 0xe6, 0x59, 0x9c, 0xa2, 0x77, 0x40, 0xab, 0x5b, 0xb6, 0x5d, 0x63, 0x98, 0xa2, 0xb3, 0xa5,
+    0x23, 0x28, 0x08, 0xfd, 0x84, 0x26, 0x44, 0x32, 0xec, 0x29, 0x6f, 0xad, 0x55,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -30,6 +30,7 @@ pub struct Limits {
     pub approval_state: u32,
     pub choices_choices: u32,
     pub change_contract_choices: u32,
+    pub model_effort_speed_some: u32,
     pub llm_later_subagents: u32,
     pub llm_choice_subagents: u32,
     pub authority_segment_bytes: u32,
@@ -137,6 +138,7 @@ pub const CEILINGS: Limits = Limits {
     approval_state: 524_288,
     choices_choices: 64,
     change_contract_choices: 64,
+    model_effort_speed_some: 32,
     llm_later_subagents: 64,
     llm_choice_subagents: 64,
     authority_segment_bytes: 4_096,
@@ -244,6 +246,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "approval_state",
     "choices_choices",
     "change_contract_choices",
+    "model_effort_speed_some",
     "llm_later_subagents",
     "llm_choice_subagents",
     "authority_segment_bytes",
@@ -355,6 +358,7 @@ impl Limits {
             self.approval_state,
             self.choices_choices,
             self.change_contract_choices,
+            self.model_effort_speed_some,
             self.llm_later_subagents,
             self.llm_choice_subagents,
             self.authority_segment_bytes,
@@ -467,6 +471,7 @@ impl Limits {
             approval_state: self.approval_state.min(most),
             choices_choices: self.choices_choices.min(most),
             change_contract_choices: self.change_contract_choices.min(most),
+            model_effort_speed_some: self.model_effort_speed_some.min(most),
             llm_later_subagents: self.llm_later_subagents.min(most),
             llm_choice_subagents: self.llm_choice_subagents.min(most),
             authority_segment_bytes: self.authority_segment_bytes.min(most),
@@ -576,6 +581,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::APPROVAL_STATE,
     paths::CHOICES_CHOICES,
     paths::CHANGE_CONTRACT_CHOICES,
+    paths::MODEL_EFFORT_SPEED,
     paths::LLM_LATER_SUBAGENTS,
     paths::LLM_CHOICE_SUBAGENTS,
     paths::AUTHORITY_SEGMENT_BYTES,
@@ -773,6 +779,7 @@ pub mod paths {
     pub const MODELS_TAIL: Path = Path::new("Models (tail)");
     pub const MODEL_EFFORT_MODEL: Path = Path::new("ModelEffort.model");
     pub const MODEL_EFFORT_EFFORT: Path = Path::new("ModelEffort.effort");
+    pub const MODEL_EFFORT_SPEED: Path = Path::new("ModelEffort.speed");
     pub const MODEL_EFFORT_TAIL: Path = Path::new("ModelEffort (tail)");
     pub const LLM_LATER_MAIN: Path = Path::new("LlmLater.main");
     pub const LLM_LATER_SUBAGENTS: Path = Path::new("LlmLater.subagents");
@@ -3899,6 +3906,7 @@ impl Record for Models {
 pub struct ModelEffort {
     pub model: u8,
     pub effort: Option<u8>,
+    pub speed: Option<Box<[u8]>>,
 }
 
 // Record: ModelEffort.
@@ -3907,11 +3915,13 @@ impl ModelEffort {
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Option { item: 1 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, model_effort_speed_some) },
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 3;
+    pub const ENCODED_AT_ZERO: u64 = 8;
 }
 
 impl Record for ModelEffort {
@@ -3938,6 +3948,7 @@ impl Record for ModelEffort {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::U8, &self.model, limits, out, paths::MODEL_EFFORT_MODEL)?;
         field::write(field::Optional { item: field::U8 }, &self.effort, limits, out, paths::MODEL_EFFORT_EFFORT)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.model_effort_speed_some.min(CEILINGS.model_effort_speed_some) } }, &self.speed, limits, out, paths::MODEL_EFFORT_SPEED)?;
         Ok(())
     }
 
@@ -3945,6 +3956,7 @@ impl Record for ModelEffort {
         Ok(Self {
             model: field::read(field::U8, limits, reader, paths::MODEL_EFFORT_MODEL)?,
             effort: field::read(field::Optional { item: field::U8 }, limits, reader, paths::MODEL_EFFORT_EFFORT)?,
+            speed: field::read(field::Optional { item: field::Bytes { limit: limits.model_effort_speed_some.min(CEILINGS.model_effort_speed_some) } }, limits, reader, paths::MODEL_EFFORT_SPEED)?,
         })
     }
 }
@@ -3966,7 +3978,7 @@ impl LlmLater {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 7;
+    pub const ENCODED_AT_ZERO: u64 = 12;
 }
 
 impl Record for LlmLater {
@@ -3992,14 +4004,14 @@ impl Record for LlmLater {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.main, limits, out, paths::LLM_LATER_MAIN)?;
-        field::write(field::Sequence { limit: limits.llm_later_subagents.min(CEILINGS.llm_later_subagents), minimum: 2, item: field::Nested }, &self.subagents, limits, out, paths::LLM_LATER_SUBAGENTS)?;
+        field::write(field::Sequence { limit: limits.llm_later_subagents.min(CEILINGS.llm_later_subagents), minimum: 3, item: field::Nested }, &self.subagents, limits, out, paths::LLM_LATER_SUBAGENTS)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             main: field::read(field::Nested, limits, reader, paths::LLM_LATER_MAIN)?,
-            subagents: field::read(field::Sequence { limit: limits.llm_later_subagents.min(CEILINGS.llm_later_subagents), minimum: 2, item: field::Nested }, limits, reader, paths::LLM_LATER_SUBAGENTS)?,
+            subagents: field::read(field::Sequence { limit: limits.llm_later_subagents.min(CEILINGS.llm_later_subagents), minimum: 3, item: field::Nested }, limits, reader, paths::LLM_LATER_SUBAGENTS)?,
         })
     }
 }
@@ -4027,7 +4039,7 @@ impl LlmChoice {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 20;
+    pub const ENCODED_AT_ZERO: u64 = 30;
 }
 
 impl Record for LlmChoice {
@@ -4053,7 +4065,7 @@ impl Record for LlmChoice {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.main, limits, out, paths::LLM_CHOICE_MAIN)?;
-        field::write(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 2, item: field::Nested }, &self.subagents, limits, out, paths::LLM_CHOICE_SUBAGENTS)?;
+        field::write(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 3, item: field::Nested }, &self.subagents, limits, out, paths::LLM_CHOICE_SUBAGENTS)?;
         field::write(field::Optional { item: field::Nested }, &self.later, limits, out, paths::LLM_CHOICE_LATER)?;
         field::write(field::Optional { item: field::U32 }, &self.account, limits, out, paths::LLM_CHOICE_ACCOUNT)?;
         Ok(())
@@ -4062,7 +4074,7 @@ impl Record for LlmChoice {
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             main: field::read(field::Nested, limits, reader, paths::LLM_CHOICE_MAIN)?,
-            subagents: field::read(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 2, item: field::Nested }, limits, reader, paths::LLM_CHOICE_SUBAGENTS)?,
+            subagents: field::read(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 3, item: field::Nested }, limits, reader, paths::LLM_CHOICE_SUBAGENTS)?,
             later: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LLM_CHOICE_LATER)?,
             account: field::read(field::Optional { item: field::U32 }, limits, reader, paths::LLM_CHOICE_ACCOUNT)?,
         })
@@ -6574,7 +6586,7 @@ impl Member {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 273;
+    pub const ENCODED_AT_ZERO: u64 = 283;
 }
 
 impl Record for Member {
@@ -6715,7 +6727,7 @@ impl Creation {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 283;
+    pub const ENCODED_AT_ZERO: u64 = 293;
 }
 
 impl Record for Creation {
@@ -9091,7 +9103,7 @@ impl Amendment {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 195;
+    pub const ENCODED_AT_ZERO: u64 = 205;
 }
 
 impl Record for Amendment {
@@ -9345,7 +9357,7 @@ impl ProposedAmendment {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 211;
+    pub const ENCODED_AT_ZERO: u64 = 221;
 }
 
 impl Record for ProposedAmendment {
@@ -9832,7 +9844,7 @@ impl ProposalAction {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 212;
+    pub const ENCODED_AT_ZERO: u64 = 222;
 }
 
 impl Record for ProposalAction {
@@ -9911,7 +9923,7 @@ impl Proposal {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 255;
+    pub const ENCODED_AT_ZERO: u64 = 265;
 }
 
 impl Record for Proposal {
@@ -10088,7 +10100,7 @@ impl Settings {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 178;
+    pub const ENCODED_AT_ZERO: u64 = 188;
 }
 
 impl Record for Settings {
@@ -10156,7 +10168,7 @@ impl AmendmentHistory {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 356;
+    pub const ENCODED_AT_ZERO: u64 = 376;
 }
 
 impl Record for AmendmentHistory {
@@ -10224,7 +10236,7 @@ impl History {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 651;
+    pub const ENCODED_AT_ZERO: u64 = 681;
 }
 
 impl Record for History {
@@ -10578,7 +10590,7 @@ impl PersonAction {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 212;
+    pub const ENCODED_AT_ZERO: u64 = 222;
 }
 
 impl Record for PersonAction {
@@ -10645,7 +10657,7 @@ impl PersonProposal {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 266;
+    pub const ENCODED_AT_ZERO: u64 = 276;
 }
 
 impl Record for PersonProposal {
@@ -16858,7 +16870,7 @@ impl TaskRun {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 475;
+    pub const ENCODED_AT_ZERO: u64 = 485;
 }
 
 impl Record for TaskRun {
@@ -17056,7 +17068,7 @@ impl TaskDefinition {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 355;
+    pub const ENCODED_AT_ZERO: u64 = 365;
 }
 
 impl Record for TaskDefinition {
@@ -17705,7 +17717,7 @@ impl BeforeTalk {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1336;
+    pub const ENCODED_AT_ZERO: u64 = 1356;
 }
 
 impl Record for BeforeTalk {
@@ -17837,7 +17849,7 @@ impl TaskRecord {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1378;
+    pub const ENCODED_AT_ZERO: u64 = 1398;
 }
 
 impl Record for TaskRecord {
@@ -18059,7 +18071,7 @@ impl HotDefinition {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 257;
+    pub const ENCODED_AT_ZERO: u64 = 267;
 }
 
 impl Record for HotDefinition {
@@ -18176,7 +18188,7 @@ impl LiveHot {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1297;
+    pub const ENCODED_AT_ZERO: u64 = 1317;
 }
 
 impl Record for LiveHot {
@@ -19485,7 +19497,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1379;
+    pub const ENCODED_AT_ZERO: u64 = 1399;
 }
 
 impl Record for Value {
@@ -19637,7 +19649,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1385;
+    pub const ENCODED_AT_ZERO: u64 = 1405;
 }
 
 impl Record for Row {
@@ -21438,6 +21450,7 @@ pub enum LlmFault {
     Authority,
     Procedure,
     Repeated,
+    Speed,
 }
 
 // Record: LlmFault.
@@ -21449,7 +21462,8 @@ impl LlmFault {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -21485,6 +21499,7 @@ impl Record for LlmFault {
             Self::Authority => field::put(out, &[3], paths::LLM_FAULT_TAG),
             Self::Procedure => field::put(out, &[4], paths::LLM_FAULT_TAG),
             Self::Repeated => field::put(out, &[5], paths::LLM_FAULT_TAG),
+            Self::Speed => field::put(out, &[6], paths::LLM_FAULT_TAG),
         }
     }
 
@@ -21497,7 +21512,8 @@ impl Record for LlmFault {
             3 => Ok(Self::Authority),
             4 => Ok(Self::Procedure),
             5 => Ok(Self::Repeated),
-            6..=u8::MAX => Err(Problem { path: paths::LLM_FAULT_TAG, reason: skein_codec::Reason::Tag }),
+            6 => Ok(Self::Speed),
+            7..=u8::MAX => Err(Problem { path: paths::LLM_FAULT_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -22460,7 +22476,7 @@ impl ResultFollowupsProposal {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 255;
+    pub const ENCODED_AT_ZERO: u64 = 265;
 }
 
 impl Record for ResultFollowupsProposal {
@@ -22513,7 +22529,7 @@ impl ResultFollowups {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 256;
+    pub const ENCODED_AT_ZERO: u64 = 266;
 }
 
 impl Record for ResultFollowups {
@@ -22624,7 +22640,7 @@ impl EndFinishedWithFollowups {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 277;
+    pub const ENCODED_AT_ZERO: u64 = 287;
 }
 
 impl Record for EndFinishedWithFollowups {
@@ -22907,7 +22923,7 @@ impl End {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 278;
+    pub const ENCODED_AT_ZERO: u64 = 288;
 }
 
 impl Record for End {
@@ -22978,7 +22994,7 @@ impl EndRecord {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 280;
+    pub const ENCODED_AT_ZERO: u64 = 290;
 }
 
 impl Record for EndRecord {
@@ -23485,6 +23501,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.approval_state,
     CEILINGS.choices_choices,
     CEILINGS.change_contract_choices,
+    CEILINGS.model_effort_speed_some,
     CEILINGS.llm_later_subagents,
     CEILINGS.llm_choice_subagents,
     CEILINGS.authority_segment_bytes,

@@ -799,10 +799,10 @@ fn decode_gate_failures(values: List<w::GateFailure>) -> Box<[d::GateFailure]> {
 }
 
 fn encode_model_effort(value: jig_domain_tasks::ModelEffort) -> w::ModelEffort {
-    crate::generated::store::model_effort_to_record(&value)
+    w::ModelEffort { model: value.model, effort: value.effort }
 }
 fn decode_model_effort(value: w::ModelEffort) -> jig_domain_tasks::ModelEffort {
-    crate::generated::store::model_effort_to_domain(value)
+    jig_domain_tasks::ModelEffort { model: value.model, effort: value.effort, speed: None }
 }
 pub(super) fn encode_llm(value: Option<&jig_domain_tasks::LlmChoice>) -> Option<w::LlmChoice> {
     let jig_domain_tasks::LlmChoice { main, subagents, account, .. } = value?;

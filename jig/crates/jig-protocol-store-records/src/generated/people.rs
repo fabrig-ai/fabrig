@@ -927,7 +927,7 @@ pub fn tracking_to_domain(record: crate::people_v17::Tracking) -> jig_domain_peo
 
 #[must_use]
 pub fn model_effort_to_record(value: &jig_domain_people::ModelEffort) -> crate::people_v17::ModelEffort {
-    let jig_domain_people::ModelEffort { model: field_000000, effort: field_000001 } = value;
+    let jig_domain_people::ModelEffort { model: field_000000, effort: field_000001, speed: field_000002 } = value;
     crate::people_v17::ModelEffort {
         model: *field_000000,
         effort: match field_000001 {
@@ -936,14 +936,20 @@ pub fn model_effort_to_record(value: &jig_domain_people::ModelEffort) -> crate::
                 Some(converted)
             }
             None => None,
+        },
+        speed: match field_000002 {
+            Some(item) => {
+                let converted = crate::codec::convert::speed_name_to_record(item);
+                Some(converted)
+            }
+            None => None,
         }
     }
 }
 
-#[must_use]
-pub fn model_effort_to_domain(record: crate::people_v17::ModelEffort) -> jig_domain_people::ModelEffort {
-    let crate::people_v17::ModelEffort { model: field_000000, effort: field_000001 } = record;
-    jig_domain_people::ModelEffort {
+pub fn model_effort_to_domain(record: crate::people_v17::ModelEffort) -> Result<jig_domain_people::ModelEffort, crate::people_v17::Problem> {
+    let crate::people_v17::ModelEffort { model: field_000000, effort: field_000001, speed: field_000002 } = record;
+    Ok(jig_domain_people::ModelEffort {
         model: field_000000,
         effort: match field_000001 {
             Some(item) => {
@@ -951,8 +957,15 @@ pub fn model_effort_to_domain(record: crate::people_v17::ModelEffort) -> jig_dom
                 Some(converted)
             }
             None => None,
+        },
+        speed: match field_000002 {
+            Some(item) => {
+                let converted = match crate::codec::convert::speed_name_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::people_v17::paths::MODEL_EFFORT_SPEED.problem(reason)) };
+                Some(converted)
+            }
+            None => None,
         }
-    }
+    })
 }
 
 pub fn llm_later_to_record(value: &jig_domain_people::LlmLater) -> Result<crate::people_v17::LlmLater, crate::people_v17::Problem> {
@@ -972,22 +985,21 @@ pub fn llm_later_to_record(value: &jig_domain_people::LlmLater) -> Result<crate:
     })
 }
 
-#[must_use]
-pub fn llm_later_to_domain(record: crate::people_v17::LlmLater) -> jig_domain_people::LlmLater {
+pub fn llm_later_to_domain(record: crate::people_v17::LlmLater) -> Result<jig_domain_people::LlmLater, crate::people_v17::Problem> {
     let crate::people_v17::LlmLater { main: field_000000, subagents: field_000001 } = record;
-    jig_domain_people::LlmLater {
-        main: model_effort_to_domain(field_000000),
+    Ok(jig_domain_people::LlmLater {
+        main: model_effort_to_domain(field_000000)?,
         subagents: {
             let source = field_000001;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = model_effort_to_domain(item);
+                let converted = model_effort_to_domain(item)?;
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
-    }
+    })
 }
 
 pub fn llm_choice_to_record(value: &jig_domain_people::LlmChoice) -> Result<crate::people_v17::LlmChoice, crate::people_v17::Problem> {
@@ -1021,10 +1033,9 @@ pub fn llm_choice_to_record(value: &jig_domain_people::LlmChoice) -> Result<crat
     })
 }
 
-#[must_use]
-pub fn llm_choice_to_domain(record: crate::people_v17::LlmChoice) -> jig_domain_people::LlmChoice {
+pub fn llm_choice_to_domain(record: crate::people_v17::LlmChoice) -> Result<jig_domain_people::LlmChoice, crate::people_v17::Problem> {
     let crate::people_v17::LlmChoice { account: field_000000, main: field_000001, subagents: field_000002, later: field_000003 } = record;
-    jig_domain_people::LlmChoice {
+    Ok(jig_domain_people::LlmChoice {
         account: match field_000000 {
             Some(item) => {
                 let converted = item;
@@ -1032,25 +1043,25 @@ pub fn llm_choice_to_domain(record: crate::people_v17::LlmChoice) -> jig_domain_
             }
             None => None,
         },
-        main: model_effort_to_domain(field_000001),
+        main: model_effort_to_domain(field_000001)?,
         subagents: {
             let source = field_000002;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = model_effort_to_domain(item);
+                let converted = model_effort_to_domain(item)?;
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         later: match field_000003 {
             Some(item) => {
-                let converted = llm_later_to_domain(item);
+                let converted = llm_later_to_domain(item)?;
                 Some(converted)
             }
             None => None,
         }
-    }
+    })
 }
 
 #[must_use]
@@ -2688,6 +2699,7 @@ pub fn llm_why_to_record(value: &jig_domain_people::LlmWhy) -> crate::people_v17
         jig_domain_people::LlmWhy::Authority => crate::people_v17::LlmWhy::Authority,
         jig_domain_people::LlmWhy::Procedure => crate::people_v17::LlmWhy::Procedure,
         jig_domain_people::LlmWhy::Repeated => crate::people_v17::LlmWhy::Repeated,
+        jig_domain_people::LlmWhy::Speed => crate::people_v17::LlmWhy::Speed,
     }
 }
 
@@ -2700,6 +2712,7 @@ pub fn llm_why_to_domain(record: crate::people_v17::LlmWhy) -> jig_domain_people
         crate::people_v17::LlmWhy::Authority => jig_domain_people::LlmWhy::Authority,
         crate::people_v17::LlmWhy::Procedure => jig_domain_people::LlmWhy::Procedure,
         crate::people_v17::LlmWhy::Repeated => jig_domain_people::LlmWhy::Repeated,
+        crate::people_v17::LlmWhy::Speed => jig_domain_people::LlmWhy::Speed,
     }
 }
 

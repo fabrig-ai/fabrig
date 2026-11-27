@@ -19,8 +19,8 @@ fn choice() -> t::LlmChoice {
     t::LlmChoice {
         later: None,
         account: None,
-        main: t::ModelEffort { model: 0, effort: Some(1) },
-        subagents: Box::new([t::ModelEffort { model: 1, effort: None }]),
+        main: t::ModelEffort { model: 0, effort: Some(1), speed: None },
+        subagents: Box::new([t::ModelEffort { model: 1, effort: None, speed: None }]),
     }
 }
 /// The choice as `choice()` names it: `careful` at `high`, with `quick` for sub-agents.
@@ -335,8 +335,8 @@ fn an_amended_choice_reaches_the_people_child_in_configuration_s_order() {
     let expected = p::LlmChoice {
         later: None,
         account: None,
-        main: p::ModelEffort { model: 0, effort: Some(1) },
-        subagents: Box::new([p::ModelEffort { model: 1, effort: None }]),
+        main: p::ModelEffort { model: 0, effort: Some(1), speed: None },
+        subagents: Box::new([p::ModelEffort { model: 1, effort: None, speed: None }]),
     };
     assert_eq!(amendment.llm, Some(expected));
 }

@@ -493,7 +493,7 @@ fn model_effort(
             return None;
         }
     };
-    Some(tasks::ModelEffort { model: u8::try_from(index).expect("models bounded by `MODELS`"), effort })
+    Some(tasks::ModelEffort { model: u8::try_from(index).expect("models bounded by `MODELS`"), effort, speed: None })
 }
 /// Refuse each model a template's choice names that its charter does not: its main model or one
 /// of its alternatives (protocol/configuration-engine.md, 1, and protocol/configuration-templates.md, 1).

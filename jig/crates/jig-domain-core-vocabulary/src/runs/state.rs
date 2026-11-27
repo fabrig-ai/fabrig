@@ -83,9 +83,14 @@ impl Model {
 
     /// The speed `speed` names among `speeds`; `None` at the standard speed.
     #[must_use]
-    #[expect(clippy::manual_find, reason = "a bounded search in the step subset, without a closure")]
     pub fn run_speed(&self) -> Option<&Speed> {
-        let name = self.speed.as_deref()?;
+        self.speed_named(self.speed.as_deref()?)
+    }
+
+    /// A declared speed by its own name, never by an alias.
+    #[must_use]
+    #[expect(clippy::manual_find, reason = "a bounded search in the step subset, without a closure")]
+    pub fn speed_named(&self, name: &[u8]) -> Option<&Speed> {
         for speed in &self.speeds {
             if speed.name.as_ref() == name {
                 return Some(speed);

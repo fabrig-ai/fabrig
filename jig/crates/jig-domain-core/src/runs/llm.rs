@@ -202,7 +202,7 @@ impl Core {
     }
 
     /// The policy a run of `task` uses: its charter's, running its LLM choice's models, each the
-    /// charter's model of that configured name with its chosen effort's name (domain/engine/executors.md,
+    /// charter's model of that configured name with its chosen effort and speed (domain/engine/executors.md,
     /// 1). A choice the catalogue or charter no longer holds falls back to the charter's own.
     pub(crate) fn chosen_policy(&self, task: u64) -> RunPolicy {
         let policy = &self.charter_of(task).policy;
@@ -245,8 +245,8 @@ pub(super) fn defaults(
     choice
 }
 
-/// A party's LLM choice as tasks keeps it, models and efforts by position in the catalogue
-/// both: tasks checks it when it makes or amends the task (domain/tasks/README.md, section 3).
+/// A party's LLM choice as tasks keeps it, models and efforts by position and speeds by name.
+/// Tasks checks it when it makes or amends the task (domain/tasks/README.md, section 3).
 pub(crate) fn choice(value: Option<&people::LlmChoice>) -> Option<tasks::LlmChoice> {
     let value = value?;
     let later = match &value.later {
@@ -272,7 +272,7 @@ fn model_efforts(values: &[people::ModelEffort]) -> Box<[tasks::ModelEffort]> {
 }
 
 fn model_effort(value: people::ModelEffort) -> tasks::ModelEffort {
-    tasks::ModelEffort { model: value.model, effort: value.effort }
+    tasks::ModelEffort { model: value.model, effort: value.effort, speed: value.speed }
 }
 
 fn chosen(settings: &Settings, policy: &RunPolicy, choice: &tasks::LlmChoice) -> Option<RunPolicy> {
@@ -298,6 +298,14 @@ fn model(settings: &Settings, policy: &RunPolicy, chosen: tasks::ModelEffort) ->
         None if model.efforts.is_empty() => None,
         None => return None,
     };
+    if let Some(speed) = chosen.speed {
+        let name = speed.as_bytes();
+        if name == tasks::STANDARD_SPEED {
+            model.speed = None;
+        } else {
+            model.speed = Some(model.speed_named(name)?.name.clone());
+        }
+    }
     Some(model)
 }
 

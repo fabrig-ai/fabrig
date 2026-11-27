@@ -162,12 +162,12 @@ fn template() -> core::Template {
         grace: Some(Duration::from_secs(1)),
         llm: Some(tasks::LlmChoice {
             later: Some(tasks::LlmLater {
-                main: tasks::ModelEffort { model: 1, effort: Some(0) },
-                subagents: Box::new([tasks::ModelEffort { model: 0, effort: None }]),
+                main: tasks::ModelEffort { model: 1, effort: Some(0), speed: None },
+                subagents: Box::new([tasks::ModelEffort { model: 0, effort: None, speed: None }]),
             }),
             account: Some(3),
-            main: tasks::ModelEffort { model: 0, effort: Some(1) },
-            subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
+            main: tasks::ModelEffort { model: 0, effort: Some(1), speed: None },
+            subagents: Box::new([tasks::ModelEffort { model: 1, effort: None, speed: None }]),
         }),
     }
 }

@@ -207,7 +207,7 @@ fn a_control_changes_producer_llm_is_admitted_and_saved() {
     assert_eq!(row.producing_charter, 1);
     assert_eq!(
         row.producing_llm.as_ref().expect("saved producer choice").main,
-        tasks::ModelEffort { model: 0, effort: None }
+        tasks::ModelEffort { model: 0, effort: None, speed: None }
     );
     assert!(row.review_llm.is_none());
 }

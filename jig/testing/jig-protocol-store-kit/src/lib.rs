@@ -225,8 +225,11 @@ pub fn task_llm() -> jig_domain_tasks::LlmChoice {
     jig_domain_tasks::LlmChoice {
         later: None,
         account: Some(u32::MAX),
-        main: ModelEffort { model: 63, effort: Some(u8::MAX) },
-        subagents: Box::new([ModelEffort { model: 0, effort: None }, ModelEffort { model: 7, effort: Some(1) }]),
+        main: ModelEffort { model: 63, effort: Some(u8::MAX), speed: None },
+        subagents: Box::new([
+            ModelEffort { model: 0, effort: None, speed: None },
+            ModelEffort { model: 7, effort: Some(1), speed: None },
+        ]),
     }
 }
 #[must_use]

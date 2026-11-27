@@ -853,7 +853,7 @@ fn held_versions_past_the_limit_keep_the_pending_set_across_restart() {
                 llm: Some(people::LlmChoice {
                     later: None,
                     account: None,
-                    main: people::ModelEffort { model: 0, effort: Some(0) },
+                    main: people::ModelEffort { model: 0, effort: Some(0), speed: None },
                     subagents: Box::new([]),
                 }),
                 ..jig_test_profile::fixtures::person_unchanged(b"keep the current model")

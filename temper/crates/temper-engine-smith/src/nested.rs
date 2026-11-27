@@ -398,5 +398,6 @@ fn model_effort(value: &Value) -> Result<tasks::ModelEffort, Problem> {
             Some(value) => Some(u8::try_from(value.small(b"effort")?).or(Err(Problem::Range(b"effort")))?),
             None => None,
         },
+        speed: None,
     })
 }

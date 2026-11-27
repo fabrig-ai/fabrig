@@ -1709,18 +1709,6 @@ pub fn name_rule_to_record(value: &jig_domain_people::NameRule) -> jig_client_pr
 }
 
 #[must_use]
-pub fn llm_why_to_record(value: &jig_domain_people::LlmWhy) -> jig_client_protocol_wire::v44::LlmWhy {
-    match value {
-        jig_domain_people::LlmWhy::Unconfigured => jig_client_protocol_wire::v44::LlmWhy::Unconfigured,
-        jig_domain_people::LlmWhy::Effort => jig_client_protocol_wire::v44::LlmWhy::Effort,
-        jig_domain_people::LlmWhy::Charter => jig_client_protocol_wire::v44::LlmWhy::Charter,
-        jig_domain_people::LlmWhy::Authority => jig_client_protocol_wire::v44::LlmWhy::Authority,
-        jig_domain_people::LlmWhy::Procedure => jig_client_protocol_wire::v44::LlmWhy::Procedure,
-        jig_domain_people::LlmWhy::Repeated => jig_client_protocol_wire::v44::LlmWhy::Repeated,
-    }
-}
-
-#[must_use]
 pub fn account_why_to_record(value: &jig_domain_people::AccountWhy) -> jig_client_protocol_wire::v44::AccountWhy {
     match value {
         jig_domain_people::AccountWhy::Unknown => jig_client_protocol_wire::v44::AccountWhy::Unknown,

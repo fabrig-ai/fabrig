@@ -91,8 +91,8 @@ fn a_create_naming_a_model_and_its_effort_keeps_them_by_configuration_s_indices(
     let expected = tasks::LlmChoice {
         later: None,
         account: None,
-        main: tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH) },
-        subagents: Box::new([tasks::ModelEffort { model: SCRIPTED, effort: Some(LOW) }]),
+        main: tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH), speed: None },
+        subagents: Box::new([tasks::ModelEffort { model: SCRIPTED, effort: Some(LOW), speed: None }]),
     };
     let socket = peer.post(b"/jig/v1/request", keyed([62; 16], &create(first.clone())), Some(&bearer));
     assert_eq!(route_real_core(&mut peer, &mut world), [[62; 16]], "core reply: {:?}", world.people_answers.last());
@@ -109,8 +109,8 @@ fn a_create_naming_a_model_and_its_effort_keeps_them_by_configuration_s_indices(
             [67; 16],
             with_later(first, choice((b"scripted", Some(b"low")), &[(b"scripted", Some(b"high"))])),
             Some(tasks::LlmLater {
-                main: tasks::ModelEffort { model: SCRIPTED, effort: Some(LOW) },
-                subagents: Box::new([tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH) }]),
+                main: tasks::ModelEffort { model: SCRIPTED, effort: Some(LOW), speed: None },
+                subagents: Box::new([tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH), speed: None }]),
             }),
         ),
     ] {
@@ -217,7 +217,7 @@ fn an_amend_naming_a_choice_changes_the_one_the_task_s_next_run_takes() {
     let chosen = tasks::LlmChoice {
         later: None,
         account: None,
-        main: tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH) },
+        main: tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH), speed: None },
         subagents: Box::new([]),
     };
     assert_eq!(live_row(&world, 2).llm, Some(chosen));

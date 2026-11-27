@@ -62,7 +62,7 @@ fn all_four_whole_values_translate_and_the_component_passes_the_exact_asks_diges
     assert_eq!(template.grace, Some(skein_lib::Duration::from_secs(18)));
     assert_eq!(
         template.llm.as_ref().expect("settings fixture").main,
-        jig_domain_tasks::ModelEffort { model: 0, effort: Some(1) }
+        jig_domain_tasks::ModelEffort { model: 0, effort: Some(1), speed: None }
     );
     assert_eq!(template.llm.as_ref().expect("settings fixture").account, Some(21));
     assert!(template.flags.conversation);
@@ -358,7 +358,7 @@ fn unsupported_template_efforts_receive_a_final_refusal() {
 }
 #[test]
 fn supported_template_efforts_reach_the_core() {
-    let expected = jig_domain_tasks::ModelEffort { model: 0, effort: Some(0) };
+    let expected = jig_domain_tasks::ModelEffort { model: 0, effort: Some(0), speed: None };
     for ask in template_requests(
         template_choice(b"careful", b"high"),
         List::from_boxed(Box::new([template_choice(b"careful", b"high")])),

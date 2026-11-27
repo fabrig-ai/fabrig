@@ -317,12 +317,12 @@ fn a_templates_llm_choice_names_configured_models_and_their_efforts() {
         chat.llm,
         Some(LlmChoice {
             later: Some(jig_domain_tasks::LlmLater {
-                main: ModelEffort { model: 1, effort: None },
-                subagents: Box::new([ModelEffort { model: 0, effort: Some(0) }])
+                main: ModelEffort { model: 1, effort: None, speed: None },
+                subagents: Box::new([ModelEffort { model: 0, effort: Some(0), speed: None }])
             }),
             account: None,
-            main: ModelEffort { model: 0, effort: Some(1) },
-            subagents: Box::from([ModelEffort { model: 1, effort: None }]),
+            main: ModelEffort { model: 0, effort: Some(1), speed: None },
+            subagents: Box::from([ModelEffort { model: 1, effort: None, speed: None }]),
         })
     );
 }
@@ -479,7 +479,7 @@ fn a_seeded_executor_override_keeps_a_compatible_choice() {
         Some(LlmChoice {
             later: None,
             account: None,
-            main: ModelEffort { model: 0, effort: Some(1) },
+            main: ModelEffort { model: 0, effort: Some(1), speed: None },
             subagents: Box::new([])
         })
     );

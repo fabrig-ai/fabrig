@@ -962,7 +962,10 @@ pub struct Closer {
     pub code: u32,
 }
 
-/// One model and its effort (domain/tasks/README.md, section 3).
+/// The name a choice gives the provider's standard speed (domain/tasks/README.md, 3).
+pub const STANDARD_SPEED: &[u8] = b"standard";
+
+/// One model with its effort and speed (domain/tasks/README.md, section 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ModelEffort {
     /// The catalogue number's position, starting at zero.
@@ -970,6 +973,8 @@ pub struct ModelEffort {
     /// One of the efforts the model declares, in its order; `None` is the LLM provider's default,
     /// the only effort of a model that declares none.
     pub effort: Option<u8>,
+    /// A speed the model declares, `STANDARD_SPEED`, or `None` for the charter's resolution.
+    pub speed: Option<skein_lib::Name<32>>,
 }
 
 impl ModelEffort {

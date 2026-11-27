@@ -6,21 +6,29 @@ use skein_lib::{Env, List, Map, Queue};
 
 fn may(task: &TaskRecord, newest: u32, charters: &[CharterModels]) -> bool {
     let Executor::Agent { charter } = task.executor else { return false };
-    let mut models = None;
-    let mut latest = 0;
-    for version in charters {
-        if version.number == charter && version.revision <= newest && version.revision >= latest {
-            latest = version.revision;
-            models = version.models.as_deref();
-        }
-    }
-    let Some(models) = models else { return false };
+    let Some(version) = crate::llm::version(charters, charter, newest) else { return false };
+    let Some(models) = version.models.as_deref() else { return false };
     let Some(choice) = &task.llm else { return crate::llm::any_allowed(models, task.authority.models) };
-    if !models.contains(&choice.main.model) {
+    if !takes_choices(version, models, choice.main, &choice.subagents) {
         return false;
     }
-    for subagent in &choice.subagents {
-        if !models.contains(&subagent.model) {
+    match &choice.later {
+        Some(later) => takes_choices(version, models, later.main, &later.subagents),
+        None => true,
+    }
+}
+
+fn takes_choices(
+    version: &CharterModels,
+    models: &[u8],
+    main: crate::ModelEffort,
+    subagents: &[crate::ModelEffort],
+) -> bool {
+    if !models.contains(&main.model) || !version.takes_speed(main) {
+        return false;
+    }
+    for subagent in subagents {
+        if !models.contains(&subagent.model) || !version.takes_speed(*subagent) {
             return false;
         }
     }

@@ -502,7 +502,7 @@ fn indices(value: &w::ModelEffort, models: &[Model]) -> Result<p::ModelEffort, w
         }
         None => None,
     };
-    Ok(p::ModelEffort { model: u8::try_from(at).expect("checked models"), effort })
+    Ok(p::ModelEffort { model: u8::try_from(at).expect("checked models"), effort, speed: None })
 }
 
 /// A model the core refused, by its configured name; an index past configuration is a problem,
@@ -514,7 +514,14 @@ pub(crate) fn refusal(model: u8, why: p::LlmWhy, models: &[Model]) -> Result<w::
     if model.name.is_empty() {
         return Err(w::Problem { path: w::paths::REFUSAL_LLM_MODEL, reason: skein_codec::Reason::Bound });
     }
-    let why = crate::generated::client::llm_why_to_record(&why);
+    let why = match why {
+        p::LlmWhy::Unconfigured => w::LlmWhy::Unconfigured,
+        p::LlmWhy::Effort | p::LlmWhy::Speed => w::LlmWhy::Effort,
+        p::LlmWhy::Charter => w::LlmWhy::Charter,
+        p::LlmWhy::Authority => w::LlmWhy::Authority,
+        p::LlmWhy::Procedure => w::LlmWhy::Procedure,
+        p::LlmWhy::Repeated => w::LlmWhy::Repeated,
+    };
     Ok(w::Refusal::Llm(w::RefusalLlm { model: bytes::copy_of(&model.name), why }))
 }
 

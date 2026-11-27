@@ -306,7 +306,7 @@ enum Moved by hand
 record RefusalAuthority by hand
 record RefusalMoved by hand
 enum NameRule = p::NameRule
-enum LlmWhy = p::LlmWhy
+enum LlmWhy by hand # Speed has no dedicated client code at this layout
 record RefusalLlm by hand
 enum AccountWhy = p::AccountWhy
 record RefusalCircle by hand

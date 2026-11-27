@@ -744,7 +744,7 @@ fn an_unclaimed_default_rechecks_usable_providers_with_its_first_effort() {
     fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new(batch));
     assert_eq!(
         core.next_llm(core.tasks.task(2).unwrap()).unwrap().main,
-        tasks::ModelEffort { model: 2, effort: Some(0) }
+        tasks::ModelEffort { model: 2, effort: Some(0), speed: None }
     );
     account(&mut core, &limits, accounts::Event::Limited { account: 2, reset: None });
     assert_eq!(core.chosen_policy(2).model.name.as_ref(), b"scripted");
@@ -2541,7 +2541,7 @@ fn chat_stopped_for_its_next_choice() -> (Core, Env<Limits>) {
                     llm: Some(tasks::LlmChoice {
                         later: None,
                         account: None,
-                        main: tasks::ModelEffort { model: 0, effort: Some(0) },
+                        main: tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
                         subagents: Box::new([]),
                     }),
                     ..fixtures::unchanged(b"change next run")
@@ -2594,10 +2594,10 @@ fn a_first_later_run_changes_provider_and_its_claim_keeps_the_account() {
     row.reasons = tasks::Reasons::EMPTY;
     row.llm = Some(tasks::LlmChoice {
         account: None,
-        main: tasks::ModelEffort { model: 0, effort: Some(0) },
+        main: tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
         subagents: Box::new([]),
         later: Some(tasks::LlmLater {
-            main: tasks::ModelEffort { model: 2, effort: Some(0) },
+            main: tasks::ModelEffort { model: 2, effort: Some(0), speed: None },
             subagents: Box::new([]),
         }),
     });
