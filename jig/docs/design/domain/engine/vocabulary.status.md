@@ -1,8 +1,10 @@
 # vocabulary: status
 
-2026-11-26. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
+2026-11-27. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
 
-
+- **Not yet:** 2.1: `Engine::new` taking connectors' declarations, its
+  refusals and the core's step taking no `tasks::Event::Kinds` from
+  outside [in flight: change 19755].
 - **Departs:**
   1.2: the optional-answer facts departure remains `jig/docs/design/client/domain/contract/answers.status.md`, 1.
   1: the root interface has no text for public `Core::effect_owner` and
