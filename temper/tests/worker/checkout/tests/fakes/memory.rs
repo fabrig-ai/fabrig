@@ -301,7 +301,7 @@ fn fill(limits: Limits, heap_ceiling: u64) {
 
 #[test]
 fn a_domain_with_every_workspace_held_at_its_limits_stays_within_its_heap_ceiling() {
-    // Measured peak: 6,331,248 bytes across the three full-workspace configurations; 25% headroom, rounded up.
+    // Measured peak: 7,376,848 bytes across the three full-workspace configurations.
     const FULL_WORKSPACES_HEAP_CEILING: u64 = 8_000_000;
     fill(LIMITS, FULL_WORKSPACES_HEAP_CEILING);
     fill(
@@ -365,7 +365,7 @@ impl Fill {
 
 #[test]
 fn retired_preparations_and_live_pushes_own_maximum_conflict_sets_within_the_heap_ceiling() {
-    // Measured peak: 159,928 bytes with retired preparations and live pushes retaining maximum conflict sets.
+    // Measured peak: 156,856 bytes with retired preparations and live pushes retaining maximum conflict sets.
     const CONFLICT_SETS_HEAP_CEILING: u64 = 160_000;
     let limits = Limits { workspaces: 8, preparations: 8, repositories: 4, conflicts: 8, path_bytes: 128, ..LIMITS };
     // World bookkeeping predates the meter; only the domain and its admitted

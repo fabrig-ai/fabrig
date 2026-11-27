@@ -17,17 +17,17 @@ pub(super) struct Stack {
     existing: Option<Commit>,
 }
 
-pub(super) fn new(repositories: &[Repository]) -> Option<Stack> {
+pub(super) fn new(repositories: &[Repository]) -> Option<Box<Stack>> {
     let [repository] = repositories else { return None };
     match &repository.start {
-        Start::Prepare { request } => Some(Stack {
+        Start::Prepare { request } => Some(Box::new(Stack {
             outcomes: List::with_capacity(super::count(request.members.len())),
             parent: request.from,
             conflict: None,
             squash_with_head_trailers: None,
             pending: None,
             existing: None,
-        }),
+        })),
         Start::Base { .. }
         | Start::Branch { .. }
         | Start::Commit { .. }
@@ -40,10 +40,10 @@ pub(super) fn result(stack: &Stack) -> Candidate {
     Candidate { members: stack.outcomes.clone().into_boxed() }
 }
 fn stack(holding: &Holding) -> &Stack {
-    holding.candidate.as_ref().expect("a prepare stack")
+    holding.candidate.as_deref().expect("a prepare stack")
 }
 fn stack_mut(holding: &mut Holding) -> &mut Stack {
-    holding.candidate.as_mut().expect("a prepare stack")
+    holding.candidate.as_deref_mut().expect("a prepare stack")
 }
 fn request(holding: &Holding, repository: u32) -> &CandidateSpec {
     let Start::Prepare { request } = &nth(holding, repository).start else { unreachable!("a prepare stack") };

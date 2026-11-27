@@ -262,7 +262,7 @@ struct Holding {
     conflicts: List<Conflicts>,
     /// What this prepare fetched, never a previous hold's observations.
     fetched: List<Fetched>,
-    candidate: Option<candidate::Stack>,
+    candidate: Option<Box<candidate::Stack>>,
 }
 
 /// The operation's own clock, separate from the prepare and its permit wait.
