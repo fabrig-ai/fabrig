@@ -76,6 +76,67 @@ fn overlay_directories_assemble_in_order() {
     );
 }
 #[test]
+fn format_one_overlays_assemble_like_unversioned_overlays() {
+    let plain = [
+        ("common.md", "Common text.\n"),
+        ("goal.md", "Goal text.\n"),
+        ("designer.md", "Designer text.\n"),
+        ("coordinator.md", "## part, on: first\nCoordinator text.\n"),
+        ("implementer.md", "Implementer text.\n"),
+    ];
+    for charter in [2, 5] {
+        let bytes = file(charter, r#"{"charters":["set"]}"#);
+        let (root, call) = submit(vec![input("settings.json", &bytes, vec![directory("set", &plain)])]);
+        let expected = &change(&root, call).items;
+        for line in ["format = 1", "format=1"] {
+            let texts: Vec<_> = plain.iter().map(|(name, body)| (*name, format!("+++\n{line}\n+++\n{body}"))).collect();
+            let versioned: Vec<_> = texts.iter().map(|(name, text)| (*name, text.as_str())).collect();
+            let (root, call) = submit(vec![input("settings.json", &bytes, vec![directory("set", &versioned)])]);
+            assert_eq!(&change(&root, call).items, expected);
+        }
+    }
+}
+#[test]
+fn overlay_formats_refuse_without_sending() {
+    let bytes = file(2, r#"{"charters":["set"]}"#);
+    for (text, expected) in [
+        (
+            "+++\nformat = 2\n+++\nGoal text.\n",
+            "format 2; this temper ctl reads format 1: upgrade it, or write the file at format 1",
+        ),
+        ("+++\nformat = 1\nbase = \"x\"\n+++\n", "front matter holds format = N alone"),
+        ("+++\nformat = 1\n", "front matter holds format = N alone"),
+        ("+++\nformat = 0\n+++\n", "format: a whole number from 1"),
+        ("+++\nformat = x\n+++\n", "format: a whole number from 1"),
+    ] {
+        // Charter 2 doesn't take goal.md, but still refuses its format.
+        let directory = directory("set", &[("goal.md", text)]);
+        let (mut root, call) = submit(vec![input("settings.json", &bytes, vec![directory])]);
+        assert!(root.sends.is_empty());
+        let answer = root.answer(call).expect("refused before sending");
+        let stderr = core::str::from_utf8(&answer.stderr).expect("words");
+        assert_eq!(answer.status, 1);
+        assert_eq!(stderr.trim_end(), format!("settings file item 1: overlay.charters[0]: goal.md: {expected}"));
+    }
+}
+#[test]
+fn coordinator_refusals_count_front_matter_lines() {
+    let bytes = file(5, r#"{"charters":["set"]}"#);
+    for (body, expected) in [
+        ("\nbefore\n## part, on: first\ntext", "coordinator.md:5: text before first section"),
+        ("## part, on: first\ntext\n## part, on: \ntext", "coordinator.md:6: empty reason"),
+    ] {
+        let text = format!("+++\nformat = 1\n+++\n{body}");
+        let directory = directory("set", &[("coordinator.md", &text)]);
+        let (mut root, call) = submit(vec![input("settings.json", &bytes, vec![directory])]);
+        assert!(root.sends.is_empty());
+        let answer = root.answer(call).expect("refused before sending");
+        let stderr = core::str::from_utf8(&answer.stderr).expect("words");
+        assert_eq!(answer.status, 1);
+        assert_eq!(stderr.trim_end(), format!("settings file item 1: overlay.charters[0]: \"set\": {expected}"));
+    }
+}
+#[test]
 fn overlay_inputs_refuse_bad_sets_and_shapes_without_sending() {
     for (files, expected) in [
         (vec![("notes.md", "notes")], "notes.md: unknown Markdown file"),
