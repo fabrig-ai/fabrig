@@ -295,7 +295,7 @@ const SETUP: Command = Command {
     settings: &[],
     switches: &[],
     variables: &[&HOME, &SESSION],
-    notes: "The drive session must be closed. Walks use the place's build with --strict. Exit 4: the box failed; 5: stopped at a recipe line; 1: refused. Cache stays across restores.",
+    notes: "The drive session must be closed. Walks use the place's build with --strict. A copy refused by its store or at startup is made again from the next ancestor up. Exit 4: the box failed; 5: stopped at a recipe line; 1: refused. Cache stays across restores.",
 };
 const RECIPE: Command = Command {
     reach: Reach::Words(&["pass", "recipe"]),

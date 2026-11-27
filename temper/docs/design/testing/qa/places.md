@@ -1,6 +1,6 @@
 # Places and copies
 
-Provisional, 2026-11-12, revised 2026-11-20, from
+Provisional, 2026-11-12, revised 2026-11-27, from
 `../../draft/archive/landed-qa.md`, sections 2, 5 and 7, milestones Q3, Q4,
 Q6 and Q7 of `../../draft/archive/landed-qa.execution.md`. Where a pass's boxes and
 deployments run, and what each case starts from: a place, a fixed
@@ -22,8 +22,9 @@ drive session are Q2's (`../../client/recipe.md`,
   box starts, so a copy made there names the place's programs.
 - **A setup restored** (section 4) by `temper-qa pass setup NAME`: the
   newest copy of the recipe's chain unpacked and its check walked; a
-  copy the build refuses by name made again from the nearest ancestor
-  whose copy restores, each recipe's copy saved on the way. A copy
+  copy the build refuses, its store by name or its box at its start,
+  made again from the nearest ancestor whose copy restores, each
+  recipe's copy saved on the way. A copy
   leaves out what a start pins from the place's `bin/`, saved and
   unpacked alike.
 - **The drive session held open** (section 5): `pass open` starts a
@@ -241,17 +242,47 @@ installs another build.
        kept as it is: one copy per recipe, the newest that restored
        (`../../draft/archive/landed-qa.md`, 5).
      - **3, a store refused by name** (`../../client/drive.md`, 2.5):
-       that copy is removed, and step 1 goes on from the next ancestor
-       up; on a box with no copy, 3 is as 4.
-     - **4, the box failed:** it stops, printing `setup NAME: the box
-       failed walking R` and the walk's last 40 lines, exit 4. A box
-       that will not start or panics is a finding
-       (`../../draft/archive/landed-qa.md`, 7).
+       the copy the walk started from is removed, printing `copy R
+       removed: ` and the last `refused: ` line the walk appended to
+       `walk.log` (or the last line it appended if it printed no
+       `refused: ` line), and step 1 goes on from the next ancestor up;
+       on a box with no copy, 3 is as 4.
+     - **4 at a copy's start:** the round's first walk, from Rj's copy
+       unpacked in step 1, ended 4 having answered no line: the first
+       line it appended to `walk.log` is its failure line, `box failed:
+       ` at a box's place and `deployment failed: ` at a deployment's
+       (`kinds.md`, 3). The newer build refused, as its box started,
+       what the older copy holds by name: a fake-backends sandbox
+       without the `temper.toml` it now requires, a configuration
+       member that has moved. As for 3, that copy is removed, printing
+       `copy Rj removed: ` and that failure line, and step 1 goes on
+       from the next ancestor up.
+     - **4, the box failed** otherwise, from a fresh box, at a later
+       walk of the round or once the walk answered a line: it stops,
+       printing `setup NAME: the box failed walking R` and the walk's
+       last 40 lines, exit 4. A box that will not start from a fresh
+       box, or panics, is a finding (`../../draft/archive/landed-qa.md`,
+       7).
      - **5, stopped at a line:** it stops, printing `setup NAME: stopped
        at R:N: WHY`, the walk's last 40 lines and section 7's facts,
        exit 5.
      - **1 or another:** it stops, printing the walk's last 40 lines,
        exit 1.
+
+     Why 4 at a copy's start is the first walk alone, with no line
+     answered: a later walk's box is the one this build walked and
+     stopped, so its failure is the build's own; and the walk prints
+     nothing before its session's first answer
+     (`../../client/recipe.md`, 5.1), which comes only once the box is
+     ready, so a walk that answered nothing failed at its start, or at
+     once at its first line, on what the copy holds. The QA tool reads
+     only what any place's build prints: a ready mark added to the
+     walk's output, which an older build would not print, and the
+     start's words (`box exited N before ready`, a link past its bound,
+     a sign-in refused), which differ by cause, were turned down. A
+     start that fails for a reason no copy holds, a port in use,
+     removes each copy up the chain before the fresh walk stops as a
+     finding; the next setup makes them again.
 - **Restored:** `setup` written, `NAME HASH`, the box stopped and ready
   for `pass open`; it prints how, one line: `setup NAME: restored from
   its copy made at COMMIT12`, `setup NAME: made again from R's copy` or
@@ -445,7 +476,11 @@ Exit 5 from `pass setup` (section 4) or `pass recipe` (section 6):
   the world's tree:
   - a copy restored and its check walked; a copy refused by name made
     again from its parent's copy, each copy saved on the way, and the
-    refused one removed; a chain with no copy walked from a fresh box;
+    refused one removed; a copy whose box fails at its start, its walk
+    answering no line, removed and made again from its parent's copy,
+    at a box's place and a deployment's, while one whose walk answered
+    a line, a later walk's failure and a fresh box's stop with exit 4,
+    every copy kept; a chain with no copy walked from a fresh box;
   - a walk stopped at a line exiting 5 with the landings since the
     copy's build;
   - a copy saved without its worker's pinned `agent/`, the rest of
