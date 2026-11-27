@@ -79,12 +79,7 @@ impl World {
         let lagging = self.lagging.as_ref()?;
         let landed_squash = self.stored.iter().any(|(_, record)| {
             let top::Stored::Landing(row) = record else { return false };
-            row.landing.members.iter().any(|member| {
-                member.pull == *number
-                    && member.combined == Some(temper_engine_domain_forge_landing::Combine::Squash)
-                    && member.landed == Some(crate::translate::commit(*commit))
-                    && !member.recorded
-            })
+            crate::open::recording_landed_squash(row, *number, crate::translate::commit(*commit))
         });
         if !landed_squash || lagging.active.get(number).is_some_and(|until| self.env.now < *until) {
             return None;

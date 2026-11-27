@@ -95,6 +95,7 @@ impl Injected {
 pub struct FaultLedger {
     entries: Vec<Injected>,
     left_out: Vec<(&'static str, Kind, Time)>,
+    ineligible: BTreeSet<Kind>,
 }
 
 impl FaultLedger {
@@ -113,6 +114,16 @@ impl FaultLedger {
     /// Left-out draws in draw order, separate from injected faults.
     pub(crate) fn left_out_draws(&self) -> &[(&'static str, Kind, Time)] {
         &self.left_out
+    }
+
+    /// Records that a draw found no eligible target for `kind`, without injecting a fault.
+    pub fn ineligible(&mut self, kind: Kind) {
+        self.ineligible.insert(kind);
+    }
+
+    /// The kinds without an eligible target in this case, each once.
+    pub(crate) fn ineligible_kinds(&self) -> &BTreeSet<Kind> {
+        &self.ineligible
     }
 
     /// Records a fault as it starts.
