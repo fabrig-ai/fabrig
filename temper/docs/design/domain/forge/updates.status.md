@@ -1,6 +1,8 @@
 # updates: status
 
-2026-11-22. Where the tree's code lags or departs from [updates.md](updates.md).
+2026-11-27. Where the tree's code lags or departs from [updates.md](updates.md).
+
+- **Not yet:** 1, *A catch-up*: no goal closer makes one for a close found outdated [in flight: change 21261].
 
 - **Not yet:**
   - 1: no supplied result shows the three-thread real-process trial

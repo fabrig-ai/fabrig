@@ -1,7 +1,10 @@
 # tooling: status
 
-2026-11-26. Where temper's code lags or departs from [tooling.md](tooling.md).
+2026-11-27. Where temper's code lags or departs from [tooling.md](tooling.md).
 
+- **Not yet:** 2: no worker sets `TEMPER_CLOSE_OUTDATED=3` [in flight: change 21256].
+- **Not yet:** 4.2, *`result.json`, exit 3, outdated*: fabrig's checked close writes no outdated finding [in flight: change 21255].
+- **Not yet:** 4.2, *Checked against its attempt*: the engine reads an outdated finding as the command's failure [in flight: change 21257].
 
 
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their
