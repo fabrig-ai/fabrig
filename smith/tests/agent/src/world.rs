@@ -9,7 +9,7 @@ mod jobs;
 use std::collections::{BTreeMap, BTreeSet, VecDeque, hash_map::DefaultHasher};
 use std::hash::{Hash, Hasher};
 
-use skein_fake_checkout::Checkout;
+use skein_fake_checkout::{Checkout, Failure};
 use skein_fake_llm_domain as provider;
 use skein_lib::{Duration, ReplyTo, Rng, Time, Token};
 use skein_world::domain::{Key, Ledger, Referee, Schedule, Span, Stage, Trace};
@@ -822,7 +822,7 @@ impl<B: Backend> World<B> {
         self.scripted_checks.extend(checks);
     }
 
-    /// Answers the run's hooks discovery from scenario data, in request order.
+    /// Override hooks discovery in request order. An unscripted probe may only find no directory.
     pub fn script_hooks(&mut self, hooks: Vec<Option<run::Hooks>>) {
         self.scripted_hooks.extend(hooks);
     }
@@ -1452,13 +1452,21 @@ impl<B: Backend> World<B> {
                 );
             }
             Request::Lower(smith_domain::Lower::ProbeHooks { owner, at, deadline }) => {
-                self.boundaries.push((self.now, Boundary::Probe { at }));
                 let complete = self.now.saturating_add(self.settings.network.draw(&mut self.rng));
                 let hooks = if complete <= deadline {
-                    self.scripted_hooks.pop_front().expect("scenario supplies hooks for each probe")
+                    self.scripted_hooks.pop_front().unwrap_or_else(|| {
+                        // The fake checkout has no execute bits; scenarios with hooks script the terminal.
+                        let listing = self.disk.scan(at.root.raw(), &at.path, 0);
+                        assert!(
+                            matches!(listing, Err(Failure::Missing | Failure::NotDirectory)),
+                            "scenario must script hooks for {at:?}: {listing:?}"
+                        );
+                        None
+                    })
                 } else {
                     Some(run::Hooks::UNREADABLE)
                 };
+                self.boundaries.push((self.now, Boundary::Probe { at }));
                 let key = self.schedule.send(
                     complete.min(deadline),
                     Delivery::Terminal {
