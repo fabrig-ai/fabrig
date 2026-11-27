@@ -982,6 +982,10 @@ impl Domain {
         if !crate::room::check(self, limits, None) {
             return false;
         }
+        assert!(
+            crate::room::taken(self) < u64::from(self.entries.capacity()),
+            "outbox reservation for call flight {owner:?} of task {task} has room within forge.entries"
+        );
         let inserted = self.call_room.insert(owner);
         assert!(inserted.is_ok(), "outbox reservation for call flight {owner:?} of task {task} fits its room");
         self.full.reserve(full::Reservation::Call(owner), task, None);
@@ -4086,7 +4090,7 @@ pub(crate) fn keep_entry(
     let number = entry.number;
     let task = entry.task;
     assert!(
-        crate::room::taken(d) < d.entries.capacity(),
+        crate::room::taken(d) < u64::from(d.entries.capacity()),
         "new outbox entry {number} of task {task} has room within forge.entries"
     );
     let owner_ended =
@@ -9305,6 +9309,10 @@ fn project(
                 fail_projection(d, env, goal, Some(repository), closing, out);
                 return;
             };
+            assert!(
+                crate::room::taken(d) < u64::from(d.entries.capacity()),
+                "outbox reservation for projection entry {number} of goal {goal} has room within forge.entries"
+            );
             let inserted = d.projection_room.insert(number);
             assert!(inserted.is_ok(), "outbox reservation for projection entry {number} of goal {goal} fits its room");
             d.full.reserve(full::Reservation::Projection(number), goal, ended);
