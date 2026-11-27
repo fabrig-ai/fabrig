@@ -23,3 +23,5 @@
   8.2: the composed sweep's worker, people, parks and bounds kinds.
   [in flight: change 15011]
   7: the comparison in the composed world. [in flight: change 15012]
+- **Not yet:** 5: the composed workload's producers play no drawn stretches, through either provider [in flight: change 20295].
+- **Not yet:** 5: the composed sweep counts no shapes in the shared vocabulary [in flight: change 20296].
