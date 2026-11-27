@@ -17,7 +17,6 @@ open is listed in `README.md`, section 10.
 - `checkouts-prepare.md`: checkout preparation, starting points and failure diagnostics.
 - `checkouts-push.md`: delivery, saving and their open questions.
 - `jobs.md`: the worker's job capability, its kinds, commands and failure diagnostics.
-- `contracts.md`: the shapes a running goal's changes share, while they build a squash's head trailers from the prepare job's checkout.
 
 ## 1. In one page
 
