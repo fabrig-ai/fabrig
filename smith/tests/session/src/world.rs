@@ -14,6 +14,7 @@ use smith_domain_tools::{self as tools, Authority, Directory, Done, Effect, Faul
 use smith_tools_world::translate as io;
 
 use crate::fixture;
+use crate::shapes::{Reached, completion_tools, recorded_result};
 use crate::tickets::{SERVED, Ticketed, Tickets};
 use crate::translate;
 
@@ -21,7 +22,7 @@ mod jobs;
 mod llm;
 mod window_referee;
 
-pub use jobs::{JobCall, JobClass, check_job_call};
+pub use jobs::{JobCall, check_job_call};
 pub use window_referee::{check_prompt_bound, check_prompt_boundary, check_prompt_extends};
 
 /// What the fake opener says when it nudges a session on.
@@ -798,6 +799,22 @@ impl World {
     /// Every session opened so far, by the opener's name for it.
     pub fn sessions(&self) -> impl Iterator<Item = (u64, &Session)> {
         self.sessions.iter().map(|(opener, session)| (*opener, session))
+    }
+
+    /// The completion shapes of every session's recorded turns, in opener and turn order.
+    #[must_use]
+    pub fn reached(&self) -> Reached {
+        let mut reached = Reached::new();
+        for session in self.sessions.values() {
+            let mut jobs = session.job_calls.iter().peekable();
+            for (turn, content) in session.records.iter().zip(&session.accepted_content) {
+                reached.recorded(turn, completion_tools(content), |position| {
+                    jobs.next_if(|call| call.sequence == turn.sequence && call.position == position)
+                        .map(|call| call.class)
+                });
+            }
+        }
+        reached
     }
 
     /// Runs until nothing is left to happen, then checks the invariants of a
@@ -2078,18 +2095,6 @@ fn assert_resumed_tail(session: &Session, index: usize, preceding: &[agent::llm:
             }
         }
     }
-}
-
-/// The concrete result after/before the assistant, scoped by the caller
-/// to avoid matching a reused provider id in a different Turn segment.
-fn recorded_result<'a>(messages: &'a [agent::llm::Message], id: &[u8]) -> Option<&'a Returned> {
-    messages.iter().flat_map(|message| message.content.iter()).find_map(|block| {
-        if let Block::ToolResult { id: result_id, result } = block {
-            (id == result_id.as_ref()).then_some(result)
-        } else {
-            None
-        }
-    })
 }
 
 /// Checked raw-prefix addition: the scripted peer cannot overflow these bounded counters.

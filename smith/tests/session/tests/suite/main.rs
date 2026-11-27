@@ -13,6 +13,7 @@ mod orders;
 mod paths;
 mod recorded;
 mod referee;
+mod shapes;
 mod simulation;
 mod wind_down;
 mod world_jobs;
