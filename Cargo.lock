@@ -3322,6 +3322,7 @@ name = "skein-fake-checkout-tests"
 version = "0.0.0"
 dependencies = [
  "skein-fake-checkout",
+ "skein-world",
 ]
 
 [[package]]
