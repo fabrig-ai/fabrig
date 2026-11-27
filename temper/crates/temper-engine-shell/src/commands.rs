@@ -63,12 +63,12 @@ pub const VERSIONS: Command = Command {
     reach: Reach::Words(&["versions"]),
     set: Set::Public,
     forms: &[""],
-    line: "Print this binary's levels, its store's and families' versions, and its wires, one line each.",
+    line: "Print levels, store and family versions, wire fingerprints, the host tools' contract floor and version, and bounds.",
     arguments: &[],
     settings: &[],
     switches: &[],
     variables: &[],
-    notes: "Reads no configuration and no store.",
+    notes: "Each entry takes one line. Reads no configuration and no store.",
 };
 
 pub const UPGRADE_CHECK: Command = Command {

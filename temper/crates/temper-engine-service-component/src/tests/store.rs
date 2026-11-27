@@ -415,7 +415,7 @@ fn settings_history_loads_with_the_roots_effective_envelope() {
 }
 
 #[test]
-fn every_service_start_keeps_the_shells_wires() {
+fn every_service_start_keeps_the_static_wire_versions() {
     use jig_protocol_store as protocol;
     use skein_lib::{Env, Queue, Reader, Token, Wall};
     let service = fixtures::ready();
@@ -438,13 +438,13 @@ fn every_service_start_keeps_the_shells_wires() {
     let Some(skein_kv::Event::Got { value: Some(bytes), .. }) = above.pop() else { panic!("durable wires row") };
     let wires =
         protocol::component_v3::Wires::decode(&protocol::component_v3::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-    let spoken = crate::wires();
-    assert!(spoken.len() <= 16, "the store's wire count bound");
-    assert_eq!(wires.wires.len(), spoken.len());
-    for (kept, expected) in wires.wires.iter().zip(&spoken) {
+    let expected = &store::WIRES;
+    assert!(expected.len() <= 16, "the store's wire count bound");
+    assert_eq!(wires.wires.len(), u32::try_from(expected.len()).unwrap());
+    for (kept, expected) in wires.wires.iter().zip(expected) {
         assert!(expected.name.len() <= 32, "the store's wire name bound");
         assert_eq!(kept.name.as_ref(), expected.name.as_bytes());
-        assert_eq!(kept.version, u32::from(expected.highest()));
+        assert_eq!(kept.version, expected.version);
     }
 }
 

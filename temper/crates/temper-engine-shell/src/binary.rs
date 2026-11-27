@@ -160,11 +160,13 @@ fn run_forge(command: &Command, row: &Row, arguments: &[Box<[u8]>], captured: &C
     forge::command(ENGINE.binary, configured).map_err(|why| (1, why))
 }
 
-/// The store's levels and versions, worker wires and bounds (protocol/binaries.md, 2),
-/// each line ending in a newline.
+/// Levels, store and family versions, wire fingerprints, the host tools' contract and
+/// bounds (protocol/binaries.md, 2), each line ending in a newline.
 #[must_use]
 pub fn versions() -> String {
     use std::fmt::Write;
+    use temper_engine_smith::wire as contract;
+
     let mut text = String::new();
     let levels = jig_protocol_store::levels(&temper_engine_service::store::OWNER_SETS);
     for (owner, level) in
@@ -189,15 +191,14 @@ pub fn versions() -> String {
         writeln!(text, "family {family} {version}").expect("writing into a string");
     }
     for wire in &temper_engine_service::wires() {
-        writeln!(text, "wire {} {} {}", wire.name, wire.lowest, wire.highest()).expect("writing into a string");
-        for version in wire.lowest..=wire.highest() {
-            write!(text, "layout {} {version} ", wire.name).expect("writing into a string");
-            for byte in wire.layout(version).expect("every version has a layout") {
-                write!(text, "{byte:02x}").expect("writing into a string");
-            }
-            text.push('\n');
+        write!(text, "wire {} ", wire.name).expect("writing into a string");
+        for byte in wire.layout {
+            write!(text, "{byte:02x}").expect("writing into a string");
         }
+        text.push('\n');
     }
+    writeln!(text, "contract {} {} {}", contract::FAMILY, contract::FLOOR, contract::VERSION)
+        .expect("writing into a string");
     let limits = temper_engine_service::limits::stock();
     let stop = skein_forge_client::stop_bound(&limits.forge.client);
     let report = temper_engine_domain_forge::WAIT_REPORT;

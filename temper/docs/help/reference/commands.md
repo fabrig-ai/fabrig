@@ -84,9 +84,9 @@ Its stdout carries only sign-in links, one a line; its stderr, its startup notes
 
 `temper-engine versions`
 
-Print this binary's levels, its store's and families' versions, and its wires, one line each.
+Print levels, store and family versions, wire fingerprints, the host tools' contract floor and version, and bounds.
 
-Reads no configuration and no store.
+Each entry takes one line. Reads no configuration and no store.
 
 ### temper-engine upgrade --check
 

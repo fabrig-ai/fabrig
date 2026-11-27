@@ -417,23 +417,23 @@ fn sent_in(site: Site, kinds: &str) -> String {
 }
 
 fn host_tools(text: &mut String, binary: &str, kept: &[KeptWire]) -> bool {
-    let wire = temper_engine_service::store::host_tools_wire();
-    match kept.iter().find(|old| old.name.as_ref() == wire.name) {
-        Some(old) if (u32::from(wire.lowest)..=u32::from(wire.highest())).contains(&old.version) => true,
+    use temper_engine_smith::wire as contract;
+
+    let floor = u32::from(contract::FLOOR);
+    let current = u32::from(contract::VERSION);
+    match kept.iter().find(|old| old.name.as_ref() == contract::FAMILY) {
+        Some(old) if (floor..=current).contains(&old.version) => true,
         Some(old) => {
             writeln!(
                 text,
-                "{binary} upgrade: wire {}: kept {}, this binary speaks {}..{}",
-                wire.name,
-                old.version,
-                wire.lowest,
-                wire.highest()
+                "{binary} upgrade: the host tools' contract: kept {}, this binary answers {floor}..{current}",
+                old.version
             )
             .expect("string write");
             false
         }
         None => {
-            writeln!(text, "{binary} upgrade: wire {} is not kept by the copy", wire.name).expect("string write");
+            writeln!(text, "{binary} upgrade: the host tools' contract is not kept by the copy").expect("string write");
             false
         }
     }

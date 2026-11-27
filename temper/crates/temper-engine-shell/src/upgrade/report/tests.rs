@@ -440,9 +440,9 @@ pub(super) fn configured() -> Workers {
 }
 
 fn kept() -> Box<[KeptWire]> {
-    temper_engine_service::wires()
+    temper_engine_service::store::WIRES
         .iter()
-        .map(|wire| KeptWire { name: wire.name.into(), version: u32::from(wire.highest()) })
+        .map(|wire| KeptWire { name: wire.name.into(), version: wire.version })
         .collect::<Vec<_>>()
         .into_boxed_slice()
 }
@@ -746,23 +746,22 @@ fn no_kept_wires_makes_the_verdict_unknown_without_judging_workers() {
 }
 
 #[test]
-fn engine_contracts_must_be_kept_in_range_but_do_not_hide_worker_lines() {
-    let mut changed = kept().into_vec();
-    changed.iter_mut().find(|wire| wire.name.as_ref() == "temper-host-tools").expect("host tools").version = 0;
-    let mut missing = kept().into_vec();
-    missing.retain(|wire| wire.name.as_ref() != "temper-host-tools");
-    let spoken = temper_engine_service::wires()
-        .into_boxed()
-        .into_iter()
-        .find(|wire| wire.name == "temper-host-tools")
-        .expect("host tools");
-    for (wires, reason) in [
-        (
-            changed,
-            format!("wire temper-host-tools: kept 0, this binary speaks {}..{}", spoken.lowest, spoken.highest()),
-        ),
-        (missing, "wire temper-host-tools is not kept by the copy".into()),
+fn an_unanswered_or_missing_contract_does_not_hide_worker_lines() {
+    use temper_engine_smith::wire as contract;
+
+    let (floor, current) = (u32::from(contract::FLOOR), u32::from(contract::VERSION));
+    let below = floor - 1;
+    let above = current + 1;
+    for (version, reason) in [
+        (Some(below), format!("the host tools' contract: kept {below}, this binary answers {floor}..{current}")),
+        (Some(above), format!("the host tools' contract: kept {above}, this binary answers {floor}..{current}")),
+        (None, "the host tools' contract is not kept by the copy".into()),
     ] {
+        let mut wires = kept().into_vec();
+        wires.retain(|wire| wire.name.as_ref() != contract::FAMILY);
+        if let Some(version) = version {
+            wires.push(KeptWire { name: contract::FAMILY.into(), version });
+        }
         assert_eq!(
             verdict(Some(wires.into_boxed_slice()), Box::new([opening("w1"), opening("w2")])),
             format!("temper-box upgrade: {reason}\n{}", COMPATIBLE.replace("stay: yes", "stay: no"))

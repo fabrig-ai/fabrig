@@ -7470,6 +7470,7 @@ dependencies = [
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-service",
+ "temper-engine-smith",
  "temper-fake",
  "temper-fetch-shell",
  "temper-fixtures",
