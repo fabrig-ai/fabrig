@@ -1,6 +1,6 @@
 # tooling: status
 
-2026-11-26. Where temper's code lags or departs from [tooling.md](tooling.md).
+2026-11-27. Where temper's code lags or departs from [tooling.md](tooling.md).
 
 
 
@@ -11,6 +11,10 @@
   (`temper-worker-domain-tooling`). 2: the project's `prepare_timeout`
   bounds no command: a command's time is its job's deadline. 6:
   `conflict_files` is no limit, on `files`, `settled` or `left`.
+- **Not yet:** 4: `head_trailers`: the engine's request marks no member
+  with it. [in flight: change 21515]
+- **Not yet:** 4: `head_trailers`: the worker reads no such field, and
+  no squash takes its head's TRAILERS from the job's checkout. [in flight: change 21516]
 - **Departs:** 2: every command's `PATH` is `/usr/local/bin:/usr/bin:/bin`, and 6:
   `tooling_file_bytes` and `tooling_log_bytes` are 1 MiB and 64 KiB, the
   small profile's constants with no override
