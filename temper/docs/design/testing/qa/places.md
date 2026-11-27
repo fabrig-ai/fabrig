@@ -243,8 +243,10 @@ installs another build.
        (`../../draft/archive/landed-qa.md`, 5).
      - **3, a store refused by name** (`../../client/drive.md`, 2.5):
        the copy the walk started from is removed, printing `copy R
-       removed: ` and the walk's `refused: ` line, and step 1 goes on
-       from the next ancestor up; on a box with no copy, 3 is as 4.
+       removed: ` and the last `refused: ` line the walk appended to
+       `walk.log` (or the last line it appended if it printed no
+       `refused: ` line), and step 1 goes on from the next ancestor up;
+       on a box with no copy, 3 is as 4.
      - **4 at a copy's start:** the round's first walk, from Rj's copy
        unpacked in step 1, ended 4 having answered no line: the first
        line it appended to `walk.log` is its failure line, `box failed:
