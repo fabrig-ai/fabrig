@@ -1,0 +1,39 @@
+
+  ▄█▀▀   temper 0.0.0 (ca58b41a3188)
+ ▄█▄█▄█  temper box · a whole deployment on this machine
+
+ Welcome. Set temper up in your browser: its link comes once the box starts.
+
+ Downloading temper-box, once for this build  ━━━━━━━━━━━━━━━━━━━━────────────  15.4 of 24.1 MB · about 10 s left
+
+ It signs you in as this temper's owner, once, within 2 hours.
+
+ In the browser  1 Welcome · 2 Forge · 3 Model · 4 Ready
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ / for commands
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ ● Connecting
