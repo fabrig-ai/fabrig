@@ -3704,6 +3704,7 @@ dependencies = [
  "skein-lib",
  "skein-rows",
  "skein-tls-kit",
+ "skein-world",
 ]
 
 [[package]]
