@@ -218,7 +218,7 @@ record ChangeCi { head: fixed 32 status: ChangeStatus }
 record EffectAccount { entry: u64 words: bytes 512 }
 record ResultText { bytes: bytes 1048576 cut: u64 }
 record ChangeResult { head: option fixed 32 checks: ResultText failed: ResultText repairs: ResultText repair_count: u64 reviews: ResultText }
-record ModelEffort { model: u8 effort: option u8 }
+record ModelEffort { model: u8 effort: option u8 speed: option bytes 32 = none }
 record LlmChoice { main: ModelEffort subagents: list 64 ModelEffort account: option u32 }
 enum Route { none, retired, up }
 record Held { answer: bytes 262144 question: u64 = 0 dependency: option u64 = none since: option u64 = none }

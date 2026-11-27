@@ -2578,7 +2578,12 @@ fn change_member(
     let origin = ChangeOrigin { authority: context.authority.clone(), tasks_left: context.tasks_left, source: None };
     match chat_change(domain, env, &origin, change, &repository, base, branch, spend) {
         Ok(member) => Ok(member),
-        Err(why) => Err(ChangeRefused::Refusal(why)),
+        Err(refusal) => match refusal {
+            ChangeBuildRefused::Task(why) => Err(ChangeRefused::Refusal(why)),
+            ChangeBuildRefused::Speed { model, speed } => {
+                Err(ChangeRefused::Words(speed_refusal(domain, model, speed.as_bytes())))
+            }
+        },
     }
 }
 
@@ -2813,6 +2818,79 @@ pub(super) struct OpenedSource {
     pub(super) parameter: Box<[u8]>,
 }
 
+#[derive(Debug)]
+pub(super) enum ChangeBuildRefused {
+    Task(tasks::Refusal),
+    Speed { model: u8, speed: skein_lib::Name<32> },
+}
+
+impl ChangeBuildRefused {
+    pub(super) fn task_refusal(self) -> tasks::Refusal {
+        match self {
+            Self::Task(why) => why,
+            Self::Speed { model, .. } => tasks::Refusal::Llm { model, why: tasks::LlmFault::Speed },
+        }
+    }
+}
+
+/// The tasks child has already found the failing model. Recover the named speed
+/// for its refusal: the main and a sub-agent can name that model at different speeds.
+pub(super) fn refused_speed(domain: &Domain, model: u8, choice: &tasks::LlmChoice) -> Option<skein_lib::Name<32>> {
+    // Resolving a charter keeps this row's declared speed names and their order.
+    let configured = domain.engine.core().settings.models.get(usize::from(model));
+    for entry in core::iter::once(&choice.main).chain(&choice.subagents) {
+        if entry.model != model {
+            continue;
+        }
+        if let Some(speed) = entry.speed
+            && speed.as_bytes() != tasks::STANDARD_SPEED
+        {
+            if let Some(configured) = configured
+                && configured.speed_named(speed.as_bytes()).is_some()
+            {
+                continue;
+            }
+            return Some(speed);
+        }
+    }
+    None
+}
+
+fn speed_refusal(domain: &Domain, model: u8, speed: &[u8]) -> Box<[u8]> {
+    let configured = domain.engine.core().settings.models.get(usize::from(model));
+    let mut words = List::uncapped();
+    append(&mut words, b"speed ");
+    append(&mut words, speed);
+    append(&mut words, b" is not one ");
+    model_words(&mut words, model, configured);
+    append(&mut words, b" declares; it declares ");
+    let speeds = match configured {
+        Some(configured) => configured.speeds.as_ref(),
+        None => &[],
+    };
+    if speeds.is_empty() {
+        append(&mut words, b"none");
+    }
+    for (index, item) in speeds.iter().enumerate() {
+        if index != 0 {
+            append(&mut words, b", ");
+        }
+        append(&mut words, &item.name);
+    }
+    words.into_boxed()
+}
+
+fn model_words(words: &mut List<u8>, model: u8, configured: Option<&crate::Model>) {
+    if let Some(configured) = configured
+        && !configured.is_hole()
+    {
+        append(words, &configured.name);
+    } else {
+        append(words, b"model ");
+        append(words, &decimal(u64::from(model)));
+    }
+}
+
 /// Expand one change with its share of the call's remaining authority.
 /// Ordinary delegation admission decides the resulting batch by its call name.
 #[expect(clippy::too_many_arguments, reason = "the resolved branch and landing accompany the admitted change context")]
@@ -2826,42 +2904,51 @@ pub(super) fn chat_change(
     base: Box<[u8]>,
     branch: Option<Box<[u8]>>,
     spend: u64,
-) -> Result<super::Delegate, tasks::Refusal> {
+) -> Result<super::Delegate, ChangeBuildRefused> {
     let ChangeOrigin { authority: held, tasks_left, source } = origin;
     let producer_charter = change.producer.unwrap_or(domain.forge.charters().change);
     let review_charter = domain.forge.charters().review;
     if domain.engine.core().charter(producer_charter).is_none()
         || domain.engine.core().charter(review_charter).is_none()
     {
-        return Err(tasks::Refusal::Executor);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Executor));
     }
-    if let Some(choice) = &change.llm.producer {
-        domain.engine.core().tasks.check_llm(producer_charter, held.models, choice)?;
-    }
-    if let Some(choice) = &change.llm.review {
-        domain.engine.core().tasks.check_llm(review_charter, held.models, choice)?;
+    for (charter, choice) in [(producer_charter, &change.llm.producer), (review_charter, &change.llm.review)] {
+        if let Some(choice) = choice
+            && let Err(why) = domain.engine.core().tasks.check_llm(charter, held.models, choice)
+        {
+            if let tasks::Refusal::Llm { model, why: tasks::LlmFault::Speed } = why
+                && let Some(speed) = refused_speed(domain, model, choice)
+            {
+                return Err(ChangeBuildRefused::Speed { model, speed });
+            }
+            return Err(ChangeBuildRefused::Task(why));
+        }
     }
     // The procedure takes a task and a level, and its producer another of each; with none at
     // all, the delegation's own admission names the missing authority.
     if *tasks_left == 1 {
-        return Err(tasks::Refusal::Tree);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Tree));
     }
     if held.delegation.depth == 1 {
-        return Err(tasks::Refusal::Depth);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Depth));
     }
     if spend <= domain.engine.core().authority.rules().minimum_run_spend {
-        return Err(tasks::Refusal::Funding);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Funding));
     }
     let mut authority = held.clone();
-    authority.grants = change_grants(domain, env, repository, &authority.grants, false, source.is_some())?;
+    authority.grants = match change_grants(domain, env, repository, &authority.grants, false, source.is_some()) {
+        Ok(grants) => grants,
+        Err(why) => return Err(ChangeBuildRefused::Task(why)),
+    };
     let mut kinds = List::with_capacity(5);
     kinds.push(tasks::AuthorityExecutor::Charter(producer_charter)).expect("producer kind");
     if producer_charter != review_charter {
         kinds.push(tasks::AuthorityExecutor::Charter(review_charter)).expect("review kind");
     }
     let questions = change_questions(domain, repository.project, change);
-    let gates =
-        configured_gates(domain, env, repository, &base, forge::Touched::UNKNOWN).ok_or(tasks::Refusal::Spec)?;
+    let gates = configured_gates(domain, env, repository, &base, forge::Touched::UNKNOWN)
+        .ok_or(ChangeBuildRefused::Task(tasks::Refusal::Spec))?;
     for gate in &gates {
         if gate.kind == forge_change::GateKind::Person && !kinds.as_slice().contains(&tasks::AuthorityExecutor::Role(1))
         {
@@ -2888,20 +2975,20 @@ pub(super) fn chat_change(
     let mut parameters = List::with_capacity(env.limits.tasks.parameters);
     for parameter in change_parameters(domain.config.forge_connector, repository.provider, base) {
         if parameters.push(parameter).is_err() {
-            return Err(tasks::Refusal::Spec);
+            return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
         }
     }
     if let Some(source) = source
         && (parameters.push(tasks::Parameter::Bytes { name: 10, value: source.title.clone() }).is_err()
             || parameters.push(tasks::Parameter::Bytes { name: 19, value: source.parameter.clone() }).is_err())
     {
-        return Err(tasks::Refusal::Spec);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
     }
     if let Some(branch) = branch {
         if parameters.push(tasks::Parameter::Bytes { name: 3, value: branch }).is_err()
             || parameters.push(tasks::Parameter::Number { name: 11, value: 1 }).is_err()
         {
-            return Err(tasks::Refusal::Spec);
+            return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
         }
         let mut title = change.words.as_ref();
         for (index, byte) in change.words.iter().enumerate() {
@@ -2912,7 +2999,7 @@ pub(super) fn chat_change(
             }
         }
         if !title.is_empty() && parameters.push(tasks::Parameter::Bytes { name: 10, value: title.into() }).is_err() {
-            return Err(tasks::Refusal::Spec);
+            return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
         }
     }
     if (change.producer.is_some() || change.llm != crate::ChangeLlm::default())
@@ -2920,7 +3007,7 @@ pub(super) fn chat_change(
             .push(tasks::Parameter::Bytes { name: 11, value: change_llm::spell(change.producer, &change.llm) })
             .is_err()
     {
-        return Err(tasks::Refusal::Spec);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
     }
     let route = match questions {
         forge_change::Route::Up => Some(2),
@@ -2929,17 +3016,17 @@ pub(super) fn chat_change(
     if let Some(value) = route
         && parameters.push(tasks::Parameter::Number { name: 14, value }).is_err()
     {
-        return Err(tasks::Refusal::Spec);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
     }
     if let Some(commit) = change.repairs
         && parameters.push(tasks::Parameter::Bytes { name: 12, value: commit_text(&commit) }).is_err()
     {
-        return Err(tasks::Refusal::Spec);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
     }
     if let Some(commit) = change.merge
         && parameters.push(tasks::Parameter::Bytes { name: 16, value: commit_text(&commit) }).is_err()
     {
-        return Err(tasks::Refusal::Spec);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
     }
     Ok(super::Delegate {
         deadline: tasks::Deadline::Named,

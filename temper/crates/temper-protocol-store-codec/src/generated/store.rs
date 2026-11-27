@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x88, 0xa1, 0xd8, 0xcc, 0xf4, 0x47, 0xd4, 0x38, 0x53, 0x8d, 0x9c, 0x25, 0x02, 0x57, 0xb4, 0x9b, 0x90, 0x94, 0x36,
-    0x55, 0x1c, 0x36, 0x37, 0x9c, 0x1b, 0x8e, 0x7e, 0x50, 0xc4, 0x11, 0x62, 0xee,
+    0x7f, 0x95, 0xaf, 0xf4, 0xb8, 0x8f, 0x33, 0x59, 0x49, 0x57, 0x90, 0x22, 0xcd, 0x0b, 0x4f, 0x7c, 0x2f, 0x48, 0x59,
+    0xdd, 0xfa, 0x05, 0xe0, 0x32, 0xb5, 0x15, 0x66, 0x85, 0xbe, 0xd1, 0xbe, 0x06,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -125,6 +125,7 @@ pub struct Limits {
     pub change_gate_failures: u32,
     pub effect_account_words: u32,
     pub result_text_bytes: u32,
+    pub model_effort_speed_some: u32,
     pub llm_choice_subagents: u32,
     pub held_answer: u32,
     pub open_line: u32,
@@ -513,6 +514,7 @@ pub const CEILINGS: Limits = Limits {
     change_gate_failures: 1_024,
     effect_account_words: 512,
     result_text_bytes: 1_048_576,
+    model_effort_speed_some: 32,
     llm_choice_subagents: 64,
     held_answer: 262_144,
     open_line: 256,
@@ -901,6 +903,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "change_gate_failures",
     "effect_account_words",
     "result_text_bytes",
+    "model_effort_speed_some",
     "llm_choice_subagents",
     "held_answer",
     "open_line",
@@ -1293,6 +1296,7 @@ impl Limits {
             self.change_gate_failures,
             self.effect_account_words,
             self.result_text_bytes,
+            self.model_effort_speed_some,
             self.llm_choice_subagents,
             self.held_answer,
             self.open_line,
@@ -1686,6 +1690,7 @@ impl Limits {
             change_gate_failures: self.change_gate_failures.min(most),
             effect_account_words: self.effect_account_words.min(most),
             result_text_bytes: self.result_text_bytes.min(most),
+            model_effort_speed_some: self.model_effort_speed_some.min(most),
             llm_choice_subagents: self.llm_choice_subagents.min(most),
             held_answer: self.held_answer.min(most),
             open_line: self.open_line.min(most),
@@ -2076,6 +2081,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CHANGE_GATE_FAILURES,
     paths::EFFECT_ACCOUNT_WORDS,
     paths::RESULT_TEXT_BYTES,
+    paths::MODEL_EFFORT_SPEED,
     paths::LLM_CHOICE_SUBAGENTS,
     paths::HELD_ANSWER,
     paths::OPEN_LINE,
@@ -3041,6 +3047,7 @@ pub mod paths {
     pub const CHANGE_RESULT_TAIL: Path = Path::new("ChangeResult (tail)");
     pub const MODEL_EFFORT_MODEL: Path = Path::new("ModelEffort.model");
     pub const MODEL_EFFORT_EFFORT: Path = Path::new("ModelEffort.effort");
+    pub const MODEL_EFFORT_SPEED: Path = Path::new("ModelEffort.speed");
     pub const MODEL_EFFORT_TAIL: Path = Path::new("ModelEffort (tail)");
     pub const LLM_CHOICE_MAIN: Path = Path::new("LlmChoice.main");
     pub const LLM_CHOICE_SUBAGENTS: Path = Path::new("LlmChoice.subagents");
@@ -16600,6 +16607,7 @@ impl Record for ChangeResult {
 pub struct ModelEffort {
     pub model: u8,
     pub effort: Option<u8>,
+    pub speed: Option<Box<[u8]>>,
 }
 
 // Record: ModelEffort.
@@ -16608,11 +16616,13 @@ impl ModelEffort {
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Option { item: 1 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, model_effort_speed_some) },
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 3;
+    pub const ENCODED_AT_ZERO: u64 = 8;
 }
 
 impl Record for ModelEffort {
@@ -16639,6 +16649,7 @@ impl Record for ModelEffort {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::U8, &self.model, limits, out, paths::MODEL_EFFORT_MODEL)?;
         field::write(field::Optional { item: field::U8 }, &self.effort, limits, out, paths::MODEL_EFFORT_EFFORT)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.model_effort_speed_some.min(CEILINGS.model_effort_speed_some) } }, &self.speed, limits, out, paths::MODEL_EFFORT_SPEED)?;
         Ok(())
     }
 
@@ -16646,6 +16657,7 @@ impl Record for ModelEffort {
         Ok(Self {
             model: field::read(field::U8, limits, reader, paths::MODEL_EFFORT_MODEL)?,
             effort: field::read(field::Optional { item: field::U8 }, limits, reader, paths::MODEL_EFFORT_EFFORT)?,
+            speed: field::read(field::Optional { item: field::Bytes { limit: limits.model_effort_speed_some.min(CEILINGS.model_effort_speed_some) } }, limits, reader, paths::MODEL_EFFORT_SPEED)?,
         })
     }
 }
@@ -16670,7 +16682,7 @@ impl LlmChoice {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 12;
+    pub const ENCODED_AT_ZERO: u64 = 17;
 }
 
 impl Record for LlmChoice {
@@ -16696,7 +16708,7 @@ impl Record for LlmChoice {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.main, limits, out, paths::LLM_CHOICE_MAIN)?;
-        field::write(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 2, item: field::Nested }, &self.subagents, limits, out, paths::LLM_CHOICE_SUBAGENTS)?;
+        field::write(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 3, item: field::Nested }, &self.subagents, limits, out, paths::LLM_CHOICE_SUBAGENTS)?;
         field::write(field::Optional { item: field::U32 }, &self.account, limits, out, paths::LLM_CHOICE_ACCOUNT)?;
         Ok(())
     }
@@ -16704,7 +16716,7 @@ impl Record for LlmChoice {
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             main: field::read(field::Nested, limits, reader, paths::LLM_CHOICE_MAIN)?,
-            subagents: field::read(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 2, item: field::Nested }, limits, reader, paths::LLM_CHOICE_SUBAGENTS)?,
+            subagents: field::read(field::Sequence { limit: limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents), minimum: 3, item: field::Nested }, limits, reader, paths::LLM_CHOICE_SUBAGENTS)?,
             account: field::read(field::Optional { item: field::U32 }, limits, reader, paths::LLM_CHOICE_ACCOUNT)?,
         })
     }
@@ -37320,7 +37332,7 @@ impl ChangeCold {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 224;
+    pub const ENCODED_AT_ZERO: u64 = 234;
 }
 
 impl Record for ChangeCold {
@@ -44196,6 +44208,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.change_gate_failures,
     CEILINGS.effect_account_words,
     CEILINGS.result_text_bytes,
+    CEILINGS.model_effort_speed_some,
     CEILINGS.llm_choice_subagents,
     CEILINGS.held_answer,
     CEILINGS.open_line,

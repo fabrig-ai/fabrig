@@ -918,7 +918,7 @@ fn the_whole_deadline_example_decodes_the_whole_authority() {
     assert!(amendment.tracked.is_none() && amendment.instructions.is_none());
 }
 
-const DELEGATE_MEMBER: &str = r#""executor":{"kind":"agent","charter":1},"spec":{"words":"x"},"contract":{"kind":"report","words":128},"authority":{"tools":1,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},"budget":{"spend":40},"notes":0}"#;
+pub(crate) const DELEGATE_MEMBER: &str = r#""executor":{"kind":"agent","charter":1},"spec":{"words":"x"},"contract":{"kind":"report","words":128},"authority":{"tools":1,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},"budget":{"spend":40},"notes":0}"#;
 
 #[test]
 fn a_delegate_deadline_in_seconds_is_a_span() {
@@ -2181,14 +2181,18 @@ fn change_decodes_several_changes_in_order() {
 
 #[test]
 fn change_decodes_a_producer_and_llm_by_role() {
-    let input = r#"{"words":"a","producer":6,"llm":{"producer":{"main":{"model":"sol","effort":"high"},"sub_agents":[{"model":"haiku"}]},"review":{"main":{"model":"sol","effort":"medium"}}}}"#;
+    let input = r#"{"words":"a","producer":6,"llm":{"producer":{"main":{"model":"sol","effort":"high","speed":"ultrafast"},"sub_agents":[{"model":"haiku"}]},"review":{"main":{"model":"sol","effort":"medium"}}}}"#;
     let expected = engine::ChangeCall {
         producer: Some(6),
         llm: engine::ChangeLlm {
             producer: Some(tasks::LlmChoice {
                 later: None,
                 account: None,
-                main: tasks::ModelEffort { model: 0, effort: Some(1), speed: None },
+                main: tasks::ModelEffort {
+                    model: 0,
+                    effort: Some(1),
+                    speed: Some(skein_lib::Name::from_checked(b"ultrafast").unwrap()),
+                },
                 subagents: Box::new([tasks::ModelEffort { model: 1, effort: None, speed: None }]),
             }),
             review: Some(tasks::LlmChoice {

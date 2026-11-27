@@ -49,7 +49,7 @@ CallPayload: ceilings encoded=1073746015 decoded=1073758384; at_most(3) encoded=
 CallRead: ceilings encoded=1073746014 decoded=1073758384; at_most(3) encoded=153 decoded=233
 Change: ceilings encoded=134892 decoded=142720; at_most(3) encoded=1015 decoded=555
 ChangeCi: ceilings encoded=33 decoded=0; at_most(3) encoded=33 decoded=0
-ChangeCold: ceilings encoded=3208288 decoded=3208064; at_most(3) encoded=365 decoded=141
+ChangeCold: ceilings encoded=3213098 decoded=3214912; at_most(3) encoded=429 decoded=291
 ChangeEnding: ceilings encoded=1048581 decoded=1048576; at_most(3) encoded=8 decoded=3
 ChangeFailure: ceilings encoded=1048580 decoded=1048576; at_most(3) encoded=7 decoded=3
 ChangeFollows: ceilings encoded=32776 decoded=32768; at_most(3) encoded=104 decoded=96
@@ -353,7 +353,7 @@ LiveBranch: ceilings encoded=4100 decoded=4096; at_most(3) encoded=7 decoded=3
 LiveRecord: ceilings encoded=10555702 decoded=11014144; at_most(3) encoded=479 decoded=189
 LiveResource: ceilings encoded=4107 decoded=4096; at_most(3) encoded=15 decoded=3
 LiveWhat: ceilings encoded=4101 decoded=4096; at_most(3) encoded=9 decoded=3
-LlmChoice: ceilings encoded=204 decoded=192; at_most(3) encoded=21 decoded=9
+LlmChoice: ceilings encoded=2609 decoded=3616; at_most(3) encoded=53 decoded=84
 Located: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 LoggedChange: ceilings encoded=1250 decoded=1184; at_most(3) encoded=231 decoded=165
 LoggedCleared: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
@@ -387,7 +387,7 @@ MilestoneKey: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
 MilestoneLanding: ceilings encoded=24 decoded=0; at_most(3) encoded=24 decoded=0
 MilestoneOutcome: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 MilestoneRow: ceilings encoded=327 decoded=256; at_most(3) encoded=74 decoded=3
-ModelEffort: ceilings encoded=3 decoded=0; at_most(3) encoded=3 decoded=0
+ModelEffort: ceilings encoded=40 decoded=32; at_most(3) encoded=11 decoded=3
 Name: ceilings encoded=65547 decoded=65536; at_most(3) encoded=15 decoded=3
 NamePast: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 NamedCall: ceilings encoded=24 decoded=0; at_most(3) encoded=24 decoded=0

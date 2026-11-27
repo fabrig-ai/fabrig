@@ -818,7 +818,7 @@ fn delegate(
         super::ChangeOrigin { authority: context.authority.clone(), tasks_left: context.tasks_left, source: None };
     let mut delegate = match super::chat_change(domain, env, &origin, &change, repository, base, own, spend) {
         Ok(delegate) => delegate,
-        Err(why) => return Err(short_refusal(why, available, minimum, room)),
+        Err(why) => return Err(short_refusal(why.task_refusal(), available, minimum, room)),
     };
     let ended = ended_count(domain, row, kind);
     delegate.authority.delegation.tasks =

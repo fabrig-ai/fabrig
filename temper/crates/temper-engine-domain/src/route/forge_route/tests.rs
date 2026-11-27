@@ -3464,18 +3464,8 @@ fn change_delegates_take_their_roles_saved_llm_choice() {
         crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
     env.limits.tasks.parameters = GATE_PARAMETERS;
     env.limits.tasks.spec_bytes = SPEC_BYTES;
-    let producing = tasks::LlmChoice {
-        later: None,
-        main: tasks::ModelEffort { model: 3, effort: Some(1), speed: None },
-        subagents: Box::new([]),
-        account: None,
-    };
-    let review = tasks::LlmChoice {
-        later: None,
-        main: tasks::ModelEffort { model: 2, effort: Some(0), speed: None },
-        subagents: Box::new([]),
-        account: None,
-    };
+    let producing = choice_at_speed(3, Some(1), b"ultrafast");
+    let review = choice_at_speed(2, Some(0), b"standard");
     let mut row = task_change_row(task, Some(7));
     row.change.last_head = Some(SHA1);
     row.producing_llm = Some(producing.clone());
@@ -3508,6 +3498,12 @@ fn choice(model: u8, effort: Option<u8>) -> super::tasks::LlmChoice {
     }
 }
 
+fn choice_at_speed(model: u8, effort: Option<u8>, speed: &[u8]) -> super::tasks::LlmChoice {
+    let mut llm = choice(model, effort);
+    llm.main.speed = Some(skein_lib::Name::from_checked(speed).expect("speed fixture fits"));
+    llm
+}
+
 #[test]
 fn change_llm_text_round_trips_each_role_and_optional_effort() {
     use super::{change_llm, tasks};
@@ -3528,6 +3524,20 @@ fn change_llm_text_round_trips_each_role_and_optional_effort() {
                     ..choice(3, Some(1))
                 }),
                 review: Some(choice(3, Some(0))),
+            },
+        ),
+        (
+            b"6;3.1@ultrafast 0.0 2;3.0@standard",
+            Some(6),
+            crate::ChangeLlm {
+                producer: Some(tasks::LlmChoice {
+                    subagents: Box::new([
+                        tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
+                        tasks::ModelEffort { model: 2, effort: None, speed: None },
+                    ]),
+                    ..choice_at_speed(3, Some(1), b"ultrafast")
+                }),
+                review: Some(choice_at_speed(3, Some(0), b"standard")),
             },
         ),
         (
@@ -3558,6 +3568,12 @@ fn change_llm_text_refuses_malformed_parts_and_too_many_entries() {
         b";1.;",
         b";.1;",
         b";1.2.3;",
+        b";1@;",
+        b";1@abcdefghijklmnopqrstuvwxyz0123456;",
+        b";1@Fast;",
+        b";1@fast@standard;",
+        b";;1@fast.speed",
+        b";1@\xff;",
         b"; 1;",
         b";1 ;",
         b";1  2;",
@@ -3583,12 +3599,33 @@ fn change_llm_text_refuses_malformed_parts_and_too_many_entries() {
 }
 
 fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
+    change_choice_world_with_producer_speeds(&[])
+}
+
+fn change_choice_world_with_producer_speeds(
+    speeds: &[&[u8]],
+) -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
     use super::{authority, forge, tasks};
     let mut config = crate::tests::resume_fixture::config(7);
     let chat = crate::tests::resume_fixture::charter();
     let mut producer = chat.clone();
     producer.number = 6;
     producer.policy.model.name = b"producer".as_slice().into();
+    let model = &mut producer.policy.model;
+    let mut declared = skein_lib::List::with_capacity(u32::try_from(speeds.len()).expect("fixture speeds"));
+    for name in speeds {
+        declared
+            .push(jig_domain_core::Speed {
+                name: (*name).into(),
+                also: Box::new([]),
+                input_price: model.input_price.max(1),
+                cached_price: model.cached_price.max(1),
+                cache_write_price: model.cache_write_price,
+                output_price: model.output_price.max(1),
+            })
+            .unwrap();
+    }
+    model.speeds = declared.into_boxed();
     let mut review = chat.clone();
     review.number = 4;
     review.policy.model.name = b"review".as_slice().into();
@@ -3828,6 +3865,51 @@ fn a_changes_llm_choices_are_checked_against_their_own_charters_and_run_models()
     );
 }
 
+fn a_change_with_producer_choice(choice: super::tasks::LlmChoice) -> crate::ChangeCall {
+    crate::ChangeCall {
+        producer: Some(6),
+        llm: crate::ChangeLlm { producer: Some(choice), review: None },
+        ..crate::ChangeCall::words(b"Make the fix".as_slice().into(), None)
+    }
+}
+
+#[test]
+fn an_undeclared_change_speed_names_the_models_speeds_in_order() {
+    for (declared, expected) in [
+        (
+            &[b"turbo".as_slice(), b"fast"][..],
+            b"speed ultrafast is not one producer declares; it declares turbo, fast".as_slice(),
+        ),
+        (&[][..], b"speed ultrafast is not one producer declares; it declares none"),
+    ] {
+        let (domain, env, context) = change_choice_world_with_producer_speeds(declared);
+        // The same model may run as main and sub-agent, at different speeds.
+        let change = a_change_with_producer_choice(super::tasks::LlmChoice {
+            subagents: Box::new([choice_at_speed(1, None, b"ultrafast").main]),
+            ..choice_at_speed(1, None, b"standard")
+        });
+        let Err(super::ChangeRefused::Words(words)) = super::change_batch(&domain, &env, 1, &context, &[change]) else {
+            panic!("the producer's speed was not refused in words")
+        };
+        assert_eq!(words.as_ref(), expected);
+    }
+}
+
+#[test]
+fn change_speed_choices_accept_declared_standard_and_omitted() {
+    let (domain, env, context) = change_choice_world_with_producer_speeds(&[b"ultrafast"]);
+    for (choice, expected) in [
+        (choice_at_speed(1, None, b"ultrafast"), b"6;1@ultrafast;".as_slice()),
+        (choice_at_speed(1, None, b"standard"), b"6;1@standard;"),
+        (choice(1, None), b"6;1;"),
+    ] {
+        let batch = change_choice_batch(&domain, &env, &context, a_change_with_producer_choice(choice)).unwrap();
+        assert!(
+            batch[0].spec.parameters.contains(&super::tasks::Parameter::Bytes { name: 11, value: expected.into() })
+        );
+    }
+}
+
 #[test]
 fn jig_admission_refuses_a_procedures_producer_beyond_its_creators_kinds() {
     use super::authority;
@@ -3970,7 +4052,7 @@ fn a_changes_start_keeps_parameter_elevens_charter_and_role_choices() {
     for (text, producer, llm) in [
         (None, 1, crate::ChangeLlm::default()),
         (
-            Some(b"6;3.1 0.0 2;3.0".as_slice()),
+            Some(b"6;3.1@ultrafast 0.0 2;3.0@standard".as_slice()),
             6,
             crate::ChangeLlm {
                 producer: Some(tasks::LlmChoice {
@@ -3978,9 +4060,9 @@ fn a_changes_start_keeps_parameter_elevens_charter_and_role_choices() {
                         tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
                         tasks::ModelEffort { model: 2, effort: None, speed: None },
                     ]),
-                    ..choice(3, Some(1))
+                    ..choice_at_speed(3, Some(1), b"ultrafast")
                 }),
-                review: Some(choice(3, Some(0))),
+                review: Some(choice_at_speed(3, Some(0), b"standard")),
             },
         ),
         (Some(b";0;"), 1, crate::ChangeLlm { producer: Some(choice(0, None)), review: None }),
@@ -4136,6 +4218,8 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
     use forge_change::{Delegate, Freshness, Gate, GateKind, Repair};
     for (kind, fault, role) in [
         (Delegate::Produce, tasks::LlmFault::Charter, Some(b"producer".as_slice())),
+        (Delegate::Produce, tasks::LlmFault::Speed, Some(b"producer")),
+        (Delegate::Gate { number: 1, head: SHA1 }, tasks::LlmFault::Speed, Some(b"review")),
         (Delegate::Repair(Repair::Ci), tasks::LlmFault::Charter, Some(b"producer")),
         (Delegate::Resolve { base: SHA1 }, tasks::LlmFault::Charter, Some(b"producer")),
         (Delegate::Gate { number: 1, head: SHA1 }, tasks::LlmFault::Charter, Some(b"review")),
@@ -4149,6 +4233,8 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
         let mut row = task_change_row(task, Some(7));
         row.producing_charter = 2;
         row.review_charter = 4;
+        row.producing_llm = Some(choice_at_speed(0, None, b"ultrafast"));
+        row.review_llm = Some(choice_at_speed(0, None, b"fast"));
         let mut gates = skein_lib::List::with_capacity(3);
         for (number, kind) in [(1, GateKind::Agent), (2, GateKind::Check), (3, GateKind::Person)] {
             gates.push(Gate { number, kind, blocking: true, freshness: Freshness::Exact, eager: false }).unwrap();
@@ -4199,6 +4285,12 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
                 super::append(&mut expected, role);
                 super::append(&mut expected, b" choice names model ");
                 super::append(&mut expected, &domain.engine.core().settings.models[0].name);
+                if fault == tasks::LlmFault::Speed {
+                    super::append(
+                        &mut expected,
+                        if role == b"review" { b" at speed fast" } else { b" at speed ultrafast" },
+                    );
+                }
                 super::append(
                     &mut expected,
                     if role == b"review" { b", which charter 4" } else { b", which charter 2" },
@@ -4439,7 +4531,7 @@ fn a_held_branch_change_refuses_each_parameter_past_capacity() {
             SPEND,
         );
         if capacity < PARAMETERS {
-            assert_eq!(result.unwrap_err(), tasks::Refusal::Spec, "capacity {capacity}");
+            assert_eq!(result.unwrap_err().task_refusal(), tasks::Refusal::Spec, "capacity {capacity}");
         } else {
             assert_eq!(result.unwrap().spec.parameters.len(), usize::try_from(PARAMETERS).unwrap());
         }
