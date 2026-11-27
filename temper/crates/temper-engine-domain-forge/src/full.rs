@@ -250,9 +250,9 @@ fn append(holders: &mut List<Box<[u8]>>, text: &[u8]) {
         holders.push(safe_name(text)).expect("eight named holders");
     }
 }
-fn census(used: u32, limit: u32, holders: List<Box<[u8]>>, waiting: u32) -> Box<[u8]> {
+fn census(used: u64, limit: u32, holders: List<Box<[u8]>>, waiting: u32) -> Box<[u8]> {
     let mut words = bytes::concat(&[
-        Decimal::of(u64::from(used)).as_bytes(),
+        Decimal::of(used).as_bytes(),
         b" of ",
         Decimal::of(u64::from(limit)).as_bytes(),
         b", held by ",
@@ -263,9 +263,9 @@ fn census(used: u32, limit: u32, holders: List<Box<[u8]>>, waiting: u32) -> Box<
         words = bytes::concat(&[&words, separator, holder]);
         first = false;
     }
-    let more = used.saturating_sub(holders.len());
+    let more = used.saturating_sub(u64::from(holders.len()));
     if more > 0 {
-        words = bytes::concat(&[&words, b", and ", Decimal::of(u64::from(more)).as_bytes(), b" more"]);
+        words = bytes::concat(&[&words, b", and ", Decimal::of(more).as_bytes(), b" more"]);
     }
     if waiting > 0 {
         words = bytes::concat(&[&words, b"; ", Decimal::of(u64::from(waiting)).as_bytes(), b" waiting for room"]);
@@ -326,7 +326,7 @@ fn outbox_words(d: &Domain, limit: u32) -> Box<[u8]> {
             waiting = waiting.saturating_add(1);
         }
     }
-    census(d.entries.len().saturating_add(crate::room::reserved(d)), limit, holders, waiting)
+    census(crate::room::taken(d), limit, holders, waiting)
 }
 fn read_words(d: &Domain, limit: u32) -> Box<[u8]> {
     let calls = d.client.holders();
@@ -350,7 +350,7 @@ fn read_words(d: &Domain, limit: u32) -> Box<[u8]> {
             break;
         }
     }
-    census(used, limit, holders, 0)
+    census(u64::from(used), limit, holders, 0)
 }
 fn task(d: &Domain, owner: &CallOwner) -> Option<u64> {
     match owner {

@@ -415,6 +415,7 @@ fn every_exact_judgement_uses_its_members_prefix_branch_and_survives_restart() {
                 task: saved.change,
                 child: 71 + u64::from(member),
                 kind: change::Delegate::Gate { number: 9, head: prefix },
+                close_at: None,
             });
             asked.push(member);
         }

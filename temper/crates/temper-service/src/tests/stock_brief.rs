@@ -13,8 +13,8 @@ use skein_world::domain::heap::Meter;
 use smith_domain_run as run;
 
 // stock.md: charter 5's host room less 64 section titles and framing and 66 bytes spare.
-const CHARTER_5_HOST_ROOM: u32 = 317_485;
-const STOCK_BRIEF_BYTES: u32 = 315_947;
+const CHARTER_5_HOST_ROOM: u32 = 317_068;
+const STOCK_BRIEF_BYTES: u32 = 315_530;
 const FRAMING: u32 = 64 * (16 + 7);
 const MARGIN: u32 = 66;
 const REFERENCE_SPEC_BYTES: usize = 63_740;
@@ -215,7 +215,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         );
         temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), &limits);
         if number == 5 {
-            const CHARTER_5_WITH_SMALL_BRIEF_OWNED: u64 = 61_635;
+            const CHARTER_5_WITH_SMALL_BRIEF_OWNED: u64 = 62_052;
             assert_eq!(original.owned_bytes().unwrap(), CHARTER_5_WITH_SMALL_BRIEF_OWNED);
 
             assert_eq!(receiving, 127_391);

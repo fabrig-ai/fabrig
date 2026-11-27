@@ -204,6 +204,22 @@ use checks it (skein/docs/foundation/programming-model.md, 10.4):
   step that admitted it, and recording it asserts that no call of its
   name is pending or retained and that the room had its place, naming
   the call.
+- **Held by one route, handed on by it.** A pending call's place names
+  the route that continues it: the core's routing; the application, for
+  a connector's call awaiting its translated answer or a subscription
+  the task hub has made going to the connectors; a delegation's loads
+  of its inputs' ended tasks; or the load of a withdrawn proposal's
+  history row, by its number. A route that passes a call to another
+  hands the place on without readmitting the name, and asserts that the
+  place was its own, naming the call and both routes. The hand-offs are
+  six: from the application to the routing, as a connector that loaded
+  a batch's words passes it to the delegation; from the routing to the
+  delegation's input loads, and back once the last input has loaded;
+  from the routing to the load of a proposal no longer live that a
+  withdrawal names; and from the routing to the application, as a
+  subscription or an unsubscription the task hub has done goes to the
+  connectors. The route is the core's alone: the application reads
+  only whether a call is pending.
 - **Moved once by its decision.** Deciding a call moves its place from
   pending to retained: the decision asserts the call was pending and is
   not yet retained, naming it. A decision for an attempt that has since

@@ -3603,21 +3603,18 @@ impl World {
         self.changed_tasks.clear();
         // A Busy retry keeps the offered change step in flight. Drain that
         // read's timer before snapshotting; an idle procedure's poll is not work.
-        let retrying_change = self.oracle_running
+        let retry = if self.oracle_running
             && self.events.is_empty()
             && self.immediate.is_empty()
             && self.pending.is_empty()
             && self.store.idle()
-            && self.store.has_due_change();
-        let retrying_change = retrying_change
-            && self
-                .root
-                .next_deadline(&self.env)
-                .is_some_and(|due| due <= self.env.now.saturating_add(Duration::from_secs(1)));
-        let mut next = self.env.now;
-        if retrying_change && let Some(due) = self.root.next_deadline(&self.env) {
-            next = next.max(due);
-        }
+            && self.store.has_due_change()
+        {
+            self.root.next_deadline(&self.env).filter(|due| *due <= self.env.now.saturating_add(Duration::from_secs(1)))
+        } else {
+            None
+        };
+        let mut next = retry.map_or(self.env.now, |due| self.env.now.max(due));
         if self.oracle_running {
             if !self.pending.is_empty()
                 && let Some(due) = self.fake.next_deadline()
@@ -3641,7 +3638,7 @@ impl World {
             self.fake.reclaim();
             return false;
         }
-        self.tick_at_now(target, resume, retrying_change) || lost
+        self.tick_at_now(target, resume, retry.is_some()) || lost
     }
 
     /// Move the story's clock through every kept bound, draining its timers at

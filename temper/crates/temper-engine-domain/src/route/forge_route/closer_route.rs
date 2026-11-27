@@ -979,6 +979,7 @@ fn report(domain: &Domain, closer: &forge::CloserRow, words: &[u8], branch: Opti
         title: c::first_line(words).into(),
         landed: landed.into_boxed(),
         unlanded: unlanded.into_boxed(),
+        goal_asked: closer.closer.goal_asked.clone(),
         goal_left: closer.closer.goal_left.clone(),
         landing,
         selections: selections.into_boxed(),

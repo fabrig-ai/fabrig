@@ -166,6 +166,22 @@ fn the_goals_report_left_line_names_uncut_and_undone_work() {
 }
 
 #[test]
+fn the_goals_report_note_answers_what_its_request_asks_for_in_its_result() {
+    let assembled = assembled_goal();
+    let mut paragraphs = core::str::from_utf8(&assembled.instructions).unwrap().split("\n\n");
+    paragraphs.find(|paragraph| paragraph.starts_with("**Your report note:**")).expect("goal report note");
+    let asked = paragraphs.next().expect("paragraph after the goal report note");
+    assert!(
+        asked.starts_with("**What your request asks for in its result**"),
+        "expected the Asked block instructions after the goal report note, got: {asked}"
+    );
+    assert!(asked.contains(" an `Asked: ` line"));
+    assert!(asked.contains("couldn't be had"));
+    assert!(asked.contains("no blank line inside"));
+    assert!(asked.contains("The goal's end report carries the block to your requester"));
+}
+
+#[test]
 fn the_designer_parks_when_only_undone_work_is_left() {
     let assembled = assembled_goal();
     let designer = core::str::from_utf8(&assembled.parts.first().unwrap().text).unwrap();

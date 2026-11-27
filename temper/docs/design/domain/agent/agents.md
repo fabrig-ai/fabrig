@@ -536,10 +536,27 @@ and the goal's closer reads its `Left:` line.
   (`../forge/branches.md`, 2); `Risk:` what could go wrong; `Decided:` what it decided
   itself, each with its time. A message that changes the plan becomes an
   amendment the goal shows the person first.
+- **What its request asked for in its result:** where the goal's request
+  asks to have something in its result (the causes found, figures before
+  and after, counts by binary), the body answers it in one block, its
+  `Asked:` block: the first line whose start, past spaces, is `Asked: `,
+  saying what was asked, then each line after it up to a blank line, a
+  line whose start, past spaces, is `Left: `, `Risk: ` or `Decided: `, or
+  the body's end, a line for each thing asked: its answer, or plainly
+  that it couldn't be had, and why. The goal's closer carries the block
+  into the goal's end report (`../forge/branches.md`, 2, *The report*),
+  which is where its requester reads what it asked for; a body with no
+  `Asked: ` line has no block, and its end report has no part for one.
+  The client reads the block's lines as a paragraph's.
 - **Who is told:** the goal's part of charter 1's instructions and the
   reference's charter 5 (`../../protocol/configuration/stock.md` and `../../protocol/configuration/reference.md`). The
   stock's authority holds the goal's scope (13.4); a charter that does not ask
   for a report writes none, and no note yet is a normal state, never an error.
+  Charter 5's `goal` file asks for the `Asked:` block in a paragraph of
+  its own, after its report note's (`../../../charters/stock/goal.md`):
+  a coordinator is told to write it whenever its request asks for
+  anything in its result, and to say plainly what couldn't be had.
+  Charter 1's goal part, which has no coordinator, is unchanged.
 - **Its stories:** the joint world's
   `suite::task::a_chats_goal_shows_its_report_from_its_goals_row` (`../../testing/process-tier.md`
   ): a chat's goal writes its report, and the person reaches it from Home's

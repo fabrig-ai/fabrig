@@ -90,33 +90,34 @@ impl Snapshot {
     }
 
     pub fn compare_rows(&self, rows: &BTreeMap<Key, Record>) -> Result<(), String> {
-        let mut reopened = rows.iter().peekable();
-        let mut added = None;
-        for (key, row) in &self.rows {
-            while let Some((key, row)) = reopened.next_if(|(candidate, _)| *candidate < key) {
-                // Losing or changing a kept row takes precedence over an added row.
-                if added.is_none()
-                    && let Some(after) = retained(key, row, self.wall)
+        // Walk both sorted maps once. Report a difference in the saved keys
+        // before reporting a newly present key, as in the restart oracle.
+        let mut afters = rows.iter().peekable();
+        let mut extra = None;
+        for (key, before) in &self.rows {
+            while let Some((key, row)) = afters.next_if(|(after_key, _)| *after_key < key) {
+                if extra.is_none()
+                    && let Some(row) = retained(key, row, self.wall)
                 {
-                    added = Some((key, after));
+                    extra = Some((key, row));
                 }
             }
-            let after = reopened.next_if(|(candidate, _)| *candidate == key).map(|(_, after)| after);
-            if after == Some(row) {
+            let after = afters.next_if(|(after_key, _)| *after_key == key).map(|(_, row)| row);
+            if after == Some(before) {
                 continue;
             }
-            let before = retained(key, row, self.wall);
+            let before = retained(key, before, self.wall);
             let after = after.and_then(|row| retained(key, row, self.wall));
             if before != after {
                 return Err(row_difference(key, before.as_deref(), after.as_deref()));
             }
         }
-        let added =
-            added.or_else(|| reopened.find_map(|(key, row)| retained(key, row, self.wall).map(|row| (key, row))));
-        match added {
-            Some((key, row)) => Err(row_difference(key, None, Some(row.as_ref()))),
-            None => Ok(()),
+        if let Some((key, after)) =
+            extra.or_else(|| afters.find_map(|(key, row)| retained(key, row, self.wall).map(|row| (key, row))))
+        {
+            return Err(row_difference(key, None, Some(after.as_ref())));
         }
+        Ok(())
     }
 
     pub fn compare_answer(&self, index: usize, answer: Answer) -> Result<(), String> {
