@@ -242,11 +242,29 @@ impl World {
         if let Some((number, entry, until)) = f.closed
             && self.env.now >= until
         {
-            assert_eq!(self.forge.api(REMOTE, 2, raw::Op::Write(raw::Write::Reopen { number })), Ok(raw::Answer::Done));
-            f.ledger.stop(entry, self.env.now).expect("other user reopens");
+            let restored = match self.forge.inspect(REMOTE, &raw::Read::Pull { number }) {
+                Ok(raw::Answer::Pull(pull)) if pull.state == raw::State::Open => true,
+                Ok(raw::Answer::Pull(pull))
+                    if pull.merged.is_none() && self.forge.branch(REMOTE, &pull.head).is_some() =>
+                {
+                    match self.forge.api(REMOTE, 2, raw::Op::Write(raw::Write::Reopen { number })) {
+                        Ok(raw::Answer::Done) => true,
+                        // Another pull now owns this branch pair.
+                        Err(raw::Error::Exists) => false,
+                        other => panic!("reopen of live pull {number}: {other:?}"),
+                    }
+                }
+                Ok(raw::Answer::Pull(_)) | Err(raw::Error::Missing(raw::What::Item | raw::What::Pull)) => false,
+                other => panic!("read of pull {number} before reopening: {other:?}"),
+            };
+            f.ledger.stop(entry, self.env.now).expect("other-user close ends");
             f.stopped(self.env.now);
             f.closed = None;
-            f.restored = Some(number);
+            if restored {
+                f.restored = Some(number);
+            } else {
+                f.ledger.ineligible(kinds::CLOSED_BY_ANOTHER);
+            }
         }
         if let Some(task) = f.stale_release
             && let Some(row) = self.root.tasks().task(task)
@@ -262,7 +280,7 @@ impl World {
         if let Some(number) = f.restored {
             let held = self.store.rows.values().find_map(|record| {
                 let engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row))) = record else { return None };
-                if !matches!(row.phase, tasks::Phase::Held { .. }) { return None; }
+                if !matches!(row.phase, tasks::Phase::Held { why, .. } if !matches!(why, tasks::Hold::Placed { .. })) { return None; }
                 let affected = self.store.change(row.number).is_some_and(|change| change.pull == Some(number))
                     || self.store.rows.values().any(|r| matches!(r, engine::Record::Forge { row: forge }
                         if matches!(forge.as_ref(), temper_engine_domain_forge::Stored::Landing(landing)

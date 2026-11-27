@@ -69,6 +69,7 @@ mod review;
 mod two_workers;
 mod walk;
 pub mod workload;
+pub use workload::faults::FaultDraw;
 
 pub use agreement::call;
 pub use delegates::survey_delegation;
@@ -706,7 +707,9 @@ impl World {
                 self.funded = true;
                 self.fund();
             }
-            if let Some(event) = self.root_events.pop_front() {
+            if let Some(event) = self.root_events.pop_front()
+                && let Some(event) = self.current_workload_request(event)
+            {
                 self.root_step(event);
             }
             let previous = self.store.applied;
@@ -764,7 +767,8 @@ impl World {
         }
         self.account_observe();
         self.workload_tick();
-        self.workload_fault_tick();
+        let result = self.workload_fault_tick();
+        self.keep_finding(result)?;
         for lane in &mut self.lanes {
             lane.worker.reclaim();
         }

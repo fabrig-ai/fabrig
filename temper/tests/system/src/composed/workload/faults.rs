@@ -1,21 +1,21 @@
 //! Mixed finite faults over the composed draw (temper/docs/design/testing/workloads.md, 8.2).
 use super::World;
 use skein_lib::Time;
-use skein_world::{
-    faults::{FaultLedger, Injection, Kind, Struck},
-    streams::{Stream, Streams},
-};
+use skein_world::faults::{FaultLedger, Injection, Kind, Struck};
 use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain_world::acts::Watch;
-use temper_faults::{bounds, forge as forge_faults, parks, people, restarts, stale};
+use temper_faults::{bounds, forge as forge_faults, parks, restarts, stale};
 use temper_worker_inspect::faults::DISK_FULL;
-use temper_workload::draw::Workload;
-use temper_workload::parties::{self, Act, Action};
+use temper_workload::parties::{Act, Action};
 
 mod actions;
 mod blame;
+mod draw;
+pub use draw::FaultDraw;
 mod forge;
 mod runs;
+#[cfg(test)]
+mod tests;
 mod worker;
 
 #[derive(Debug)]
@@ -43,7 +43,7 @@ pub(in crate::composed) struct Faults {
     provider: Option<(u32, Time)>,
     runs: smith_faults::Runs,
     observed_runs: BTreeMap<(u64, u64), runs::ObservedRun>,
-    failed_attempts: BTreeSet<(u64, u64)>,
+    provider_failures: Vec<((u64, u64), Injection)>,
     reactions: Vec<temper_blame::Observed>,
     retries: BTreeSet<(u64, u64, u32)>,
     repairs: BTreeSet<u64>,
@@ -51,6 +51,9 @@ pub(in crate::composed) struct Faults {
     wrong: BTreeSet<u64>,
     bounds: Vec<Kind>,
     actions: Vec<Action>,
+    release_configured: bool,
+    release_from: Option<(u64, u64)>,
+    pub(super) released_member: Option<(u64, Time)>,
     watch: Watch,
     disk: worker::Disk,
     park: Option<(String, u64, u64)>,
@@ -60,85 +63,28 @@ pub(in crate::composed) struct Faults {
 }
 
 impl Faults {
-    pub(super) fn new(seed: u64, workload: &Workload, kinds: &[Kind]) -> Self {
-        let streams = Streams::new(seed);
-        let mut forge_rng = streams.rng(Stream::Faults, "forge");
-        let mut llm_rng = streams.rng(Stream::Faults, "llm");
-        let mut restart_rng = streams.rng(Stream::Faults, restarts::PART);
-        let mut worker_rng = streams.rng(Stream::Faults, "worker");
-        // Draw the fixed positions even for unconfigured kinds. Removing a
-        // family cannot shift another family's choice within the forge part.
-        let supported = [
-            forge_faults::TIMED_OUT,
-            forge_faults::HEAD_BEHIND,
-            forge_faults::JOB_LOG,
-            forge_faults::CLOSED_BY_ANOTHER,
-            temper_blame::LOST,
-            stale::MOVED_BASE,
-            skein_llm_kit::faults::RATE_WINDOW,
-            restarts::ENGINE_CRASH_MID_TURN,
-            DISK_FULL,
-            parks::DELIVERED_THEN_PARKED,
-        ];
-        let mut allowed = supported.to_vec();
-        allowed.extend([people::HOLDS_A_MEMBER, people::RELEASES_A_MEMBER, bounds::FORGE_READ_ADMISSIONS]);
-        assert!(kinds.iter().all(|kind| allowed.contains(kind)), "supported composed faults");
-        let plans = supported
-            .iter()
-            .map(|kind| {
-                let rng = match kind.family {
-                    "provider" => &mut llm_rng,
-                    "restarts" => &mut restart_rng,
-                    "worker" | "runs that park, resume and move" => &mut worker_rng,
-                    _ => &mut forge_rng,
-                };
-                let eligible: Vec<_> = workload
-                    .goals
-                    .iter()
-                    .filter(|goal| {
-                        if *kind == stale::MOVED_BASE {
-                            goal.train
-                        } else if *kind == forge_faults::HEAD_BEHIND || *kind == forge_faults::JOB_LOG {
-                            goal.changes.iter().any(|change| change.red_once)
-                        } else {
-                            true
-                        }
-                    })
-                    .collect();
-                assert!(!eligible.is_empty(), "a workload goal reaches {kind:?}");
-                let goal = eligible[usize::try_from(rng.below(u64::try_from(eligible.len()).expect("bounded goals")))
-                    .expect("goal index")];
-                let after = rng.below(16);
-                let query = if *kind == restarts::ENGINE_CRASH_MID_TURN {
-                    1 + usize::try_from(rng.below(2)).expect("two query points")
-                } else {
-                    1
-                };
-                Plan { kind: *kind, goal: goal.name.clone(), after, fired: false, query }
-            })
-            .filter(|plan| kinds.contains(&plan.kind))
-            .collect();
-        let acts: Vec<_> = [Act::HoldMember, Act::ReleaseMember]
-            .into_iter()
-            .filter(|act| kinds.contains(&temper_engine_domain_world::acts::kind(*act)))
-            .collect();
-        let actions = parties::draw(&streams, workload, &acts);
-        let disk = worker::Disk::draw(&mut worker_rng);
+    pub(super) fn new(seed: u64, draw: FaultDraw) -> Self {
+        let FaultDraw { plans, actions, ineligible, bounds, disk, read_latency, release_configured, .. } = draw;
+        let mut ledger = FaultLedger::new();
+        for kind in ineligible {
+            ledger.ineligible(kind);
+        }
         Self {
-            bounds: kinds.iter().copied().filter(|kind| kind.family == bounds::FAMILY).collect(),
-            watch: Watch::new(actions.clone()),
+            bounds,
+            release_configured,
+            watch: Watch::new(actions.iter().filter(|action| action.act == Act::HoldMember).cloned().collect()),
+            release_from: None,
+            released_member: None,
             actions,
             disk,
             park: None,
             parked: false,
-            read_latency: skein_lib::Duration::from_millis(
-                streams.rng(Stream::Scheduling, "system").between(1000, 1500),
-            ),
+            read_latency,
             read_replies: Vec::new(),
             seed,
             plans,
             steps: BTreeMap::new(),
-            ledger: FaultLedger::new(),
+            ledger,
             last: Time::ZERO,
             lag_until: None,
             log_restore: None,
@@ -150,7 +96,7 @@ impl Faults {
             provider: None,
             runs: smith_faults::Runs::new(),
             observed_runs: BTreeMap::new(),
-            failed_attempts: BTreeSet::new(),
+            provider_failures: Vec::new(),
             reactions: Vec::new(),
             retries: BTreeSet::new(),
             repairs: BTreeSet::new(),
@@ -207,8 +153,21 @@ impl World {
                 && f.rejoining.is_none()
                 && f.lag_until.is_none()
                 && f.log_restore.is_none()
+                && f.ledger.entries().iter().all(|entry| entry.until.is_some())
                 && self.env.now >= f.last
         })
+    }
+
+    pub(super) fn retire_workload_plans(&mut self) {
+        if let Some(f) = &mut self.workload_faults {
+            for plan in &mut f.plans {
+                // With all goals ended, no new target can reach a planned moment.
+                if !plan.fired {
+                    plan.fired = true;
+                    f.ledger.ineligible(plan.kind);
+                }
+            }
+        }
     }
 
     pub(in crate::composed) fn workload_forge_reply(
@@ -241,13 +200,18 @@ impl World {
     }
 
     /// Judge runs and gates once, after the ordinary workload's checks.
-    pub fn judge_workload_faults(&mut self) {
-        self.assert_workload_park();
+    pub fn judge_workload_faults(&mut self) -> Result<(), String> {
+        self.judge_workload_park()?;
+        self.count_provider_tries();
         let f = self.workload_faults.as_mut().expect("faulted workload");
-        super::super::accounts::judge_account_runs(&mut f.ledger, &mut f.runs).expect("account run blame");
+        super::super::accounts::judge_account_runs(&mut f.ledger, &mut f.runs)?;
         let findings = temper_blame::judge(&mut f.ledger, &f.reactions, f.seed);
-        assert!(findings.is_empty(), "{}", findings.join("\n"));
-        assert!(f.ledger.entries().iter().all(|entry| entry.until.is_some()), "all faults have a last moment");
+        if !findings.is_empty() {
+            return Err(findings.join("\n"));
+        }
+        if let Some(entry) = f.ledger.entries().iter().find(|entry| entry.until.is_none()) {
+            return Err(format!("{:?} has no last moment", entry.kind));
+        }
         eprintln!("seed {}: faults stopped by {:?}", f.seed, f.last);
         for entry in f.ledger.entries() {
             eprintln!(
@@ -261,10 +225,11 @@ impl World {
                 entry.count(skein_world::faults::Counter::TaskTries)
             );
         }
+        Ok(())
     }
 
-    pub(in crate::composed) fn workload_fault_tick(&mut self) {
-        let Some(mut f) = self.workload_faults.take() else { return };
+    pub(in crate::composed) fn workload_fault_tick(&mut self) -> Result<(), String> {
+        let Some(mut f) = self.workload_faults.take() else { return Ok(()) };
         let mut waiting = Vec::new();
         for (at, reply) in f.read_replies.drain(..) {
             if at <= self.env.now {
@@ -288,8 +253,11 @@ impl World {
         self.observe_workload_runs(&mut f);
         self.workload_forge_tick(&mut f);
         self.workload_provider_tick(&mut f);
-        self.workload_worker_tick(&mut f);
-        self.workload_actions_tick(&mut f);
+        let acts = self.workload_worker_tick(&mut f).and_then(|()| self.workload_actions_tick(&mut f));
+        if let Err(finding) = acts {
+            self.workload_faults = Some(f);
+            return Err(finding);
+        }
         let restart_task = f
             .plans
             .iter()
@@ -346,5 +314,6 @@ impl World {
         }
         self.ends.faults_stop(f.last);
         self.workload_faults = Some(f);
+        Ok(())
     }
 }

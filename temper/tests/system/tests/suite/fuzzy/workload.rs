@@ -1,42 +1,45 @@
 //! Complete composed draws and restart comparisons (workloads.md, 5 and 7).
 use skein_world::{
     faults::Kind,
-    sweep::{Sweep, each_seed},
+    sweep::{Sweep, cases},
+    this_test,
 };
 use temper_faults::{bounds, forge, parks, people, restarts, stale};
 use temper_system_world::composed::World;
 
 #[test]
-fn a_restart_changes_no_composed_outcome() {
+fn a_restart_changes_no_composed_outcome() -> Result<(), String> {
     let mut sweep = Sweep::new("a_restart_changes_no_composed_outcome");
     for kind in restarts::MID_TURN {
         sweep.configure(kind);
     }
     // Two seeds, as in the clean draw: a settled host-call stop and a model-query crash.
-    for seed in [0, 29] {
+    cases(this_test!("a_restart_changes_no_composed_outcome"), [0, 29], |seed| {
         eprintln!("seed {seed}");
         let mut world = World::composed_workload(seed);
         eprintln!("workload {:?}", world.workload());
-        world.run_workload();
-        world.assert_workload();
+        world.run_workload()?;
+        world.assert_workload()?;
         let before = world.workload_outcome();
         let points = world.workload_restart_points();
         eprintln!("seed {seed}: restart points (queries, host calls) {points:?}");
         drop(world);
         let mut restarted = World::restarted_workload(seed, points);
-        restarted.run_workload();
-        restarted.assert_workload();
+        restarted.run_workload()?;
+        restarted.assert_workload()?;
         let after = restarted.workload_outcome();
         let left = restarted.workload_restart_left();
         eprintln!("seed {seed}: left {left:?}; fell {:?}", restarted.workload_restart_ledger().fell());
-        before.compare(&after, &left).unwrap_or_else(|finding| panic!("seed {seed}: {finding}"));
+        before.compare(&after, &left)?;
         sweep.ran(restarted.workload_restart_ledger());
-    }
-    sweep.check_fell().expect("both MID_TURN kinds fell");
+        Ok::<(), String>(())
+    })
+    .map_err(|case| case.to_string())?;
+    sweep.check_fell()
 }
 
 #[test]
-fn every_family_falls_in_the_composed_workload() {
+fn every_family_falls_in_the_composed_workload() -> Result<(), String> {
     // The workload's repairs carry gate evidence, not a PullFiles read: the
     // bounds family's next reachable kind is the failed job's bounded log.
     // Its dependent goal starts after the predecessor landed, so it has no
@@ -63,16 +66,18 @@ fn every_family_falls_in_the_composed_workload() {
     for kind in KINDS {
         sweep.configure(kind);
     }
-    temper_engine_forge_world::open::exclude(&mut sweep, &KINDS).expect("engine exclusions");
+    temper_engine_forge_world::open::exclude(&mut sweep, &KINDS)?;
     // One seed is the minimum: 6 draws a hold with its release and a red
     // gate to read; the previous seed 1 draws a hold without a release.
-    each_seed(6..7, |seed| {
+    cases(this_test!("every_family_falls_in_the_composed_workload"), 6..7, |seed| {
         eprintln!("mixed seed {seed}");
         let mut world = World::faulted_workload(seed, &KINDS);
-        world.run_workload();
-        world.assert_workload();
-        world.judge_workload_faults();
+        world.run_workload()?;
+        world.assert_workload()?;
+        world.judge_workload_faults()?;
         sweep.ran(world.workload_ledger());
-    });
-    sweep.check_fell().expect("all twelve families fell");
+        Ok::<(), String>(())
+    })
+    .map_err(|case| case.to_string())?;
+    sweep.check_fell()
 }

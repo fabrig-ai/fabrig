@@ -1,15 +1,16 @@
 //! Account strikes and the shared run-table referee (checks.md, 6.3).
 use super::{Faults, World};
-use crate::composed::{accounts, engine, tasks};
+use crate::composed::{Key, accounts, engine, run, tasks};
 use skein_fake_llm_domain::api::{Error, Strike};
-use skein_lib::{Duration, Time};
+use skein_lib::Duration;
 use skein_llm_kit::faults::RATE_WINDOW;
-use skein_world::faults::{Counter, Struck};
+use skein_world::faults::{Counter, Injection, Struck};
 
 #[derive(Default)]
 pub(super) struct ObservedRun {
     facts: usize,
     ended: bool,
+    window: Option<Injection>,
 }
 
 const WINDOW: Duration = Duration::from_millis(90);
@@ -98,15 +99,6 @@ impl World {
             }
         }
         seen.facts = self.lanes[0].process.agent().facts().len();
-        if self.lanes[0].process.answered.is_some() && !seen.ended {
-            f.runs.ended(
-                self.env.now,
-                &run,
-                &account.to_string(),
-                smith_faults::ended(self.lanes[0].process.agent().answer()),
-            );
-            seen.ended = true;
-        }
         // These are the fake's Reply errors, retained before their client translation,
         // not failures guessed from the engine's task or a planned strike.
         for (at, call, credential, error) in self.lanes[0].process.provider_faults() {
@@ -122,32 +114,36 @@ impl World {
                 );
                 let until = at.saturating_add(reset);
                 f.ledger.stop(injection, until).expect("fixed rate window");
-                f.stopped(until);
+                f.last = f.last.max(until);
+                seen.window = Some(injection);
             }
         }
-        for row in self.store.rows.values() {
-            if let engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Attempt(row))) = row
-                && matches!(row.end, Some(tasks::EndKind::Failed { .. }))
-                && f.failed_attempts.insert((row.task, row.attempt))
+        if self.lanes[0].process.answered.is_some() && !seen.ended {
+            let answer = self.lanes[0].process.agent().answer();
+            let ended = smith_faults::ended(answer);
+            let caused = seen
+                .window
+                .filter(|_| matches!(answer, run::Answer::Failed { failure: run::RunFailure::Model(_), .. }));
+            // An interrupted run on the same account is not a provider ending.
+            if ended == smith_faults::Ended::Completed || caused.is_some() {
+                f.runs.ended(self.env.now, &run, &account.to_string(), ended);
+            }
+            if let Some(injection) = caused {
+                f.provider_failures.push((key, injection));
+            }
+            seen.ended = true;
+        }
+    }
+
+    pub(super) fn count_provider_tries(&mut self) {
+        let f = self.workload_faults.as_mut().expect("faulted workload");
+        for &((task, attempt), injection) in &f.provider_failures {
+            let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Attempt { task, attempt }));
+            if matches!(self.store.rows.get(&key),
+                Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Attempt(row))))
+                    if matches!(row.end, Some(tasks::EndKind::Failed { .. })))
             {
-                let Some(assignment) = self
-                    .workload
-                    .as_ref()
-                    .expect("workload")
-                    .assignments
-                    .iter()
-                    .find(|a| a.task == row.task && a.attempt == row.attempt)
-                else {
-                    continue;
-                };
-                let at = Time::from_nanos(row.ended.expect("failed end").as_nanos());
-                let struck = Struck {
-                    account: Some(assignment.run.accounts.first().expect("account").account.to_string()),
-                    ..Struck::default()
-                };
-                for injection in f.ledger.striking(at, &struck) {
-                    f.ledger.count(injection, Counter::TaskTries);
-                }
+                f.ledger.count(injection, Counter::TaskTries);
             }
         }
     }

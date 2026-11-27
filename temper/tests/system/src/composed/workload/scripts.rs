@@ -18,10 +18,12 @@ fn turn(name: &[u8], value: &Value) -> skein_fake_llm_domain::api::Turn {
     call(name, &serde_json::to_vec(value).expect("script JSON"))
 }
 
+pub(super) fn continuing(world: &World, task: u64) -> bool {
+    world.lanes[0].assignment.as_ref().is_some_and(|previous| previous.task == task) || world.parked.contains_key(&task)
+}
+
 pub(super) fn assigned(world: &World, assignment: &engine::Assignment) -> Script {
-    if world.lanes[0].assignment.as_ref().is_some_and(|previous| previous.task == assignment.task)
-        || world.parked.contains_key(&assignment.task)
-    {
+    if continuing(world, assignment.task) {
         return Script { cue: Box::default(), turns: Box::default() };
     }
     let row = world.root.tasks().task(assignment.task).expect("assigned task");

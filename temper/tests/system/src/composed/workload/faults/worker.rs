@@ -30,7 +30,7 @@ impl Disk {
 }
 
 impl World {
-    pub(super) fn workload_worker_tick(&mut self, f: &mut Faults) {
+    pub(super) fn workload_worker_tick(&mut self, f: &mut Faults) -> Result<(), String> {
         if f.due(DISK_FULL) {
             eprintln!("disk capacity at {:?}", self.env.now);
             f.fire(DISK_FULL);
@@ -46,35 +46,49 @@ impl World {
             }
             f.stopped(self.env.now);
         }
-        if let Some((name, task, attempt)) = &f.park
-            && !f.parked
-            && self.lanes[0].assignment.as_ref().is_some_and(|a| a.task == *task && a.attempt == *attempt)
-            && self.lanes[0].process.answered.is_some()
-        {
-            assert!(matches!(self.agent().answer(), run::Answer::Parked { .. }), "delivered producer parks");
-            let name = name.clone();
-            let assignment = self.lanes[0].assignment.as_ref().expect("park's assignment");
-            let branch = assignment.workspace.repositories[0].push.as_ref().expect("producer's branch");
-            let head = self.forge.branch(super::super::REMOTE, branch).expect("delivered branch");
-            let tree = self.forge.tree(head);
-            for file in &self.workload().change(&name).expect("parked change").1.files {
-                assert_eq!(
-                    tree.get(file.path.as_bytes()),
-                    Some(&file.text.as_bytes().to_vec()),
-                    "delivery precedes the park"
-                );
-            }
-            f.fire(parks::DELIVERED_THEN_PARKED);
-            f.parked = true;
-            eprintln!("parked {name} at {:?}", self.env.now);
-            let injection = f.ledger.inject(
-                parks::DELIVERED_THEN_PARKED,
-                self.env.now,
-                Struck { request: Some(name), ..Struck::default() },
-            );
-            f.ledger.stop(injection, self.env.now).expect("park is an instant");
-            f.stopped(self.env.now);
+        let Some((name, task, attempt)) = &f.park else { return Ok(()) };
+        if f.parked {
+            return Ok(());
         }
+        // A replacement attempt uses the continuation, not the park script.
+        let Some(assignment) = self.lanes[0].assignment.as_ref().filter(|a| a.task == *task && a.attempt == *attempt)
+        else {
+            f.skip_park();
+            return Ok(());
+        };
+        if self.lanes[0].process.answered.is_none() {
+            return Ok(());
+        }
+        match self.agent().answer() {
+            run::Answer::Failed { .. } | run::Answer::Refused(_) => {
+                f.skip_park();
+                return Ok(());
+            }
+            run::Answer::Parked { .. } => {}
+            answer @ run::Answer::Accepted { .. } => {
+                return Err(format!("delivered producer {name} did not park: {answer:?}"));
+            }
+        }
+        let name = name.clone();
+        let branch = assignment.workspace.repositories[0].push.as_ref().expect("producer's branch");
+        let head = self.forge.branch(super::super::REMOTE, branch).expect("delivered branch");
+        let tree = self.forge.tree(head);
+        for file in &self.workload().change(&name).expect("parked change").1.files {
+            if tree.get(file.path.as_bytes()).map(Vec::as_slice) != Some(file.text.as_bytes()) {
+                return Err(format!("{name} parked without delivering {}", file.path));
+            }
+        }
+        f.fire(parks::DELIVERED_THEN_PARKED);
+        f.parked = true;
+        eprintln!("parked {name} at {:?}", self.env.now);
+        let injection = f.ledger.inject(
+            parks::DELIVERED_THEN_PARKED,
+            self.env.now,
+            Struck { request: Some(name), ..Struck::default() },
+        );
+        f.ledger.stop(injection, self.env.now).expect("park is an instant");
+        f.stopped(self.env.now);
+        Ok(())
     }
 
     pub(in crate::composed) fn workload_io(
@@ -131,27 +145,45 @@ impl World {
             })
             .map(|change| change.name.clone());
         if let Some(name) = name {
-            self.workload_faults.as_mut().expect("faults").park = Some((name, assignment.task, assignment.attempt));
+            let continuing = super::super::scripts::continuing(self, assignment.task);
+            let f = self.workload_faults.as_mut().expect("faults");
+            if continuing {
+                f.skip_park();
+            } else {
+                f.park = Some((name, assignment.task, assignment.attempt));
+            }
         }
     }
 
-    pub(super) fn assert_workload_park(&self) {
+    pub(super) fn judge_workload_park(&self) -> Result<(), String> {
+        use crate::composed::{Key, tasks};
+        use jig_domain_core as core;
         let f = self.workload_faults.as_ref().expect("faults");
-        let Some((_, producer, first_attempt)) = &f.park else { return };
-        let starts: Vec<_> = self
-            .workload
-            .as_ref()
-            .expect("workload")
-            .assignments
-            .iter()
-            .filter(|assignment| assignment.task == *producer)
-            .collect();
-        assert_eq!(starts.len(), 2, "delivered producer finishes in its next run");
-        assert_eq!(starts[0].attempt, *first_attempt);
-        assert!(starts[1].attempt > *first_attempt);
-        let key =
-            crate::composed::Key::Core(jig_domain_core::Key::Tasks(crate::composed::tasks::Key::Ended(*producer)));
-        assert!(self.store.rows.contains_key(&key), "the same producer ends");
+        let Some((name, producer, parked)) = &f.park else { return Ok(()) };
+        let key = |attempt| Key::Core(core::Key::Tasks(tasks::Key::Attempt { task: *producer, attempt }));
+        let attempt = |number| match self.store.rows.get(&key(number)) {
+            Some(engine::Record::Core(core::Record::Tasks(tasks::Stored::Attempt(row)))) => row.end,
+            _ => None,
+        };
+        if attempt(*parked) != Some(tasks::EndKind::Parked) {
+            return Err(format!("{name}: its delivered attempt {parked} did not record the park"));
+        }
+        let story = self.workload.as_ref().expect("workload");
+        // Judge the attempts after the park, not starts before it. An overlap
+        // may interrupt a resumed attempt; it is not the producer's finish.
+        let mut finished = false;
+        for assignment in story.assignments.iter().filter(|a| a.task == *producer && a.attempt > *parked) {
+            match attempt(assignment.attempt) {
+                Some(tasks::EndKind::Finished) if !finished => finished = true,
+                Some(tasks::EndKind::Suspended { .. } | tasks::EndKind::Failed { .. } | tasks::EndKind::Refused)
+                    if !finished => {}
+                end => return Err(format!("{name}: continuation {} ended {end:?}", assignment.attempt)),
+            }
+        }
+        if !finished || !self.workload_task_ended(*producer) {
+            return Err(format!("{name}: the same producer did not finish after its park"));
+        }
+        Ok(())
     }
 
     pub(in crate::composed) fn workload_parks(&self, task: u64) -> bool {
@@ -187,5 +219,13 @@ impl World {
                 },
             },
         );
+    }
+}
+
+impl Faults {
+    fn skip_park(&mut self) {
+        self.park = None;
+        self.fire(parks::DELIVERED_THEN_PARKED);
+        self.ledger.ineligible(parks::DELIVERED_THEN_PARKED);
     }
 }
