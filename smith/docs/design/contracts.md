@@ -55,9 +55,23 @@ impl Sample {
 
 - **The session world gives each case's** `Reached` from its sessions' recorded turns: `World::reached(&self) -> Reached`, every completion of every session and sub-agent, each call with the references its record holds.
 - **A call's references** are recorded beside its answer in the world's record of the call, as `JobCall`'s class is now: the job's from the world's classification of drawn jobs, the path's and the offset's from drawn-agent.md, 5's.
+- **A world that classes nothing** (the agent, host and local worlds) folds a run's recorded turns:
+
+```rust
+impl Reached {
+    /// Each assistant message's calls in `turns`, in order, each answered by the
+    /// result of its id in the turns, `Answer::Unanswered` where none is; each call
+    /// carrying a path, an offset or a job, decoded as the session world's translator
+    /// decodes it, carries that reference classed `Class::Unknown`.
+    pub fn turns(&mut self, turns: &[smith_domain_session::record::Turn]);
+}
+```
+
+  A withheld `wait`, whose result comes with the next activation, is unanswered in the turns that hold its call alone.
 
 ## 2. Ownership while it is built
 
 - **The module and `World::reached`:** the change that makes them; jobs' references alone.
 - **Paths' and offsets' references,** `Class::Stale` among their classes: the change that adds the menu's bodies and slots.
 - **The reach over answers and classes:** each change that adds a refusal's setup asks for its answer through `Sample::answered`.
+- **`Reached::turns`,** and the agent, host and local worlds' sweeps folding it: the change that gives those worlds the vocabulary. Where `World::reached` walks records the same way, that change may make it call `Reached::turns`'s walk, keeping its classes.
