@@ -277,8 +277,7 @@ fn version(bytes: &[u8], wire: &str, current: u16) -> Result<(), hub::Undecoded>
         return Err(hub::Undecoded::Version(hub::Mismatch {
             wire: Box::from(wire.as_bytes()),
             version,
-            lowest: current,
-            highest: current,
+            worker_version: current,
         }));
     }
     Ok(())
@@ -460,8 +459,7 @@ mod versions {
             Err(jig_domain_host::Undecoded::Version(jig_domain_host::Mismatch {
                 wire: b"smith-charter".as_slice().into(),
                 version: 6,
-                lowest: 5,
-                highest: 5,
+                worker_version: 5,
             }))
         );
     }

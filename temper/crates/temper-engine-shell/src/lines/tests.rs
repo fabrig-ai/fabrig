@@ -1697,12 +1697,11 @@ fn a_version_refusal_names_the_wire_and_both_versions() {
     let reason = jig_domain_host::Refusal::Version(jig_domain_host::Mismatch {
         wire: b"smith-charter".as_slice().into(),
         version: 5,
-        lowest: 4,
-        highest: 4,
+        worker_version: 4,
     });
     assert_eq!(
         note_line("temper", refused_run_note(reason)),
-        "temper serve: task 3 run 7 attempt 2 refused: version mismatch: smith-charter 5, the worker reads 4..4\n"
+        "temper serve: task 3 run 7 attempt 2 refused: version mismatch: smith-charter 5, the worker reads 4\n"
     );
 }
 

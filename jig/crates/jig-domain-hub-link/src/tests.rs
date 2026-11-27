@@ -815,11 +815,10 @@ fn a_version_refusal_pauses_with_its_reason_and_keeps_history_usable() {
     let ending = host::Ending::Refused(host::Refusal::Version(host::Mismatch {
         wire: b"smith-charter".as_slice().into(),
         version: 5,
-        lowest: 4,
-        highest: 4,
+        worker_version: 4,
     }));
     let end = tasks::End::RefusedWithReason {
-        reason: b"version mismatch: smith-charter 5, the worker reads 4..4".as_slice().into(),
+        reason: b"version mismatch: smith-charter 5, the worker reads 4".as_slice().into(),
     };
     assert_eq!(payload::ending(&ending, None, skein_lib::Duration::ZERO), end);
     assert!(!payload::unusable_history(&ending));
