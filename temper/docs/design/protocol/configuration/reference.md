@@ -240,7 +240,8 @@ place (jig's `domain/engine/overlays.md`).
   its `scripts/old_forms.py --write`) and leaves every other conflict;
   its close command is its `.temper/hooks/close` (`../tooling.md`, 4.2),
   which settles the goal's status and then runs pre-PR's close check
-  (`tools/pre-pr/design.md`, 4.1). Its older `.temper/pre-pr`,
+  (`tools/pre-pr/design.md`, 4.1), given 1,800 seconds by its
+  `.temper/hooks/config.toml` (`../hooks.md`, 2.3). Its older `.temper/pre-pr`,
   `.temper/merge`, `.temper/close` and `.temper/checked-close` are
   wrappers that run them, for a build that reads no hooks
   (`../hooks.md`, 5).

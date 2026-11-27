@@ -75,21 +75,27 @@ smith's agent processes, and declares in its hello the kinds it runs:
   (`../../protocol/tooling.md`, 4.1). Its checkout holds one repository,
   the change's, under its own name, writable, prepared as a resolution's is:
   the head checked out and the base merged in, not committed, the
-  conflicts marked (`checkouts.md`); its command is the repository's
-  `.temper/hooks/merge`, or, in a repository without `.temper/hooks/`,
-  the project's `merge_job` (`../../protocol/hooks.md`, 4.2 and 5), a
-  path in that repository, so the spec's command is the
-  repository's name, `/`, then that path. On exit 0 the delivery commits
+  conflicts marked (`checkouts.md`); its command is found in that
+  checkout, the repository's `.temper/hooks/merge`, or, in a repository
+  without `.temper/hooks/`, the project's `merge_job`
+  (`../../protocol/hooks.md`, 4.2, 4.3 and 5), so the spec's command is the
+  repository's name, `/`, then `.temper/hooks/merge`, with `find` set and
+  the setting's path, in the same form, as its `fallback`. On exit 0 the delivery commits
   the tree as the merge, both parents, and pushes it as a fast-forward
   onto the branch the item names as writable, a resolution's push; a
   file still unmerged or marked refuses it, and the job fails as
-  undelivered. On exit 3 nothing is delivered. The engine learns which
+  undelivered. On exit 3 nothing is delivered, nor where the checkout
+  holds no command and the merge is in conflict, the job finishing with
+  none's result (`../../protocol/hooks.md`, 4.2); a clean merge with no
+  command is delivered as on exit 0. The engine learns which
   from the branch, not the result: its head moved, or not (`../forge/change/repairs.md`
   ). Its bounds, the engine's declaration and the worker's alike:
   a spec of 4,096 bytes and a result of 512, within jig's
   `tasks.spec_bytes` and `tasks.result_bytes` in the small profile,
-  which the core holds every declared kind to, and a deadline of 10
-  minutes, the small profile's constants. The engine declares the kind
+  which the core holds every declared kind to, and a deadline of 86,400
+  seconds, the hooks' ceiling's greatest, the small profile's constants;
+  each job's deadline is its project's `hook_timeout_max_seconds`, and
+  its command's time the hook's (`../../protocol/hooks.md`, 2.3). The engine declares the kind
   only where its tasks limits hold those bounds; a deployment that
   configures them smaller declares no kind 3 and makes no merge job.
 - **The close kind,** kind 4, verb `close`, delivering
@@ -98,12 +104,13 @@ smith's agent processes, and declares in its hello the kinds it runs:
   producer's is: its own branch made at the goal's branch's tip, the
   commit its change read as it made the job, fetched by that commit
   (`../forge/change/repairs-releases.md`, 1), and
-  checked out, clean (`checkouts.md`); its command is the repository's
-  `.temper/hooks/close`, or, in a repository without `.temper/hooks/`,
-  the project's `close_job` (`../../protocol/hooks.md`, 4.2 and 5), a
-  path in that repository, so the spec's command is the
-  repository's name, `/`, then that path, and its request the close
-  request's bytes, which the engine writes whole. Its spec asks for a
+  checked out, clean (`checkouts.md`); its command is found in that
+  checkout, as the merge kind's is: the repository's `.temper/hooks/close`,
+  or, in a repository without `.temper/hooks/`, the project's
+  `close_job` (`../../protocol/hooks.md`, 4.2, 4.3 and 5), so the spec's
+  command is the repository's name, `/`, then `.temper/hooks/close`,
+  with `find` set and the setting's path as its `fallback`, and its
+  request the close request's bytes, which the engine writes whole. Its spec asks for a
   typed refusal, `JobSpec`'s `refusal` true (`../../protocol/wires.md`,
   8), and the worker then sets `TEMPER_CLOSE_REFUSAL=3` in the command's
   environment beside the others (`../../protocol/tooling.md`, 2); a spec
@@ -114,20 +121,29 @@ smith's agent processes, and declares in its hello the kinds it runs:
   `Settle goal G's status`, G the request's goal, and pushes it as a
   fast-forward onto the branch the item names as writable, a producer's
   push; with nothing staged it commits and pushes nothing, and the job
-  is done. The engine learns which from the branch, as for a merge: its
+  is done, as where its checkout holds no command, the job finishing
+  with none's result. The engine learns which from the branch, as for a merge: its
   head moved, or not. Its bounds, the engine's declaration and the
   worker's alike: a spec of 16,384 bytes, a result of 512 and a deadline
-  of 10 minutes, the small profile's constants; the engine declares it
+  of 86,400 seconds, the small profile's constants, each job's deadline
+  its project's ceiling, as kind 3's; the engine declares it
   only where its tasks limits hold those bounds, as kind 3's.
-- **A hook is checked before it runs:** a command whose path in its
-  repository starts `.temper/hooks/` runs only where the job's checkout
-  holds it as an executable regular file, or as a symbolic link whose
-  target is a bare name naming one beside it
-  (`../../protocol/hooks.md`, 2.2 and 4.3), read without following a
-  link. Anything else, nothing there included, ends the job as the
-  command's failure, spawning nothing, its tail one line naming the
-  hook and why, as ``hook `.temper/hooks/close`: not executable``. Any
-  other command spawns as before.
+- **A hook is found and checked before it runs** (`../../protocol/hooks.md`,
+  2.2, 2.3 and 4.3): for a spec with `find`, the worker looks for the
+  repository's `.temper/hooks/` and the moment's hook in the job's
+  checkout, without following a link, and runs the hook, the
+  `fallback`, or nothing, answering none; a command whose path in its
+  repository starts `.temper/hooks/` runs only where the checkout holds
+  it as an executable regular file, or as a symbolic link whose target
+  is a bare name naming one beside it, checked by skein's sibling open.
+  Anything else at a hook's path, or nothing where the spec has no
+  `find`, ends the job as the command's failure, spawning nothing, its
+  tail one line naming the hook and why, as
+  ``hook `.temper/hooks/close`: not executable``; so does a fault of the
+  hooks' `config.toml`. A hook runs within its time, the `config.toml`'s
+  or ten minutes, cut at the ceiling, and one past it is killed and
+  fails as the command's failure. A `fallback` runs within ten minutes
+  cut at the ceiling, and any other command as before.
 - **The prepare kind,** kind 1, verb `prepare`, delivering, built as
   temper's own merge train for a round's stack (`../landing-prepare.md`, 1.2),
   the project's prepare command not yet. Its spec's
