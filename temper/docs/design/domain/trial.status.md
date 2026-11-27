@@ -2,13 +2,6 @@
 
 2026-11-27. Where temper's code lags or departs from [trial.md](trial.md).
 
-- **Not yet:** 1, 3.1, 3.2, 4, 6, 6.1, 6.2, 6.3, 6.4: a usage limit as a trial's own ending: the child's
-  `Limited { reset }` and `RunLimited`, the root's read of the account's limit at the line and of a running
-  row's limited wait, the wire's `TrialLimited` and `limited`, Model's Limited line, the limit's words and
-  local time, "All ways" for a limit and "Sign in again" only for a sign-in's cause, and Home's limited line
-  [in flight: change 20314].
-- **Not yet:** 6.1: *One row, one state* and *A source held is signed in*: a source held by a limit reads as a
-  sign-in not finished, and one row's step marks differ between pages [in flight: change 20315].
 
 
 Unlisted sections have no known gap. Charter 10, the person's projectless

@@ -2,8 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [accounts-words.md](accounts-words.md).
 
-- **Not yet:** 1: *An account's check line*: a limited trial's line, its words, "Try again" and "All ways",
-  with no "Sign in again" beside a source's "Limited" [in flight: change 20314].
 
 - **Not yet:** 1: an Anthropic key's details read "From Anthropic’s platform" rather than the Claude Console, and the welcome's key panel words OpenAI's key alone [in flight: change 915].
 
