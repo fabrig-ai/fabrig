@@ -3,6 +3,7 @@ use alloc::boxed::Box;
 
 mod ask_dropped;
 mod call_room;
+mod close_delegate;
 mod due_ready;
 mod flake;
 mod landing_end;
@@ -618,6 +619,7 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
                 reviews: Box::new([]),
                 reviews_complete: true,
             }),
+            close_at: None,
         },
     );
     assert_eq!(domain.engine.core().tasks.writer(&resource).unwrap().writer, tasks::Writer::Effect { entry: ENTRY });
@@ -1270,6 +1272,7 @@ fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
             decision: change::Decision::Hold(change::Cause::BranchMoved),
             entry: None,
             evidence: Some(evidence),
+            close_at: None,
         });
         super::outputs(&mut domain, &env, &mut decision, &mut routed);
         let Some(super::Work::Tasks(super::tasks::Event::HoldFrom { source, .. })) = domain.work.pop() else {
@@ -2814,6 +2817,7 @@ fn a_restored_hold_keeps_its_deciding_read_account_and_refreshes_its_release_rev
             reviews_complete: false,
             size: None,
         }),
+        close_at: None,
     });
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);

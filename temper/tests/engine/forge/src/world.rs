@@ -2355,9 +2355,7 @@ impl World {
                     self.owed.insert(task);
                     self.seen.push(other).expect("world output capacity");
                 }
-                other @ (top::Request::ChangeDecision { task, .. }
-                | top::Request::CloseDecision { task, .. }
-                | top::Request::ReplayJudgement { task, .. }) => {
+                other @ (top::Request::ChangeDecision { task, .. } | top::Request::ReplayJudgement { task, .. }) => {
                     self.owed.insert(task);
                     self.seen.push(other).expect("world output capacity");
                 }

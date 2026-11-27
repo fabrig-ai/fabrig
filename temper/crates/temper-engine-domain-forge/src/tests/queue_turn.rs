@@ -354,6 +354,7 @@ fn entering_checking_arms_the_first_execution_reading() {
                 decision: change::Decision::Wait { until: Some(until) },
                 entry: None,
                 evidence: None,
+                close_at: None,
             };
     }
     assert!(scheduled, "first reading within poll_max: {out:?}");

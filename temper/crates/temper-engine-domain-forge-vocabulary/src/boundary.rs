@@ -2805,12 +2805,8 @@ pub enum Event {
         task: u64,
         child: u64,
         kind: change::Delegate,
-    },
-    /// Remember the two measured tips when a close job is admitted.
-    CloseDelegated {
-        task: u64,
-        child: u64,
-        at: change::CloseAt,
+        /// For a close job only, the goal and landing tips read by its decision, if both were read.
+        close_at: Option<change::CloseAt>,
     },
     /// The whole procedure batch was refused before a child number was admitted.
     DelegateAdmissionRefused {
@@ -3481,11 +3477,8 @@ pub enum Request {
         decision: change::Decision,
         entry: Option<u64>,
         evidence: Option<ChangeEvidence>,
-    },
-    /// A close job offer with the tips just read.
-    CloseDecision {
-        task: u64,
-        at: change::CloseAt,
+        /// For a decision to delegate a close job only, the goal and landing tips, if both were read.
+        close_at: Option<change::CloseAt>,
     },
     /// A fresh read confirmed the same judgement. Only rejection needs its previous hold's account.
     ReplayJudgement {

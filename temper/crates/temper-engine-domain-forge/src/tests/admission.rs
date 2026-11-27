@@ -314,6 +314,7 @@ fn assert_connection_wait(out: &Queue<Request>) {
                 decision: temper_engine_domain_forge_change::Decision::Wait { until: None },
                 entry: None,
                 evidence: None,
+                close_at: None,
             };
         assert!(!matches!(request, Request::ResourceRefused { .. } | Request::Call { .. }), "{out:?}");
     }

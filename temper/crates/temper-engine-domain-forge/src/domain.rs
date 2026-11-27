@@ -2526,10 +2526,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::JobSuspended { task, child, attempt } => {
             crate::job_history::suspended(d, env, task, child, attempt, out);
         }
-        Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, None, out),
-        Event::CloseDelegated { task, child, at } => {
-            delegated(d, env, task, child, change::Delegate::Close, Some(at), out);
-        }
+        Event::Delegated { task, child, kind, close_at } => delegated(d, env, task, child, kind, close_at, out),
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
         Event::DelegateAdmissionRefused { task, kind } => delegate_admission_refused(d, env, task, kind, out),
         Event::DelegateResult {
@@ -4653,7 +4650,16 @@ fn delegate_result(
     wake_after_turn(d, &saved, owned);
     save_change(d, out, saved);
     if ended {
-        emit(out, Request::ChangeDecision { task, decision: change::Decision::EndHold, entry: None, evidence: None });
+        emit(
+            out,
+            Request::ChangeDecision {
+                task,
+                decision: change::Decision::EndHold,
+                entry: None,
+                evidence: None,
+                close_at: None,
+            },
+        );
     }
 }
 
@@ -4694,7 +4700,13 @@ fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queu
         if ended {
             emit(
                 out,
-                Request::ChangeDecision { task, decision: change::Decision::EndHold, entry: None, evidence: None },
+                Request::ChangeDecision {
+                    task,
+                    decision: change::Decision::EndHold,
+                    entry: None,
+                    evidence: None,
+                    close_at: None,
+                },
             );
         }
     }
@@ -5093,7 +5105,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         return;
     }
     if let Some(decision) = change_terminal(row) {
-        emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None });
+        emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None, close_at: None });
         return;
     }
     if let Some(merge) = landed_commit(&row.change.state) {
@@ -5114,6 +5126,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
                 decision: change::Decision::Wait { until: None },
                 entry: None,
                 evidence: None,
+                close_at: None,
             },
         );
         return;
@@ -5132,6 +5145,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
                 decision: change::Decision::Wait { until: None },
                 entry: None,
                 evidence: None,
+                close_at: None,
             },
         );
         return;
@@ -5389,7 +5403,10 @@ fn step_verified(
     crate::change_history::advanced(d, env.wall, &mut row, &prior, out);
     d.changes.insert(task, row.clone()).expect("replaces change");
     save_change(d, out, row);
-    emit(out, Request::ChangeDecision { task, decision: stepped.decision, entry: None, evidence: None });
+    emit(
+        out,
+        Request::ChangeDecision { task, decision: stepped.decision, entry: None, evidence: None, close_at: None },
+    );
 }
 
 fn status(ci: skein_forge::api::Ci) -> change::Status {
@@ -5440,7 +5457,10 @@ fn step_read(
     if row.frozen() {
         d.read_sessions.remove(&pending.task);
         if let Some(decision) = change_terminal(row) {
-            emit(out, Request::ChangeDecision { task: pending.task, decision, entry: None, evidence: None });
+            emit(
+                out,
+                Request::ChangeDecision { task: pending.task, decision, entry: None, evidence: None, close_at: None },
+            );
         } else if let Some(merge) = landed_commit(&row.change.state) {
             step_verified(d, env, pending.task, merge, pending.heard, out);
         }
@@ -6264,6 +6284,7 @@ fn wait_for_forge(
                 decision: change::Decision::None,
                 entry: None,
                 evidence: None,
+                close_at: None,
             },
         );
         return;
@@ -6301,6 +6322,7 @@ fn wait_for_forge(
             decision: change::Decision::Wait { until },
             entry: None,
             evidence: None,
+            close_at: None,
         },
     );
 }
@@ -6354,6 +6376,7 @@ fn hold_read_session(
             decision: change::Decision::Hold(change::Cause::Stalled),
             entry: None,
             evidence: Some(evidence),
+            close_at: None,
         },
     );
 }
@@ -6394,6 +6417,7 @@ pub(super) fn hold_room_change(
             decision: change::Decision::Hold(change::Cause::Stalled),
             entry: None,
             evidence: None,
+            close_at: None,
         },
     );
 }
@@ -6426,6 +6450,7 @@ fn titled_change(
                     decision: change::Decision::Wait { until: None },
                     entry: None,
                     evidence: None,
+                    close_at: None,
                 },
             );
             return None;
@@ -6453,7 +6478,7 @@ fn titled_change(
         } else {
             change::Decision::Wait { until: Some(until) }
         };
-        emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None });
+        emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None, close_at: None });
         return None;
     }
     Some(row)
@@ -6801,35 +6826,40 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                     emit(out, Request::ReplayJudgement { task: row.task, replay, prior_rejection });
                     return;
                 }
-                if decision == change::Decision::Delegate(change::Delegate::Close)
-                    && let Some(at) = facts.close_tips
-                {
-                    emit(out, Request::CloseDecision { task: row.task, at });
-                    return;
-                }
+                let close_at = if decision == change::Decision::Delegate(change::Delegate::Close) {
+                    facts.close_tips
+                } else {
+                    None
+                };
+                let choice = if close_at.is_some() {
+                    decision
+                } else {
+                    repair_poll(
+                        env,
+                        &row,
+                        &facts,
+                        &heard,
+                        execution_poll(
+                            env,
+                            &facts,
+                            execution_due(&row.change.state, &pending),
+                            row.ci_recheck.is_some() && facts.recheck == change::Recheck::Owed,
+                            crate::settle::cap(d, env, &row, &facts, decision),
+                        ),
+                    )
+                };
                 emit(
                     out,
                     Request::ChangeDecision {
                         task: row.task,
-                        decision: repair_poll(
-                            env,
-                            &row,
-                            &facts,
-                            &heard,
-                            execution_poll(
-                                env,
-                                &facts,
-                                execution_due(&row.change.state, &pending),
-                                row.ci_recheck.is_some() && facts.recheck == change::Recheck::Owed,
-                                crate::settle::cap(d, env, &row, &facts, decision),
-                            ),
-                        ),
+                        decision: choice,
                         entry: None,
                         evidence: if decision == change::Decision::Hold(change::Cause::BranchMoved) {
                             Some(step_evidence(d, &row, &pending, effect_prior))
                         } else {
                             None
                         },
+                        close_at,
                     },
                 );
                 return;
@@ -6908,7 +6938,7 @@ fn drive_check(
             crate::readiness::reconcile(d, env, &mut row, None, out);
             d.changes.insert(task, row.clone()).expect("known change");
             save_change(d, out, row);
-            emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None });
+            emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None, close_at: None });
             if let Action::Done = action {
                 emit(out, Request::WakeProcedure { task });
             }
@@ -7449,6 +7479,7 @@ fn emit_change_effect(
                 decision: change::Decision::Hold(change::Cause::Failed),
                 entry: None,
                 evidence: None,
+                close_at: None,
             },
         );
         return;
@@ -7496,6 +7527,7 @@ fn emit_change_effect(
                 decision: change::Decision::Hold(change::Cause::Failed),
                 entry: None,
                 evidence: None,
+                close_at: None,
             },
         );
         return;
@@ -7521,6 +7553,7 @@ fn emit_change_effect(
                 decision: change::Decision::Wait { until: None },
                 entry: None,
                 evidence: None,
+                close_at: None,
             },
         );
         return;
@@ -7612,6 +7645,7 @@ fn emit_change_effect(
             decision: change::Decision::Effect(effect),
             entry: Some(pending.entry),
             evidence: Some(step_evidence(d, row, pending, prior)),
+            close_at: None,
         },
     );
 }
@@ -7851,7 +7885,10 @@ pub(crate) fn change_outcome(
         | skein_forge_client::Outcome::Held
         | skein_forge_client::Outcome::Withdrawn => {}
     }
-    emit(out, Request::ChangeDecision { task, decision: change::Decision::None, entry: None, evidence: None });
+    emit(
+        out,
+        Request::ChangeDecision { task, decision: change::Decision::None, entry: None, evidence: None, close_at: None },
+    );
 }
 
 pub(crate) fn matches_updating(state: &change::State) -> bool {
@@ -11074,7 +11111,13 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             d.read_sessions.remove(&task);
             emit(
                 out,
-                Request::ChangeDecision { task, decision: change::Decision::Cancel, entry: None, evidence: None },
+                Request::ChangeDecision {
+                    task,
+                    decision: change::Decision::Cancel,
+                    entry: None,
+                    evidence: None,
+                    close_at: None,
+                },
             );
         }
     }

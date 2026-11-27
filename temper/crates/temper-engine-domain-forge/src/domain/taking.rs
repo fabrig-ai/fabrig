@@ -91,7 +91,13 @@ pub(super) fn answered(
     save_change(d, out, row.clone());
     emit(
         out,
-        Request::ChangeDecision { task: row.task, decision: change::Decision::Failed, entry: None, evidence: None },
+        Request::ChangeDecision {
+            task: row.task,
+            decision: change::Decision::Failed,
+            entry: None,
+            evidence: None,
+            close_at: None,
+        },
     );
 }
 
@@ -143,6 +149,7 @@ fn read_error(
                 decision: change::Decision::Hold(change::Cause::Failed),
                 entry: None,
                 evidence: None,
+                close_at: None,
             },
         );
     }

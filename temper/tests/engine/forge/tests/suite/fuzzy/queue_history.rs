@@ -80,7 +80,7 @@ fn advance(world: &mut World, draws: &mut Draws, task: u64, entry: u64) -> bool 
             return true;
         }
         let child = 100_000 + entry;
-        world.event(top::Event::Delegated { task, child, kind });
+        world.event(top::Event::Delegated { task, child, kind, close_at: None });
         work(world, branch.as_bytes());
         world.status(branch.as_bytes(), raw::Check::Passed);
         world.event(top::Event::DelegateResult {

@@ -748,7 +748,8 @@ fn a_change_into_a_goal_branch_being_made_reads_it_once_made() {
             until: Some(Wall::from_nanos(env().wall.as_nanos().saturating_add(LIMITS.change_policy.stall.as_nanos())))
         },
         entry: None,
-        evidence: None
+        evidence: None,
+        close_at: None,
     }));
     let made = fixtures::answer(&mut d, making_call, Ok(Answer::Branch(BranchCreation::Created)));
     assert!(made.contains(&self::made()), "{made:?}");
@@ -779,7 +780,8 @@ fn a_change_waiting_for_its_base_to_be_made_is_bounded_by_its_stall() {
         task: fixtures::CHANGE,
         decision: change::Decision::Wait { until: Some(until) },
         entry: None,
-        evidence: None
+        evidence: None,
+        close_at: None,
     }));
     d.wait_change(&env(), fixtures::CHANGE, Some(until));
     let mut later = env();
@@ -1103,6 +1105,7 @@ fn a_change_waits_for_making_after_read_afresh() {
         decision: change::Decision::Wait { until: Some(until) },
         entry: None,
         evidence: None,
+        close_at: None,
     }));
 
     finish_restarted_making(&mut d, &env);
