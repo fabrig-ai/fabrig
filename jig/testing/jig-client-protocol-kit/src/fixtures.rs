@@ -121,6 +121,8 @@ pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
             unit: model.price_unit,
         },
         description: Some(Box::from(b"For scripted work".as_slice())),
+        speeds: Box::default(),
+        speed: None,
     }])
 }
 // Match this world's HTTP intake and the small profile's component bound.

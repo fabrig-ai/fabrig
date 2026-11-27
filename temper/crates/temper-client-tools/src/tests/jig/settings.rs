@@ -211,8 +211,8 @@ fn settings_show_charter_renders_its_documents() {
     ] {
         let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
         template.llm.as_mut().expect("choice").later = Some(c::LlmLater {
-            main: c::ModelEffort { model: words("claude-opus-5-5"), effort: effort.map(words) },
-            subagents: list([c::ModelEffort { model: words("later-agent"), effort: None }]),
+            main: c::ModelEffort { model: words("claude-opus-5-5"), effort: effort.map(words), speed: None },
+            subagents: list([c::ModelEffort { model: words("later-agent"), effort: None, speed: None }]),
         });
         cases.push((setting, c::SettingValue::Template(template), name, suffix));
     }
@@ -525,8 +525,8 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
                 llm: Some(c::LlmChoice {
                     later: None,
                     account: Some(9),
-                    main: c::ModelEffort { model: words("model"), effort: Some(words("high")) },
-                    subagents: list([c::ModelEffort { model: words("model"), effort: None }]),
+                    main: c::ModelEffort { model: words("model"), effort: Some(words("high")), speed: None },
+                    subagents: list([c::ModelEffort { model: words("model"), effort: None, speed: None }]),
                 }),
             })),
         ),
@@ -717,8 +717,8 @@ fn each_whole_setting_json_is_exactly_the_set_value_and_sends_under_its_name() {
     cases.push((setting, c::SettingValue::Charter(charter)));
     let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
     template.llm.as_mut().expect("choice").later = Some(c::LlmLater {
-        main: c::ModelEffort { model: words("later-model"), effort: Some(words("medium")) },
-        subagents: list([c::ModelEffort { model: words("later-agent"), effort: None }]),
+        main: c::ModelEffort { model: words("later-model"), effort: Some(words("medium")), speed: None },
+        subagents: list([c::ModelEffort { model: words("later-agent"), effort: None, speed: None }]),
     });
     cases.push((setting, c::SettingValue::Template(template)));
     for (setting, value) in cases {

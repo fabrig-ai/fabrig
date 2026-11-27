@@ -268,9 +268,9 @@ fn settings_requests(items: Box<[c::SettingItem]>) -> [w::Ask; 2] {
 #[test]
 fn every_settings_model_and_effort_is_refused_by_its_name() {
     use skein_lib::List;
-    let good = c::ModelEffort { model: text(b"careful"), effort: Some(text(b"high")) };
-    let bad = c::ModelEffort { model: text(b"careful"), effort: Some(text(b"unoffered")) };
-    let unknown = c::ModelEffort { model: text(b"absent"), effort: Some(text(b"unoffered")) };
+    let good = c::ModelEffort { model: text(b"careful"), effort: Some(text(b"high")), speed: None };
+    let bad = c::ModelEffort { model: text(b"careful"), effort: Some(text(b"unoffered")), speed: None };
+    let unknown = c::ModelEffort { model: text(b"absent"), effort: Some(text(b"unoffered")), speed: None };
     let cases: [(_, Box<[c::SettingItem]>, _, _); 7] = [
         (
             "template main",

@@ -1182,6 +1182,8 @@ pub fn playground_frame_with_watch(
                 window: 1024,
                 output: 128,
                 efforts: List::with_capacity(0),
+                speeds: List::with_capacity(0),
+                speed: None,
             })
             .unwrap();
     }
@@ -1194,6 +1196,7 @@ pub fn playground_frame_with_watch(
             main: c::ModelEffort {
                 model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(),
                 effort: None,
+                speed: None,
             },
             subagents: List::with_capacity(0),
         },
@@ -1309,6 +1312,7 @@ pub fn playground_kept_root() -> temper_client_domain::Domain {
         main: c::ModelEffort {
             model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(),
             effort: None,
+            speed: None,
         },
         subagents: List::with_capacity(0),
     });
@@ -1343,6 +1347,7 @@ pub fn hidden_playground_root(ready: Option<c::Readiness>, payer: u64) -> temper
         main: c::ModelEffort {
             model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(),
             effort: None,
+            speed: None,
         },
         subagents: List::with_capacity(0),
     });

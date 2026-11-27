@@ -140,8 +140,9 @@ pub fn llm_choice(main: &[u8], effort: Option<&[u8]>, subagent: &[u8]) -> w::Llm
             Some(effort) => Some(effort.into()),
             None => None,
         },
+        speed: None,
     };
-    let subagent = w::ModelEffort { model: subagent.into(), effort: None };
+    let subagent = w::ModelEffort { model: subagent.into(), effort: None, speed: None };
     w::LlmChoice { later: None, account: None, main, subagents: List::from_boxed(Box::new([subagent])) }
 }
 

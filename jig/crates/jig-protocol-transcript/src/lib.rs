@@ -160,7 +160,7 @@ fn llm(source: &smith::Turn) -> Option<ModelEffort> {
         ),
         None => None,
     };
-    Some(ModelEffort { model, effort })
+    Some(ModelEffort { model, effort, speed: None })
 }
 
 fn empty_text() -> Text {

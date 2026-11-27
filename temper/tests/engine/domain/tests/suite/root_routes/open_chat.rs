@@ -200,6 +200,8 @@ fn client_models() -> Box<[clients::Model]> {
                 output: model.output_price,
                 unit: model.price_unit,
             },
+            speeds: Box::default(),
+            speed: None,
         })
         .collect()
 }

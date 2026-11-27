@@ -290,6 +290,7 @@ fn template_choice(model: &[u8], effort: &[u8]) -> jig_client_domain::contract::
     c::ModelEffort {
         model: c::Text::new(model.into(), f::wire().model_effort_model).unwrap(),
         effort: Some(c::Text::new(effort.into(), f::wire().model_effort_effort_some).unwrap()),
+        speed: None,
     }
 }
 fn template_requests(

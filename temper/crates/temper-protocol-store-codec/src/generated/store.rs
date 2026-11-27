@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x7f, 0x95, 0xaf, 0xf4, 0xb8, 0x8f, 0x33, 0x59, 0x49, 0x57, 0x90, 0x22, 0xcd, 0x0b, 0x4f, 0x7c, 0x2f, 0x48, 0x59,
-    0xdd, 0xfa, 0x05, 0xe0, 0x32, 0xb5, 0x15, 0x66, 0x85, 0xbe, 0xd1, 0xbe, 0x06,
+    0x6b, 0x07, 0x38, 0x44, 0x2c, 0xae, 0x7e, 0x65, 0x9b, 0x7f, 0x52, 0xed, 0x77, 0x84, 0xb8, 0x61, 0x6a, 0x9d, 0x99,
+    0xf3, 0x60, 0x8c, 0x19, 0xeb, 0x87, 0x16, 0xdb, 0x09, 0x44, 0xe7, 0x0a, 0xd0,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -242,6 +242,7 @@ pub struct Limits {
     pub landing_rule_sets: u32,
     pub named_model_model: u32,
     pub named_model_effort_some: u32,
+    pub named_model_speed_some: u32,
     pub named_later_subagents: u32,
     pub named_llm_subagents: u32,
     pub project_landing_merge_job_some: u32,
@@ -631,6 +632,7 @@ pub const CEILINGS: Limits = Limits {
     landing_rule_sets: 6,
     named_model_model: 4_096,
     named_model_effort_some: 32,
+    named_model_speed_some: 32,
     named_later_subagents: 64,
     named_llm_subagents: 64,
     project_landing_merge_job_some: 4_096,
@@ -1020,6 +1022,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "landing_rule_sets",
     "named_model_model",
     "named_model_effort_some",
+    "named_model_speed_some",
     "named_later_subagents",
     "named_llm_subagents",
     "project_landing_merge_job_some",
@@ -1413,6 +1416,7 @@ impl Limits {
             self.landing_rule_sets,
             self.named_model_model,
             self.named_model_effort_some,
+            self.named_model_speed_some,
             self.named_later_subagents,
             self.named_llm_subagents,
             self.project_landing_merge_job_some,
@@ -1807,6 +1811,7 @@ impl Limits {
             landing_rule_sets: self.landing_rule_sets.min(most),
             named_model_model: self.named_model_model.min(most),
             named_model_effort_some: self.named_model_effort_some.min(most),
+            named_model_speed_some: self.named_model_speed_some.min(most),
             named_later_subagents: self.named_later_subagents.min(most),
             named_llm_subagents: self.named_llm_subagents.min(most),
             project_landing_merge_job_some: self.project_landing_merge_job_some.min(most),
@@ -2198,6 +2203,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::LANDING_RULE_SETS,
     paths::NAMED_MODEL_MODEL,
     paths::NAMED_MODEL_EFFORT,
+    paths::NAMED_MODEL_SPEED,
     paths::NAMED_LATER_SUBAGENTS,
     paths::NAMED_LLM_SUBAGENTS,
     paths::PROJECT_LANDING_MERGE_JOB,
@@ -3683,6 +3689,7 @@ pub mod paths {
     pub const SETTINGS_COMBINE_TAG: Path = Path::new("SettingsCombine (tag)");
     pub const NAMED_MODEL_MODEL: Path = Path::new("NamedModel.model");
     pub const NAMED_MODEL_EFFORT: Path = Path::new("NamedModel.effort");
+    pub const NAMED_MODEL_SPEED: Path = Path::new("NamedModel.speed");
     pub const NAMED_MODEL_TAIL: Path = Path::new("NamedModel (tail)");
     pub const NAMED_LATER_MAIN: Path = Path::new("NamedLater.main");
     pub const NAMED_LATER_SUBAGENTS: Path = Path::new("NamedLater.subagents");
@@ -28326,6 +28333,7 @@ impl Record for SettingsCombine {
 pub struct NamedModel {
     pub model: Box<[u8]>,
     pub effort: Option<Box<[u8]>>,
+    pub speed: Option<Box<[u8]>>,
 }
 
 // Record: NamedModel.
@@ -28334,11 +28342,13 @@ impl NamedModel {
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, named_model_model) },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, named_model_effort_some) },
         skein_codec::bounds::Node::Option { item: 1 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, named_model_speed_some) },
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 9;
+    pub const ENCODED_AT_ZERO: u64 = 14;
 }
 
 impl Record for NamedModel {
@@ -28365,6 +28375,7 @@ impl Record for NamedModel {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Bytes { limit: limits.named_model_model.min(CEILINGS.named_model_model) }, &self.model, limits, out, paths::NAMED_MODEL_MODEL)?;
         field::write(field::Optional { item: field::Bytes { limit: limits.named_model_effort_some.min(CEILINGS.named_model_effort_some) } }, &self.effort, limits, out, paths::NAMED_MODEL_EFFORT)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.named_model_speed_some.min(CEILINGS.named_model_speed_some) } }, &self.speed, limits, out, paths::NAMED_MODEL_SPEED)?;
         Ok(())
     }
 
@@ -28372,6 +28383,7 @@ impl Record for NamedModel {
         Ok(Self {
             model: field::read(field::Bytes { limit: limits.named_model_model.min(CEILINGS.named_model_model) }, limits, reader, paths::NAMED_MODEL_MODEL)?,
             effort: field::read(field::Optional { item: field::Bytes { limit: limits.named_model_effort_some.min(CEILINGS.named_model_effort_some) } }, limits, reader, paths::NAMED_MODEL_EFFORT)?,
+            speed: field::read(field::Optional { item: field::Bytes { limit: limits.named_model_speed_some.min(CEILINGS.named_model_speed_some) } }, limits, reader, paths::NAMED_MODEL_SPEED)?,
         })
     }
 }
@@ -28393,7 +28405,7 @@ impl NamedLater {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 13;
+    pub const ENCODED_AT_ZERO: u64 = 18;
 }
 
 impl Record for NamedLater {
@@ -28419,14 +28431,14 @@ impl Record for NamedLater {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.main, limits, out, paths::NAMED_LATER_MAIN)?;
-        field::write(field::Sequence { limit: limits.named_later_subagents.min(CEILINGS.named_later_subagents), minimum: 5, item: field::Nested }, &self.subagents, limits, out, paths::NAMED_LATER_SUBAGENTS)?;
+        field::write(field::Sequence { limit: limits.named_later_subagents.min(CEILINGS.named_later_subagents), minimum: 6, item: field::Nested }, &self.subagents, limits, out, paths::NAMED_LATER_SUBAGENTS)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             main: field::read(field::Nested, limits, reader, paths::NAMED_LATER_MAIN)?,
-            subagents: field::read(field::Sequence { limit: limits.named_later_subagents.min(CEILINGS.named_later_subagents), minimum: 5, item: field::Nested }, limits, reader, paths::NAMED_LATER_SUBAGENTS)?,
+            subagents: field::read(field::Sequence { limit: limits.named_later_subagents.min(CEILINGS.named_later_subagents), minimum: 6, item: field::Nested }, limits, reader, paths::NAMED_LATER_SUBAGENTS)?,
         })
     }
 }
@@ -28454,7 +28466,7 @@ impl NamedLlm {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 32;
+    pub const ENCODED_AT_ZERO: u64 = 42;
 }
 
 impl Record for NamedLlm {
@@ -28481,7 +28493,7 @@ impl Record for NamedLlm {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Optional { item: field::U32 }, &self.account, limits, out, paths::NAMED_LLM_ACCOUNT)?;
         field::write(field::Nested, &self.main, limits, out, paths::NAMED_LLM_MAIN)?;
-        field::write(field::Sequence { limit: limits.named_llm_subagents.min(CEILINGS.named_llm_subagents), minimum: 5, item: field::Nested }, &self.subagents, limits, out, paths::NAMED_LLM_SUBAGENTS)?;
+        field::write(field::Sequence { limit: limits.named_llm_subagents.min(CEILINGS.named_llm_subagents), minimum: 6, item: field::Nested }, &self.subagents, limits, out, paths::NAMED_LLM_SUBAGENTS)?;
         field::write(field::Optional { item: field::Nested }, &self.later, limits, out, paths::NAMED_LLM_LATER)?;
         Ok(())
     }
@@ -28490,7 +28502,7 @@ impl Record for NamedLlm {
         Ok(Self {
             account: field::read(field::Optional { item: field::U32 }, limits, reader, paths::NAMED_LLM_ACCOUNT)?,
             main: field::read(field::Nested, limits, reader, paths::NAMED_LLM_MAIN)?,
-            subagents: field::read(field::Sequence { limit: limits.named_llm_subagents.min(CEILINGS.named_llm_subagents), minimum: 5, item: field::Nested }, limits, reader, paths::NAMED_LLM_SUBAGENTS)?,
+            subagents: field::read(field::Sequence { limit: limits.named_llm_subagents.min(CEILINGS.named_llm_subagents), minimum: 6, item: field::Nested }, limits, reader, paths::NAMED_LLM_SUBAGENTS)?,
             later: field::read(field::Optional { item: field::Nested }, limits, reader, paths::NAMED_LLM_LATER)?,
         })
     }
@@ -28517,7 +28529,7 @@ impl RepairGoalSettings {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 49;
+    pub const ENCODED_AT_ZERO: u64 = 59;
 }
 
 impl Record for RepairGoalSettings {
@@ -28579,7 +28591,7 @@ impl RepairSettings {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 59;
+    pub const ENCODED_AT_ZERO: u64 = 69;
 }
 
 impl Record for RepairSettings {
@@ -28668,7 +28680,7 @@ impl ProjectLanding {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 110;
+    pub const ENCODED_AT_ZERO: u64 = 120;
 }
 
 impl Record for ProjectLanding {
@@ -40545,7 +40557,7 @@ impl SettingValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 111;
+    pub const ENCODED_AT_ZERO: u64 = 121;
 }
 
 impl Record for SettingValue {
@@ -40632,7 +40644,7 @@ impl SizedValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 115;
+    pub const ENCODED_AT_ZERO: u64 = 125;
 }
 
 impl Record for SizedValue {
@@ -40688,7 +40700,7 @@ impl SettingEdit {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 116;
+    pub const ENCODED_AT_ZERO: u64 = 126;
 }
 
 impl Record for SettingEdit {
@@ -40753,7 +40765,7 @@ impl SettingRow {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 137;
+    pub const ENCODED_AT_ZERO: u64 = 147;
 }
 
 impl Record for SettingRow {
@@ -44325,6 +44337,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.landing_rule_sets,
     CEILINGS.named_model_model,
     CEILINGS.named_model_effort_some,
+    CEILINGS.named_model_speed_some,
     CEILINGS.named_later_subagents,
     CEILINGS.named_llm_subagents,
     CEILINGS.project_landing_merge_job_some,

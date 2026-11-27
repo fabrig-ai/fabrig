@@ -960,6 +960,7 @@ fn a_settings_file_asking_an_effort_its_model_does_not_offer_is_refused_by_name(
         main: c::ModelEffort {
             model: c::Text::new(b"scripted".as_slice().into(), 256).expect("model"),
             effort: Some(c::Text::new(b"xhigh".as_slice().into(), 256).expect("effort")),
+            speed: None,
         },
         subagents: skein_lib::List::with_capacity(0),
     });

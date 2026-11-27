@@ -278,6 +278,8 @@ fn real_core_settings() -> jig_protocol_engine_clients::Settings {
                 unit: model.price_unit,
             },
             description: None,
+            speeds: Box::default(),
+            speed: None,
         }]),
         ..fixtures::settings()
     }

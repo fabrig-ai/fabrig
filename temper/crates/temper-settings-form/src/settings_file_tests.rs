@@ -252,10 +252,23 @@ fn repair_settings_default_counts_and_deadline_are_omitted_when_shown() {
 }
 #[test]
 fn repair_settings_round_trip_all_members_and_the_templates_named_llm() {
-    let landing = landing_round_trip(br#"{"wait":"landed","repairs":{"repair_goals":16,"repair_attempts":8,"repair_deadline_ms":604800000,"goal":{"charter":5,"llm":{"account":3,"main":{"model":"main","effort":"high"},"subagents":[{"model":"helper","effort":null}],"later":{"main":{"model":"later","effort":"low"},"subagents":[]}},"priority":42,"budget":2000000}}}"#);
-    let repairs = landing.repairs.as_ref().unwrap();
+    use jig_client_protocol_wire as jig;
+    use temper_client_protocol_wire::v1 as w;
+    let mut landing = landing_round_trip(br#"{"wait":"landed","repairs":{"repair_goals":16,"repair_attempts":8,"repair_deadline_ms":604800000,"goal":{"charter":5,"llm":{"account":3,"main":{"model":"main","effort":"high"},"subagents":[{"model":"helper","effort":null}],"later":{"main":{"model":"later","effort":"low"},"subagents":[]}},"priority":42,"budget":2000000}}}"#);
+    let repairs = landing.repairs.as_mut().unwrap();
     assert_eq!((repairs.goals, repairs.attempts, repairs.deadline_ms), (16, 8, 604_800_000));
-    assert_eq!(repairs.goal.llm.as_ref().unwrap().main.model.as_ref(), b"main");
+    let named = repairs.goal.llm.as_mut().unwrap();
+    assert_eq!(named.main.model.as_ref(), b"main");
+    assert_eq!(named.main.speed, None, "the settings file does not yet read a speed");
+
+    // The named repair choice and jig wire choice share a layout, even for a populated speed.
+    named.main.speed = Some(b"fast".as_slice().into());
+    let bytes = named.encode(&w::CEILINGS).unwrap();
+    let choice = jig::LlmChoice::decode(&jig::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
+    assert_eq!(choice.main.speed.as_deref(), Some(b"fast".as_slice()));
+    assert_eq!(choice.encode(&jig::CEILINGS).unwrap(), bytes);
+    let bytes = landing.encode(&w::CEILINGS).unwrap();
+    assert_eq!(w::ProjectLanding::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)), Ok(landing));
 }
 #[test]
 fn repair_settings_refuse_unknown_and_missing_members_by_path() {

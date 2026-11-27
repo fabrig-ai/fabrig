@@ -124,6 +124,7 @@ pub(super) fn refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Tex
         }
         c::LlmWhy::Authority => out.put(b"outside the authority the task is given"),
         c::LlmWhy::Effort => out.put(b"its effort is not one the model declares"),
+        c::LlmWhy::Speed => out.put(b"its speed is not one the model declares"),
         c::LlmWhy::Unconfigured => out.put(b"not a configured model"),
         c::LlmWhy::Procedure => out.put(b"the task's executor runs no model"),
         c::LlmWhy::Repeated => out.put(b"named twice among the sub-agents"),

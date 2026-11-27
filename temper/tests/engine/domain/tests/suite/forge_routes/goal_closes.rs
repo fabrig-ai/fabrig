@@ -176,6 +176,8 @@ fn start_goal(
         description: None,
         shown: None,
         picker: true,
+        speeds: Box::default(),
+        speed: None,
     };
     let wire = jig_protocol_engine_clients::translate::owner::frame(
         &frame,

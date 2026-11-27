@@ -118,10 +118,17 @@ pub fn settings_combine_to_domain(record: temper_client_protocol_wire::v1::Setti
 
 #[must_use]
 pub fn named_model_to_record(value: &crate::settings::NamedModel) -> temper_client_protocol_wire::v1::NamedModel {
-    let crate::settings::NamedModel { model: field_000000, effort: field_000001 } = value;
+    let crate::settings::NamedModel { model: field_000000, effort: field_000001, speed: field_000002 } = value;
     temper_client_protocol_wire::v1::NamedModel {
         model: field_000000.clone(),
         effort: match field_000001 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        speed: match field_000002 {
             Some(item) => {
                 let converted = item.clone();
                 Some(converted)
@@ -133,10 +140,17 @@ pub fn named_model_to_record(value: &crate::settings::NamedModel) -> temper_clie
 
 #[must_use]
 pub fn named_model_to_domain(record: temper_client_protocol_wire::v1::NamedModel) -> crate::settings::NamedModel {
-    let temper_client_protocol_wire::v1::NamedModel { model: field_000000, effort: field_000001 } = record;
+    let temper_client_protocol_wire::v1::NamedModel { model: field_000000, effort: field_000001, speed: field_000002 } = record;
     crate::settings::NamedModel {
         model: field_000000,
         effort: match field_000001 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        speed: match field_000002 {
             Some(item) => {
                 let converted = item;
                 Some(converted)

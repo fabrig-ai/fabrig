@@ -20,8 +20,8 @@ pub(crate) const EFFORTLESS_CHAT: &[&str] =
     &["chat", "start", "hello", "--project", "shop", "--model", "plain-model", "--key", "plain-chat"];
 pub(crate) fn model_effort(model: &[u8], effort: Option<&[u8]>) -> c::ModelEffort {
     let model = act_text(model);
-    let Some(effort) = effort else { return c::ModelEffort { model, effort: None } };
-    c::ModelEffort { model, effort: Some(act_text(effort)) }
+    let Some(effort) = effort else { return c::ModelEffort { model, effort: None, speed: None } };
+    c::ModelEffort { model, effort: Some(act_text(effort)), speed: None }
 }
 pub(crate) fn prior_choice() -> c::LlmChoice {
     let mut subagents = List::with_capacity(1);
@@ -58,6 +58,8 @@ pub(crate) fn choice_me(budget: u64) -> c::Me {
             window: 8192,
             output: 1024,
             efforts,
+            speeds: List::with_capacity(0),
+            speed: None,
         })
         .expect("one selectable model");
     project
@@ -78,6 +80,8 @@ pub(crate) fn choice_me(budget: u64) -> c::Me {
             window: 8192,
             output: 1024,
             efforts: List::with_capacity(0),
+            speeds: List::with_capacity(0),
+            speed: None,
         })
         .expect("effortless model");
     me

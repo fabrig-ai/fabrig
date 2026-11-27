@@ -306,7 +306,7 @@ enum Moved by hand
 record RefusalAuthority by hand
 record RefusalMoved by hand
 enum NameRule = p::NameRule
-enum LlmWhy by hand # Speed has no dedicated client code at this layout
+enum LlmWhy by hand
 record RefusalLlm by hand
 enum AccountWhy = p::AccountWhy
 record RefusalCircle by hand
@@ -491,6 +491,7 @@ record Needs = p::Needs
 record Template by hand
 record MePrices = crate::Prices
 enum ModelSource = c::settings::ModelSource both ways
+record SettingSpeed = c::Speed both ways { also slice }
 record MeModel by hand
 record MeDefault by hand
 record ProviderOffer = d::ProviderOffer
@@ -713,7 +714,6 @@ record WorkerState = d::WorkerState { since via s::wall }
 record Deployment by hand
 record Chips by hand
 record Inbox by hand
-record SettingSpeed = c::Speed both ways { also slice }
 record SettingModel by hand
 record CatalogueEntry by hand
 enum SettingHosts = f::Kinds both ways

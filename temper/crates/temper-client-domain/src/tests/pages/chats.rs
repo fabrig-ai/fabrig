@@ -278,7 +278,7 @@ fn llm(model: &[u8]) -> LlmChoice {
     LlmChoice {
         later: None,
         account: Some(7),
-        main: ModelEffort { model: fixtures::acts::text(model), effort: None },
+        main: ModelEffort { model: fixtures::acts::text(model), effort: None, speed: None },
         subagents: List::with_capacity(0),
     }
 }
@@ -309,6 +309,8 @@ fn a_start_from_ask_keeps_its_templates_models() {
             window: 1024,
             output: 128,
             efforts: List::with_capacity(0),
+            speeds: List::with_capacity(0),
+            speed: None,
         })
         .unwrap();
     me.projects.get_mut(0).expect("project").models = models;

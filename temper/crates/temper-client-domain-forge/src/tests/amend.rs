@@ -59,11 +59,11 @@ fn dependencies() -> List<u64> {
 }
 fn choice(model: &[u8]) -> c::LlmChoice {
     let mut subagents = List::with_capacity(ONE);
-    subagents.push(c::ModelEffort { model: text(b"helper"), effort: Some(text(b"low")) }).unwrap();
+    subagents.push(c::ModelEffort { model: text(b"helper"), effort: Some(text(b"low")), speed: None }).unwrap();
     c::LlmChoice {
         later: None,
         account: Some(7),
-        main: c::ModelEffort { model: text(model), effort: Some(text(b"high")) },
+        main: c::ModelEffort { model: text(model), effort: Some(text(b"high")), speed: None },
         subagents,
     }
 }
@@ -72,7 +72,10 @@ fn next_choice() -> c::LlmChoice {
     choice.account = Some(8);
     choice.main.effort = None;
     choice.subagents.clear();
-    choice.subagents.push(c::ModelEffort { model: text(b"worker"), effort: Some(text(b"medium")) }).unwrap();
+    choice
+        .subagents
+        .push(c::ModelEffort { model: text(b"worker"), effort: Some(text(b"medium")), speed: None })
+        .unwrap();
     choice
 }
 fn goal() -> c::Task {

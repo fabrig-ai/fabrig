@@ -2062,7 +2062,7 @@ fn repairs_setting() -> settings::ProjectLanding {
                 charter: 1,
                 llm: Some(settings::NamedLlm {
                     account: Some(9),
-                    main: settings::NamedModel { model: b"scripted".as_slice().into(), effort: None },
+                    main: settings::NamedModel { model: b"scripted".as_slice().into(), effort: None, speed: None },
                     subagents: Box::new([]),
                     later: None,
                 }),
@@ -2075,7 +2075,15 @@ fn repairs_setting() -> settings::ProjectLanding {
 }
 fn repairs_config() -> crate::Config {
     let mut config = resume_fixture::config(7);
-    let first = resume_fixture::models()[0].clone();
+    let mut first = resume_fixture::models()[0].clone();
+    first.speeds = Box::new([jig_domain_core::Speed {
+        name: b"fast".as_slice().into(),
+        also: Box::default(),
+        input_price: first.input_price,
+        cached_price: first.cached_price,
+        cache_write_price: first.cache_write_price,
+        output_price: first.output_price,
+    }]);
     let mut other = first.clone();
     other.name = b"other".as_slice().into();
     // Deliberately reordered: a kept name must resolve to the new catalogue index.
@@ -2184,7 +2192,9 @@ fn a_start_resolves_repairs_or_keeps_the_first_incomplete_field_without_stopping
         let mut landing = repairs_setting();
         let goal = &mut landing.repairs.as_mut().unwrap().goal;
         goal.charter = charter;
-        goal.llm.as_mut().unwrap().main.model = model.into();
+        let main = &mut goal.llm.as_mut().unwrap().main;
+        main.model = model.into();
+        main.speed = Some(b"fast".as_slice().into());
         let (domain, _) = start_with_repairs(Some(landing.clone()), spec);
         if let Some(expected) = expected {
             assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), expected);
@@ -2194,6 +2204,7 @@ fn a_start_resolves_repairs_or_keeps_the_first_incomplete_field_without_stopping
             assert_eq!((held.goal.charter, held.goal.priority, held.goal.budget), (1, 42, 2_000_000));
             assert_eq!(held.goal.llm.as_ref().unwrap().main.model, 1, "resolved by name, not old position");
             assert_eq!(held.goal.llm.as_ref().unwrap().account, Some(9));
+            assert_eq!(held.goal.llm.as_ref().unwrap().main.speed.unwrap().as_bytes(), b"fast");
         }
         assert_eq!(domain.forge.landing_settings(PROJECT), Some(&landing), "taken setting is kept even when off");
     }

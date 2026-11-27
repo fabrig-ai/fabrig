@@ -1473,7 +1473,11 @@ pub(crate) fn llm_wire_choice(value: &c::LlmChoice) -> w::LlmChoice {
 }
 
 pub(crate) fn llm_wire_model_effort(value: &c::ModelEffort) -> w::ModelEffort {
-    w::ModelEffort { model: bytes::copy_of(value.model.bytes()), effort: optional_text(value.effort.as_ref()) }
+    w::ModelEffort {
+        model: bytes::copy_of(value.model.bytes()),
+        effort: optional_text(value.effort.as_ref()),
+        speed: None,
+    }
 }
 
 pub(crate) fn settings_wire_task_contract(
@@ -1653,7 +1657,7 @@ pub(crate) fn settings_wire_setting_model(value: &c::SettingModel) -> w::Setting
         efforts,
         effort: optional_text(value.effort.as_ref()),
         speeds,
-        speed: optional_text(value.speed.as_ref()),
+        speed: None,
     }
 }
 

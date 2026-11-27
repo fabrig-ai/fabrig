@@ -129,6 +129,8 @@ fn models_group_the_offer_in_provider_order_with_empty_providers_and_unknown_las
                     accounts
                 },
                 picker: false,
+                speeds: List::with_capacity(0),
+                speed: None,
             })
             .expect("models");
     }
@@ -397,6 +399,8 @@ fn model_cache_writes_default_to_the_supplied_input_price() {
             picker: true,
             description: None,
             prices: c::ModelPrices { input: 17, cached: 3, cache_write: None, output: 29, unit: 100 },
+            speeds: List::with_capacity(0),
+            speed: None,
         })
         .expect("model room");
     me.providers = f::provider_offers();

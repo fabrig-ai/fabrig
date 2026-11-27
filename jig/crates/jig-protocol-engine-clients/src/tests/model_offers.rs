@@ -46,29 +46,61 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
         (true, jig_domain_core_vocabulary::settings::ModelSource::List),
         (true, jig_domain_core_vocabulary::settings::ModelSource::Person),
     ] {
-        let model = engine::Model {
-            new_until: None,
-            number: 37,
-            source,
-            estimated: populated,
+        let effort = if populated { Some(b"high".as_slice().into()) } else { None };
+        let model = jig_domain_core_vocabulary::Model {
+            provider: 3,
             name: b"chosen".as_slice().into(),
-            provider: Some(3),
             window: 8192,
             output: 1024,
             efforts: if populated {
-                Box::new([Box::from(b"low".as_slice()), Box::from(b"high".as_slice())])
+                Box::new([b"low".as_slice().into(), b"high".as_slice().into()])
             } else {
                 Box::new([])
             },
-            effort: if populated { Some(b"high".as_slice().into()) } else { None },
-            prices: engine::Prices { input: 2, cached: 1, cache_write: None, output: 7, unit: 1000 },
-            description: None,
-            shown: if populated { Some(b"Shown model".as_slice().into()) } else { None },
-            picker: !populated,
+            effort,
+            input_price: 2,
+            cached_price: 1,
+            output_price: 7,
+            price_unit: 1000,
+            speeds: if populated {
+                Box::new([
+                    jig_domain_core_vocabulary::Speed {
+                        name: b"fast".as_slice().into(),
+                        also: Box::new([b"priority".as_slice().into()]),
+                        input_price: 4,
+                        cached_price: 2,
+                        cache_write_price: Some(6),
+                        output_price: 14,
+                    },
+                    jig_domain_core_vocabulary::Speed {
+                        name: b"ultrafast".as_slice().into(),
+                        also: Box::new([]),
+                        input_price: 8,
+                        cached_price: 4,
+                        cache_write_price: None,
+                        output_price: 28,
+                    },
+                ])
+            } else {
+                Box::new([])
+            },
+            speed: if populated { Some(b"fast".as_slice().into()) } else { None },
+            ..jig_domain_core_vocabulary::Model::hole()
         };
+        let catalogue = engine::translate::llm::catalogue(&[jig_domain_core_vocabulary::settings::CatalogueModel {
+            number: 1,
+            model,
+            shown: if populated { Some(b"Shown model".as_slice().into()) } else { None },
+            description: None,
+            picker: !populated,
+            withdrawn: false,
+            source,
+            estimated: populated,
+            first_read: None,
+        }]);
         let wire = engine::translate::llm::models(
             &[jig_domain_core_vocabulary::Offered { model: 0, accounts: List::with_capacity(0) }],
-            core::slice::from_ref(&model),
+            &catalogue,
         )
         .unwrap();
         let mut wire = wire.get(0).unwrap().clone();
@@ -89,7 +121,7 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
                 Box::new([])
             },
         };
-        let choice = engine::translate::llm::choice(Some(&preview), core::slice::from_ref(&model)).unwrap().unwrap();
+        let choice = engine::translate::llm::choice(Some(&preview), &catalogue).unwrap().unwrap();
         defaults.push(w::MeDefault { template: 9, choice }).unwrap();
         let decoded =
             jig_client_protocol_link::translate::documents::frame(me_with_offer(wire, defaults), &limits).unwrap();
@@ -100,7 +132,7 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
             project.models.get(0).unwrap(),
             &c::MeModel {
                 new_until: None,
-                number: 37,
+                number: 1,
                 source: match source {
                     jig_domain_core_vocabulary::settings::ModelSource::Stock => c::ModelSource::Stock,
                     jig_domain_core_vocabulary::settings::ModelSource::List => c::ModelSource::List,
@@ -118,6 +150,29 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
                 shown: if populated { Some(text(b"Shown model")) } else { None },
                 accounts: if populated { list([42, 7]) } else { List::with_capacity(0) },
                 picker: !populated,
+                speeds: if populated {
+                    list([
+                        c::SettingSpeed {
+                            name: text(b"fast"),
+                            also: list([text(b"priority")]),
+                            input_price: 4,
+                            cached_price: 2,
+                            cache_write_price: Some(6),
+                            output_price: 14,
+                        },
+                        c::SettingSpeed {
+                            name: text(b"ultrafast"),
+                            also: List::with_capacity(0),
+                            input_price: 8,
+                            cached_price: 4,
+                            cache_write_price: None,
+                            output_price: 28,
+                        },
+                    ])
+                } else {
+                    List::with_capacity(0)
+                },
+                speed: if populated { Some(text(b"fast")) } else { None },
             }
         );
         assert_eq!(
@@ -129,10 +184,11 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
                     account: None,
                     main: c::ModelEffort {
                         model: text(b"chosen"),
-                        effort: if populated { Some(text(b"high")) } else { None }
+                        effort: if populated { Some(text(b"high")) } else { None },
+                        speed: None,
                     },
                     subagents: if populated {
-                        list([c::ModelEffort { model: text(b"chosen"), effort: Some(text(b"low")) }])
+                        list([c::ModelEffort { model: text(b"chosen"), effort: Some(text(b"low")), speed: None }])
                     } else {
                         List::with_capacity(0)
                     },

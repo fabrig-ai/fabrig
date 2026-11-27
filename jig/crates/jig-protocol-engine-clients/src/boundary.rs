@@ -291,6 +291,8 @@ pub struct Model {
     pub description: Option<Box<[u8]>>,
     pub shown: Option<Box<[u8]>>,
     pub picker: bool,
+    pub speeds: Box<[core::Speed]>,
+    pub speed: Option<Box<[u8]>>,
 }
 /// Configured amounts per `unit` tokens in the deployment's spend unit; absent cache writes
 /// are priced at input (protocol/configuration-engine.md, 1; domain/authority.md, 1).

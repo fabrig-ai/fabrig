@@ -2996,6 +2996,61 @@ pub fn model_source_to_domain(record: jig_client_protocol_wire::v44::ModelSource
     }
 }
 
+pub fn setting_speed_to_record(value: &jig_domain_core_vocabulary::Speed) -> Result<jig_client_protocol_wire::v44::SettingSpeed, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::Speed { name: field_000000, also: field_000001, input_price: field_000002, cached_price: field_000003, cache_write_price: field_000004, output_price: field_000005 } = value;
+    Ok(jig_client_protocol_wire::v44::SettingSpeed {
+        name: field_000000.clone(),
+        also: {
+            let source = field_000001;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::SETTING_SPEED_ALSO.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = item.clone();
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        input_price: *field_000002,
+        cached_price: *field_000003,
+        cache_write_price: match field_000004 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        output_price: *field_000005
+    })
+}
+
+#[must_use]
+pub fn setting_speed_to_domain(record: jig_client_protocol_wire::v44::SettingSpeed) -> jig_domain_core_vocabulary::Speed {
+    let jig_client_protocol_wire::v44::SettingSpeed { name: field_000000, also: field_000001, input_price: field_000002, cached_price: field_000003, cache_write_price: field_000004, output_price: field_000005 } = record;
+    jig_domain_core_vocabulary::Speed {
+        name: field_000000,
+        also: {
+            let source = field_000001;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = item;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        input_price: field_000002,
+        cached_price: field_000003,
+        cache_write_price: match field_000004 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        output_price: field_000005
+    }
+}
+
 #[must_use]
 pub fn provider_offer_to_record(value: &jig_domain_core_vocabulary::documents::ProviderOffer) -> jig_client_protocol_wire::v44::ProviderOffer {
     let jig_domain_core_vocabulary::documents::ProviderOffer { provider: field_000000, name: field_000001, sign_in: field_000002, key: field_000003, programs: field_000004, programs_cut: field_000005, none: field_000006, signed_in_plan: field_000007, manage_usage: field_000008, key_bytes: field_000009 } = value;
@@ -4691,61 +4746,6 @@ pub fn worker_state_to_record(value: &jig_domain_core_vocabulary::documents::Wor
             None => None,
         },
         pause: worker_pause_to_record(field_000007)
-    }
-}
-
-pub fn setting_speed_to_record(value: &jig_domain_core_vocabulary::Speed) -> Result<jig_client_protocol_wire::v44::SettingSpeed, jig_client_protocol_wire::v44::Problem> {
-    let jig_domain_core_vocabulary::Speed { name: field_000000, also: field_000001, input_price: field_000002, cached_price: field_000003, cache_write_price: field_000004, output_price: field_000005 } = value;
-    Ok(jig_client_protocol_wire::v44::SettingSpeed {
-        name: field_000000.clone(),
-        also: {
-            let source = field_000001;
-            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::SETTING_SPEED_ALSO.problem(skein_codec::Reason::Bound)) };
-            let mut translated = skein_lib::List::with_capacity(count);
-            for item in source.as_ref() {
-                let converted = item.clone();
-                assert!(translated.push(converted).is_ok(), "one output per source item");
-            }
-            translated
-        },
-        input_price: *field_000002,
-        cached_price: *field_000003,
-        cache_write_price: match field_000004 {
-            Some(item) => {
-                let converted = *item;
-                Some(converted)
-            }
-            None => None,
-        },
-        output_price: *field_000005
-    })
-}
-
-#[must_use]
-pub fn setting_speed_to_domain(record: jig_client_protocol_wire::v44::SettingSpeed) -> jig_domain_core_vocabulary::Speed {
-    let jig_client_protocol_wire::v44::SettingSpeed { name: field_000000, also: field_000001, input_price: field_000002, cached_price: field_000003, cache_write_price: field_000004, output_price: field_000005 } = record;
-    jig_domain_core_vocabulary::Speed {
-        name: field_000000,
-        also: {
-            let source = field_000001;
-            let count = source.len();
-            let mut translated = skein_lib::List::with_capacity(count);
-            for item in source.into_boxed() {
-                let converted = item;
-                assert!(translated.push(converted).is_ok(), "one output per source item");
-            }
-            Box::from(translated)
-        },
-        input_price: field_000002,
-        cached_price: field_000003,
-        cache_write_price: match field_000004 {
-            Some(item) => {
-                let converted = item;
-                Some(converted)
-            }
-            None => None,
-        },
-        output_price: field_000005
     }
 }
 

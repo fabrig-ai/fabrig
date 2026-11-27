@@ -59,7 +59,7 @@ pub fn llm(
         }
         None => model.effort.clone(),
     };
-    let main = c::ModelEffort { model: model.name.clone(), effort };
+    let main = c::ModelEffort { model: model.name.clone(), effort, speed: None };
     let mut choice = match before {
         Some(choice) => choice.clone(),
         None => c::LlmChoice { later: None, account: None, main: main.clone(), subagents: List::with_capacity(0) },
@@ -108,7 +108,9 @@ pub(crate) fn sub_agents(
             }
             None => model.effort.clone(),
         };
-        subagents.push(c::ModelEffort { model: model.name.clone(), effort }).expect("parsed sub-agents fit");
+        subagents
+            .push(c::ModelEffort { model: model.name.clone(), effort, speed: None })
+            .expect("parsed sub-agents fit");
     }
     Ok(Some(subagents))
 }

@@ -100,6 +100,8 @@ fn models(llm: &jig_protocol_config::Llm) -> Box<[jig_protocol_engine_clients::M
                 output: model.output_price,
                 unit: model.price_unit,
             },
+            speeds: Box::default(),
+            speed: None,
         });
     }
     models.into_boxed_slice()

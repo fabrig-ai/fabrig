@@ -1128,6 +1128,7 @@ fn ready_names_the_new_chat_templates_model_and_effort() {
         main: c::ModelEffort {
             model: c::Text::new(b"configured-model".as_slice().into(), text_bytes).unwrap(),
             effort: Some(c::Text::new(b"high".as_slice().into(), text_bytes).unwrap()),
+            speed: None,
         },
         subagents: skein_lib::List::with_capacity(0),
     });

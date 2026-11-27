@@ -5990,10 +5990,17 @@ pub fn settings_combine_to_domain(record: crate::v25::SettingsCombine) -> temper
 
 #[must_use]
 pub fn named_model_to_record(value: &temper_engine_domain_forge_vocabulary::settings::NamedModel) -> crate::v25::NamedModel {
-    let temper_engine_domain_forge_vocabulary::settings::NamedModel { model: field_000000, effort: field_000001 } = value;
+    let temper_engine_domain_forge_vocabulary::settings::NamedModel { model: field_000000, effort: field_000001, speed: field_000002 } = value;
     crate::v25::NamedModel {
         model: field_000000.clone(),
         effort: match field_000001 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        speed: match field_000002 {
             Some(item) => {
                 let converted = item.clone();
                 Some(converted)
@@ -6005,10 +6012,17 @@ pub fn named_model_to_record(value: &temper_engine_domain_forge_vocabulary::sett
 
 #[must_use]
 pub fn named_model_to_domain(record: crate::v25::NamedModel) -> temper_engine_domain_forge_vocabulary::settings::NamedModel {
-    let crate::v25::NamedModel { model: field_000000, effort: field_000001 } = record;
+    let crate::v25::NamedModel { model: field_000000, effort: field_000001, speed: field_000002 } = record;
     temper_engine_domain_forge_vocabulary::settings::NamedModel {
         model: field_000000,
         effort: match field_000001 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        speed: match field_000002 {
             Some(item) => {
                 let converted = item;
                 Some(converted)

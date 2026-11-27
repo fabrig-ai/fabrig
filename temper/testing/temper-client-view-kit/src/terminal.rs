@@ -118,7 +118,7 @@ pub fn command_task(state: u8, model: &c::MeModel) -> c::Task {
     let mut task = state_task(state);
     task.llm = Some(c::LlmChoice {
         account: Some(1),
-        main: c::ModelEffort { model: model.name.clone(), effort: model.effort.clone() },
+        main: c::ModelEffort { model: model.name.clone(), effort: model.effort.clone(), speed: None },
         subagents: skein_lib::List::with_capacity(0),
         later: None,
     });

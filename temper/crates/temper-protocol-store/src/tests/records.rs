@@ -750,7 +750,7 @@ fn a_changes_role_choices_round_trip_with_or_without_models() {
     let mut no_choices = change_with_role_choices(false);
     no_choices.producing_llm = None;
     no_choices.review_llm = None;
-    for change in [no_choices, change_with_role_choices(true)] {
+    for change in [no_choices, change_with_role_choices(false), change_with_role_choices(true)] {
         let row = fixtures::change_cold(change);
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }

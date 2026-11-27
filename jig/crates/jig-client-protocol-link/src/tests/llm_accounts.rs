@@ -20,6 +20,8 @@ fn me_with_model(prices: w::MePrices, description: Option<Box<[u8]>>) -> w::Me {
         efforts: skein_lib::List::with_capacity(0),
         prices,
         description,
+        speeds: skein_lib::List::with_capacity(0),
+        speed: None,
     };
     me_with_offer(model, skein_lib::List::with_capacity(0))
 }
@@ -105,7 +107,11 @@ fn an_explicit_account_preference_survives_link_storage() {
     let choice = c::LlmChoice {
         later: None,
         account: Some(42),
-        main: c::ModelEffort { model: c::Text::new(b"chosen".as_slice().into(), 32).unwrap(), effort: None },
+        main: c::ModelEffort {
+            model: c::Text::new(b"chosen".as_slice().into(), 32).unwrap(),
+            effort: None,
+            speed: None,
+        },
         subagents: skein_lib::List::with_capacity(0),
     };
     let mut ask = fixtures::create_ask();
@@ -200,6 +206,8 @@ fn malformed_offer_efforts_and_shown_names_are_refused() {
             picker: true,
             prices: w::MePrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
             description: None,
+            speeds: skein_lib::List::with_capacity(0),
+            speed: None,
         };
         assert_eq!(
             translate::documents::frame(me_with_offer(model, skein_lib::List::with_capacity(0)), &limits),

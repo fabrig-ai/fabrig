@@ -86,7 +86,8 @@ pub fn limits() -> Limits {
 }
 #[must_use]
 pub fn client_limits() -> skein_http::client::Limits {
-    skein_http::client::Limits { head: 4096, headers: 32, request: 4096, read: 256, send: 256 }
+    // The peer uploads one complete body, including the names in a choice with `later`.
+    skein_http::client::Limits { head: 4096, headers: 32, request: 4096, read: 256, send: 512 }
 }
 #[must_use]
 pub fn expires() -> skein_lib::Wall {

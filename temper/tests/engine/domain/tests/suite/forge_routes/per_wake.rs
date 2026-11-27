@@ -87,6 +87,8 @@ fn reference_items(model: &engine::Model, words: u32) -> Box<[settings::Item]> {
         description: None,
         shown: None,
         picker: true,
+        speeds: Box::default(),
+        speed: None,
     };
     let mut items = jig_protocol_engine_clients::translate::settings::items(
         change.items.as_ref().into(),

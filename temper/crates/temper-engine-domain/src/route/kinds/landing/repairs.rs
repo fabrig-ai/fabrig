@@ -73,7 +73,10 @@ fn model(v: &NamedModel, models: &[CatalogueModel]) -> Option<tasks::ModelEffort
             return Some(tasks::ModelEffort {
                 model: u8::try_from(configured.number.checked_sub(1)?).ok()?,
                 effort: effort(v.effort.as_deref(), &configured.model).ok()?,
-                speed: None,
+                speed: match &v.speed {
+                    Some(name) => Some(skein_lib::Name::from_checked(name)?),
+                    None => None,
+                },
             });
         }
     }
