@@ -835,6 +835,11 @@ impl World {
         self.send(Lane::Conversations, Delivery::Close { peer });
     }
 
+    fn yield_conversation(&mut self, peer: Token) {
+        let conversation = self.conversation_of_peer[&peer];
+        self.order(crate::order_log::Seen::Yield { run: self.run_of_conversation[&conversation] });
+    }
+
     fn run_request(&mut self, request: run::Request, current: Option<Token>) -> Option<Token> {
         self.log(format_args!("run -> {request:?}"));
         self.guard_park_request(&request, current);
@@ -846,10 +851,7 @@ impl World {
             }
             run::Request::CompletionReady { conversation } => self.completion_ready(conversation),
             run::Request::MessageRefused { .. } => {}
-            run::Request::Yield { peer } => {
-                let conversation = self.conversation_of_peer[&peer];
-                self.order(crate::order_log::Seen::Yield { run: self.run_of_conversation[&conversation] });
-            }
+            run::Request::Yield { peer } => self.yield_conversation(peer),
             run::Request::Waiting { host_run, read } => {
                 current = Some(self.observed_waiting(host_run, read));
                 self.park_waiting(host_run);

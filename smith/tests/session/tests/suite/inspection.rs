@@ -45,6 +45,7 @@ fn inspection_reads_one_open_call_and_balanced_room_mid_batch() {
         session::Event::Completed {
             owner: tooling,
             completion: llm::Completion {
+                served: llm::ServedSpeed::Unreported,
                 reasoning_dropped: Box::default(),
                 content: Box::new([read(b"first"), read(b"second")]),
                 stop: llm::Stop::ToolUse,
