@@ -83,6 +83,11 @@ impl Protocol {
             self.restart = None;
         }
     }
+    /// Whether the client has an open stream a dropped-watch fault can cut.
+    #[must_use]
+    pub fn can_drop_watch(&self, client: ClientId) -> bool {
+        self.net.has_open_stream(client)
+    }
     pub fn select_stream(&mut self, client: ClientId) {
         self.last_client = Some(client);
     }

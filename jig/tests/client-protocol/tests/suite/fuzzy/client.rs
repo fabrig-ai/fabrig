@@ -2,6 +2,11 @@
 use jig_client::{Ask, Asker, Event, Handle, Key, Link, Readable, Watchable, contract};
 use jig_client_protocol_world::{client::Story, fixtures};
 use skein_lib::{Duration, Rng};
+use skein_world::{
+    sweep::{cases, gate},
+    this_test,
+};
+use std::convert::Infallible;
 const FIRST_SEED: u64 = 12100;
 const SEEDS: u64 = 32;
 const EVENTS: u64 = 32;
@@ -42,7 +47,7 @@ fn apply(story: &mut Story, choice: u64, number: u64) {
 #[test]
 fn random_scripted_applications_keep_the_client_s_rules() {
     let mut reached = [0; 7];
-    for seed in FIRST_SEED..FIRST_SEED + SEEDS {
+    cases(this_test!("random_scripted_applications_keep_the_client_s_rules"), FIRST_SEED..FIRST_SEED + SEEDS, |seed| {
         let mut rng = Rng::new(seed);
         let mut story = Story::live(seed);
         for number in 1..=EVENTS {
@@ -56,6 +61,10 @@ fn random_scripted_applications_keep_the_client_s_rules() {
         }
         assert!(story.run_until(|s| s.client.link().state == Link::Live, WITHIN), "seed {seed}");
         assert_eq!(story.client.link().party, Some(fixtures::FIRST_OWNER), "seed {seed}");
+        Ok::<(), Infallible>(())
+    })
+    .expect("the client keeps its rules");
+    if gate() {
+        assert!(reached.iter().all(|count| *count > 0), "every application event drawn: {reached:?}");
     }
-    assert!(reached.iter().all(|count| *count > 0), "every application event drawn: {reached:?}");
 }
