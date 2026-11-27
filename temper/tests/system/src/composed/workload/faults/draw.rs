@@ -24,6 +24,7 @@ const INJECTED_CATALOGUE: &[(Kind, Eligible)] = &[
     (forge_faults::BASE_BEHIND, |_| true),
     // ci
     (temper_blame::SET_UP, |_| true),
+    (temper_blame::MISSING_REPORT, has_red_change),
     // provider
     (skein_llm_kit::faults::SPENT_CREDITS, |_| true),
     (skein_llm_kit::faults::EXPIRED_SIGN_IN, |_| true),

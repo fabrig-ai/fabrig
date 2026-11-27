@@ -54,6 +54,7 @@ pub const CAMPAIGN_KINDS: &[Kind] = &[
     // ci
     temper_blame::WRONG_TREE,
     temper_blame::SET_UP,
+    temper_blame::MISSING_REPORT,
     // stale
     // provider
     skein_llm_kit::faults::SPENT_CREDITS,
@@ -104,6 +105,7 @@ pub(in crate::composed) struct Faults {
     repairs: BTreeSet<u64>,
     holds: BTreeSet<String>,
     wrong: BTreeSet<u64>,
+    missing_report: Option<blame::MissingReport>,
     bounds: Vec<Kind>,
     actions: Vec<Action>,
     release_configured: bool,
@@ -130,6 +132,7 @@ impl Faults {
             base_behind_configured,
             ..
         } = draw;
+        let missing_report = plans.iter().any(|plan| plan.kind == temper_blame::MISSING_REPORT);
         let mut ledger = FaultLedger::new();
         for kind in ineligible {
             ledger.ineligible(kind);
@@ -173,6 +176,7 @@ impl Faults {
             repairs: BTreeSet::new(),
             holds: BTreeSet::new(),
             wrong: BTreeSet::new(),
+            missing_report: missing_report.then_some(blame::MissingReport::Waiting),
         }
     }
 
@@ -295,6 +299,10 @@ impl World {
         }
         eprintln!("seed {}: faults stopped by {:?}", f.seed, f.last);
         for entry in f.ledger.entries() {
+            if entry.kind == temper_blame::MISSING_REPORT && entry.count(skein_world::faults::Counter::GateRetries) != 1
+            {
+                return Err(format!("the missing report on run {:?} was not retried once", entry.struck.gate_run));
+            }
             eprintln!(
                 "{:?}: {:?}..{:?}; {:?}; gate retries {}, repairs {}, task tries {}",
                 entry.kind,
