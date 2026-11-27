@@ -19,6 +19,7 @@ use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
 mod empty_forge;
 mod gates;
 mod scripts;
+mod stretches;
 mod take;
 
 fn llm_document() -> Value {

@@ -194,7 +194,7 @@ impl Steps {
         self.write(directory, "merged", merged);
     }
 
-    pub(crate) fn diff(&mut self, directory: &str, expected: &str, patch: &str) {
+    pub(crate) fn diff(&mut self, directory: &str, [from, to]: [&str; 2], patch: &str) {
         self.git_reply(
             &[
                 "diff",
@@ -208,8 +208,8 @@ impl Steps {
                 "--diff-algorithm=myers",
                 "--no-indent-heuristic",
                 "--",
-                "landed",
-                expected,
+                from,
+                to,
             ],
             Some(directory),
             1,
@@ -313,7 +313,7 @@ fn missing_edit_gets_its_hunk() {
     );
     steps.merge(SIGN_IN_SCRATCH, 0, SIGN_IN_C);
     let hunk = "@@ -2 +2 @@\n-b\n+B\n";
-    steps.diff(SIGN_IN_SCRATCH, "merged", &format!("diff --git a/landed b/merged\n--- a/landed\n+++ b/merged\n{hunk}"));
+    steps.diff(SIGN_IN_SCRATCH, ["landed", "merged"], &format!("diff --git a/landed b/merged\n--- a/landed\n+++ b/merged\n{hunk}"));
     let item = "`web/journeys/sign-in/02.html`, line 2";
     steps.check(1, &format!("{HEADER}| {item} | differs |\n{FILL}"), &format!("look-compare: {item}\n{hunk}"));
 }
@@ -335,7 +335,7 @@ fn edits_to_one_tag_conflict() {
     steps.merge(SIGN_IN_SCRATCH, 1, &format!("a\n{conflict}c\nd\nE\n"));
     steps.write(SIGN_IN_SCRATCH, "merged-with-landing-conflicts", "a\n<b class=landing\nc\nd\nE\n");
     let hunk = "@@ -5 +5 @@\n-e\n+E\n";
-    steps.diff(SIGN_IN_SCRATCH, "merged-with-landing-conflicts", hunk);
+    steps.diff(SIGN_IN_SCRATCH, ["landed", "merged-with-landing-conflicts"], hunk);
     let page = "`web/journeys/sign-in/02.html`";
     steps.check(
         1,
@@ -408,7 +408,7 @@ fn a_new_walks_page_is_compared_whole() {
     steps.print(&["new-walk"], 0, &format!("printed new-walk\nprinted into {PRINT}\n"), "");
     steps.pages(&page, &directory, [None, Some("a\nadded\nb\n"), Some("a\nb\n")], ["", "a\nadded\nb\n", "a\nb\n"]);
     let hunk = "@@ -1,0 +2 @@ a\n+added\n";
-    steps.diff(&directory, "requested", hunk);
+    steps.diff(&directory, ["landed", "requested"], hunk);
     let item = "`web/journeys/new-walk/01.html`, after line 1";
     steps.check(1, &format!("{HEADER}| {item} | differs |\n{FILL}"), &format!("look-compare: {item}\n{hunk}"));
 }

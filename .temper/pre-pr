@@ -1,5 +1,2 @@
 #!/bin/sh
-# Check the delivery in the implementer workspace (tools/pre-pr/design.md, 1).
-set -eu
-cd "$(dirname "$0")/.."
-exec python3 -I -B tools/pre-pr/pre_pr.py
+exec "$(dirname "$0")/hooks/deliver" "$@"

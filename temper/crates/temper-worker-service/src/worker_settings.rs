@@ -11,10 +11,10 @@ use temper_service_core::limits;
 pub use temper_service_core::values::{grant_bytes, token_credential_bytes as credential_bytes};
 use temper_worker_domain as root;
 
-/// Git's operations, job files, source inspection and the worker root's close. Git's operation
-/// count covers the checkout workspaces, which cover the worker's slots.
+/// Git's operations, job files (one operation and its potential cancel per job), source inspection
+/// and the worker root's close. Git's operation count covers the checkout workspaces and the worker's slots.
 pub(crate) fn operations(git: &temper_worker_protocol_git::Limits) -> Option<u32> {
-    temper_worker_protocol_git::limits::operations(git)?.checked_add(3)?.checked_add(git.operations)
+    temper_worker_protocol_git::limits::operations(git)?.checked_add(3)?.checked_add(git.operations.checked_mul(2)?)
 }
 
 /// Operations reserved by the process for the configured git component.

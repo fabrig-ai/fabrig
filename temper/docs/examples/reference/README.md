@@ -17,13 +17,13 @@ is not part of this profile. A change's question bound,
 
 ## The merge job's programs
 
-`landing.json` names `.temper/merge` in the repository being merged, so
-that merged tree must contain the executable wrapper and
-`tools/merge/merge.py`, plus each tree's recount script. The wrapper runs
-`python3`; the Python command and its recounts run `git`. Install both on
-each worker under `/usr/local/bin`, `/usr/bin` or `/bin`: a job's fixed
-`PATH` is `/usr/local/bin:/usr/bin:/bin`, independent of the box unit's
-PATH and the runner's path. An interactive shell's Python or git under a
+The repository supplies `.temper/hooks/merge` and `.temper/hooks/close`;
+`landing.json` sets neither job command. The merged tree must contain the
+executable merge hook and `tools/merge/merge.py`, plus each tree's recount
+script. The hook runs `python3`; the Python command and its recounts run
+`git`. Install both on each worker under `/usr/local/bin`, `/usr/bin` or
+`/bin`: a job's fixed `PATH` is `/usr/local/bin:/usr/bin:/bin`, independent
+of the box unit's PATH and the runner's path. An interactive shell's Python or git under a
 user's tool directory alone is insufficient. The job runs from its
 workspace root, its repository under its own name; `request.json` and
 `TEMPER_JOB` are absolute paths when the process runs

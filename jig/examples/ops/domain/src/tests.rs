@@ -173,6 +173,56 @@ fn admission_precedes_a_connectors_change_and_its_outputs_wait_for_the_commit() 
     assert!(!writes.is_empty(), "the retried decision retains its writes");
 }
 
+#[test]
+fn a_resumed_core_load_leaves_once_in_held_order() {
+    use core::engine::{In, store};
+    use jig_domain_notes as notes;
+
+    const PROJECT: u32 = 1;
+    let (mut domain, env) = fixture();
+    let mut full = env.with(env.limits.core);
+    full.limits.load_slots = 0;
+    let mut blocked = Queue::uncapped();
+    core::engine::step(
+        &mut domain.engine,
+        &full,
+        In::Core(core::Event::Notes(notes::Event::DropProject { owner: Token::new(1), project: PROJECT })),
+        &mut blocked,
+    );
+    assert!(blocked.is_empty(), "the notes page waits for load room");
+
+    let mut decision = domain.journal.decide();
+    let mut requests = Queue::uncapped();
+    requests.push(core::Request::Write(core::Write::Erase(core::Key::Notes(notes::Key::Entry { name: 1 }))));
+    requests.push(core::Request::ProjectMade { project: 2 });
+    let resumed = core::resume_fleet(domain.engine.core_mut(), &env.with(env.limits.core));
+    for request in resumed.into_boxed() {
+        requests.push(request);
+    }
+    requests.push(core::Request::ProjectMade { project: 3 });
+    crate::route::core_out(&mut domain, &env, &mut decision, requests, &mut Queue::uncapped());
+    domain.journal.accept(decision);
+
+    let before = take(&mut domain, &env);
+    let [Output::Commit { number, .. }] = before.as_ref() else {
+        panic!("nothing held leaves before the commit is durable");
+    };
+    step(&mut domain, &env, Event::Store(Store::Committed { number: *number, fill: 0 }));
+    let released = take(&mut domain, &env);
+    let [
+        Output::ProjectMade { project: 2 },
+        Output::Store(store::Out::Load {
+            range: store::Range::Notes(notes::Range::Project { project: PROJECT, after: None }),
+            ..
+        }),
+        Output::ProjectMade { project: 3 },
+    ] = released.as_ref()
+    else {
+        panic!("one held load at its place: {released:?}");
+    };
+    assert!(take(&mut domain, &env).is_empty());
+}
+
 fn connector_read(token: Token) -> Event {
     const READ_BYTES: u32 = 128;
     Event::Observability(observability::Event::Read {
@@ -950,5 +1000,57 @@ fn declarations_follow_the_connectors_vocabulary_and_backend() {
         for (declared, (kind, form, recovery)) in infrastructure.effects.iter().zip(expected) {
             assert_eq!(*declared, EffectKind { kind, form, recovery, waits_for_dependencies: true });
         }
+    }
+}
+
+#[test]
+fn declarations_preserve_effect_policy_for_each_backend() {
+    use jig_domain_contract::effects::{EffectForm, EffectKind, Recovery};
+    let (_, env) = fixture();
+    for (backend, restart_recovery) in [
+        (infrastructure::Backend::OperationIds, Recovery::Keyed),
+        (infrastructure::Backend::NoOperationIds, Recovery::Unrecoverable),
+    ] {
+        let [observability, infrastructure] = crate::translate::declarations(backend, &env.limits);
+        assert_eq!(
+            observability.effects.as_ref(),
+            &[EffectKind { kind: 1, form: EffectForm::Set, recovery: Recovery::Keyed, waits_for_dependencies: false }],
+        );
+        assert_eq!(
+            infrastructure.effects.as_ref(),
+            &[
+                EffectKind {
+                    kind: 1,
+                    form: EffectForm::Transition,
+                    recovery: restart_recovery,
+                    waits_for_dependencies: true
+                },
+                EffectKind {
+                    kind: 2,
+                    form: EffectForm::Set,
+                    recovery: Recovery::Conditional,
+                    waits_for_dependencies: true
+                },
+                EffectKind {
+                    kind: 3,
+                    form: EffectForm::Transition,
+                    recovery: Recovery::Conditional,
+                    waits_for_dependencies: true
+                },
+                EffectKind {
+                    kind: 4,
+                    form: EffectForm::Creation,
+                    recovery: Recovery::Keyed,
+                    waits_for_dependencies: true
+                },
+                EffectKind {
+                    kind: 5,
+                    form: EffectForm::Transition,
+                    recovery: Recovery::Conditional,
+                    waits_for_dependencies: true
+                },
+            ],
+            "{backend:?}",
+        );
     }
 }

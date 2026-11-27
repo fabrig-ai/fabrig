@@ -1,0 +1,6 @@
+#!/bin/sh
+# Merge: from the job directory, take merge <request.json> and settle known conflicts.
+# Exit 0 settles all, 3 leaves conflicts for resolution, anything else fails the job.
+# temper/docs/design/protocol/hooks.md, 2; temper/docs/design/protocol/tooling.md, 4.1.
+set -eu
+exec python3 -I -B "$(dirname "$0")/../../tools/merge/merge.py" "$@"

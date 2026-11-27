@@ -1,10 +1,10 @@
 //! Durability before exchanges, and layout-checked restoration (protocol/client/small-store.md, 1).
 use crate::component::Gathered;
-use crate::{Fact, Limits, Link, Message, Record, Request, Saved, translate};
+use crate::{Fact, Limits, Link, Message, Record, Request, translate};
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
-use skein_lib::{List, Map, Queue, Reader, RequestKey, Token, Writer, bytes, length::len_u64};
+use skein_lib::{List, Map, Queue, Reader, RequestKey, RequestRecord, Token, Writer, bytes, length::len_u64};
 #[derive(Debug)]
 struct Held {
     exchange: Token,
@@ -29,7 +29,7 @@ pub(crate) fn valid(limits: &Limits) -> bool {
     w::Keyed::encoded_bound(limits.wire()).is_some()
 }
 
-fn encoded(value: &Saved, limits: &Limits) -> Result<Box<[u8]>, w::Problem> {
+fn encoded(value: &RequestRecord<jig_client_domain::Held>, limits: &Limits) -> Result<Box<[u8]>, w::Problem> {
     let table = translate::store::table(value, limits)?;
     let mut writer = Writer::new(skein_lib::length::usize_of(table.measure(limits.wire())?));
     table.write(limits.wire(), &mut writer).expect("measured table record");
@@ -39,7 +39,11 @@ fn encoded(value: &Saved, limits: &Limits) -> Result<Box<[u8]>, w::Problem> {
     }
     record.encode(limits.wire())
 }
-fn restore(value: w::Kept, storage_key: &[u8], limits: &Limits) -> Result<Saved, w::Problem> {
+fn restore(
+    value: w::Kept,
+    storage_key: &[u8],
+    limits: &Limits,
+) -> Result<RequestRecord<jig_client_domain::Held>, w::Problem> {
     let mut reader = Reader::new(&value.record);
     let record = translate::store::restore_table(w::TableEntry::decode(limits.wire(), &mut reader)?, limits)?;
     if reader.remaining() != 0 || record.key.as_slice() != storage_key {
@@ -184,7 +188,7 @@ impl Link {
         }
     }
 
-    pub(super) fn save(&mut self, record: Saved, out: &mut Queue<Request>) {
+    pub(super) fn save(&mut self, record: RequestRecord<jig_client_domain::Held>, out: &mut Queue<Request>) {
         self.gather(out);
         let key = bytes::copy_of(&record.key);
         match encoded(&record, &self.limits) {

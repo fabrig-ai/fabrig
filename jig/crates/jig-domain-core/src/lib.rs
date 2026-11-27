@@ -47,16 +47,16 @@ use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
-use jig_domain_contract::Declaration;
+use jig_domain_contract::{Declaration, StartProblem};
 pub use jig_domain_core_vocabulary::limits::problems as worker_membership;
 use jig_domain_fleet as fleet;
-use jig_domain_link::Problem;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_domain_views as views;
 use skein_lib::{List, Map, Queue, Wall};
 
+pub(crate) use crate::runs::calls::CallHolder;
 pub use crate::{
     admission::{
         amendments::TaskAmendDenied,
@@ -89,7 +89,6 @@ pub use crate::{
     },
     runs::{
         brief_text::{BriefPart, BriefTextLimits, note_index_text, read_brief_part},
-        calls::PendingCall,
         conversation::{DeliveryOutcome, Settled, SettledAnswer, SettledCall},
         delegation::{
             Delegate, Delegating, Dependency, ProcedureStep, StepAmendment, StepCancel, StepEnd, StepMessage,
@@ -228,7 +227,7 @@ pub struct Core {
     /// Immutable settings for core decisions.
     pub settings: Settings,
     /// Named calls awaiting their routed decision.
-    pub pending_calls: Map<CallKey, PendingCall>,
+    pub(crate) pending_calls: Map<CallKey, CallHolder>,
     /// Durable live named-call decisions, with connector payloads retained by
     /// their owner and represented here only by connector number.
     pub call_parts: Map<CallKey, CallPart>,
@@ -333,8 +332,11 @@ impl Core {
     /// # Errors
     /// Worker membership exceeds its bounds or the connector declarations do not hold.
     #[expect(clippy::too_many_lines, reason = "construct all bounded children, bindings and subject marks together")]
-    pub fn new(mut config: Config, connectors: &[Declaration], limits: &Limits) -> Result<Core, Problem> {
-        let worker_names = limits::problems(&config.defaults.workers, limits)?;
+    pub fn new(mut config: Config, connectors: &[Declaration], limits: &Limits) -> Result<Core, StartProblem> {
+        let worker_names = match limits::problems(&config.defaults.workers, limits) {
+            Ok(names) => names,
+            Err(problem) => return Err(StartProblem::Membership(problem)),
+        };
         assert!(limits.people.words <= limits.tasks.message_bytes, "party words fit one run message");
         assert!(limits.tasks.message_bytes >= 24, "projection refusal news fits one run message");
         assert!(config.settings.tools.valid(), "each engine tool has one configured authority bit");
@@ -460,7 +462,7 @@ impl Core {
             seed_projects: config.seed_projects,
             view_names: skein_lib::Slab::with_capacity(limits.views.watchers),
             changed_views: skein_lib::Set::with_capacity(limits.views.watchers),
-            loads: loads::Loads::new(limits.load_slots.saturating_add(2), limits.tasks.tasks),
+            loads: loads::Loads::new(limits.load_slots.saturating_add(2), limits.load_slots, limits.tasks.tasks),
             part_kinds: config.parts,
             ended_groups: ended_groups::Marks::new(limits.tasks.tasks),
             dependency_results: Map::with_capacity(limits.tasks.tasks),

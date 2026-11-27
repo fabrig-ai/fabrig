@@ -3,9 +3,9 @@ use crate::{CallKey, CallPart, Core, CoreKey, Key, start};
 use alloc::boxed::Box;
 use skein_lib::List;
 
-/// Who can continue a pending named call (domain/engine/executors-tools.md, 1).
+/// The route that continues a pending named call (`jig/docs/design/domain/engine/executors-tools.md`, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum PendingCall {
+pub(crate) enum CallHolder {
     Routed,
     Application,
     DelegateInput,
@@ -71,6 +71,12 @@ impl Core {
         false
     }
 
+    /// Whether a named call holds a pending place.
+    #[must_use]
+    pub fn call_pending(&self, key: CallKey) -> bool {
+        self.pending_calls.contains_key(&key)
+    }
+
     /// Whether a named call can proceed or replay its retained answer.
     /// Pending calls wait; new calls share the configured record bound with
     /// each other alone, never with kept parts (domain/engine/executors-transcripts.md, 1).
@@ -92,7 +98,7 @@ impl Core {
 
     /// Admit a new name, never a replay or a replacement.
     #[must_use]
-    pub(crate) fn reserve_call(&mut self, key: CallKey, owner: PendingCall) -> bool {
+    pub(crate) fn reserve_call(&mut self, key: CallKey, owner: CallHolder) -> bool {
         if !self.new_call_room(key) {
             return false;
         }
@@ -100,14 +106,14 @@ impl Core {
         true
     }
 
-    fn record_pending_call(&mut self, key: CallKey, owner: PendingCall) {
+    fn record_pending_call(&mut self, key: CallKey, owner: CallHolder) {
         assert!(self.new_call_room(key), "named call {key:?} must be new with room to go pending");
         let prior = self.pending_calls.insert(key, owner);
         assert!(prior == Ok(None), "named call {key:?} takes its pending place once");
     }
 
     /// Continue the same place, without readmitting the name (executors-tools.md, 1).
-    pub(crate) fn handoff_call(&mut self, key: CallKey, from: PendingCall, to: PendingCall) {
+    pub(crate) fn handoff_call(&mut self, key: CallKey, from: CallHolder, to: CallHolder) {
         let Some(owner) = self.pending_calls.get_mut(&key) else {
             unreachable!("named call {key:?} holds a pending place for handoff from {from:?}")
         };

@@ -308,10 +308,77 @@ fn refused(command: bool, kind: bool, control: bool, words: &[u8]) {
     world.close();
 }
 
-/// temper/docs/design/domain/forge/updates.md, 1: a catch-up requires the project's `merge_job`.
+// temper/docs/design/domain/forge/updates.md, 1 and protocol/hooks.md, 4.2.
 #[test]
-fn a_catch_up_is_refused_without_a_merge_job() {
-    refused(false, true, true, b"change's merge: the project names no merge_job.");
+fn a_catch_up_finds_the_command_at_its_tip_and_rereads_only_after_it_moves() {
+    use skein_forge::api::Read;
+    use temper_protocol_worker_wire::v1::{self, Record};
+    let (mut world, goal, branch, head) = goal_world(false, true, true);
+    world.forge_reads = Some(Vec::new());
+    let count =
+        |world: &World, at: u64| {
+            world.forge_reads.as_ref().unwrap().iter().filter(|(_, ask)| matches!(ask,
+            Read::File { head, path, .. } if *head == translate::commit(at) && path.as_ref() == b".temper/hooks"
+        )).count()
+        };
+    let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", MAIN_PATH, MAIN_WORK, 1)
+        .expect("main advanced");
+    let task = catch_up(&mut world, &goal, base);
+    let tip_text = forge_top::commit_text(&translate::commit(head));
+    let expected = [
+        b"change's merge: no merge command at ".as_slice(),
+        &tip_text,
+        b": no `.temper/hooks/`, and the project names no `merge_job`",
+    ]
+    .concat();
+    let mut revision = 0;
+    for attempt in 0..2 {
+        for _ in 0..STEPS {
+            let record = live_task(&world, task);
+            if record.revisions.hold > revision && matches!(record.phase, tasks::Phase::Held { .. }) {
+                break;
+            }
+            world.tick();
+        }
+        let record = live_task(&world, task);
+        assert!(record.revisions.hold > revision);
+        super::goal_closer::assert_hold_words(&world, task, core::str::from_utf8(&expected).expect("account text"));
+        assert_eq!(count(&world, head), 1);
+        assert_eq!(world.jobs.len(), 0);
+        revision = record.revisions.hold;
+        if attempt == 0 {
+            let answer = world.scripted_call_at(
+                &goal,
+                95,
+                engine::Call {
+                    completion: 1,
+                    position: 2,
+                    tool: engine::Tool::Release { target: task, revision, again: None },
+                },
+            );
+            assert!(matches!(answer, engine::CallAnswer::Revised { .. }), "{answer:?}");
+        }
+    }
+    let advanced =
+        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b".temper/hooks/merge", b"hook", 1)
+            .expect("goal branch advanced");
+    let answer = world.scripted_call_at(
+        &goal,
+        96,
+        engine::Call {
+            completion: 1,
+            position: 3,
+            tool: engine::Tool::Release { target: task, revision, again: None },
+        },
+    );
+    assert!(matches!(answer, engine::CallAnswer::Revised { .. }), "{answer:?}");
+    let job = next_job(&mut world, task);
+    check_job(&world, task, &job, &branch, advanced, base);
+    let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("merge job spec");
+    assert_eq!(spec.command.as_ref(), b"repo/.temper/hooks/merge");
+    assert_eq!(count(&world, head), 1);
+    assert_eq!(count(&world, advanced), 1);
+    world.close();
 }
 
 /// temper/docs/design/domain/forge/updates.md, 1: a catch-up requires delegation to Job(3).

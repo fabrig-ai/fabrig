@@ -1,4 +1,7 @@
 //! The service's job operations (temper/docs/design/protocol/tooling.md, 2).
+#[path = "worker_jobs/hooks.rs"]
+mod hooks;
+
 use super::Worker;
 use crate::tests::fixtures;
 use io::kernel::{self, Done, Op};

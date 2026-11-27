@@ -1,5 +1,5 @@
 //! Admission while the engine drains (domain/engine/restart.md, 5).
-use crate::{CallKey, Core, Event, Held, Limits, Now, PendingCall, Request, effects::projections, routing};
+use crate::{CallHolder, CallKey, Core, Event, Held, Limits, Now, Request, effects::projections, routing};
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
@@ -125,7 +125,7 @@ fn call(to: ReplyTo) -> Queue<Request> {
 }
 
 fn continued_call(core: &mut Core, to: ReplyTo, key: CallKey) -> Queue<Request> {
-    if core.pending_calls.get(&key) == Some(&PendingCall::Application) {
+    if core.pending_calls.get(&key) == Some(&CallHolder::Application) {
         core.release_pending_call(key);
     }
     call(to)

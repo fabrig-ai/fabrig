@@ -123,6 +123,14 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
                 &mut service.machine_below,
             );
         }
+        domain::Request::Lower(smith_domain::Lower::ProbeHooks { owner, at, deadline }) => {
+            service.machine.from_domain(
+                &service.machine_env,
+                machine::FromDomain::ProbeHooks { owner, at, deadline },
+                &mut service.machine_events,
+                &mut service.machine_below,
+            );
+        }
         domain::Request::Lower(smith_domain::Lower::Check { owner, program, results, bound, cap, tail }) => {
             service.machine.from_domain(
                 &service.machine_env,

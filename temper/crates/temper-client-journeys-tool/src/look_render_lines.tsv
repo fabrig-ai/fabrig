@@ -1,0 +1,180 @@
+a_dom_not_following_start_tags_is_not_compared	uncompared	web/journeys/sign-in/02.html	its markup doesn't parse as written
+a_dom_not_following_start_tags_is_not_compared	result	not compared
+a_gallery_drawing_with_no_paired_selection_is_uncompared	uncompared	web/journeys/usage-model-week/accounts-after.html	nothing printed beside it
+a_gallery_drawing_with_no_paired_selection_is_uncompared	result	not compared
+a_locally_held_request_is_render_checked_without_fetching	result	nothing to render
+a_page_missing_from_the_print_is_not_compared	uncompared	web/journeys/sign-in/02.html	nothing printed beside it
+a_page_missing_from_the_print_is_not_compared	result	not compared
+a_page_trouble_is_reported_without_judging_the_page	result	nothing to render
+a_readme_must_name_one_distinct_valid_gallery_state	uncompared	web/journeys/usage-model-week/accounts-after.html	hand-made
+a_readme_must_name_one_distinct_valid_gallery_state	result	not compared
+a_readme_must_name_one_distinct_valid_gallery_state	uncompared	web/journeys/usage-model-week/accounts-after.html	hand-made
+a_readme_must_name_one_distinct_valid_gallery_state	result	not compared
+a_readme_must_name_one_distinct_valid_gallery_state	uncompared	web/journeys/usage-model-week/accounts-after.html	hand-made
+a_readme_must_name_one_distinct_valid_gallery_state	result	not compared
+a_selector_refused_by_chromium_selects_no_element	result	nothing to render
+a_shorthand_can_set_longhands_with_different_prefixes	differs	web/journeys/usage-model-week/accounts-after.html	1440	2 span.temper-usage-name	row-gap	2px	1px
+a_shorthand_can_set_longhands_with_different_prefixes	differs	web/journeys/usage-model-week/accounts-after.html	1440	2 span.temper-usage-name	scroll-margin-top	2px	1px
+a_shorthand_can_set_longhands_with_different_prefixes	differs	web/journeys/usage-model-week/accounts-after.html	1440	2 span.temper-usage-name	top	2px	1px
+a_shorthand_can_set_longhands_with_different_prefixes	differs	web/journeys/usage-model-week/accounts-after.html	1000	2 span.temper-usage-name	row-gap	2px	1px
+a_shorthand_can_set_longhands_with_different_prefixes	differs	web/journeys/usage-model-week/accounts-after.html	1000	2 span.temper-usage-name	scroll-margin-top	2px	1px
+a_shorthand_can_set_longhands_with_different_prefixes	differs	web/journeys/usage-model-week/accounts-after.html	1000	2 span.temper-usage-name	top	2px	1px
+a_shorthand_can_set_longhands_with_different_prefixes	differs	web/journeys/usage-model-week/accounts-after.html	420	2 span.temper-usage-name	row-gap	2px	1px
+a_shorthand_can_set_longhands_with_different_prefixes	differs	web/journeys/usage-model-week/accounts-after.html	420	2 span.temper-usage-name	scroll-margin-top	2px	1px
+a_shorthand_can_set_longhands_with_different_prefixes	differs	web/journeys/usage-model-week/accounts-after.html	420	2 span.temper-usage-name	top	2px	1px
+a_shorthand_can_set_longhands_with_different_prefixes	result	differs
+a_state_missing_from_the_gallery_is_not_compared	uncompared	web/journeys/usage-model-week/accounts-after.html	nothing printed beside it
+a_state_missing_from_the_gallery_is_not_compared	result	not compared
+a_touched_tag_with_no_pair_reports_one_difference	differs	web/journeys/sign-in/02.html	-	41 button.temper-chip	pair	present	none
+a_touched_tag_with_no_pair_reports_one_difference	result	differs
+a_truncated_print_dom_is_too_large_to_compare	uncompared	web/journeys/sign-in/02.html	too large to compare, over 4096 elements
+a_truncated_print_dom_is_too_large_to_compare	result	not compared
+a_truncated_request_dom_is_too_large_to_compare	uncompared	web/journeys/sign-in/02.html	too large to compare, over 4096 elements
+a_truncated_request_dom_is_too_large_to_compare	result	not compared
+a_tui_hand_made_page_cannot_name_a_gallery_state	uncompared	tui/journeys/usage-model-week/accounts-after.html	hand-made
+a_tui_hand_made_page_cannot_name_a_gallery_state	result	not compared
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	identical	web/journeys/usage-model-week/accounts-after.html
+an_inserted_inline_tag_is_skipped_without_disturbing_pairs	result	identical
+an_untouched_gallery_drawing_has_no_page_verdict	result	nothing to render
+box_coordinates_one_pixel_apart_are_equal	identical	web/journeys/sign-in/02.html
+box_coordinates_one_pixel_apart_are_equal	result	identical
+box_coordinates_two_pixels_apart_or_absent_differ	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	box	-5,20 80x30	-7,20 80x30
+box_coordinates_two_pixels_apart_or_absent_differ	result	differs
+box_coordinates_two_pixels_apart_or_absent_differ	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	box	-5,20 80x30	-5,22 80x30
+box_coordinates_two_pixels_apart_or_absent_differ	result	differs
+box_coordinates_two_pixels_apart_or_absent_differ	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	box	-5,20 80x30	-5,20 78x30
+box_coordinates_two_pixels_apart_or_absent_differ	result	differs
+box_coordinates_two_pixels_apart_or_absent_differ	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	box	-5,20 80x30	-5,20 80x32
+box_coordinates_two_pixels_apart_or_absent_differ	result	differs
+box_coordinates_two_pixels_apart_or_absent_differ	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	box	-5,20 80x30	none
+box_coordinates_two_pixels_apart_or_absent_differ	result	differs
+box_difference_replaces_all_six_dependent_style_differences	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	box	-5,20 80x30	-5,20 81x50
+box_difference_replaces_all_six_dependent_style_differences	differs	web/journeys/sign-in/02.html	1000	41 button.temper-chip	box	-5,20 80x30	-5,20 81x50
+box_difference_replaces_all_six_dependent_style_differences	differs	web/journeys/sign-in/02.html	420	41 button.temper-chip	box	-5,20 80x30	-5,20 81x50
+box_difference_replaces_all_six_dependent_style_differences	result	differs
+changed_and_removed_rules_carry_their_parents_declared_names	differs	web/journeys/usage-model-week/accounts-after.html	1440	2 span.temper-usage-name	--temper-name-width	48px	40px
+changed_and_removed_rules_carry_their_parents_declared_names	differs	web/journeys/usage-model-week/accounts-after.html	1440	2 span.temper-usage-name	color	rgb(1, 2, 3)	rgb(4, 5, 6)
+changed_and_removed_rules_carry_their_parents_declared_names	differs	web/journeys/usage-model-week/accounts-after.html	1440	2 span.temper-usage-name	min-width	2px	0px
+changed_and_removed_rules_carry_their_parents_declared_names	differs	web/journeys/usage-model-week/accounts-after.html	1000	2 span.temper-usage-name	--temper-name-width	48px	40px
+changed_and_removed_rules_carry_their_parents_declared_names	differs	web/journeys/usage-model-week/accounts-after.html	1000	2 span.temper-usage-name	color	rgb(1, 2, 3)	rgb(4, 5, 6)
+changed_and_removed_rules_carry_their_parents_declared_names	differs	web/journeys/usage-model-week/accounts-after.html	1000	2 span.temper-usage-name	min-width	2px	0px
+changed_and_removed_rules_carry_their_parents_declared_names	differs	web/journeys/usage-model-week/accounts-after.html	420	2 span.temper-usage-name	--temper-name-width	48px	40px
+changed_and_removed_rules_carry_their_parents_declared_names	differs	web/journeys/usage-model-week/accounts-after.html	420	2 span.temper-usage-name	color	rgb(1, 2, 3)	rgb(4, 5, 6)
+changed_and_removed_rules_carry_their_parents_declared_names	differs	web/journeys/usage-model-week/accounts-after.html	420	2 span.temper-usage-name	min-width	2px	0px
+changed_and_removed_rules_carry_their_parents_declared_names	result	differs
+computed_color_differences_are_listed_widest_first	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	color	rgb(1, 2, 3)	rgb(4, 5, 6)
+computed_color_differences_are_listed_widest_first	differs	web/journeys/sign-in/02.html	1000	41 button.temper-chip	color	rgb(1, 2, 3)	rgb(4, 5, 6)
+computed_color_differences_are_listed_widest_first	differs	web/journeys/sign-in/02.html	420	41 button.temper-chip	color	rgb(1, 2, 3)	rgb(4, 5, 6)
+computed_color_differences_are_listed_widest_first	result	differs
+copies_open_real_disclosures_and_leave_every_other_byte	result	nothing to render
+differing_custom_properties_do_not_count_as_differences	identical	web/journeys/sign-in/02.html
+differing_custom_properties_do_not_count_as_differences	result	identical
+edits_to_lines_with_no_start_tag_touch_nothing	result	nothing to render
+equal_views_have_one_identical_line_for_the_page	identical	web/journeys/sign-in/02.html
+equal_views_have_one_identical_line_for_the_page	result	identical
+field_values_escape_backslash_tab_and_line_endings	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	content	x\ty\\z\r\n	print
+field_values_escape_backslash_tab_and_line_endings	result	differs
+gallery_compares_only_selected_elements_and_their_declared_style	differs	web/journeys/usage-model-week/accounts-after.html	1440	2 span.temper-usage-name	padding-left	2px	1px
+gallery_compares_only_selected_elements_and_their_declared_style	differs	web/journeys/usage-model-week/accounts-after.html	1440	2 span.temper-usage-name	width	48px	40px
+gallery_compares_only_selected_elements_and_their_declared_style	differs	web/journeys/usage-model-week/accounts-after.html	1000	2 span.temper-usage-name	padding-left	2px	1px
+gallery_compares_only_selected_elements_and_their_declared_style	differs	web/journeys/usage-model-week/accounts-after.html	1000	2 span.temper-usage-name	width	48px	40px
+gallery_compares_only_selected_elements_and_their_declared_style	differs	web/journeys/usage-model-week/accounts-after.html	420	2 span.temper-usage-name	padding-left	2px	1px
+gallery_compares_only_selected_elements_and_their_declared_style	differs	web/journeys/usage-model-week/accounts-after.html	420	2 span.temper-usage-name	width	48px	40px
+gallery_compares_only_selected_elements_and_their_declared_style	result	differs
+hand_made_pages_receive_a_row_without_rendering	uncompared	web/journeys/not-a-walk/index.html	hand-made
+hand_made_pages_receive_a_row_without_rendering	result	not compared
+naming_a_state_without_request_pages_never_prints_it	uncompared	web/journeys/usage-model-week/accounts-after.html	not the requested look
+naming_a_state_without_request_pages_never_prints_it	uncompared	web/journeys/usage-model-week/accounts-before.html	not the requested look
+naming_a_state_without_request_pages_never_prints_it	result	not compared
+naming_a_state_without_request_pages_never_prints_it	uncompared	web/journeys/usage-model-week/accounts-after.html	not the requested look
+naming_a_state_without_request_pages_never_prints_it	uncompared	web/journeys/usage-model-week/accounts-before.html	not the requested look
+naming_a_state_without_request_pages_never_prints_it	result	not compared
+naming_a_state_without_request_pages_never_prints_it	uncompared	web/journeys/usage-model-week/accounts-after.html	not the requested look
+naming_a_state_without_request_pages_never_prints_it	uncompared	web/journeys/usage-model-week/accounts-before.html	not the requested look
+naming_a_state_without_request_pages_never_prints_it	result	not compared
+naming_a_state_without_request_pages_never_prints_it	uncompared	web/journeys/usage-model-week/accounts-after.html	not the requested look
+naming_a_state_without_request_pages_never_prints_it	uncompared	web/journeys/usage-model-week/accounts-before.html	not the requested look
+naming_a_state_without_request_pages_never_prints_it	result	not compared
+naming_a_state_without_request_pages_never_prints_it	uncompared	web/journeys/usage-model-week/accounts-after.html	not the requested look
+naming_a_state_without_request_pages_never_prints_it	uncompared	web/journeys/usage-model-week/accounts-before.html	not the requested look
+naming_a_state_without_request_pages_never_prints_it	result	not compared
+naming_a_state_without_request_pages_never_prints_it	uncompared	web/journeys/usage-model-week/accounts-after.html	not the requested look
+naming_a_state_without_request_pages_never_prints_it	uncompared	web/journeys/usage-model-week/accounts-before.html	not the requested look
+naming_a_state_without_request_pages_never_prints_it	result	not compared
+naming_a_state_without_request_pages_never_prints_it	uncompared	web/journeys/usage-model-week/accounts-after.html	not the requested look
+naming_a_state_without_request_pages_never_prints_it	uncompared	web/journeys/usage-model-week/accounts-before.html	not the requested look
+naming_a_state_without_request_pages_never_prints_it	result	not compared
+only_the_named_request_is_compared_with_the_opened_state	identical	web/journeys/usage-model-week/accounts-after.html
+only_the_named_request_is_compared_with_the_opened_state	uncompared	web/journeys/usage-model-week/accounts-before.html	not the requested look
+only_the_named_request_is_compared_with_the_opened_state	result	identical
+overlay_selectors_drop_user_states_and_pseudo_elements	identical	web/journeys/sign-in/02.html
+overlay_selectors_drop_user_states_and_pseudo_elements	result	identical
+overlay_selectors_drop_user_states_and_pseudo_elements	identical	web/journeys/sign-in/02.html
+overlay_selectors_drop_user_states_and_pseudo_elements	result	identical
+overlay_selectors_drop_user_states_and_pseudo_elements	identical	web/journeys/sign-in/02.html
+overlay_selectors_drop_user_states_and_pseudo_elements	result	identical
+overlay_selectors_drop_user_states_and_pseudo_elements	identical	web/journeys/sign-in/02.html
+overlay_selectors_drop_user_states_and_pseudo_elements	result	identical
+overlay_selectors_drop_user_states_and_pseudo_elements	identical	web/journeys/sign-in/02.html
+overlay_selectors_drop_user_states_and_pseudo_elements	result	identical
+overlay_selectors_drop_user_states_and_pseudo_elements	identical	web/journeys/sign-in/02.html
+overlay_selectors_drop_user_states_and_pseudo_elements	result	identical
+overlay_selectors_drop_user_states_and_pseudo_elements	identical	web/journeys/sign-in/02.html
+overlay_selectors_drop_user_states_and_pseudo_elements	result	identical
+overlay_selectors_drop_user_states_and_pseudo_elements	identical	web/journeys/sign-in/02.html
+overlay_selectors_drop_user_states_and_pseudo_elements	result	identical
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-00	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-01	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-02	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-03	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-04	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-05	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-06	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-07	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-08	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-09	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-10	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-11	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-12	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-13	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-14	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-15	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-16	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-17	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-18	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-19	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-20	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-21	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-22	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-23	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-24	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-25	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-26	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-27	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-28	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-29	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-30	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-31	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-32	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-33	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-34	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-35	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-36	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-37	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-38	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-39	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-40	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-41	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-42	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-43	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-44	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-45	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-46	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-47	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-48	left	right
+reports_list_fifty_differences_then_count_the_rest	differs	web/journeys/sign-in/02.html	1440	41 button.temper-chip	property-49	left	right
+reports_list_fifty_differences_then_count_the_rest	more	web/journeys/sign-in/02.html	2
+reports_list_fifty_differences_then_count_the_rest	result	differs
+two_drawings_share_one_gallery_print_and_state_page	identical	web/journeys/usage-model-week/accounts-after.html
+two_drawings_share_one_gallery_print_and_state_page	identical	web/journeys/usage-model-week/accounts-before.html
+two_drawings_share_one_gallery_print_and_state_page	result	identical

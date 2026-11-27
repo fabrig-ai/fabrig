@@ -118,8 +118,10 @@ fn make_change(
             resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
         },
         tasks::Parameter::Bytes { name: 2, value: branch.into() },
-        tasks::Parameter::Bytes { name: 17, value: request.into() },
     ];
+    if !request.is_empty() {
+        parameters.push(tasks::Parameter::Bytes { name: 17, value: request.into() });
+    }
     if let Some(extra) = extra {
         parameters.push(extra);
     }
@@ -345,6 +347,36 @@ fn a_malformed_close_request_refuses_the_start() {
         (REQUEST, Some(tasks::Parameter::Bytes { name: 3, value: b"temper/handed".as_slice().into() })),
     ] {
         refused(true, true, request, extra, b"malformed close request parameter 17.");
+    }
+}
+
+#[test]
+fn a_close_change_checks_and_uses_its_hook_parameter_without_a_setting() {
+    use temper_protocol_worker_wire::v1::{self, Record};
+    let (mut world, goal, branch, _) = goal_world(false, true);
+    let parameter = tasks::Parameter::Bytes { name: 20, value: forge_top::CLOSE_HOOK.into() };
+    let task = make_change(&mut world, &goal, &branch, REQUEST, Some(parameter));
+    let job = next_job(&mut world, task);
+    let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("close job spec");
+    assert_eq!(spec.command.as_ref(), b"repo/.temper/hooks/close");
+    world.close();
+
+    let long = vec![b'x'; 4097];
+    for (request, path) in [
+        (REQUEST, b"".as_slice()),
+        (REQUEST, b"/close".as_slice()),
+        (REQUEST, b"hooks/../close".as_slice()),
+        (REQUEST, b"close\0more".as_slice()),
+        (REQUEST, long.as_slice()),
+        (b"".as_slice(), forge_top::CLOSE_HOOK),
+    ] {
+        refused(
+            true,
+            true,
+            request,
+            Some(tasks::Parameter::Bytes { name: 20, value: path.into() }),
+            b"malformed close hook parameter 20.",
+        );
     }
 }
 

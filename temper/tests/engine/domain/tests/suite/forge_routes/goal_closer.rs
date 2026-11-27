@@ -486,6 +486,7 @@ fn a_closer_closes_lands_and_reports() {
             title: b"Cancelled".as_slice().into(),
             why: closer::Why::Cancelled,
         }]),
+        goal_asked: None,
         goal_left: None,
         landing: closer::Landing::Landed {
             pull: row(&world, landing).pull.expect("landing pull"),
@@ -550,6 +551,87 @@ fn a_closer_does_not_take_party_words() {
     let closer = make_closer(&mut world, &goal, CLOSE_CALL);
     let _running = close_job(&mut world);
     super::party_words::not_offered(&mut world, closer);
+}
+
+// temper/docs/design/protocol/hooks.md, 4.2 and 5.
+#[test]
+fn a_closer_uses_only_the_hooks_found_at_the_goal_tip() {
+    use skein_forge::api::{Answer, Entry, EntryKind, Read};
+    use temper_protocol_worker_wire::v1::{self, Record};
+    for (names, truncated, command, hook) in [
+        (&[b"close".as_slice(), b"deliver"][..], false, Some(b"repo/.temper/hooks/close".as_slice()), true),
+        (&[b"deliver".as_slice(), b"merge"][..], false, None, false),
+        (&[b"deliver".as_slice()][..], true, Some(b"repo/.temper/hooks/close".as_slice()), true),
+        (&[][..], false, Some(b"repo/.temper/close".as_slice()), false),
+    ] {
+        let (mut world, goal, branch) = goal_world(true, true);
+        add_change(&mut world, &goal, &branch, 93, b"First", b"done");
+        let head = translate::commit(branch_tip(&mut world, &branch));
+        let path = b".temper/hooks".as_slice();
+        let read = Read::File { head, path: path.into(), max_bytes: world.env.limits.forge.client.answer_bytes };
+        let answer = if names.is_empty() {
+            Answer::File { head, path: path.into(), bytes: b"not a directory".as_slice().into(), truncated: false }
+        } else {
+            let entries = names.iter().map(|name| Entry { name: (*name).into(), kind: EntryKind::File }).collect();
+            Answer::Directory { head, path: path.into(), entries, truncated }
+        };
+        world.scripted_forge_reads.push((read.clone(), Ok(answer)));
+        world.forge_reads = Some(Vec::new());
+        let closer = make_closer(&mut world, &goal, 94);
+        if let Some(command) = command {
+            let job = close_job(&mut world);
+            let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
+            assert_eq!(
+                live_task(&world, close)
+                    .spec
+                    .parameters
+                    .iter()
+                    .find(|parameter| matches!(parameter, tasks::Parameter::Bytes { name: 20, .. })),
+                hook.then(|| tasks::Parameter::Bytes { name: 20, value: forge_top::CLOSE_HOOK.into() }).as_ref(),
+            );
+            let spec =
+                v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("close job spec");
+            assert_eq!(spec.command.as_ref(), command);
+        } else {
+            wait_landing(&mut world, closer);
+            assert!(closer_row(&world, closer).expect("closer row").close_changes.is_empty());
+            assert_eq!(world.jobs.len(), 0);
+        }
+        assert_eq!(world.forge_reads.as_ref().unwrap().iter().filter(|(_, asked)| *asked == read).count(), 1);
+        world.close();
+    }
+}
+
+#[test]
+fn a_closer_retries_a_failed_hook_read_before_skipping_or_making_a_close() {
+    use skein_forge::api::{Error, Read};
+    let (mut world, goal, branch) = goal_world(true, true);
+    add_change(&mut world, &goal, &branch, 93, b"First", b"done");
+    let head = translate::commit(branch_tip(&mut world, &branch));
+    let read = Read::File {
+        head,
+        path: b".temper/hooks".as_slice().into(),
+        max_bytes: world.env.limits.forge.client.answer_bytes,
+    };
+    world.scripted_forge_reads.push((read.clone(), Err(Error::Refused)));
+    world.scripted_forge_attempts = Some(Vec::new());
+    world.forge_reads = Some(Vec::new());
+    let closer = make_closer(&mut world, &goal, 94);
+    for _ in 0..STEPS {
+        if !world.scripted_forge_attempts.as_ref().unwrap().is_empty() {
+            break;
+        }
+        world.tick();
+    }
+    world.advance_ticks(2);
+    assert_eq!(world.scripted_forge_attempts.as_ref().unwrap().len(), 1);
+    let row = closer_row(&world, closer).expect("closer waiting");
+    assert!(row.close_changes.is_empty() && row.landing_changes.is_empty());
+    assert_eq!(world.jobs.len(), 0);
+    world.scripted_forge_reads.clear(); // now missing, so the project's legacy close must run
+    close_job(&mut world);
+    assert_eq!(world.forge_reads.as_ref().unwrap().iter().filter(|(_, asked)| *asked == read).count(), 2);
+    world.close();
 }
 
 #[test]

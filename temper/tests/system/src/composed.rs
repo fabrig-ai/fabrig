@@ -66,6 +66,7 @@ mod process;
 pub mod provider;
 pub mod restarts;
 mod review;
+pub mod stretches;
 mod two_workers;
 mod walk;
 pub mod workload;
@@ -108,6 +109,8 @@ fn task_rows(store: &Store) -> impl Iterator<Item = &tasks::TaskRecord> {
 pub struct Observed {
     /// Provider-decoded wire queries, with the task and composed clock.
     pub queries: Vec<(u64, Time, skein_fake_llm_domain::api::Query)>,
+    /// Transcript checks of opted-in drawn rounds, typed or wire.
+    pub stretches: stretches::Audit,
     /// Limit notices Smith emitted after interpreting the provider's response.
     pub limits: Vec<(u32, Option<Duration>)>,
     pub assignments: usize,
@@ -1040,6 +1043,8 @@ impl World {
             tasks::EndedBy::Requester => people::EndedBy::Requester,
             tasks::EndedBy::Standing => people::EndedBy::Standing,
             tasks::EndedBy::Closer(closer) => {
+                batch[0].flags.conversation = false;
+                batch[0].label = 2;
                 people::EndedBy::Closer(people::Closer { connector: closer.connector, code: closer.code })
             }
         };

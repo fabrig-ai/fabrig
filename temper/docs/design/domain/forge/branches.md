@@ -243,11 +243,20 @@ comes and lands its branch, and the report carries what the run said
   task's number as a change's is, and restored with it (`effects.md`, section 2).
 - **Its steps, in order,** each a change of its own, made as its
   delegate and waited for:
-  1. **Close,** where the goal holds a goal branch and its project names
-     a `close_job` (`../../protocol/configuration/engine.md`): a change
+  1. **Close,** where the goal holds a goal branch whose tip has a close
+     command: its `.temper/hooks/close`, or, where the tip holds no
+     `.temper/hooks/`, its project's `close_job`
+     (`../../protocol/hooks.md`, 4.2 and 5;
+     `../../protocol/configuration/engine.md`). Once nothing is pending
+     and the goal's landed changes have not been closed, the closer reads
+     `.temper/hooks/` at the goal's branch's tip, its tip read first; a
+     read with no answer leaves the closer waiting, and it reads again,
+     never skipping the step for it. The step is a change
      into the goal's branch whose producer is the close job, kind 4
      (`../worker/jobs.md`), as a catch-up's is the merge job: its bytes
      parameter 17 the close request (`../../protocol/tooling.md`, 4.2),
+     and, where the closer found the hook, its bytes parameter 20 the
+     hook's path (`change/README.md`, 1),
      naming the goal and each change of the goal's tree whose landing
      branch is the goal's branch, with how each ended, the closer's own
      changes left out; its words `Settle goal G's status.` The change
@@ -255,8 +264,10 @@ comes and lands its branch, and the report carries what the run said
      no agent, and lands as any change into the branch does; nothing
      staged ends it with no change. A refusal of the close's check holds
      it at once, and a check that broke holds it once its job's tries are
-     spent (`change/repairs-releases.md`, 1). Where the project names none, or the
-     goal holds no goal branch, this step is skipped.
+     spent (`change/repairs-releases.md`, 1). Where the tip has no close
+     command, or the goal holds no goal branch, this step is skipped. A
+     close step superseded by more landed changes reads again for its
+     new change.
   2. **Land,** where the goal holds a goal branch whose tip its base
      does not hold: the goal's landing, a change on the goal's held
      branch into its base, as the goal's `"branch": "mine"` would make
@@ -291,7 +302,9 @@ comes and lands its branch, and the report carries what the run said
     each as the client takes them (`../agent/agents.md`, 3): the last
     line whose start, past spaces, is `Left: `, its words past that,
     trimmed. No such note, or none with a `Left:` line, passes, so a
-    charter that asks for no report meets no check. A read that fails
+    charter that asks for no report meets no check. The same read takes
+    the note's `Asked:` block (`../agent/agents.md`, 3, *What its request
+    asked for in its result*), for the report alone: it holds nothing. A read that fails
     is made again after a wait, as an unknown containment is (below).
   - *Held:* a `Left:` line no release has passed holds the closer,
     before it makes any step, its words `the goal's report leaves work
@@ -307,7 +320,8 @@ comes and lands its branch, and the report carries what the run said
     life; it still reads the line before each step new work makes, for
     its report. One release, final, keeps the goal's word its own and
     the closer out of a loop over wording.
-  - *On its row:* the line it last read, none where it read none, and
+  - *On its row:* the line and the `Asked:` block it last read, each
+    none where it read none, and
     where its check stands, unread, held or released, so that a restart
     neither holds again past a release nor loses what its report
     names. They are added fields of the closer's row in `temper-store`,
@@ -579,6 +593,8 @@ Landed:
   LINE
 Ended without landing:
 - TN TITLE: WHY
+Asked: WORDS
+  LINE
 Left by the goal: WORDS
 The landing: pull request #P, merged into BASE as COMMIT; repairs TN, TN; resolutions TN.
 CI selection:
@@ -604,6 +620,12 @@ The goal's finish:
   closer's own left out, ascending: why, `cancelled`,
   `failed: ` then its failure's first line, or `no change: ` then its
   result's first line. The part is left out where none did.
+- **What the goal's request asked for in its result:** the `Asked:`
+  block its report last read (*What its goal's report leaves holds it
+  first*, above): its first line from `Asked: `, then each later line
+  as written, indented two spaces, as a change's `Left` section's are.
+  The part is left out where it read none, so a goal whose report
+  answers nothing reports as it would without the part.
 - **What the goal left:** the `Left:` line its report last read
   (*What its goal's report leaves holds it first*, above), its words
   whole, on one line; left out where it read none.
@@ -636,10 +658,11 @@ The goal's finish:
 - **Cut to the contract's bound** as any report is: where the whole
   passes the contract's words bound, the changes' `Left` sections are
   cut first, from the last change's back, each cut one replaced by `  Left: [N
-  bytes cut]`, the goal's own line never among them; then, if it still passes, the report keeps its first
+  bytes cut]`, the goal's own line and its `Asked:` block never among them; then, if it still passes, the report keeps its first
   bytes that fit, at a UTF-8 boundary, and ends with `[N bytes cut]`,
   N what it dropped, so that the goal's finish, the last part, loses
-  its end first.
+  its end first, and the `Asked:` block, behind only the heading and
+  the changes, loses its end only once every part after it is gone.
 
 ## 3. A goal's design writers
 

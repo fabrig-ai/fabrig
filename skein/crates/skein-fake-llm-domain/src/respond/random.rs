@@ -5,31 +5,35 @@ use alloc::boxed::Box;
 use skein_lib::{List, Rng, len_u64, usize_of};
 
 use crate::api::{Error, Menu, Part, Query, Source};
-use crate::domain::Config;
 use crate::draws::SlotCapture;
 use crate::slots::Candidates;
-use crate::{limits, slots};
+use crate::{limits, slots, stretches};
 
-use super::{allowed, call_id, tool_count};
+use super::{allowed, call_id};
 
+#[derive(Clone, Copy)]
 pub(super) struct Batch {
     pub(super) count: u32,
     pub(super) outside: bool,
+    pub(super) eligible: u64,
+    pub(super) malformed: u32,
+    pub(super) bytes: u32,
 }
 
 pub(super) fn batch(
     rng: &mut Rng,
     minted: &mut u64,
-    config: &Config,
     menu: &Menu,
     query: &Query,
-    Batch { count, outside }: Batch,
+    tools: &[Box<[u8]>],
+    batch: Batch,
     capture: &mut SlotCapture,
 ) -> Result<List<Part>, Error> {
+    let count = batch.count;
     let mut calls = List::with_capacity(count);
     if menu.slots.is_empty() {
         for _ in 0..count {
-            let call = draw(rng, minted, config, menu, query, outside)?;
+            let call = draw(rng, minted, menu, query, tools, batch)?;
             let part = call.part(menu, query, call.body(menu).into());
             calls.push(part).expect("room for each call");
         }
@@ -41,7 +45,7 @@ pub(super) fn batch(
     let mut planned = List::with_capacity(count);
     let mut drawn_size = Some(0_u64);
     for _ in 0..count {
-        let call = draw(rng, minted, config, menu, query, outside)?;
+        let call = draw(rng, minted, menu, query, tools, batch)?;
         let mut picks = slots::UNISSUED;
         let mut used = [false; slots::SLOTS];
         let body = call.body(menu);
@@ -54,7 +58,7 @@ pub(super) fn batch(
                         candidates = Some(Candidates::scan(query, &menu.slots));
                     }
                     let scanned = candidates.as_ref().expect("scanned slots");
-                    picks = scanned.draw(rng, &menu.slots, used);
+                    picks = scanned.draw(rng, query, &menu.slots, used);
                     let bytes = if picks == slots::UNISSUED {
                         Some(measure.bytes)
                     } else {
@@ -76,7 +80,7 @@ pub(super) fn batch(
         assert!(planned.push(plan).is_ok(), "room for each call plan");
     }
 
-    let filled = limits::fits(drawn_size, config.answer_bytes);
+    let filled = limits::fits(drawn_size, batch.bytes);
     for planned in &planned {
         let picks = if filled { planned.picks } else { slots::UNISSUED };
         let values = match &candidates {
@@ -172,15 +176,15 @@ impl Call {
 fn draw(
     rng: &mut Rng,
     minted: &mut u64,
-    config: &Config,
     menu: &Menu,
     query: &Query,
-    outside: bool,
+    tools: &[Box<[u8]>],
+    batch: Batch,
 ) -> Result<Call, Error> {
-    let mut pick = rng.below(tool_count(query, outside));
+    let mut pick = rng.below(batch.eligible);
     let mut selected = None;
     for (index, tool) in query.tools.iter().enumerate() {
-        if allowed(&query.choice, &tool.name) != outside {
+        if stretches::includes(tools, &tool.name) && allowed(&query.choice, &tool.name) != batch.outside {
             if pick == 0 {
                 selected = Some(index);
                 break;
@@ -190,7 +194,7 @@ fn draw(
     }
     let tool = selected.expect("picked below the eligible tool count");
     *minted = minted.checked_add(1).ok_or(Error::InvalidRequest)?;
-    let input = if rng.chance(config.malformed) && !menu.invalid.is_empty() {
+    let input = if rng.chance(batch.malformed) && !menu.invalid.is_empty() {
         Input::Invalid(input_index(rng, menu.invalid.len()))
     } else {
         Input::Body(input_index(rng, menu.arguments.len()))

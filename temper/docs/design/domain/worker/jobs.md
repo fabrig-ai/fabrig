@@ -75,8 +75,10 @@ smith's agent processes, and declares in its hello the kinds it runs:
   (`../../protocol/tooling.md`, 4.1). Its checkout holds one repository,
   the change's, under its own name, writable, prepared as a resolution's is:
   the head checked out and the base merged in, not committed, the
-  conflicts marked (`checkouts.md`); its command is the project's
-  `merge_job`, a path in that repository, so the spec's command is the
+  conflicts marked (`checkouts.md`); its command is the repository's
+  `.temper/hooks/merge`, or, in a repository without `.temper/hooks/`,
+  the project's `merge_job` (`../../protocol/hooks.md`, 4.2 and 5), a
+  path in that repository, so the spec's command is the
   repository's name, `/`, then that path. On exit 0 the delivery commits
   the tree as the merge, both parents, and pushes it as a fast-forward
   onto the branch the item names as writable, a resolution's push; a
@@ -96,8 +98,10 @@ smith's agent processes, and declares in its hello the kinds it runs:
   producer's is: its own branch made at the goal's branch's tip, the
   commit its change read as it made the job, fetched by that commit
   (`../forge/change/repairs-releases.md`, 1), and
-  checked out, clean (`checkouts.md`); its command is the project's
-  `close_job`, a path in that repository, so the spec's command is the
+  checked out, clean (`checkouts.md`); its command is the repository's
+  `.temper/hooks/close`, or, in a repository without `.temper/hooks/`,
+  the project's `close_job` (`../../protocol/hooks.md`, 4.2 and 5), a
+  path in that repository, so the spec's command is the
   repository's name, `/`, then that path, and its request the close
   request's bytes, which the engine writes whole. Its spec asks for a
   typed refusal, `JobSpec`'s `refusal` true (`../../protocol/wires.md`,
@@ -120,6 +124,15 @@ smith's agent processes, and declares in its hello the kinds it runs:
   its tasks limits hold the spec and the 8,192-byte contract. The
   requester decided on 2026-11-27 to give the goal more of the failures
   at once and keep workers that declare 512 eligible.
+- **A hook is checked before it runs:** a command whose path in its
+  repository starts `.temper/hooks/` runs only where the job's checkout
+  holds it as an executable regular file, or as a symbolic link whose
+  target is a bare name naming one beside it
+  (`../../protocol/hooks.md`, 2.2 and 4.3), read without following a
+  link. Anything else, nothing there included, ends the job as the
+  command's failure, spawning nothing, its tail one line naming the
+  hook and why, as ``hook `.temper/hooks/close`: not executable``. Any
+  other command spawns as before.
 - **The prepare kind,** kind 1, verb `prepare`, delivering, built as
   temper's own merge train for a round's stack (`../landing-prepare.md`, 1.2),
   the project's prepare command not yet. Its spec's

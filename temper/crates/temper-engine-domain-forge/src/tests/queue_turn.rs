@@ -354,6 +354,8 @@ fn entering_checking_arms_the_first_execution_reading() {
                 decision: change::Decision::Wait { until: Some(until) },
                 entry: None,
                 evidence: None,
+                close_at: None,
+                close_refusal: None,
             };
     }
     assert!(scheduled, "first reading within poll_max: {out:?}");
@@ -527,7 +529,13 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
             d.changes.get_mut(&OWNER).unwrap().change.gates = Box::new([gate()]);
         }
     }
-    decide_step(d, &env(), p, &mut out);
+    let env = env();
+    decide_step(d, &env, p, &mut out);
+    if matches!(how, Leave::Conflict(true)) {
+        let owner = step_owner(d, OWNER).expect("pending merge hooks read");
+        // Without a hooks directory, the project merge job takes the conflict.
+        step_read(d, &env, owner, Err(skein_forge::api::Error::Missing), &mut out);
+    }
     out
 }
 

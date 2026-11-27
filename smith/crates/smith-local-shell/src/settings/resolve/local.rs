@@ -124,6 +124,7 @@ pub(super) fn build(
         Some(run::Conventions {
             guide: input::text(settings, "workspace.conventions.guide")?.as_bytes().into(),
             checks: input::text(settings, "workspace.conventions.checks")?.as_bytes().into(),
+            hooks: None,
         })
     } else {
         None
