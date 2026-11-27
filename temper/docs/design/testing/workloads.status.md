@@ -2,35 +2,7 @@
 
 2026-11-27. Where the tree's code lags or departs from [workloads.md](workloads.md).
 
-- **Not yet:**
-  2.3, 2.4, 2.5, 3: `temper_faults::people`, `parks` and `bounds`, the
-  engine's open problems' kinds renamed, and the workload kit,
-  `temper-workload`. [in flight: change 14969]
-  4.1, 6: the engine's domain world's workload, its acts and its people's
-  sweep. [in flight: change 14980]
-  8.1: the engine's domain world's bounds' sweep.
-  [in flight: change 14998]
-  7: the comparison in the engine's domain world. [in flight: change 14999]
-  4.2: the parties' acts on the forge world's landing train.
-  [in flight: change 14997]
-  4.4: the worker's domain world's workload and its sweeps.
-  [in flight: change 14989]
-  4.5: smith's sweeps drawing their runs from the workload.
-  [in flight: change 14978]
-  5: the composed workload. [in flight: change 14987]
-  8.2: the composed sweep, with the fakes' and the restarts' families.
-  [in flight: change 15007]
-  8.2: the composed sweep's worker, people, parks and bounds kinds.
-  [in flight: change 15011]
-  7: the comparison in the composed world. [in flight: change 15012]
-  8.5: the engine domain world's opening and follows sweeps taking their
-  cases from the seam. [in flight: change 19837]
-  8.5: the forge world's branch patterns, path rules, member message,
-  simulation, gate keys and pull cutoff sweeps taking their cases from the
-  seam. [in flight: change 20025]
-  8.5: the forge world's queue history and restarts sweeps taking their
-  cases from the seam. [in flight: change 20026]
-  8.5: the forge world's landing batches, busy, lagging and CI faults'
-  sweeps taking their cases from the seam. [in flight: change 20027]
-  8.5: the forge world's opens and stale state sweeps taking their cases
-  from the seam. [in flight: change 20028]
+- **Not yet:** 5: the composed workload's draws aren't valid at every seed: a kind with no eligible goal panics, a hold can go unreleased, and its acts, park, reopen, judges and train oracle don't take a moment gone or a held member's later landing. [in flight: change 20409]
+- **Not yet:** 8.5: the composed workload's sweeps take no case from the seam, and its mixed sweep counts its seed twice. [in flight: change 20409]
+- **Not yet:** 8.5: the composed sweeps ask a campaign for no more cases than their gate seeds, the mixed sweep configures 8.2's kinds alone in every mode, and `campaign-temper` doesn't list `temper-system-world::suite`. [in flight: change 20410]
+- **Not yet:** 9: the composed draws have no step tests without a world. [in flight: change 20409]
