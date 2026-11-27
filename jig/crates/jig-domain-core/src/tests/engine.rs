@@ -530,6 +530,43 @@ fn a_notes_load_refuses_full_room_once_and_a_project_drop_retries_after_the_wind
 }
 
 #[test]
+fn deletion_retries_outlive_the_table_without_reclaim() {
+    use engine::store::{Answer, Failure};
+
+    const WORK_SLOTS: u32 = 1;
+    const RETRIES: u32 = 8; // More than the four slots: three reads and one work load.
+    const OWNER: Token = Token::new(900);
+    const PROJECT: u32 = 3;
+    let mut env = environment();
+    env.limits.load_slots = WORK_SLOTS;
+    let mut engine = fresh_engine(&env.limits);
+    let range = notes::Range::Project { project: PROJECT, after: None };
+    let out = notes_request(&mut engine, &env, notes::Event::DropProject { owner: OWNER, project: PROJECT });
+    let mut load = notes_page(&out, range.clone());
+    for _ in 0..RETRIES {
+        let out = notes_terminal(&mut engine, &env, load, Answer::Failed(Failure::Busy));
+        let retry = notes_page(&out, range.clone());
+        assert_ne!(retry, load);
+        let late = notes_terminal(&mut engine, &env, load, Answer::Failed(Failure::Busy));
+        assert!(late.is_empty(), "the retired token cannot reach the pending retry");
+        load = retry;
+    }
+}
+
+#[test]
+fn terminal_work_keeps_quiescence_behind_reclaim() {
+    const TASK: u64 = 7;
+    const WINDOW: (u64, u32) = (1, 1);
+    let env = environment();
+    let mut engine = fresh_engine(&env.limits);
+    let window = super::fixture_window(engine.core_mut(), TASK, WINDOW);
+    let _out = notes_terminal(&mut engine, &env, window, engine::store::Answer::Failed(engine::store::Failure::Failed));
+    let empty_before = engine.core().loads.is_empty();
+    engine.core_mut().reclaim();
+    assert_eq!((empty_before, engine.core().loads.is_empty()), (false, true));
+}
+
+#[test]
 fn declarations_are_checked_in_construction_order() {
     use jig_domain_contract::{
         Declaration,

@@ -44,7 +44,7 @@ use crate::{
     documents::{self, DocumentClock, Missing, Subject, Window},
 };
 use alloc::boxed::Box;
-use skein_lib::{Env, Id, List, Queue, ReplyTo, Token};
+use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
 #[derive(Hash, Debug)]
 pub(crate) struct Pending {
@@ -625,7 +625,7 @@ fn start_jig(
     let emitted = range.clone();
     let pending = Pending { destination, sign_in, party, range, tasks, parts: None };
     let load = match core.loads.insert_read(pending) {
-        Ok(load) => load.token(),
+        Ok(load) => load,
         Err(mut pending) => {
             return answer(core::mem::replace(&mut pending.destination, Destination::Done), Answer::None(Why::Busy));
         }
@@ -639,7 +639,7 @@ pub(crate) fn loaded(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<crate::routing::Work>,
-    name: Id<crate::loads::Flight>,
+    name: Token,
     result: crate::engine::store::Answer,
 ) -> Queue<Request> {
     let Some(pending) = core.loads.read(name) else {
@@ -655,7 +655,7 @@ pub(crate) fn loaded(
         Destination::RevisionMetadata { .. } => return settings::metadata_loaded(core, env, name, result),
         Destination::ProjectProposal { .. } => return settings::project_proposal_loaded(core, env, name, result),
         Destination::Restore => return settings::restore_loaded(core, env, work, name, result),
-        Destination::Erase => return crate::routing::task::erase::loaded(core, env, name.token(), result),
+        Destination::Erase => return crate::routing::task::erase::loaded(core, env, name, result),
         Destination::RunTask { .. } => return run_task::loaded(core, env, name, result),
         Destination::Person { owner_read: Some(_), .. } => return person::owner_loaded(core, env, name, result),
         Destination::Person { key, .. } => {
@@ -782,7 +782,7 @@ pub(super) fn load_settings(core: &mut Core, env: &Env<Limits>, pending: Pending
     }
     let emitted = pending.range.clone();
     let load = match core.loads.insert_read(pending) {
-        Ok(load) => load.token(),
+        Ok(load) => load,
         Err(pending) => return settings::answer(pending.destination, Answer::None(Why::Busy)),
     };
     let mut out = Queue::uncapped();
@@ -800,15 +800,14 @@ pub(crate) fn erase_load(core: &mut Core, range: Range, out: &mut Queue<Request>
         tasks: None,
         parts: None,
     };
-    let load = core.loads.insert_read(pending).expect("reserved erasure read slots").token();
+    let load = core.loads.insert_read(pending).expect("reserved erasure read slots");
     out.push(crate::loads::read(load, range));
 }
 
 pub(crate) fn erase_range(core: &mut Core, load: Token) -> Range {
-    let id = Id::<crate::loads::Flight>::from_token(load);
-    let pending = core.loads.read_mut(id).expect("pending erasure load");
+    let pending = core.loads.read_mut(load).expect("pending erasure load");
     pending.destination = Destination::Done;
     let range = pending.range.clone();
-    core.loads.retire(id);
+    core.loads.retire(load);
     range
 }
