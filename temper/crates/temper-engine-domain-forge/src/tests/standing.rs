@@ -1083,11 +1083,26 @@ fn approval_waits_keep_only_the_size_read_at_the_reviewed_head() {
         row.change.state = change::State::First { head: HEAD, ready_since: env().wall };
         row.change.owns_turn = true;
         outputs(&mut d, Event::Change { row });
-        fixtures::step_change(&mut d);
-        fixtures::answer_next(&mut d, Ok(Answer::Commit(HEAD)));
-        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
-        let pull = skein_forge::api::Pull { commit: pull_head, size: pull_size, ..fixtures::open_pull() };
-        fixtures::answer_next(&mut d, Ok(Answer::Pull(pull)));
+        // A pull behind its branch cannot supply approval facts. The next
+        // gather sees the current pull, still without a size at that head.
+        for (commit, size) in [(pull_head, pull_size), (HEAD, None)] {
+            fixtures::step_change(&mut d);
+            fixtures::answer_next(&mut d, Ok(Answer::Commit(HEAD)));
+            fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+            let pull = skein_forge::api::Pull { commit, size, ..fixtures::open_pull() };
+            let read = fixtures::answer_next(&mut d, Ok(Answer::Pull(pull)));
+            if commit == HEAD {
+                break;
+            }
+            let mut waiting = false;
+            for request in &read {
+                waiting |= matches!(
+                    request,
+                    Request::ChangeDecision { decision: change::Decision::Wait { .. }, evidence: None, .. }
+                );
+            }
+            assert!(waiting, "a stale pull cannot supply evidence: {read:?}");
+        }
         fixtures::finish_open(&mut d);
         let requests =
             fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));

@@ -94,7 +94,8 @@ fn moved(d: &mut Domain, observed: Option<skein_forge::api::Commit>) -> Box<[Req
     {
         let (call, op) = fixtures::next_call(d);
         assert_eq!(op, Op::Read(Read::Commits { before: fixtures::BASE, after: fixtures::HEAD, page: 1 }));
-        return fixtures::answer(d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        fixtures::answer(d, call, Ok(design_ancestry(true)));
+        return fixtures::answer_next(d, Ok(design_ancestry(true)));
     }
     requests
 }
@@ -160,6 +161,19 @@ fn update_entry(preparing: bool) -> skein_forge_client::Entry {
     }
 }
 
+// Play the client's persisted attempt before injecting kept reads and outcomes.
+fn sent_update(d: &mut Domain) {
+    let mut entry = d.entries.get(&UPDATE).expect("admitted update").entry.clone();
+    let clock = env();
+    entry.attempt = Some(skein_forge_client::Attempt {
+        sent: clock.now,
+        deadline: clock.now,
+        wall: clock.wall,
+        expires: clock.wall,
+    });
+    domain::keep_entry(d, entry, None, &mut Queue::uncapped());
+}
+
 #[test]
 fn an_updates_writer_owns_only_forward_moves_by_its_identity() {
     for (actor, forward, drifted) in [(7, true, false), (8, true, true), (7, false, true)] {
@@ -170,6 +184,7 @@ fn an_updates_writer_owns_only_forward_moves_by_its_identity() {
         row.pending = Some(UPDATE);
         outputs(&mut d, Event::Change { row });
         outputs(&mut d, Event::Enqueue { entry: update_entry(false) });
+        sent_update(&mut d);
         design_move(&mut d, actor);
         if actor == 7 {
             let (call, op) = fixtures::next_call(&mut d);
@@ -201,6 +216,7 @@ fn the_landing_changes_own_update_of_the_goal_branch_is_not_drift() {
             outputs(&mut d, Event::Change { row });
             if pending {
                 outputs(&mut d, Event::Enqueue { entry: update_entry(preparing) });
+                sent_update(&mut d);
             }
             let requests = moved(&mut d, Some(fixtures::BASE));
             assert_eq!(d.hold(&name()).unwrap().drift.is_none(), pending);
@@ -227,8 +243,12 @@ fn the_landing_changes_own_update_of_the_goal_branch_is_not_drift() {
         }
         row.change.state = change::State::Updating { from: fixtures::HEAD, base: LANDING_TIP, ready_since: env().wall };
         row.pending = Some(UPDATE);
+        row.pull = Some(1);
         outputs(&mut d, Event::Change { row });
-        outputs(&mut d, Event::Enqueue { entry: update_entry(false) });
+        let mut entry = update_entry(false);
+        entry.effect.condition = skein_forge_client::Condition::Update { head: fixtures::HEAD, base: LANDING_TIP };
+        outputs(&mut d, Event::Enqueue { entry });
+        sent_update(&mut d);
         let mut out = Queue::uncapped();
         domain::scripted_outcome(
             &mut d,
@@ -311,6 +331,12 @@ fn preparing_domain(goal_branch: bool) -> (Domain, Name) {
     let queued = outputs(&mut d, Event::Enqueue { entry });
     assert!(matches!(d.nearest_write(&resource).unwrap().operation, writes::Operation::Update { .. }), "{queued:?}");
     (d, resource)
+}
+
+fn sent_prepare(goal_branch: bool) -> (Domain, Name) {
+    let (mut d, branch) = preparing_domain(goal_branch);
+    sent_update(&mut d);
+    (d, branch)
 }
 
 fn prepare_at_head(d: &mut Domain, head: skein_forge::api::Commit) -> Box<[Request]> {
@@ -451,7 +477,7 @@ fn assert_rebase_ready(d: &Domain, resource: &Name) {
 #[test]
 fn prepares_writer_owns_its_rebase_before_the_answer() {
     for goal_branch in [false, true] {
-        let (mut d, resource) = preparing_domain(goal_branch);
+        let (mut d, resource) = sent_prepare(goal_branch);
         observed_rebase(&mut d, Some(7));
         assert_eq!(d.hold(&resource).unwrap().drift, None);
         let (call, op) = fixtures::next_call(&mut d);
@@ -469,7 +495,7 @@ fn prepares_writer_owns_its_rebase_before_the_answer() {
 #[test]
 fn prepares_unattributed_rebase_waits_for_its_exact_answer() {
     for goal_branch in [false, true] {
-        let (mut d, resource) = preparing_domain(goal_branch);
+        let (mut d, resource) = sent_prepare(goal_branch);
         observed_rebase(&mut d, None);
         prepare_at_head(&mut d, fixtures::BASE);
         assert_eq!(
@@ -496,7 +522,7 @@ fn prepares_unattributed_rebase_is_drift_on_any_other_completion() {
             Outcome::Withdrawn,
             Outcome::Held,
         ] {
-            let (mut d, resource) = preparing_domain(goal_branch);
+            let (mut d, resource) = sent_prepare(goal_branch);
             observed_rebase(&mut d, None);
             assert_eq!(d.hold(&resource).unwrap().drift, None);
             rebase_outcome(&mut d, outcome);
@@ -525,7 +551,7 @@ fn prepares_unattributed_rebase_is_drift_on_any_other_completion() {
 #[test]
 fn a_frozen_prepares_proved_rebase_does_not_drift_its_goal() {
     for attributed in [false, true] {
-        let (mut d, resource) = preparing_domain(true);
+        let (mut d, resource) = sent_prepare(true);
         observed_rebase(&mut d, if attributed { Some(7) } else { None });
         d.changes.get_mut(&fixtures::CHANGE).unwrap().ending = Some(Ending::Cancelled);
         if attributed {
@@ -547,7 +573,7 @@ fn a_frozen_prepares_proved_rebase_does_not_drift_its_goal() {
 #[test]
 fn prepares_rebase_without_main_is_drift() {
     for goal_branch in [false, true] {
-        let (mut d, resource) = preparing_domain(goal_branch);
+        let (mut d, resource) = sent_prepare(goal_branch);
         observed_rebase(&mut d, Some(7));
         assert_eq!(d.hold(&resource).unwrap().drift, None);
         let (call, op) = fixtures::next_call(&mut d);
@@ -569,7 +595,7 @@ fn only_prepares_pending_rebase_can_explain_a_rewrite() {
         for (actor, preparing, rebase, pending) in
             [(8, true, true, true), (7, true, false, true), (7, false, true, true), (7, true, true, false)]
         {
-            let (mut d, resource) = preparing_domain(goal_branch);
+            let (mut d, resource) = sent_prepare(goal_branch);
             if !preparing {
                 d.changes.get_mut(&fixtures::CHANGE).unwrap().change.state =
                     change::State::Updating { from: fixtures::HEAD, base: LANDING_TIP, ready_since: env().wall };
@@ -599,7 +625,7 @@ fn only_prepares_pending_rebase_can_explain_a_rewrite() {
 fn prepares_pending_rebase_does_not_explain_a_third_head_or_a_late_original() {
     for goal_branch in [false, true] {
         for (head, actor) in [([8; 32], 7), (fixtures::HEAD, 8)] {
-            let (mut d, resource) = preparing_domain(goal_branch);
+            let (mut d, resource) = sent_prepare(goal_branch);
             observed_rebase(&mut d, Some(7));
             let (call, _) = fixtures::next_call(&mut d);
             fixtures::answer(&mut d, call, Ok(design_ancestry(true)));
@@ -706,7 +732,7 @@ fn prepares_deferred_rebase_is_rebuilt_after_restart() {
 #[test]
 fn prepares_writer_owns_its_forward_head_before_the_answer() {
     for goal_branch in [false, true] {
-        let (mut d, resource) = preparing_domain(goal_branch);
+        let (mut d, resource) = sent_prepare(goal_branch);
         let requests = prepare_move(&mut d, 7, true);
         assert_eq!(d.hold(&resource).unwrap().drift, None);
         let row = d.change(fixtures::CHANGE).unwrap();
@@ -735,7 +761,7 @@ fn prepares_writer_owns_its_forward_head_before_the_answer() {
 fn prepares_writer_does_not_own_another_identity_or_a_backwards_move() {
     for goal_branch in [false, true] {
         for (actor, forward) in [(8, true), (7, false)] {
-            let (mut d, resource) = preparing_domain(goal_branch);
+            let (mut d, resource) = sent_prepare(goal_branch);
             let mut requests = prepare_move(&mut d, actor, forward);
             if actor == 7 && !forward {
                 let (call, op) = fixtures::next_call(&mut d);
@@ -826,7 +852,7 @@ fn the_keep_ignores_an_older_update_head_without_a_hint_naming_another_actor() {
 #[test]
 fn prepares_let_go_update_takes_its_forward_head_after_the_slot_frees() {
     for goal_branch in [false, true] {
-        let (mut d, resource) = preparing_domain(goal_branch);
+        let (mut d, resource) = sent_prepare(goal_branch);
         domain::change_outcome(
             &mut d,
             &env(),
@@ -860,15 +886,10 @@ fn a_let_go_updates_forward_head_is_not_drift_before_its_containment_is_read() {
         row.change.state =
             change::State::Updating { from: fixtures::HEAD, base: fixtures::BASE, ready_since: env().wall };
         row.pending = Some(UPDATE);
+        row.pull = Some(1);
         outputs(&mut d, Event::Change { row });
-        let mut entry = update_entry(false);
-        entry.attempt = Some(skein_forge_client::Attempt {
-            sent: env().now,
-            deadline: env().now,
-            wall: env().wall,
-            expires: env().wall,
-        });
-        outputs(&mut d, Event::Enqueue { entry });
+        outputs(&mut d, Event::Enqueue { entry: update_entry(false) });
+        sent_update(&mut d);
         domain::change_outcome(
             &mut d,
             &env(),

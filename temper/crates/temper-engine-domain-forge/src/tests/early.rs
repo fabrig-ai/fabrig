@@ -376,9 +376,8 @@ fn a_lost_attempts_reread_pins_its_head_without_checking_it() {
         &mut Queue::uncapped(),
     )
     .unwrap();
-    outputs(&mut d, Event::Lost { task: CHILD, attempt: 1 });
-    fixtures::answer_next(&mut d, Ok(api::Answer::Commit(fixtures::HEAD)));
     outputs(&mut d, Event::Finished { task: CHILD, attempt: 1, lost: true });
+    outputs(&mut d, Event::Lost { task: CHILD, attempt: 1 });
     fixtures::answer_next(&mut d, Ok(api::Answer::Commit(fixtures::HEAD)));
     assert_eq!(d.branch_head(&name), Some(fixtures::HEAD));
     let row = d.change(fixtures::CHANGE).unwrap();

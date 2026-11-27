@@ -220,6 +220,10 @@ pub fn opening() -> (Domain, Token) {
 
 pub fn opening_with(row: ChangeRow) -> (Domain, Token) {
     let mut d = adopted_domain();
+    // Opening is admitted against the head already observed for the change.
+    let name = domain::writes::branch(&LIMITS, row.repository, &row.branch).expect("fixture branch name");
+    let commit = row.change.last_head.expect("opening head");
+    d.heads.insert(name.clone(), BranchHead { name, commit, owned: true }).expect("fixture head room");
 
     let entry = skein_forge_client::Entry {
         number: OPEN,
