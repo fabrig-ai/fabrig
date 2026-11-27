@@ -69,7 +69,7 @@ mod review;
 mod two_workers;
 mod walk;
 pub mod workload;
-pub use workload::faults::FaultDraw;
+pub use workload::faults::{CAMPAIGN_KINDS, FaultDraw, GATE_KINDS};
 
 pub use agreement::call;
 pub use delegates::survey_delegation;

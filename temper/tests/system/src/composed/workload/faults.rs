@@ -4,7 +4,7 @@ use skein_lib::Time;
 use skein_world::faults::{FaultLedger, Injection, Kind, Struck};
 use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain_world::acts::Watch;
-use temper_faults::{bounds, forge as forge_faults, parks, restarts, stale};
+use temper_faults::{bounds, forge as forge_faults, parks, people, restarts, stale};
 use temper_worker_inspect::faults::DISK_FULL;
 use temper_workload::parties::{Act, Action};
 
@@ -18,7 +18,49 @@ mod runs;
 mod tests;
 mod worker;
 
+/// The composed mixed sweep's thirteen kinds at the gate.
+// The workload's repairs carry gate evidence, not a PullFiles read: the
+// bounds family's next reachable kind is the failed job's bounded log.
+// Its dependent goal starts after the predecessor landed, so it has no
+// early checkout with a squashed parent: move the base during landing.
+// COMPOSED has too few concurrent writes to fill the stock outbox.
+// Its read-admission table is bounded to two in this faulted world.
+// The worker's fake checkout supplies a byte capacity for DISK_FULL.
+pub const GATE_KINDS: &[Kind] = &[
+    forge_faults::TIMED_OUT,
+    forge_faults::HEAD_BEHIND,
+    forge_faults::JOB_LOG,
+    forge_faults::CLOSED_BY_ANOTHER,
+    temper_blame::LOST,
+    stale::MOVED_BASE,
+    skein_llm_kit::faults::RATE_WINDOW,
+    restarts::ENGINE_CRASH_MID_TURN,
+    DISK_FULL,
+    people::HOLDS_A_MEMBER,
+    people::RELEASES_A_MEMBER,
+    parks::DELIVERED_THEN_PARKED,
+    bounds::FORGE_READ_ADMISSIONS,
+];
+
+/// Additional kinds configured in a campaign or replay, in family order.
+pub const CAMPAIGN_KINDS: &[Kind] = &[
+    // busy
+    // lagging
+    // bounds
+    // refusing
+    // ci
+    temper_blame::WRONG_TREE,
+    // stale
+    // provider
+    // worker
+    // people and parties
+    // runs that park, resume and move
+    // the engine's own bounds
+    // restarts
+];
+
 #[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 struct Plan {
     kind: Kind,
     goal: String,

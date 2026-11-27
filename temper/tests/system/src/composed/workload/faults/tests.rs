@@ -2,27 +2,10 @@ use super::*;
 use skein_lib::StateHasher;
 use skein_world::streams::{Stream, Streams};
 use std::hash::Hasher;
-use temper_faults::people;
 use temper_workload::{
-    draw::{COMPOSED, Workload},
+    draw::{COMPOSED, Goal, Workload},
     parties::{self, When},
 };
-
-const KINDS: [Kind; 13] = [
-    forge_faults::TIMED_OUT,
-    forge_faults::HEAD_BEHIND,
-    forge_faults::JOB_LOG,
-    forge_faults::CLOSED_BY_ANOTHER,
-    temper_blame::LOST,
-    stale::MOVED_BASE,
-    skein_llm_kit::faults::RATE_WINDOW,
-    restarts::ENGINE_CRASH_MID_TURN,
-    DISK_FULL,
-    people::HOLDS_A_MEMBER,
-    people::RELEASES_A_MEMBER,
-    parks::DELIVERED_THEN_PARKED,
-    bounds::FORGE_READ_ADMISSIONS,
-];
 
 fn digest(planned: &[(Kind, &str)], acts: &[Action]) -> u64 {
     let mut digest = StateHasher::new();
@@ -32,7 +15,7 @@ fn digest(planned: &[(Kind, &str)], acts: &[Action]) -> u64 {
 
 #[test]
 fn composed_draw_keeps_seed_six() {
-    let draw = FaultDraw::new(6, &KINDS);
+    let draw = FaultDraw::new(6, GATE_KINDS);
     assert_eq!(digest(&draw.planned(), draw.acts()), 15_246_353_655_105_236_273);
 }
 
@@ -40,10 +23,10 @@ fn composed_draw_keeps_seed_six() {
 fn composed_draw_classifies_every_kind() {
     for seed in (0..128).chain([u64::MAX]) {
         let workload = Workload::draw(&Streams::new(seed), &COMPOSED);
-        let draw = FaultDraw::new(seed, &KINDS);
+        let draw = FaultDraw::new(seed, GATE_KINDS);
         let planned = draw.planned();
         let ineligible = draw.ineligible();
-        for kind in KINDS {
+        for &kind in GATE_KINDS {
             assert_ne!(
                 planned.iter().any(|(planned, _)| *planned == kind),
                 ineligible.contains(&kind),
@@ -51,7 +34,7 @@ fn composed_draw_classifies_every_kind() {
             );
         }
         for (kind, goal) in planned {
-            assert!(KINDS.contains(&kind));
+            assert!(GATE_KINDS.contains(&kind));
             if kind == bounds::FORGE_READ_ADMISSIONS {
                 assert_eq!(goal, "");
                 continue;
@@ -59,9 +42,7 @@ fn composed_draw_classifies_every_kind() {
             let goal = workload.goal(goal).expect("planned goal exists");
             match kind {
                 stale::MOVED_BASE | people::HOLDS_A_MEMBER | people::RELEASES_A_MEMBER => assert!(goal.train),
-                forge_faults::HEAD_BEHIND | forge_faults::JOB_LOG => {
-                    assert!(goal.changes.iter().any(|change| change.red_once))
-                }
+                forge_faults::HEAD_BEHIND | forge_faults::JOB_LOG => assert!(red_goal(goal)),
                 parks::DELIVERED_THEN_PARKED => assert!(goal.changes.iter().any(|change| !change.asks)),
                 _ => {}
             }
@@ -84,9 +65,9 @@ fn composed_draw_omits_kinds_without_a_red_change() {
     let seed = 2;
     let workload = Workload::draw(&Streams::new(seed), &COMPOSED);
     assert!(workload.goals.iter().flat_map(|goal| &goal.changes).all(|change| !change.red_once));
-    let draw = FaultDraw::new(seed, &KINDS);
+    let draw = FaultDraw::new(seed, GATE_KINDS);
     assert_eq!(draw.ineligible(), absent);
-    assert_eq!(draw.planned().len(), KINDS.len() - absent.len());
+    assert_eq!(draw.planned().len(), GATE_KINDS.len() - absent.len());
     let mut rng = Streams::new(seed).rng(Stream::Faults, "forge");
     // Time out, head lag and job log each spend a target and a step.
     for _ in 0..6 {
@@ -113,6 +94,71 @@ fn composed_draw_adds_the_missing_release() {
     let after = u32::try_from(streams.rng(Stream::Parties, "release").between(0, u64::from(parties::AFTER_MOST)))
         .expect("bounded delay");
     let release = Action { act: Act::ReleaseMember, when: When::Held, after, ..hold.clone() };
-    let draw = FaultDraw::new(1, &KINDS);
+    let draw = FaultDraw::new(1, GATE_KINDS);
     assert_eq!(draw.acts(), &[hold.clone(), release]);
+}
+
+fn red_goal(goal: &Goal) -> bool {
+    goal.changes.iter().any(|change| change.red_once)
+}
+
+#[test]
+fn catalogue_kind_draws_its_own_coin_target_and_moment() {
+    const EXTRA: Kind = Kind { family: "ci", name: "test_red" };
+    let kinds = [GATE_KINDS, &[EXTRA]].concat();
+    let (mut planned, mut skipped, mut ineligible) = (false, false, false);
+    for seed in (0..64).chain([u64::MAX]) {
+        let streams = Streams::new(seed);
+        let workload = Workload::draw(&streams, &COMPOSED);
+        let draw = FaultDraw::draw_with_catalogue(seed, &workload, &kinds, &[(EXTRA, red_goal)]);
+        let gate = FaultDraw::new(seed, GATE_KINDS);
+        assert_eq!(
+            draw.plans.iter().filter(|plan| plan.kind != EXTRA).collect::<Vec<_>>(),
+            gate.plans.iter().collect::<Vec<_>>()
+        );
+        assert_eq!(draw.acts(), gate.acts());
+
+        let plan = draw.plans.iter().find(|plan| plan.kind == EXTRA);
+        let mut rng = streams.rng(Stream::Faults, "ci/test_red");
+        let goals: Vec<_> = workload.goals.iter().filter(|goal| red_goal(goal)).collect();
+        if rng.below(2) == 0 {
+            assert!(plan.is_none(), "seed {seed}: the coin skips the kind");
+            assert!(!draw.ineligible.contains(&EXTRA));
+            skipped = true;
+        } else if goals.is_empty() {
+            assert!(plan.is_none());
+            assert!(draw.ineligible.contains(&EXTRA), "seed {seed}: the coin fell but no goal was eligible");
+            ineligible = true;
+        } else {
+            let plan = plan.expect("the coin fell on an eligible workload");
+            let index =
+                usize::try_from(rng.below(u64::try_from(goals.len()).expect("bounded goals"))).expect("goal index");
+            assert_eq!(plan.goal, goals[index].name, "seed {seed}: the target comes after the coin");
+            assert_eq!(plan.after, rng.below(16), "seed {seed}: the moment comes after the target");
+            assert!(!draw.ineligible.contains(&EXTRA));
+            planned = true;
+        }
+    }
+    assert!(planned && skipped && ineligible);
+}
+
+#[test]
+fn wrong_tree_is_observed_without_a_coin_when_a_change_can_go_red() {
+    use temper_blame::WRONG_TREE;
+    let (mut planned, mut ineligible) = (false, false);
+    for seed in (0..64).chain([u64::MAX]) {
+        let workload = Workload::draw(&Streams::new(seed), &COMPOSED);
+        let draw = FaultDraw::new(seed, &[WRONG_TREE]);
+        assert!(draw.plans.is_empty(), "observed kinds have no injection plan");
+        if workload.goals.iter().any(red_goal) {
+            assert_eq!(draw.planned(), [(WRONG_TREE, "")], "seed {seed}");
+            assert_eq!(draw.ineligible(), []);
+            planned = true;
+        } else {
+            assert_eq!(draw.planned(), []);
+            assert_eq!(draw.ineligible(), [WRONG_TREE], "seed {seed}");
+            ineligible = true;
+        }
+    }
+    assert!(planned && ineligible);
 }

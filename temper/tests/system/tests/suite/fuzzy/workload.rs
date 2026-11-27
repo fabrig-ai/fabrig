@@ -1,20 +1,21 @@
 //! Complete composed draws and restart comparisons (workloads.md, 5 and 7).
 use skein_world::{
-    faults::Kind,
-    sweep::{Sweep, cases},
+    sweep::{Sweep, cases, gate},
     this_test,
 };
-use temper_faults::{bounds, forge, parks, people, restarts, stale};
-use temper_system_world::composed::World;
+use temper_faults::restarts;
+use temper_system_world::composed::{CAMPAIGN_KINDS, GATE_KINDS, World};
 
 #[test]
 fn a_restart_changes_no_composed_outcome() -> Result<(), String> {
+    const CAMPAIGN_CASES: u64 = 8;
+    // A settled host-call stop and a model-query crash at the gate.
+    let seeds = if gate() { vec![0, 29] } else { (0..CAMPAIGN_CASES).collect() };
     let mut sweep = Sweep::new("a_restart_changes_no_composed_outcome");
     for kind in restarts::MID_TURN {
         sweep.configure(kind);
     }
-    // Two seeds, as in the clean draw: a settled host-call stop and a model-query crash.
-    cases(this_test!("a_restart_changes_no_composed_outcome"), [0, 29], |seed| {
+    cases(this_test!("a_restart_changes_no_composed_outcome"), seeds, |seed| {
         eprintln!("seed {seed}");
         let mut world = World::composed_workload(seed);
         eprintln!("workload {:?}", world.workload());
@@ -40,38 +41,23 @@ fn a_restart_changes_no_composed_outcome() -> Result<(), String> {
 
 #[test]
 fn every_family_falls_in_the_composed_workload() -> Result<(), String> {
-    // The workload's repairs carry gate evidence, not a PullFiles read: the
-    // bounds family's next reachable kind is the failed job's bounded log.
-    // Its dependent goal starts after the predecessor landed, so it has no
-    // early checkout with a squashed parent: move the base during landing.
-    // COMPOSED has too few concurrent writes to fill the stock outbox.
-    // Its read-admission table is bounded to two in this faulted world.
-    // The worker's fake checkout supplies a byte capacity for DISK_FULL.
-    const KINDS: [Kind; 13] = [
-        forge::TIMED_OUT,
-        forge::HEAD_BEHIND,
-        forge::JOB_LOG,
-        forge::CLOSED_BY_ANOTHER,
-        temper_blame::LOST,
-        stale::MOVED_BASE,
-        skein_llm_kit::faults::RATE_WINDOW,
-        restarts::ENGINE_CRASH_MID_TURN,
-        temper_worker_inspect::faults::DISK_FULL,
-        people::HOLDS_A_MEMBER,
-        people::RELEASES_A_MEMBER,
-        parks::DELIVERED_THEN_PARKED,
-        bounds::FORGE_READ_ADMISSIONS,
-    ];
+    const CAMPAIGN_CASES: u64 = 16;
+    // Seed 6 draws a hold with its release and a red gate to read.
+    let campaign_kinds;
+    let (seeds, kinds) = if gate() {
+        (6..7, GATE_KINDS)
+    } else {
+        campaign_kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+        (0..CAMPAIGN_CASES, campaign_kinds.as_slice())
+    };
     let mut sweep = Sweep::new("every_family_falls_in_the_composed_workload");
-    for kind in KINDS {
+    for &kind in kinds {
         sweep.configure(kind);
     }
-    temper_engine_forge_world::open::exclude(&mut sweep, &KINDS)?;
-    // One seed is the minimum: 6 draws a hold with its release and a red
-    // gate to read; the previous seed 1 draws a hold without a release.
-    cases(this_test!("every_family_falls_in_the_composed_workload"), 6..7, |seed| {
+    temper_engine_forge_world::open::exclude(&mut sweep, kinds)?;
+    cases(this_test!("every_family_falls_in_the_composed_workload"), seeds, |seed| {
         eprintln!("mixed seed {seed}");
-        let mut world = World::faulted_workload(seed, &KINDS);
+        let mut world = World::faulted_workload(seed, kinds);
         world.run_workload()?;
         world.assert_workload()?;
         world.judge_workload_faults()?;

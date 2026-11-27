@@ -1,5 +1,5 @@
 //! The composed fault and party draw, without a world (temper/docs/design/testing/workloads.md, 5).
-use super::{DISK_FULL, Plan, bounds, forge_faults, parks, restarts, stale, worker};
+use super::{CAMPAIGN_KINDS, GATE_KINDS, Plan, bounds, forge_faults, parks, people, restarts, stale, worker};
 use skein_lib::Duration;
 use skein_world::{
     faults::Kind,
@@ -7,11 +7,16 @@ use skein_world::{
 };
 use std::collections::BTreeSet;
 use temper_engine_domain_world::acts;
-use temper_faults::people;
 use temper_workload::{
-    draw::{COMPOSED, Workload},
+    draw::{COMPOSED, Goal, Workload},
     parties::{self, Act, Action, When},
 };
+
+type Eligible = fn(&Goal) -> bool;
+
+// The injected catalogue kinds and their eligible targets. Observed kinds
+// take no coin (temper/docs/design/testing/composed-catalogue.md, 1).
+const INJECTED_CATALOGUE: &[(Kind, Eligible)] = &[];
 
 /// The composed world's plans and acts for one seed and its configured kinds.
 pub struct FaultDraw {
@@ -20,6 +25,7 @@ pub struct FaultDraw {
     people: Vec<(Kind, String)>,
     pub(super) ineligible: BTreeSet<Kind>,
     pub(super) bounds: Vec<Kind>,
+    wrong_tree: bool,
     pub(super) disk: worker::Disk,
     pub(super) read_latency: Duration,
     pub(super) release_configured: bool,
@@ -32,6 +38,19 @@ impl FaultDraw {
     }
 
     pub(in crate::composed::workload) fn for_workload(seed: u64, workload: &Workload, kinds: &[Kind]) -> Self {
+        assert!(
+            kinds.iter().all(|kind| GATE_KINDS.contains(kind) || CAMPAIGN_KINDS.contains(kind)),
+            "supported composed faults"
+        );
+        Self::draw_with_catalogue(seed, workload, kinds, INJECTED_CATALOGUE)
+    }
+
+    pub(super) fn draw_with_catalogue(
+        seed: u64,
+        workload: &Workload,
+        kinds: &[Kind],
+        injected: &[(Kind, Eligible)],
+    ) -> Self {
         let streams = Streams::new(seed);
         let mut forge_rng = streams.rng(Stream::Faults, "forge");
         let mut llm_rng = streams.rng(Stream::Faults, "llm");
@@ -39,25 +58,14 @@ impl FaultDraw {
         let mut worker_rng = streams.rng(Stream::Faults, "worker");
         // Draw the fixed positions even for unconfigured kinds. Removing a
         // family cannot shift another family's choice within the forge part.
-        let supported = [
-            forge_faults::TIMED_OUT,
-            forge_faults::HEAD_BEHIND,
-            forge_faults::JOB_LOG,
-            forge_faults::CLOSED_BY_ANOTHER,
-            temper_blame::LOST,
-            stale::MOVED_BASE,
-            skein_llm_kit::faults::RATE_WINDOW,
-            restarts::ENGINE_CRASH_MID_TURN,
-            DISK_FULL,
-            parks::DELIVERED_THEN_PARKED,
-        ];
-        let mut allowed = supported.to_vec();
-        allowed.extend([people::HOLDS_A_MEMBER, people::RELEASES_A_MEMBER, bounds::FORGE_READ_ADMISSIONS]);
-        assert!(kinds.iter().all(|kind| allowed.contains(kind)), "supported composed faults");
         let mut ineligible = BTreeSet::new();
-        let plans = supported
+        let mut plans: Vec<_> = GATE_KINDS
             .iter()
-            .filter_map(|&kind| {
+            .copied()
+            .filter(|kind| {
+                !matches!(*kind, people::HOLDS_A_MEMBER | people::RELEASES_A_MEMBER | bounds::FORGE_READ_ADMISSIONS)
+            })
+            .filter_map(|kind| {
                 let rng = match kind.family {
                     "provider" => &mut llm_rng,
                     "restarts" => &mut restart_rng,
@@ -71,7 +79,7 @@ impl FaultDraw {
                         if kind == stale::MOVED_BASE {
                             goal.train
                         } else if kind == forge_faults::HEAD_BEHIND || kind == forge_faults::JOB_LOG {
-                            goal.changes.iter().any(|change| change.red_once)
+                            has_red_change(goal)
                         } else if kind == parks::DELIVERED_THEN_PARKED {
                             goal.changes.iter().any(|change| !change.asks)
                         } else {
@@ -101,12 +109,29 @@ impl FaultDraw {
             .collect();
         let disk = worker::Disk::draw(&mut worker_rng);
         let (actions, people) = party_draw(streams, workload, kinds, &mut ineligible);
+        plans.extend(injected.iter().filter_map(|&(kind, eligible)| {
+            if !kinds.contains(&kind) {
+                return None;
+            }
+            catalogue_plan(streams, workload, kind, eligible, &mut ineligible)
+        }));
+        // CI blame already records wrong trees; the draw only classifies its reach.
+        let wrong_tree = if kinds.contains(&temper_blame::WRONG_TREE) {
+            let eligible = workload.goals.iter().any(has_red_change);
+            if !eligible {
+                ineligible.insert(temper_blame::WRONG_TREE);
+            }
+            eligible
+        } else {
+            false
+        };
         Self {
             plans,
             actions,
             people,
             ineligible,
-            bounds: kinds.iter().copied().filter(|kind| kind.family == bounds::FAMILY).collect(),
+            bounds: kinds.iter().copied().filter(|kind| *kind == bounds::FORGE_READ_ADMISSIONS).collect(),
+            wrong_tree,
             disk,
             read_latency: Duration::from_millis(streams.rng(Stream::Scheduling, "system").between(1000, 1500)),
             release_configured: kinds.contains(&people::RELEASES_A_MEMBER),
@@ -121,6 +146,7 @@ impl FaultDraw {
             .map(|plan| (plan.kind, plan.goal.as_str()))
             .chain(self.people.iter().map(|(kind, goal)| (*kind, goal.as_str())))
             .chain(self.bounds.iter().map(|&kind| (kind, "")))
+            .chain(self.wrong_tree.then_some((temper_blame::WRONG_TREE, "")))
             .collect()
     }
 
@@ -134,6 +160,32 @@ impl FaultDraw {
     #[must_use]
     pub fn acts(&self) -> &[Action] {
         &self.actions
+    }
+}
+
+fn has_red_change(goal: &Goal) -> bool {
+    goal.changes.iter().any(|change| change.red_once)
+}
+
+fn catalogue_plan(
+    streams: Streams,
+    workload: &Workload,
+    kind: Kind,
+    eligible: Eligible,
+    ineligible: &mut BTreeSet<Kind>,
+) -> Option<Plan> {
+    let mut rng = streams.rng(Stream::Faults, &format!("{}/{}", kind.family, kind.name));
+    if rng.below(2) == 0 {
+        return None;
+    }
+    let goals: Vec<_> = workload.goals.iter().filter(|goal| eligible(goal)).collect();
+    let index = usize::try_from(rng.below(u64::try_from(goals.len()).expect("bounded goals"))).expect("goal index");
+    let after = rng.below(16);
+    if let Some(goal) = goals.get(index) {
+        Some(Plan { kind, goal: goal.name.clone(), after, fired: false, query: 1 })
+    } else {
+        ineligible.insert(kind);
+        None
     }
 }
 

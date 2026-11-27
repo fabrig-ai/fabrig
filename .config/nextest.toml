@@ -336,7 +336,11 @@ default-filter = """
      | ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-landing) | package(=temper-engine-domain-forge-tiers)) & kind(lib) & test(/^fuzzy::/))
      | (package(=temper-engine-service-component) & test(/^tests::sign_in::fuzzy_/)))
   & not binary(/^(process|live|live_github)$/)
-) & (binary_id(=temper-engine-domain-world::suite) | binary_id(=temper-engine-forge-world::suite))
+) & (
+  binary_id(=temper-engine-domain-world::suite)
+  | binary_id(=temper-engine-forge-world::suite)
+  | binary_id(=temper-system-world::suite)
+)
 """
 
 # macOS doubles the inherited Linux slow periods.
