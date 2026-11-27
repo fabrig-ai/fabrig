@@ -27,7 +27,9 @@ across the trees, are `temper/docs/design/testing/workloads.md`.
   and **the engine-clients world's sign-ins** (section 6) over the same
   form.
 - **Four sweeps** (section 7), each taking its exclusions from the kits'
-  `EXCLUSIONS`.
+  `EXCLUSIONS` and its cases from skein's seam, so that a campaign runs
+  them with fresh seeds after landing, as it runs jig's other fuzzy
+  loops.
 
 ## 2. The kinds
 
@@ -258,9 +260,12 @@ The module `workload` of `jig-engine-clients-kit`, over its `Peer`
 
 ## 7. The sweeps
 
-Each a test of its world's fuzzy suite, the loop skein's: for each seed,
-the seed to stderr, a run from `Streams::new(seed)`, its ledger folded,
-its findings returned at once, and `check_fell` after the last.
+Each a test of its world's fuzzy suite, the loop skein's seam's
+(`skein/docs/design/testing/sweeps.md`, 4.2): its cases through
+`skein_world::sweep::cases`, with its own test's identity
+(`this_test!`) and its pinned seeds; for each case, a run from
+`Streams::new(seed)`, its ledger folded, its findings returned at once;
+and `check_fell` after the last.
 
 | Sweep | World | Family | Configures | Exclusions |
 |---|---|---|---|---|
@@ -286,6 +291,37 @@ its findings returned at once, and `check_fell` after the last.
   `testing-fakes.md`, 1.3 that is the product's is asked up before
   anything is written for it; once confirmed it takes its scenario and
   its narrowest exclusion, its reason naming it as repaired as a red.
+  It comes back from `cases` as its case, which the test returns as its
+  failure, worded as the seam's line (sweeps.md, 4.4), so a failing
+  case names its test and seed in every mode.
+- **In a campaign** (`temper/docs/design/draft/fuzzy-campaigns.md`, 9):
+  each sweep runs as many fresh cases as it pins seeds, with the
+  configuration and exclusions it has at the gate, and the same checks
+  of each case. `check_fell` passes there and writes the sweep's reach,
+  and the bounds sweep's left-out counts are only written, never
+  judged (sweeps.md, 4.5).
+- **Every seed a valid case:** a draw makes an act only on a target its
+  moment allows, and a release only after its hold (section 8), so any
+  seed draws a workload its world can run. A configured kind that no
+  target allows in a case doesn't fall there: the reach counts it, and
+  nothing fails for it. A world's own refusal to run a draw is the
+  world's to make valid, never a finding.
+- **jig's other fuzzy loops take part the same way,** a binary at a
+  time: each loop of a world's fuzzy suite takes its cases through
+  `cases`, with its test's identity (a helper serving several tests
+  takes its caller's, and a part where one test runs several loops) and
+  its gate seeds unchanged, once any seed draws a case its world can
+  run. Arithmetic on a case's seed wraps, or derives a narrower value
+  from it, keeping the draws of the gate's seeds. A check over the loop
+  (every kind fell, a coverage array, an exact count across its seeds)
+  runs only where `gate()` holds. A loop asserting what its seed was
+  chosen to show, a pinned seed's named outcome, a golden or a digest,
+  keeps its seeds on its own loop or `each_seed`, and says why beside
+  it. Each such binary keeps its checks counts and its instructions
+  within the growth allowance (sweeps.md, 4.5).
+- **The pair** `campaign-jig` lists each binary whose loops take part
+  (`tools/tiers/layers.md`, 9.3), first the core world's suite with
+  these sweeps.
 
 ## 8. Testing
 
@@ -303,8 +339,9 @@ Focused and fuzzy suites only.
   left held; `Stuck` passes a task held past its run tries for `Failures`
   of the run's class with its words (`tasks/stuck.md`, 5), and a task
   idle, held otherwise or ended in its place is a finding.
-- **Each sweep,** in its world's fuzzy suite: every configured kind fell,
-  and the world's checks and the tasks' expectations held.
+- **Each sweep,** in its world's fuzzy suite: at the gate's seeds every
+  configured kind fell, and in every case the world's checks and the
+  tasks' expectations held.
 
 ## 9. Later
 
