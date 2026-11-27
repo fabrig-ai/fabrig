@@ -75,6 +75,7 @@ fn translate_charter(charter: wire::Charter, endpoints: &Endpoints) -> Result<ru
     })
 }
 
+#[expect(clippy::manual_map, reason = "step code uses match to translate options")]
 fn llm(value: wire::Llm, endpoints: &Endpoints) -> Result<run::charter::Llm, run::Invalid> {
     let Some(endpoint) = endpoints.resolve(&value.endpoint) else {
         return Err(run::Invalid::Endpoint);
@@ -88,5 +89,9 @@ fn llm(value: wire::Llm, endpoints: &Endpoints) -> Result<run::charter::Llm, run
         effort: value.effort,
         window: value.window,
         output: value.output,
+        speed: match value.speed {
+            Some(speed) => Some(mapped::speed_to_domain(speed)),
+            None => None,
+        },
     })
 }

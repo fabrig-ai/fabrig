@@ -1377,12 +1377,12 @@ fn output(
             receiving.asked = false;
             above.push(Event::Delta { owner: client.owner, delta: Delta::Reasoning { index, summary_index, text } });
         }
-        dialect::Output::Completed { stop, usage } => {
+        dialect::Output::Completed { stop, usage, served } => {
             let content = mem::replace(&mut receiving.content, List::with_capacity(0));
             client.outcome = Outcome::Terminal;
             above.push(Event::Completed {
                 owner: client.owner,
-                completion: Completion { content: content.into_boxed(), stop, usage },
+                completion: Completion { content: content.into_boxed(), stop, usage, served },
             });
             close_sse(client, env);
             client.state = Draining;

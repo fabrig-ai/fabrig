@@ -358,7 +358,7 @@ fn anthropic_event(
     let mut usage = reported_usage(answer.usage, fields);
     usage.reasoning = None;
     if sequence == 0 {
-        return Ok(Some((bytes::copy_of(b"message_start"), anthropic::Event::Started { usage })));
+        return Ok(Some((bytes::copy_of(b"message_start"), anthropic::Event::Started { usage, served: None })));
     }
     let at = sequence.saturating_sub(1).div_euclid(3);
     let phase = sequence.saturating_sub(1).rem_euclid(3);
@@ -431,6 +431,10 @@ fn anthropic_event(
             bytes::copy_of(b"message_delta"),
             anthropic::Event::MessageDelta {
                 stop: Some(anthropic_stop(answer.finish)),
+                speed: match &answer.served {
+                    Some(name) => anthropic::SpeedPatch::Reported(name.clone()),
+                    None => anthropic::SpeedPatch::Omitted,
+                },
                 usage: anthropic::UsagePatch {
                     input: usage.input,
                     output: usage.output,
@@ -634,7 +638,11 @@ fn openai_event(
                 api::Finish::Length | api::Finish::ContentFilter => b"response.incomplete",
                 api::Finish::Stop | api::Finish::ToolCalls => b"response.completed",
             }),
-            openai::Event::Completed { stop: openai_stop(answer.finish), usage: reported_usage(answer.usage, fields) },
+            openai::Event::Completed {
+                stop: openai_stop(answer.finish),
+                usage: reported_usage(answer.usage, fields),
+                served: answer.served.clone(),
+            },
         )));
     }
     Ok(None)
@@ -780,6 +788,7 @@ mod tests {
             ]),
             finish: api::Finish::ToolCalls,
             usage: api::Usage::NONE,
+            served: None,
         };
         for (sequence, expected) in [
             b"response.created".as_slice(),

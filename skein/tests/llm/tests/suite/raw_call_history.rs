@@ -198,6 +198,7 @@ fn raw_request(arguments: &[u8]) -> openai::Request {
         }]),
         effort: None,
         prompt_cache_key: None,
+        service_tier: None,
         choice: skein_llm::ToolChoice::Auto,
     }
 }

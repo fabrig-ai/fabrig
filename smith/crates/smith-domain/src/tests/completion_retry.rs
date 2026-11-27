@@ -111,7 +111,13 @@ fn empty_text_and_a_completion_without_text_retain_their_retry_identity() {
         let name = retry(&mut harness, owner);
         drop(harness.step(Event::Below(crate::Below::Completed {
             owner,
-            completion: Completion { content, stop: Stop::EndTurn, usage: USAGE, reasoning_dropped: Box::default() },
+            completion: Completion {
+                content,
+                stop: Stop::EndTurn,
+                usage: USAGE,
+                served: crate::llm::ServedSpeed::Unreported,
+                reasoning_dropped: Box::default(),
+            },
         })));
         if has_text {
             assert_eq!(

@@ -8,6 +8,7 @@ fn limits() -> session::Limits {
 
 fn completion(input: &[u8]) -> llm::Completion {
     llm::Completion {
+        served: llm::ServedSpeed::Unreported,
         reasoning_dropped: Box::new([]),
         content: Box::new([llm::Said::ToolCall {
             id: b"same-provider-id".to_vec().into(),

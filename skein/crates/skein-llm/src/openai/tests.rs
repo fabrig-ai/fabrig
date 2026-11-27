@@ -73,6 +73,7 @@ fn request() -> Request {
         ]),
         effort: Some(owned(b"high")),
         prompt_cache_key: Some(owned(b"conversation")),
+        service_tier: None,
         choice: crate::ToolChoice::Auto,
     }
 }
@@ -194,7 +195,7 @@ fn synthetic_parallel_tools_reasoning_and_message_heads_keep_order() {
                 arguments: owned(br#"{"path":"b"}"#),
             },
         },
-        Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE },
+        Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None },
     ];
     let trace = stream(&events, &LIMITS);
     let parts: Vec<&Part> = trace
@@ -243,7 +244,7 @@ fn input_cap_discards_input_and_answer_limit_emits_one_failed_terminal() {
                 arguments: owned(br#"{"path":"a"}"#),
             },
         },
-        Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE },
+        Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None },
     ];
     let trace = stream(&events, &Limits { input: 3, ..LIMITS });
     assert!(trace.iter().any(|out| match out {
@@ -260,7 +261,7 @@ fn input_cap_discards_input_and_answer_limit_emits_one_failed_terminal() {
             index: 0,
             item: Item::Message { id: owned(b"m"), phase: None, text: owned(b"hello"), refusal: false },
         },
-        Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE },
+        Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None },
     ];
     let trace = stream(&events, &Limits { answer: 4, ..LIMITS });
     assert!(match trace.last() {
@@ -307,7 +308,7 @@ fn mismatched_indices_ids_kinds_and_early_end_fail_once() {
                 },
             },
         ]),
-        Vec::from([added, Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE }]),
+        Vec::from([added, Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None }]),
         Vec::from([Event::Progress]),
     ];
     for events in scenarios {
@@ -351,6 +352,7 @@ fn server_events_roundtrip_echoes_skipped_and_errors_keep_reset_priority() {
             },
         },
         Event::Completed {
+            served: None,
             stop: Stop::MaxTokens,
             usage: Usage {
                 input: Some(12),
@@ -399,6 +401,7 @@ fn completed_usage_keeps_cached_over_total_and_checks_status() {
     assert_eq!(
         decode_event(&invalid, &LIMITS),
         Ok(Event::Completed {
+            served: None,
             stop: Stop::EndTurn,
             usage: Usage { input: None, cache_read: Some(3), cache_write: None, output: Some(2), reasoning: None },
         })
@@ -500,7 +503,12 @@ fn out_of_order_done_waits_for_order_and_terminal_waits_for_ready_parts() {
         drain(&mut out, &mut trace);
     }
     assert!(decoder.has_ready());
-    decoder.event(Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE }, &LIMITS, Wall::EPOCH, &mut out);
+    decoder.event(
+        Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None },
+        &LIMITS,
+        Wall::EPOCH,
+        &mut out,
+    );
     drain(&mut out, &mut trace);
     assert!(decoder.has_ready());
     assert!(!decoder.is_complete());
@@ -516,7 +524,7 @@ fn out_of_order_done_waits_for_order_and_terminal_waits_for_ready_parts() {
         })
         .collect();
     assert_eq!(ids, Vec::from([(owned(b"x"), owned(b"a")), (owned(b"y"), owned(b"b")), (owned(b"z"), owned(b"c"))]));
-    assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::ToolUse, usage: Usage::NONE }));
+    assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::ToolUse, usage: Usage::NONE, served: None }));
 }
 
 #[test]
@@ -533,9 +541,12 @@ fn incomplete_and_refused_terminals_override_tools_and_absolute_reset_uses_wall(
                     arguments: owned(b"{}"),
                 },
             },
-            Event::Completed { stop, usage: Usage::NONE },
+            Event::Completed { stop, usage: Usage::NONE, served: None },
         ];
-        assert_eq!(stream(&events, &LIMITS).last(), Some(&Output::Completed { stop, usage: Usage::NONE }));
+        assert_eq!(
+            stream(&events, &LIMITS).last(),
+            Some(&Output::Completed { stop, usage: Usage::NONE, served: None })
+        );
     }
     let mut decoder = StreamDecoder::new(crate::Provider::OpenAi, &LIMITS);
     let mut out = Queue::uncapped();
@@ -561,8 +572,8 @@ fn incomplete_and_refused_terminals_override_tools_and_absolute_reset_uses_wall(
         })
     );
     assert_eq!(
-        stream(&[Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE }], &LIMITS),
-        Vec::from([Output::Completed { stop: Stop::EndTurn, usage: Usage::NONE }])
+        stream(&[Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None }], &LIMITS),
+        Vec::from([Output::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None }])
     );
 }
 
@@ -589,7 +600,7 @@ fn server_refuses_request_limit_even_when_document_limit_is_larger() {
 fn fake_completion_echo_exercises_large_event_without_keeping_request() {
     // The client decoder deliberately ignores the request echo.
     let bytes = crate::openai::encode_peer_event(
-        &Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE },
+        &Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None },
         Some(&request()),
         crate::openai::Echo::REQUEST,
         &LIMITS,
@@ -599,7 +610,7 @@ fn fake_completion_echo_exercises_large_event_without_keeping_request() {
     assert!(bytes::find(&bytes, b"parameters").is_some());
     assert_eq!(
         decode_event(&value(&bytes), &LIMITS).unwrap(),
-        Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE }
+        Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None }
     );
 }
 
@@ -616,7 +627,7 @@ fn deltas_decode_roundtrip_and_forward_before_completed_blocks() {
         Event::Done { index: 2, item: Item::Opaque { value: value(br#"{"id":"r","type":"reasoning","summary":[{"type":"summary_text","text":"checking"}],"encrypted_content":"secret"}"#) } },
         Event::Done { index: 1, item: Item::FunctionCall { id: owned(b"f"), call_id: owned(b"c"), name: owned(b"read"), arguments: owned(br#"{"path":"a"}"#) } },
         Event::Done { index: 0, item: Item::Message { id: owned(b"m"), phase: Some(owned(b"final_answer")), text: owned(b"hello"), refusal: false } },
-        Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE },
+        Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None },
     ];
     for event in &events {
         assert_eq!(decode_event(&value(&encode_event(event, &LIMITS).unwrap()), &LIMITS).unwrap(), *event);
@@ -645,7 +656,7 @@ fn deltas_decode_roundtrip_and_forward_before_completed_blocks() {
         Part::Opaque { .. } => true,
         _ => false,
     });
-    assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::ToolUse, usage: Usage::NONE }));
+    assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::ToolUse, usage: Usage::NONE, served: None }));
 }
 
 #[test]
@@ -664,7 +675,7 @@ fn reasoning_summary_and_message_parts_can_exceed_output_items() {
         Event::TextDelta { index: 1, content_index: 1, text: owned(b"b") },
         Event::TextDelta { index: 1, content_index: 2, text: owned(b"c") },
         message,
-        Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE },
+        Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None },
     ];
     assert_eq!(
         stream(&events, &limits),
@@ -679,7 +690,7 @@ fn reasoning_summary_and_message_parts_can_exceed_output_items() {
             Output::TextDelta { index: 1, content_index: 1, text: owned(b"b") },
             Output::TextDelta { index: 1, content_index: 2, text: owned(b"c") },
             Output::Part(Part::Text { id: owned(b"m"), phase: None, text: owned(b"abc"), refusal: false }),
-            Output::Completed { stop: Stop::EndTurn, usage: Usage::NONE },
+            Output::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None },
         ]
     );
 }
@@ -703,7 +714,7 @@ fn delta_references_and_cumulative_size_are_checked_and_failure_is_terminal() {
             Event::TextDelta { index: 0, content_index: 0, text: owned(b"ab") },
             Event::TextDelta { index: 0, content_index: 0, text: owned(b"cd") },
             Event::TextDelta { index: 0, content_index: 0, text: owned(b"ignored") },
-            Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE },
+            Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None },
         ],
         &Limits { answer: 3, ..LIMITS },
     );
@@ -818,7 +829,7 @@ fn separate_opaque_tool_ids_each_obey_string_and_joint_answer_caps() {
                 arguments: owned(b"{}"),
             },
         },
-        Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE },
+        Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None },
     ];
     let exact = Limits { strings: 13, answer: 20, ..LIMITS };
     let trace = stream(&events, &exact);
@@ -834,7 +845,7 @@ fn separate_opaque_tool_ids_each_obey_string_and_joint_answer_caps() {
             cut: false,
         })
     );
-    assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::ToolUse, usage: Usage::NONE }));
+    assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::ToolUse, usage: Usage::NONE, served: None }));
     let trace = stream(&events, &Limits { answer: 19, ..exact });
     assert!(match trace.last() {
         Some(Output::Failed { failure: Failure::Limit { .. }, .. }) => true,
@@ -856,11 +867,11 @@ fn separate_opaque_tool_ids_each_obey_string_and_joint_answer_caps() {
                     arguments: owned(b"{}"),
                 },
             },
-            Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE },
+            Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None },
         ];
         assert_eq!(
             stream(&events, &Limits { strings: 14, answer: 27, ..exact }).last(),
-            Some(&Output::Completed { stop: Stop::ToolUse, usage: Usage::NONE })
+            Some(&Output::Completed { stop: Stop::ToolUse, usage: Usage::NONE, served: None })
         );
         let trace = stream(&events, &Limits { strings: 13, answer: 27, ..exact });
         assert!(match trace.last() {
@@ -916,7 +927,7 @@ fn unfinished_native_call_keeps_its_identity_and_arguments_at_the_output_cap() {
             arguments: Box::new([]),
         },
         Event::ArgumentsDelta { index: 0, delta: owned(br#"{"x":"#) },
-        Event::Completed { stop: Stop::MaxTokens, usage: Usage::NONE },
+        Event::Completed { stop: Stop::MaxTokens, usage: Usage::NONE, served: None },
     ];
     for event in &events {
         let wire = encode_event(event, &LIMITS).expect("native event");
@@ -930,7 +941,7 @@ fn unfinished_native_call_keeps_its_identity_and_arguments_at_the_output_cap() {
     }));
     assert_eq!(trace.first(), Some(&Output::ToolStart { index: 0, id: owned(b"c"), name: owned(b"read") }));
     assert_eq!(trace.get(1), Some(&Output::ArgumentsDelta { index: 0, delta: owned(br#"{"x":"#) }));
-    assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::MaxTokens, usage: Usage::NONE }));
+    assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::MaxTokens, usage: Usage::NONE, served: None }));
 }
 
 #[test]
@@ -953,7 +964,7 @@ fn escaped_argument_text_is_counted_at_the_input_edge_and_one_over() {
                 arguments: owned(arguments),
             },
         },
-        Event::Completed { stop: Stop::ToolUse, usage: Usage::NONE },
+        Event::Completed { stop: Stop::ToolUse, usage: Usage::NONE, served: None },
     ];
     for below in [false, true] {
         let input = u32::try_from(arguments.len()).unwrap() - u32::from(below);
@@ -974,7 +985,7 @@ fn escaped_argument_text_is_counted_at_the_input_edge_and_one_over() {
             }
             Part::Text { .. } | Part::Opaque { .. } | Part::Dropped { .. } => unreachable!("one function call outcome"),
         }
-        assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::ToolUse, usage: Usage::NONE }));
+        assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::ToolUse, usage: Usage::NONE, served: None }));
     }
 }
 
@@ -997,7 +1008,7 @@ fn a_native_done_item_marked_incomplete_is_a_cut_and_requires_the_output_cap() {
                 arguments: owned(b"{broken"),
             },
         },
-        Event::Completed { stop: Stop::MaxTokens, usage: Usage::NONE },
+        Event::Completed { stop: Stop::MaxTokens, usage: Usage::NONE, served: None },
     ];
     let wire = encode_event(&events[1], &LIMITS).expect("incomplete provider item");
     assert_eq!(decode_event(&Json::from_bytes(&wire, &LIMITS.document()).unwrap(), &LIMITS).unwrap(), events[1]);
@@ -1006,9 +1017,9 @@ fn a_native_done_item_marked_incomplete_is_a_cut_and_requires_the_output_cap() {
         Output::Part(Part::ToolCall { input, cut: true, .. }) => input.as_ref() == b"{broken",
         _ => false,
     }));
-    assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::MaxTokens, usage: Usage::NONE }));
+    assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::MaxTokens, usage: Usage::NONE, served: None }));
     let mut events = events;
-    events[2] = Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE };
+    events[2] = Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None };
     let trace = stream(&events, &LIMITS);
     assert!(match trace.last() {
         Some(Output::Failed { failure: Failure::Protocol, .. }) => true,
@@ -1037,7 +1048,7 @@ fn reasoning_drop_is_opt_in_at_one_over_and_never_drops_unknown_items() {
             for event in [
                 Event::Added { index: 0, id: owned(b"r"), kind: owned(kind) },
                 Event::Done { index: 0, item: Item::Opaque { value: opaque.clone() } },
-                Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE },
+                Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None },
             ] {
                 decoder.event(event, &bounds, Wall::EPOCH, &mut out);
                 drain(&mut out, &mut trace);
@@ -1090,7 +1101,7 @@ fn responses_usage_distinguishes_each_absent_present_and_zero_field() {
                 format!(r#"{{"type":"response.completed","response":{{"status":"completed","usage":{wire}}}}}"#);
             assert_eq!(
                 decode_event(&value(document.as_bytes()), &LIMITS),
-                Ok(Event::Completed { stop: Stop::EndTurn, usage: expected })
+                Ok(Event::Completed { stop: Stop::EndTurn, usage: expected, served: None })
             );
         }
     }
@@ -1103,12 +1114,12 @@ fn responses_usage_distinguishes_each_absent_present_and_zero_field() {
             format!(r#"{{"type":"response.completed","response":{{"status":"completed","usage":{usage}}}}}"#);
         assert_eq!(
             decode_event(&value(document.as_bytes()), &LIMITS),
-            Ok(Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE })
+            Ok(Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None })
         );
     }
     assert_eq!(
         decode_event(&value(br#"{"type":"response.completed","response":{"status":"completed"}}"#), &LIMITS),
-        Ok(Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE })
+        Ok(Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None })
     );
 }
 
@@ -1134,7 +1145,7 @@ fn inconsistent_responses_usage_keeps_reports_and_the_model_completion() {
             output: Some(7),
             reasoning: Some(2),
         };
-        assert_eq!(event, Event::Completed { stop: Stop::EndTurn, usage });
+        assert_eq!(event, Event::Completed { stop: Stop::EndTurn, usage, served: None });
         let trace = stream(
             &[
                 Event::Added { index: 0, id: owned(b"m"), kind: owned(b"message") },
@@ -1150,7 +1161,7 @@ fn inconsistent_responses_usage_keeps_reports_and_the_model_completion() {
             Output::Part(Part::Text { text, .. }) => text.as_ref() == b"kept",
             _ => false,
         }));
-        assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::EndTurn, usage }));
+        assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::EndTurn, usage, served: None }));
     }
 }
 
@@ -1353,7 +1364,7 @@ fn reasoning_run_events(final_call: bool) -> Vec<Event> {
             item: Item::Message { id: owned(b"m"), phase: None, text: owned(b"done"), refusal: false },
         });
     }
-    events.push(Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE });
+    events.push(Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None });
     events
 }
 
@@ -1382,7 +1393,11 @@ fn assert_reasoning_run(final_call: bool) {
     assert_eq!(body.get(position..position + expected.len()), Some(expected.as_slice()));
     assert_eq!(
         trace.last(),
-        Some(&Output::Completed { stop: if final_call { Stop::ToolUse } else { Stop::EndTurn }, usage: Usage::NONE })
+        Some(&Output::Completed {
+            stop: if final_call { Stop::ToolUse } else { Stop::EndTurn },
+            usage: Usage::NONE,
+            served: None
+        })
     );
 }
 
@@ -1416,12 +1431,12 @@ fn reasoning_run_past_one_blocks_retained_tokens_names_its_limit() {
 fn an_output_cut_keeps_the_completed_items_of_a_reasoning_run() {
     let mut events = reasoning_run_events(false);
     events.truncate(3);
-    events.push(Event::Completed { stop: Stop::MaxTokens, usage: Usage::NONE });
+    events.push(Event::Completed { stop: Stop::MaxTokens, usage: Usage::NONE, served: None });
     let trace = stream(&events, &Limits { output_items: 2, ..LIMITS });
     assert!(trace.contains(&Output::Part(Part::Opaque {
         bytes: owned(br#"{"type":"reasoning","id":"r0","encrypted_content":"a","summary":[]}"#)
     })));
-    assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::MaxTokens, usage: Usage::NONE }));
+    assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::MaxTokens, usage: Usage::NONE, served: None }));
 }
 
 #[test]
@@ -1438,7 +1453,7 @@ fn an_opted_in_drop_interrupts_a_retained_reasoning_run_without_losing_it() {
             ),
         },
     };
-    events.push(Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE });
+    events.push(Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None });
     let mut decoder = StreamDecoder::with_reasoning_drop(crate::Provider::OpenAi, &limits, true);
     let mut out = Queue::uncapped();
     let mut trace = Vec::new();
@@ -1454,7 +1469,7 @@ fn an_opted_in_drop_interrupts_a_retained_reasoning_run_without_losing_it() {
         bytes: owned(br#"{"type":"reasoning","id":"r0","encrypted_content":"a","summary":[]}"#)
     })));
     assert!(trace.contains(&Output::Part(Part::Dropped { bytes: 81 })));
-    assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::EndTurn, usage: Usage::NONE }));
+    assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None }));
 }
 
 #[test]
@@ -1608,7 +1623,7 @@ fn synthetic_echo_heavy_completion_keeps_only_status_and_usage() {
     let usage =
         Usage { input: Some(5256), output: Some(36), cache_read: Some(0), cache_write: Some(0), reasoning: Some(0) };
     let input = crate::openai::encode_peer_event(
-        &Event::Completed { stop: Stop::EndTurn, usage },
+        &Event::Completed { stop: Stop::EndTurn, usage, served: None },
         Some(&request),
         crate::openai::Echo { instructions: true, tools: true, attribution_bytes: u32::try_from(ECHO_BYTES).unwrap() },
         &LIMITS,
@@ -1626,5 +1641,8 @@ fn synthetic_echo_heavy_completion_keeps_only_status_and_usage() {
             );
         }
     }
-    assert_eq!(decode_event(&Json::collected(document), &LIMITS), Ok(Event::Completed { stop: Stop::EndTurn, usage }));
+    assert_eq!(
+        decode_event(&Json::collected(document), &LIMITS),
+        Ok(Event::Completed { stop: Stop::EndTurn, usage, served: None })
+    );
 }

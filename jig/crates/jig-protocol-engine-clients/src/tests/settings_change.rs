@@ -77,6 +77,102 @@ fn all_four_whole_values_translate_and_the_component_passes_the_exact_asks_diges
     assert!(exchange.out.is_empty());
 }
 #[test]
+fn a_model_settings_change_and_read_keep_its_speeds() {
+    let limits = f::wire();
+    let fast = w::SettingSpeed {
+        name: b"fast".as_slice().into(),
+        also: List::from_boxed(Box::new([b"priority".as_slice().into()])),
+        input_price: 4000,
+        cached_price: 200,
+        cache_write_price: Some(5000),
+        output_price: 20_000,
+    };
+    let ultrafast = w::SettingSpeed {
+        name: b"ultrafast".as_slice().into(),
+        also: List::with_capacity(0),
+        input_price: 12_000,
+        cached_price: 600,
+        cache_write_price: None,
+        output_price: 60_000,
+    };
+    let entry = w::CatalogueEntry {
+        number: 40,
+        model: w::SettingModel {
+            provider: 1,
+            dialect: 3,
+            endpoint: 1,
+            program: None,
+            name: b"model".as_slice().into(),
+            window: 4096,
+            output: 1024,
+            input_price: 1000,
+            cached_price: 100,
+            cache_write_price: None,
+            output_price: 5000,
+            price_unit: 1_000_000,
+            efforts: List::with_capacity(0),
+            effort: None,
+            speeds: List::from_boxed(Box::new([fast, ultrafast])),
+            speed: Some(b"ultrafast".as_slice().into()),
+        },
+        shown: None,
+        description: None,
+        picker: true,
+        withdrawn: false,
+        source: w::ModelSource::Person,
+        estimated: false,
+    };
+    let setting = w::Setting::Model(w::SettingNumber { number: 40 });
+    let item = w::SettingItem {
+        setting,
+        edit: w::SettingEdit::Set(w::SettingSet { value: w::SettingValue::Model(Box::new(entry.clone())) }),
+    };
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(item.measure(&limits).unwrap()));
+    item.write(&limits, &mut writer).unwrap();
+    let bytes = f::pieces(&[writer.finish()]);
+    let request = w::ChangeSettings { against: 5, items: bytes.clone(), running: w::Running::Stays };
+    let change = translate::settings::change(request, &f::models(), &limits).unwrap();
+    assert_eq!(translate::settings::items(bytes, &f::models(), &limits).unwrap(), change.items);
+    let [s::Item { setting: setting @ s::Setting::Model(40), edit: s::Edit::Set(s::Value::Model(model)) }] =
+        change.items.as_ref()
+    else {
+        panic!("one model set")
+    };
+    assert_eq!(
+        &*model.model.speeds,
+        &[
+            core::Speed {
+                name: b"fast".as_slice().into(),
+                also: Box::new([b"priority".as_slice().into()]),
+                input_price: 4000,
+                cached_price: 200,
+                cache_write_price: Some(5000),
+                output_price: 20_000,
+            },
+            core::Speed {
+                name: b"ultrafast".as_slice().into(),
+                also: Box::new([]),
+                input_price: 12_000,
+                cached_price: 600,
+                cache_write_price: None,
+                output_price: 60_000,
+            },
+        ]
+    );
+    assert_eq!(model.model.speed.as_deref(), Some(b"ultrafast".as_slice()));
+    let read = core::reads::SettingDocument {
+        setting: *setting,
+        overlay: None,
+        revision: 6,
+        value: Some(s::Value::Model(model.clone())),
+        application: None,
+        proposed: None,
+    };
+    let read = translate::settings::setting_document(&read, &f::models(), &limits).unwrap();
+    assert_eq!(read.value, Some(w::SettingValue::Model(Box::new(entry))));
+}
+
+#[test]
 fn resets_and_removals_translate_and_bad_pieces_reach_no_core() {
     let limits = f::wire();
     let mut rows = List::with_capacity(2);
