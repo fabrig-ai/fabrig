@@ -1,4 +1,4 @@
-//! Store adapters for the core's restart script (jig's domain/root.md, 8).
+//! Store adapters for the core's restart script (temper/docs/design/domain/root-restart.md, 1.1).
 //! Window texts keep cut turns and their lengths (temper/docs/design/domain/root.md, 7).
 use crate::archive::{
     Waiting, goal_failed, goal_loaded, input_failed, input_loaded, note_failed, note_loaded, transcript_failed,
@@ -33,10 +33,6 @@ pub(crate) fn accept_load(domain: &mut Domain, env: &Env<Limits>, decision: Opti
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one dispatcher admits root and child loads and routes refusal to their owners"
-)]
 pub(crate) fn request_load(
     domain: &mut Domain,
     waiter: Token,
@@ -87,49 +83,15 @@ pub(crate) fn request_load(
             return;
         }
         match range {
-            Range::History(_) => {
-                crate::archive::history_failed(domain, waiter);
-                return;
-            }
-            Range::Core(crate::CoreRange::RequesterWord { .. }) => {
-                goal_failed(domain, waiter);
-                return;
-            }
-            Range::Core(crate::CoreRange::TaskTranscript { .. }) => {
-                transcript_failed(domain, waiter);
-                return;
-            }
-            Range::Core(
-                crate::CoreRange::ProposalDecision { .. }
-                | crate::CoreRange::TaskProposal { .. }
-                | crate::CoreRange::EscalationDecision { .. }
-                | crate::CoreRange::Calls
-                | crate::CoreRange::Deployment
-                | crate::CoreRange::Tasks
-                | crate::CoreRange::RunProofs
-                | crate::CoreRange::Settings
-                | crate::CoreRange::Accounts
-                | crate::CoreRange::People
-                | crate::CoreRange::Sweep
-                | crate::CoreRange::TaskResult { .. }
-                | crate::CoreRange::EndedRead { .. }
-                | crate::CoreRange::Turns { .. },
-            )
-            | Range::Census(_)
-            | Range::Forge => {}
-            Range::Core(crate::CoreRange::Notes(_)) => {
-                note_failed(domain, waiter);
-                return;
-            }
-        }
-        match range {
+            Range::History(_) => crate::archive::history_failed(domain, waiter),
+            Range::Core(crate::CoreRange::RequesterWord { .. }) => goal_failed(domain, waiter),
+            Range::Core(crate::CoreRange::TaskTranscript { .. }) => transcript_failed(domain, waiter),
+            Range::Core(crate::CoreRange::Notes(_)) => note_failed(domain, waiter),
             Range::Core(crate::CoreRange::ProposalDecision { .. } | crate::CoreRange::TaskProposal { .. }) => {
                 domain.work.push(Work::ProposalFailed { waiter });
-                return;
             }
             Range::Core(crate::CoreRange::EscalationDecision { .. }) => {
                 domain.work.push(Work::EscalationFailed { waiter });
-                return;
             }
             Range::Core(
                 crate::CoreRange::Calls
@@ -141,8 +103,6 @@ pub(crate) fn request_load(
                 | crate::CoreRange::Sweep
                 | crate::CoreRange::RunProofs
                 | crate::CoreRange::Turns { .. }
-                | crate::CoreRange::TaskTranscript { .. }
-                | crate::CoreRange::RequesterWord { .. }
                 | crate::CoreRange::TaskResult { .. }
                 | crate::CoreRange::EndedRead { .. },
             )
@@ -150,9 +110,8 @@ pub(crate) fn request_load(
             | Range::Forge => {
                 unreachable!("startup/result load room reserved")
             }
-            Range::History(_) => unreachable!("history load failure handled above"),
-            Range::Core(crate::CoreRange::Notes(_)) => unreachable!("notes load failure handled above"),
         }
+        return;
     }
     match load_out.pop().expect("load issued") {
         loads::Request::Load { owner, range, after, most, bytes } => {
@@ -318,8 +277,23 @@ pub(crate) fn startup_page(
         return;
     }
     if let Some(after) = next {
-        emit(&mut decision, &env.limits, Delivery::Load { waiter: Token::new(u64::MAX), range, after: Some(after) });
-        close(domain, env, decision, out);
+        // A read-only forge page can ask for the next page through the door.
+        // Keep the release when this page or older journal work must go first.
+        if range == Range::Forge
+            && decision.empty()
+            && !domain.engine.core().counters.dirty()
+            && domain.journal.backlog() == 0
+        {
+            close(domain, env, decision, out);
+            request_load(domain, Token::new(u64::MAX), range, Some(after), out);
+        } else {
+            emit(
+                &mut decision,
+                &env.limits,
+                Delivery::Load { waiter: Token::new(u64::MAX), range, after: Some(after) },
+            );
+            close(domain, env, decision, out);
+        }
         return;
     }
     let following = match range {
