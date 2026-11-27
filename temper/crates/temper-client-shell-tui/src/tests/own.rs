@@ -180,7 +180,7 @@ fn an_own_name_opens_its_empty_place() {
             assert_eq!(host.words(), []);
             assert_eq!(host.state().picked(), None);
             assert!(host.state().walk().is_none());
-            assert!(text(&mut host).contains("or Esc to go back."));
+            assert!(text(&mut host).contains("or ← to go back."));
             for character in "fix the README".chars() {
                 empty(&host.report(Report::Key(Key::Char(character))));
             }
@@ -338,7 +338,7 @@ fn first_words_start_the_places_chat_and_a_refusal_can_be_sent_again() {
                 reply(&mut host, *exchange, created_bytes(NEWEST));
                 assert_eq!(host.root.pages().address(), &Address::Chat { task: NEWEST });
                 assert_eq!(host.state().place(), None);
-                assert!(!text(&mut host).contains("or Esc to go back."));
+                assert!(!text(&mut host).contains("or ← to go back."));
             }
         }
     }

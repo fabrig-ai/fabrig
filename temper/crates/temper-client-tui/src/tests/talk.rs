@@ -156,7 +156,7 @@ fn talk_lists_roles_in_team_order_with_areas_or_now() {
     let mut tui = Tui::new(f::ADDRESS);
     assert!(crate::offered_own(&root, &tui).windows(3).any(|items| items == [Own::Change, Own::Talk, Own::Ask]));
     let view = build(&root, &tui);
-    assert!(text(&view).contains("/talk     a role, about its area"), "{}", text(&view));
+    f::find(view.tree(), Role::Item, b"/talk     a role, about its area");
     tui.step(Told::TalkList { open: true });
     let list = foot::read(&root, &tui, &f::words(), WALL).list.unwrap();
     assert_eq!(list.head.as_deref(), Some(b"Talk with a role on Hello".as_slice()));
