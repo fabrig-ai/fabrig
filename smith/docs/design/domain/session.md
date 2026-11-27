@@ -632,6 +632,16 @@ budgets.
     it; a bound weighted toward one cell, which still rests on those
     few sessions; and full cells checked by the stories alone, which
     drops what the sweep was asked to reach.
+  - **Why some worlds grant only `shell` and `job`:** with `job` a
+    slot, a `consumed` job needs a launch, a read to its end and a
+    second poll in separate turns, and a withdraw needs an answer still
+    in flight. So an eighth of the noisy worlds grant `shell` and `job`
+    alone, draw one call per answer, and read up to 1200 cached tokens
+    and write up to 512, where the others keep 600 and 80; and every
+    noisy world draws a delegated call's latency from 10 to 6000 ms,
+    room for a withdraw to race an answer. That reaches
+    `consumed` and an answer after its withdraw at the gate's seeds,
+    with none added.
 - **Its referee takes a running job's answers.** A yielding command's
   `running` answer is what comes of it, naming its session's next job
   number, and a `job` call's answer names the job the call asked for.
