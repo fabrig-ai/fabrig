@@ -143,6 +143,54 @@ fn catalogue_kind_draws_its_own_coin_target_and_moment() {
 }
 
 #[test]
+fn missing_report_draws_its_own_coin_target_and_moment() {
+    use temper_blame::MISSING_REPORT;
+    let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+    let without: Vec<_> = kinds.iter().copied().filter(|&kind| kind != MISSING_REPORT).collect();
+    let (mut planned, mut skipped, mut ineligible) = (false, false, false);
+    for seed in (0..64).chain([u64::MAX]) {
+        let streams = Streams::new(seed);
+        let workload = Workload::draw(&streams, &COMPOSED);
+        let with = FaultDraw::new(seed, &kinds);
+        let base = FaultDraw::new(seed, &without);
+        assert_eq!(with.acts(), base.acts());
+        assert_eq!(
+            with.plans.iter().filter(|plan| plan.kind != MISSING_REPORT).collect::<Vec<_>>(),
+            base.plans.iter().collect::<Vec<_>>()
+        );
+        assert_eq!(
+            with.planned().into_iter().filter(|&(kind, _)| kind != MISSING_REPORT).collect::<Vec<_>>(),
+            base.planned()
+        );
+        assert_eq!(
+            with.ineligible().into_iter().filter(|&kind| kind != MISSING_REPORT).collect::<Vec<_>>(),
+            base.ineligible()
+        );
+        let plan = with.plans.iter().find(|plan| plan.kind == MISSING_REPORT);
+        let mut rng = streams.rng(Stream::Faults, "ci/missing_report");
+        let goals: Vec<_> = workload.goals.iter().filter(|goal| red_goal(goal)).collect();
+        if rng.below(2) == 0 {
+            assert!(plan.is_none(), "seed {seed}: the coin skips the kind");
+            assert!(!with.ineligible().contains(&MISSING_REPORT));
+            skipped = true;
+        } else if goals.is_empty() {
+            assert!(plan.is_none());
+            assert!(with.ineligible().contains(&MISSING_REPORT), "seed {seed}: no red goal");
+            ineligible = true;
+        } else {
+            let index =
+                usize::try_from(rng.below(u64::try_from(goals.len()).expect("bounded goals"))).expect("goal index");
+            let after = rng.below(16);
+            let plan = plan.unwrap_or_else(|| panic!("seed {seed}: the coin fell on a red goal"));
+            assert_eq!((plan.goal.as_str(), plan.after), (goals[index].name.as_str(), after), "seed {seed}");
+            assert!(!with.ineligible().contains(&MISSING_REPORT));
+            planned = true;
+        }
+    }
+    assert!(planned && skipped && ineligible);
+}
+
+#[test]
 fn spent_credits_draws_its_own_coin_target_and_moment() {
     use skein_llm_kit::faults::SPENT_CREDITS;
 
@@ -184,6 +232,52 @@ fn spent_credits_draws_its_own_coin_target_and_moment() {
         }
     }
     assert!(lands && skips);
+}
+
+#[test]
+fn expired_sign_in_draws_its_own_coin_target_and_moment() {
+    use skein_llm_kit::faults::EXPIRED_SIGN_IN;
+
+    assert!(CAMPAIGN_KINDS.contains(&EXPIRED_SIGN_IN));
+    assert!(!GATE_KINDS.contains(&EXPIRED_SIGN_IN));
+    let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+    let without: Vec<_> = kinds.iter().copied().filter(|&kind| kind != EXPIRED_SIGN_IN).collect();
+    let mut targets = BTreeSet::new();
+    let mut skipped = false;
+    for seed in (0..64).chain([u64::MAX]) {
+        let draw = FaultDraw::new(seed, &kinds);
+        let baseline = FaultDraw::new(seed, &without);
+        assert_eq!(
+            draw.plans.iter().filter(|plan| plan.kind != EXPIRED_SIGN_IN).collect::<Vec<_>>(),
+            baseline.plans.iter().collect::<Vec<_>>(),
+            "seed {seed}: another kind's plan moved"
+        );
+        assert_eq!(
+            draw.planned().into_iter().filter(|&(kind, _)| kind != EXPIRED_SIGN_IN).collect::<Vec<_>>(),
+            baseline.planned(),
+            "seed {seed}: another kind's target moved"
+        );
+        assert_eq!(draw.ineligible(), baseline.ineligible(), "seed {seed}");
+        assert_eq!(draw.acts(), baseline.acts(), "seed {seed}");
+
+        let streams = Streams::new(seed);
+        let mut rng = streams.rng(Stream::Faults, "provider/expired sign-in");
+        let expired: Vec<_> = draw.plans.iter().filter(|plan| plan.kind == EXPIRED_SIGN_IN).collect();
+        if rng.below(2) == 0 {
+            assert!(expired.is_empty(), "seed {seed}: the coin skips expired sign-in");
+            skipped = true;
+        } else {
+            let workload = Workload::draw(&streams, &COMPOSED);
+            let index =
+                usize::try_from(rng.below(workload.goals.len().try_into().expect("goal count"))).expect("goal index");
+            let [plan] = expired.as_slice() else { panic!("seed {seed}: the coin plans expired sign-in once") };
+            assert_eq!(plan.goal, workload.goals[index].name, "seed {seed}: target drawn after the coin");
+            assert_eq!(plan.after, rng.below(16), "seed {seed}: moment drawn after the target");
+            targets.insert(index);
+        }
+    }
+    assert!(skipped);
+    assert_eq!(targets, BTreeSet::from([0, 1, 2]));
 }
 
 #[test]

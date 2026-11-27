@@ -54,9 +54,11 @@ pub const CAMPAIGN_KINDS: &[Kind] = &[
     // ci
     temper_blame::WRONG_TREE,
     temper_blame::SET_UP,
+    temper_blame::MISSING_REPORT,
     // stale
     // provider
     skein_llm_kit::faults::SPENT_CREDITS,
+    skein_llm_kit::faults::EXPIRED_SIGN_IN,
     // worker
     // people and parties
     // runs that park, resume and move
@@ -94,7 +96,7 @@ pub(in crate::composed) struct Faults {
     opening: Option<Injection>,
     rejoining: Option<usize>,
     provider: Option<(u32, Time)>,
-    spent_credits: Option<runs::SpentCredits>,
+    account_strikes: Vec<runs::AccountStrike>,
     runs: smith_faults::Runs,
     observed_runs: BTreeMap<(u64, u64), runs::ObservedRun>,
     provider_failures: Vec<((u64, u64), Injection)>,
@@ -103,6 +105,7 @@ pub(in crate::composed) struct Faults {
     repairs: BTreeSet<u64>,
     holds: BTreeSet<String>,
     wrong: BTreeSet<u64>,
+    missing_report: Option<blame::MissingReport>,
     bounds: Vec<Kind>,
     actions: Vec<Action>,
     release_configured: bool,
@@ -129,6 +132,7 @@ impl Faults {
             base_behind_configured,
             ..
         } = draw;
+        let missing_report = plans.iter().any(|plan| plan.kind == temper_blame::MISSING_REPORT);
         let mut ledger = FaultLedger::new();
         for kind in ineligible {
             ledger.ineligible(kind);
@@ -163,7 +167,7 @@ impl Faults {
             opening: None,
             rejoining: None,
             provider: None,
-            spent_credits: None,
+            account_strikes: Vec::new(),
             runs: smith_faults::Runs::new(),
             observed_runs: BTreeMap::new(),
             provider_failures: Vec::new(),
@@ -172,6 +176,7 @@ impl Faults {
             repairs: BTreeSet::new(),
             holds: BTreeSet::new(),
             wrong: BTreeSet::new(),
+            missing_report: missing_report.then_some(blame::MissingReport::Waiting),
         }
     }
 
@@ -219,7 +224,7 @@ impl World {
                 && (f.park.is_none() || f.parked)
                 && f.closed.is_none()
                 && f.provider.is_none()
-                && f.spent_credits.is_none()
+                && f.account_strikes.is_empty()
                 && f.settling.is_none()
                 && f.opening.is_none()
                 && f.rejoining.is_none()
@@ -294,6 +299,10 @@ impl World {
         }
         eprintln!("seed {}: faults stopped by {:?}", f.seed, f.last);
         for entry in f.ledger.entries() {
+            if entry.kind == temper_blame::MISSING_REPORT && entry.count(skein_world::faults::Counter::GateRetries) != 1
+            {
+                return Err(format!("the missing report on run {:?} was not retried once", entry.struck.gate_run));
+            }
             eprintln!(
                 "{:?}: {:?}..{:?}; {:?}; gate retries {}, repairs {}, task tries {}",
                 entry.kind,

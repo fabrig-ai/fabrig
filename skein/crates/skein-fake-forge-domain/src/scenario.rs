@@ -442,6 +442,22 @@ pub fn set_opening(domain: &mut Domain, repository: &[u8], context: &[u8], bytes
         .expect("one opening per context") = copy_of(bytes);
 }
 
+/// Omit the report if this in-flight dispatch next completes with a failure.
+/// A subsequent attempt runs with the workflow's usual report.
+///
+/// # Errors
+/// Returns `Missing` for an unknown dispatch, or `Refused` if it has ended.
+pub fn omit_report_once(domain: &mut Domain, repository: &[u8], run: u64) -> Result<(), Error> {
+    let id = domain.id(repository);
+    let repository = domain.repositories.get(id).expect("a repository of the forge");
+    let kept = repository.dispatched.get(&run).ok_or(Error::Missing(What::Job))?;
+    if kept.run.state == crate::api::RunState::Completed {
+        return Err(Error::Refused);
+    }
+    domain.omit_report = Some(run);
+    Ok(())
+}
+
 /// Replaces one dispatched job's step log within the repository's content bound
 /// (skein/docs/design/testing/fakes/forge.md, 2.4).
 pub fn set_job_log(domain: &mut Domain, repository: &[u8], job: u64, step: u32, bytes: &[u8]) -> Result<(), Error> {

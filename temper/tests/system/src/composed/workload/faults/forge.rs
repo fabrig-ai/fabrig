@@ -9,7 +9,7 @@ use temper_blame::{Observed, Reaction};
 use temper_engine_forge_world::translate::commit;
 use temper_worker_checkout_world::forge::Move;
 
-const REMOTE: &[u8] = b"org/repo";
+pub(super) const REMOTE: &[u8] = b"org/repo";
 const UNAVAILABLE_SPAN: Duration = Duration::from_secs(2);
 const LIMITED_SPAN: Duration = Duration::from_secs(2);
 const LAG: fake::Lag = fake::Lag { chance: 1000, min: Duration::from_millis(100), max: Duration::from_secs(1) };
@@ -74,7 +74,7 @@ impl World {
         None
     }
 
-    fn candidate_goal(&self, commit: u64) -> Option<&str> {
+    pub(super) fn candidate_goal(&self, commit: u64) -> Option<&str> {
         let commit = temper_engine_forge_world::translate::commit(commit);
         for (_, row) in self.root.forge().inspection_landings() {
             if let Some(member) = row.landing.members.iter().find(|m| m.candidate == Some(commit)) {

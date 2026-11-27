@@ -3,7 +3,7 @@ use super::{Faults, World};
 use crate::composed::{Key, accounts, engine, people, run, tasks};
 use skein_fake_llm_domain::api::{Error, Strike};
 use skein_lib::{Duration, ReplyTo, Time, Token};
-use skein_llm_kit::faults::{RATE_WINDOW, SPENT_CREDITS};
+use skein_llm_kit::faults::{RATE_WINDOW, struck};
 use skein_world::faults::{Counter, Injection, Struck};
 use temper_workload::draw::Party;
 
@@ -12,10 +12,11 @@ pub(super) struct ObservedRun {
     facts: usize,
     ended: bool,
     window: Option<Injection>,
-    spent: Option<Injection>,
+    account_strike: Option<Injection>,
 }
 
-pub(super) struct SpentCredits {
+pub(super) struct AccountStrike {
+    strike: Strike,
     account: u32,
     party: Party,
     until: Time,
@@ -44,8 +45,8 @@ impl World {
         if let Some((account, _)) = f.provider {
             self.lanes[0].process.strike(accounts::credential(account), Strike::Window { tokens: 1, length: WINDOW });
         }
-        if let Some(spent) = &f.spent_credits {
-            self.lanes[0].process.strike(accounts::credential(spent.account), Strike::Spent);
+        for active in &f.account_strikes {
+            self.lanes[0].process.strike(accounts::credential(active.account), active.strike.clone());
         }
         self.lanes[0].process.configure_settings = Some(|settings| {
             settings.provider.accounts = 2;
@@ -82,55 +83,68 @@ impl World {
             f.provider = None;
             f.stopped(self.env.now);
         }
-        self.workload_spent_credits_tick(f);
+        self.workload_account_strike_tick(f, &Strike::Spent);
+        self.workload_account_strike_tick(f, &Strike::SignedOut);
     }
 
-    fn workload_spent_credits_tick(&mut self, f: &mut Faults) {
-        if f.due(SPENT_CREDITS)
-            && let Some(name) = f.target(SPENT_CREDITS)
+    fn workload_account_strike_tick(&mut self, f: &mut Faults, strike: &Strike) {
+        let kind = struck(strike);
+        if f.due(kind)
+            && let Some(name) = f.target(kind)
             && let Some(task) = self.workload_names().task(name)
             && self.lanes[0].assignment.as_ref().is_some_and(|a| a.task == task)
             && !self.lanes[0].process.prepared()
             && self.lanes[0].process.answered.is_none()
+            && let Some(goal) = self.workload().goal(name)
+            // The earlier refusal must reach its durable hold and renewal
+            // before another strike on this source can fail a request.
+            && !f.account_strikes.iter().any(|active| active.party == goal.party)
         {
-            let party = self.workload().goal(name).expect("drawn goal").party;
+            let party = goal.party;
             let account = super::super::setup::account(party);
-            let goal = f.fire(SPENT_CREDITS);
+            let goal = f.fire(kind);
             let injection = f.ledger.inject(
-                SPENT_CREDITS,
+                kind,
                 self.env.now,
                 Struck { account: Some(account.to_string()), request: Some(goal), ..Struck::default() },
             );
-            f.spent_credits =
-                Some(SpentCredits { account, party, until: self.env.now.saturating_add(SPELL), injection, hit: None });
+            f.account_strikes.push(AccountStrike {
+                strike: strike.clone(),
+                account,
+                party,
+                until: self.env.now.saturating_add(SPELL),
+                injection,
+                hit: None,
+            });
             let credential = accounts::credential(account);
-            self.lanes[0].process.strike(credential, Strike::Spent);
+            self.lanes[0].process.strike(credential, strike.clone());
             for process in self.parked.values_mut() {
-                process.strike(credential, Strike::Spent);
+                process.strike(credential, strike.clone());
             }
         }
-        // Once the provider has refused a request, wait for its limit to be
-        // durable before replacing the key, as in the account sweep.
-        if f.spent_credits.as_ref().is_some_and(|spent| {
-            self.env.now >= spent.until
-                && spent.hit.is_none_or(|(task, attempt)| {
+        // Once the provider has refused a request, wait for the account hold
+        // to be durable before replacing the key, as in the account sweep.
+        if let Some(index) = f.account_strikes.iter().position(|active| {
+            &active.strike == strike
+                && self.env.now >= active.until
+                && active.hit.is_none_or(|(task, attempt)| {
                     let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Attempt { task, attempt }));
-                    self.source_held(spent.account)
+                    self.source_held(active.account)
                         && matches!(self.store.rows.get(&key),
                             Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Attempt(row))))
                                 if row.end.is_some())
                 })
         }) {
-            let spent = f.spent_credits.take().expect("active spent credits");
-            let credential = accounts::credential(spent.account);
-            self.lanes[0].process.clear(credential, &Strike::Spent);
+            let active = f.account_strikes.remove(index);
+            let credential = accounts::credential(active.account);
+            self.lanes[0].process.clear(credential, strike);
             for process in self.parked.values_mut() {
-                process.clear(credential, &Strike::Spent);
+                process.clear(credential, strike);
             }
-            if spent.hit.is_some() {
-                self.workload_replace_key(spent.party, credential);
+            if active.hit.is_some() {
+                self.workload_replace_key(active.party, credential);
             }
-            f.ledger.stop(spent.injection, self.env.now).expect("one clear after the strike");
+            f.ledger.stop(active.injection, self.env.now).expect("one clear after the strike");
             f.stopped(self.env.now);
         }
     }
@@ -199,19 +213,22 @@ impl World {
                 f.ledger.stop(injection, until).expect("fixed rate window");
                 f.last = f.last.max(until);
                 seen.window = Some(injection);
-            } else if error == Error::Spent
-                && let Some(spent) = &mut f.spent_credits
-                && accounts::credential(spent.account) == credential
-            {
-                spent.hit = Some(key);
-                seen.spent = Some(spent.injection);
+            } else if let Some(active) = f.account_strikes.iter_mut().find(|active| {
+                accounts::credential(active.account) == credential
+                    && matches!(
+                        (&active.strike, &error),
+                        (Strike::Spent, Error::Spent) | (Strike::SignedOut, Error::SignedOut)
+                    )
+            }) {
+                active.hit = Some(key);
+                seen.account_strike = Some(active.injection);
             }
         }
         if self.lanes[0].process.answered.is_some() && !seen.ended {
             let answer = self.lanes[0].process.agent().answer();
             let ended = smith_faults::ended(answer);
             let caused = seen
-                .spent
+                .account_strike
                 .or(seen.window)
                 .filter(|_| matches!(answer, run::Answer::Failed { failure: run::RunFailure::Model(_), .. }));
             // An interrupted run on the same account is not a provider ending.
