@@ -4,6 +4,7 @@
 use skein_lib::Time;
 
 use crate::faults::{FaultLedger, Kind, Struck};
+use crate::sweep::cases::cases_in;
 use crate::sweep::{Exclusion, Sweep};
 use crate::test_env::Mode;
 
@@ -80,6 +81,40 @@ fn reach_counts_cases_per_configured_kind_in_kind_order() {
         assert_eq!(result, Ok(()));
         assert_eq!(lines, ["fuzzy reach: landing forge/busy 2", "fuzzy reach: landing landing/cancel 0"]);
     }
+}
+
+#[test]
+fn folding_inside_cases_keeps_coverage_and_exclusion_totals() {
+    const STRUCK_SEED: u64 = 5;
+    const QUIET_SEED: u64 = 3;
+    const LEFT_OUT: u64 = 2; // One draw in each ledger.
+    let mut sweep = configured();
+    sweep.configure(OTHER);
+    cases_in(
+        Mode::Gate,
+        crate::this_test!("folding_inside_cases_keeps_coverage_and_exclusion_totals"),
+        [STRUCK_SEED, QUIET_SEED],
+        |seed| {
+            let mut ledger = FaultLedger::new();
+            if seed == STRUCK_SEED {
+                ledger.inject(OTHER, AT, Struck::default());
+                ledger.inject(OTHER, AT, Struck::default());
+            }
+            ledger.leave_out(SCENARIO, CANCEL_LANDING, AT);
+            sweep.ran_in(&ledger, |_| {});
+            Ok::<_, &str>(())
+        },
+        |_| {},
+        |_| {},
+    )
+    .expect("all cases pass");
+    let missing = sweep.check_fell_in(Mode::Gate, |_| {});
+    let mut reach = Vec::new();
+    let campaign = sweep.check_fell_in(Mode::Campaign(0), |line| reach.push(line.to_string()));
+    assert_eq!(missing, Err("sweep landing: landing/cancel never fell in 2 seeds".into()));
+    assert_eq!(campaign, Ok(()));
+    assert_eq!(reach, ["fuzzy reach: landing forge/busy 1", "fuzzy reach: landing landing/cancel 0"]);
+    assert_eq!(sweep.left_out(SCENARIO), LEFT_OUT);
 }
 
 #[test]

@@ -116,7 +116,12 @@ impl Sweep {
     }
 
     /// Folds one seed's ledger: one more case for each kind that fell, and what its exclusions left out.
+    /// Counts a `seed` check only outside a `cases` check, which counts its own case.
     pub fn ran(&mut self, ledger: &FaultLedger) {
+        self.ran_in(ledger, |n| skein_checks::count("seed", n));
+    }
+
+    pub(crate) fn ran_in(&mut self, ledger: &FaultLedger, count: impl FnOnce(u64)) {
         self.seeds = self.seeds.checked_add(1).expect("a sweep's seed count fits u64");
         for kind in ledger.fell() {
             let count = self.fell.entry(kind).or_default();
@@ -126,7 +131,9 @@ impl Sweep {
             let count = self.left_out.entry(scenario).or_default();
             *count = count.checked_add(1).expect("a sweep's left-out draw count fits u64");
         }
-        skein_checks::count("seed", 1);
+        if !cases::in_case() {
+            count(1);
+        }
     }
 
     /// At the gate, each configured fault fell in at least one seed folded.
