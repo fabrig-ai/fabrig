@@ -9,7 +9,7 @@ use temper_engine_domain_forge_landing::Phase;
 use temper_engine_domain_forge_vocabulary::writes::{Sender, WRITES};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub(crate) enum Waiter {
+pub enum Waiter {
     Change(u64),
     Landing(u64),
     Making(Token),
@@ -665,15 +665,33 @@ pub(crate) fn assert_asked(d: &Domain, waiter: Waiter) {
         unreachable!("waiter {waiter:?} of task {task:?} holds its outbox reservation");
     };
     assert_place(d, waiter, ask);
-    let live = match waiter {
+    assert!(
+        asked_owner_live(d, waiter),
+        "asked waiter {waiter:?} of task {task:?} is neither held nor ended when taking room"
+    );
+}
+
+impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_asked_owner_waiting(&self, waiter: Waiter, task: u64) -> bool {
+        let Some(ask) = self.room.asked.get(&waiter) else { return false };
+        ask.task == task
+            && waiter_task(self, waiter) == Some(task)
+            && place(self, waiter) == Some(ask.place)
+            && asked_owner_live(self, waiter)
+    }
+}
+
+fn asked_owner_live(d: &Domain, waiter: Waiter) -> bool {
+    match waiter {
         // The making keeps its promise while it reads the default branch afresh.
         Waiter::Making(owner) => match d.makings.get(&owner) {
             Some(pending) => making_live(d, pending) && !d.room.passed.contains(&waiter),
             None => false,
         },
         Waiter::Change(_) | Waiter::Landing(_) | Waiter::Release(_) => eligible(d, waiter),
-    };
-    assert!(live, "asked waiter {waiter:?} of task {task:?} is neither held nor ended when taking room");
+    }
 }
 
 fn making_live(d: &Domain, pending: &crate::domain::goal_branch::Making) -> bool {

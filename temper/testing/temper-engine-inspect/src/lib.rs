@@ -3,6 +3,8 @@ mod landings;
 mod tables;
 mod waits;
 
+pub use tables::check_room_census;
+
 use jig_domain_tasks as tasks;
 use skein_world::inspect::{Inspection, Wake};
 use temper_engine_domain::Domain;

@@ -313,6 +313,19 @@ impl Domain {
         &self.engine.core().tasks
     }
 
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_forge_call_attempt(&self, owner: Token, task: u64) -> Option<u64> {
+        match self.forge_effects.get(&owner)? {
+            forge_route::EffectFlight::Call { key, .. } if key.task == task => Some(key.attempt),
+            forge_route::EffectFlight::Call { .. }
+            | forge_route::EffectFlight::Projection { .. }
+            | forge_route::EffectFlight::Landing { .. }
+            | forge_route::EffectFlight::Tier { .. }
+            | forge_route::EffectFlight::Procedure { .. } => None,
+        }
+    }
+
     /// The run channel admitted at this worker's configured position.
     #[must_use]
     pub fn worker_channel(&self, position: u32) -> Option<Token> {
