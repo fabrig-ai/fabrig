@@ -37,6 +37,7 @@ fn merge_assignment() -> root::Event {
             command: b"app/merge".as_slice().into(),
             request: b"{}".as_slice().into(),
             refusal: false,
+            outdated: false,
         }),
     }
 }

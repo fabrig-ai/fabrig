@@ -120,6 +120,7 @@ fn assign(world: &mut World, head: u64) -> Result<(), String> {
             command: b"fabrig/tools/close".as_slice().into(),
             request: REQUEST.into(),
             refusal: false,
+            outdated: false,
         }),
     })?;
     Ok(())

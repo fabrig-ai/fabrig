@@ -82,7 +82,7 @@ struct Job {
 #[derive(Debug)]
 enum State {
     Preparing,
-    Writing { program: Box<[u8]>, deadline: Duration, refusal: bool },
+    Writing { program: Box<[u8]>, deadline: Duration, refusal: bool, outdated: bool },
     Spawning,
     Running,
     Reading { deliver: bool, most: u32, code: u8 },
@@ -206,7 +206,12 @@ fn start(domain: &mut Domain, env: &Env<Limits>, run: Run, out: &mut Queue<Reque
     let job = Job {
         kind: kind.clone(),
         directory: run.directory,
-        state: State::Writing { program, deadline: run.deadline, refusal: run.spec.refusal },
+        state: State::Writing {
+            program,
+            deadline: run.deadline,
+            refusal: run.spec.refusal,
+            outdated: run.spec.outdated,
+        },
         tail: Box::new([]),
         process_gone: false,
     };
@@ -308,7 +313,7 @@ fn advance(job: &mut Job, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
 
 fn written_job(job: &mut Job, env: &Env<Limits>, owner: Token, written: bool, out: &mut Queue<Request>) {
     match &job.state {
-        State::Writing { program, deadline, refusal } => {
+        State::Writing { program, deadline, refusal, outdated } => {
             if !written {
                 job.state = State::Ending;
                 job.process_gone = true;
@@ -318,7 +323,7 @@ fn written_job(job: &mut Job, env: &Env<Limits>, owner: Token, written: bool, ou
             }
             let request_path = path(&job.directory, b"/request.json", b"", env.limits.path_bytes)
                 .expect("admission checked the request path");
-            let mut environment = List::with_capacity(if *refusal { 5 } else { 4 });
+            let mut environment = List::with_capacity(6);
             for entry in [
                 (copy_of(b"PATH"), env.limits.path.clone()),
                 (copy_of(b"HOME"), job.directory.clone()),
@@ -329,6 +334,11 @@ fn written_job(job: &mut Job, env: &Env<Limits>, owner: Token, written: bool, ou
             }
             if *refusal {
                 environment.push((copy_of(b"TEMPER_CLOSE_REFUSAL"), copy_of(b"3"))).expect("room for the refusal ask");
+            }
+            if *outdated {
+                environment
+                    .push((copy_of(b"TEMPER_CLOSE_OUTDATED"), copy_of(b"3")))
+                    .expect("room for the outdated ask");
             }
             let request = Request::Spawn {
                 owner,

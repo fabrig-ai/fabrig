@@ -4799,14 +4799,14 @@ fn the_job_root_names_the_declaration_the_engine_encodes() {
     let root = found.expect("job spec root");
     assert_eq!(root.wire, wire::FAMILY);
     assert_eq!(root.declaration, "JobSpec");
-    for (bytes, refusal) in [
+    for (bytes, asks) in [
         (super::close::spec(b"repo", b"close", b"{}", 4096).expect("close spec"), true),
         (super::merge::spec(b"repo", b"merge", &[3; 32], &[4; 32], 4096).expect("merge spec"), false),
     ] {
         let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("JobSpec bytes");
         assert_ne!(spec.command.as_ref(), []);
         assert_ne!(spec.request.as_ref(), []);
-        assert_eq!(spec.refusal, refusal);
+        assert_eq!((spec.refusal, spec.outdated), (asks, asks));
     }
 }
 
