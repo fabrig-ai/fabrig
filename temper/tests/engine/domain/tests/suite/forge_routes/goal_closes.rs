@@ -844,9 +844,7 @@ fn a_released_close_waits_until_its_repair_lands() {
     assert_eq!(live_task(&world, first).phase, tasks::Phase::Active(tasks::Active::Idle));
     assert_eq!(row(&world, first).delegate, None);
 
-    park_goal(&mut world, &run);
-    produce(&mut world, work, &branch, &producer, b"Repair after close");
-    wait_ended(&mut world, first);
+    land_close_repair(&mut world, &run, &branch, work, &producer, first);
     let (second, job) = replacement_close(&mut world, run.task, closer, first, work);
     world.advance_ticks(100);
     assert!(world.jobs.is_empty(), "only the new settle change assigns a close job");
@@ -990,9 +988,21 @@ fn land_work_during_held_close(world: &mut World, goal: &engine::Assignment, bra
     wait_held(world, first, goal.task);
     let run = awakened(world, goal.task);
     let (work, producer) = make_change(world, &run, 93);
-    park_goal(world, &run);
+    land_close_repair(world, &run, branch, work, &producer, first);
+    (closer, first, work)
+}
+
+fn land_close_repair(
+    world: &mut World,
+    goal: &engine::Assignment,
+    branch: &[u8],
+    work: u64,
+    producer: &engine::Assignment,
+    first: u64,
+) {
+    park_goal(world, goal);
     let assigned = world.assigned.len();
-    produce(world, work, branch, &producer, b"Repair after close");
+    produce(world, work, branch, producer, b"Repair after close");
     // The successful change can wake the goal while the closer reads for its replacement.
     // Return the goal run's lent funds without releasing the obsolete close.
     for _ in 0..STEPS {
@@ -1006,7 +1016,6 @@ fn land_work_during_held_close(world: &mut World, goal: &engine::Assignment, bra
         world.tick();
     }
     wait_ended(world, first);
-    (closer, first, work)
 }
 
 fn replacement_close(world: &mut World, goal: u64, closer: u64, first: u64, work: u64) -> (u64, host::JobAssignment) {

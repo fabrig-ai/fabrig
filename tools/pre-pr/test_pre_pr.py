@@ -428,6 +428,8 @@ class Delivery(unittest.TestCase):
                 with self.subTest(args=args, failed=failed), contextlib.ExitStack() as stack:
                     out = stack.enter_context(redirect_stdout(io.StringIO()))
                     stack.enter_context(redirect_stderr(io.StringIO()))
+                    # This fixture has no goal head and checks the standalone exit status.
+                    stack.enter_context(mock.patch.dict(os.environ, {'TEMPER_CLOSE_REFUSAL': ''}))
                     stack.enter_context(mock.patch.object(Path, 'cwd', return_value=self.root))
                     stack.enter_context(mock.patch.object(PRE, 'checked_git', return_value=b''))
                     stack.enter_context(mock.patch.object(PRE, 'snapshot', side_effect=['first', 'first']))
