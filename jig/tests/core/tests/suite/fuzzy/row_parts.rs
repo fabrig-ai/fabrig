@@ -3,11 +3,12 @@ use crate::row_parts::{ack, close, lines, note, open, query, world};
 use jig_core_world::fixtures;
 use jig_domain_people as people;
 use skein_lib::Rng;
+use skein_world::{sweep::cases, this_test};
+use std::convert::Infallible;
 
 #[test]
 fn random_endings_and_notes_keep_marks_monotone_and_each_ending_visible() {
-    for seed in 1230..1238 {
-        eprintln!("parts and ended marks replay seed {seed}");
+    cases(this_test!("random_endings_and_notes_keep_marks_monotone_and_each_ending_visible"), 1230..1238, |seed| {
         let mut rng = Rng::new(seed);
         let mut w = world(seed);
         open(&mut w, 600, query(&[1], false));
@@ -44,5 +45,7 @@ fn random_endings_and_notes_keep_marks_monotone_and_each_ending_visible() {
             }
         }
         close(&mut w, 600);
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
