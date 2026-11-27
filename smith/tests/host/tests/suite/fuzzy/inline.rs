@@ -1,10 +1,13 @@
 //! Seeded message and cancellation crossings on both inline slots.
+use core::cell::Cell;
+
 use skein_lib::{Duration, Rng, Time, Token};
 use smith_agent_world::Job;
 use smith_host_domain::parent;
 use smith_host_world::inline::{self, World};
+use smith_session_world::shapes::{Reached, Sample};
 
-fn story(seed: u64) -> (Vec<String>, Vec<Option<smith_host_domain::RunResult>>) {
+fn story(seed: u64, reached: Option<&mut Reached>) -> (Vec<String>, Vec<Option<smith_host_domain::RunResult>>) {
     let mut rng = Rng::new(seed);
     let mut bounds = inline::limits();
     bounds.cancel_grace = Duration::from_millis(rng.between(0, 8));
@@ -33,20 +36,42 @@ fn story(seed: u64) -> (Vec<String>, Vec<Option<smith_host_domain::RunResult>>) 
             }
         }
     }
+    settled(world, reached)
+}
+
+fn settled(
+    mut world: World,
+    reached: Option<&mut Reached>,
+) -> (Vec<String>, Vec<Option<smith_host_domain::RunResult>>) {
     world.run();
     world.settled();
+    if let Some(reached) = reached {
+        for turns in world.history.values() {
+            reached.turns(turns);
+        }
+    }
     let outcomes = world.seen.into_values().map(|seen| seen.answer.map(|answer| answer.result)).collect();
     (world.trace.lines().to_vec(), outcomes)
 }
 
 #[test]
 fn inline_message_cancel_crossings_replay_for_every_seed() {
+    let mut shapes = Sample::new("inline_message_cancel_crossings_replay_for_every_seed");
     for seed in 320..384 {
-        skein_world::domain::assert_replays(seed, seed + 1000, story);
+        let mut reached = Reached::new();
+        let record = Cell::new(Some(&mut reached));
+        skein_world::domain::assert_replays(seed, seed + 1000, |run_seed| {
+            story(run_seed, if run_seed == seed { record.take() } else { None })
+        });
+        shapes.ran(&reached).expect("valid completion shapes");
     }
+    shapes.write();
 }
 
-fn workspace_story(seed: u64) -> (Vec<String>, Vec<Option<smith_host_domain::RunResult>>) {
+fn workspace_story(
+    seed: u64,
+    reached: Option<&mut Reached>,
+) -> (Vec<String>, Vec<Option<smith_host_domain::RunResult>>) {
     let mut rng = Rng::new(seed);
     let mut bounds = inline::limits();
     bounds.cancel_grace = Duration::from_millis(rng.between(0, 8));
@@ -64,15 +89,19 @@ fn workspace_story(seed: u64) -> (Vec<String>, Vec<Option<smith_host_domain::Run
     world.at(Time::ZERO.saturating_add(Duration::from_millis(rng.between(0, 25))));
     world.auto_machine = true;
     world.machine_replies();
-    world.run();
-    world.settled();
-    let outcomes = world.seen.into_values().map(|seen| seen.answer.map(|answer| answer.result)).collect();
-    (world.trace.lines().to_vec(), outcomes)
+    settled(world, reached)
 }
 
 #[test]
 fn inline_workspace_cancel_crossings_replay_for_every_seed() {
+    let mut shapes = Sample::new("inline_workspace_cancel_crossings_replay_for_every_seed");
     for seed in 400..416 {
-        skein_world::domain::assert_replays(seed, seed + 1000, workspace_story);
+        let mut reached = Reached::new();
+        let record = Cell::new(Some(&mut reached));
+        skein_world::domain::assert_replays(seed, seed + 1000, |run_seed| {
+            workspace_story(run_seed, if run_seed == seed { record.take() } else { None })
+        });
+        shapes.ran(&reached).expect("valid completion shapes");
     }
+    shapes.write();
 }

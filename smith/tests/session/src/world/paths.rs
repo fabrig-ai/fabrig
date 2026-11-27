@@ -8,7 +8,7 @@ use smith_domain_tools::{Authority, Call, Part, Path};
 
 use super::World;
 use crate::provider::SLOT_NAMES;
-use crate::shapes::{Answer, Class};
+use crate::shapes::{Answer, Class, path_fields};
 
 /// A call's workspace references paired with its answer in the recorded turn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,13 +45,15 @@ impl World {
     fn path_classes(&self, opener: u64, call: &ToolCall) -> (Option<Class>, Option<Class>) {
         let (path, offset) = match &call.call {
             Decoded::Owned { call: owned } => match owned {
-                Call::Read { path, offset, .. } => (path, (*offset != 1 || fields(&call.input).1).then_some(*offset)),
+                Call::Read { path, offset, .. } => {
+                    (path, (*offset != 1 || path_fields(&call.input).1).then_some(*offset))
+                }
                 Call::List { path, .. }
                 | Call::Write { path, .. }
                 | Call::Edit { path, .. }
                 | Call::Remove { path } => (path, None),
                 Call::Search { path, .. }
-                    if path.absolute || !matches!(&*path.parts, [Part::Current]) || fields(&call.input).0 =>
+                    if path.absolute || !matches!(&*path.parts, [Part::Current]) || path_fields(&call.input).0 =>
                 {
                     (path, None)
                 }
@@ -63,7 +65,7 @@ impl World {
                     Problem::Missing { .. } | Problem::WrongType { .. } | Problem::BadValue { .. }
                 ) && matches!(&*call.name, b"read" | b"list" | b"search" | b"write" | b"edit" | b"remove") =>
             {
-                let (path, offset) = fields(&call.input);
+                let (path, offset) = path_fields(&call.input);
                 return (
                     path.then_some(Class::Unknown),
                     (call.name.as_ref() == b"read" && offset).then_some(Class::Unknown),
@@ -93,18 +95,6 @@ impl World {
         });
         (Some(path_class), offset_class)
     }
-}
-
-// Optional typed fields have already lost their presence bit. Read it from
-// the original object, not from a search that could find a key inside a value.
-fn fields(input: &[u8]) -> (bool, bool) {
-    let client = skein_llm_kit::limits();
-    let bytes = u32::try_from(input.len()).unwrap_or(u32::MAX).min(client.input);
-    let bounds = skein_llm::DocumentLimits { bytes, strings: bytes, tokens: bytes, depth: client.depth };
-    skein_llm::Json::from_bytes(input, &bounds).map_or((false, false), |json| {
-        let doc = json.document();
-        (doc.member(0, b"path").is_some(), doc.member(0, b"offset").is_some())
-    })
 }
 
 // Like the tools, resolve names lexically in the namespace, with an absolute

@@ -120,8 +120,9 @@ pub fn outcome(
     }
 }
 
-/// The schemas of the tools `grants` allows.
-fn offer(grants: Grants) -> Box<[provider::ToolSpec]> {
+/// The workspace tool offers allowed by `grants`.
+#[must_use]
+pub fn offer(grants: Grants) -> Box<[provider::ToolSpec]> {
     let granted = |family: Family| match family {
         Family::Inspect => grants.inspect,
         Family::Modify => grants.modify,

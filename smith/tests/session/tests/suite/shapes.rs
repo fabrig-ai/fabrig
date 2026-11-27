@@ -1,4 +1,5 @@
-use smith_domain_session::llm::{NotRun, Problem, Returned};
+use smith_domain_session::llm::{Block, Decoded, Message, NotRun, Problem, Returned, Role, ToolCall, Usage};
+use smith_domain_session::record::{Kind, Turn, VERSION};
 use smith_domain_tools::{
     BytesClamp, Exit, Fault, JobEnd, JobNumber, Mismatch, Outcome, Resolved, SizePart, TimeoutClamp,
 };
@@ -114,4 +115,82 @@ fn a_sample_counts_answers_and_classes_by_case() {
         (sample.cases(), sample.answered(Answer::UnknownJob), sample.classed(Reference::Job, Class::Unissued)),
         (2, 1, 1)
     );
+}
+
+fn turn(sequence: u32, messages: Vec<Message>) -> Turn {
+    Turn {
+        version: VERSION,
+        kind: Kind::Ordinary,
+        endpoint: None,
+        model: bytes(b"fixture"),
+        effort: None,
+        dialect: 0,
+        sequence,
+        usage: Usage::NONE,
+        spent: 0,
+        jobs: 0,
+        messages: messages.into_boxed_slice(),
+    }
+}
+
+fn recorded_call(id: &[u8], name: &[u8], input: &[u8]) -> Block {
+    Block::ToolCall(ToolCall {
+        id: bytes(id),
+        name: bytes(name),
+        input: bytes(input),
+        call: Decoded::Historical,
+        replay: None,
+    })
+}
+
+#[test]
+fn recorded_turns_join_results_by_id_and_keep_a_withheld_wait_unanswered() {
+    let turns = [
+        turn(
+            1,
+            vec![
+                Message {
+                    role: Role::Assistant,
+                    content: Box::new([
+                        recorded_call(b"r", b"read", br#"{"path":"README.md"}"#),
+                        recorded_call(b"j", b"job", br#"{"job":1}"#),
+                        recorded_call(b"w", b"wait", b"{}"),
+                    ]),
+                },
+                Message {
+                    role: Role::User,
+                    content: Box::new([Block::ToolResult {
+                        id: bytes(b"j"),
+                        result: Returned::Invalid { problem: Problem::UnknownJob { job: JOB.0 } },
+                    }]),
+                },
+            ],
+        ),
+        turn(
+            2,
+            vec![Message {
+                role: Role::User,
+                content: Box::new([Block::ToolResult {
+                    id: bytes(b"r"),
+                    result: Returned::Owned {
+                        outcome: Outcome::Read {
+                            content: bytes(b"hello\n"),
+                            first: 1,
+                            lines: 1,
+                            total: 1,
+                            next: smith_domain_tools::Next::End,
+                            cut: smith_domain_tools::Cut::Whole,
+                            window: BytesClamp::Within,
+                        },
+                    },
+                }]),
+            }],
+        ),
+    ];
+    let mut reached = Reached::new();
+    reached.turns(&turns);
+    assert!(reached.contains(
+        "read:ok:path=unknown,job:unknown_job:job=unknown,delegated:unanswered end=unknown begin=unknown wake=unknown"
+    ));
+    assert!(!reached.contains("text end=unknown begin=unknown wake=unknown"));
 }

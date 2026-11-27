@@ -1,11 +1,12 @@
 //! The `smith/1` completion vocabulary and its per-case reach (smith/docs/design/shapes.md,
 //! 2–5). A shape retains only allowlisted words, not provider or workspace data.
 
+use std::collections::BTreeMap;
 use std::io::Write as _;
 
 use skein_world::sweep::Shapes;
 use smith_domain_session::{llm, record};
-use smith_domain_tools::{Exit, JobEnd, Mismatch, Outcome};
+use smith_domain_tools::{Call as WorkspaceCall, Exit, JobEnd, Mismatch, Outcome};
 
 /// The version of the words and completion text the worlds write.
 pub const VOCABULARY: &str = "smith/1";
@@ -306,6 +307,36 @@ impl Reached {
         self.shapes.push(shape);
     }
 
+    /// Adds each assistant message's shape from one conversation's recorded turns.
+    /// Results can follow in a later turn. References are classed `Unknown`.
+    pub fn turns(&mut self, turns: &[record::Turn]) {
+        let first = self.shapes.len();
+        let mut results = BTreeMap::<&[u8], &llm::Returned>::new();
+        // Walk back from results to calls, consuming each result at its call
+        // so a reused provider id doesn't answer an earlier completion too.
+        for message in turns.iter().rev().flat_map(|turn| turn.messages.iter().rev()) {
+            match message.role {
+                llm::Role::User => {
+                    for block in message.content.iter().rev() {
+                        if let llm::Block::ToolResult { id, result } = block {
+                            results.insert(id, result);
+                        }
+                    }
+                }
+                llm::Role::Assistant => {
+                    self.completion_refs(completion_tools(&message.content).map(|(position, tool)| {
+                        let call = message.content[position].tool_call().expect("a tool block");
+                        let returned = results.remove(call.id.as_ref());
+                        let answer = answer(returned);
+                        let tool = historical_tool(call, tool, answer);
+                        (tool, answer, unknown_references(call, tool))
+                    }));
+                }
+            }
+        }
+        self.shapes[first..].reverse();
+    }
+
     /// The case reached this answer in at least one completion.
     #[must_use]
     pub fn answered(&self, answer: Answer) -> bool {
@@ -372,6 +403,62 @@ pub(crate) fn completion_tools(blocks: &[llm::Block]) -> impl Iterator<Item = (u
                 .unwrap_or(Tool::Unknown),
         };
         Some((position, tool))
+    })
+}
+
+// Concrete transcript turns retain names and results but erase the live decoder's tickets.
+fn historical_tool(call: &llm::ToolCall, tool: Tool, answer: Answer) -> Tool {
+    if call.call != llm::Decoded::Historical {
+        return tool;
+    }
+    match answer {
+        Answer::Delegated | Answer::Withdrawn => Tool::Delegated,
+        Answer::UnknownTool => Tool::Unknown,
+        _ if matches!(&*call.name, b"wait" | b"save" | b"sub_agent" | b"deliver" | b"finish") => Tool::Delegated,
+        _ => tool,
+    }
+}
+
+fn unknown_references(call: &llm::ToolCall, tool: Tool) -> impl Iterator<Item = (Reference, Class)> {
+    let known = match tool {
+        Tool::Delegated | Tool::Unknown | Tool::Shell => [false; 3],
+        _ => {
+            let decoded;
+            let owned = if let llm::Decoded::Owned { call } = &call.call {
+                Some(call)
+            } else {
+                decoded = crate::translate::decode(&call.name, &call.input);
+                if let llm::Decoded::Owned { call } = &decoded { Some(call) } else { None }
+            };
+            match owned {
+                Some(WorkspaceCall::Read { offset, .. }) => [true, *offset != 1 || path_fields(&call.input).1, false],
+                Some(WorkspaceCall::Search { .. }) => [path_fields(&call.input).0, false, false],
+                Some(
+                    WorkspaceCall::List { .. }
+                    | WorkspaceCall::Write { .. }
+                    | WorkspaceCall::Edit { .. }
+                    | WorkspaceCall::Remove { .. },
+                ) => [true, false, false],
+                Some(WorkspaceCall::Job { .. }) => [false, false, true],
+                Some(WorkspaceCall::Shell { .. }) | None => [false; 3],
+            }
+        }
+    };
+    REFERENCES
+        .iter()
+        .copied()
+        .zip(known)
+        .filter_map(|(reference, present)| present.then_some((reference, Class::Unknown)))
+}
+
+// Optional typed fields have lost their presence bit. Read it from the original object.
+pub(crate) fn path_fields(input: &[u8]) -> (bool, bool) {
+    let client = skein_llm_kit::limits();
+    let bytes = u32::try_from(input.len()).unwrap_or(u32::MAX).min(client.input);
+    let bounds = skein_llm::DocumentLimits { bytes, strings: bytes, tokens: bytes, depth: client.depth };
+    skein_llm::Json::from_bytes(input, &bounds).map_or((false, false), |json| {
+        let doc = json.document();
+        (doc.member(0, b"path").is_some(), doc.member(0, b"offset").is_some())
     })
 }
 
