@@ -253,9 +253,10 @@ the engine's messages to the client as they come.
   stream whose opening names no version, or one it doesn't serve: the
   stream's name, the ranges and the heartbeat, with no `me` and no watch
   of it, encoded the same in every version (`versions.md`, section 1). So
-  an earlier client, whose opening names none, reads the ranges and is
-  refused by name. A client whose version the hello alone's ranges
-  serve takes it as a record out of its order on the stream.
+  an earlier client, whose opening names none, reads it and is refused
+  by name. A client judges it as a hello that names no layout
+  (`versions.md`, section 1): its ranges keep their bytes, and no client
+  reads them.
 - **A client is one run of `jig-client`,** from its start to its end: a
   native process; a browser page from its load until it is left. A link
   followed, or back and forward, within the page's history keeps it

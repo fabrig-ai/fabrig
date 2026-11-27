@@ -408,25 +408,23 @@ other.
   - `OWNER`, `"smith"`, the owner its store set names; `FAMILY`,
     `"smith-transcript"`, as its texts spell it; and `ROOT`, `"Turn"`,
     the declaration a kept turn is;
-  - `SCHEMA`, its current text, at 8; and `SEED`, the texts a store
-    registers for frames written before its registry, in version order:
-    the one older text it keeps, `schema/seed/smith-transcript-v7.schema`
-    at 7, then `SCHEMA` (jig's `protocol/store/transcripts.md`, 6).
+  - `SCHEMA`, its current text, at 8, the one text it keeps: a store
+    reads turns written at an older layout by the texts its registry
+    holds (jig's `protocol/store/transcripts.md`, 6), and no wire keeps
+    one (temper's `protocol/wires.md`, 3.1).
 
   jig's store takes the constants into its `Smith` slot (jig's
   `protocol/store/opening-owners.md`, 1), handed by the host's shell.
-  `SEED`'s older text goes once dev.fabrig.ai's store holds the rows
-  (temper's `draft/archive/store-floor.md`); no other old text is kept,
-  and none is a wire's (temper's `protocol/wires.md`, 3.1).
 - **Frozen version.** `smith-transcript`'s version is frozen at 8, its
   layout its text's fingerprint: a variant appended, a bound widened or a
   declaration added is made in the current text alone and moves no
-  version, and a change no plan derives needs a written converter on the
-  wire (jig's `protocol/channel/layouts.md`, 6) and a job in the store
-  (jig's `protocol/store/jobs.md`, 4). Version 6 remains available to
+  version, and a change no plan derives needs smith's written
+  converter, which the engine calls on the wire and a written job in
+  the store (jig's `protocol/channel/layouts.md`, 6;
+  `protocol/store/jobs.md`, 4). Version 6 remains available to
   archival readers without system context; version 7 adds that context,
   and version 8 the `interrupted` outcome (section 6).
 - **The tests** sit low, in the codec's world (`tests/codecs`): the real
-  set's constants as spelled, `SEED`'s texts parsing at 7 and 8, and the
-  pieces word read from the schema at run time. These are focused tests;
+  set's constants as spelled, `SCHEMA` parsing at 8, and the pieces word
+  read from the schema at run time. These are focused tests;
   the plans' mechanics are skein's (skein's `data/codec/layouts.md`).
