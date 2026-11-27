@@ -369,6 +369,35 @@ fn a_report_run_delivers_its_repository_with_checks_and_keeps_its_report_outcome
 }
 
 #[test]
+fn a_run_starts_with_its_models_default_speed() {
+    let mut assignment = assignment();
+    let model = &mut assignment.run.policy.model;
+    model.dialect = 3;
+    model.speeds = Box::new([jig_domain_core::Speed {
+        name: b"ultrafast".as_slice().into(),
+        also: Box::new([]),
+        input_price: 12,
+        cached_price: 6,
+        cache_write_price: None,
+        output_price: 60,
+    }]);
+    model.speed = Some(b"ultrafast".as_slice().into());
+    let smith::Event::Start(started) = start(
+        &assignment,
+        None,
+        None,
+        ReplyTo::new(Token::new(50)),
+        Token::new(23),
+        smith::Window { turns: 1, bytes: 100_000 },
+        &smith_agent_world::LIMITS.run,
+    ) else {
+        panic!("start conversion produces Smith Start");
+    };
+    let speed = started.charter.llm.speed.expect("the start carries the model's default speed");
+    assert_eq!(speed.name.as_ref(), b"ultrafast");
+}
+
+#[test]
 fn an_assignments_check_bound_reaches_the_smith_charter() {
     for bound in [Some(Duration::from_secs(900)), None] {
         let mut assignment = delivering_assignment();

@@ -94,6 +94,18 @@ impl Model {
         None
     }
 
+    /// The explicit name to use if this model runs at standard
+    /// (domain/engine/executors.md, 1). An `OpenAI` project may default to a faster speed.
+    #[must_use]
+    pub fn standard_speed_override(&self) -> Option<&'static [u8]> {
+        const OPENAI: u32 = 3;
+        if self.dialect == OPENAI && self.program.is_none() && !self.speeds.is_empty() {
+            Some(b"default")
+        } else {
+            None
+        }
+    }
+
     /// The default effort a task given no LLM choice takes (domain/tasks/README.md, 3).
     #[must_use]
     pub fn default_effort(&self) -> Option<&[u8]> {

@@ -14,22 +14,31 @@ fn count(len: usize) -> Option<u32> {
     u32::try_from(len).ok()
 }
 
+fn prices(value: boundary::Prices) -> run::Prices {
+    run::Prices {
+        input: value.input,
+        cached: value.cached,
+        cache_write: value.cache_write,
+        output: value.output,
+        unit: value.unit,
+    }
+}
+
 fn model(llm: boundary::Llm) -> run::charter::Llm {
     let model = llm.model;
     run::charter::Llm {
-        prices: run::Prices {
-            input: model.prices.input,
-            cached: model.prices.cached,
-            cache_write: model.prices.cache_write,
-            output: model.prices.output,
-            unit: model.prices.unit,
-        },
+        prices: prices(model.prices),
         dialect: model.dialect,
         account: llm.grant,
         endpoint: run::charter::Endpoint(model.endpoint),
         model: model.name,
         effort: model.effort,
-        speed: None,
+        speed: match llm.speed {
+            Some(speed) => {
+                Some(run::charter::Speed { name: speed.name, also: speed.also, prices: prices(speed.prices) })
+            }
+            None => None,
+        },
         window: model.window,
         output: model.output,
     }

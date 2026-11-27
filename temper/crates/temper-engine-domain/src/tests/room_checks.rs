@@ -27,6 +27,7 @@ const HOST: crate::room::HostPart = crate::room::HostPart {
     shell: 0,
     agents: 0,
     floor: ZERO,
+    ..crate::room::HostPart::EMPTY
 };
 const CHARTER: u32 = 1;
 const REPLY: Token = Token::new(9);

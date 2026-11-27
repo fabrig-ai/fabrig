@@ -29,6 +29,16 @@ pub fn host_part(
     charter.models = Box::new([charter.llm.clone()]);
     let model = difference(measure(&charter, limits, &endpoints), fixed);
     charter.models = Box::new([]);
+    // As for the model's base prices, measure the cache-write rate present.
+    charter.llm.speed =
+        Some(run::charter::Speed { name: Box::new([]), also: Box::new([]), prices: charter.llm.prices });
+    let with_speed = measure(&charter, limits, &endpoints);
+    let speed = difference(with_speed, fixed);
+    if let Some(speed) = &mut charter.llm.speed {
+        speed.also = Box::new([Box::new([])]);
+    }
+    let speed_alias = difference(measure(&charter, limits, &endpoints), with_speed);
+    charter.llm.speed = None;
     let mut sections = List::with_capacity(6);
     for (kind, budget) in [
         (jig_domain_brief::Core::Task, budgets.task),
@@ -50,7 +60,7 @@ pub fn host_part(
     let mut floor = difference(measure(&charter, limits, &endpoints), fixed);
     floor.rendered = 0;
     charter.brief.sections = Box::new([]);
-    let mut table = HostPart { allowance, fixed, model, floor, ..HostPart::EMPTY };
+    let mut table = HostPart { allowance, fixed, model, speed, speed_alias, floor, ..HostPart::EMPTY };
     if let Some(limits) = limits {
         table.bound = Some(limits.host_part);
     }
@@ -143,6 +153,7 @@ fn measurement_charter() -> run::Charter {
         },
         model: charter::Llm {
             grant: Some(1),
+            speed: None,
             model: charter::Model {
                 prices: charter::Prices { input: 1, cached: 1, cache_write: Some(1), output: 1, unit: 1 },
                 dialect: 1,

@@ -31,6 +31,14 @@ pub struct Prices {
     pub unit: u32,
 }
 
+/// A requested serving speed and its prices in the model's unit.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Speed {
+    pub name: Box<[u8]>,
+    pub also: Box<[Box<[u8]>]>,
+    pub prices: Prices,
+}
+
 /// One ordered section of the run's brief.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Section {
@@ -180,4 +188,5 @@ pub struct Charter {
 pub struct Llm {
     pub model: Model,
     pub grant: Option<u32>,
+    pub speed: Option<Speed>,
 }

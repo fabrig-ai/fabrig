@@ -38,7 +38,17 @@ fn llm(value: run::charter::Llm, names: &[EndpointName]) -> Option<wire::Llm> {
         account: value.account,
         model: value.model,
         effort: value.effort,
-        speed: None,
+        speed: match value.speed {
+            Some(speed) => {
+                count(speed.also.len())?;
+                Some(wire::Speed {
+                    name: speed.name,
+                    also: List::from_boxed(speed.also),
+                    prices: mapped::prices_to_record(&speed.prices),
+                })
+            }
+            None => None,
+        },
         window: value.window,
         output: value.output,
         prices: mapped::prices_to_record(&value.prices),
