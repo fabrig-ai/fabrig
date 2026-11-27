@@ -43,6 +43,20 @@ fn shell_only() -> Spec {
     Spec { authority: Authority { grants, ..spec.authority }, ..spec }
 }
 
+/// Two plain commands followed by a final answer. The shell-only grant also
+/// offers job calls, so an IO race story cannot use that grant to draw commands.
+fn plain_shell_world(settings: &Settings) -> World {
+    use skein_fake_llm_domain::api::{Line, Script};
+    use smith_session_world::fixture::{calls, says};
+    const PLAIN_COMMAND_ROUNDS: usize = 2;
+    const TURN_TOKENS: u64 = 8;
+    let shell =
+        calls(Box::new([Line::Call { name: bytes(b"shell"), arguments: bytes(br#"{"command":"ls"}"#) }]), TURN_TOKENS);
+    let mut turns = vec![shell; PLAIN_COMMAND_ROUNDS];
+    turns.push(says(Box::new([Line::Text { text: bytes(b"done") }]), TURN_TOKENS));
+    World::with_scripts(*settings, Box::new([Script { cue: bytes(b"You are a coding agent."), turns: turns.into() }]))
+}
+
 fn out_of(spent: Dimension) -> End {
     End::Budget { spent }
 }
@@ -246,7 +260,7 @@ fn a_session_out_of_time_ends_once_at_the_whole_call_deadline() {
 #[test]
 fn a_session_out_of_time_cancels_its_tool_in_flight() {
     let calm = Settings::calm(9);
-    let mut world = World::new(Settings { tool: Span::millis(60_000, 60_000), ..calm });
+    let mut world = plain_shell_world(&Settings { tool: Span::millis(60_000, 60_000), ..calm });
     let request = Spec { budget: Budget { time: Duration::from_secs(10), ..BUDGET }, ..shell_only() };
     let opener = world.submit(Time::ZERO, request);
     world.run(ITERATIONS);
@@ -291,7 +305,7 @@ fn an_opener_that_closes_a_tooling_session_has_its_tool_cancelled() {
         abandon_after: Span::millis(10_000, 10_000),
         ..calm
     };
-    let mut world = World::new(settings);
+    let mut world = plain_shell_world(&settings);
     let opener = world.submit(Time::ZERO, shell_only());
     world.run(ITERATIONS);
 
@@ -310,7 +324,7 @@ fn a_tool_call_that_runs_out_of_time_goes_back_to_the_llm_and_the_conversation_g
         tool: Span::millis(5_000, 5_000),
         ..calm
     };
-    let mut world = World::new(settings);
+    let mut world = plain_shell_world(&settings);
     let opener = world.submit(Time::ZERO, shell_only());
     world.run(ITERATIONS);
 
@@ -345,7 +359,7 @@ fn a_tool_run_that_wins_its_race_with_a_cancel_still_ends_the_session() {
         cancels_lost: 1000,
         ..calm
     };
-    let mut world = World::new(settings);
+    let mut world = plain_shell_world(&settings);
     let opener = world.submit(Time::ZERO, shell_only());
     world.run(ITERATIONS);
 
@@ -685,6 +699,7 @@ fn the_worlds_provider_counts_blocks_at_their_drawn_ratios() {
 #[test]
 fn a_guarded_request_past_the_line_is_refused_by_the_world() {
     const LINE: u64 = 200;
+    const DRAWN_NEW_PART: u64 = 1_626;
     let mut world = World::new(Settings::calm(104));
     let opener = world.submit(Time::ZERO, Spec { line: LINE, ..spec(b"fix the build") });
     world.run(ITERATIONS);
@@ -696,7 +711,7 @@ fn a_guarded_request_past_the_line_is_refused_by_the_world() {
         assert!(guard.last_prompt + prompt.new_part > LINE);
     }
     assert_eq!((world.stats().calls, world.stats().provider_calls), (3, 2));
-    assert_eq!(measures[1].new_part, 481);
+    assert_eq!(measures[1].new_part, DRAWN_NEW_PART);
     assert_eq!(measures[1].guard.expect("guarded request").last_prompt, 40);
 }
 

@@ -277,21 +277,14 @@ pub fn decode(
         b"write" => (b"write", grants.modify),
         b"edit" => (b"edit", grants.modify),
         b"shell" => (b"shell", grants.shell),
-        b"job" if grants.shell => return job(arguments),
+        b"job" => (b"job", grants.shell),
         _ => return invalid(),
     };
     if !granted {
         return invalid();
     }
     match smith_session_world::translate::decode(session_name, arguments) {
-        smith_domain::session::llm::Decoded::Owned { mut call } => {
-            if let tools::Call::Shell { after, .. } = &mut call
-                && let Some(seconds) = quota(arguments, b"yield_seconds")
-            {
-                *after = tools::Yield::Asked(skein_lib::Duration::from_secs(u64::from(seconds)));
-            }
-            agent::Decoded::Owned { call }
-        }
+        smith_domain::session::llm::Decoded::Owned { call } => agent::Decoded::Owned { call },
         smith_domain::session::llm::Decoded::Invalid { problem, .. } => agent::Decoded::Invalid { problem },
         smith_domain::session::llm::Decoded::Builtin { .. } | smith_domain::session::llm::Decoded::Delegated { .. } => {
             unreachable!("the component fixture decoder owns only checkout tools")
@@ -299,22 +292,6 @@ pub fn decode(
         smith_domain::session::llm::Decoded::Historical => {
             unreachable!("the live fixture decoder never produces a concrete-history replay marker")
         }
-    }
-}
-
-fn job(arguments: &[u8]) -> agent::Decoded {
-    let Some(job) = quota(arguments, b"job") else {
-        return agent::Decoded::Invalid { problem: agent::Problem::UnknownTool };
-    };
-    agent::Decoded::Owned {
-        call: tools::Call::Job {
-            job: tools::JobNumber(job),
-            output: tools::Budget::Default,
-            wait: quota(arguments, b"wait_seconds").map_or(tools::Wait::Default, |seconds| {
-                tools::Wait::Asked(skein_lib::Duration::from_secs(u64::from(seconds)))
-            }),
-            stop: skein_lib::bytes::find(arguments, b"\"stop\":true").is_some(),
-        },
     }
 }
 

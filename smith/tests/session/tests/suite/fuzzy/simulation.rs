@@ -31,8 +31,13 @@ fn random_worlds_settle_with_every_session_ended() {
     let mut failures = BTreeSet::new();
     let mut races = [0; 4];
     let mut served = [0; 6];
+    let (mut refused_write_read, mut unknown_jobs, mut full_jobs) = (0, 0, 0);
+    let mut held_peaks = [0; 5];
+    let mut drawn_job_bounds = [0; 4];
     for seed in 0..1000 {
         let settings = noisy(seed);
+        let bound = usize::try_from(settings.agent.tools.jobs).expect("the drawn bound is at most four");
+        drawn_job_bounds[bound - 1] += 1;
         let mut world = World::new(settings);
         submit_noisily(&mut world, &settings, seed);
         world.run(ITERATIONS);
@@ -43,6 +48,10 @@ fn random_worlds_settle_with_every_session_ended() {
         invalid += world.told().invalid_calls;
         not_run += world.stats().not_run;
         let stats = world.stats();
+        refused_write_read += stats.refused_write_read;
+        unknown_jobs += stats.unknown_jobs;
+        full_jobs += stats.full_jobs;
+        held_peaks.iter_mut().zip(stats.held_peaks).for_each(|(total, peak)| *total += peak);
         let delegated = [
             stats.delegates,
             stats.withdraws,
@@ -88,7 +97,7 @@ fn random_worlds_settle_with_every_session_ended() {
     assert_eq!(ends, EXPECTED_ENDS.into_iter().map(String::from).collect());
     assert!(concrete_turns > 0, "accepted provider completions emitted concrete checked Turns");
     println!(
-        "canonical scheduled hits: concrete_turns={concrete_turns}, stale={stale}, invalid={invalid}, not_run={not_run}, parallel={parallel}, most_runs={most_runs}, op_timeouts={op_timeouts}, delegated={served:?}, races={races:?}, ends={ends:?}, stops={stops:?}"
+        "canonical scheduled hits: concrete_turns={concrete_turns}, stale={stale}, invalid={invalid}, not_run={not_run}, parallel={parallel}, most_runs={most_runs}, op_timeouts={op_timeouts}, delegated={served:?}, races={races:?}, ends={ends:?}, stops={stops:?}, refused_write_read={refused_write_read}, unknown_jobs={unknown_jobs}, full_jobs={full_jobs}, held_peaks={held_peaks:?}, drawn_job_bounds={drawn_job_bounds:?}"
     );
     assert_eq!(stops, ["Done", "Malformed", "Refused", "Truncated"].into_iter().map(String::from).collect());
     assert!(stale > 0, "some continues and closes reached sessions that had ended");
@@ -106,6 +115,9 @@ fn random_worlds_settle_with_every_session_ended() {
         assert!(failures.contains(failure), "some session failed as {failure}: {failures:?}");
     }
     assert!(op_timeouts > 0, "some operations of the tools ran out of time");
+    assert!(refused_write_read > 0, "an entrance refusal suppressed a write but not a later read");
+    assert!(unknown_jobs > 0, "some job calls named a job the session did not hold");
+    assert!(full_jobs > 0, "some yielding commands were refused because all the job cells were occupied");
     assert!(
         invalid > 0 && not_run > 0,
         "some calls were malformed, and some were cut short and not run: {invalid} {not_run}"
