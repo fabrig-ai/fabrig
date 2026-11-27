@@ -3941,6 +3941,7 @@ dependencies = [
  "skein-llm",
  "skein-llm-kit",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
