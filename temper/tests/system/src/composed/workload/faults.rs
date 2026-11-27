@@ -55,6 +55,7 @@ pub const CAMPAIGN_KINDS: &[Kind] = &[
     temper_blame::SET_UP,
     // stale
     // provider
+    skein_llm_kit::faults::SPENT_CREDITS,
     // worker
     // people and parties
     // runs that park, resume and move
@@ -90,6 +91,7 @@ pub(in crate::composed) struct Faults {
     opening: Option<Injection>,
     rejoining: Option<usize>,
     provider: Option<(u32, Time)>,
+    spent_credits: Option<runs::SpentCredits>,
     runs: smith_faults::Runs,
     observed_runs: BTreeMap<(u64, u64), runs::ObservedRun>,
     provider_failures: Vec<((u64, u64), Injection)>,
@@ -146,6 +148,7 @@ impl Faults {
             opening: None,
             rejoining: None,
             provider: None,
+            spent_credits: None,
             runs: smith_faults::Runs::new(),
             observed_runs: BTreeMap::new(),
             provider_failures: Vec::new(),
@@ -201,6 +204,7 @@ impl World {
                 && (f.park.is_none() || f.parked)
                 && f.closed.is_none()
                 && f.provider.is_none()
+                && f.spent_credits.is_none()
                 && f.settling.is_none()
                 && f.opening.is_none()
                 && f.rejoining.is_none()

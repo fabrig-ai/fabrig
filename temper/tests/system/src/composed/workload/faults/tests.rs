@@ -143,6 +143,50 @@ fn catalogue_kind_draws_its_own_coin_target_and_moment() {
 }
 
 #[test]
+fn spent_credits_draws_its_own_coin_target_and_moment() {
+    use skein_llm_kit::faults::SPENT_CREDITS;
+
+    assert!(!GATE_KINDS.contains(&SPENT_CREDITS));
+    assert!(CAMPAIGN_KINDS.contains(&SPENT_CREDITS));
+    let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+    let without_spent: Vec<_> = kinds.iter().copied().filter(|&kind| kind != SPENT_CREDITS).collect();
+    let (mut lands, mut skips) = (false, false);
+    for seed in (0..64).chain([u64::MAX]) {
+        let draw = FaultDraw::new(seed, &kinds);
+        let before = FaultDraw::new(seed, &without_spent);
+        assert_eq!(
+            draw.plans.iter().filter(|plan| plan.kind != SPENT_CREDITS).collect::<Vec<_>>(),
+            before.plans.iter().collect::<Vec<_>>(),
+            "seed {seed}: other injection plans"
+        );
+        assert_eq!(
+            draw.planned().into_iter().filter(|&(kind, _)| kind != SPENT_CREDITS).collect::<Vec<_>>(),
+            before.planned(),
+            "seed {seed}: other plans"
+        );
+        assert_eq!(draw.ineligible(), before.ineligible(), "seed {seed}: ineligible kinds");
+        assert_eq!(draw.acts(), before.acts(), "seed {seed}: acts");
+
+        let streams = Streams::new(seed);
+        let mut rng = streams.rng(Stream::Faults, "provider/spent credits");
+        let spent: Vec<_> = draw.plans.iter().filter(|plan| plan.kind == SPENT_CREDITS).collect();
+        if rng.below(2) == 0 {
+            assert!(spent.is_empty(), "seed {seed}: the coin skips spent credits");
+            skips = true;
+        } else {
+            let workload = Workload::draw(&streams, &COMPOSED);
+            let index = usize::try_from(rng.below(u64::try_from(workload.goals.len()).expect("bounded goals")))
+                .expect("goal index");
+            let [plan] = spent.as_slice() else { panic!("seed {seed}: the coin plans spent credits once: {spent:?}") };
+            assert_eq!(plan.goal, workload.goals[index].name, "seed {seed}: the target comes after the coin");
+            assert_eq!(plan.after, rng.below(16), "seed {seed}: the moment comes after the target");
+            lands = true;
+        }
+    }
+    assert!(lands && skips);
+}
+
+#[test]
 fn settled_mid_turn_draws_its_own_coin_goal_and_held_query() {
     use restarts::ENGINE_RESTART_MID_TURN as SETTLED;
 

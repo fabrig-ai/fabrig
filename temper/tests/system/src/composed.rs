@@ -1752,8 +1752,11 @@ impl World {
             "answer {run:?}; current assignment {:?}",
             lane.assignment.as_ref().map(|assignment| assignment.task)
         );
-        if let host::Ending::Refused(_) = &answer.ending {
-            assert!(process.prepared(), "refusal precedes a process");
+        if matches!(
+            &answer.ending,
+            host::Ending::Refused(_) | host::Ending::Failed { failure: host::Failure::Unprepared(_), .. }
+        ) {
+            assert!(process.prepared(), "refusal or failed checkout precedes a process");
         } else {
             match (&answer.ending, process.agent().answer()) {
                 (host::Ending::Ended { outcome, .. }, run::Answer::Accepted { outcome: declared, .. }) => {
