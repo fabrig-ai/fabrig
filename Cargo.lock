@@ -2505,6 +2505,7 @@ dependencies = [
  "skein-codegen",
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
