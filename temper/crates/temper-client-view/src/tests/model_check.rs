@@ -120,6 +120,76 @@ fn the_welcomes_host_check_precedes_the_trial() {
     }
 }
 
+#[test]
+fn a_held_subscriptions_trial_keeps_its_marks_across_pages() {
+    use crate::look::{FLOW_DONE, FLOW_FAILED, FLOW_PROGRESS};
+    let way = Way::Program { provider: model::PROVIDER };
+    for (step, expected) in [
+        (v::TrialStep::Starts, [(true, false), (false, true), (false, false)]),
+        (v::TrialStep::Answers, [(true, false), (true, false), (false, true)]),
+    ] {
+        let (mut root, trials, accounts) = fed(d::WayKind::Program);
+        rows(&mut root, trials, &[row(step, failed(v::TrialWhy::Refused))]);
+        let mut doc = f::accounts::card_document(b"anthropic", b"claude-pat", c::AccountKind::Program);
+        let account = doc.accounts.get_mut(0).unwrap();
+        account.cut = false;
+        let source = account.sources.get_mut(0).unwrap();
+        source.number = f::accounts::SOURCE;
+        source.usable = false;
+        source.state = c::AccountState::Later { until: None };
+        doc.cut = false;
+        doc.usable = false;
+        doc.signing.clear();
+        f::accounts::deliver(&mut root, accounts, doc.clone());
+        f::root_event(
+            &mut root,
+            d::Event::Went {
+                place: d::Place::Address(Address::Welcome {
+                    step: Step::Model { way: Some(d::pages::connect_model::model_way(way)) },
+                }),
+            },
+        );
+        let attempt = model::sent(&mut root, Act::SignedIn { name: [1; 16], way });
+        f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Ready }) });
+        model::answer(&mut root, attempt, c::DocumentOutcome::AccountChanged);
+        doc.settled = true;
+        doc.program_hosts = model::observed_login(c::ProgramState::Usable);
+        f::accounts::deliver(&mut root, accounts, doc);
+        for address in [
+            Address::Welcome { step: Step::Ready },
+            Address::Welcome { step: Step::Model { way: None } },
+            Address::Accounts,
+        ] {
+            f::root_event(&mut root, d::Event::Went { place: d::Place::Address(address.clone()) });
+            for view in [f::page_view(&root), f::browser_page_view(&root)] {
+                let tree = view.tree();
+                let steps = tree
+                    .nodes()
+                    .iter()
+                    .enumerate()
+                    .find_map(|(at, node)| {
+                        if !node.styles.as_slice().contains(&FLOW_PROGRESS) {
+                            return None;
+                        }
+                        let steps = super::inbox::subtree(tree, at);
+                        steps
+                            .iter()
+                            .any(|n| n.text.iter().any(|r| r.text.as_ref() == b"Signed in to your subscription"))
+                            .then_some(steps)
+                    })
+                    .expect("subscription's Each step");
+                let marks: Box<[_]> = steps
+                    .iter()
+                    .filter(|n| n.role == Role::Item)
+                    .map(|n| (n.styles.as_slice().contains(&FLOW_DONE), n.styles.as_slice().contains(&FLOW_FAILED)))
+                    .collect();
+                assert_eq!(marks.as_ref(), &expected, "{address:?}");
+                position(tree, Role::Paragraph, b"The try couldn't start.");
+            }
+        }
+    }
+}
+
 use skein_lib::Queue;
 use temper_client_protocol_wire::v1 as v;
 
