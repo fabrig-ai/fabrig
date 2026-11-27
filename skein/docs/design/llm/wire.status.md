@@ -1,6 +1,8 @@
 # wire: status
 
-2026-11-26. Where the tree's code lags or departs from [wire.md](wire.md).
+2026-11-27. Where the tree's code lags or departs from [wire.md](wire.md).
+
+- **Not yet:** 1.4, 1.7 and 1.8: a prompt's speed sent as Anthropic's `speed` and as Responses' `service_tier` by both writers, and the served speed read from `usage.speed` and `response.service_tier` [in flight: change 20553].
 
 - **Not yet:** 1.7: `off` refused at admission, so no request carries disabled thinking; a focused test holding each shape current Claude models refuse absent; the fake peer refusing disabled thinking and sampling settings [in flight: change 914].
 

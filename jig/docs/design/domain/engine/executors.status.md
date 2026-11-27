@@ -1,7 +1,8 @@
 # executors: status
 
-2026-11-25. Where the tree's code lags or departs from [executors.md](executors.md).
+2026-11-27. Where the tree's code lags or departs from [executors.md](executors.md).
 
+- **Not yet:** 1: each LLM of a run's charter given its model's default speed, or `default` for an OpenAI model with speeds at standard [in flight: change 20567].
 
 - **Not yet:** 1, step 3: the run proof's `endpoint` (core-v6); a window resumed only on the endpoint it ran on, judged at the activation's check and the claim's, a proof with no endpoint judged by its main provider's source kind; a moved window's run started fresh with its tail. [in flight: change 8569]
 - **Not yet:** 4: a standing task's finish parked (`../tasks/standing.md`, section 2).

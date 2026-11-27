@@ -1,7 +1,9 @@
 # settings: status
 
-2026-11-19. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-27. Where the tree's code lags or departs from [settings.md](settings.md).
 
+- **Not yet:** 1: a model's speeds and default speed in its value, its store and its check, a charter's budget held at its default model's speed [in flight: change 20554].
+- **Not yet:** 1: a model's speeds and default speed set and read through the client wire and the settings file [in flight: change 20566].
 
 - **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `vocabulary.status.md`, 1.2, and `decisions.status.md`, 1.3.
    the brief's missing sections remain `briefs.status.md`, 1.  turn-call objects remain `executors-transcripts.status.md`, 1.  the missing tools remain `executors-tools.status.md`, 1.

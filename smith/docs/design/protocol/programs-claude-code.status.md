@@ -1,6 +1,9 @@
 # programs-claude-code: status
 
-2026-11-23. Where the tree's code lags or departs from [programs-claude-code.md](programs-claude-code.md).
+2026-11-27. Where the tree's code lags or departs from [programs-claude-code.md](programs-claude-code.md).
+
+- **Not yet:** 1.1 and 1.10: fast mode's `--settings` for an LLM at `fast` [in flight: change 20560].
+- **Not yet:** 1.7: a completion charged by the speed its stream's usage names [in flight: change 20565].
 
 Section 1.1 has no known gap in each program's file answers or in an
 answer not asked for. The agent service hands a file answer to main or

@@ -1,6 +1,8 @@
 # authority-checks: status
 
-2026-11-23. Where the tree's code lags or departs from [authority-checks.md](authority-checks.md).
+2026-11-27. Where the tree's code lags or departs from [authority-checks.md](authority-checks.md).
+
+- **Not yet:** 1.3: the main model's most costly completion priced at the speed its charter runs it at [in flight: change 20554].
 
 - **Not yet:** 1.3: a delegating task whose half is at or below the deployment's minimum for a run takes what it has left, capped, for its run's share; `run_spend` still gives it half [in flight: change 15]
 - **Not yet:** 1.3: a run short of its budget waits while something may still free one, such as a live delegate's unspent reservation; the core holds its task for its budget at once (`runs/state.rs`, `denied`), and holds it so the same where it may delegate.
