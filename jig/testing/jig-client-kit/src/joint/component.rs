@@ -85,14 +85,12 @@ impl Composition {
             served: crate::test::list([
                 clients::Served {
                     family: None,
-                    first: jig_client_protocol_wire::VERSION,
-                    last: jig_client_protocol_wire::VERSION,
+                    version: jig_client_protocol_wire::VERSION,
                     layout: jig_client_protocol_wire::LAYOUT,
                 },
                 clients::Served {
                     family: Some(1),
-                    first: jig_client_test_protocol_wire::VERSION,
-                    last: jig_client_test_protocol_wire::VERSION,
+                    version: jig_client_test_protocol_wire::VERSION,
                     layout: jig_client_test_protocol_wire::LAYOUT,
                 },
             ]),
