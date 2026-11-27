@@ -22,6 +22,69 @@ pub enum Role {
     Assistant,
 }
 
+/// What a fake draws from (skein/docs/design/testing/fakes/drawn-agent.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Seeds {
+    /// One generator draws answers, faults and timing.
+    One(u64),
+    /// Independent seeds for the agent, faults and scheduling.
+    Parts { agent: u64, faults: u64, scheduling: u64 },
+}
+
+/// An answer's key (skein/docs/design/testing/fakes/drawn-agent.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Key {
+    pub conversation: u64,
+    pub turn: u32,
+    pub attempt: u32,
+}
+
+/// Whether a slot's value came from the conversation (skein/docs/design/testing/fakes/drawn-agent.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Source {
+    Conversation,
+    Unissued,
+}
+
+/// One slot's draw for one call, beside its answer (skein/docs/design/testing/fakes/drawn-agent.md, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Filled {
+    /// The provider id the answer gave the call.
+    pub id: Box<[u8]>,
+    /// The slot's index in the menu.
+    pub slot: u32,
+    pub value: Box<[u8]>,
+    pub source: Source,
+    /// The world's class; empty until it gives one.
+    pub class: Box<[u8]>,
+}
+
+/// One answer the agent drew or a capture replayed (skein/docs/design/testing/fakes/drawn-agent.md, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Drawn {
+    pub key: Key,
+    /// One text line or a batch of call lines, its finish and tokens.
+    pub answer: Turn,
+    pub slots: Box<[Filled]>,
+}
+
+/// A prefix of the agent's answers (skein/docs/design/testing/fakes/drawn-agent.md, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Capture {
+    /// In the order made.
+    pub answers: Box<[Drawn]>,
+    /// An answer or class didn't fit; nothing after it was kept.
+    pub full: bool,
+}
+
+impl Capture {
+    /// The replay input for a fake that replays nothing.
+    #[must_use]
+    pub fn none() -> Capture {
+        Capture { answers: Box::new([]), full: false }
+    }
+}
+
 /// Caller-supplied deliberately invalid call input; the fake interprets neither name nor body.
 /// Fixed wrappers and payloads share the configured script byte allowance.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

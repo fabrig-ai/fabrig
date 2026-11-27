@@ -6,7 +6,10 @@ use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_lib::len_u64;
 
-use crate::api::{Answer, Failure, Line, Message, Part, Piece, Query, Report, Rule, Rules, Script, ToolSpec, Turn};
+use crate::api::{
+    Answer, Capture, Drawn, Failure, Filled, Line, Message, Part, Piece, Query, Report, Rule, Rules, Script, ToolSpec,
+    Turn,
+};
 
 pub(crate) fn fits(bytes: Option<u64>, cap: u32) -> bool {
     match bytes {
@@ -167,6 +170,50 @@ pub(crate) fn scripted_answer(turn: &Turn) -> Option<u64> {
             Line::Call { name, arguments } => bytes(name)?.checked_add(bytes(arguments)?)?.checked_add(21)?,
         };
         total = total.checked_add(owned)?;
+    }
+    Some(total)
+}
+
+/// Owned storage after converting a drawn reply into its capture, without copying any part.
+pub(crate) fn drawn_parts(parts: &[Part]) -> Option<u64> {
+    let mut total = array(1, size_of::<Drawn>())?.checked_add(array(parts.len(), size_of::<Line>())?)?;
+    for part in parts {
+        let owned = match part {
+            Part::Text { text } => bytes(text)?,
+            Part::ToolCall { name, arguments, .. } => bytes(name)?.checked_add(bytes(arguments)?)?,
+            Part::Opaque { .. } | Part::ToolOutput { .. } => return None,
+        };
+        total = total.checked_add(owned)?;
+    }
+    Some(total)
+}
+
+/// Owned replay bytes, including wrappers and slot evidence.
+pub(crate) fn replay(capture: &Capture) -> Option<u64> {
+    let mut total = array(capture.answers.len(), size_of::<Drawn>())?;
+    for drawn in &capture.answers {
+        total = total.checked_add(array(drawn.answer.lines.len(), size_of::<Line>())?)?;
+        for line in &drawn.answer.lines {
+            let owned = match line {
+                Line::Text { text } => bytes(text)?,
+                Line::Call { name, arguments } => bytes(name)?.checked_add(bytes(arguments)?)?,
+                Line::Cut { .. }
+                | Line::Take { .. }
+                | Line::Fail { .. }
+                | Line::Pieces { .. }
+                | Line::Opaque { .. } => {
+                    return None;
+                }
+            };
+            total = total.checked_add(owned)?;
+        }
+        total = total.checked_add(array(drawn.slots.len(), size_of::<Filled>())?)?;
+        for slot in &drawn.slots {
+            total = total
+                .checked_add(bytes(&slot.id)?)?
+                .checked_add(bytes(&slot.value)?)?
+                .checked_add(bytes(&slot.class)?)?;
+        }
     }
     Some(total)
 }

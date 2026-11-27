@@ -34,6 +34,9 @@ pub mod api;
 mod cache;
 mod domain;
 #[cfg(test)]
+mod drawn_tests;
+mod draws;
+#[cfg(test)]
 mod faults_tests;
 mod limits;
 mod pieces;
