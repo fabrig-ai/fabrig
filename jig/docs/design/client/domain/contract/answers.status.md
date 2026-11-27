@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [answers.md](answers.md).
 
-- **Not yet:** 1: *version not served* names the ranges the engine serves, which the client reads. [in flight: change 21337]
 
 Section 1 has no known gap in a program declaration's name-taken
 refusal: the accounts child and core carry it through the existing

@@ -2,10 +2,6 @@
 
 2026-11-27. Where temper's code lags or departs from [wires.md](wires.md).
 
-- **Not yet:** 3.1: `smith-transcript` keeps its version 7 text as the store's seed. [in flight: change 21340]
-- **Not yet:** 5: the refusal's words say `the worker reads L..H`. [in flight: change 21339]
-- **Not yet:** 9: the engine answers *version not served* by a range of versions per owner. [in flight: change 21336]
-- **Not yet:** 10 and 10.2: the display table holds each wire's range, the host tools' contract among them, and `upgrade --check` judges the contract as a wire, `wire NAME: kept V, this binary speaks L..H`. [in flight: change 21338]
 
 
 - **Not yet:** 5: the engine fits a start to the room at its own layout before converting it, and fits nothing again after: a start that would fit at the worker's layout once cut is refused as invalid, and one that grows past the room is refused without the cuts that would fit it. A converted frame past the room takes `Bound::Room` and is answered `Invalid(Start)`, not *untranslated*.

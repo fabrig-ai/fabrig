@@ -2,7 +2,6 @@
 
 2026-11-27. Where jig's code lags or departs from [layouts.md](layouts.md).
 
-- **Not yet:** 6 and 7: no written entry, written pass or held value: `Application` has no `written`, the host gives no `Convert` and has no `converting` or `converted`, and no service routes a conversion; a value type with no plan refuses the opening. [in flight: change 21311]
 - **Not yet:** 2.1 and 4.1: the engine converts a kept part's `Turn` body
   but writes its `KeptPart` envelope at the engine's layout. A worker
   whose envelope adds a field with a default or narrows the body bound
