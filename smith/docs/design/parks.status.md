@@ -7,5 +7,3 @@
   and checked at a park and its resume or end.
 - **Not yet:** 3: the run world's draw of the five kinds its run domain
   holds.
-- **Not yet:** 4: the session world's stories of a cut batch and of a
-  sub-agent's session, closed and restored.

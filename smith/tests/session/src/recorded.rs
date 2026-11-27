@@ -2,7 +2,7 @@
 //! skein/docs/foundation/testing-strategy.md, 2.2.
 
 //! A scripted parent/provider world for concrete sessions. The
-//! referee observes only requests: provider bytes, turns and spend, never
+//! referee observes only requests: provider bytes, turns, parts and spend, never
 //! session state. The harness separately checks boundary and settle contracts.
 
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -106,6 +106,8 @@ pub struct Scripted {
     pub prompts: Vec<llm::Prompt>,
     /// Concrete transcript turns emitted by the session, in order.
     pub turns: Vec<record::Turn>,
+    /// Answer, result and window parts emitted by the session, in order.
+    pub parts: Vec<record::Part>,
     /// Accepted cumulative integer charges and their overflow flags, in request order.
     pub spend: Vec<u64>,
     /// Cumulative own-completion charges, excluding every delegated bill.
@@ -172,6 +174,7 @@ impl Scripted {
             snapshots: vec![],
             prompts: vec![],
             turns: vec![],
+            parts: vec![],
             spend: vec![],
             own_spend: vec![],
             used: vec![],
@@ -279,7 +282,10 @@ impl Scripted {
     /// Records boundary outputs and checks their single-owner obligations.
     fn observe(&mut self, request: session::Request) {
         match request {
-            session::Request::Part { .. } => panic!("parts not requested"),
+            session::Request::Part { opener, part } => {
+                assert_eq!(opener, Token::new(31));
+                self.parts.push(part);
+            }
             session::Request::JobsCancelled { .. } => self.jobs_cancelled += 1,
             session::Request::Opened { opener, session } => {
                 assert_eq!(opener, Token::new(31));

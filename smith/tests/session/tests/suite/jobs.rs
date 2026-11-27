@@ -267,6 +267,7 @@ fn jobs_cancelled_by_the_opener_before_another_writer_answer_cancelled() {
     );
 }
 
+// The park story for a running job: its terminal precedes the old session's end.
 #[test]
 fn a_session_closing_with_a_job_running_tells_its_job_ended() {
     let mut world = world();
@@ -335,15 +336,31 @@ fn a_session_closing_while_a_job_read_waits_answers_the_read_before_it_ends() {
     world.close();
 }
 
+// The park story for a running job, resumed: the number survives but the job does not.
 #[test]
 fn a_resumed_session_numbers_its_next_job_after_its_last_turns() {
+    const OLD_JOB: JobNumber = JobNumber(3);
     let old = recorded::scenario(1);
     let mut transcript = recorded::transcript(&old);
-    transcript.turns.last_mut().expect("last turn").jobs = 3;
+    transcript.turns.last_mut().expect("last turn").jobs = OLD_JOB.0;
     let mut world = Scripted::new(1);
     world.open(opening(Some(transcript)));
+    complete(
+        &mut world,
+        vec![called(b"poll", Call::Job { job: OLD_JOB, wait: Wait::Default, output: Budget::Default, stop: false })],
+    );
+    assert!(world.job_acts.is_empty() && world.operations.is_empty(), "the tools refuse the poll at admission");
+    world.resume();
+    let result = &world.prompts[1].messages.last().expect("poll result message").content[0];
+    assert_eq!(
+        result,
+        &llm::Block::ToolResult {
+            id: bytes(b"poll"),
+            result: llm::Returned::Invalid { problem: llm::Problem::UnknownJob { job: OLD_JOB.0 } },
+        }
+    );
     let owner = start_job(&mut world);
-    assert_eq!(world.turns[0].jobs, 4);
+    assert_eq!(world.turns.last().expect("new job's turn").jobs, 4);
     assert_eq!(
         outcomes(&world)[0],
         tools::Outcome::Running {
