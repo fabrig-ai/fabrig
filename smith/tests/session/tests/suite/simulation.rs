@@ -96,7 +96,7 @@ fn a_nudged_session_goes_on_until_its_opener_closes_it() {
 #[test]
 fn malformed_calls_are_answered_with_their_problem_and_the_conversation_goes_on() {
     // Multiple malformed calls are answered without tool effects.
-    const MALFORMED_BATCH_SEED: u64 = 18;
+    const MALFORMED_BATCH_SEED: u64 = 6;
     let calm = Settings::calm(MALFORMED_BATCH_SEED);
     let settings = Settings { provider: Config { malformed: 1000, calls_per_answer: 3, ..calm.provider }, ..calm };
     let mut world = World::new(settings);
@@ -465,7 +465,7 @@ fn a_cancel_sent_after_its_run_ended_in_the_same_iteration_is_a_lost_race() {
 #[test]
 fn the_turn_budget_ends_a_session_that_keeps_calling_tools() {
     // Every completion calls a tool until the turn budget is spent.
-    const TURN_BUDGET_SEED: u64 = 12;
+    const TURN_BUDGET_SEED: u64 = 1;
     let calm = Settings::calm(TURN_BUDGET_SEED);
     let mut world = World::new(Settings { provider: Config { tool_rounds: 100, ..calm.provider }, ..calm });
     let opener = world.submit(Time::ZERO, budgeted(Budget { turns: 3, ..BUDGET }));
