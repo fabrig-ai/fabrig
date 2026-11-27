@@ -1,6 +1,7 @@
 use skein_lib::Rng;
 use smith_domain_session::{self as session, llm};
 use smith_session_world::recorded::{self, Scripted, opening};
+use smith_session_world::shapes::Sample;
 
 #[test]
 fn randomized_priced_turns_and_terminal_races() {
@@ -9,9 +10,10 @@ fn randomized_priced_turns_and_terminal_races() {
     let mut no_close = 0;
     let mut next_admitted = 0;
     let mut next_stopped = 0;
+    let mut sample = Sample::new("randomized_priced_turns_and_terminal_races");
     for seed in 0..64 {
         let mut rng = Rng::new(seed);
-        let mut world = Scripted::new(seed);
+        let mut world = Scripted::with_shapes(seed);
         world.open(opening(None, 20));
         let usage = llm::Usage {
             input_tokens: Some(rng.below(30)),
@@ -63,7 +65,9 @@ fn randomized_priced_turns_and_terminal_races() {
             assert_eq!(world.prompts.len(), if expected >= 20 { 1 } else { 2 }, "seed {seed}");
         }
         world.close();
+        sample.ran(world.reached()).expect("the case holds only shapes in form");
     }
+    sample.write();
     assert!(closing_won > 0 && closing_lost > 0 && no_close > 0, "every terminal race outcome occurred");
     assert!(next_admitted > 0 && next_stopped > 0, "both sides of the unit cap occurred");
 }

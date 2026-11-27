@@ -1,4 +1,5 @@
 //! The core owns the start's record families and child sequencing (domain/engine/restart.md).
+use crate::tests::new_core;
 use crate::{
     CoreRecord, Record, Restore, Write, accounts,
     tests::start::{
@@ -8,7 +9,7 @@ use crate::{
 
 fn loading() -> (Core, Env<crate::Limits>) {
     let limits = limits();
-    let mut core = Core::new(config(401), &limits).expect("configured core");
+    let mut core = new_core(config(401), &limits).expect("configured core");
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits };
     step_phase(core.start_begin(false, env.wall), Phase::LoadCore);
     let mut header = core.counters.deployment();
@@ -134,7 +135,7 @@ fn an_inbox_row_uses_the_inbox_phase() {
 #[test]
 fn sweep_rows_wait_inside_the_core_for_their_decisions() {
     let limits = limits();
-    let mut core = Core::new(config(401), &limits).expect("configured core");
+    let mut core = new_core(config(401), &limits).expect("configured core");
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits };
     let mut out = Queue::uncapped();
     step_phase(core.start_begin(false, env.wall), Phase::LoadCore);

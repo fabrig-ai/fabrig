@@ -601,7 +601,7 @@ impl<F> Admitted<F> {
         Ok(self)
     }
 }
-#[expect(clippy::large_enum_variant, reason = "one peer lives on the host stack; only one variant is constructed")]
+// One peer lives on the host stack; only one variant is constructed.
 enum Peer {
     Llm(llm_peer::Peer),
     Forge(forge_peer::Peer),

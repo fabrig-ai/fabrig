@@ -7,8 +7,8 @@
 )]
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{
-    HoldKind, Holding, Kind, Limits, Name, New, Party, Phase, PoolSlots, Problem, Refusal, Request, Stored, Taken,
-    TaskRecord, Was,
+    HoldKind, Holding, Limits, Name, New, Party, Phase, PoolSlots, Problem, Refusal, Request, ResourceKind, Stored,
+    Taken, TaskRecord, Was,
 };
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, Set, Token};
@@ -144,13 +144,12 @@ pub(crate) fn resource(domain: &mut Domain, limits: &Limits, name: Name, hold: H
 }
 
 /// Install immutable connector configuration before admission.
-pub(crate) fn kinds(domain: &mut Domain, limits: &Limits, connector: u16, kinds: &[Kind]) {
+pub(crate) fn kinds(domain: &mut Domain, limits: &Limits, connector: u16, kinds: &[ResourceKind]) {
     assert!(
         kinds.len() <= skein_lib::length::usize_of(limits.hold_kinds),
         "connector hold kinds fit the configured bound"
     );
     for configured in kinds {
-        assert!(configured.connector == connector, "kind belongs to connector");
         let key = KindKey { connector, kind: configured.kind };
         if let Some(old) = domain.hold_kinds.get(&key) {
             assert!(*old == configured.hold, "hold kind cannot change while tasks live");

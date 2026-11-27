@@ -171,10 +171,11 @@ impl World {
     }
 
     pub(super) fn sweep_call(&mut self, event: &forge::Event, config: &mut forge::Config) {
-        if matches!(event, forge::Event::Call { op: raw::Op::Read(_), .. })
+        if let Some(span) = self.sweep_faults.crowd
+            && matches!(event, forge::Event::Call { op: raw::Op::Read(_), .. })
             && self.stored.iter().any(|(_, row)| matches!(row, top::Stored::Landing(_)))
-            && let Some(span) = self.sweep_faults.crowd.take()
         {
+            self.sweep_faults.crowd = None;
             let mut env =
                 skein_lib::Env { now: self.env.now, wall: self.env.wall, limits: self.forge_env.limits.clone() };
             env.limits.latency_min = span;

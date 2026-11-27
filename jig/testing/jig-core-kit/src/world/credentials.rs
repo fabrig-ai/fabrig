@@ -10,14 +10,6 @@ impl World {
         );
     }
     pub fn delegate_on_path(&mut self, resource: u64, path: connector::Path) {
-        self.configure_holds(
-            1,
-            Box::new([tasks::Kind {
-                connector: 1,
-                kind: 1,
-                hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
-            }]),
-        );
         self.send(root::Event::Connector {
             number: 1,
             event: connector::Event::Adopt { project: 1, resource: path, role: connector::ResourceRole::Owned },
@@ -25,7 +17,7 @@ impl World {
         let mut authority = self.assigned.as_ref().expect("assigned caller").run.authority.clone();
         authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
         authority.budget.spend = 20;
-        self.send(root::Event::Core(core::Event::DelegateValidated {
+        self.send(root::Event::Core(core::Event::Delegate {
             to: ReplyTo::new(Token::new(201)),
             key: self.call_key(1),
             batch: Box::new([core::Delegate {
@@ -49,7 +41,6 @@ impl World {
                 dependencies: Box::new([]),
                 wake: Some(tasks::WakePolicy::DEFAULT),
             }]),
-            stubs: Box::new([]),
         }));
     }
 }

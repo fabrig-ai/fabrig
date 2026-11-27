@@ -6,7 +6,8 @@ use temper_engine_domain_forge_change as change;
 
 use crate::{ChangeRow, Receipt, ReceiptReport};
 
-const WAY_OUT: &[u8] = b"; release this change to ask a fresh repair, or cancel it";
+const FAILED_AGAIN: &[u8] = b"; amend this change to ask a fresh repair, measure it again, or cancel it";
+const UNCHECKED: &[u8] = b"; amend this change to ask a fresh repair, or cancel it";
 const CUT: &[u8] = " …".as_bytes();
 
 pub(crate) fn stands_again(head: Commit, repair: u64, keys: &[Box<[u8]>]) -> Box<[u8]> {
@@ -14,24 +15,25 @@ pub(crate) fn stands_again(head: Commit, repair: u64, keys: &[Box<[u8]>]) -> Box
     for (position, key) in keys.iter().enumerate() {
         let separator = if position == 0 { b"".as_slice() } else { b", " };
         let more = position.saturating_add(1) < keys.len();
-        let reserved = WAY_OUT.len().saturating_add(if more { CUT.len() } else { 0 });
+        let reserved = FAILED_AGAIN.len().saturating_add(if more { CUT.len() } else { 0 });
+        let key = bytes::utf8_replaced(key);
         let needed = key.len().saturating_add(separator.len()).saturating_add(reserved);
         if needed > skein_lib::usize_of(words.room()) {
             append(&mut words, CUT);
             break;
         }
         append(&mut words, separator);
-        append(&mut words, &bytes::utf8_replaced(key));
+        append(&mut words, &key);
     }
-    append(&mut words, WAY_OUT);
+    append(&mut words, FAILED_AGAIN);
     words.into_boxed()
 }
 
 pub(crate) fn stands_unchecked(head: Commit, repair: u64, why: &[u8]) -> Box<[u8]> {
     let mut words = account(head, repair, b"can't be checked again: ");
-    let room = skein_lib::usize_of(words.room()).checked_sub(WAY_OUT.len()).expect("recovery fits the hold");
+    let room = skein_lib::usize_of(words.room()).checked_sub(UNCHECKED.len()).expect("recovery fits the hold");
     append(&mut words, &crate::text::fit(&bytes::utf8_replaced(why), room, CUT));
-    append(&mut words, WAY_OUT);
+    append(&mut words, UNCHECKED);
     words.into_boxed()
 }
 
@@ -70,6 +72,14 @@ pub(super) fn landing_repair(state: &change::State) -> Option<change::Repair> {
     } else {
         None
     }
+}
+
+pub(super) fn released_repair(change: &change::Change) -> Option<change::Repair> {
+    if change.released != Some(change::Cause::RedStands) {
+        return None;
+    }
+    let state = if let change::State::Held { was, .. } = &change.state { was.as_ref() } else { &change.state };
+    if let change::State::Repairing { why, .. } = state { Some(*why) } else { None }
 }
 
 pub(super) fn completed(row: &mut ChangeRow, unchanged: bool, bound: u32) {

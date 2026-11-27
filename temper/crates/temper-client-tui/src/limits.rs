@@ -4,10 +4,13 @@ use temper_client_domain::Limits as Domain;
 
 pub const BOX_LOG: u32 = 50;
 pub const LOG_LINE: u32 = 512;
+// Nineteen commands and seven keys.
+pub(crate) const HELP_LINES: u32 = 26;
 pub const STEP: u32 = 64;
 pub const STARTING: u32 = 4;
 pub const WALK: u32 = 64;
 pub const CLOSED_CHATS: u32 = 16;
+pub const KEPT: u32 = 32;
 pub const NOTICE: skein_lib::Duration = skein_lib::Duration::from_secs(6);
 
 #[must_use]
@@ -73,8 +76,8 @@ pub fn limits(domain: &Domain, view: &skein_ui::Limits, field: u32) -> Option<sk
     // The TUI owns its form and command menu even with no supplied page bound.
     // The browser page bound covers model, effort, chat and question lists.
     let foot_nodes = 64_u32;
-    // Up to eight help notes of eighteen lines, and the TUI's unknown-command note.
-    let note_lines = 8_u32.checked_mul(18)?.checked_add(1)?;
+    // Up to eight help notes, and the TUI's unknown-command note.
+    let note_lines = 8_u32.checked_mul(HELP_LINES)?.checked_add(1)?;
     let nodes = foot_nodes.checked_add(64)?.checked_add(note_lines.checked_mul(2)?)?;
     let most = u32::try_from(crate::BoxLine::MOST).ok()?;
     // /log and the stopping note can each draw the retained log.

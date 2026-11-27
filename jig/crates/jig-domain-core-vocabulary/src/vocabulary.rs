@@ -1,7 +1,7 @@
 //! The core's vocabulary toward its root (`domain/engine/vocabulary.md`, section 1).
 
 use crate::waits::Figures;
-use crate::{CallKey, CallPart, Delegate, EscalationDecisionRecord, Key, ProcedureStep, Record, RunCharter};
+use crate::{CallKey, CallPart, Delegate, Key, ProcedureStep, Record, RunCharter};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
@@ -329,8 +329,6 @@ pub enum Held {
     Restarting {
         wait: skein_lib::Duration,
     },
-    /// A point load sent once every earlier commit is durable.
-    Load(Box<Now>),
     /// Assemble the connector-owned document prepared for this delivery in the same decision.
     ApplicationDelivery {
         watcher: Token,
@@ -344,11 +342,8 @@ pub enum Held {
         subject: Token,
         why: views::End,
     },
-    /// Load an owner range only after every preceding commit is durable.
-    ReadLoad {
-        load: Token,
-        range: Box<crate::reads::Range>,
-    },
+    /// Load a store range only after every preceding commit is durable.
+    Store(crate::engine::store::Out),
     /// One authenticated read answer after every preceding commit is durable.
     Read {
         reply: ReplyTo,
@@ -542,11 +537,6 @@ pub enum Held {
     StopRun {
         task: u64,
         attempt: u64,
-    },
-    /// Store page requested by the notes child after earlier commits.
-    NotesLoad {
-        owner: Token,
-        range: notes::Range,
     },
     /// A note write's accepted revision.
     NotesWritten {
@@ -786,55 +776,6 @@ pub enum Now {
     Activate {
         context: Box<tasks::RunContext>,
     },
-    /// Load the current transcript window in key order from its first turn.
-    StartPreparation {
-        task: u64,
-        from: (u64, u32),
-    },
-    /// Load one proposal decision that has left live task memory.
-    SeenConversation {
-        request: Token,
-        task: u64,
-    },
-    /// Load the durable position of one ended conversation for its mark.
-    LoadEndedRead {
-        request: Token,
-        task: u64,
-        party: u64,
-    },
-    /// Load one proposal decision that has left live task memory.
-    EndedProposal {
-        request: Token,
-        person: u64,
-        project: u32,
-        proposer: people::Proposer,
-        proposal: u64,
-    },
-    /// Load a task proposal from the proposer's retained history.
-    DecidedProposal {
-        to: ReplyTo,
-        key: CallKey,
-        proposal: u64,
-    },
-    /// Load the ended owner row for a person-task act whose live row is gone.
-    EndedPersonTask {
-        request: Token,
-        person: u64,
-        project: u32,
-        task: u64,
-    },
-    /// Load an ended task row; the core retains why it needs the result.
-    EndedTask {
-        request: Token,
-        task: u64,
-    },
-    /// Load the first input or ended tree root; later inputs return to the core between gets.
-    PartyInputs {
-        request: Token,
-        person: u64,
-        project: u32,
-        tasks: Box<[u64]>,
-    },
     /// Assemble connector-held sections for a still-current brief.
     CompleteBrief {
         brief: Token,
@@ -877,14 +818,6 @@ pub enum Now {
         parts: Box<[jig_domain_link::KeptPart]>,
         answered: Box<[CallKey]>,
         grants: Box<[jig_domain_link::Grant]>,
-    },
-    /// Load one held-chat decision that has left live task memory.
-    EndedEscalation {
-        request: Token,
-        person: u64,
-        project: u32,
-        task: u64,
-        revision: u64,
     },
     /// The first child admitted from a connector procedure's batch, if any.
     /// A restored task row was refused; the root must fail startup.
@@ -1060,11 +993,6 @@ pub enum Event {
     Marked {
         connector: u16,
         subjects: List<Token>,
-    },
-    /// Exactly one terminal for a previously admitted read load.
-    ReadLoaded {
-        load: Token,
-        result: crate::reads::Loaded,
     },
     /// An unkeyed one-shot read on the supplied live sign-in.
     Read {
@@ -1254,11 +1182,6 @@ pub enum Event {
         budget: u64,
         next: Option<Wall>,
     },
-    /// One page or terminal outcome of the transcript load requested by the core.
-    TranscriptLoaded {
-        task: u64,
-        load: TranscriptLoad,
-    },
     /// Party identity or request.
     People(people::Event),
     /// Host, run or attempt.
@@ -1310,74 +1233,10 @@ pub enum Event {
         problem: tasks::Problem,
         payload: Option<PayloadRefusal>,
     },
-    /// An activation with the root's readiness; `busy` when it has no room to read a transcript.
+    /// An activation with the root's readiness.
     Activate {
         context: Box<tasks::RunContext>,
         ready: bool,
-        busy: bool,
-    },
-    /// Return the ended owner header for an authenticated conversation mark.
-    SeenConversationLoaded {
-        request: Token,
-        row: Option<Box<tasks::TaskRecord>>,
-        busy: bool,
-    },
-    /// The ended position loaded for an authenticated mark, zero if absent.
-    EndedReadLoaded {
-        request: Token,
-        task: u64,
-        party: u64,
-        through: u64,
-        busy: bool,
-    },
-    /// The proposal loaded from its task proposer's durable history.
-    DecidedProposal {
-        to: ReplyTo,
-        key: CallKey,
-        proposal: u64,
-        row: Option<tasks::Proposal>,
-        busy: bool,
-    },
-    /// One ended proposal decision, translated from the root's store row.
-    EndedProposal {
-        request: Token,
-        person: u64,
-        project: u32,
-        proposer: people::Proposer,
-        proposal: u64,
-        row: Option<crate::ProposalDecisionRecord>,
-        busy: bool,
-    },
-    /// One ended task row, loaded without root judgment.
-    EndedTaskLoaded {
-        request: Token,
-        row: Option<Box<tasks::TaskRecord>>,
-        busy: bool,
-    },
-    /// One party input or its ended tree root, loaded without root judgment.
-    PartyInputsLoaded {
-        request: Token,
-        row: Option<Box<tasks::TaskRecord>>,
-        busy: bool,
-    },
-    /// Ended owner row loaded for an authenticated person-task act.
-    EndedPersonTask {
-        request: Token,
-        person: u64,
-        project: u32,
-        task: u64,
-        row: Option<Box<tasks::TaskRecord>>,
-        busy: bool,
-    },
-    /// One ended held-chat decision, translated from the root's store row.
-    EndedEscalation {
-        request: Token,
-        person: u64,
-        project: u32,
-        task: u64,
-        revision: u64,
-        row: Option<EscalationDecisionRecord>,
-        busy: bool,
     },
     /// One root-translated named-call answer that needs a durable core decision.
     NamedAnswer {
@@ -1391,17 +1250,11 @@ pub enum Event {
         key: CallKey,
         action: NamedAction,
     },
-    /// Retained inputs have been loaded and validated by the root's store transport.
-    DelegateValidated {
+    /// A run's delegated batch after the connector has translated its tools.
+    Delegate {
         to: ReplyTo,
         key: CallKey,
         batch: Box<[Delegate]>,
-        stubs: Box<[tasks::Stub]>,
-    },
-    /// One retained input load failed validation before named delegation.
-    DelegateInputFailed {
-        to: ReplyTo,
-        key: CallKey,
     },
     /// One connector's batch holdings, in the same order as the core's request.
     DelegateHoldings {
@@ -1543,6 +1396,11 @@ pub enum NamedAction {
         target: u64,
         revision: u64,
         again: Option<bool>,
+    },
+    /// Release a held procedure below the run for fresh measurement.
+    Measure {
+        target: u64,
+        revision: u64,
     },
     Amend {
         target: u64,
@@ -1720,7 +1578,6 @@ impl Event {
             | Self::PartsMarked { .. }
             | Self::Waits { .. }
             | Self::Marked { .. }
-            | Self::ReadLoaded { .. }
             | Self::PublicAnswered { .. }
             | Self::PublicDurable { .. }
             | Self::ApplicationPart { .. }
@@ -1740,24 +1597,14 @@ impl Event {
             | Self::ClaimRefused { .. }
             | Self::ConnectorRepair { .. }
             | Self::PersonTask { .. }
-            | Self::TranscriptLoaded { .. }
             | Self::PartPayload { .. }
             | Self::TurnPayload { .. }
             | Self::AnswerPayload { .. }
             | Self::AcceptedTurn { .. }
             | Self::RefusedPayload { .. }
             | Self::Activate { .. }
-            | Self::SeenConversationLoaded { .. }
-            | Self::EndedReadLoaded { .. }
-            | Self::DecidedProposal { .. }
-            | Self::EndedProposal { .. }
-            | Self::EndedTaskLoaded { .. }
-            | Self::PartyInputsLoaded { .. }
-            | Self::EndedPersonTask { .. }
-            | Self::EndedEscalation { .. }
             | Self::NamedAnswer { .. }
-            | Self::DelegateValidated { .. }
-            | Self::DelegateInputFailed { .. }
+            | Self::Delegate { .. }
             | Self::DelegateHoldings { .. }
             | Self::ProcedureHoldings { .. }
             | Self::ProcedureStep { .. }
@@ -1794,6 +1641,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Cancel { .. }
         | tasks::Event::Fail { .. }
         | tasks::Event::Release { .. }
+        | tasks::Event::Measure { .. }
         | tasks::Event::Amend { .. }
         | tasks::Event::Move { .. }
         | tasks::Event::Subscribe { .. }
@@ -2044,25 +1892,6 @@ impl Timer {
     }
 }
 
-/// The store transport's transcript answer (jig/docs/design/domain/engine/vocabulary.md, 1.1, and jig/docs/design/domain/engine/executors-transcripts.md, 1).
-#[derive(Hash, Debug)]
-pub enum TranscriptLoad {
-    Page {
-        rows: Box<[crate::TranscriptRow]>,
-        done: bool,
-    },
-    /// A window's turn past its store page's room, alone in its page: its
-    /// fields, `turn.transcript` empty and its transcript's length
-    /// (jig/docs/design/domain/engine/executors-transcripts.md, 1).
-    Cut {
-        turn: crate::TurnRecord,
-        bytes: u64,
-        done: bool,
-    },
-    Unread,
-    Failed,
-}
-
 impl Timer {
     /// Whether the core pauses this child timer while the service stops.
     #[must_use]
@@ -2082,8 +1911,69 @@ pub fn waits(timer: Timer) -> bool {
 mod admission_tests {
     use super::{Event, Timer};
     use jig_domain_fleet as fleet;
+    use jig_domain_notes as notes;
     use jig_domain_people as people;
     use skein_lib::{ReplyTo, Token};
+
+    #[test]
+    fn notes_events_keep_their_watermark_admission() {
+        use skein_lib::List;
+
+        const PROJECT: u32 = 1;
+        const PARTY: u64 = 2;
+        const NOTE: u64 = 3;
+        const REVISION: u32 = 1;
+        const EMPTY: u32 = 0; // No references or returned records.
+        const INDEX_LIMIT: u32 = 1; // Cap the index at one line.
+        const FIRST_PAGE: u32 = 0; // Recall pages are zero-based.
+        const FIRST_LINE: u32 = 1; // Line ranges are one-based.
+        const REPLACED_LINES: u32 = 1; // The body has one line.
+
+        let owner = Token::new(1);
+        let scope = notes::Scope::Project { project: PROJECT };
+        let scopes = List::from_boxed(Box::new([scope.clone()]));
+        let entry = notes::New {
+            name: NOTE,
+            scope: scope.clone(),
+            description: Box::from(&b"summary"[..]),
+            body: Box::from(&b"one line"[..]),
+            references: List::with_capacity(EMPTY),
+            author: notes::Author::Party { party: PARTY },
+        };
+        for (event, new) in [
+            (notes::Event::Index { owner, scopes, most: INDEX_LIMIT }, true),
+            (notes::Event::Recall { owner, by: notes::Recall::Name { name: NOTE }, page: FIRST_PAGE }, true),
+            (notes::Event::Write { owner, entry: entry.clone(), recalled: None }, true),
+            (
+                notes::Event::WriteLines {
+                    owner,
+                    entry,
+                    recalled: REVISION,
+                    range: notes::LineRange { first: FIRST_LINE, remove: REPLACED_LINES, join: false },
+                },
+                true,
+            ),
+            (
+                notes::Event::Edit {
+                    owner,
+                    party: PARTY,
+                    name: NOTE,
+                    scope,
+                    change: notes::Change::Delete { recalled: REVISION },
+                },
+                true,
+            ),
+            (notes::Event::DropProject { owner, project: PROJECT }, false),
+            (notes::Event::LoadFailed { owner }, false),
+            (
+                notes::Event::Loaded { owner, rows: notes::Rows { records: List::with_capacity(EMPTY) }, more: false },
+                false,
+            ),
+        ] {
+            let event = Event::Notes(event);
+            assert_eq!(event.new_work(), new, "{event:?}");
+        }
+    }
 
     #[test]
     fn completions_and_requests_have_distinct_admission() {

@@ -69,7 +69,7 @@ pub(crate) fn prepare_racing_decisions(world: &mut World) {
     };
     authority.budget.spend = 10;
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-    world.send(jig_test_domain::Event::Core(core::Event::DelegateValidated {
+    world.send(jig_test_domain::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(8001)),
         key: core::CallKey { task, attempt, completion: 1, position: 0 },
         batch: Box::new([core::Delegate {
@@ -93,7 +93,6 @@ pub(crate) fn prepare_racing_decisions(world: &mut World) {
             dependencies: Box::new([]),
             wake: Some(tasks::WakePolicy::DEFAULT),
         }]),
-        stubs: Box::new([]),
     }));
 }
 pub(crate) fn run_racing_amendment(world: &mut World) {

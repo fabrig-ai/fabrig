@@ -19,6 +19,16 @@ pub struct CloseAt {
     pub refused: Option<CloseRefused>,
 }
 
+impl CloseAt {
+    #[must_use]
+    pub const fn failed_cause(self) -> Cause {
+        match self.refused {
+            Some(_) => Cause::CloseRefused,
+            None => Cause::Failed,
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct CloseRefused {
     pub counts: Option<Commit>,
@@ -114,6 +124,17 @@ pub enum Repair {
     LandingAt { gate: u16, candidate: Commit, below: Option<Below> },
 }
 
+impl Repair {
+    /// Whether the repair was prompted by CI failing at the change's head.
+    #[must_use]
+    pub fn ci(self) -> bool {
+        match self {
+            Self::Ci | Self::Semantic => true,
+            Self::Gate(_) | Self::Review { .. } | Self::Landing { .. } | Self::LandingAt { .. } => false,
+        }
+    }
+}
+
 /// The green context of a blamed unit (domain/landing-search.md, 7; landing-search-by-test.md, 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Below {
@@ -161,7 +182,7 @@ pub struct AuthorityHold {
 
 /// Why a change is held for its requester or a person.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Hold {
+pub enum Cause {
     /// A forge wait exceeded its stall bound.
     Stalled,
     /// Another repair would exceed the configured bound.
@@ -184,16 +205,62 @@ pub enum Hold {
     Retargeted,
     /// A delegate or effect failed permanently.
     Failed,
-    /// Previous build: a landing repair found only flakes; release runs its gate once more.
-    Flake,
-    /// Previous build: a landing repair found no failed test; release runs its gate once more.
-    NoTest,
     /// A person rejected a required gate.
     Rejected,
+    /// A close check judged the goal's branch and refused it.
+    CloseRefused,
     /// The next delegate is beyond the change's remaining authority.
     Authority(AuthorityHold),
     /// Another question would exceed the change's bound.
     Questions,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Kind {
+    Bound,
+    Forge,
+    Judgement,
+    Failure,
+}
+
+impl Cause {
+    #[must_use]
+    pub const fn kind(self) -> Kind {
+        match self {
+            Self::Stalled
+            | Self::Repairs
+            | Self::Runner
+            | Self::Resolutions
+            | Self::Updates
+            | Self::Authority(_)
+            | Self::Questions => Kind::Bound,
+            Self::BranchMoved | Self::BranchMissing | Self::PullClosed | Self::Retargeted => Kind::Forge,
+            Self::RedStands | Self::Rejected | Self::CloseRefused => Kind::Judgement,
+            Self::Failed => Kind::Failure,
+        }
+    }
+}
+
+/// The single record retained with a held change (temper/docs/design/domain/forge/change/repairs-releases.md, 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Hold {
+    pub cause: Cause,
+    pub since: Wall,
+    pub words: Box<[u8]>,
+    pub judged: Option<Judged>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Judged {
+    pub head: Commit,
+    pub spec: u64,
+}
+
+impl Hold {
+    #[must_use]
+    pub fn new(cause: Cause, since: Wall) -> Self {
+        Self { cause, since, words: Box::new([]), judged: None }
+    }
 }
 
 /// A change's committed place through verification (temper/docs/design/domain/after-landing.md, 6).
@@ -240,7 +307,7 @@ pub enum State {
     /// The task ended after its outstanding effects and holdings settled.
     Ended,
     /// No write is made until a release lifts this cause.
-    Held { was: Box<State>, why: Hold },
+    Held { was: Box<State>, hold: Hold },
     /// A tier blames this landing; wait for its failures to be repaired.
     Red { merge: Commit, since: Wall },
     /// Every tier following its branch cleared this landing.
@@ -322,13 +389,13 @@ pub struct Change {
     pub way: Way,
     pub state: State,
     /// Its hold as it became `Ended` (temper/docs/design/domain/forge/branches.md, 2).
-    pub ended_held: Option<Hold>,
+    pub ended_held: Option<Cause>,
     pub gates: Box<[Gate]>,
     pub clean: Box<[Commit]>,
     /// One bounded count per gate; cleared when the head changes or the task is released.
     pub gate_failures: Box<[GateFailure]>,
-    /// A lifted hold awaiting the next fresh forge snapshot.
-    pub released: Option<Hold>,
+    /// An admitted release awaiting a fresh snapshot; its held step may still owe readback.
+    pub released: Option<Cause>,
     /// A failed resolution or merge job was retired; fresh facts decide its replacement (change/repairs.md, A release).
     pub released_resolution: bool,
     pub repairs: u32,
@@ -431,6 +498,10 @@ pub enum Recheck {
 #[expect(clippy::struct_excessive_bools, reason = "independent root-supplied facts")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Facts {
+    /// Jig bars a forge-triggered release, including under a placed hold.
+    pub release_blocked: bool,
+    /// The producing delegate ended without a change while this hold stood.
+    pub produced_nothing: Option<Box<[u8]>>,
     /// The change task's current `revisions.spec`, projected by the root.
     pub revision: u64,
     pub wait: Wait,
@@ -442,6 +513,10 @@ pub struct Facts {
     pub rerun: bool,
     /// Whether the landing repair's reason still resolves to a failed receipt.
     pub regate: bool,
+    /// The admitted task release asks to measure the held verdict again.
+    pub measure: bool,
+    /// Preserve the repair reason while its CI check has only a head.
+    pub semantic_recheck: bool,
     pub recheck: Recheck,
     /// The head its current repair was asked to repair, even after a push.
     pub repair_head: Option<Commit>,
@@ -466,8 +541,7 @@ pub struct Facts {
     pub contains_base: Status,
     /// Whether the landing branch's tip contains the change's head (temper/docs/design/domain/forge/change/README.md, 2).
     pub contains_head: Status,
-    /// Whether a merge job is configured, declared and authorized (temper/docs/design/domain/forge/change/repairs.md).
-    pub merge_job: bool,
+    pub merge_job: MergeJob,
     /// The change's current delegate, as the forge's row keeps it (`ChangeRow::delegate`);
     /// `None` when it has none.
     pub delegate: Option<Delegate>,
@@ -490,10 +564,13 @@ pub struct Facts {
     /// The head of the top's outstanding gate delegate, until its terminal result.
     pub live_gate: Option<Commit>,
     pub writer_taken: bool,
-    /// Its branch is its requester's held branch (domain/forge/change/README.md, 1): a move with no
-    /// drift and no writer in the slot is its new head, checked again (8.5).
+    /// Its branch is its requester's held branch (domain/forge/change/README.md, 1).
     pub requester_branch: bool,
-    pub drift: Option<Hold>,
+    pub drift: Option<Cause>,
+    /// The step is reading a state older than the record, counted from its first read.
+    pub behind: Option<Wall>,
+    /// The observed head is the outstanding update or prepare's write.
+    pub update_head: bool,
     pub first: bool,
     pub may_merge: bool,
     pub queue_repair_active: bool,
@@ -614,6 +691,25 @@ pub enum Effect {
     Merge { head: Commit, base: Commit },
 }
 
+/// The optional merge job's command lookup at the head it would merge into
+/// (temper/docs/design/protocol/hooks.md, 4.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum MergeJob {
+    Disabled,
+    Discover,
+    Checked { head: Commit, available: bool },
+}
+
+impl MergeJob {
+    pub(crate) fn available(self, at: Commit) -> Option<bool> {
+        match self {
+            Self::Disabled => Some(false),
+            Self::Checked { head, available } if head == at => Some(available),
+            Self::Discover | Self::Checked { .. } => None,
+        }
+    }
+}
+
 /// What the top does with the procedure's one decision.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Decision {
@@ -623,6 +719,8 @@ pub enum Decision {
     None,
     /// Wait for a fact or deadline to change.
     Wait { until: Option<Wall> },
+    /// Read the merge command before deciding whether to delegate it.
+    ReadMerge { head: Commit },
     /// Create one bounded delegate.
     Delegate(Delegate),
     /// Commit one effect to the top's outbox.
@@ -650,7 +748,27 @@ pub enum Decision {
     /// Finish cancellation after the top settles pending effects.
     Cancel,
     /// Hold the task and tell its requester why.
-    Hold(Hold),
+    Hold(Cause),
+    /// The same judgement still holds; no fresh measurement was taken.
+    ReplayJudgement(Replay),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Replay {
+    RedStands { head: Commit },
+    Rejected { head: Commit },
+    CloseRefused { branch: Commit, landing: Commit },
+}
+
+impl Replay {
+    #[must_use]
+    pub const fn cause(self) -> Cause {
+        match self {
+            Self::RedStands { .. } => Cause::RedStands,
+            Self::Rejected { .. } => Cause::Rejected,
+            Self::CloseRefused { .. } => Cause::CloseRefused,
+        }
+    }
 }
 
 /// A next state and its decision from one coherent snapshot.
@@ -804,6 +922,37 @@ pub struct Ready {
 }
 
 impl State {
+    /// The commit named by this step, if it pins one.
+    #[must_use]
+    pub fn pinned_head(&self) -> Option<Commit> {
+        match self {
+            Self::Checking { head }
+            | Self::Gating { head, .. }
+            | Self::Queued { head, .. }
+            | Self::First { head, .. }
+            | Self::Ready { head, .. }
+            | Self::Judging { head, .. }
+            | Self::CancellingGates { head }
+            | Self::Recreating { head }
+            | Self::Landing { head } => Some(*head),
+            Self::Updating { from, .. } | Self::Preparing { from, .. } => Some(*from),
+            Self::Taking { .. }
+            | Self::Producing { .. }
+            | Self::Opening { .. }
+            | Self::Reopening { .. }
+            | Self::WaitingProducer { .. }
+            | Self::Resolving { .. }
+            | Self::Repairing { .. }
+            | Self::Landed { .. }
+            | Self::Red { .. }
+            | Self::Cleared { .. }
+            | Self::Uncleared { .. }
+            | Self::NoChange { .. }
+            | Self::Held { .. }
+            | Self::Ended => None,
+        }
+    }
+
     /// The change's procedure step, in accounts (domain/forge/waits.md, 9).
     #[must_use]
     pub fn step_name(&self) -> &'static [u8] {

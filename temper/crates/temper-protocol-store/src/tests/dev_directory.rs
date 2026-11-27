@@ -15,11 +15,14 @@ use skein_codec::{Record as _, schema};
 use skein_lib::Token;
 use temper_engine_domain_forge_vocabulary as d;
 
-// Dev holds both change parts, but no person briefs or limit holds. These
-// constant sets are reused across opens, like the floor's seeding sets.
-const NEW_TYPES: usize = 1;
+// Dev holds both change parts, but no person briefs, limit holds or branch writes.
+// Only person briefs and branch writes are registered in the current set.
+const NEW_TYPES: usize = 2;
 const fn after_dev(from: &[u8]) -> bool {
-    from.len() == 1 && (from[0] == crate::keys::PERSON_BRIEF || from[0] == crate::keys::LIMIT_HOLD)
+    from.len() == 1
+        && (from[0] == crate::keys::PERSON_BRIEF
+            || from[0] == crate::keys::LIMIT_HOLD
+            || from[0] == crate::keys::WRITES)
 }
 const fn dev_types() -> [store::ValueType; crate::OWNER_SET.families[0].types.len() - NEW_TYPES] {
     let types = crate::OWNER_SET.families[0].types;
@@ -151,6 +154,8 @@ fn dev_rows_open_in_a_new_generation_and_reopen_without_writing() {
         }
     }
     let last = last.expect("opened with pending registry/job writes");
+    // The engine's Link step uses this flag; it isn't a store job.
+    assert!(crate::introduced_branch_writes(&current));
     assert_eq!(
         ran.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
         [
@@ -176,6 +181,7 @@ fn dev_rows_open_in_a_new_generation_and_reopen_without_writing() {
         panic!("second open writes no jobs or registry: {events:?}")
     };
     assert_eq!(*found, last);
+    assert!(!crate::introduced_branch_writes(&again));
     assert_eq!(disk.bytes(b"active"), b"2\n");
     unchanged_except_recovery(&opened, &disk.snapshot(b"generations"), b"generations/2/store/log-");
     read_rows(&mut disk, &mut again, &expected);

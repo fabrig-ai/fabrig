@@ -47,69 +47,18 @@ enum RefusalStep {
     Fire(u64),
     Quiet,
     Hint(Change),
-    Writer(bool),
-    Pushed,
-    UnchangedTip,
     HintOut(Read, Answer),
     Listed(u64),
 }
 #[test]
 #[expect(clippy::too_many_lines, reason = "input refusal scripts share one boundary driver")]
 fn a_refusal_is_kept_until_its_inputs_change() {
-    use RefusalStep::{Fire, Hint, HintOut, Listed, Pushed, Quiet, Read as R, UnchangedTip, Writer};
-    let compare = Read::Commits { before: [2; 32], after: [1; 32], page: 1 };
+    use RefusalStep::{Fire, Hint, HintOut, Listed, Quiet, Read as R};
     let pull_read = Read::Pull { number: 9, ci: true };
     let reviews = Read::Reviews { number: 9, page: 1, skip: 0 };
     let oversized = Answer::Item { item: summary(), comments: Box::new([comment(1), comment(2)]), more: false };
     // One inbox page/row is the exact bound; two comments exceed rows.
-    let rows: [(&str, RefusalCase); 8] = [
-        (
-            "writer comparison",
-            (
-                branch(),
-                false,
-                4,
-                Box::new([
-                    Pushed,
-                    Writer(true),
-                    R(branch_read(), Ok(Answer::Commit([2; 32]))),
-                    R(compare.clone(), Err(Error::TooLarge(api::Excess::unnamed()))),
-                    UnchangedTip,
-                    Fire(101),
-                    Quiet,
-                    Fire(160),
-                    R(branch_read(), Ok(Answer::Commit([2; 32]))),
-                    Quiet,
-                    UnchangedTip,
-                    Fire(220),
-                    R(branch_read(), Ok(Answer::Commit([2; 32]))),
-                    Quiet,
-                    UnchangedTip,
-                    Hint(Change::Branch(Box::from(*b"topic"))),
-                    Fire(221),
-                    R(branch_read(), Ok(Answer::Commit([2; 32]))),
-                    R(compare, Err(Error::TooLarge(api::Excess::unnamed()))),
-                    Fire(281),
-                    R(branch_read(), Ok(Answer::Commit([3; 32]))),
-                    R(
-                        Read::Commits { before: [3; 32], after: [1; 32], page: 1 },
-                        Err(Error::TooLarge(api::Excess::unnamed())),
-                    ),
-                    UnchangedTip,
-                    Fire(341),
-                    R(branch_read(), Ok(Answer::Commit([1; 32]))),
-                    Quiet,
-                    Fire(401),
-                    R(branch_read(), Ok(Answer::Commit([3; 32]))),
-                    R(
-                        Read::Commits { before: [3; 32], after: [1; 32], page: 1 },
-                        Err(Error::TooLarge(api::Excess::unnamed())),
-                    ),
-                    Writer(false),
-                    R(branch_read(), Ok(Answer::Commit([3; 32]))),
-                ]),
-            ),
-        ),
+    let rows: [(&str, RefusalCase); 7] = [
         (
             "comment pages",
             (
@@ -293,7 +242,7 @@ fn a_refusal_is_kept_until_its_inputs_change() {
 
 type RefusalCase = (Resource, bool, u32, Box<[RefusalStep]>);
 fn refusal_row((resource, participating, errors, steps): RefusalCase) {
-    use RefusalStep::{Fire, Hint, HintOut, Listed, Pushed, Quiet, Read as R, UnchangedTip, Writer};
+    use RefusalStep::{Fire, Hint, HintOut, Listed, Quiet, Read as R};
     let mut h = Harness::with_limits(Limits {
         inbox: 1,
         rows: 1,
@@ -317,8 +266,6 @@ fn refusal_row((resource, participating, errors, steps): RefusalCase) {
                 assert!(h.send().is_none(), "refused inputs read again");
             }
             Hint(change) => h.event(Event::Hint { hint: api::Hint { repository: REPO, change, key: None } }),
-            Writer(taken) => h.event(Event::Writer { resource: resource.clone(), taken }),
-            Pushed => h.event(Event::Pushed { resource: resource.clone(), commit: [1; 32] }),
             HintOut(read, answer) => {
                 pending_listing(&mut h);
                 let sent = h.one();
@@ -336,11 +283,6 @@ fn refusal_row((resource, participating, errors, steps): RefusalCase) {
                 let now = h.env.now;
                 h.answer(sent, Answer::Items { cut: false, items: Box::new([item]), more: false, now });
                 h.domain.alarms.cancel(crate::domain::Alarm::Repository(REPO));
-            }
-            UnchangedTip => {
-                assert_eq!(h.record(&resource).cached.tip, Some([1; 32]));
-                assert_eq!(h.drift, 0);
-                assert!(h.news.is_empty());
             }
         }
     }

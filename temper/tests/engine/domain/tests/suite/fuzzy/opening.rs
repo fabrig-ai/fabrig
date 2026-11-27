@@ -1,10 +1,15 @@
 //! Crash cuts through a seeded workload (draft/reconciling-start.md, 7).
 //! Referee observations are settled, but the cuts never drain first.
+//! Campaign cases follow `temper/docs/design/testing/workloads.md`, 8.5.
 use super::follows::referee::Referee;
 use crate::forge_routes::follow_changes::proof;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Duration, ReplyTo, Rng, Token};
+use skein_lib::{Duration, ReplyTo, Rng, StateHasher, Token};
+use skein_world::sweep::{Test, cases};
+use std::convert::Infallible;
+use std::hash::{Hash, Hasher};
+use std::ops::Range;
 use temper_engine_domain::{self as engine, Record};
 use temper_engine_domain_forge::{FollowState, follows::FollowAct};
 use temper_engine_domain_world::{
@@ -16,7 +21,7 @@ const SEEDS: u64 = 4;
 const STEPS: u32 = 8;
 const CUT_TICKS: u64 = 24;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Hash)]
 enum Step {
     Landing,
     Start,
@@ -41,6 +46,18 @@ fn drawn(rng: &mut Rng) -> Step {
         _ => Step::Restart,
     }
 }
+
+fn drawn_tail(seed: u64) -> impl Iterator<Item = (Step, u64, u64, u64)> {
+    let mut rng = Rng::new(seed.wrapping_add(91_700));
+    (0..STEPS).map(move |_| {
+        let step = drawn(&mut rng);
+        let cut = rng.below(CUT_TICKS);
+        let fault = rng.below(3);
+        let crash_seed = rng.next_u64();
+        (step, cut, fault, crash_seed)
+    })
+}
+
 struct Driver {
     world: World,
     referee: Referee,
@@ -247,7 +264,6 @@ fn same(first: &Driver, replay: &Driver, seed: u64) {
     assert_eq!(first.world.assigned, replay.world.assigned);
 }
 fn run_replayed(seed: u64) {
-    let mut rng = Rng::new(seed + 91_700);
     let mut first = Driver::new();
     let mut replay = Driver::new();
     // Exercise each stimulus even on a seed whose random tail omits it. The
@@ -270,19 +286,21 @@ fn run_replayed(seed: u64) {
         replay.step(step, cut, 0, seed);
         same(&first, &replay, seed);
     }
-    for number in 0..STEPS {
-        let step = drawn(&mut rng);
-        let cut = rng.below(CUT_TICKS);
-        let fault = rng.below(3);
-        let crash_seed = rng.next_u64();
+    let prelude_cuts = (first.cuts_with_commits, first.cuts_with_calls);
+    for (number, (step, cut, fault, crash_seed)) in drawn_tail(seed).enumerate() {
         eprintln!("opening seed {seed} step {number}: {step:?}, cut {cut}, fault {fault}");
         first.step(step, cut, fault, crash_seed);
         replay.step(step, cut, fault, crash_seed);
         same(&first, &replay, seed);
     }
     eprintln!(
-        "opening seed {seed}: cuts with commits {}, with forge calls {}; opening at most {} ticks, local bound at most {}",
-        first.cuts_with_commits, first.cuts_with_calls, first.max_open_ticks, first.max_bound
+        "opening seed {seed}: cuts with commits {} ({} in prelude), with forge calls {} ({} in prelude); opening at most {} ticks, local bound at most {}",
+        first.cuts_with_commits,
+        prelude_cuts.0,
+        first.cuts_with_calls,
+        prelude_cuts.1,
+        first.max_open_ticks,
+        first.max_bound
     );
     same_text(&first.world.fake, &replay.world.fake, &format_args!("opening forge seed {seed}"));
     assert!(first.cuts_with_commits > 0, "seed cuts an undurable commit");
@@ -290,11 +308,33 @@ fn run_replayed(seed: u64) {
     first.world.close();
     replay.world.close();
 }
+
+#[test]
+fn fuzzy_opening_draws_keep_gate_steps_and_accept_full_width_seeds() {
+    let mut digest = StateHasher::new();
+    for seed in 0..SEEDS {
+        for draw in drawn_tail(seed) {
+            draw.hash(&mut digest);
+        }
+    }
+    assert_eq!(digest.finish(), 0x08d8_9c69_523e_0d3c, "tail draws in gate seed order");
+
+    assert_eq!(drawn_tail(u64::MAX).count(), usize::try_from(STEPS).expect("bounded tail"));
+}
+
+fn shard(test: Test, seeds: Range<u64>) {
+    cases(test, seeds, |seed| {
+        run_replayed(seed);
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+}
+
 #[test]
 fn fuzzy_opening_shard_0() {
-    skein_world::sweep::each_seed(0..SEEDS / 2, run_replayed);
+    shard(skein_world::this_test!("fuzzy_opening_shard_0"), 0..SEEDS / 2);
 }
 #[test]
 fn fuzzy_opening_shard_1() {
-    skein_world::sweep::each_seed(SEEDS / 2..SEEDS, run_replayed);
+    shard(skein_world::this_test!("fuzzy_opening_shard_1"), SEEDS / 2..SEEDS);
 }

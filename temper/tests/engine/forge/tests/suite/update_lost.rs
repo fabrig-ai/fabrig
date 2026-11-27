@@ -174,7 +174,7 @@ fn an_update_lost_for_good_holds_at_its_count_and_a_release_lands_it() {
     for entry in 1..=u64::from(LIMITS.change_policy.updates) + 1 {
         let decision = change_step(&mut world, entry, change::Status::Passed, Box::new([]));
         if let change::Decision::Hold(why) = decision {
-            assert_eq!(why, change::Hold::Updates);
+            assert_eq!(why, change::Cause::Updates);
             held = true;
             break;
         }
@@ -186,7 +186,10 @@ fn an_update_lost_for_good_holds_at_its_count_and_a_release_lands_it() {
         world.change(CHANGE),
         world.writes()
     );
-    assert!(matches!(world.change(CHANGE).change.state, change::State::Held { why: change::Hold::Updates, .. }));
+    assert!(matches!(
+        world.change(CHANGE).change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::Updates, .. }, .. }
+    ));
     assert_eq!(world.change(CHANGE).change.updates, LIMITS.change_policy.updates);
     assert_eq!(world.writes(), LIMITS.change_policy.updates * LIMITS.client.write_attempts);
     let account = &world.change(CHANGE).effect_account.as_ref().expect("last update's account").words;
@@ -331,7 +334,7 @@ fn a_copy_landing_after_the_change_moved_on_holds_and_lands_nothing_unchecked() 
         }
         assert_eq!(
             change_step(&mut world, 101, change::Status::Passed, Box::new([])),
-            change::Decision::Hold(change::Hold::BranchMoved)
+            change::Decision::Hold(change::Cause::BranchMoved)
         );
         assert_eq!(world.change(CHANGE).pending, None);
         let before = world.take_calls();
@@ -506,7 +509,7 @@ fn a_preparations_real_conflict_reaches_the_merge_job_then_a_resolution() {
         change_step_merge_job(&mut world, 2, change::Status::Passed, Box::new([])),
         change::Decision::Delegate(kind)
     );
-    world.event(top::Event::Delegated { task: CHANGE, child: 52, kind });
+    world.event(top::Event::Delegated { task: CHANGE, child: 52, kind, close_at: None });
     let words = b"file: both modified; left for resolution";
     world.event(top::Event::DelegateResult {
         task: CHANGE,

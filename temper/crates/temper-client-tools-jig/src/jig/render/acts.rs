@@ -111,11 +111,9 @@ fn lift(task: &Task, out: &mut Text) {
         && let Some(hold) = holding.placed()
         && hold.may_lift
     {
-        out.put(b"  hold lift ");
-        out.number(hold.number);
-        out.put(b" --rev ");
-        out.number(hold.revision.value);
-        out.put(b" --with-tasks\n");
+        out.put(b"  ");
+        super::holds::lift_command(hold.number, hold.revision.value, out);
+        out.put(b"\n");
     }
 }
 fn has_tool(_task: &Task, act: ActKind) -> bool {

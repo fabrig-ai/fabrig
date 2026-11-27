@@ -1,6 +1,8 @@
 mod fixtures;
+use core::engine::store::{Answer, In, Out, Range, Rows};
 pub(crate) use fixtures::ended_chat;
 use jig_domain_core as core;
+use jig_domain_core::engine::store as port;
 use jig_domain_people as people;
 use jig_test_domain as root;
 use jig_test_store::{StoreOut, Up, route};
@@ -202,16 +204,22 @@ fn a_seen_conversation_is_answered_from_the_store() {
     let outputs = fixtures::routed(
         &mut component,
         &mut routes,
-        StoreOut::Now(core::Now::SeenConversation { request: Token::new(17), task }),
+        StoreOut::Engine(Out::Load {
+            load: Token::new(17),
+            range: Range::Record(core::Key::Tasks(jig_domain_tasks::Key::Ended(task))),
+        }),
     );
     match outputs.as_ref() {
         [
-            Up::Root(root::Event::Core(core::Event::SeenConversationLoaded { request, row: Some(found), busy: false })),
+            Up::Root(root::Event::Store(In::Loaded {
+                load,
+                result: Answer::Rows(Rows::Records { records, more: false }),
+            })),
         ] => {
-            assert_eq!(*request, Token::new(17));
-            assert_eq!(*found, row);
+            assert_eq!(*load, Token::new(17));
+            assert_eq!(records.as_ref(), &[core::Record::Tasks(jig_domain_tasks::Stored::Ended(row))]);
         }
-        _ => unreachable!("the retained chat answers its request"),
+        _ => unreachable!("the retained chat answers its load"),
     }
 }
 #[test]
@@ -229,14 +237,20 @@ fn a_window_read_reaches_the_root_as_transcript_pages() {
     let outputs = fixtures::routed(
         &mut component,
         &mut routes,
-        StoreOut::Now(core::Now::StartPreparation { task: 21, from: (1, 1) }),
+        StoreOut::Engine(port::Out::Load {
+            load: Token::new(21),
+            range: port::Range::Window { task: 21, from: (1, 1) },
+        }),
     );
     let mut expected_turn = 1_u32;
     let mut pages = 0_u32;
     for output in outputs {
         match output {
-            Up::Root(root::Event::TranscriptLoaded { task, rows, done }) => {
-                assert_eq!(task, 21);
+            Up::Root(root::Event::Store(port::In::Loaded {
+                load,
+                result: port::Answer::Rows(port::Rows::Turns { turns: rows, more }),
+            })) => {
+                assert_eq!(load, Token::new(21));
                 pages = pages.checked_add(1).expect("bounded pages");
                 for (row, text) in rows {
                     assert!(text.is_none());
@@ -244,7 +258,7 @@ fn a_window_read_reaches_the_root_as_transcript_pages() {
                     assert_eq!(row.transcript.as_ref(), b"opaque");
                     expected_turn = expected_turn.checked_add(1).expect("bounded turns");
                 }
-                assert_eq!(done, expected_turn == 4);
+                assert_eq!(more, expected_turn != 4);
             }
             Up::Root(_) | Up::Ask(_) => unreachable!("only transcript pages"),
         }
@@ -285,7 +299,10 @@ fn restart_configuration_preserves_the_ordinary_read_allowance() {
     routes.configure(&limits);
     let request = route::down(
         &mut routes,
-        StoreOut::NotesLoad { owner: Token::new(1), range: jig_domain_notes::Range::Entry { name: 1 } },
+        StoreOut::Engine(core::engine::store::Out::Load {
+            load: Token::new(1),
+            range: core::engine::store::Range::Notes(jig_domain_notes::Range::Entry { name: 1 }),
+        }),
     )
     .expect("ordinary read request");
     let jig_protocol_store::Request::Load { bytes, .. } = request else { panic!("ordinary load") };
@@ -488,5 +505,59 @@ fn start_application_decode_failure_names_its_cause_and_has_the_record_key() {
         jig_protocol_store::keys::application(&key, u32::MAX).expect("key")
     );
     assert!(out.is_empty());
+    assert!(routes.idle());
+}
+
+#[test]
+fn a_notes_page_reports_more_and_fails_when_no_record_fits() {
+    use jig_domain_notes as notes;
+    let mut component = fixtures::component();
+    let mut limits = fixtures::root_limits();
+    limits.core.notes.load_rows = 1;
+    let mut routes = fixtures::routes();
+    routes.configure(&limits);
+    let line = |name| {
+        core::Record::Notes(notes::Record::Line(notes::Line {
+            scope: notes::Scope::Deployment,
+            name,
+            revision: 1,
+            description: Box::from(b"note".as_slice()),
+        }))
+    };
+    let writes = Box::new([
+        fixtures::header(1),
+        root::Write::Save(root::Record::Core(line(1))),
+        root::Write::Save(root::Record::Core(line(2))),
+    ]);
+    fixtures::routed(&mut component, &mut routes, StoreOut::Commit { number: 1, writes });
+    let load = Token::new(23);
+    let range = notes::Range::Lines { scope: notes::Scope::Deployment, after: None };
+    let out = fixtures::routed(
+        &mut component,
+        &mut routes,
+        StoreOut::Engine(Out::Load { load, range: Range::Notes(range.clone()) }),
+    );
+    let [
+        Up::Root(root::Event::Store(In::Loaded {
+            load: answered,
+            result: Answer::Rows(Rows::Records { records, more: true }),
+        })),
+    ] = out.as_ref()
+    else {
+        panic!("one note plus a continuation: {out:?}")
+    };
+    assert_eq!(*answered, load);
+    assert_eq!(records.as_ref(), [line(1)]);
+    assert!(routes.idle());
+    limits.core.load_bytes = 1;
+    routes.configure(&limits);
+    let out =
+        fixtures::routed(&mut component, &mut routes, StoreOut::Engine(Out::Load { load, range: Range::Notes(range) }));
+    let [Up::Root(root::Event::Store(In::Loaded { load: answered, result: Answer::Failed(port::Failure::Failed) }))] =
+        out.as_ref()
+    else {
+        panic!("one byte cannot fit a note: {out:?}")
+    };
+    assert_eq!(*answered, load);
     assert!(routes.idle());
 }

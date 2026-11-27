@@ -4,6 +4,7 @@ use super::{Failure, Spent, joins, paged};
 use crate::{Store, intervals, pages};
 use ::core::mem::size_of;
 use alloc::boxed::Box;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{self as core, reads};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -14,7 +15,7 @@ pub(super) fn read(
     range: &reads::Range,
     task: Option<u64>,
     spent: &mut Spent,
-) -> Result<reads::Loaded, Failure> {
+) -> Result<engine_store::Answer, Failure> {
     let intervals = intervals::scope(range.party, &range.scope).ok_or(Failure::Corrupt)?;
     let after = paged::cursor(range, &intervals)?;
     let walked = pages::reader::walk(store, &intervals, after.as_ref(), spent.rows).or(Err(Failure::Corrupt))?;
@@ -40,7 +41,10 @@ pub(super) fn read(
                 Some(task) => match belongs(store, &value, task, spent) {
                     Ok(selected) => selected,
                     Err(Failure::Cut | Failure::Joins) if last.is_some() && last != range.after => {
-                        return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });
+                        return Ok(engine_store::Answer::Rows(engine_store::Rows::Read {
+                            rows: found.into_boxed(),
+                            next: last,
+                        }));
                     }
                     Err(error @ (Failure::Cut | Failure::Joins | Failure::Corrupt)) => return Err(error),
                 },
@@ -66,14 +70,17 @@ pub(super) fn read(
             | core::Record::Accounts(_) => row.owned_bytes().ok_or(Failure::Corrupt)?,
         };
         let Some(remaining) = spent.bytes.checked_sub(bytes) else {
-            return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });
+            return Ok(engine_store::Answer::Rows(engine_store::Rows::Read { rows: found.into_boxed(), next: last }));
         };
         spent.bytes = remaining;
         spent.rows = spent.rows.checked_sub(1).ok_or(Failure::Cut)?;
         last = Some(position);
         found.push(row).expect("bounded by walked rows");
     }
-    Ok(reads::Loaded::Page { rows: found.into_boxed(), next: if walked.next.is_some() { last } else { None } })
+    Ok(engine_store::Answer::Rows(engine_store::Rows::Read {
+        rows: found.into_boxed(),
+        next: if walked.next.is_some() { last } else { None },
+    }))
 }
 
 fn belongs(store: &mut Store, value: &core::Record, task: u64, spent: &mut Spent) -> Result<bool, Failure> {

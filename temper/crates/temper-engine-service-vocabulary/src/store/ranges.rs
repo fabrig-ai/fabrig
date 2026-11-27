@@ -6,34 +6,6 @@ use jig_domain_core as core;
 use jig_protocol_store as store;
 use temper_engine_domain::{CoreRange, Key, Range};
 
-/// Only a current window hands oversized turns on cut.
-pub(super) fn window(range: &Range) -> bool {
-    match range {
-        Range::Core(CoreRange::TaskTranscript { .. }) => true,
-        Range::Core(
-            CoreRange::Deployment
-            | CoreRange::Settings
-            | CoreRange::Accounts
-            | CoreRange::People
-            | CoreRange::Sweep
-            | CoreRange::Tasks
-            | CoreRange::RunProofs
-            | CoreRange::Calls
-            | CoreRange::EndedRead { .. }
-            | CoreRange::TaskResult { .. }
-            | CoreRange::RequesterWord { .. }
-            | CoreRange::Turns { .. }
-            | CoreRange::Notes(_)
-            | CoreRange::ProposalDecision { .. }
-            | CoreRange::TaskProposal { .. }
-            | CoreRange::EscalationDecision { .. },
-        )
-        | Range::Census(_)
-        | Range::Forge
-        | Range::History(_) => false,
-    }
-}
-
 /// Startup selects stored families; writer rules are proved by store oracles
 /// (temper/docs/design/domain/root-restart.md, 1.1).
 pub(super) fn starting(range: &Range) -> bool {
@@ -51,15 +23,10 @@ pub(super) fn starting(range: &Range) -> bool {
         | Range::Census(_)
         | Range::Forge => true,
         Range::Core(
-            CoreRange::EndedRead { .. }
-            | CoreRange::TaskResult { .. }
+            CoreRange::TaskResult { .. }
             | CoreRange::RequesterWord { .. }
             | CoreRange::Turns { .. }
-            | CoreRange::TaskTranscript { .. }
-            | CoreRange::Notes(_)
-            | CoreRange::ProposalDecision { .. }
-            | CoreRange::TaskProposal { .. }
-            | CoreRange::EscalationDecision { .. },
+            | CoreRange::ApplicationNotes(_),
         )
         | Range::History(_) => false,
     }
@@ -98,7 +65,6 @@ pub(super) fn cursor(range: &Range, key: &Key) -> Option<store::Cursor> {
     Some(store::Cursor { interval, after })
 }
 
-#[expect(clippy::too_many_lines, reason = "one dispatcher maps root ranges to jig store requests")]
 pub(super) fn request(owner: skein_lib::Token, flight: &Flight) -> Option<store::Request> {
     let after = if let Some(cursor) = &flight.cursor {
         Some(cursor.clone())
@@ -131,15 +97,6 @@ pub(super) fn request(owner: skein_lib::Token, flight: &Flight) -> Option<store:
             | CoreRange::Tasks
             | CoreRange::Calls
             | CoreRange::RunProofs => store::Restore::Jig(Box::from(range.restore_ranges())),
-            CoreRange::EndedRead { task, party } => {
-                return Some(store::Request::Get {
-                    owner,
-                    key: store::Get::Jig(core::Key::People(jig_domain_people::Key::EndedRead {
-                        task: *task,
-                        party: *party,
-                    })),
-                });
-            }
             CoreRange::RequesterWord { task, position } => {
                 let key = core::Key::Tasks(jig_domain_tasks::Key::Activity { task: *task, position: *position });
                 return Some(jig_get(owner, key));
@@ -147,31 +104,7 @@ pub(super) fn request(owner: skein_lib::Token, flight: &Flight) -> Option<store:
             CoreRange::TaskResult { task } => {
                 return Some(jig_get(owner, core::Key::Tasks(jig_domain_tasks::Key::Ended(*task))));
             }
-            CoreRange::TaskProposal { task, .. } => {
-                return Some(store::Request::Get {
-                    owner,
-                    key: store::Get::Jig(core::Key::Tasks(jig_domain_tasks::Key::Live(*task))),
-                });
-            }
-            CoreRange::ProposalDecision { proposer, proposal } => {
-                return Some(store::Request::Get {
-                    owner,
-                    key: store::Get::Jig(core::Key::Core(core::CoreKey::ProposalDecision {
-                        proposer: *proposer,
-                        proposal: *proposal,
-                    })),
-                });
-            }
-            CoreRange::EscalationDecision { task, revision } => {
-                return Some(store::Request::Get {
-                    owner,
-                    key: store::Get::Jig(core::Key::Core(core::CoreKey::EscalationDecision {
-                        task: *task,
-                        revision: *revision,
-                    })),
-                });
-            }
-            CoreRange::Notes(range) => {
+            CoreRange::ApplicationNotes(range) => {
                 return Some(store::Request::Load {
                     owner,
                     range: store::Load::Notes(range.clone()),
@@ -188,19 +121,6 @@ pub(super) fn request(owner: skein_lib::Token, flight: &Flight) -> Option<store:
                     bytes,
                 });
             }
-            CoreRange::TaskTranscript { task, from: (attempt, turn) } => {
-                return Some(store::Request::Transcript {
-                    owner,
-                    read: store::TranscriptRead::Window {
-                        task: *task,
-                        attempt: *attempt,
-                        turn: *turn,
-                        after: flight.offset,
-                    },
-                    rows,
-                    bytes,
-                });
-            }
         },
     };
     Some(store::Request::Restore { owner, range, after, rows, bytes })
@@ -208,73 +128,6 @@ pub(super) fn request(owner: skein_lib::Token, flight: &Flight) -> Option<store:
 
 fn jig_get(owner: skein_lib::Token, key: core::Key) -> store::Request {
     store::Request::Get { owner, key: store::Get::Jig(key) }
-}
-
-/// Window rows carry agent-readable text across the protocol/domain boundary.
-/// Each rendering fits one tail, as jig's protocol/store/transcripts.md, 3 prices it:
-/// a longer turn keeps its text's end, as jig's core keeps it.
-pub(super) fn texts(
-    range: &Range,
-    rows: &[temper_engine_domain::Record],
-    cut: Option<u32>,
-) -> Option<temper_engine_domain::TranscriptTexts> {
-    if let Range::Core(CoreRange::TaskTranscript { .. }) = range {
-    } else {
-        return None;
-    }
-    if let Some(bytes) = cut {
-        return Some(Box::new([temper_engine_domain::TurnText::Cut(bytes)]));
-    }
-    let mut texts = skein_lib::List::with_capacity(u32::try_from(rows.len()).expect("bounded transcript rows"));
-    for row in rows {
-        let text = match row {
-            temper_engine_domain::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn))) => {
-                let bound = u32::try_from(turn.transcript.len()).expect("bounded stored turn");
-                let limits = jig_protocol_transcript::Limits::new(
-                    bound,
-                    jig_protocol_transcript::TurnLimits {
-                        messages: u32::MAX,
-                        blocks: u32::MAX,
-                        text: bound,
-                        outcome: bound,
-                    },
-                );
-                match jig_protocol_transcript::brief_text(&limits, &turn.transcript) {
-                    Ok(text) => temper_engine_domain::TurnText::Rendered(text_end(&text)),
-                    Err(_) => temper_engine_domain::TurnText::Unrendered,
-                }
-            }
-            temper_engine_domain::Record::Core(_) | temper_engine_domain::Record::Forge { .. } => {
-                temper_engine_domain::TurnText::Unrendered
-            }
-        };
-        texts.push(text).expect("one rendering per row");
-    }
-    Some(texts.into_boxed())
-}
-
-/// A rendering within one tail, its end kept after jig's cut marker on a UTF-8
-/// boundary; the protocol rendered UTF-8.
-fn text_end(text: &[u8]) -> Box<[u8]> {
-    const MARKER: &[u8] = b"[earlier text cut]\n";
-    let bound = usize::try_from(temper_engine_domain::TRANSCRIPT_TAIL_BYTES).expect("tail bound fits usize");
-    if text.len() <= bound {
-        return Box::from(text);
-    }
-    let mut start =
-        text.len().checked_sub(bound.checked_sub(MARKER.len()).expect("marker fits a tail")).expect("oversized text");
-    // A UTF-8 character has at most three continuation bytes.
-    for _ in 0_u8..3 {
-        match text.get(start) {
-            Some(byte) if byte & 0xc0 == 0x80 => start = start.checked_add(1).expect("inside text"),
-            Some(_) | None => break,
-        }
-    }
-    let suffix = text.get(start..).expect("suffix within text");
-    let mut writer = skein_lib::Writer::new(MARKER.len().checked_add(suffix.len()).expect("bounded text"));
-    writer.put(MARKER).expect("measured marker");
-    writer.put(suffix).expect("measured suffix");
-    writer.finish()
 }
 
 /// Intervals stay relative to the application's tag; jig supplies that tag.

@@ -146,8 +146,10 @@ delivered, which the assignment names as the task's own delivery
 (`../forge/change/questions.md`, 1, *Who pushed it*), and the worker
 pushes that head again and answers delivered
 (../worker/checkouts.md, *A task's own delivery outlives its hold*). So
-the stock charter's `deliver`, then `finish` as a change
-(`../../../charters/stock/implementer.md`), holds across a question.
+the stock charter's `finish` as a change
+(`../../../charters/stock/implementer.md`), which runs the delivery
+checks and pushes (smith's `domain/run-delivery.md`, 1.1 and 1.4), holds
+across a question, whether the run before it delivered or saved (below).
 smith still refuses a genuine nothing, a clean tree with no delivery of
 the task's own (smith's `domain/run-delivery.md`, 1.2).
 

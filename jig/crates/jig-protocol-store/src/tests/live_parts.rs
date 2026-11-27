@@ -9,6 +9,7 @@
 use super::fixtures;
 use crate::tasks_v13::Record as _;
 use crate::{Event, Get, Request, Restore, Row, Write, codec, commits, keys, restore, tasks_v13 as wire};
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use jig_domain_core_vocabulary::{Key, Record, RestoreRange, reads};
 use jig_domain_tasks::{self as tasks, Stored};
 use skein_lib::{Reader, Token};
@@ -87,7 +88,9 @@ fn making_claiming_and_ending_put_only_their_parts_and_reads_join_whole() {
         &mut store,
         Request::Read { owner: Token::new(9), range: fixtures::read(fixtures::ALICE, reads::Scope::Task { task: 7 }) },
     );
-    let [Event::Read { result: reads::Loaded::Page { rows, next: None }, .. }] = events.as_ref() else {
+    let [Event::Read { result: engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }), .. }] =
+        events.as_ref()
+    else {
         panic!("point: {events:?}")
     };
     assert_eq!(rows.len(), 1);

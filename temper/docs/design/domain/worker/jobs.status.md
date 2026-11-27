@@ -1,6 +1,6 @@
 # jobs: status
 
-2026-11-25. Where the tree's code lags or departs from [jobs.md](jobs.md).
+2026-11-27. Where the tree's code lags or departs from [jobs.md](jobs.md).
 
 
 

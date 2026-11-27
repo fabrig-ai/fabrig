@@ -228,6 +228,7 @@ fn error_text(error: Error) -> String {
         Error::Escape => String::from("escape"),
         Error::NotAFile => String::from("not-a-file"),
         Error::InvalidArgument => String::from("invalid-argument"),
+        Error::NotALink => unreachable!("the reach probe never reads link targets"),
     }
 }
 

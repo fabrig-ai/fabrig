@@ -1,6 +1,7 @@
 //! Explicit connector terminals belong to core bookkeeping even for live tasks
 //! (`temper/docs/design/domain/forge/issues.md`; `jig/docs/design/domain/connectors.md`, 8).
 use jig_domain_core as core;
+use jig_domain_core::engine::{self, In, Out};
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Token, Wall};
 use temper_engine_domain_forge as forge;
@@ -95,7 +96,8 @@ fn terminal(domain: &mut crate::Domain, env: &Env<crate::Limits>, goal: u64) -> 
 fn a_live_tracked_goal_forwards_its_explicit_terminal_and_cancels_its_timer() {
     let (mut domain, env, goal) = live_goal(Some(1));
     let event = terminal(&mut domain, &env, goal);
-    let out = core::step(domain.engine.core_mut(), &crate::limits::environment_core(&env), event);
+    let mut out = Queue::uncapped();
+    engine::step(&mut domain.engine, &crate::limits::environment_core(&env), In::Core(event), &mut out);
     assert!(out.is_empty());
 
     assert!(domain.engine.core().tasks.task(goal).is_some());
@@ -143,21 +145,25 @@ fn a_live_untracked_goal_settles_its_retained_core_projection() {
     ];
     (domain, _) = super::resume_fixture::root_with_records(super::resume_fixture::config(7), &env.limits, &records);
     let event = terminal(&mut domain, &env, goal);
-    let mut out = core::step(domain.engine.core_mut(), &crate::limits::environment_core(&env), event);
+    let mut out = Queue::uncapped();
+    engine::step(&mut domain.engine, &crate::limits::environment_core(&env), In::Core(event), &mut out);
     for key in [
         core::ProjectionKey::TaskWords { goal, task: goal },
         core::ProjectionKey::Task { goal, task: goal },
         core::ProjectionKey::GoalWords(goal),
         core::ProjectionKey::Goal(goal),
     ] {
-        let Some(core::Request::Write(core::Write::Erase(core::Key::Core(core::CoreKey::Projection(received))))) =
-            out.pop()
+        let Some(Out::Core(core::Request::Write(core::Write::Erase(core::Key::Core(core::CoreKey::Projection(
+            received,
+        )))))) = out.pop()
         else {
             panic!("core erases the retained projection row");
         };
         assert_eq!(received, key);
     }
-    let Some(core::Request::Ask { connector, ask: core::Ask::ForgetProjection { goal: received } }) = out.pop() else {
+    let Some(Out::Core(core::Request::Ask { connector, ask: core::Ask::ForgetProjection { goal: received } })) =
+        out.pop()
+    else {
         panic!("core forgets the settled connector projection");
     };
     assert_eq!(received, goal);

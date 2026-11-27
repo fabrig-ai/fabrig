@@ -1,4 +1,5 @@
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
+use crate::engine::store as engine_store;
 use crate::tests::*;
 use jig_domain_people::ApplicationScope;
 
@@ -207,14 +208,19 @@ fn a_closed_project_gets_no_repair_and_no_connector_resource() {
 #[test]
 fn no_party_reads_a_closed_projects_scope() {
     let (mut core, limits) = two_parties();
-    let Held::ReadLoad { load, .. } =
+    let Held::Store(engine_store::Out::Load { load, .. }) =
         read_start(&mut core, &limits, 10, crate::reads::Read::Notes { project: 1, from: None })
     else {
         panic!("an open project can load notes");
     };
     close(&mut core);
     assert_eq!(
-        loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Page { rows: Box::new([]), next: None }),
+        loaded_answer(
+            &mut core,
+            &limits,
+            load,
+            engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([]), next: None })
+        ),
         Some(crate::reads::Answer::None(crate::reads::Why::Unknown))
     );
     for sign_in in [10, 11] {
@@ -405,14 +411,15 @@ fn project_documents(
     project: u32,
     rows: Box<[crate::reads::Row]>,
 ) -> Box<crate::reads::Page> {
-    let Held::ReadLoad { load, range } =
+    let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) =
         read_start(core, limits, sign_in, crate::reads::Read::Notes { project, from: None })
     else {
         panic!("project notes load")
     };
     assert_eq!(range.scope, crate::reads::Scope::Notes { project });
     let crate::reads::Answer::Page(page) =
-        loaded_answer(core, limits, load, crate::reads::Loaded::Page { rows, next: None }).unwrap()
+        loaded_answer(core, limits, load, engine_store::Answer::Rows(engine_store::Rows::Read { rows, next: None }))
+            .unwrap()
     else {
         panic!("project notes page")
     };
@@ -437,7 +444,7 @@ fn project_notes_hold_goal_scoped_rows_alone() {
                 crate::reads::admits(1, &scope, &Key::Notes(notes::Key::Line { scope: owner.clone(), name })),
                 owner == goal
             );
-            let Held::ReadLoad { load, .. } =
+            let Held::Store(engine_store::Out::Load { load, .. }) =
                 read_start(&mut core, &limits, 10, crate::reads::Read::Notes { project, from: None })
             else {
                 panic!("notes load")
@@ -446,7 +453,10 @@ fn project_notes_hold_goal_scoped_rows_alone() {
                 &mut core,
                 &limits,
                 load,
-                crate::reads::Loaded::Page { rows: Box::new([document_row(name, owner.clone())]), next: None },
+                engine_store::Answer::Rows(engine_store::Rows::Read {
+                    rows: Box::new([document_row(name, owner.clone())]),
+                    next: None,
+                }),
             )
             .unwrap();
             if owner == goal {
@@ -512,7 +522,7 @@ fn project_notes_are_the_projects_visibility() {
         Box::new([document_row(1, notes::Scope::Goal { project: 1, goal: 1 })]),
     );
     assert_eq!(page.rows.len(), 1, "an observer reads another party's chat");
-    let Held::ReadLoad { load, .. } =
+    let Held::Store(engine_store::Out::Load { load, .. }) =
         read_start(&mut core, &limits, 11, crate::reads::Read::Notes { project: 1, from: None })
     else {
         panic!("observer load")
@@ -523,10 +533,10 @@ fn project_notes_are_the_projects_visibility() {
             &mut core,
             &limits,
             load,
-            crate::reads::Loaded::Page {
+            engine_store::Answer::Rows(engine_store::Rows::Read {
                 rows: Box::new([document_row(1, notes::Scope::Goal { project: 1, goal: 1 })]),
                 next: None,
-            }
+            })
         ),
         Some(crate::reads::Answer::None(crate::reads::Why::Unknown))
     );
@@ -565,22 +575,15 @@ fn write_chat_document(core: &mut Core, limits: &Limits, task: u64, title: &[u8]
         let mut owner = None;
         for request in &out {
             if let Request::Held(value) = request
-                && let Held::NotesLoad { owner: load, .. } = value.as_ref()
+                && let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Notes(_) }) =
+                    value.as_ref()
             {
                 assert!(owner.is_none(), "one notes load at a time");
                 owner = Some(*load);
             }
         }
         let owner = owner.expect("chat note load");
-        out = watch_outputs(
-            core,
-            limits,
-            Event::Notes(notes::Event::Loaded {
-                owner,
-                rows: notes::Rows { records: List::with_capacity(0) },
-                more: false,
-            }),
-        );
+        out = watch_store_outputs(core, limits, point_answer(owner, None, false));
     }
     let mut entry = None;
     for request in out {

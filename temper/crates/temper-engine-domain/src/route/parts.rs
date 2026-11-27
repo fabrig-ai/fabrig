@@ -201,7 +201,7 @@ fn note_load(domain: &Domain, project: u32, task: u64) -> Making {
             best: None,
             kept: Notes { report: None, document: None },
         }),
-        Range::Core(CoreRange::Notes(notes::Range::Lines {
+        Range::Core(CoreRange::ApplicationNotes(notes::Range::Lines {
             scope: notes::Scope::Goal { project, goal: task },
             after: None,
         })),
@@ -282,9 +282,10 @@ pub(super) fn erased(domain: &mut Domain, key: &core::Key, projects: &skein_lib:
 }
 
 /// Entry erasures omit scope; their decision's index writes name the project.
-pub(super) fn note_projects(requests: &Queue<core::Request>) -> skein_lib::Set<u32> {
+pub(super) fn note_projects(requests: &Queue<core::engine::Out>) -> skein_lib::Set<u32> {
     let mut projects = skein_lib::Set::with_capacity(requests.len());
-    for request in requests {
+    for output in requests {
+        let core::engine::Out::Core(request) = output else { continue };
         let scope = if let core::Request::Write(core::Write::Save(core::Record::Notes(record))) = request {
             match record {
                 notes::Record::Entry(entry) => Some(&entry.scope),

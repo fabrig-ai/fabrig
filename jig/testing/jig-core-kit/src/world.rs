@@ -5,6 +5,7 @@ mod grants;
 use crate::Store;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::engine::{self, Admit};
 use jig_domain_fleet as fleet;
 use jig_domain_link::JobBound;
@@ -115,8 +116,6 @@ pub struct AssignedTranscript {
     pub turns: Box<[Box<[u8]>]>,
 }
 
-type HoldKinds = Vec<(u16, Box<[tasks::Kind]>)>;
-
 /// Root, store and separate systems, with an answer channel that may disappear.
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independently held peer traffic and crash cuts")]
@@ -149,7 +148,7 @@ pub struct World {
     pub domain: root::Domain,
     pub store: Store,
     /// Hold ended-row demands while a story supplies intervening decisions.
-    pub pending_ended_loads: Option<Vec<core::Now>>,
+    pub pending_ended_loads: Option<Vec<engine_store::Out>>,
     internal_reads: std::collections::BTreeSet<Token>,
     pub systems: [System; 2],
     protocol: crate::protocol::Stand,
@@ -275,7 +274,6 @@ pub struct World {
     sweep: Vec<Cut>,
     fork_child: Option<Cut>,
     case_child: bool,
-    hold_kinds: Rc<HoldKinds>,
     wall: u64,
     wall_lag: u64,
     supplied_wall: Option<Wall>,
@@ -544,7 +542,7 @@ impl World {
                     if let Some(watches) = &mut self.watches {
                         watches.inbound(&event);
                     }
-                    let internal_read = if let root::Event::Core(core::Event::ReadLoaded { load, .. }) = &event {
+                    let internal_read = if let root::Event::Store(engine_store::In::Loaded { load, .. }) = &event {
                         self.internal_reads.remove(load)
                     } else {
                         false
@@ -623,17 +621,6 @@ impl World {
                         }
                     }
                     root::Request::ReadResult { .. } => panic!("scripted results are already typed"),
-                    root::Request::Now(now @ core::Now::StartPreparation { .. }) => self.transcript_loaded(now),
-                    root::Request::Now(now @ core::Now::EndedTask { .. }) => self.ended_load(now),
-                    root::Request::Now(
-                        now @ (core::Now::SeenConversation { .. }
-                        | core::Now::LoadEndedRead { .. }
-                        | core::Now::EndedPersonTask { .. }
-                        | core::Now::PartyInputs { .. }
-                        | core::Now::EndedProposal { .. }
-                        | core::Now::DecidedProposal { .. }
-                        | core::Now::EndedEscalation { .. }),
-                    ) => self.store.ask(StoreOut::Now(now)),
                     root::Request::Now(now) if self.manual => self.released.push(root::Request::Now(now)),
                     root::Request::Now(core::Now::Call { to, run, attempt, call }) => {
                         let token = to.into_token();
@@ -936,7 +923,7 @@ impl World {
         authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
         authority.budget.spend = 20;
         authority.tools = tasks::Tools(0);
-        self.send(root::Event::Core(core::Event::DelegateValidated {
+        self.send(root::Event::Core(core::Event::Delegate {
             to: ReplyTo::new(Token::new(201)),
             key: self.call_key(1),
             batch: Box::new([core::Delegate {
@@ -960,7 +947,6 @@ impl World {
                 dependencies: Box::new([]),
                 wake: Some(tasks::WakePolicy::DEFAULT),
             }]),
-            stubs: Box::new([]),
         }));
         assert!(self.procedure.is_some(), "delegated procedure admitted: {:?}", self.trace);
     }

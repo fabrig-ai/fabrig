@@ -64,11 +64,10 @@ fn dependent(world: &World, target: u64) -> core::Delegate {
 
 fn refused_delegate(world: &mut World, run: (u64, u64), completion: u32, target: u64) -> tasks::Problem {
     let key = key(run, completion);
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(CALL + u64::from(completion))),
         key,
         batch: Box::new([dependent(world, target)]),
-        stubs: Box::new([]),
     }));
     let core::CallPart::DelegationRefused(problem) = answer(world, key) else {
         panic!("expected a dependency refusal: {:?}", world.answers.last());

@@ -23,6 +23,7 @@ pub(crate) struct Pending {
     pub before: Levels,
     pub after: Levels,
     pub counts: List<Count>,
+    pub introduced: List<(&'static str, u16)>,
     pub stage: Stage,
 }
 
@@ -41,6 +42,8 @@ pub(crate) fn open(
         before,
         after: admission::binary(&store.owner_sets),
         counts,
+        // The serving reopen of the copy sees these types already registered.
+        introduced: store.registry.take_introduced(),
         stage: Stage::Opening,
     }));
     // Decode installation and header, construct serving machines and next, then

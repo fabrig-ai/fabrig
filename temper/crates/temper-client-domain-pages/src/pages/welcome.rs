@@ -56,6 +56,7 @@ pub fn model_step(root: &dyn Root) -> Option<ModelStep> {
         connect_model::LoginState::Waiting { .. } => return Some(ModelStep::TerminalLogin),
         connect_model::LoginState::Idle
         | connect_model::LoginState::Usable { .. }
+        | connect_model::LoginState::SignedInHeld
         | connect_model::LoginState::NotFinished
         | connect_model::LoginState::Refused { .. } => {}
     }

@@ -216,7 +216,7 @@ impl Core {
         }
         let Ok(choice) = self.run_choice_for_policy(task, Some(policy)) else { return false };
         match self.run_check(current, Some(&choice), reserve, self.run_wall, Box::new([]), &mut findings) {
-            authority::RunAnswer::Allow { .. } => true,
+            authority::RunAnswer::Allow { .. } => self.window_room(task, &self.wait_limits),
             authority::RunAnswer::Wait | authority::RunAnswer::Propose | authority::RunAnswer::Refuse => {
                 match denied(&mut findings, crate::RunWait::Credential) {
                     RunAdmission::Hold(_) | RunAdmission::Allow(_) => true,
@@ -224,6 +224,16 @@ impl Core {
                 }
             }
         }
+    }
+
+    pub(crate) fn window_room(&self, task: u64, limits: &crate::Limits) -> bool {
+        self.window_from(task).is_none() || self.loads.room(limits)
+    }
+
+    /// Load the saved window for resume, or its tail when closed.
+    pub(crate) fn window_from(&self, task: u64) -> Option<(u64, u32)> {
+        let window = self.proofs.get(&task)?.window?;
+        Some((window.attempt, window.turn))
     }
 
     /// Put back the durable evidence when a pending claim cannot commit.
@@ -240,6 +250,16 @@ impl Core {
             && let Some(window) = &mut proof.window
         {
             window.closed = true;
+        }
+    }
+
+    /// An invalidated preparation drops its window token as well as its accumulated turns.
+    pub(crate) fn discard_transcript(&mut self, task: u64) {
+        if let Some(transcript) = self.transcripts.remove(&task)
+            && transcript.window.is_some()
+            && !transcript.loaded
+        {
+            self.loads.cancel_window(task);
         }
     }
 

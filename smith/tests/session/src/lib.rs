@@ -24,6 +24,7 @@
 pub mod fixture;
 mod noisy;
 pub mod provider;
+pub mod shapes;
 pub mod tickets;
 pub mod translate;
 mod world;
@@ -32,7 +33,7 @@ pub use fixture::{bytes, said};
 pub use noisy::{noisy, submit_noisily};
 pub use skein_world::domain::Span;
 pub use world::{
-    BUDGET, Count, Ended, Reclaim, Session, Settings, Stats, TOOLS, Told, World, check_prompt_bound,
-    check_prompt_boundary, check_prompt_extends, reservation_envelope, spec,
+    BUDGET, Count, Ended, JobCall, PathCall, Reclaim, Session, Settings, Stats, TOOLS, Told, World, check_job_call,
+    check_prompt_bound, check_prompt_boundary, check_prompt_extends, reservation_envelope, spec,
 };
 pub mod recorded;

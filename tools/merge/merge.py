@@ -316,7 +316,7 @@ def result_bytes(settled, left):
 
 def main():
     if len(sys.argv) != 3 or sys.argv[1] != 'merge':
-        raise ValueError('usage: .temper/merge merge <request.json>')
+        raise ValueError('usage: .temper/hooks/merge merge <request.json>')
     request = json.loads(Path(sys.argv[2]).read_bytes())
     if not isinstance(request, dict) or request.get('version') != 1:
         raise ValueError('expected a version 1 merge request')

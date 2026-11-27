@@ -4,7 +4,7 @@ use crate::route::{ConnectorRequest, connector_out, core_request};
 use crate::{ClientDocument, ClientMissing, ClientSubject, Domain, Limits, Output, Write};
 use alloc::boxed::Box;
 use jig_domain_core as core;
-use jig_domain_core::engine::{self, In, Out};
+use jig_domain_core::engine::{self, In, Out, Peer};
 use jig_domain_views as views;
 use jig_ops_domain_connectors::Connector;
 use jig_ops_domain_infrastructure as infrastructure;
@@ -116,16 +116,24 @@ pub(crate) fn document(
         &mut out,
     );
     for _ in 0..out.len() {
-        let Out::Core(request) = out.pop().expect("document completion count");
+        let request = match out.pop().expect("document completion count") {
+            Out::Core(request) => request,
+            Out::Held(Peer::Store(load)) => {
+                held(decision, Output::Store(load));
+                continue;
+            }
+        };
         match request {
             core::Request::Held(output) => match *output {
+                core::Held::Store(_) => {
+                    unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
+                }
                 core::Held::ApplicationDelivery { watcher: due, connector: owner, subject: named } => {
                     assert!(number == owner && subject == named, "document keeps its owning connector");
                     let document = value.take().expect("ready document belongs to this construction");
                     held(decision, Output::ApplicationDocument { watcher: due, document });
                 }
                 output @ (core::Held::ApplicationWatchEnded { .. }
-                | core::Held::ReadLoad { .. }
                 | core::Held::Read { .. }
                 | core::Held::PublicRead { .. }
                 | core::Held::PublicWait { .. }
@@ -164,8 +172,6 @@ pub(crate) fn document(
                 | core::Held::Refuse { .. }
                 | core::Held::TurnBusy { .. }
                 | core::Held::StopRun { .. }
-                | core::Held::Load(..)
-                | core::Held::NotesLoad { .. }
                 | core::Held::NotesWritten { .. }
                 | core::Held::Acted { .. }
                 | core::Held::NotesDeleted { .. }) => {

@@ -1,6 +1,7 @@
 # forge-client: status
 
-2026-11-20. Where skein's code lags or departs from [client.md](client.md).
+2026-11-26. Where skein's code lags or departs from [client.md](client.md).
+
 
 
 

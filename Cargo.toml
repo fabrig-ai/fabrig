@@ -128,6 +128,7 @@ members = [
     "smith/testing/smith-bench-fixtures",
     "smith/testing/smith-end-to-end-kit",
     "smith/testing/smith-faults",
+    "smith/testing/smith-shapes",
     "smith/testing/smith-domain-tools-fixtures",
     "smith/testing/smith-domain-run-fixtures",
     "smith/testing/smith-domain-session-fixtures",
@@ -628,6 +629,7 @@ smith-local-shell = { path = "smith/crates/smith-local-shell" }
 smith-agent-shell = { path = "smith/crates/smith-agent-shell" }
 smith-agent-document = { path = "smith/crates/smith-agent-document" }
 smith-session-world = { path = "smith/tests/session" }
+smith-shapes = { path = "smith/testing/smith-shapes" }
 smith-tools-world = { path = "smith/tests/tools" }
 jig-test-layouts = { path = "jig/testing/jig-test-layouts" }
 base64 = { version = "0.22" }

@@ -656,6 +656,7 @@ impl Bytes {
             | root::Output::Switch
             | root::Output::Load { .. }
             | root::Output::CoreLoad(_)
+            | root::Output::Store(_)
             | root::Output::Observability(_)
             | root::Output::Infrastructure(_)
             | root::Output::ReadResult { .. }

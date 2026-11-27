@@ -1,4 +1,5 @@
 //! Adoption fits and opening use the same state (domain/engine/restart.md, domain/engine/fleet.md).
+use crate::tests::new_core;
 use crate::{
     CoreRecord, Event, RunProof, fleet, people,
     start::{Continuation, LiveSet},
@@ -29,7 +30,7 @@ fn loaded_with_writes(in_process: bool, attempts: u32, saved: &[crate::Record]) 
     configured.workers_in_process = in_process;
     let policy = crate::admission::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[])
         .expect("project policy");
-    let mut core = Core::new(configured, &limits).expect("configured start");
+    let mut core = new_core(configured, &limits).expect("configured start");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     step_phase(core.start_begin(false, env.wall), Phase::LoadCore);
     let mut header = core.counters.deployment();
@@ -270,13 +271,13 @@ fn due_agent_preparation_waits_until_open() {
     ));
     crate::tests::runs::run_choice::host(&mut core, &env.limits, Token::new(7), &[b"scripted"]);
     let context = core.tasks.run_context(DUE).expect("due agent");
-    let before = crate::step(&mut core, &env, Event::Activate { context, ready: true, busy: false });
+    let before = crate::step(&mut core, &env, Event::Activate { context, ready: true });
     assert!(before.is_empty());
     let _action = core.start_done(&env, Phase::AdoptRuns, &mut out);
     open(&mut core, &env, &mut out);
     let context = core.take_due().expect("next Resume takes due agent");
     assert_eq!(context.task, DUE);
-    let after = crate::step(&mut core, &env, Event::Activate { context, ready: true, busy: false });
+    let after = crate::step(&mut core, &env, Event::Activate { context, ready: true });
     assert_eq!(core.tasks.task(DUE).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
     assert!(core.contexts.contains_key(&DUE));
     assert!(!after.is_empty(), "due agent begins its brief");

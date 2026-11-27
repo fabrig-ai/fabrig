@@ -17,7 +17,7 @@ fn core_children_routes_and_an_in_flight_decision_stay_under_the_scenario_ceilin
     let config = configuration.core;
     let meter = Meter::new();
     meter.start();
-    let mut domain = core::Core::new(config, &limits.core).expect("fixture core configuration");
+    let mut domain = jig_test_profile::new_core(config, &limits.core).expect("fixture core configuration");
     let measured = meter.end();
     meter.check(measured, bound, &limits.core);
 

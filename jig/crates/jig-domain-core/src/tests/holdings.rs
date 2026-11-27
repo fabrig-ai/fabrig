@@ -236,11 +236,7 @@ fn refused_delegate(refused: Option<HoldingsRefusal>, expected: tasks::Problem) 
     let (mut core, env) = delegate_core();
     let batch = Box::new([delegate(&core)]);
     let key = CallKey { task: OWNER, attempt: 1, completion: 1, position: 0 };
-    let mut out = step(
-        &mut core,
-        &env,
-        Event::DelegateValidated { to: ReplyTo::new(Token::new(7300)), key, batch, stubs: Box::new([]) },
-    );
+    let mut out = step(&mut core, &env, Event::Delegate { to: ReplyTo::new(Token::new(7300)), key, batch });
     let mut token = None;
     let mut asks = 0_usize;
     while let Some(next) = out.pop() {

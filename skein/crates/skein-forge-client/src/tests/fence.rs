@@ -46,7 +46,7 @@ fn a_fenced_pull_answer_keeps_its_open_pull_then_reads_at_hinted() {
 }
 
 #[test]
-fn a_fenced_branch_answer_cannot_move_its_tip_or_report_drift() {
+fn a_fenced_branch_answer_cannot_move_its_tip_or_report_a_move() {
     let mut h = Harness::new();
     h.keep(Box::new([watch(branch(), false)]));
     let initial = h.one();
@@ -59,7 +59,7 @@ fn a_fenced_branch_answer_cannot_move_its_tip_or_report_drift() {
     h.news.clear();
     let kept = h.record(&branch()).clone();
     h.answer(old, Answer::Commit([2; 32]));
-    assert_eq!(h.drift, 0);
+    assert_eq!(h.moves.len(), 0);
     assert!(h.news.is_empty());
     assert_eq!(h.domain.cached(&branch()), Some(kept.cached.as_ref()));
     assert_eq!(h.record(&branch()), &kept);
@@ -67,7 +67,7 @@ fn a_fenced_branch_answer_cannot_move_its_tip_or_report_drift() {
     h.fire(102);
     let fresh = h.one();
     h.answer(fresh, Answer::Commit([3; 32]));
-    assert_eq!(h.drift, 1, "a read sent after the fence still judges drift");
+    assert_eq!(h.moves.len(), 1, "a read sent after the fence still reports moves");
     assert_eq!(h.news.as_slice(), &[Answer::Commit([3; 32])]);
 }
 
@@ -84,7 +84,7 @@ fn a_fence_of_an_unwatched_resource_changes_nothing() {
     assert_eq!(h.record(&branch()), &record);
     assert_eq!(h.domain.next_deadline(), deadline);
     h.answer(read, Answer::Commit([2; 32]));
-    assert_eq!(h.drift, 1);
+    assert_eq!(h.moves.len(), 1);
     assert_eq!(h.news.as_slice(), &[Answer::Commit([2; 32])]);
 }
 
@@ -102,7 +102,7 @@ fn a_keep_read_queued_before_a_fence_but_sent_after_it_is_current() {
     h.fire(102);
     let fresh = h.one();
     h.answer(fresh, Answer::Commit([2; 32]));
-    assert_eq!(h.drift, 1);
+    assert_eq!(h.moves.len(), 1);
     assert_eq!(h.news.as_slice(), &[Answer::Commit([2; 32])]);
 }
 
@@ -124,6 +124,6 @@ fn a_rate_refused_keep_read_retried_after_a_fence_is_current() {
     let retry = h.one();
     assert_ne!(old.call, retry.call);
     h.answer(retry, Answer::Commit([2; 32]));
-    assert_eq!(h.drift, 1);
+    assert_eq!(h.moves.len(), 1);
     assert_eq!(h.news.as_slice(), &[Answer::Commit([2; 32])]);
 }

@@ -28,6 +28,38 @@ This document holds checkout delivery and saving, split from [`checkouts.md`](ch
   branch since the run started goes unseen. Saved starts use the fetched
   delivery head when none was supplied; for other starts without one,
   a rewind of the branch to an ancestor goes unseen (`README.md`, section 10).
+- **Admitted first** (`../forge/writes.md`, 2). In a repository whose
+  item asks admission (`../../protocol/channel.md`, 4), every push the
+  hold makes waits for the engine's admission: a delivery's, a design
+  delivery's at each of its tries, a save's, a delivering job's
+  (`jobs.md`, 5), each prefix a landing's prepare creates, and a base a
+  preparation creates. Just before it, the hold reads the destination's
+  tip (absent for a creation), unless the step before the push has just
+  fetched it, and asks.
+  - **Its ask:** an application's ask on jig's channel, as `landed` is
+    (4, *Its ask*), the run's or job's task and attempt beside it, one
+    at a time per hold. `temper-worker-wire`'s `Ask` gains `admit`,
+    `Admit { tag, branch, expected, commit }`: the repository by its tag,
+    the branch's name, the tip it read (none where absent) and the
+    commit; its `Answer` gains `admitted`, which carries nothing, and
+    `unadmitted`, `Unadmitted { words }`, at most 512 bytes, with no
+    version move (`../../protocol/wires.md`, 3.1).
+  - **Admitted:** the push goes, leased on the tip it read, as a push
+    with an expected head is (above), never forced; a creation is
+    leased on the branch's absence. A lease that fails is the branch
+    moved, as before: a delivery is told, and a design delivery
+    fetches, merges and asks again within its three tries (2).
+  - **Not admitted:** `unadmitted`, a refused ask, an answer that
+    doesn't decode, or none within `checkout.reds_read_ms`, the bound of
+    the worker's other reads of the engine: the push isn't made. A
+    delivery or a save is refused with `temper did not admit the push to
+    BRANCH: WHY`, WHY the answer's words or what failed, which the run
+    settles by delivering again; a job's delivery fails as any failed
+    delivery of its does (`jobs.md`, 5); a prefix stops the prepare's
+    delivery, as an existing prefix at another tip does, the prefixes
+    before it kept.
+  - **A repository whose item doesn't ask** pushes as before, with no
+    ask: an engine of the previous layout asks none.
 
 ## 2. A design delivery
 

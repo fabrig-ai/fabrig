@@ -120,7 +120,7 @@ fn a_clean_catch_up_lands_merged_on_the_goals_turn() {
     let task = catch_up(&mut world, &goal, main);
     let job = next_job(&mut world, task);
     check_job(&world, task, &job, &branch, head, main);
-    let merged = push_merge(&mut world, task, head, main);
+    let merged = push_merge(&mut world, super::merge_job::Writer::Job(CHANNEL, &job), head, main);
     finish_job(&mut world, &job, b"{\"left\":[]}");
     prepare(&mut world, task, &branch, head, merged, main);
     let tip = landed(&mut world, task, &branch, head, merged, true);
@@ -168,7 +168,7 @@ fn a_conflicting_catch_up_resolves_then_lands_merged_on_the_goals_turn() {
     let item = &resolution.workspace.repositories[0];
     assert_eq!(item.start, engine::ForgeStart::Merge { branch: branch.clone(), base: translate::commit(main) });
     assert_eq!(item.push.as_deref(), Some(change_row(&world, task).branch.as_ref()));
-    let merged = push_merge(&mut world, task, head, main);
+    let merged = push_merge(&mut world, super::merge_job::Writer::Run(&resolution), head, main);
     finish_producer(&mut world, &resolution);
     prepare(&mut world, task, &branch, head, merged, main);
     let tip = landed(&mut world, task, &branch, head, merged, true);

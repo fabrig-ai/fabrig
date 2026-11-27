@@ -114,10 +114,15 @@ pub(crate) fn claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claimin
     if !fits {
         return refused(to, Some(number), Refusal::Funding, out);
     }
-    match crate::writers::claim(domain, env, number, attempt, writes, out) {
+    match crate::writers::claim(domain, &env.limits, number, attempt, writes, out) {
         Ok(()) => {}
-        Err(Some(resource)) => return out.push(Request::WriterWaiting { reply_to: to, task: Some(number), resource }),
-        Err(None) => return refused(to, Some(number), Refusal::Holds, out),
+        Err(crate::writers::ClaimRefusal::Waiting(resource)) => {
+            return out.push(Request::WriterWaiting { reply_to: to, task: Some(number), resource });
+        }
+        Err(crate::writers::ClaimRefusal::Full(capacity)) => {
+            return crate::capacity::refuse(domain, env, to, Some(number), Refusal::Holds, capacity, out);
+        }
+        Err(crate::writers::ClaimRefusal::Invalid) => return refused(to, Some(number), Refusal::Holds, out),
     }
     crate::closer::yield_for_run(domain, env, number, out);
     finish_claim(domain, env, to, claiming, out);

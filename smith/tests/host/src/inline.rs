@@ -85,8 +85,11 @@ pub fn workspace_start(seed: u64, job: smith_agent_world::Job) -> host::Start {
     let mut charter = smith_agent_world::scripted_charter(&settings);
     charter.models = Box::default();
     charter.grants.agents = false;
-    charter.conventions =
-        Some(run::Conventions { guide: b"AGENTS.md".as_slice().into(), checks: b"check-ok".as_slice().into() });
+    charter.conventions = Some(run::Conventions {
+        guide: b"AGENTS.md".as_slice().into(),
+        checks: b"check-ok".as_slice().into(),
+        hooks: None,
+    });
     let mut source = start(seed, job);
     source.charter = host::Charter::new(charter, settings.limits.run.run_bytes).expect("bounded workspace charter");
     source.workspace = Some(Token::new(9));
@@ -525,6 +528,12 @@ impl World {
                     Lower::Probe { owner, at, deadline } => {
                         self.machine_request(agent, smith_protocol_machine::FromDomain::Probe { owner, at, deadline });
                     }
+                    Lower::ProbeHooks { owner, at, deadline } => {
+                        self.machine_request(
+                            agent,
+                            smith_protocol_machine::FromDomain::ProbeHooks { owner, at, deadline },
+                        );
+                    }
                     Lower::Check { owner, program, results, bound, cap, tail } => self.machine_request(
                         agent,
                         smith_protocol_machine::FromDomain::Check { owner, program, results, bound, cap, tail },
@@ -548,6 +557,7 @@ impl World {
             smith_protocol_machine::ToDomain::Done { owner, done } => Below::Done { owner, done },
             smith_protocol_machine::ToDomain::Read { owner, read } => Below::Read { owner, read },
             smith_protocol_machine::ToDomain::Probed { owner, executable } => Below::Probed { owner, executable },
+            smith_protocol_machine::ToDomain::HooksProbed { owner, hooks } => Below::HooksProbed { owner, hooks },
             smith_protocol_machine::ToDomain::Checked { owner, ran } => Below::Checked { owner, ran },
             smith_protocol_machine::ToDomain::Aborted { owner } => Below::Aborted { owner },
         };

@@ -477,7 +477,7 @@ fn every_composed_clock_move_visits_an_off_grid_stall_bound() {
                 temper_engine_domain_forge::Stored::ChangeHot(change)
                     if matches!(change.change.state,
                         temper_engine_domain_forge_change::State::Held {
-                            why: temper_engine_domain_forge_change::Hold::Stalled, .. })))),
+                            hold: temper_engine_domain_forge_change::Hold { cause: temper_engine_domain_forge_change::Cause::Stalled, .. }, .. })))),
             "the CI wait is held at its bound {bound:?}, now {:?}",
             world.env.now
         );

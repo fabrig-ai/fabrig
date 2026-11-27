@@ -5,7 +5,7 @@
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
-use jig_domain_core::engine::Out;
+use jig_domain_core::engine::{Out, Peer};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
@@ -19,13 +19,12 @@ pub(super) fn route_core(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision<Write, Delivery>,
-    mut requests: Queue<core::Request>,
+    requests: Queue<core::Request>,
     work: &mut Queue<Work>,
 ) {
-    for _ in 0..requests.len() {
-        let request = requests.pop().expect("core request count");
-        route_request(domain, env, decision, request, work);
-    }
+    let mut out = Queue::with_capacity(requests.len());
+    core::engine::append(requests, &mut out);
+    route_engine(domain, env, decision, out, work);
 }
 
 pub(super) fn route_engine(
@@ -38,6 +37,7 @@ pub(super) fn route_engine(
     for _ in 0..out.len() {
         match out.pop().expect("engine output count") {
             Out::Core(request) => route_request(domain, env, decision, request, work),
+            Out::Held(Peer::Store(load)) => hold(decision, Delivery::Store(load)),
         }
     }
 }
@@ -104,8 +104,10 @@ pub(super) fn route_request(
                 decision,
                 jig_domain_hub_link::Event::Inbound { channel, run, attempt, message },
             ),
-            other @ (core::Held::ReadLoad { .. }
-            | core::Held::Read { .. }
+            core::Held::Store(_) => {
+                unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
+            }
+            other @ (core::Held::Read { .. }
             | core::Held::Delivery { .. }
             | core::Held::WatchEnded { .. }
             | core::Held::Relay { .. }
@@ -135,8 +137,6 @@ pub(super) fn route_request(
             | core::Held::Refuse { .. }
             | core::Held::TurnBusy { .. }
             | core::Held::StopRun { .. }
-            | core::Held::Load(..)
-            | core::Held::NotesLoad { .. }
             | core::Held::NotesWritten { .. }
             | core::Held::Acted { .. }
             | core::Held::NotesDeleted { .. }) => hold(decision, crate::link::down(domain, Delivery::Core(other))),
@@ -380,16 +380,8 @@ fn route_ask(
         core::Ask::Workers(workers) => domain.now.push(crate::Request::Workers(workers)),
         core::Ask::Catalogue { models } => {
             domain.catalogue_pending = true;
-            let mut names = List::with_capacity(u32::try_from(models.len()).expect("bounded catalogue"));
-            for row in &models {
-                names
-                    .push(core::settings::ModelName {
-                        name: row.model.name.clone(),
-                        efforts: row.model.efforts.clone(),
-                    })
-                    .expect("one name per position");
-            }
-            domain.now.push(crate::Request::StoreCatalogue { names: names.into_boxed() });
+            let names = core::settings::model_names(&core::settings::catalogue::rows(&models));
+            domain.now.push(crate::Request::StoreCatalogue { names });
             domain.now.push(crate::Request::ClientsCatalogue { models });
         }
         core::Ask::Providers(_)
@@ -517,10 +509,7 @@ fn route_now(
         }
 
         core::Now::Activate { context } => {
-            work.push(Work::Core(core::Event::Activate { context, ready: domain.ready(), busy: false }));
-        }
-        value @ core::Now::StartPreparation { .. } => {
-            domain.now.push(crate::Request::Now(value));
+            work.push(Work::Core(core::Event::Activate { context, ready: domain.ready() }));
         }
         core::Now::BriefCorePlanned { task, sections, .. } => {
             if let Some(failure) = domain.scripted_brief_failure.clone() {
@@ -591,15 +580,7 @@ fn route_now(
             assert!(domain.start_stopped(), "a refused restore has stopped the core");
         }
 
-        other @ (core::Now::SeenConversation { .. }
-        | core::Now::LoadEndedRead { .. }
-        | core::Now::EndedPersonTask { .. }
-        | core::Now::EndedTask { .. }
-        | core::Now::PartyInputs { .. }
-        | core::Now::EndedProposal { .. }
-        | core::Now::DecidedProposal { .. }
-        | core::Now::EndedEscalation { .. }
-        | core::Now::SettledCallRefused { .. }
+        other @ (core::Now::SettledCallRefused { .. }
         | core::Now::Call { .. }
         | core::Now::EffectAnswer { .. }
         | core::Now::TaskRead { .. }
@@ -816,10 +797,10 @@ pub(super) fn route_connector(
                 }));
             }
             connector::Request::System(call) => hold(decision, Delivery::System { connector: number, call }),
-            connector::Request::Described { token, description, waits_for_dependencies } => {
+            connector::Request::Described { token, description, .. } => {
                 work.push(Work::Core(core::Event::EffectConnector(core::effects::connector::Event::Described {
                     owner: token,
-                    description: Box::new(describe(number, description, waits_for_dependencies)),
+                    description: Box::new(describe(number, description)),
                 })));
             }
             connector::Request::EffectBusy { token } => {
@@ -1093,22 +1074,33 @@ fn name(path: connector::Path) -> authority::Name {
     authority::Name { segments: segments.into_boxed() }
 }
 
-fn describe(
-    number: u16,
-    description: connector::Description,
-    waits_for_dependencies: bool,
-) -> core::effects::connector::EffectDescription {
-    let form = match description.form {
-        connector::Form::Creation => core::effects::connector::EffectForm::Creation,
-        connector::Form::Transition => core::effects::connector::EffectForm::Transition,
-        connector::Form::Set => core::effects::connector::EffectForm::Set,
-    };
-    let recovery = match description.recovery {
-        connector::Recovery::Keyed => core::effects::connector::Recovery::Keyed,
-        connector::Recovery::Conditional => core::effects::connector::Recovery::Conditional,
-        connector::Recovery::Idempotent => core::effects::connector::Recovery::Idempotent,
-        connector::Recovery::Unrecoverable => core::effects::connector::Recovery::Unrecoverable,
-    };
+pub(crate) fn declaration(
+    connector: u16,
+    config: &connector::Config,
+    resources: &[tasks::ResourceKind],
+) -> jig_domain_contract::Declaration {
+    use jig_domain_contract::effects::{EffectForm, EffectKind, Recovery};
+    let mut effects = List::with_capacity(u32::try_from(config.kinds.len()).expect("configured effect kinds"));
+    for kind in &config.kinds {
+        let form = match kind.form {
+            connector::Form::Creation => EffectForm::Creation,
+            connector::Form::Transition => EffectForm::Transition,
+            connector::Form::Set => EffectForm::Set,
+        };
+        let recovery = match kind.recovery {
+            connector::Recovery::Keyed => Recovery::Keyed,
+            connector::Recovery::Conditional => Recovery::Conditional,
+            connector::Recovery::Idempotent => Recovery::Idempotent,
+            connector::Recovery::Unrecoverable => Recovery::Unrecoverable,
+        };
+        effects
+            .push(EffectKind { kind: kind.kind, form, recovery, waits_for_dependencies: kind.waits_for_dependencies })
+            .expect("one declaration per configured effect kind");
+    }
+    jig_domain_contract::Declaration { connector, resources: Box::from(resources), effects: effects.into_boxed() }
+}
+
+fn describe(number: u16, description: connector::Description) -> core::effects::connector::EffectDescription {
     let mut resources = List::with_capacity(u32::try_from(description.resources.len()).expect("bounded resources"));
     for resource in description.resources {
         resources.push(name(resource)).expect("one name per resource");
@@ -1122,11 +1114,8 @@ fn describe(
     }
     let state = state_pin(description.state);
     core::effects::connector::EffectDescription {
-        waits_for_dependencies,
         connector: number,
         purpose: description.purpose,
-        form,
-        recovery,
         effect: authority::Effect {
             connector: number,
             kind: description.kind,

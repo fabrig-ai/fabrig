@@ -409,11 +409,11 @@ Moved to [`world.md`](world.md), section 1.
   and its link (request `store-crash-safe`, 11-09); after the first
   release. A tool that repairs such a store is not designed: that
   request leaves it out.
-- **A transcript's load with no slot** (`briefs.md`, 1.1, `executors-transcripts.md`, 1): `TranscriptLoad` has
-  no capacity answer, so a root never answers one for room: it keeps the
-  activation due while its load table is full, and a window's later pages
-  in the slot its first took (temper's `domain/root.md`, 7). A root that
-  answered `TranscriptLoad::Failed` for room would count it as transient,
+- **A transcript's load with no slot** (`briefs.md`, 1.1, `executors-transcripts.md`, 1): a window
+  has no capacity answer, so nothing answers one for room: the engine keeps the
+  activation due while no load is free, and a window's later pages
+  in the load its first took (`decisions.md`, 1.3). A window
+  answered `Failed` for room would count it as transient,
   and the try it spent would make the next run start fresh from the tail
   rather than resume. Default: no capacity answer, until the user says.
 

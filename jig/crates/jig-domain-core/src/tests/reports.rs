@@ -18,6 +18,8 @@ fn with_live_names(live: u8) -> (Core, Env<Limits>) {
     limits.tasks.inbox_messages = 32;
     limits.tasks.inbox_bytes = 4096;
     limits.authority.batch = 8;
+    // Two waiting batches can outlive a third batch's retained refusal.
+    limits.call_records = 3;
     let old = core_with_limits(&limits);
     let mut config = config(41);
     config.defaults.rules.ceiling.delegation.tasks = 16;
@@ -101,11 +103,10 @@ fn begin_at(core: &mut Core, env: &Env<Limits>, count: usize, position: u32) -> 
     let mut out = step(
         core,
         env,
-        Event::DelegateValidated {
+        Event::Delegate {
             to: ReplyTo::new(Token::new(7300_u64.checked_add(u64::from(position)).unwrap())),
             key,
             batch,
-            stubs: Box::new([]),
         },
     );
     let mut request = None;
@@ -232,11 +233,7 @@ fn a_batch_that_cannot_fit_beside_live_names_is_decided_whole() {
     assert!(!core.pending_calls.contains_key(&key));
     assert!(core.call_parts.contains_key(&key));
     let batch = Box::new([delegate(&core)]);
-    let retry = step(
-        &mut core,
-        &env,
-        Event::DelegateValidated { to: ReplyTo::new(Token::new(7301)), key, batch, stubs: Box::new([]) },
-    );
+    let retry = step(&mut core, &env, Event::Delegate { to: ReplyTo::new(Token::new(7301)), key, batch });
     assert_eq!(call_answer(retry), core.call_parts.get(&key).cloned());
 }
 

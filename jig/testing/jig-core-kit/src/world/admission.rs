@@ -95,13 +95,18 @@ impl World {
     pub(super) fn capture(&mut self, mut delivery: root::Delivery) -> Result<(), String> {
         self.observer.delivered(self.wall, &mut delivery)?;
         match delivery {
-            root::Delivery::Core(core::Held::ReadLoad { load, range }) => {
-                self.store.ask(StoreOut::ReadLoad { load, range });
+            root::Delivery::Store(
+                load @ core::engine::store::Out::Load { range: core::engine::store::Range::Window { .. }, .. },
+            ) => self.load_window(load),
+            root::Delivery::Store(
+                load @ core::engine::store::Out::Load {
+                    range: core::engine::store::Range::Read(_) | core::engine::store::Range::Notes(_),
+                    ..
+                },
+            ) => {
+                self.store.ask(StoreOut::Engine(load));
             }
-            root::Delivery::Core(core::Held::Load(load)) => self.ended_load(*load),
-            root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
-                self.store.ask(StoreOut::NotesLoad { owner, range });
-            }
+            root::Delivery::Store(load) => self.point_load(load),
             root::Delivery::Core(core::Held::Sources { channel, sources }) => {
                 self.events.push_back(root::Event::Core(core::Event::Fleet(fleet::Event::Logins {
                     channel,

@@ -36,8 +36,41 @@ impl Clone for Command {
     }
 }
 
+/// The navigation key a Control key stands for in the current focus.
+#[must_use]
+pub fn alias(key: &Key, tree: &Tree, focus: &Focus) -> Option<Key> {
+    match key {
+        Key::Control(b'p') => Some(Key::Up),
+        Key::Control(b'n') => Some(Key::Down),
+        Key::Control(letter @ (b'a' | b'e')) => {
+            let node = tree.find(focus.node?)?;
+            if node.role.is_text_field() { Some(if *letter == b'a' { Key::Home } else { Key::End }) } else { None }
+        }
+        Key::Char(_)
+        | Key::Paste(_)
+        | Key::Enter
+        | Key::Tab
+        | Key::BackTab
+        | Key::Backspace
+        | Key::Delete
+        | Key::Up
+        | Key::Down
+        | Key::Left
+        | Key::Right
+        | Key::Home
+        | Key::End
+        | Key::PageUp
+        | Key::PageDown
+        | Key::Escape
+        | Key::Control(_)
+        | Key::Alt(_) => None,
+    }
+}
+
 #[must_use]
 pub fn command(key: &Key, tree: &Tree, focus: &mut Focus, limits: &Limits) -> Command {
+    let aliased = alias(key, tree, focus);
+    let key = aliased.as_ref().unwrap_or(key);
     let node = match focus.node {
         Some(id) => tree.find(id),
         None => None,

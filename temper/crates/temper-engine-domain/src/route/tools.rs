@@ -2,7 +2,7 @@
 //! (domain/routing.md, 2; jig's `domain/engine/executors-tools.md`, 1).
 use super::{
     Decision, Domain, Env, EscalationChoice, Limits, MessageForm, ProposalChoice, ProposedAction, ReplyTo, Tool, Work,
-    call_answer, current_proof, delegate_call, forge_route, proposals, relay_call, tool_kind,
+    call_answer, current_proof, delegate_call, forge_route, relay_call, tool_kind,
 };
 use alloc::boxed::Box;
 use jig_domain_core as core;
@@ -237,7 +237,7 @@ pub(crate) fn relay_payload(
                         }));
                         return;
                     };
-                    delegate_call(domain, env, decision, reply_to, key, batch, false, Box::new([]));
+                    delegate_call(domain, env, reply_to, key, batch);
                 }
                 Tool::Unavailable => {
                     domain.work.push(Work::Core(core::Event::NamedAnswer {
@@ -294,7 +294,7 @@ pub(crate) fn relay_payload(
                     part: core::CallPart::ProposalRefused(tasks::Problem::new(None, why)),
                 })),
                 Tool::Delegate { batch } => {
-                    delegate_call(domain, env, decision, reply_to, key, batch, false, Box::new([]));
+                    delegate_call(domain, env, reply_to, key, batch);
                 }
                 Tool::Propose { action, reason, as_holder } => match action {
                     ProposedAction::Effect { repository, resource, write } => forge_route::effect_call(
@@ -312,7 +312,7 @@ pub(crate) fn relay_payload(
                     | ProposedAction::Amend { .. }
                     | ProposedAction::Widen { .. }
                     | ProposedAction::Release { .. }) => {
-                        proposals::propose_call(domain, reply_to, key, action, reason, as_holder);
+                        propose_call(domain, reply_to, key, action, reason, as_holder);
                     }
                 },
                 Tool::Decide { proposer, proposal, decision: choice } => {
@@ -373,6 +373,13 @@ pub(crate) fn relay_payload(
                         to: reply_to,
                         key,
                         action: core::NamedAction::Release { target, revision, again },
+                    }));
+                }
+                Tool::Measure { target, revision } => {
+                    domain.work.push(Work::Core(core::Event::NamedAction {
+                        to: reply_to,
+                        key,
+                        action: core::NamedAction::Measure { target, revision },
                     }));
                 }
                 Tool::Message { target, form, words } => {
@@ -474,4 +481,37 @@ pub(super) fn settings_value(
 
 fn propose_settings(domain: &mut Domain, to: ReplyTo, key: crate::CallKey, tool: Tool) {
     super::settings_parts::call(domain, to, key, tool);
+}
+
+fn propose_call(
+    domain: &mut Domain,
+    to: ReplyTo,
+    key: core::CallKey,
+    action: ProposedAction,
+    reason: Box<[u8]>,
+    as_holder: bool,
+) {
+    let action = match action {
+        ProposedAction::Effect { .. } => unreachable!("connector effect proposals retain their own payload"),
+        ProposedAction::Batch(batch) => {
+            domain.work.push(Work::Core(jig_domain_core::Event::NamedAction {
+                to,
+                key,
+                action: jig_domain_core::NamedAction::ProposeBatch { batch, reason, as_holder },
+            }));
+            return;
+        }
+        ProposedAction::Amend { task, revision, amendment } => {
+            tasks::ProposalAction::Amend { task, revision, amendment }
+        }
+        ProposedAction::Widen { task, authority } => tasks::ProposalAction::Widen { task, authority },
+        ProposedAction::Release { task, hold, revision } => {
+            tasks::ProposalAction::ReleasePlaced { task, hold, revision }
+        }
+    };
+    domain.work.push(Work::Core(jig_domain_core::Event::NamedAction {
+        to,
+        key,
+        action: jig_domain_core::NamedAction::Propose { action, reason, as_holder },
+    }));
 }

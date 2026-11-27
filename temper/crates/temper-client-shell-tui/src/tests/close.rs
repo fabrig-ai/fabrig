@@ -6,8 +6,20 @@ const CHAT: u64 = 12;
 const PROJECT: u32 = 3;
 
 fn task(title: &[u8], ended: bool) -> w::Task {
-    let chip =
-        if ended { records::owner_chip_record(w::ChipPhase::Ended, w::Phase::Ended) } else { chat_chip(CHAT, title) };
+    task_facts(title, ended, None)
+}
+
+fn task_facts(title: &[u8], ended: bool, hold: Option<w::ChipHold>) -> w::Task {
+    let chip = if ended {
+        records::owner_chip_record(w::ChipPhase::Ended, w::Phase::Ended)
+    } else if let Some(hold) = &hold {
+        records::owner_chip_record(
+            w::ChipPhase::Held(w::ChipPhaseHeld { reason: hold.reason.clone(), revision: hold.revision }),
+            w::Phase::Held,
+        )
+    } else {
+        chat_chip(CHAT, title)
+    };
     let mut reader = Reader::new(chip.rows.as_ref());
     let mut rows = Vec::new();
     while let Some(bytes) = skein_codec::piece::split(&mut reader).unwrap() {
@@ -27,6 +39,7 @@ fn task(title: &[u8], ended: bool) -> w::Task {
             let mut row = row;
             let mut fields = row.value;
             fields.live_delegates = 0;
+            fields.hold = hold.clone();
             if ended {
                 fields.ended_at = Some(0);
             }
@@ -42,17 +55,170 @@ fn task(title: &[u8], ended: bool) -> w::Task {
     task.result = None;
     task.delegates = Box::default();
     task.waits_on = w::WaitsOn::News;
+    task.hold = hold;
+    task.acts = offers(&[w::ActKind::Cancel, w::ActKind::Message]);
+    task
+}
+
+fn offers(acts: &[w::ActKind]) -> Box<[u8]> {
     let mut offers = Vec::new();
-    for act in [w::ActKind::Cancel, w::ActKind::Message] {
-        let offer = w::Offered { act, admission: w::Admission::Allowed, effect: None };
+    for act in acts {
+        let offer = w::Offered { act: act.clone(), admission: w::Admission::Allowed, effect: None };
         let mut writer = Writer::new(
             usize::try_from(offer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
         );
         offer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         offers.push(writer.finish());
     }
-    task.acts = pieces(&offers);
-    task
+    pieces(&offers)
+}
+
+fn key_chat(ended: bool) -> (Host, u64) {
+    let (mut host, _, _) = signed_host(true);
+    let duties = give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: CHAT } } });
+    let duties = admit_watches(&mut host, duties);
+    let watched = watch(&duties, &w::Subject::Task(w::SubjectTask { task: CHAT }));
+    let duties = delivery(&mut host, watched, &w::DeliveryValue::Task(Box::new(task(b"Chat", ended))));
+    admit(&mut host, duties);
+    (host, watched)
+}
+
+fn left_goes_home(host: &mut Host, words: &str) {
+    host.frame();
+    if !words.is_empty() {
+        host.report(Report::Key(Key::Paste(words.as_bytes().into())));
+        host.report(Report::Key(Key::Left));
+        assert_eq!(host.focus.caret, 1);
+        assert_eq!(host.event_of(&Key::Left), None);
+        host.report(Report::Key(Key::Left));
+        assert_eq!(host.focus.caret, 0);
+        assert_eq!(host.words(), b"hi");
+        host.report(Report::Key(Key::End));
+        host.report(Report::Key(Key::Home));
+    }
+    assert_eq!(host.event_of(&Key::Left), Some(Event::Command { command: Command::New }));
+    host.report(Report::Key(Key::Left));
+    assert_eq!(host.root.pages().address(), &Address::Home { project: PROJECT });
+}
+
+#[test]
+fn left_leaves_an_empty_chat() {
+    let (mut host, _) = key_chat(false);
+    host.frame();
+    host.report(Report::Key(Key::Char('h')));
+    typed(&mut host, b"");
+    assert_eq!(host.words(), []);
+    assert_eq!(host.focus.caret, 1, "the box can clear before the stored caret moves");
+    left_goes_home(&mut host, "");
+}
+
+#[test]
+fn left_leaves_a_chat_after_home() {
+    left_goes_home(&mut key_chat(false).0, "hi");
+}
+
+fn design_chat() -> Host {
+    let mut host = reply_host_with_draft(Some(draft_note(b"# Draft".as_slice().into())));
+    give(&mut host, Event::ReplyAside { turn: REPLY_TURN });
+    assert!(temper_client_tui::pane_key(&host.view).is_some());
+    host
+}
+
+#[test]
+fn left_leaves_an_empty_design_session() {
+    left_goes_home(&mut design_chat(), "");
+}
+
+#[test]
+fn left_leaves_a_design_session_after_home() {
+    left_goes_home(&mut design_chat(), "hi");
+}
+
+fn ended_chat() -> Host {
+    let (mut host, _) = key_chat(true);
+    let shown = text(&mut host);
+    assert!(shown.contains("/new starts another chat"), "{shown}");
+    host
+}
+
+#[test]
+fn left_leaves_an_empty_ended_chat() {
+    left_goes_home(&mut ended_chat(), "");
+}
+
+#[test]
+fn left_leaves_an_ended_chat_after_home() {
+    left_goes_home(&mut ended_chat(), "hi");
+}
+
+#[test]
+fn left_does_not_leave_a_chat_while_its_model_list_stands() {
+    let (mut host, _) = key_chat(false);
+    give(&mut host, Event::Command { command: Command::Model });
+    assert!(text(&mut host).contains("Model. A change applies from the next turn."));
+    assert_eq!(host.event_of(&Key::Left), None);
+    empty(&host.report(Report::Key(Key::Left)));
+    assert_eq!(host.root.pages().address(), &Address::Chat { task: CHAT });
+    assert_eq!(host.event_of(&Key::Escape), Some(Event::Dismiss));
+    host.report(Report::Key(Key::Escape));
+    assert!(host.root.pages().listing().is_none());
+}
+
+#[test]
+fn escape_pauses_a_chat_with_an_empty_box() {
+    escape_pause("");
+}
+
+#[test]
+fn escape_pauses_a_chat_without_clearing_its_box() {
+    escape_pause("hi");
+}
+
+fn escape_pause(words: &str) {
+    let (mut host, watched) = key_chat(false);
+    host.frame();
+    assert_eq!(host.event_of(&Key::Escape), None, "stop is not offered yet");
+    empty(&host.report(Report::Key(Key::Escape)));
+    let mut running = task(b"Chat", false);
+    running.acts = offers(&[w::ActKind::Stop]);
+    delivery(&mut host, watched, &w::DeliveryValue::Task(Box::new(running)));
+    host.report(Report::Key(Key::Char('/')));
+    assert_eq!(host.event_of(&Key::Escape), Some(Event::Dismiss));
+    empty(&host.report(Report::Key(Key::Escape)));
+    assert_eq!(host.words(), []);
+    host.frame();
+    if !words.is_empty() {
+        host.report(Report::Key(Key::Paste(words.as_bytes().into())));
+        host.frame();
+    }
+    let before = host.focus.caret;
+    assert_eq!(host.event_of(&Key::Escape), Some(Event::Command { command: Command::Pause }));
+    let duties = host.report(Report::Key(Key::Escape));
+    let duties = stored(&mut host, duties);
+    let asks = sent_ask(&duties);
+    assert!(matches!(&asks[..], [(_, w::Ask::Stop(stop))] if (stop.project, stop.task) == (PROJECT, CHAT)), "{asks:?}");
+    assert_eq!(host.root.pages().address(), &Address::Chat { task: CHAT });
+    assert_eq!(host.words(), words.as_bytes());
+    assert_eq!(host.focus.caret, before);
+    let mut hold = records::hold_record();
+    hold.reason = w::HoldCategory::Stopped;
+    hold.placed = Some(w::PlacedLine {
+        number: 1,
+        owner: w::HoldOwner::Party(w::HoldOwnerParty { person: 7 }),
+        mode: w::HoldMode::Stop,
+        scope: w::HoldScope::Subtree(w::HoldScopeSubtree { task: CHAT }),
+        reason: b"Paused".as_slice().into(),
+        placed_at: 0,
+        revision: hold.revision,
+        lifted: false,
+        may_lift: true,
+    });
+    let mut paused = task_facts(b"Chat", false, Some(hold));
+    paused.acts = offers(&[w::ActKind::Release]);
+    delivery(&mut host, watched, &w::DeliveryValue::Task(Box::new(paused)));
+    let frame = text(&mut host);
+    assert!(frame.contains("paused · a message resumes it"), "{frame}");
+    assert_eq!(host.event_of(&Key::Escape), None);
 }
 
 fn opened(title: &[u8]) -> (Host, u64) {
@@ -77,6 +243,53 @@ fn opened(title: &[u8]) -> (Host, u64) {
     let duties = delivery(&mut host, watched, &w::DeliveryValue::Task(Box::new(task(title, false))));
     admit(&mut host, duties);
     (host, watched)
+}
+
+#[test]
+fn chat_and_launchpad_restore_their_own_unsent_words() {
+    const WORDS: &[u8] = b"half a thought";
+    let (mut host, _, _) = signed_host(true);
+    let new = Event::Command { command: Command::New };
+    let go = Event::Act { act: Act::Go { address: Address::Chat { task: CHAT } } };
+    let duties = give(&mut host, go.clone());
+    admit(&mut host, duties);
+    no_box_writes(&give(&mut host, Event::Typed { value: WORDS.into() }));
+    host.focus.caret = 1;
+    let duties = give(&mut host, new.clone());
+    no_box_writes(&duties);
+    admit(&mut host, duties);
+    assert_eq!(host.root.pages().address(), &Address::Home { project: PROJECT });
+    assert_eq!(host.words(), b"");
+    no_box_writes(&give(&mut host, Event::Typed { value: b"draft words".as_slice().into() }));
+
+    let duties = give(&mut host, go.clone());
+    no_box_writes(&duties);
+    let duties = admit(&mut host, duties);
+    let watched = watch(&duties, &w::Subject::Task(w::SubjectTask { task: CHAT }));
+    let duties = delivery(&mut host, watched, &w::DeliveryValue::Task(Box::new(task(b"Chat", false))));
+    admit(&mut host, duties);
+    assert_eq!(host.words(), WORDS);
+    host.frame();
+    assert_eq!(host.focus.caret, u32::try_from(WORDS.len()).unwrap());
+
+    assert_eq!(host.event_of(&Key::Enter), Some(Event::Send));
+    let duties = host.report(Report::Key(Key::Enter));
+    let mut duties = admit(&mut host, duties);
+    if sent_ask(&duties).is_empty() {
+        let due = root::next_deadline(&host.root).expect("message retry");
+        host.clocks(due, host.env.wall);
+        duties.asked.extend(host.report(Report::Due).asked);
+    }
+    let asks = sent_ask(&duties);
+    let [(_, w::Ask::Message(message))] = asks.as_slice() else { panic!("one chat message: {asks:?}") };
+    assert_eq!(message.words.as_ref(), WORDS);
+    assert_eq!(host.words(), b"");
+    let duties = give(&mut host, new);
+    no_box_writes(&duties);
+    admit(&mut host, duties);
+    assert_eq!(host.words(), b"draft words");
+    no_box_writes(&give(&mut host, go));
+    assert_eq!(host.words(), b"", "sent words do not come back");
 }
 
 fn close(host: &mut Host) -> skein_lib::Token {

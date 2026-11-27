@@ -136,8 +136,13 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 - **Acting:** `task show`'s `acts:` include
   `task message`, `task answer`, `task amend`, `task stop`, `task cancel`, `task release`, `hold lift`, `task decide` and `proposal decide`.
   `task amend`'s line is its call alone; `--json` carries the bounds it is offered within.
+- **Measuring a held change:** use `task measure TASK --hold REV` to
+  ask for one fresh check of a judgement, such as a red that stands or
+  a refused close. Read the hold revision with `task show`. Use `task release`
+  to release without asking for another measurement. The `--again` switch
+  is only for `task release` on an uncertain effect, not for a measurement.
 - **temper's runs** act on their delegates with the host tools
-  `delegate`, `change`, `goal`, `decided`, `amend`, `message`, `cancel`, `release`,
+  `delegate`, `change`, `goal`, `decided`, `amend`, `message`, `cancel`, `release`, `measure`,
   `subscribe`, `introduce`, `decide_escalation` and `propose`.
   `read_task`: specs and retained results of any task below through a proven same-project requester chain, and tasks its requester waits on; `field=result` reads reports and Left lists, including changes and reviews; for a live task at offset 0 it answers its spec, saying the result comes when it ends.
   Verdicts print `Verdict: CODE`; offsets count reason bytes.

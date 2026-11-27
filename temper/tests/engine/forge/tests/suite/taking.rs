@@ -228,7 +228,10 @@ fn an_erroring_source_stalls_with_its_account_and_release_reads_again() {
     let reads = source_reads(&world.take_calls());
     assert!(reads >= 3, "the client retried its read");
     world.run_for(23);
-    assert!(matches!(world.change(TASK).change.state, change::State::Held { why: change::Hold::Stalled, .. }));
+    assert!(matches!(
+        world.change(TASK).change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
+    ));
     assert_eq!(
         world.change(TASK).effect_account.as_ref().expect("taking read account").words.as_ref(),
         b"taking docs/x: forge unavailable"

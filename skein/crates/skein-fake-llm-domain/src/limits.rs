@@ -6,7 +6,10 @@ use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_lib::len_u64;
 
-use crate::api::{Answer, Failure, Line, Message, Part, Piece, Query, Report, Rule, Rules, Script, ToolSpec, Turn};
+use crate::api::{
+    Answer, Capture, Drawn, Failure, Filled, Line, Message, Part, Piece, Query, Report, Rule, Rules, Script, ToolSpec,
+    Turn,
+};
 
 pub(crate) fn fits(bytes: Option<u64>, cap: u32) -> bool {
     match bytes {
@@ -94,6 +97,13 @@ pub(crate) fn scripts(scripts: &[Script]) -> Option<u64> {
             total = total.checked_add(array(turn.lines.len(), size_of::<Line>())?)?;
             for line in &turn.lines {
                 let owned = match line {
+                    Line::Drawn { tools, .. } => {
+                        let mut owned = array(tools.len(), size_of::<Box<[u8]>>())?;
+                        for name in tools {
+                            owned = owned.checked_add(bytes(name)?)?;
+                        }
+                        owned
+                    }
                     Line::Cut { .. } => u64::try_from(size_of::<crate::respond::Cuts>()).ok()?,
                     Line::Pieces { pieces } => {
                         let mut owned = array(pieces.len(), size_of::<Piece>())?;
@@ -158,6 +168,7 @@ pub(crate) fn scripted_answer(turn: &Turn) -> Option<u64> {
             Line::Fail { report, credentials, .. } => {
                 report_bytes(report)?.checked_add(array(credentials.len(), size_of::<u32>())?)?
             }
+            Line::Drawn { .. } => return None,
             Line::Take { .. } | Line::Cut { .. } => {
                 total = total.checked_sub(u64::try_from(size_of::<Part>()).ok()?)?;
                 0
@@ -171,8 +182,54 @@ pub(crate) fn scripted_answer(turn: &Turn) -> Option<u64> {
     Some(total)
 }
 
-/// Measures all caller menu wrappers and bytes before retaining or copying any input.
-pub(crate) fn menu(menu: &crate::api::Menu) -> Option<u64> {
+/// Owned storage after converting a drawn reply into its capture, without copying any part.
+pub(crate) fn drawn_parts(parts: &[Part]) -> Option<u64> {
+    let mut total = array(1, size_of::<Drawn>())?.checked_add(array(parts.len(), size_of::<Line>())?)?;
+    for part in parts {
+        let owned = match part {
+            Part::Text { text } => bytes(text)?,
+            Part::ToolCall { name, arguments, .. } => bytes(name)?.checked_add(bytes(arguments)?)?,
+            Part::Opaque { .. } | Part::ToolOutput { .. } => return None,
+        };
+        total = total.checked_add(owned)?;
+    }
+    Some(total)
+}
+
+/// Owned storage of one captured slot draw, including its wrapper.
+pub(crate) fn filled(id: &[u8], value: &[u8], class: &[u8]) -> Option<u64> {
+    array(1, size_of::<Filled>())?.checked_add(bytes(id)?)?.checked_add(bytes(value)?)?.checked_add(bytes(class)?)
+}
+
+/// Owned replay bytes, including wrappers and slot evidence.
+pub(crate) fn replay(capture: &Capture) -> Option<u64> {
+    let mut total = array(capture.answers.len(), size_of::<Drawn>())?;
+    for drawn in &capture.answers {
+        total = total.checked_add(array(drawn.answer.lines.len(), size_of::<Line>())?)?;
+        for line in &drawn.answer.lines {
+            let owned = match line {
+                Line::Text { text } => bytes(text)?,
+                Line::Call { name, arguments } => bytes(name)?.checked_add(bytes(arguments)?)?,
+                Line::Drawn { .. }
+                | Line::Cut { .. }
+                | Line::Take { .. }
+                | Line::Fail { .. }
+                | Line::Pieces { .. }
+                | Line::Opaque { .. } => {
+                    return None;
+                }
+            };
+            total = total.checked_add(owned)?;
+        }
+        for slot in &drawn.slots {
+            total = total.checked_add(filled(&slot.id, &slot.value, &slot.class)?)?;
+        }
+    }
+    Some(total)
+}
+
+/// Measures regular and invalid inputs before retaining them. Slot declarations have their own refusal.
+pub(crate) fn menu_inputs(menu: &crate::api::Menu) -> Option<u64> {
     let mut total = array(menu.arguments.len(), size_of::<Box<[u8]>>())?
         .checked_add(array(menu.invalid.len(), size_of::<crate::api::InvalidInput>())?)?;
     for arguments in &menu.arguments {
@@ -187,22 +244,60 @@ pub(crate) fn menu(menu: &crate::api::Menu) -> Option<u64> {
     Some(total)
 }
 
-/// Bounds a random batch from the largest offered name and caller-supplied input, before copying.
-pub(crate) fn random_answer(query: &Query, menu: &crate::api::Menu, count: u32) -> Option<u64> {
-    let mut name = 0;
-    let mut arguments = 0;
-    for tool in &query.tools {
-        name = name.max(bytes(&tool.name)?);
+pub(crate) fn slots(slots: &[crate::api::Slot]) -> Option<u64> {
+    let mut total = array(slots.len(), size_of::<crate::api::Slot>())?;
+    for slot in slots {
+        total = total
+            .checked_add(bytes(&slot.name)?)?
+            .checked_add(bytes(&slot.before)?)?
+            .checked_add(bytes(&slot.after)?)?
+            .checked_add(bytes(&slot.unissued)?)?
+            .checked_add(bytes(&slot.with)?)?;
     }
-    for input in &menu.arguments {
-        arguments = arguments.max(bytes(input)?);
-    }
-    for input in &menu.invalid {
-        arguments = arguments.max(bytes(&input.arguments)?);
-        if let Some(replacement) = &input.name {
-            name = name.max(bytes(replacement)?);
+    Some(total)
+}
+
+/// The menu's part of the random batch bound never depends on the query.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct MenuBound {
+    name: u64,
+    arguments: u64,
+}
+
+impl MenuBound {
+    pub(crate) fn new(menu: &crate::api::Menu) -> Option<Self> {
+        let mut name = 0;
+        let mut arguments = 0;
+        let unissued = crate::slots::unissued(&menu.slots);
+        for input in &menu.arguments {
+            let size = if menu.slots.is_empty() {
+                bytes(input)?
+            } else {
+                crate::slots::measure_bytes(input, &menu.slots, &unissued)?
+            };
+            arguments = arguments.max(size);
         }
+        for input in &menu.invalid {
+            arguments = arguments.max(bytes(&input.arguments)?);
+            if let Some(replacement) = &input.name {
+                name = name.max(bytes(replacement)?);
+            }
+        }
+        Some(Self { name, arguments })
     }
-    let one = u64::try_from(size_of::<Part>()).ok()?.checked_add(name)?.checked_add(arguments)?.checked_add(21)?;
-    u64::from(count).checked_mul(one)
+
+    pub(crate) fn answer(self, query: &Query, count: u32, tools: &[Box<[u8]>]) -> Option<u64> {
+        let mut name = self.name;
+        for tool in &query.tools {
+            if crate::stretches::includes(tools, &tool.name) {
+                name = name.max(bytes(&tool.name)?);
+            }
+        }
+        u64::from(count).checked_mul(random_call(name, self.arguments)?)
+    }
+}
+
+pub(crate) fn random_call(name: u64, arguments: u64) -> Option<u64> {
+    // Every minted call ID has the same 21-byte spelling.
+    u64::try_from(size_of::<Part>()).ok()?.checked_add(name)?.checked_add(arguments)?.checked_add(21)
 }

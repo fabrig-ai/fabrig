@@ -2,6 +2,7 @@
 use super::*;
 use fixtures::PROJECT;
 use jig_domain_core_vocabulary::documents;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use skein_lib::Wall;
 
 fn summary(requester: tasks::Party) -> tasks::TaskSummary {
@@ -117,7 +118,9 @@ fn a_summary_only_task_answers_point_reads_as_gone() {
         reads::Scope::TaskText { task: CHILD, field: reads::TaskTextField::Specification, from: 0 },
     ] {
         let result = load(&mut store, fixtures::read(ALICE, scope));
-        let reads::Loaded::Gone = result else { panic!("shrunk task is gone: {result:?}") };
+        let engine_store::Answer::Failed(engine_store::Failure::Gone) = result else {
+            panic!("shrunk task is gone: {result:?}")
+        };
     }
 }
 

@@ -1246,6 +1246,7 @@ fn pull_digest(records: &[skein_fake_forge_domain::Observation]) -> Vec<Pull> {
             Observation::Opened { branches: None, .. }
             | Observation::Reopened { .. }
             | Observation::Labelled { .. }
+            | Observation::Retargeted { .. }
             | Observation::Revised { .. }
             | Observation::Depends { .. }
             | Observation::Requested { .. }

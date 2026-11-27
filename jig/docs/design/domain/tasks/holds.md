@@ -35,8 +35,11 @@ again. Words alone do not release it (../people/acts.md, 1).
   nothing. That alone does not keep waits from circling: a task holding
   a resource may wait for its delegates or, kept, for its dependencies.
   The check of 7 does.
-- **Refuse or wait.** For each kind of resource, its connector says
-  whether a hold that is taken refuses or waits. A batch whose task needs
+- **Refuse or wait.** For each kind of resource, its connector's
+  declaration says whether a hold that is taken refuses or waits
+  (../connectors.md, 2), the rule the core installs in this child as it
+  is built; a resource's report below says it for that resource and wins
+  over its kind's. A batch whose task needs
   a hold that refuses is refused, naming the holder. A task whose hold
   waits is made, and waits in the resource's queue.
 - **What a task holds is its connector's to name,** asked once the task
@@ -124,8 +127,32 @@ time.
   same decision, so a restart sees no writer without its live task and hold
   owner.
 - **A claim that finds the slot taken waits,** which is no failure.
+- **A claim that finds the writers' room full is refused whole,** before
+  it takes any slot: the room is the configured live tasks times each
+  task's holdings, and a claim whose slots, all free, don't all fit takes
+  none. Its problem is a capacity one, naming the writers and their
+  limit, and its task claims again after a pause, spending no try
+  (`lifecycle-holds.md`, 1; `../engine/briefs.md`, 1.1, `claim:
+  refused`). A connector's effect that finds the room full is refused
+  the same way, naming its entry.
 - **A connector's own effects** on a held resource take the slot too,
   while they are in flight, and wait for it like a claim.
+- **Each use checks its writer** (skein/docs/foundation/programming-model.md,
+  10.4). A slot is taken only where its claim's or its effect's admission,
+  in the same step, found it free and the room for it; a slot taken and
+  room full are answered as the waits and refusals above, as values.
+  Taking it asserts that no writer holds the resource, naming the
+  resource and its new writer; an effect whose own entry already holds
+  it is answered as done before anything is taken. Each release names
+  the writer it expects (the run's task and attempt at its committed
+  answer, the lost attempt's at the connector's fresh read, the effect's
+  entry as it settles) and asserts that the slot is that writer's,
+  naming the resource and both writers, and frees it once. A loss marks
+  only the slots its attempt holds, each asserted as its. A trigger
+  that may find no slot of its writer (an effect that took none, a fresh
+  read of a resource no lost writer holds, an answer of a run that
+  wrote nothing) finds that from its writer's own slots, as a value,
+  before anything is freed.
 
 ## 4. Handing down
 

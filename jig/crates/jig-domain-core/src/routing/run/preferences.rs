@@ -150,7 +150,7 @@ pub(crate) fn refused(
                 super::results::clear(core, task);
                 drop(core.contexts.remove(&task));
                 drop(core.dependency_results.remove(&task));
-                drop(core.transcripts.remove(&task));
+                core.discard_transcript(task);
                 if crate::routing::effect::note::wait_for_notes(core, work, task, NoteBrief::Activation) {
                     work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
                 }

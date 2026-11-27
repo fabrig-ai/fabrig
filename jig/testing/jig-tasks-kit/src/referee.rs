@@ -1,8 +1,8 @@
 //! Independent judgements from committed records and world inputs
 //! (domain/tasks/lifecycle-endings.md, 1, domain/tasks/holds.md, 7, sections 7 and 12).
 use jig_domain_tasks::{
-    Contract, Ending, HoldKind, Holding, Kind, Last, Limits, Name as ResourceName, Parameter, Party, Phase, PoolSlots,
-    SettingsRevision, Status, TaskRecord, TaskResult, Was, WriterSlot,
+    Contract, Ending, HoldKind, Holding, Last, Limits, Name as ResourceName, Parameter, Party, Phase, PoolSlots,
+    ResourceKind, SettingsRevision, Status, TaskRecord, TaskResult, Was, WriterSlot,
 };
 use skein_lib::Duration;
 use skein_world::domain::{Expectations, Judge};
@@ -95,7 +95,7 @@ pub enum Seen {
         live: Vec<TaskRecord>,
         pools: Vec<PoolSlots>,
         writers: Vec<WriterSlot>,
-        kinds: Vec<Kind>,
+        kinds: Vec<(u16, ResourceKind)>,
         reports: Vec<(ResourceName, HoldKind)>,
     },
     Finished,
@@ -661,7 +661,7 @@ fn holding_name(holding: &Holding) -> &ResourceName {
 
 // Only the rules sent by the world resolve a resource (domain/tasks/holds.md).
 struct Rules {
-    kinds: Vec<Kind>,
+    kinds: Vec<(u16, ResourceKind)>,
     reports: Vec<(ResourceName, HoldKind)>,
 }
 
@@ -674,8 +674,8 @@ impl Rules {
             }
         }
         let (Holding::Write { kind, .. } | Holding::Slot { kind, .. }) = holding;
-        for configured in &self.kinds {
-            if configured.connector == name.connector && configured.kind == *kind {
+        for (connector, configured) in &self.kinds {
+            if *connector == name.connector && configured.kind == *kind {
                 return Some(configured.hold);
             }
         }

@@ -89,7 +89,7 @@ pub fn played(scripts: api::Scripts) -> Recipe {
         &recipe.domain_limits,
         17,
         scripts,
-        api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
+        api::Menu { arguments: Box::new([]), invalid: Box::new([]), slots: Box::new([]) },
     )
     .expect("bounded real-loop script groups");
     recipe
@@ -103,7 +103,7 @@ pub fn played_by_input(scripts: Box<[api::Script]>, rules: Box<[Box<[api::Rule]>
         &recipe.domain_limits,
         17,
         api::Scripts { cued: scripts, asked: Box::new([]), otherwise: Box::new([]) },
-        api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
+        api::Menu { arguments: Box::new([]), invalid: Box::new([]), slots: Box::new([]) },
         api::Rules { cued: rules, asked: Box::new([]) },
     )
     .expect("bounded real-loop scripts and rules");

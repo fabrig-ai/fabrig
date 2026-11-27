@@ -1,5 +1,6 @@
 //! Revocation decisions finish independently of readers (jig/docs/design/domain/people/public-reading.md, 6).
 use super::*;
+use crate::tests::new_core;
 
 #[derive(Clone, Copy, Debug)]
 enum Change {
@@ -108,7 +109,7 @@ fn moved_out_while_under_way_ends_unknown() {
 #[test]
 fn a_read_of_a_project_not_yet_built_is_busy() {
     let (_, limits) = fixture();
-    let mut core = Core::new(crate::tests::config(41), &limits).unwrap();
+    let mut core = new_core(crate::tests::config(41), &limits).unwrap();
     let _action = core.start_begin(false, Wall::EPOCH);
     core.counters.deployment.projects = 1;
     assert_eq!(
@@ -171,7 +172,7 @@ fn the_pending_table_is_separate_from_authenticated_loads_and_reclaims() {
     let first = asking(start(&mut core, &limits, 98, read), read, &[]);
     let second = asking(start(&mut core, &limits, 99, read), read, &[]);
     assert_eq!(core.public_reads.len(), limits.load_slots);
-    assert_eq!(core.reads.len(), 0);
+    assert_eq!(core.loads.reads(), 0);
     outputs(start(&mut core, &limits, 100, read), &[terminal(100, PublicAnswer::Busy)]);
     for (token, reply) in [(first, 98), (second, 99)] {
         let token = answered(&mut core, &limits, token, None);

@@ -17,8 +17,12 @@ runs, the same draft's 4.
 
 ## 1. In one page
 
-Every worker `deliver` and `finish` calls `.temper/pre-pr` in the implementer's
-checkout. It checks current files, including staged, unstaged and new sources.
+Every worker `deliver` and `finish` calls `.temper/hooks/deliver` in the
+implementer's checkout, `.temper/hooks/finish` being a link to it
+(`temper/docs/design/protocol/hooks.md`, 2.2); `.temper/pre-pr`, kept as a
+wrapper that runs it, is what a build that reads no hooks calls
+(`temper/docs/design/protocol/hooks.md`, 5). It checks current files,
+including staged, unstaged and new sources.
 The checker creates a private Git index and object store from those files. An
 exported source tree also works. Git ignore rules select sources, and an existing
 checkout's tracked files stay included even if they match an ignore rule.
@@ -35,9 +39,10 @@ along first parents (section 2). A delivery or child check takes the
 worker's landing pin, `refs/temper/landing`, else `refs/remotes/origin/main`.
 A close job's pin is the goal branch itself, and its checkout rarely holds
 main, so a close starts from the newest of main's published commits
-(`refs/temper/counts`, read or fetched as for its budgets) that `HEAD`
-holds: main as the goal last merged it. Without one, or without counts
-to read, it breaks (4.1). A merge of main brings main's paths in too,
+(`refs/temper/counts`, read as for its budgets) that `HEAD`
+holds: main as the goal last merged it. Where its checkout holds no
+counts, it starts from the newest of main's goal landings that `HEAD`
+holds instead; without one, it breaks (4.1). A merge of main brings main's paths in too,
 which only widens the checks. With no base reference, outside a git
 checkout, or at a close whose base is `HEAD` itself, the check breaks
 (section 6, *Its outcome*) and names what's missing, checking nothing: the
@@ -58,8 +63,11 @@ budget tables when they or the layers changed. A format refusal returns
 early. Ordinary delivery runs these checks without compiling Rust. Its
 receipt is `target/temper/pre-pr-light-failures.json`.
 
-`.temper/checked-close` runs the close check itself, in the goal's
-checkout, after settling status. Close builds and tests there, warm with the
+`.temper/hooks/close` runs the close check itself, in the goal's
+checkout, after settling status with `tools/close/close.py`; `.temper/close`
+and `.temper/checked-close` are wrappers that run it, so that every build
+serving fabrig runs the same checked close, whichever path its project's
+`close_job` names. Close builds and tests there, warm with the
 worker's build cache, rather than in a copy. It selects the focused targets
 and helpers of the changed packages and their direct dependents using the
 current package map, with the gate's always-run packages
@@ -76,12 +84,14 @@ tests through one-process and judges instruction growth at the goal's base
 client layouts, retained host-tool contracts, and stored-schema changes require
 repository history. At landing, those tests read the exact destination commit
 supplied by the gate in `CI_GATE_LANDING_BASE`. Their current-tree validators and fixture tests still run.
-Close reads main's published counts from the checkout's `refs/temper/counts`,
-else fetches that one ref from the public repository into private scratch,
-once a run, for its base and its budgets alike. If
-the source has no commit, the counts are unavailable, or its `HEAD` holds
-no commit of their window, close breaks before it builds or tests anything
-(4.1). The
+Close reads main's published counts from the checkout's `refs/temper/counts`
+alone, once a run, for its base and its budgets alike, and fetches
+nothing (*Only what its checkout holds*, below). Where the checkout holds
+none, close finds its base in the goal's history, runs its checks from
+there, and skips the budgets' judgement alone, saying so in one line
+(4.1). If the counts it holds are unavailable, the source has no commit,
+or its `HEAD` holds no commit of their window, close breaks before it
+builds or tests anything (4.1). The
 landing gate still enforces its budget. The explicit goal diagnostic runs workspace Clippy and both
 suites with the tree's budgets. Receipts name the snapshot tree and its
 base, with `comparison` set to `changes`, or to `tree-only` with a null base
@@ -93,6 +103,17 @@ The following sections record the full diagnostic and earlier delivery
 policies. For the current worker command, selection, formatting, tests and
 receipts, this section takes precedence.
 
+- **Only what its checkout holds.** A hook uses only what its checkout
+  holds, and a need for more is fixed or relaxed, never fetched (the
+  user, 2026-11-27; `temper/docs/design/protocol/tooling.md`, 2). So in
+  every mode the check uses only its checkout's files and its git
+  directory's history and references, beside the programs and build
+  caches its environment gives it, and what it would need beyond them is
+  a bug in the check. It reaches no forge and no other repository: the git it runs on
+  its checkout runs with no transport allowed and no lazy fetch, its
+  cargo commands run offline, and the scratch it makes holds only what it
+  copies from its checkout. A close whose checkout lacks main's counts is
+  relaxed rather than broken (4.1).
 - **A base the worker pins.** The worker writes `refs/temper/landing`, the
   landing branch's tip as fetched at prepare, in each change producer's
   checkout and never moves it within the hold
@@ -289,6 +310,15 @@ destination and comparison base in its verdict. The CI caller uses the
 exit status and validates the receipt against the exact pair it requested.
 A later head or destination requires a fresh invocation.
 
+The checker's entry points are `.temper/hooks/deliver`,
+`.temper/hooks/finish`, `.temper/hooks/close`, and the wrappers
+`.temper/pre-pr`, `.temper/close` and `.temper/checked-close`, beside
+`.temper/goal-child-pre-pr` and `.temper/goal-pre-pr`: a delivery that
+changes one runs the checker's own tests, and the gate's scope
+(`.forgejo/scripts/gate_scope.py`) holds the same list, as before. Each
+wrapper only runs its hook, with its arguments, so a build that reads no
+hooks runs the same code (`temper/docs/design/protocol/hooks.md`, 5).
+
 ## 3. What it selects
 
 - **The tree** is the working tree as git sees it, untracked files
@@ -319,7 +349,8 @@ A later head or destination requires a fresh invocation.
 - **Code inputs:** Rust (`.rs`); Cargo manifests and locks; rustfmt,
   clippy and Rust toolchain configuration, including under `docs/`;
   non-docs paths under a `.cargo/` directory, `.config/` and `tools/`;
-  `.temper/pre-pr`, `.temper/goal-child-pre-pr` and `.temper/goal-pre-pr`;
+  `.temper/hooks/deliver`, `.temper/hooks/finish`, `.temper/pre-pr`,
+  `.temper/goal-child-pre-pr` and `.temper/goal-pre-pr`;
   `skein/scripts/*.sh` (the boundary profile check's
   inputs); each tree's
   `scripts/old_forms.py` and `scripts/old-forms.txt`; and non-docs paths
@@ -678,7 +709,7 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
    - **Passed:** none of these; a delivery whose own paths are written files
      alone among them.
 9. **The merge job's tests,** where section 3's changed paths include
-   `.temper/merge` or a path under `tools/merge/` other than its
+   `.temper/hooks/merge`, `.temper/merge` or a path under `tools/merge/` other than its
    `README.md` and `codecs.txt`: `python3 -I -B tools/merge/test_merge.py`
    from the tree's root, after check 7 and before check 8, announced
    `pre-pr: merge …` and ended `pre-pr: merge: passed|failed, <seconds>
@@ -739,9 +770,9 @@ profile and its `gate.<profile>` table.
 
 Close reads main's published counts first, before any build or test, as
 its base does (section 1): `refs/temper/counts` in the goal's checkout,
-else the one ref fetched from the public repository, and finds its base
-in their window (`tools/tiers/budgets.md`, 7.1). Counts it can't read (no
-source commit, a read or fetch that fails, counts marked unavailable) and
+and nothing else, and finds its base in their window
+(`tools/tiers/budgets.md`, 7.1). Counts it holds but can't judge by (no
+source commit, counts marked unavailable, an invalid window) and
 a `HEAD` holding no commit of their window, a goal older than main's last
 twenty landings, are not judged: close breaks at once (section 6, *Its
 outcome*), naming which, and for the second asks for an update from
@@ -753,6 +784,35 @@ tried again in its job's class (the goal's requester, 2026-11-25). After
 the focused steps pass, the budgets are judged at that base. A profile
 missing from the counts, and instruction counting this machine can't do,
 warn with their reason and give no verdict, the gate judging.
+
+**Without main's counts.** A checkout with no `refs/temper/counts`, or
+one whose `counts.json` is no version 1 file that `tools/tiers/counts.py`'s
+`read` takes, holds no counts. Close is then relaxed rather than broken,
+and fetches nothing, since the landing gate judges the budgets anyway
+(the user, 2026-11-27):
+
+- **Its base** is the newest of main's goal landings that `HEAD` holds:
+  a merge whose message carries a `Goal:` trailer, which temper writes on
+  a merge only into a repository's main
+  (`temper/docs/design/protocol/tooling.md`, 4, `message`), naming a goal
+  other than the close's own; newest in that no other such merge `HEAD`
+  holds descends from it. The close's own goal is the `goal` of
+  `$TEMPER_JOB/request.json` where that file reads as the close's request
+  (`temper/docs/design/protocol/tooling.md`, 4.2); without one, none is
+  set aside. That is main as the goal last merged it, or an older commit
+  of main where main's newest landings there are of no goal, which only
+  widens the checks. It is never the goal's own commit: an older merge
+  into a goal's branch may carry its change's goal, the close's own,
+  which is set aside, and another goal's such merge is in `HEAD` only
+  below that goal's landing into main. The base line names it `main's
+  newest goal landing in HEAD`. With none, close breaks as with no base
+  (section 1): `no base: main's counts are not in this checkout, and HEAD
+  holds no other goal's landing into main`.
+- **Its checks** are selected and run from that base as with counts.
+- **No budget verdict:** before any build it prints one line,
+  `pre-pr: WARNING: budgets not judged at close: main's counts (refs/temper/counts) are not in this checkout; the landing gate judges them`,
+  and judges no layer. Nothing else of the check changes, and its
+  refusal's `counts` is `null`.
 
 In each layer measured, replace the base counts of binaries measured whole
 with the sum of their `tests` and `fresh` processes. Carry forward the other
@@ -787,8 +847,7 @@ The refusal is the tooling protocol's form
 H the commit its checkout's `HEAD` is at, the goal's tip it settled (the
 record's `goal_head`); T and B the record's tree and base, B `null`
 without one; C the commit `refs/temper/counts` names in its checkout
-where it read main's counts there, else `null` (fetched from the public
-repository, or none); each NAME a new failure's `name` as the record
+where it read main's counts there, else `null`, none read; each NAME a new failure's `name` as the record
 lists it, in its order, flakes and inherited ones left out. It is compact
 JSON, `,` and `:` with no spaces and ASCII escapes, members in that
 order, ending in a newline, at most 512 bytes: the names that fit are
@@ -1053,8 +1112,9 @@ cause.
     a listing that failed to build, or leaving no `results.json` to
     read); or a checkout without what it needs to judge (section 1: no
     base reference, outside a git checkout, a close whose base is
-    `HEAD`; at a close, main's counts it can't read or whose window its
-    `HEAD` holds no commit of, 4.1). The change was not judged;
+    `HEAD`; at a close, main's counts it holds but can't judge by, or
+    whose window its `HEAD` holds no commit of, or, holding none, no other
+    goal's landing into main in `HEAD`, 4.1). The change was not judged;
   - **passed** otherwise, inherited failures and flakes included.
 - **Its exit:** 0 passed; 1 refused or broke; and in close mode with
   `TEMPER_CLOSE_REFUSAL=3`, 3 refused and 2 broke (section 4.1). Broke,

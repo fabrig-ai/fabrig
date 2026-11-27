@@ -1,6 +1,7 @@
 # channel: status
 
-2026-11-17. Where temper's code lags or departs from [channel.md](channel.md).
+2026-11-26. Where temper's code lags or departs from [channel.md](channel.md).
+
 
 
 

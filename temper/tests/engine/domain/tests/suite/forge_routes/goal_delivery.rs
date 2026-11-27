@@ -282,6 +282,135 @@ fn a_goals_design_delivery_and_a_sibling_merge_reach_g_without_a_slot() {
     early_start::stop(&mut world, &second);
 }
 
+#[test]
+#[expect(clippy::too_many_lines, reason = "one story follows the delayed delivery read through the later outside push")]
+fn a_goals_delivery_merging_its_moved_tip_is_never_drift() {
+    let (mut world, goal, branch) = running_goal();
+    let name = forge_hold(&world, &branch).expect("goal hold").name.clone();
+    let h = branch_tip(&mut world, &branch);
+    assert_record_tip(&world, &name, &branch, h);
+    let path = b"design.md";
+    let draft = world.worker_commit(h, path, b"added");
+    let m = land_into_goal(&mut world, &goal, &branch, SIBLING_CALL, b"sibling");
+    assert_ne!(h, m);
+    assert_eq!(world.merges, SIBLING_MERGES);
+    assert_record_tip(&world, &name, &branch, m);
+
+    // As the delivery does on a moved lease: merge in the draft while
+    // keeping M as the first parent and push conditionally on M.
+    let tree = &world.fake.object(m).expect("merge tree").tree;
+    let mut files = skein_lib::List::with_capacity(16);
+    for (path, content) in tree {
+        files.push(raw::File { path: path.clone(), content: content.clone() }).expect("small fixture tree");
+    }
+    files.push(raw::File { path: path.as_slice().into(), content: b"added".as_slice().into() }).unwrap();
+    let c = fake::commit_tree(
+        &mut world.fake,
+        &world.fake_env.limits,
+        m,
+        Some(draft),
+        files.into_boxed(),
+        b"Merge moved tip",
+    )
+    .expect("delivery merge");
+    // Delay the first keep call for C, not a poll after it has already
+    // settled the write. The worker admission itself must not move M.
+    world.slow_branch_latency = Duration::from_secs(240);
+    world.slow_branch = Some(branch.clone());
+    world.run_push(&goal, &branch, c, 2);
+    super::goal_branch::hint_goal_branch(&mut world, &branch);
+    let mut keep = None;
+    for _ in 0..STEPS {
+        keep = world.pending.iter().find_map(|(call, op)| match op {
+            skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch: read }) if read == &branch => {
+                Some(*call)
+            }
+            _ => None,
+        });
+        if keep.is_some() {
+            break;
+        }
+        world.tick();
+    }
+    world.slow_branch = None;
+    let keep = keep.expect("the keep read of g is out");
+    assert!(world.pending.contains_key(&keep));
+    assert_record_tip(&world, &name, &branch, m);
+    world.advance_ticks(2400);
+    for _ in 0..STEPS {
+        if !world.pending.contains_key(&keep) {
+            break;
+        }
+        world.tick();
+    }
+    world.until(Until::Ready);
+    assert!(!world.pending.contains_key(&keep), "keep answered after four minutes");
+    let hold = forge_hold(&world, &branch).expect("goal hold");
+    assert!(hold.design_writers.contains(&forge_top::DesignWriter {
+        task: goal.task,
+        attempt: goal.attempt,
+        rereading: false
+    }));
+    assert!(hold.drift.is_none());
+    assert!(!matches!(live_task(&world, goal.task).phase, tasks::Phase::Held { .. }));
+    assert_record_tip(&world, &name, &branch, c);
+    assert_file(&mut world, &branch, b"sibling");
+    assert_file(&mut world, &branch, path);
+
+    park(&mut world, &goal);
+    super::goal_branch::observe_goal_branch(&mut world, &branch);
+    assert!(forge_hold(&world, &branch).expect("goal hold").design_writers.is_empty());
+    assert!(forge_hold(&world, &branch).expect("goal hold").drift.is_none());
+    assert_record_tip(&world, &name, &branch, c);
+
+    let other = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"outside", b"moved", 3)
+        .expect("outside push onto C");
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            key: None,
+            change: skein_forge::api::Change::BranchMoved {
+                branch: branch.clone(),
+                head: translate::commit(other),
+                actor: 3,
+            },
+        },
+    })));
+    super::goal_branch::observe_goal_branch(&mut world, &branch);
+    let tasks::Phase::Held { why: tasks::Hold::Drift, source: Some(source), .. } = &live_task(&world, goal.task).phase
+    else {
+        panic!("the outside push holds the goal")
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("forge drift account") };
+    let c_text = engine::commit_text(&translate::commit(c));
+    let other_text = engine::commit_text(&translate::commit(other));
+    let c_text = std::str::from_utf8(&c_text).unwrap();
+    let other_text = std::str::from_utf8(&other_text).unwrap();
+    let words = std::str::from_utf8(words).unwrap();
+    assert!(words.contains(&format!("expected {c_text}, found {other_text}")), "{words}");
+    assert!(
+        words.contains(&format!(
+            "temper's last write on it: push of {} by task {} attempt {}, confirmed",
+            &c_text[..12],
+            goal.task,
+            goal.attempt
+        )),
+        "{words}"
+    );
+    assert_record_tip(&world, &name, &branch, c);
+}
+
+fn assert_record_tip(world: &World, name: &forge_top::Name, branch: &[u8], expected: u64) {
+    let commit = Some(translate::commit(expected));
+    assert_eq!(writes(world, name).head, commit);
+    assert!(
+        world.store.rows.values().any(|row| matches!(row, Record::Forge { row }
+        if matches!(row.as_ref(), forge_top::Stored::Client(skein_forge_client::Stored::Live(live))
+        if live.watch.resource.what == skein_forge_client::What::Branch(branch.into()) && live.pushed == commit))),
+        "the client's durable expectation follows the record"
+    );
+}
+
 fn read_news(world: &mut World, run: &engine::Assignment) {
     world.scripted_read_inbox(run);
 }
@@ -297,6 +426,102 @@ fn mine(world: &mut World, run: &engine::Assignment, number: u64, input: &[u8]) 
         panic!("change call")
     };
     world.scripted_call(run, number, call.tool)
+}
+
+fn writes<'a>(world: &'a World, name: &forge_top::Name) -> &'a forge_top::Writes {
+    match world.store.rows.get(&Key::Forge(forge_top::Key::Writes(name.clone()))) {
+        Some(Record::Forge { row }) => match row.as_ref() {
+            forge_top::Stored::Writes(writes) => writes,
+            other => panic!("branch record: {other:?}"),
+        },
+        other => panic!("branch record: {other:?}"),
+    }
+}
+
+#[test]
+fn a_design_writers_second_lease_confirms_the_first_and_its_answer_confirms_the_second() {
+    use forge_top::{Sender, WriteState, writes::Operation};
+    let (mut world, goal, branch) = running_goal();
+    let name = forge_hold(&world, &branch).expect("design hold").name.clone();
+    let sender = Sender::Attempt { task: goal.task, attempt: goal.attempt };
+    let base = branch_tip(&mut world, &branch);
+    let first = early_start::push(&mut world, &goal, base, b"first.md");
+    let admitted = writes(&world, &name).entries.last().expect("first admission");
+    assert_eq!(admitted.state, WriteState::Admitted);
+    assert_eq!(admitted.sender, sender);
+    let second = early_start::push(&mut world, &goal, first, b"second.md");
+    let row = writes(&world, &name);
+    let [first_write, second_write] = &row.entries[row.entries.len() - 2..] else { panic!("both admissions") };
+    assert_eq!(first_write.state, WriteState::Confirmed, "the next lease read the first push");
+    assert_eq!(second_write.state, WriteState::Admitted);
+    assert_eq!(second_write.sender, sender);
+    assert_eq!(
+        second_write.operation,
+        Operation::Push { before: Some(translate::commit(first)), after: translate::commit(second) }
+    );
+    park(&mut world, &goal);
+    for _ in 0..STEPS {
+        world.tick();
+        let row = writes(&world, &name);
+        if row.entries.last().expect("second push").state == WriteState::Confirmed {
+            assert_eq!(row.head, Some(translate::commit(second)));
+            return;
+        }
+    }
+    panic!("the answer's readback confirms the second push");
+}
+
+#[test]
+fn a_slot_writers_unmade_push_is_refused_at_its_answer() {
+    use forge_top::{WriteState, writes::Operation};
+    use temper_protocol_worker_wire::v1::Answer;
+    let (mut world, goal, goal_branch) = running_goal();
+    let base = branch_tip(&mut world, &goal_branch);
+    let assigned = world.assigned.len();
+    let answer = mine(&mut world, &goal, DELIVERY_CALL, br#"{"words":"Write a file","landing":"goal"}"#);
+    assert!(matches!(answer, engine::CallAnswer::Delegated(_)));
+    let producer = reviews::next_assignment(&mut world, assigned);
+    let item = &producer.workspace.repositories[0];
+    let branch = item.push.as_ref().expect("slot branch");
+    let kept = early_start::push(&mut world, &producer, base, b"kept");
+    let skipped = world.worker_commit(kept, b"not pushed", b"lost the lease");
+    // The object is available for ancestry reads, but was never on the slot's branch.
+    assert_eq!(
+        world.external(
+            1,
+            raw::Op::Git(raw::Git::PushNew { branch: b"someone-elses-branch".as_slice().into(), commit: skipped })
+        ),
+        raw::Answer::PushNew { existing: None }
+    );
+    let attempt = (CHANNEL, producer.task, producer.attempt);
+    let Some(Answer::Unadmitted(refusal)) = world.ask_push(attempt, item.tag, &goal_branch, Some(base), skipped) else {
+        panic!("a different branch is not this attempt's destination")
+    };
+    assert!(refusal.words.windows(goal_branch.len()).any(|part| part == goal_branch.as_ref()));
+    assert_eq!(world.ask_push(attempt, item.tag, branch, Some(kept), skipped), Some(Answer::Admitted));
+    let name = forge_hold(&world, branch).expect("held slot").name.clone();
+    let last = writes(&world, &name).entries.last().expect("unmade admission");
+    assert_eq!(last.state, WriteState::Admitted);
+    let order = last.order;
+    early_start::report_checked_push(&mut world, &producer, kept);
+    for _ in 0..STEPS {
+        world.tick();
+        let row = writes(&world, &name);
+        if !row.entries.iter().any(|entry| entry.order == order) {
+            assert_eq!(row.head, Some(translate::commit(kept)));
+            assert!(row.entries.iter().any(|entry| entry.state == WriteState::Confirmed
+                && matches!(
+                    entry.operation, Operation::Push { after, .. } if after == translate::commit(kept)
+                )));
+            assert_eq!(
+                world.ask_push(attempt, item.tag, branch, Some(kept), skipped),
+                None,
+                "jig fences the ended attempt"
+            );
+            return;
+        }
+    }
+    panic!("the answer's readback refuses and erases the unmade push");
 }
 
 fn push_branch(run: &engine::Assignment) -> Box<[u8]> {
@@ -402,8 +627,8 @@ fn a_delivery_under_its_open_change_is_that_changes_new_head() {
     let h1 = deliver(&mut world, &goal, base, b"first");
     let c1 = make_delivery(&mut world, &goal, DELIVERY_CALL);
     checking(&mut world, c1, h1);
-    let h2 = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &r, b"second", b"added", 1)
-        .expect("the ongoing goal delivers again");
+    let h2 = world.worker_commit(h1, b"second", b"added");
+    world.worker_push((CHANNEL, goal.task, goal.attempt), &goal.workspace.repositories[0], &r, h2, 1);
     status(&mut world, h2, raw::Check::Pending);
     early_start::observe_push(&mut world, &goal);
     status(&mut world, h1, raw::Check::Passed);

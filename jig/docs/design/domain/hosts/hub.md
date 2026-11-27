@@ -728,7 +728,8 @@ with no agent:
   credential: what reaches a system is the workspace's, by identity.
 - **No turns, no relay, no calls:** a job reports nothing until its
   answer; the hub keeps that answer until it is acknowledged, as a
-  run's.
+  run's. It may ask the engine's application, as a run does (10): temper's
+  job asks before each push of its delivery.
 - **A root with no job capability** refuses what the hub asks of one:
   that is its choice, and `ToJob::refused` spells the answer, a
   `StartRefused` to a run and a `Gone` to a stop.
@@ -736,7 +737,7 @@ with no agent:
 ## 10. An application's asks
 
 The application on a host may ask the engine's application something
-for a run the hub hosts, and hear the answer. jig decides and commits
+for a run or a job the hub hosts, and hear the answer. jig decides and commits
 nothing for it on either side: it is a read, or a report the engine's
 application may keep in a decision of its own before or after it
 answers. temper reads a goal's reds this way when a run's checks start,
@@ -762,7 +763,8 @@ and reports a check's results when they end (temper's
   comes after it (2).
 - **On the engine,** the fleet fences an ask as a call: one whose
   attempt is not its task's live one on that channel is answered
-  refused at once. An admitted ask goes to the root as the
+  refused at once, a job's attempt as a run's. The fence is an ask's
+  alone: a job still makes no call (9). An admitted ask goes to the root as the
   application's, with its channel, run, attempt and number. The root
   answers it by those, in the same entrance or a later one, with bytes
   or refused, and the fleet sends `asked`. Nothing is committed for it:

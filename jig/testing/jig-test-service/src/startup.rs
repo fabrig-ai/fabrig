@@ -478,7 +478,8 @@ pub(super) fn engine_startup(
     };
     let mut core = config::core(&parsed.engine, seeds.deployment, seeds.seed);
     core.defaults.workers = parsed.worker_defaults;
-    let root = root::Config { core, first: parsed.first, second: parsed.second };
+    let root =
+        root::Config { core, first: parsed.first, second: parsed.second, resource_kinds: [Box::new([]), Box::new([])] };
     let mut first_periods = List::with_capacity(parsed.limits.root.core.authority.projects);
     for project in &root.core.seed_projects {
         first_periods.push((project.number, project.policy.policy.period_spend)).expect("seed project bound");

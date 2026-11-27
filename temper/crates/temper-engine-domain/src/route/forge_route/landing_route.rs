@@ -2,8 +2,8 @@
 //! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 //! Task-first admission and refused trains follow domain/landing-forming.md, 2 and 3.
 use super::{
-    Box, Domain, EffectDescription, EffectForm, Env, Family, LANDING_CODE, Limits, List, ProcedureStep, Queue,
-    Recovery, StepEnd, Work, append, authority, effect_access, forge, forge_change, landing, resource_name, tasks,
+    Box, Domain, EffectDescription, Env, Family, LANDING_CODE, Limits, List, ProcedureStep, Queue, StepEnd, Work,
+    append, authority, effect_access, forge, forge_change, landing, resource_name, tasks,
 };
 use forge::LandingHeadTrailers as HeadTrailers;
 use temper_engine_domain_translate::prepare::{self, PrepareMember, PrepareRequest};
@@ -605,7 +605,6 @@ pub(super) fn describe_landing_effect(
         return None;
     }
     Some(EffectDescription {
-        waits_for_dependencies: false,
         connector: domain.config.forge_connector,
         purpose: entry,
         effect: authority::Effect {
@@ -617,17 +616,6 @@ pub(super) fn describe_landing_effect(
             access: effect_access(repository, &what, described.kind),
             additional: Box::new([]),
             guards: Box::new([]),
-        },
-        form: match described.form {
-            forge::EffectForm::Creation => EffectForm::Creation,
-            forge::EffectForm::Transition => EffectForm::Transition,
-            forge::EffectForm::Set => EffectForm::Set,
-        },
-        recovery: match described.recovery {
-            forge::Recovery::Keyed => Recovery::Keyed,
-            forge::Recovery::Conditional => Recovery::Conditional,
-            forge::Recovery::Idempotent => Recovery::Idempotent,
-            forge::Recovery::Unrecoverable => Recovery::Unrecoverable,
         },
     })
 }

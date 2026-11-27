@@ -324,6 +324,7 @@ fn opened(store: &mut Store, io: &mut impl LimitsIo, deployment: Option<&[u8]>) 
                 | jig_protocol_store::Event::Read { .. }
                 | jig_protocol_store::Event::Got { .. }
                 | jig_protocol_store::Event::Turns { .. }
+                | jig_protocol_store::Event::WindowFailed { .. }
                 | jig_protocol_store::Event::Unread { .. }
                 | jig_protocol_store::Event::SecretsNotReady { .. }
                 | jig_protocol_store::Event::Kept { .. }

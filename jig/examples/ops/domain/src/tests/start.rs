@@ -152,6 +152,7 @@ fn drive(domain: &mut Domain, env: &Env<Limits>, rows: &mut Map<Key, Record>, cu
                 | Output::IncidentAssociationRefused { .. }
                 | Output::Application { .. }
                 | Output::CoreLoad(_)
+                | Output::Store(_)
                 | Output::Core(_)
                 | Output::Now(_)
                 | Output::Observability(_)

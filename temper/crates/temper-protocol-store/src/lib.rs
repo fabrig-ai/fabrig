@@ -14,7 +14,7 @@ pub mod generated {
 }
 mod lowering;
 mod patch_set;
-pub use patch_set::OWNER_SET;
+pub use patch_set::{OWNER_SET, introduced_branch_writes};
 
 use alloc::boxed::Box;
 pub mod jobs;

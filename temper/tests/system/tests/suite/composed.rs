@@ -569,7 +569,13 @@ fn assert_failed_review_hold(world: &World) {
     assert_eq!(reviews, 2, "no third review");
     assert!(matches!(
         world.reviewed_change().change.state,
-        temper_engine_domain_forge_change::State::Held { why: temper_engine_domain_forge_change::Hold::Failed, .. }
+        temper_engine_domain_forge_change::State::Held {
+            hold: temper_engine_domain_forge_change::Hold {
+                cause: temper_engine_domain_forge_change::Cause::Failed,
+                ..
+            },
+            ..
+        }
     ));
     assert_eq!(world.reviewed_change().change.repairs, 0);
     assert!(world.reviewed_change().verdicts.is_empty());

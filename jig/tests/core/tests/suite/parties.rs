@@ -353,9 +353,15 @@ fn resume_ended_load(world: &mut World) -> u64 {
     let mut pending = world.pending_ended_loads.take().expect("loads paused");
     assert_eq!(pending.len(), 1);
     let load = pending.pop().expect("one load");
-    let jig_domain_core::Now::EndedTask { task, .. } = &load else { panic!("ended row load") };
+    let jig_domain_core::engine::store::Out::Load {
+        range: jig_domain_core::engine::store::Range::Record(jig_domain_core::Key::Tasks(tasks::Key::Ended(task))),
+        ..
+    } = &load
+    else {
+        panic!("ended row load")
+    };
     let task = *task;
-    world.store.ask(jig_test_store::StoreOut::Now(load));
+    world.store.ask(jig_test_store::StoreOut::Engine(load));
     world.drain();
     task
 }
@@ -562,7 +568,9 @@ fn a_partys_ended_input_is_loaded_and_kept_as_a_stub() {
     finish(&mut world);
     let mut task = people_member(b"input", 10);
     task.inputs = Box::new([CHAT]);
+    world.pending_ended_loads = Some(Vec::new());
     create(&mut world, Box::new([task]));
+    assert_eq!(resume_ended_load(&mut world), CHAT);
     assert_eq!(live_row(&world, FIRST).spec.inputs.as_ref(), &[CHAT]);
     let key = jig_test_domain::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Stub(CHAT)));
     assert_eq!(

@@ -7,6 +7,7 @@
 use super::*;
 use crate::{Below, Io};
 use fixtures::disk::Disk;
+use jig_domain_core_vocabulary::engine::store as engine_store;
 use skein_io::file;
 
 fn setup() -> (Disk, Store) {
@@ -55,7 +56,7 @@ fn drive(disk: &mut Disk, store: &mut Store, above: &mut Queue<Event>, below: &m
     }
     panic!("bounded history fetch");
 }
-fn answer(events: Box<[Event]>) -> reads::Loaded {
+fn answer(events: Box<[Event]>) -> engine_store::Answer {
     let mut events = events.into_iter();
     let Some(Event::Read { result, .. }) = events.next() else { panic!("one read") };
     assert!(events.next().is_none());
@@ -145,7 +146,7 @@ fn an_ended_frame_is_read_directly_then_new_intervals_of_that_task_are_fetched()
     let [Event::Committed { .. }] = events.as_ref() else { panic!("reply saved: {events:?}") };
     let reply = fixtures::read(ALICE, reads::Scope::Reply { task: CHILD, activity: 7 });
     let reply_before = answer(disk.request(&mut store, Request::Read { owner: Token::new(7), range: reply.clone() }));
-    let reads::Loaded::Page { rows, .. } = &reply_before else { panic!("reply page") };
+    let engine_store::Answer::Rows(engine_store::Rows::Read { rows, .. }) = &reply_before else { panic!("reply page") };
     assert_eq!(rows.len(), 1);
     let range = fixtures::read(ALICE, reads::Scope::Task { task: CHILD });
     let before = answer(disk.request(&mut store, Request::Read { owner: Token::new(7), range: range.clone() }));

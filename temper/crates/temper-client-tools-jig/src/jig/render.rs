@@ -653,6 +653,18 @@ pub fn settings_text(value: &ReadValue, requested: Option<u64>, limits: &Limits)
     out.finish()
 }
 
+/// Render a settings read as ctl's `--json` prints it, without a trailing newline.
+/// The read must fit ctl's JSON result bounds.
+#[must_use]
+pub fn settings_json(value: &ReadValue, limits: &Limits) -> Box<[u8]> {
+    let bounds = document::result_json_bounds(limits);
+    let mut measure = Encoder::measure(&bounds);
+    document::settings::encode(value, &mut measure);
+    let mut out = Encoder::write(measure.measured().expect("settings read fits ctl's result bounds"), &bounds);
+    document::settings::encode(value, &mut out);
+    out.finish()
+}
+
 /// Render a proposal refusal with the same words as ctl.
 #[must_use]
 pub fn settings_refusal(why: &contract::Refusal, text: u32) -> Box<[u8]> {

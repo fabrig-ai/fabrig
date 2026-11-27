@@ -45,5 +45,6 @@ record WaitCursor { query: WaitQuery, now: u64, after: WaitPosition }
 enum Cursor { live: LiveCursor, store: StoreCursor, waits: WaitCursor }
 record Tree { task: u64, window: u32, after: DocumentCursor }
 record Owner { cursor: Cursor }
-enum Form { owner: Owner, tree: Tree }
+record Window { after: DocumentCursor }
+enum Form { owner: Owner, tree: Tree, window: Window }
 versioned record Held { layout: fixed 32 form: Form }

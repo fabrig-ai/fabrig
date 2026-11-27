@@ -1,5 +1,6 @@
 //! Decisions change membership before their public readers (jig/docs/design/domain/people/public-reading.md, 7).
 use super::*;
+use crate::tests::new_core;
 
 #[test]
 fn untracking_a_goal_takes_its_tree_out() {
@@ -129,7 +130,7 @@ fn a_private_a_deleting_and_an_unknown_project_are_the_same_miss() {
 #[test]
 fn a_project_is_busy_until_its_entry_is_built() {
     let (_, limits) = fixture();
-    let mut core = Core::new(crate::tests::config(41), &limits).unwrap();
+    let mut core = new_core(crate::tests::config(41), &limits).unwrap();
     let action = core.start_begin(false, Wall::EPOCH);
     core.counters.deployment.projects = 1;
     assert_eq!(

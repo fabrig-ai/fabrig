@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
-    self as tasks, Active, Amendment, Cancel, Circle, Event, Hold, HoldKind, HoldSource, Holding, Kind, Limits, Name,
-    Operation, Party, Phase, Refusal, Release, Stored, Taken, Was,
+    self as tasks, Active, Amendment, Cancel, Circle, Event, Hold, HoldKind, HoldSource, Holding, Limits, Name,
+    Operation, Party, Phase, Refusal, Release, ResourceKind, Stored, Taken, Was,
 };
 use jig_tasks_world::{LIMITS, PERSON_PARTY, Reply, World, task};
 use skein_lib::{Duration, List};
@@ -32,7 +32,7 @@ fn configured(limits: &Limits, pooled: bool) -> World {
     let mut world = World::new(SEED, *limits);
     let hold =
         if pooled { HoldKind::Pooled { taken: Taken::Waits } } else { HoldKind::Exclusive { taken: Taken::Waits } };
-    world.configure_holds(CONNECTOR, vec![Kind { connector: CONNECTOR, kind: KIND, hold }]);
+    world.configure_holds(CONNECTOR, vec![ResourceKind { kind: KIND, hold }]);
     if pooled {
         world.send(Event::Slots { pool: name(), slots: 2 });
     }
@@ -173,11 +173,7 @@ fn a_restored_circle_from_an_older_rule_holds_its_queue_waiter() {
         &world.env,
         Event::Kinds {
             connector: CONNECTOR,
-            kinds: Box::new([Kind {
-                connector: CONNECTOR,
-                kind: KIND,
-                hold: HoldKind::Exclusive { taken: Taken::Waits },
-            }]),
+            kinds: Box::new([ResourceKind { kind: KIND, hold: HoldKind::Exclusive { taken: Taken::Waits } }]),
         },
         &mut out,
     );
@@ -645,11 +641,7 @@ fn a_restored_two_holder_pool_circle_holds_its_waiter() {
         &world.env,
         Event::Kinds {
             connector: CONNECTOR,
-            kinds: Box::new([Kind {
-                connector: CONNECTOR,
-                kind: KIND,
-                hold: HoldKind::Pooled { taken: Taken::Waits },
-            }]),
+            kinds: Box::new([ResourceKind { kind: KIND, hold: HoldKind::Pooled { taken: Taken::Waits } }]),
         },
         &mut out,
     );
@@ -781,7 +773,7 @@ fn holding_a_named_pool_holder_lifts_the_waiter() {
 fn a_hand_down_uses_the_resource_name_despite_a_different_declared_kind() {
     const OTHER_KIND: u16 = 2;
     let mut world = configured(&LIMITS, false);
-    world.configure_holds(CONNECTOR, vec![Kind { connector: CONNECTOR, kind: OTHER_KIND, hold: HoldKind::Shared }]);
+    world.configure_holds(CONNECTOR, vec![ResourceKind { kind: OTHER_KIND, hold: HoldKind::Shared }]);
     world.send(Event::Resource { name: name(), hold: HoldKind::Exclusive { taken: Taken::Waits } });
     let mut creator = task(ROOT, &[]);
     creator.holdings = Box::new([holding(false)]);

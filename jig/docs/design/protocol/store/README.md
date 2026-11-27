@@ -312,6 +312,13 @@ the application's part with the application's codecs.
   before it wrote.
 - **One terminal per request,** tagged with the asker's token
   (skein/docs/foundation/programming-model.md, 4.4).
+- **The engine's loads** (`../../domain/engine/vocabulary.md`, 2.4) reach
+  the component as these requests, by their range, through the store's
+  routing: a record as a get; a proposal as a get of its task's live
+  record, then of the history record that keeps it; a page of notes as a
+  load; a read as a read; a window as a transcript, followed page by
+  page in the same load. Each answer goes back as the engine's, tagged
+  with the load's token.
 
 ## 4. Keys
 

@@ -984,10 +984,9 @@ impl Observer {
             | core::Held::Acted { .. }
             | core::Held::Drained
             | core::Held::Restarting { .. }
-            | core::Held::Load(_)
             | core::Held::ApplicationDelivery { .. }
             | core::Held::ApplicationWatchEnded { .. }
-            | core::Held::ReadLoad { .. }
+            | core::Held::Store(_)
             | core::Held::Read { .. }
             | core::Held::PublicRead { .. }
             | core::Held::PublicWait { .. }
@@ -1017,7 +1016,6 @@ impl Observer {
             | core::Held::Refuse { .. }
             | core::Held::TurnBusy { .. }
             | core::Held::StopRun { .. }
-            | core::Held::NotesLoad { .. }
             | core::Held::NotesWritten { .. }
             | core::Held::NotesDeleted { .. } => {}
         }

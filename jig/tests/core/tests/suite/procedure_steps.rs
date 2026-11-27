@@ -53,11 +53,10 @@ fn program_world_with_batch(
     let mut procedure =
         member(&world, tasks::Executor::Procedure { connector: CONNECTOR, code: PROCEDURE_CODE }, b"procedure");
     procedure.authority.budget.deadline = deadline;
-    world.send(root::Event::Core(core::Event::DelegateValidated {
+    world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(DELEGATE_CALL)),
         key: core::CallKey { task: root_run.0, attempt: root_run.1, completion: COMPLETION, position: 0 },
         batch: Box::new([procedure]),
-        stubs: Box::new([]),
     }));
     let core::CallPart::Delegated(numbers) = &world.answers.last().expect("procedure made").2 else {
         panic!("procedure refused")

@@ -203,8 +203,9 @@ release(root):   (the service's iterate)
   under load in the root's world (section 11):
   - **hand-offs first:** a hand-off a step queued is finished before the
     next entrance is admitted (`work.is_empty()`);
-  - **store answers in order:** a read's page and a load's switch are
-    stepped in arrival order, queued behind earlier work;
+  - **store answers in order:** an answer to one of the engine's loads
+    and a load's switch are stepped in arrival order, queued behind
+    earlier work (jig's `domain/root.md`, 5, `store_answers_fifo`);
   - **releases in order:** an older release steps before a later one;
     releases are always taken.
 - **Classed by variant.** No event carries new work beside admitted
@@ -396,50 +397,31 @@ Moved to [`root-translation.md`](root-translation.md), section 2.
   bytes; a page past its bytes comes back cut, saying how much. Their
   range, order and cursors are the tests' to assert, never refused at a
   start (jig's `domain/engine/restart.md`).
-- **Loads for the core.** A run's preparation (its transcript's window,
-  its dependencies' and inputs' results), a delegate batch's inputs, and
-  the core's historical reads (ended conversations, decided escalations
-  and proposals) are loads the root makes for the core and answers back
-  in its terms; a full table answers busy all but an ended task's load,
-  which waits (below).
-- **An ended task's load waits for a slot.** The core's load of an
-  ended task (jig's `Now::EndedTask`: a run's dependencies' and inputs'
-  results, and the ended task an amendment, a batch or a decision
-  reads) that finds the archive's read table or the load slots full, a
-  retired slot awaiting its reclaim among them, is not answered busy:
-  the root keeps it, in the order asked, and issues it once a slot
-  frees, before any read asked after it, still held behind the commits
-  made before the core asked (jig's `domain/engine/decisions.md`, 1.3).
-  Busy is left for a load that failed: a page refused or cut, or an
-  answer the archive cannot read. The core's other loads (an ended
-  conversation and its read position, a decided escalation or proposal,
-  a batch's inputs, a person's ended task) keep busy on a full table.
-- **An issued transcript load that fails** answers the core's
-  `TranscriptLoad::Unread`, retiring its read once; an answer to a stale
-  preparation is ignored. The core owns the window policy (jig's
-  `domain/engine/executors-transcripts.md`, 1): a closed window starts fresh with an empty
-  tail and no added failure or refusal, while an open window keeps its
-  transient failure policy. A transcript load is issued only with read
-  room: without it the root answers the activation `busy` and the task
-  stays due (jig's `domain/root.md`, 3). A window's turn the store hands
-  on cut (jig's `protocol/store/transcripts.md`, 3) reaches the core as
-  `TranscriptLoad::Cut`: its place and its length, never its bytes. So
+- **The engine's loads.** The root carries each load the engine holds
+  (jig's `domain/engine/vocabulary.md`, 2.4) to the store once released,
+  and each answer back to the engine. The engine paces them and knows
+  what each is for (jig's `domain/engine/decisions.md`, 1.3): a run's
+  preparation (its transcript's window, its dependencies' and inputs'
+  results), a delegate batch's inputs, the core's historical reads
+  (ended conversations, decided escalations and proposals), notes'
+  pages, and parties' and runs' reads. So the root keeps no table of
+  them and answers none for room. The service serves each by its range,
+  as the store's routing does (jig's `protocol/store/README.md`, 3): a
+  record by its key, a proposal through its task's live record, a page
+  of notes, a read, a window page by page.
+- **A window's pages.** The service reads a window a page of
+  `root.loads.rows` turns at a time, each page the load's next answer in
+  the order read, and goes on to the next page in the same load, so a
+  window of any length loads once begun. A window's turn the store
+  hands on cut (jig's `protocol/store/transcripts.md`, 3) reaches the
+  engine as a cut answer: its place and its length, never its bytes. So
   does a turn the store carried whole but past the root's own page bounds
   (`root.loads.transcript_bytes` for a row, `root.loads.bytes` for a
   page): the service hands it on cut, alone in its page, rather than end
   the page, so no turn's size fails a window or ends the engine's
-  journal. Other successful-page cuts and the transcript row and text
-  validation guards keep their existing preparation-failure translation.
-- **A window's pages keep their load slot.** A transcript's window is
-  read a page of `root.loads.rows` turns at a time. A page that names a
-  next one hands its load slot on: the next page is issued in that slot,
-  in the pass that took the page, so a window of any length loads
-  whatever else holds the table, and room never fails it. Only its first
-  page waits for room, at the activation, as above. The slot frees with
-  the window's last page, or with its read when the preparation it
-  served ends between pages. A restart's due tasks, reading their
-  windows together, wait for their first pages and never fail on the
-  later ones.
+  journal. A window whose first turn the store does not find answers
+  unread, and one it cannot read, failed; the engine owns the window
+  policy (jig's `domain/engine/executors-transcripts.md`, 1).
 
 ## 8. Restart and stopping
 

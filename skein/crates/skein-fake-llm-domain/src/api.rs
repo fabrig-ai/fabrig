@@ -22,6 +22,71 @@ pub enum Role {
     Assistant,
 }
 
+/// What a fake draws from (skein/docs/design/testing/fakes/drawn-agent.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Seeds {
+    /// One generator draws answers, faults and timing.
+    One(u64),
+    /// Independent seeds for the agent, faults and scheduling.
+    Parts { agent: u64, faults: u64, scheduling: u64 },
+}
+
+/// An answer's key (skein/docs/design/testing/fakes/drawn-agent.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Key {
+    pub conversation: u64,
+    pub turn: u32,
+    pub attempt: u32,
+}
+
+/// Whether a slot's value came from the conversation (skein/docs/design/testing/fakes/drawn-agent.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Source {
+    Conversation,
+    Unissued,
+}
+
+/// One slot's draw for one call, beside its answer (skein/docs/design/testing/fakes/drawn-agent.md, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Filled {
+    /// The call's position among its answer's lines, from 0.
+    pub call: u32,
+    /// The provider id the answer gave the call; a replay gives the id it minted anew.
+    pub id: Box<[u8]>,
+    /// The slot's index in the menu.
+    pub slot: u32,
+    pub value: Box<[u8]>,
+    pub source: Source,
+    /// The world's class; empty until it gives one.
+    pub class: Box<[u8]>,
+}
+
+/// One answer the agent drew or a capture replayed (skein/docs/design/testing/fakes/drawn-agent.md, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Drawn {
+    pub key: Key,
+    /// One text line or a batch of call lines, its finish and tokens.
+    pub answer: Turn,
+    pub slots: Box<[Filled]>,
+}
+
+/// A prefix of the agent's answers (skein/docs/design/testing/fakes/drawn-agent.md, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Capture {
+    /// In the order made.
+    pub answers: Box<[Drawn]>,
+    /// An answer or class didn't fit; nothing after it was kept.
+    pub full: bool,
+}
+
+impl Capture {
+    /// The replay input for a fake that replays nothing.
+    #[must_use]
+    pub fn none() -> Capture {
+        Capture { answers: Box::new([]), full: false }
+    }
+}
+
 /// Caller-supplied deliberately invalid call input; the fake interprets neither name nor body.
 /// Fixed wrappers and payloads share the configured script byte allowance.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -32,14 +97,42 @@ pub struct InvalidInput {
     pub arguments: Box<[u8]>,
 }
 
+/// A placeholder a menu body holds (skein/docs/design/testing/fakes/drawn-agent.md, 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Slot {
+    pub name: Box<[u8]>,
+    pub before: Box<[u8]>,
+    /// Empty to end at a line feed or the end of the part.
+    pub after: Box<[u8]>,
+    /// The name of an earlier slot, or empty for an independent draw.
+    pub with: Box<[u8]>,
+    /// Per mille: pick from parts without the value drawn by `with`.
+    pub foreign: u32,
+    /// The value the world never issues.
+    pub unissued: Box<[u8]>,
+    /// Per mille: the never-issued value though candidates exist.
+    pub weight: u32,
+    /// `Some` for a numeric slot.
+    pub numeric: Option<Bounds>,
+}
+
+/// A numeric slot's inclusive bounds.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Bounds {
+    pub low: u64,
+    pub high: u64,
+}
+
 /// Application-owned inputs for random tool stories. Empty menus generate no random tool calls.
 /// Menu storage and scripts jointly fit `Config::script_bytes` before admission.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Menu {
-    /// Whole argument bodies copied for randomly selected offered tools.
+    /// Whole argument bodies, with slot uses filled, for randomly selected offered tools.
     pub arguments: Box<[Box<[u8]>]>,
     /// Whole deliberate invalid inputs selected when the malformed roll wins.
     pub invalid: Box<[InvalidInput]>,
+    /// At most 8, declared in the order overlap is settled by.
+    pub slots: Box<[Slot]>,
 }
 
 /// One bounded block accepted from the provider stream or neutral fake API.
@@ -426,6 +519,8 @@ pub struct Turn {
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Line {
+    /// A stretch of drawn tool answers (skein/docs/design/testing/fakes/drawn-agent.md, 5).
+    Drawn { rounds: u32, tools: Box<[Box<[u8]>]> },
     /// Cuts the first `times` calls reaching this line; zero is refused.
     Cut { times: u32 },
     /// Binds a conversation value for later text and call arguments; emits no part.

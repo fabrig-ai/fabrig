@@ -694,7 +694,11 @@ fn input_pass(engine: &mut Engine, now: Time) {
     }
     if engine.begin {
         engine.begin = false;
-        engine.step(root::Event::Restart { pending: engine.store.pending_generation });
+        let pending = engine.store.pending_generation;
+        if pending && temper_protocol_store::introduced_branch_writes(&engine.store.host.component) {
+            engine.domain.convert_branch_writes_at_link();
+        }
+        engine.step(root::Event::Restart { pending });
     } else if !engine.start_runtime() {
         // Store answers and held start continuations advance through release.
         // Operational inputs wait until the Wires continuation has resumed.
@@ -1010,6 +1014,7 @@ pub(crate) fn answer(engine: &mut Engine) {
             | jig_protocol_store::Event::Read { .. }
             | jig_protocol_store::Event::Got { .. }
             | jig_protocol_store::Event::Turns { .. }
+            | jig_protocol_store::Event::WindowFailed { .. }
             | jig_protocol_store::Event::Unread { .. }
             | jig_protocol_store::Event::Corrupt { .. }) => {
                 if let jig_protocol_store::Event::Corrupt { owner } = &event

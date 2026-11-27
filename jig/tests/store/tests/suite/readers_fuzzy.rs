@@ -1,7 +1,8 @@
 //! Seeded pages against independently committed inputs (protocol/store/loads.md, 1, and protocol/store/testing.md, 1).
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::{
     self as core,
-    engine::{self, In, Out},
+    engine::{self, In, Out, Peer},
     reads,
 };
 use jig_domain_tasks as tasks;
@@ -261,14 +262,17 @@ fn joined_answer(
         In::Core(core::Event::Read { reply: skein_lib::ReplyTo::new(Token::new(900)), sign_in, read }),
         &mut output,
     );
-    let Some(Out::Core(core::Request::Held(held))) = output.pop() else { panic!("one load") };
+    let Some(Out::Held(Peer::Store(engine_store::Out::Load { load, range: engine_store::Range::Read(mut range) }))) =
+        output.pop()
+    else {
+        panic!("one load")
+    };
     assert!(output.is_empty());
-    let core::Held::ReadLoad { load, mut range } = *held else { panic!("retained read load: {held:?}") };
     range.rows = range.rows.min(rows);
     let mut events = world.request(jig_protocol_store::Request::Read { owner: load, range: *range }).into_iter();
     let Some(jig_protocol_store::Event::Read { result, .. }) = events.next() else { panic!("store read") };
     assert!(events.next().is_none());
-    engine::step(stand.domain.engine_mut(), &env, In::Core(core::Event::ReadLoaded { load, result }), &mut output);
+    engine::step(stand.domain.engine_mut(), &env, In::Store(engine_store::In::Loaded { load, result }), &mut output);
     let Some(Out::Core(core::Request::Held(held))) = output.pop() else { panic!("one answer") };
     assert!(output.is_empty());
     let core::Held::Read { answer, .. } = *held else { panic!("read answer") };

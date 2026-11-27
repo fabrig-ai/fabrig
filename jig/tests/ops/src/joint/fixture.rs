@@ -5,8 +5,6 @@ use crate::{
     conformance::{Config, Story},
 };
 use jig_client_kit::{Settings, World};
-use jig_domain_core as core;
-use jig_domain_tasks as tasks;
 use jig_ops_client_domain as client;
 use jig_ops_client_view as view;
 use jig_ops_domain as root;
@@ -120,14 +118,6 @@ pub fn watch_setup(front: &mut Joint) {
             b"checkout".as_slice().into(),
         ))]),
     }));
-    front.source(root::Event::Core(core::Event::Tasks(tasks::Event::Kinds {
-        connector: 2,
-        kinds: Box::new([tasks::Kind {
-            connector: 2,
-            kind: 1,
-            hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
-        }]),
-    })));
 }
 pub fn alert(front: &mut Joint) {
     let service = obs::Service::new(b"production".as_slice().into(), b"checkout".as_slice().into());

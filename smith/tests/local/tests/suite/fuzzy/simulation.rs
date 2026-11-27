@@ -2,9 +2,11 @@
 
 use smith_local_domain::ExitStatus;
 use smith_local_world::{Cut, StoreFault, World};
+use smith_session_world::shapes::{Reached, Sample};
 
 #[test]
 fn random_local_chats_settle_against_the_boundary_referee() {
+    let mut shapes = Sample::new("random_local_chats_settle_against_the_boundary_referee");
     for seed in 0_u64..64 {
         let mode = seed % 10;
         let mut world = if mode == 4 { World::tight_unsaved(seed + 100) } else { World::new(seed + 100) };
@@ -72,20 +74,25 @@ fn random_local_chats_settle_against_the_boundary_referee() {
                 resumed.line(b"Continue after crash");
                 assert!(!resumed.drive(crate::bounds::CHAT), "seed {seed}: next invocation resumes");
                 assert!(resumed.judged().0 > 0);
-                continue;
+                world = resumed;
             }
             _ => {
                 assert!(world.drive(crate::bounds::CHAT), "seed {seed}: the chat waits");
             }
         }
-        if mode != 5 {
+        if !matches!(mode, 5 | 8 | 9) {
             assert!(world.judged().0 > 0, "seed {seed}: the referee observed boundaries");
         }
+        let mut reached = Reached::new();
+        reached.turns(world.recorded_turns());
+        shapes.ran(&reached).expect("valid completion shapes");
     }
+    shapes.write();
 }
 
 #[test]
 fn drawn_people_settle_against_the_message_rules() {
+    let mut shapes = Sample::new("drawn_people_settle_against_the_message_rules");
     for seed in 0..64 {
         let mut world = World::new(seed + 2_000);
         world.person(smith_local_world::person::Person::drawn(seed));
@@ -94,5 +101,9 @@ fn drawn_people_settle_against_the_message_rules() {
         }
         assert!(world.drive_to_exit(crate::bounds::SCHEDULED_DRAIN), "seed {seed}: person closes and chat exits");
         assert_eq!(world.exit(), Some(ExitStatus::Accepted), "seed {seed}");
+        let mut reached = Reached::new();
+        reached.turns(world.recorded_turns());
+        shapes.ran(&reached).expect("valid completion shapes");
     }
+    shapes.write();
 }

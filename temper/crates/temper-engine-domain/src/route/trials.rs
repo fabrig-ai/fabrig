@@ -1,8 +1,9 @@
 //! Joins the trials child to the core; holds each running row's last wait (temper/docs/design/domain/trial.md, 4 and 5).
 use crate::{Domain, Limits, TryAnswer, boundary::Work};
 use alloc::boxed::Box;
-use jig_domain_accounts::Holder;
+use jig_domain_accounts::{Holder, State as AccountState};
 use jig_domain_core as core;
+use jig_domain_core::documents::{TaskRunWait, TaskSourceState, TaskWaitWhy};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, Token};
@@ -109,17 +110,29 @@ pub(crate) fn route(domain: &mut Domain, env: &Env<Limits>, event: trials::Event
 
 pub(crate) fn saved(domain: &mut Domain, env: &Env<Limits>, record: &core::Record) {
     let core::Record::Tasks(tasks::Stored::Activity(row)) = record else { return };
-    if !domain.trials.holds(row.task) {
-        return;
-    }
+    let Some(trial) = domain.trials.running_row(row.task) else { return };
     let event = match row.line {
         tasks::Line::Turn { .. } => trials::Event::Turn { task: row.task },
-        tasks::Line::RunEnded { end, .. } => match end {
-            tasks::EndKind::Finished => trials::Event::Finished { task: row.task },
-            tasks::EndKind::Failed { class: why, .. } => trials::Event::RunFailed { task: row.task, class: class(why) },
-            tasks::EndKind::Refused => trials::Event::RunFailed { task: row.task, class: trials::Class::Refused },
-            tasks::EndKind::Parked | tasks::EndKind::Cancelled | tasks::EndKind::Suspended { .. } => return,
-        },
+        tasks::Line::RunEnded { end, .. } => {
+            let core = domain.engine.core();
+            let took = match task_row(core, row.task) {
+                Some(task) => task.kept_account,
+                None => None,
+            };
+            let state = if end == tasks::EndKind::Refused {
+                core.accounts.account_state(took.unwrap_or(trial.account))
+            } else {
+                None
+            };
+            let Some(event) = run_ended(row.task, end, state) else { return };
+            if let trials::Event::RunLimited { .. } = event
+                && trial.took.is_none()
+                && took.is_some()
+            {
+                route(domain, env, trials::Event::Observed { task: row.task, past_starting: true, took });
+            }
+            event
+        }
         tasks::Line::Words { .. }
         | tasks::Line::Heard(_)
         | tasks::Line::Notified { .. }
@@ -134,6 +147,48 @@ pub(crate) fn saved(domain: &mut Domain, env: &Env<Limits>, record: &core::Recor
         | tasks::Line::Kept { .. } => return,
     };
     route(domain, env, event);
+}
+
+fn task_row(core: &core::Core, task: u64) -> Option<&tasks::TaskRecord> {
+    core.tasks.task(task)
+}
+
+fn run_ended(task: u64, end: tasks::EndKind, state: Option<AccountState>) -> Option<trials::Event> {
+    Some(match end {
+        tasks::EndKind::Finished => trials::Event::Finished { task },
+        tasks::EndKind::Failed { class: why, .. } => trials::Event::RunFailed { task, class: class(why) },
+        tasks::EndKind::Refused => match state {
+            Some(AccountState::Limited { until }) => trials::Event::RunLimited {
+                task,
+                reset: match until {
+                    Some(until) => Some(until.wall),
+                    None => None,
+                },
+            },
+            Some(
+                AccountState::Asking
+                | AccountState::Granted
+                | AccountState::Later { .. }
+                | AccountState::Refused
+                | AccountState::NeedsSignIn
+                | AccountState::Misconfigured
+                | AccountState::Unloaded { .. }
+                | AccountState::Cancelled
+                | AccountState::Closing
+                | AccountState::Moving,
+            )
+            | None => trials::Event::RunFailed { task, class: trials::Class::Refused },
+        },
+        tasks::EndKind::Parked | tasks::EndKind::Cancelled | tasks::EndKind::Suspended { .. } => return None,
+    })
+}
+
+fn wait_limited(task: u64, wait: Option<TaskRunWait>) -> Option<trials::Event> {
+    if let Some(TaskRunWait::Account { why: TaskWaitWhy::Source(TaskSourceState::Limited { until }), .. }) = wait {
+        Some(trials::Event::RunLimited { task, reset: until })
+    } else {
+        None
+    }
 }
 
 fn class(class: tasks::Class) -> trials::Class {
@@ -154,24 +209,21 @@ pub(crate) fn observe(domain: &mut Domain, env: &Env<Limits>) {
     let mut changed = false;
     for task in domain.trials.running() {
         let past_starting = domain.engine.core().run_past_starting(task);
-        let Some(held) = domain.engine.core().tasks.task(task) else { continue };
+        let Some(held) = task_row(domain.engine.core(), task) else { continue };
         let wait = core::documents::run_wait(domain.engine.core(), held);
-        if domain.trial_waits.get(&task).copied().flatten() != wait {
+        let limited = wait_limited(task, wait);
+        if limited.is_none() && domain.trial_waits.get(&task).copied().flatten() != wait {
             changed = true;
         }
-        waits.insert(task, wait).expect("one wait per running trial");
-        let person = match held.funder {
-            tasks::Funder::Pool { person, .. } => person,
-            tasks::Funder::Period { .. } | tasks::Funder::Task(_) | tasks::Funder::Recurring { .. } => continue,
-        };
         let took = held.kept_account;
-        // Running rows alone participate, and each field moves only forward.
-        for row in domain.trials.rows(person) {
-            if row.task == Some(task)
-                && ((row.step == trials::Step::Starts && past_starting) || (row.took.is_none() && took.is_some()))
-            {
-                moved.push(trials::Event::Observed { task, past_starting, took });
-            }
+        let row = domain.trials.running_row(task).expect("observing a running row");
+        if (row.step == trials::Step::Starts && past_starting) || (row.took.is_none() && took.is_some()) {
+            moved.push(trials::Event::Observed { task, past_starting, took });
+        }
+        if let Some(event) = limited {
+            moved.push(event);
+        } else {
+            waits.insert(task, wait).expect("one wait per running trial");
         }
     }
     domain.trial_waits = waits;
@@ -188,7 +240,7 @@ pub(crate) fn observe(domain: &mut Domain, env: &Env<Limits>) {
 pub(crate) fn restarted(domain: &mut Domain) {
     let mut tasks = Queue::uncapped();
     for candidate in domain.engine.core().tasks.view_tasks() {
-        let Some(row) = domain.engine.core().tasks.task(candidate.number) else { continue };
+        let Some(row) = task_row(domain.engine.core(), candidate.number) else { continue };
         if row.executor == (tasks::Executor::Agent { charter: TRIAL_CHARTER }) {
             tasks.push(row.number);
         }
@@ -208,6 +260,53 @@ fn cancel(domain: &mut Domain, task: u64) {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use jig_domain_accounts::Deadline;
+    use skein_lib::{Time, Wall};
+
+    #[test]
+    fn a_refused_run_is_limited_only_when_the_account_is_held_by_its_limit() {
+        let task = 7;
+        let wall = Wall::from_nanos(300);
+        let at = Time::from_nanos(14);
+        for until in [None, Some(Deadline { at, wall })] {
+            let state = Some(AccountState::Limited { until });
+            let reset = match until {
+                Some(until) => Some(until.wall),
+                None => None,
+            };
+            assert_eq!(
+                run_ended(task, tasks::EndKind::Refused, state),
+                Some(trials::Event::RunLimited { task, reset })
+            );
+            let end = tasks::EndKind::Failed { class: tasks::Class::Run, invalid_result: None };
+            assert_eq!(run_ended(task, end, state), Some(trials::Event::RunFailed { task, class: trials::Class::Run }));
+        }
+        for state in [None, Some(AccountState::Granted), Some(AccountState::Later { until: Deadline { at, wall } })] {
+            assert_eq!(
+                run_ended(task, tasks::EndKind::Refused, state),
+                Some(trials::Event::RunFailed { task, class: trials::Class::Refused }),
+            );
+        }
+    }
+
+    #[test]
+    fn a_wait_on_a_limited_source_ends_the_trial_without_waiting_for_reset() {
+        let task = 7;
+        for until in [None, Some(Wall::from_nanos(300))] {
+            let wait = |state| {
+                Some(TaskRunWait::Account { account: Some(11), source: Some(12), why: TaskWaitWhy::Source(state) })
+            };
+            assert_eq!(
+                wait_limited(task, wait(TaskSourceState::Limited { until })),
+                Some(trials::Event::RunLimited { task, reset: until }),
+            );
+            assert_eq!(wait_limited(task, wait(TaskSourceState::Later { until })), None);
+        }
+        assert_eq!(wait_limited(task, Some(TaskRunWait::Credential)), None);
+        assert_eq!(wait_limited(task, None), None);
+    }
+
     #[test]
     fn rows_fit_the_accounts_wire_and_delivery_room() {
         let mut limits = crate::tests::resume_fixture::limits();

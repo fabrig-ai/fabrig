@@ -1,4 +1,5 @@
 //! Stored settings and policy fits precede linking (domain/engine/restart.md, domain/engine/settings-store.md, 1).
+use crate::tests::new_core;
 use crate::{
     CoreRecord, HeldLimit, Limits, Restored,
     settings::{Changed, CharterVersion, Fault, Head, Record, Revision, Setting, Value},
@@ -14,7 +15,7 @@ fn loaded_with_charters(charters: u32) -> (Core, Env<Limits>) {
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
     env.limits.authority.projects = 2;
     env.limits.tasks.charters = charters;
-    let mut core = Core::new(config(401), &env.limits).expect("configured core");
+    let mut core = new_core(config(401), &env.limits).expect("configured core");
     {
         let _begin = core.start_begin(false, env.wall);
     }
@@ -455,7 +456,7 @@ fn stored_agent_needs_refuse_before_the_fleet_and_fit_at_the_bound() {
     limits.settings.versions = 1;
     limits.settings.alternatives = 63;
     limits.run_bytes = 65_536;
-    let writer = Core::new(configured(), &limits).unwrap();
+    let writer = new_core(configured(), &limits).unwrap();
     let mut rows = List::with_capacity(160);
     for row in settings_rows(&writer).into_boxed() {
         rows.push(row).unwrap();
@@ -480,7 +481,7 @@ fn stored_agent_needs_refuse_before_the_fleet_and_fit_at_the_bound() {
         })
         .unwrap();
     }
-    let mut measured = Core::new(configured(), &limits).unwrap();
+    let mut measured = new_core(configured(), &limits).unwrap();
     for row in &rows {
         if let Record::Changed { setting, changed } = row {
             measured.current.changes.insert(*setting, changed.clone()).unwrap();
@@ -493,7 +494,7 @@ fn stored_agent_needs_refuse_before_the_fleet_and_fit_at_the_bound() {
     for budget in [past.held - past.limit - 1, past.held - past.limit] {
         limits.fleet.needs_bytes = budget;
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-        let mut core = Core::new(configured(), &limits).unwrap();
+        let mut core = new_core(configured(), &limits).unwrap();
         let _begin = core.start_begin(false, env.wall);
         let mut header = core.counters.deployment();
         header.commits = 1;
@@ -586,13 +587,13 @@ fn small_allows_a_release_changing_every_charter_with_a_held_revision() {
     configured.defaults.charters = charters.into_boxed();
     let mut stored_configuration = config(401);
     stored_configuration.defaults.charters = configured.defaults.charters.clone();
-    let stored = Core::new(stored_configuration, &limits).expect("stored defaults");
+    let stored = new_core(stored_configuration, &limits).expect("stored defaults");
     let rows = settings_rows(&stored);
     for charter in &mut configured.defaults.charters {
         charter.policy.instructions = b"Released instructions".as_slice().into();
     }
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut core = Core::new(configured, &limits).expect("release defaults");
+    let mut core = new_core(configured, &limits).expect("release defaults");
     let _begin = core.start_begin(false, env.wall);
     for row in rows.into_boxed() {
         assert_eq!(restore(&mut core, &env, row), Restored::Live);

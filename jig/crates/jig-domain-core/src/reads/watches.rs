@@ -1,10 +1,10 @@
 //! Finished task and tree watches reuse the bounded durable task load (client/domain/contract/watches.md, 1.2).
+use crate::engine::store as engine_store;
 use crate::{
-    Core, Held, Limits, Request,
+    Core, Limits, Request,
     documents::{self, Document, Missing, Subject},
-    reads::{Answer, Destination, EndedValue, Loaded, Pending, Range, Row, Scope, rows},
+    reads::{Answer, Destination, EndedValue, Pending, Range, Row, Scope, rows},
 };
-use alloc::boxed::Box;
 use jig_domain_views as views;
 use skein_lib::{Env, Id, Queue, Token};
 
@@ -27,27 +27,27 @@ pub(crate) fn start_watch(core: &mut Core, env: &Env<Limits>, watcher: Token) ->
         tasks: None,
         parts: None,
     };
-    let Ok(load) = core.reads.insert(pending) else {
+    let Ok(load) = core.loads.insert_read(pending) else {
         return crate::routing::view::routes::retained_made(core, env, watcher, Err(views::End::Gone));
     };
     let mut out = Queue::uncapped();
-    out.push(Request::Held(Box::new(Held::ReadLoad { load: load.token(), range: Box::new(range) })));
+    out.push(crate::loads::read(load, range));
     out
 }
 
 pub(super) fn watch_loaded(
     core: &mut Core,
     env: &Env<Limits>,
-    load: Id<Pending>,
+    load: Token,
     watcher: Token,
-    result: Loaded,
+    result: engine_store::Answer,
 ) -> Queue<Request> {
-    let pending = core.reads.get_mut(load).expect("pending watch load");
+    let pending = core.loads.read_mut(load).expect("pending watch load");
     pending.destination = Destination::Done;
     let sign_in = pending.sign_in;
     let party = pending.party;
     let range = pending.range.clone();
-    core.reads.retire(load);
+    core.loads.retire(load);
     let document = if core.people.person(sign_in, env.now, env.wall) == Some(party) {
         from_store(core, env, watcher, &range, result)
     } else {
@@ -61,11 +61,11 @@ fn from_store(
     env: &Env<Limits>,
     watcher: Token,
     range: &Range,
-    result: Loaded,
+    result: engine_store::Answer,
 ) -> Result<Document, views::End> {
     let (raw, next) = match result {
-        Loaded::Page { rows, next } => (rows, next),
-        Loaded::TooLinked { .. } | Loaded::Busy | Loaded::Gone | Loaded::TurnProblem { .. } => {
+        engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) => (rows, next),
+        engine_store::Answer::Rows(_) | engine_store::Answer::Cut { .. } | engine_store::Answer::Failed(_) => {
             return Err(views::End::Gone);
         }
     };

@@ -1,7 +1,7 @@
 //! Home's launchpad (temper/docs/design/client/tui/pages/launchpad.md, 3–7).
 use super::{Binds, foot, front, text};
 use crate::{
-    Own, Tui, look,
+    Own, Row, Tui, look,
     words::{Word, Words},
 };
 use alloc::boxed::Box;
@@ -35,7 +35,7 @@ pub(crate) struct Launchpad {
     pub playground: bool,
     pub lines: List<Line>,
     pub left_off: List<LeftOff>,
-    pub selected: Option<u64>,
+    pub picked: Option<(Row, bool)>,
     pub needs: Box<[NeedRow]>,
     pub brief: List<Line>,
     pub team: List<TeamRow>,
@@ -55,11 +55,12 @@ pub(crate) struct LeftOff {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum LeftKind {
-    Chat { number: u32, session: bool },
+    Chat { session: bool },
     Goal,
 }
 #[derive(Debug)]
 pub(crate) struct NeedRow {
+    pub object: c::ObjectKey,
     pub mark: NeedMark,
     pub project: Box<[u8]>,
     pub words: Box<[u8]>,
@@ -67,10 +68,74 @@ pub(crate) struct NeedRow {
 }
 #[derive(Debug)]
 pub(crate) struct TeamRow {
+    pub role: Option<(u32, u64)>,
     pub name: Box<[u8]>,
     pub areas: Box<[u8]>,
     pub line: Box<[u8]>,
 }
+const START: [Own; 5] = [Own::Draft, Own::Change, Own::Talk, Own::Ask, Own::Web];
+
+impl Launchpad {
+    pub(crate) fn rows(&self) -> List<Row> {
+        let mut rows = List::with_capacity(17); // 3 left off, 5 needs, 4 roles, 5 Start.
+        for left in &self.left_off {
+            rows.push(left.row()).expect("left-off rows counted");
+        }
+        for need in self.needs.iter().take(5) {
+            rows.push(Row::Need { object: need.object }).expect("need rows counted");
+        }
+        for member in &self.team {
+            if let Some((project, task)) = member.role {
+                rows.push(Row::Role { project, task }).expect("role rows counted");
+            }
+        }
+        for command in START {
+            if self.starts(command) {
+                rows.push(Row::Start { command }).expect("Start rows counted");
+            }
+        }
+        rows
+    }
+
+    fn starts(&self, command: Own) -> bool {
+        self.project.is_some()
+            && match command {
+                Own::Draft => self.drafts,
+                Own::Change | Own::Ask => true,
+                Own::Talk => self.talk,
+                Own::Web => self.web,
+                Own::Brief | Own::Needs | Own::Open | Own::Tell | Own::Theme => false,
+            }
+    }
+
+    fn picks(&self, row: Row) -> bool {
+        match self.picked {
+            Some((picked, _)) => picked == row,
+            None => false,
+        }
+    }
+}
+
+impl LeftOff {
+    fn row(&self) -> Row {
+        match self.kind {
+            LeftKind::Chat { .. } => Row::Chat { task: self.task },
+            LeftKind::Goal => Row::Goal { task: self.task },
+        }
+    }
+}
+
+fn item(b: &mut Builder, picked: bool) {
+    b.open(Role::Item);
+    if picked {
+        b.style(look::PICKED);
+    }
+}
+
+fn ink(picked: bool, style: Style) -> Option<Style> {
+    if picked { None } else { Some(style) }
+}
+
 #[derive(Debug)]
 pub(crate) struct Line {
     pub role: Role,
@@ -146,7 +211,6 @@ fn left_off(root: &Domain, tui: &Tui, me: &c::Me, words: &Words, wall: Wall, tic
     }
     // Three passes retain the next row in activity order, with only one goal.
     let mut previous: Option<&c::TaskLine> = None;
-    let mut number = 0_u32;
     for _place in 0_u32..3 {
         let mut newest = None;
         let mut kind = LeftKind::Goal;
@@ -173,18 +237,11 @@ fn left_off(root: &Domain, tui: &Tui, me: &c::Me, words: &Words, wall: Wall, tic
                     None => true,
                 } {
                     newest = Some(row);
-                    kind = LeftKind::Chat {
-                        number: number.checked_add(1).expect("three chat numbers"),
-                        session: chats::drafting(me, row.project, &row.chip.executor),
-                    };
+                    kind = LeftKind::Chat { session: chats::drafting(me, row.project, &row.chip.executor) };
                 }
             }
         }
         let Some(row) = newest else { break };
-        match kind {
-            LeftKind::Chat { number: next, .. } => number = next,
-            LeftKind::Goal => {}
-        }
         let (at, next) = words.view().time(TimeForm::Dated, row.last_activity, wall);
         *tick = [*tick, next].into_iter().flatten().min();
         lines
@@ -259,7 +316,13 @@ fn home(part: &mut Launchpad, root: &Domain, project: u32, me: &c::Me, words: &W
             part.tick = [part.tick, tick].into_iter().flatten().min();
         }
         needs
-            .push(NeedRow { mark: prompt.mark, project, words: prompt.line.words, since: prompt.since })
+            .push(NeedRow {
+                object: prompt.object,
+                mark: prompt.mark,
+                project,
+                words: prompt.line.words,
+                since: prompt.since,
+            })
             .expect("five launchpad needs");
     }
     part.needs = needs.into_boxed();
@@ -290,6 +353,7 @@ fn team_rows(root: &Domain, project: u32, me: &c::Me, words: &Words, wall: Wall)
     let limit = if yours.is_empty() { 4 } else { 3 };
     for role in facts.roles.iter().take(limit) {
         rows.push(TeamRow {
+            role: Some((project, role.task)),
             name: copy_of(&role.name),
             areas: held_areas(areas.as_ref(), &team::Holder::Task(role.task), words),
             line: role.now.as_deref().unwrap_or_default().into(),
@@ -303,7 +367,8 @@ fn team_rows(root: &Domain, project: u32, me: &c::Me, words: &Words, wall: Wall)
                 line = shared::person_line(words.view(), person).unwrap_or_default();
             }
         }
-        rows.push(TeamRow { name: words.say(Word::You, &[]), areas: yours, line }).expect("person keeps fourth place");
+        rows.push(TeamRow { role: None, name: words.say(Word::You, &[]), areas: yours, line })
+            .expect("person keeps fourth place");
     }
     rows
 }
@@ -335,7 +400,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
         playground: front::playground(root, number),
         lines: List::with_capacity(4),
         left_off: List::with_capacity(3),
-        selected: tui.left_off(),
+        picked: tui.picked(),
         needs: Box::default(),
         brief: List::with_capacity(9),
         team: List::with_capacity(4),
@@ -435,6 +500,7 @@ fn row(
     tail: &[u8],
     hint: &[u8],
     mark: usize,
+    picked: bool,
     words: &Words,
 ) {
     let mut longest = 0;
@@ -455,12 +521,12 @@ fn row(
     let room = if hint.is_empty() { room } else { with_hint };
     let (line, end) = cut(&concat(&[title, tail]), room, words);
     let split = title.len().min(end);
-    span(b, &project, Some(look::NAME));
+    span(b, &project, ink(picked, look::NAME));
     span(b, line.get(..split).expect("title boundary"), None);
-    span(b, line.get(split..).expect("tail boundary"), Some(look::HINT));
+    span(b, line.get(split..).expect("tail boundary"), ink(picked, look::HINT));
     if !hint.is_empty() {
-        b.text(Run::Plain, &padded(b"", room.saturating_sub(columns(&line)).saturating_add(2)));
-        span(b, hint, Some(look::HINT));
+        span(b, &padded(b"", room.saturating_sub(columns(&line)).saturating_add(2)), None);
+        span(b, hint, ink(picked, look::HINT));
     }
 }
 fn draw_team(b: &mut Builder, part: &Launchpad, words: &Words) {
@@ -480,15 +546,17 @@ fn draw_team(b: &mut Builder, part: &Launchpad, words: &Words) {
     b.open(Role::List);
     b.style(look::LEFT_OFF);
     for row in &part.team {
-        b.open(Role::Item);
-        b.open(Role::Paragraph);
+        let picked = match row.role {
+            Some((project, task)) => part.picks(Row::Role { project, task }),
+            None => false,
+        };
+        item(b, picked);
         let name = padded(&row.name, names.saturating_add(3));
         let areas = if areas == 0 { Box::default() } else { padded(&row.areas, areas.saturating_add(3)) };
         let (line, end) = cut(&concat(&[&name, &areas, &row.line]), room, words);
         let split = name.len().min(end);
-        span(b, line.get(..split).expect("name boundary"), Some(look::NAME));
-        span(b, line.get(split..).expect("line boundary"), Some(look::HINT));
-        b.close();
+        span(b, line.get(..split).expect("name boundary"), ink(picked, look::NAME));
+        span(b, line.get(split..).expect("line boundary"), ink(picked, look::HINT));
         b.close();
     }
     b.close();
@@ -526,11 +594,8 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
         b.open(Role::List);
         b.style(look::LEFT_OFF);
         for left in &part.left_off {
-            b.open(Role::Item);
-            if part.selected == Some(left.task) {
-                b.style(look::PICKED);
-            }
-            b.open(Role::Paragraph);
+            let picked = part.picks(left.row());
+            item(b, picked);
             let kind = match left.kind {
                 LeftKind::Chat { session: true, .. } => Word::KindSession,
                 LeftKind::Chat { session: false, .. } => Word::KindChat,
@@ -543,12 +608,7 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
                 &words.say(Word::Separator, &[]),
                 &left.state,
             ]);
-            let hint = match left.kind {
-                LeftKind::Chat { number, .. } => words.say(Word::ChatNumber, &[Hole::Number(u64::from(number))]),
-                LeftKind::Goal => Box::default(),
-            };
-            row(b, part, &left.project, &left.title, &tail, &hint, 0, words);
-            b.close();
+            row(b, part, &left.project, &left.title, &tail, b"", 0, picked, words);
             b.close();
         }
         b.close();
@@ -557,9 +617,11 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
     if !part.needs.is_empty() {
         b.open(Role::Region);
         text(b, Role::Paragraph, &words.say(Word::NeedsYou, &[]), Some(look::HEAD));
+        b.open(Role::List);
+        b.style(look::LEFT_OFF);
         for (index, need) in part.needs.iter().take(5).enumerate() {
-            b.open(Role::Description);
-            b.open(Role::Paragraph);
+            let picked = part.picks(Row::Need { object: need.object });
+            item(b, picked);
             let marker = match need.mark {
                 NeedMark::Question => Word::Question,
                 NeedMark::Money => Word::MoneyNeed,
@@ -567,7 +629,7 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
                 NeedMark::Other => Word::OtherNeed,
             };
             text(b, Role::Text, &words.say(marker, &[]), Some(look::SIGNAL));
-            b.text(Run::Plain, b" ");
+            span(b, b" ", None);
             let hint = if index.checked_add(1) == Some(part.needs.len().min(5)) {
                 words.say(Word::WalksThem, &[])
             } else {
@@ -580,41 +642,42 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
                 }
                 None => Box::default(),
             };
-            row(b, part, &need.project, &need.words, &tail, &hint, 2, words);
-            b.close();
+            row(b, part, &need.project, &need.words, &tail, &hint, 2, picked, words);
             b.close();
         }
+        b.close();
         b.close();
     }
     draw_team(b, part, words);
     if let Some(project) = &part.project {
         b.open(Role::Region);
         text(b, Role::Paragraph, &words.say(Word::StartHead, &[]), Some(look::HEAD));
-        for (command, description) in [
-            (Own::Draft, words.say(Word::DraftStart, &[])),
-            (Own::Change, words.say(Word::ChangeStart, &[Hole::Name(copy_of(project))])),
-            (Own::Talk, words.say(Word::TalkStart, &[])),
-            (Own::Ask, words.say(Word::AskTemper, &[])),
-            (Own::Web, words.say(Word::WebCommand, &[])),
-        ] {
-            if (command == Own::Draft && !part.drafts)
-                || (command == Own::Talk && !part.talk)
-                || (command == Own::Web && !part.web)
-            {
+        b.open(Role::List);
+        b.style(look::LEFT_OFF);
+        for command in START {
+            if !part.starts(command) {
                 continue;
             }
-            b.open(Role::Description);
-            b.open(Role::Paragraph);
+            let description = match command {
+                Own::Draft => words.say(Word::DraftStart, &[]),
+                Own::Change => words.say(Word::ChangeStart, &[Hole::Name(copy_of(project))]),
+                Own::Talk => words.say(Word::TalkStart, &[]),
+                Own::Ask => words.say(Word::AskTemper, &[]),
+                Own::Web => words.say(Word::WebCommand, &[]),
+                Own::Brief | Own::Needs | Own::Open | Own::Tell | Own::Theme => continue,
+            };
+            let picked = part.picks(Row::Start { command });
+            item(b, picked);
             text(
                 b,
                 Role::Text,
                 &padded(command.name(), columns(Own::Change.name()).saturating_add(3)),
-                Some(look::NAME),
+                ink(picked, look::NAME),
             );
-            text(b, Role::Text, &description, Some(look::HINT));
-            b.close();
+            text(b, Role::Text, &description, ink(picked, look::HINT));
             b.close();
         }
+        b.close();
         b.close();
     }
     if part.notes.follows_end() {

@@ -38,6 +38,8 @@ pub enum Event {
     Keep { hold: Token },
     /// The answer to this hold's landed-dependency question; dropped unless waiting.
     DependencyLanded { hold: Token, landed: bool },
+    /// A push waits for an answer before it touches the remote.
+    PushAdmission { hold: Token, answer: Result<(), Box<[u8]>> },
     /// A clear supersedes check writes still in flight.
     Reds { hold: Token, action: crate::git::Reds },
     /// Prepare a workspace for `spec`, on behalf of `client`, which holds it
@@ -76,28 +78,70 @@ pub enum Event {
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
     /// Ask whether a starting head's dependency has landed.
-    DependencyLanded { client: Token, head: Commit },
+    DependencyLanded {
+        client: Token,
+        head: Commit,
+    },
+    AdmitPush {
+        client: Token,
+        hold: Token,
+        repository: u32,
+        branch: Box<[u8]>,
+        expected: Option<Commit>,
+        commit: Commit,
+    },
+    WithdrawAdmission {
+        client: Token,
+    },
     /// A check results file, from the repository at its spec index.
-    Results { client: Token, check: u64, repository: u32, bytes: Option<Box<[u8]>> },
+    Results {
+        client: Token,
+        check: u64,
+        repository: u32,
+        bytes: Option<Box<[u8]>>,
+    },
     /// Every writable repository has been read for this check.
-    ResultsEnd { client: Token, check: u64 },
+    ResultsEnd {
+        client: Token,
+        check: u64,
+    },
     /// The prepare for `client` was admitted, and `hold` names its hold from
     /// now on.
-    Held { client: Token, hold: Token },
+    Held {
+        client: Token,
+        hold: Token,
+    },
     /// The prepare for `client` has ended: exactly one per `Prepare`.
-    Prepared { client: Token, prepared: Prepared },
+    Prepared {
+        client: Token,
+        prepared: Prepared,
+    },
     /// The push for `client` has ended: exactly one per `Push`.
-    Pushed { client: Token, outcome: Outcome },
+    Pushed {
+        client: Token,
+        outcome: Outcome,
+    },
     /// The save for `client` has ended: exactly one per `Save`.
-    Saved { client: Token, outcome: Outcome },
+    Saved {
+        client: Token,
+        outcome: Outcome,
+    },
     /// The workspace `client` held is back in the cache: exactly one per
     /// `Release`, once nothing touches the workspace.
-    Released { client: Token },
+    Released {
+        client: Token,
+    },
     /// Ask io for `op`, giving up at `deadline`: io runs the race (5.3).
-    Io { owner: Token, op: Op, deadline: Time },
+    Io {
+        owner: Token,
+        op: Op,
+        deadline: Time,
+    },
     /// Abandon the `Io` in flight for `owner`. Its terminal event still comes:
     /// `Done` with `Cancelled`, or whichever outcome won the race.
-    Cancel { owner: Token },
+    Cancel {
+        owner: Token,
+    },
 }
 
 /// What a workspace is prepared for.
@@ -118,6 +162,8 @@ pub struct Spec {
 pub struct Repository {
     /// This task's saved-work branch, under this repository's prefix.
     pub save: Option<Box<[u8]>>,
+    /// Every push must wait for the engine to admit it.
+    pub admit: bool,
     /// Its directory in the workspace, beside the others': one path
     /// component, so neither empty, `.` nor `..`, without `/` or NUL, and not
     /// `.git` in any case.
@@ -228,6 +274,8 @@ pub enum Prepared {
 pub struct Conflicts {
     pub repository: u32,
     pub files: Box<[Box<[u8]>]>,
+    /// There are more conflicted paths than the retained prefix.
+    pub cut: bool,
 }
 
 /// Why a prepare failed.
@@ -313,6 +361,8 @@ pub enum Landing {
     /// side, or it ran out of time, and it did not land: trying again may
     /// succeed.
     Failed,
+    /// The engine did not admit the push.
+    Unadmitted { words: Box<[u8]> },
     /// The forge refused the push.
     Refused,
     /// Nothing to push: the tree is as the repository started (or, for a

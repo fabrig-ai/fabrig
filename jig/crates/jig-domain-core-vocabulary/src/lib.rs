@@ -77,7 +77,7 @@ pub use crate::{
     vocabulary::{
         Ask, Assignment, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsRefusal, Limits, LinkNow,
         NamedAction, Now, PayloadRefusal, PlannedDocument, ProposalChoice, PublicIndexLimits, Request, RetentionLimits,
-        StepRefusal, Timer, ToolKind, TranscriptLoad, WatchRefusal, Write,
+        StepRefusal, Timer, ToolKind, WatchRefusal, Write,
     },
     waits::{
         AtBound, Bound, Figures, Nearest, ReportRefusal, Reported, ReportedBound, Thing, Unbounded, Wait, WaitKind,

@@ -15,6 +15,7 @@ extern crate alloc;
 
 mod boundary;
 mod domain;
+mod hooks;
 mod limits;
 #[cfg(test)]
 mod tests;
@@ -22,4 +23,5 @@ mod tests;
 pub use boundary::{End, Event, Exit, Kind, Request, Spec};
 pub use domain::Domain;
 pub use domain::step;
+pub use hooks::{hook_failure, hook_link_target, hook_path};
 pub use limits::{Invalid, Limits, valid};

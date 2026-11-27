@@ -28,10 +28,10 @@ fn held_pull() -> (Domain, Name) {
     row.pending = None;
     row.effect = change::EffectResult::None;
     row.pull = Some(1);
-    row.drift = Some(change::Hold::PullClosed);
+    row.drift = Some(change::Cause::PullClosed);
     row.change.state = change::State::Held {
         was: Box::new(change::State::Checking { head: fixtures::HEAD }),
-        why: change::Hold::PullClosed,
+        hold: change::Hold::new(change::Cause::PullClosed, Wall::EPOCH),
     };
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
@@ -79,7 +79,10 @@ fn a_late_watched_closed_pull_cannot_hold_a_released_change() {
     assert_eq!(op, Op::Read(Read::Pull { number: 1, ci: true }));
     outputs(
         &mut d,
-        Event::ReleaseChange { task: fixtures::CHANGE, release: Some(TaskRelease { revision: 1, at: env().wall }) },
+        Event::ReleaseChange {
+            task: fixtures::CHANGE,
+            release: Some(TaskRelease { revision: 1, at: env().wall, measure: false }),
+        },
     );
     let mut closed = fixtures::open_pull();
     closed.state = api::State::Closed;

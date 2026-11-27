@@ -31,7 +31,6 @@ pub(crate) fn control(
         }
     }
     let token = to.into_token();
-    assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
     let token = core.fly_call(token, RoutedCall::Control { key, target, revised: false });
     work.push(Work::Event(Event::Tasks(tasks::Event::Cancel {
         reply_to: ReplyTo::new(token),

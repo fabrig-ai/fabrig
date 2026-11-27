@@ -75,6 +75,16 @@ pub enum Event {
         check: u64,
         answer: Option<wire::Answer>,
     },
+    AdmitAsk {
+        client: Token,
+        cookie: u64,
+        bytes: Box<[u8]>,
+    },
+    AdmitAnswer {
+        client: Token,
+        cookie: u64,
+        answer: Option<wire::Answer>,
+    },
     /// Terminal of one source command, correlated by its request owner.
     SourceAnswered {
         owner: Token,
@@ -232,6 +242,16 @@ pub enum Request {
     RedsAnswer {
         owner: Token,
         check: u64,
+        bytes: Box<[u8]>,
+    },
+    AdmitAsk {
+        client: Token,
+        cookie: u64,
+        ask: wire::Ask,
+    },
+    AdmitAnswer {
+        client: Token,
+        cookie: u64,
         bytes: Box<[u8]>,
     },
     /// Read an endpoint without taking a run slot or workspace (jig's domain/hosts/README.md, 5.1).

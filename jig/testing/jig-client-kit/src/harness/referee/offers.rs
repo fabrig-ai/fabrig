@@ -145,6 +145,7 @@ impl Offers {
             | Ask::Take { .. }
             | Ask::HandBack { .. }
             | Ask::Decide { .. }
+            | Ask::Measure { .. }
             | Ask::Release { .. }
             | Ask::Amend { .. }
             | Ask::Stop { .. }

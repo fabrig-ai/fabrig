@@ -50,7 +50,7 @@ impl Stand {
                 root::Event::Core(core::Event::NamedAction { to, key, action })
             }
             protocol::Decoded::Delegate(batch) if call.writes => {
-                root::Event::Core(core::Event::DelegateValidated { to, key, batch, stubs: Box::new([]) })
+                root::Event::Core(core::Event::Delegate { to, key, batch })
             }
             protocol::Decoded::Settings { .. } => {
                 return problem(to, call, protocol::Problem { field: b"set", why: protocol::Why::Range });

@@ -13,7 +13,16 @@ pub(crate) struct Settle {
     read_base: Option<Commit>,
     open: Option<(Wall, Wall)>,
     pub(crate) branch: crate::domain::BranchRead,
+    pub(crate) branch_push: Option<Push>,
+    pub(crate) base_push: Option<Push>,
     pub(crate) contains_head: Option<HeadContainment>,
+}
+
+/// The actor of the latest named push, useful only when the read finds its commit.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub(crate) struct Push {
+    pub(crate) head: Commit,
+    pub(crate) actor: u64,
 }
 
 /// One reverse ancestry answer per unchanged head and tip (domain/forge/change/README.md, 2).
@@ -31,6 +40,8 @@ impl Settle {
         read_base: None,
         open: None,
         branch: crate::domain::BranchRead::NEW,
+        branch_push: None,
+        base_push: None,
         contains_head: None,
     };
 
@@ -68,15 +79,25 @@ pub(crate) fn hinted(d: &mut Domain, env: &Env<Limits>, hint: &skein_forge::api:
         if row.frozen() {
             continue;
         }
+        let mut settle = d.settling.get(task).copied().unwrap_or(Settle::NEW);
         match &hint.change {
-            skein_forge::api::Change::Branch(branch) | skein_forge::api::Change::BranchMoved { branch, .. } => {
+            skein_forge::api::Change::Branch(branch) => {
                 if *row.branch != **branch && *row.base != **branch {
+                    continue;
+                }
+            }
+            skein_forge::api::Change::BranchMoved { branch, head, actor } => {
+                let push = Push { head: *head, actor: *actor };
+                if *branch == row.branch {
+                    settle.branch_push = Some(push);
+                } else if *branch == row.base {
+                    settle.base_push = Some(push);
+                } else {
                     continue;
                 }
             }
             skein_forge::api::Change::Item(_) | skein_forge::api::Change::Commit(_) => continue,
         }
-        let mut settle = d.settling.get(task).copied().unwrap_or(Settle::NEW);
         settle.since = Some(env.wall);
         d.settling.insert(*task, settle).expect("one settle row per change");
     }
@@ -150,6 +171,7 @@ pub(crate) fn cap(
         | change::Decision::CancelMovedDelegate { .. }
         | change::Decision::EndHold
         | change::Decision::RepairEnded { .. }
+        | change::Decision::ReadMerge { .. }
         | change::Decision::Effect(_)
         | change::Decision::Ready
         | change::Decision::QueueRepair
@@ -157,7 +179,8 @@ pub(crate) fn cap(
         | change::Decision::Cancel
         | change::Decision::Failed
         | change::Decision::NoChange
-        | change::Decision::Hold(_) => decision,
+        | change::Decision::Hold(_)
+        | change::Decision::ReplayJudgement(_) => decision,
     }
 }
 

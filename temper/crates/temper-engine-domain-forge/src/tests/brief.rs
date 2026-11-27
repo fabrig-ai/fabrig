@@ -1337,7 +1337,7 @@ fn kept_landing_failure(d: &mut Domain) {
         previous_asks: Box::new([]),
         entries: Box::new([]),
     };
-    outputs(d, Event::Restore { record: Stored::Landing(row) });
+    assert!(d.landing.remember(row).is_none());
 }
 
 fn kept_candidate_failure(d: &mut Domain) {
@@ -2522,8 +2522,9 @@ fn landing_failure_pins_the_candidate_or_the_kept_rounds_run() {
     kept_landing_failure(&mut d);
     assert_eq!(d.landing_failure(fixtures::CHANGE, legacy), Some(expected.clone()));
     let blamed = change::Repair::LandingAt { gate: 0, candidate: [8; 32], below: None };
-    d.landing.rows.get_mut(&61).unwrap().landing.members[0].left =
-        Some(Leave::Blamed { gate: 0, run: 7, red: [8; 32], green: [6; 32] });
+    let mut row = d.landing(61).unwrap().clone();
+    row.landing.members[0].left = Some(Leave::Blamed { gate: 0, run: 7, red: [8; 32], green: [6; 32] });
+    assert!(d.landing.remember(row).is_some());
     assert_eq!(d.landing_failure(fixtures::CHANGE, blamed), Some(expected.clone()));
     landing_routes::erase_landing(&mut d, 61);
     assert_eq!(d.landing_failure(fixtures::CHANGE, blamed), None);

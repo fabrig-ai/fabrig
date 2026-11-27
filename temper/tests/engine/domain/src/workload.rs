@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_fake_forge_domain::{self as fake, api as raw};
+use skein_fake_forge_domain as fake;
 use skein_lib::{Duration, ReplyTo, Token};
 use skein_world::{
     faults::{FaultLedger, Kind},
@@ -1067,7 +1067,7 @@ impl Driver {
         let branch = run.workspace.repositories.first().and_then(|repo| repo.push.clone()).expect("producer branch");
         if self.world.fake.branch(b"org/repo", &branch).is_none() {
             let base = self.world.fake.branch(b"org/repo", &change_row.base).expect("base branch");
-            self.world.external(1, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base }));
+            self.world.run_push(run, &branch, base, 1);
         }
         for (index, file) in change.files.iter().enumerate() {
             let text = if change.red_once && !is_repair && index == 0 {
@@ -1075,16 +1075,7 @@ impl Driver {
             } else {
                 file.text.as_bytes()
             };
-            fake::advance(
-                &mut self.world.fake,
-                &self.world.fake_env,
-                b"org/repo",
-                &branch,
-                file.path.as_bytes(),
-                text,
-                1,
-            )
-            .expect("producer pushed file");
+            self.world.run_push_edit(run, &branch, file.path.as_bytes(), text, 1);
         }
         self.finish(
             run,
