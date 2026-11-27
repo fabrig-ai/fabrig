@@ -11,6 +11,7 @@ use crate::tests::{CONFIG, query, says, script, user};
 use crate::{Config, Domain, Event, Request, fire, limits, step};
 
 mod capture;
+mod linked;
 
 fn slot(name: &[u8], before: &[u8], after: &[u8], unissued: &[u8]) -> Slot {
     Slot {
@@ -19,6 +20,8 @@ fn slot(name: &[u8], before: &[u8], after: &[u8], unissued: &[u8]) -> Slot {
         after: copy_of(after),
         unissued: copy_of(unissued),
         weight: 0,
+        with: Box::new([]),
+        foreign: 0,
         numeric: None,
     }
 }
@@ -316,9 +319,9 @@ fn malformed_slot_names_are_refused() {
 fn slot_markers_and_never_issued_values_reject_lengths_outside_1_to_256() {
     for invalid in [b"".as_slice(), &[b'x'; 257]] {
         refused(b"{}", Box::new([Slot { before: copy_of(invalid), ..path() }]));
-        refused(b"{}", Box::new([Slot { after: copy_of(invalid), ..path() }]));
         refused(b"{}", Box::new([Slot { unissued: copy_of(invalid), ..path() }]));
     }
+    refused(b"{}", Box::new([Slot { after: copy_of(&[b'>'; 257]), ..path() }]));
 }
 
 #[test]
