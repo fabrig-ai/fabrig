@@ -25,12 +25,11 @@ fn a_parked_producers_existing_change_waits_for_its_resumed_terminal_to_commit()
     let tasks::Party::Task(change) = live_task(&world, producer.task).requester else {
         panic!("producer belongs to its change")
     };
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    let pushed = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"existing edit", 1)
-        .expect("worker saved and delivered its edit");
+    let pushed = world.worker_commit(1, b"file", b"existing edit");
+    world.run_push(&producer, &branch, pushed, 1);
     let tag = forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository);
     let saved_branch = format!("temper/{}/s{}", live_task(&world, producer.task).root, producer.task).into_bytes();
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: saved_branch.clone().into(), commit: pushed }));
+    world.run_push(&producer, &saved_branch, pushed, 2);
     let timer = world.protocol.call(
         Token::new(7),
         producer.task,
@@ -682,8 +681,8 @@ fn push_change(world: &mut World, producer: &engine::Assignment, repository: &[u
     else {
         panic!("main commit")
     };
-    world.external_at(repository, 1, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base }));
-    fake::advance(&mut world.fake, &world.fake_env, repository, &branch, b"file", b"fixed", 1).expect("push change");
+    let head = world.worker_commit(base, b"file", b"fixed");
+    world.run_push(producer, &branch, head, 1);
 }
 
 fn finish_producer(world: &mut World, producer: &engine::Assignment, repository: api::Repository) {

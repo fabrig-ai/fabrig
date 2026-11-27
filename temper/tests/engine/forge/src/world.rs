@@ -144,8 +144,10 @@ pub mod restarts;
 mod store_check;
 mod tasks;
 
+type BranchReply = Result<skein_forge::api::Commit, skein_forge::api::Error>;
+
 struct ReadScript {
-    branch_error: Option<(Box<[u8]>, skein_forge::api::Error)>,
+    branch_read: Option<(Box<[u8]>, BranchReply)>,
     ancestry: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,
     comparisons_too_large: bool,
     files_excess: Option<skein_forge::api::Excess>,
@@ -180,6 +182,7 @@ pub struct World {
     history_held: Vec<(u64, top::Event)>,
     seen: List<top::Request>,
     observe_entry_saves: bool,
+    write_records: Option<Vec<top::Request>>,
     observe_waits: bool,
     serial: u64,
     generation: u64,
@@ -203,6 +206,7 @@ pub struct World {
     writes: u32,
     lose_writes: bool,
     timeout_merges: u32,
+    timeout_next_write: bool,
     dispatch_latency: Option<Duration>,
     lose_rerun_answer: bool,
     unavailable: Option<(Wall, Wall)>,
@@ -737,7 +741,12 @@ impl World {
     }
 
     pub fn script_branch_error(&mut self, branch: &[u8], error: Option<skein_forge::api::Error>) {
-        self.read_script.branch_error = error.map(|error| (branch.into(), error));
+        self.read_script.branch_read = error.map(|error| (branch.into(), Err(error)));
+    }
+
+    /// Keep serving an earlier branch view until the script is cleared, without changing the fake forge's ref.
+    pub fn script_branch_tip(&mut self, branch: &[u8], tip: Option<u64>) {
+        self.read_script.branch_read = tip.map(|tip| (branch.into(), Ok(translate::commit(tip))));
     }
 
     /// Script each ancestry range's terminal result until the script is cleared.
@@ -919,6 +928,7 @@ impl World {
             history_held: Vec::new(),
             seen: List::with_capacity(256),
             observe_entry_saves: false,
+            write_records: None,
             observe_waits: false,
             serial: 0,
             generation: 1,
@@ -939,6 +949,7 @@ impl World {
             writes: 0,
             lose_writes: false,
             timeout_merges: 0,
+            timeout_next_write: false,
             dispatch_latency: None,
             lose_rerun_answer: false,
             unavailable: None,
@@ -952,7 +963,7 @@ impl World {
             pull_snapshot: None,
             held_compares: None,
             read_script: ReadScript {
-                branch_error: None,
+                branch_read: None,
                 ancestry: None,
                 comparisons_too_large: false,
                 files_excess: None,
@@ -1621,6 +1632,101 @@ impl World {
         forge::advance(&mut self.forge, &env, b"org/repo", branch, path, content, actor).expect("scripted push");
         self.record_wrong_candidate(self.branch(branch));
     }
+    /// The scripted root admits a hosted push before giving the forge its lease.
+    fn admit_attempt(&mut self, name: &top::Name, (task, attempt): (u64, u64), expected: Option<u64>, commit: u64) {
+        self.top
+            .admit_push(
+                &self.env,
+                name,
+                expected.map(translate::commit),
+                translate::commit(commit),
+                top::Sender::Attempt { task, attempt },
+                &mut self.top_out,
+            )
+            .expect("scripted write admitted");
+        self.take_top();
+    }
+
+    /// Unlike an outside move, this delivery belongs to a scripted attempt.
+    pub fn push_attempt(
+        &mut self,
+        name: &top::Name,
+        attempt: (u64, u64),
+        branch: &[u8],
+        path: &[u8],
+        content: &[u8],
+    ) -> skein_forge::api::Commit {
+        let push = self.lease_attempt_push(name, attempt, branch, path, content);
+        self.send_attempt_push(push)
+    }
+
+    /// Deliver a producer's first push through a lease on the absent branch.
+    pub fn push_new_attempt(
+        &mut self,
+        name: &top::Name,
+        attempt: (u64, u64),
+        branch: &[u8],
+    ) -> skein_forge::api::Commit {
+        let push = self.lease_new_attempt_push(name, attempt, branch, b"main", b"file", b"change");
+        self.send_attempt_push(push)
+    }
+
+    fn send_attempt_push(&mut self, push: raw::Git) -> skein_forge::api::Commit {
+        let (commit, answer) = match &push {
+            raw::Git::Push { commit, .. } => (*commit, raw::Answer::Pushed(raw::Pushed::Pushed)),
+            raw::Git::PushNew { commit, .. } => (*commit, raw::Answer::PushNew { existing: None }),
+            _ => unreachable!("a leased push"),
+        };
+        assert_eq!(self.external(raw::Op::Git(push), 1), answer);
+        self.record_wrong_candidate(commit);
+        translate::commit(commit)
+    }
+
+    /// Admit the worker's lease but let the workload choose when it reaches the forge.
+    pub fn lease_attempt_push(
+        &mut self,
+        name: &top::Name,
+        attempt: (u64, u64),
+        branch: &[u8],
+        path: &[u8],
+        content: &[u8],
+    ) -> raw::Git {
+        let expected = self.branch(branch);
+        let commit = self.attempt_commit(expected, path, content);
+        self.admit_attempt(name, attempt, Some(expected), commit);
+        raw::Git::Push { branch: branch.into(), commit, expected: Some(expected) }
+    }
+
+    /// A producer's first push leases the branch while it is absent.
+    pub fn lease_new_attempt_push(
+        &mut self,
+        name: &top::Name,
+        attempt: (u64, u64),
+        branch: &[u8],
+        base: &[u8],
+        path: &[u8],
+        content: &[u8],
+    ) -> raw::Git {
+        let commit = self.attempt_commit(self.branch(base), path, content);
+        self.admit_attempt(name, attempt, None, commit);
+        raw::Git::PushNew { branch: branch.into(), commit }
+    }
+
+    fn attempt_commit(&mut self, parent: u64, path: &[u8], content: &[u8]) -> u64 {
+        let mut files: Vec<_> = self
+            .forge
+            .object(parent)
+            .expect("branch tip")
+            .tree
+            .iter()
+            .filter(|(key, _)| key.as_ref() != path)
+            .map(|(path, content)| raw::File { path: path.clone(), content: content.clone() })
+            .collect();
+        files.push(raw::File { path: path.into(), content: content.into() });
+        forge::commit_tree(&mut self.forge, &self.forge_env.limits, parent, None, files.into_boxed_slice(), b"delivery")
+            .expect("scripted delivery commit")
+    }
+
     pub fn status(&mut self, branch: &[u8], check: raw::Check) {
         self.external(
             raw::Op::Write(raw::Write::Status {
@@ -1687,6 +1793,30 @@ impl World {
         translate::commit(merge)
     }
     pub fn resolve(&mut self, branch: &[u8], content: &[u8]) {
+        let (head, merged) = self.resolution(branch, content);
+        assert_eq!(
+            self.external(
+                raw::Op::Git(raw::Git::Push { branch: branch.into(), commit: merged, expected: Some(head) }),
+                1
+            ),
+            raw::Answer::Pushed(raw::Pushed::Pushed)
+        );
+    }
+
+    /// A resolver delivers a merge of the branch and the base through its attempt's lease.
+    pub fn resolve_attempt(
+        &mut self,
+        name: &top::Name,
+        attempt: (u64, u64),
+        branch: &[u8],
+        content: &[u8],
+    ) -> skein_forge::api::Commit {
+        let (head, merged) = self.resolution(branch, content);
+        self.admit_attempt(name, attempt, Some(head), merged);
+        self.send_attempt_push(raw::Git::Push { branch: branch.into(), commit: merged, expected: Some(head) })
+    }
+
+    fn resolution(&mut self, branch: &[u8], content: &[u8]) -> (u64, u64) {
         let head = self.branch(branch);
         let base = self.branch(b"main");
         let merged = forge::merge_commit(
@@ -1698,13 +1828,7 @@ impl World {
             b"Resolve conflict",
         )
         .expect("fixture merge commit");
-        assert_eq!(
-            self.external(
-                raw::Op::Git(raw::Git::Push { branch: Box::from(branch), commit: merged, expected: Some(head) }),
-                1,
-            ),
-            raw::Answer::Pushed(raw::Pushed::Pushed)
-        );
+        (head, merged)
     }
     /// The scripted worker delivers a clean prepare on a new landing branch.
     pub fn prepare_landing(&mut self, task: u64, squash: bool) -> u64 {
@@ -1766,6 +1890,16 @@ impl World {
             };
             let adopted = self.top.repository(provider).expect("train repository");
             let repository = [&adopted.owner[..], b"/", &adopted.name[..]].concat();
+            if let Some(job) = &row.job
+                && job.step.outcome.is_none()
+            {
+                let name = top::Name {
+                    forge: provider.forge,
+                    repository: provider.repository,
+                    what: top::What::Branch(member.branch.split(|byte| *byte == b'/').map(Box::from).collect()),
+                };
+                self.admit_attempt(&name, (job.step.task, u64::from(job.step.attempt)), None, candidate);
+            }
             let answer = self.external_repository(
                 &repository,
                 raw::Op::Git(raw::Git::PushNew { branch: member.branch.clone(), commit: candidate }),
@@ -1985,6 +2119,10 @@ impl World {
                 self.timeout_merges -= 1;
                 env.limits.timeouts = 1000;
             }
+            if self.timeout_next_write && matches!(&event, forge::Event::Call { op: raw::Op::Write(_), .. }) {
+                self.timeout_next_write = false;
+                env.limits.timeouts = 1000;
+            }
             self.sweep_call(&event, &mut env.limits);
             if self.restart_scripts.is_some() {
                 self.restart_call_config(&event, &mut env);
@@ -2134,6 +2272,15 @@ impl World {
                     }
                 }
                 top::Request::Save { record, release, read_afresh } => {
+                    if let Some(records) = &mut self.write_records
+                        && matches!(record, top::Stored::Writes(_))
+                    {
+                        records.push(top::Request::Save {
+                            record: record.clone(),
+                            release,
+                            read_afresh: read_afresh.clone(),
+                        });
+                    }
                     if self.observe_entry_saves && matches!(record, top::Stored::Entry { .. }) {
                         self.seen
                             .push(top::Request::Save { record: record.clone(), release, read_afresh })
@@ -2149,6 +2296,11 @@ impl World {
                     }
                 }
                 top::Request::Erase { key } => {
+                    if let Some(records) = &mut self.write_records
+                        && matches!(key, top::Key::Writes(_))
+                    {
+                        records.push(top::Request::Erase { key: key.clone() });
+                    }
                     let removed = self.erase_record(&key);
                     wrote = true;
                     // Last rows can be replaced while loaded; release also erases an unwatched client repository.
@@ -2365,9 +2517,16 @@ impl World {
     ) -> Option<Result<skein_forge::api::Answer, skein_forge::api::Error>> {
         match op {
             skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch })
-                if self.read_script.branch_error.as_ref().is_some_and(|(named, _)| named == branch) =>
+                if self.read_script.branch_read.as_ref().is_some_and(|(named, _)| named == branch) =>
             {
-                Some(Err(self.read_script.branch_error.as_ref().expect("scripted branch error").1))
+                Some(
+                    self.read_script
+                        .branch_read
+                        .as_ref()
+                        .expect("scripted branch view")
+                        .1
+                        .map(skein_forge::api::Answer::Commit),
+                )
             }
             skein_forge::api::Op::Read(skein_forge::api::Read::PullFiles { page, .. })
                 if self.read_script.files_excess.is_some()
@@ -2581,6 +2740,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::LandingLog(row) => top::Key::LandingLog { repository: row.repository },
         top::Stored::Milestone(row) => top::Key::Milestone(row.task),
         top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
+        top::Stored::Writes(row) => top::Key::Writes(row.name.clone()),
     }
 }
 

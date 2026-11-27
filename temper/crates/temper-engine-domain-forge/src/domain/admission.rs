@@ -318,8 +318,7 @@ pub(super) fn kept(
     match result {
         Ok(()) => {
             d.watch_due = None;
-            writers(d, env);
-            heads(d, env);
+            super::writes::kept::watches(d, env);
         }
         Err(Error::Busy) => {
             let until = env.now.saturating_add(Duration::from_secs(1));
@@ -344,119 +343,6 @@ pub(super) fn kept(
             );
         }
     }
-}
-
-/// A branch can acquire its first watch after its push or fresh reread.
-/// Seed only an empty keep: an established baseline must still detect drift.
-fn heads(d: &mut Domain, env: &Env<Limits>) {
-    for (name, head) in &d.heads {
-        let Some(hold) = d.holds.get(name) else { continue };
-        if hold.drift.is_some() {
-            continue;
-        }
-        let Some(resource) = to_client(name, &env.limits) else { continue };
-        let Some(cached) = d.client.cached(&resource) else { continue };
-        if cached.tip.is_none() {
-            skein_forge_client::step(
-                &mut d.client,
-                &child_env(env),
-                skein_forge_client::Event::Pushed { resource, commit: head.commit },
-                &mut d.client_out,
-            );
-        }
-    }
-}
-
-pub(super) fn writers(d: &mut Domain, env: &Env<Limits>) {
-    for (name, _) in &d.holds {
-        if super::branch_written(d, name, None)
-            && let Some(resource) = to_client(name, &env.limits)
-        {
-            skein_forge_client::step(
-                &mut d.client,
-                &child_env(env),
-                skein_forge_client::Event::Writer { resource, taken: true },
-                &mut d.client_out,
-            );
-        }
-    }
-    let mut entries = List::with_capacity(env.limits.entries);
-    for (_, row) in &d.entries {
-        if !row.held
-            && let skein_forge_client::Condition::Merge { .. } = &row.entry.effect.condition
-        {
-            entries.push(row.entry.clone()).expect("bounded outbox");
-        }
-    }
-    for entry in &entries {
-        merge_writer(d, env, entry, true);
-    }
-    let mut updates = List::with_capacity(env.limits.entries);
-    for (_, row) in &d.entries {
-        if !row.held
-            && let skein_forge_client::Condition::Update { .. } = row.entry.effect.condition
-        {
-            updates.push(row.entry.clone()).expect("bounded outbox");
-        }
-    }
-    for entry in &updates {
-        update_writer(d, env, entry, true);
-    }
-    let mut recovering = List::with_capacity(env.limits.changes);
-    for (_, row) in &d.changes {
-        if row.pending.is_none()
-            && row.effect == temper_engine_domain_forge_change::EffectResult::None
-            && row.effect_account.is_some()
-            && super::matches_updating(&row.change.state)
-        {
-            recovering.push(row.clone()).expect("bounded changes");
-        }
-    }
-    for row in &recovering {
-        change_writer(d, env, row, true);
-    }
-}
-
-/// An update owns forward moves by temper, not moves by another identity or rewrites.
-pub(super) fn update_writer(d: &mut Domain, env: &Env<Limits>, entry: &skein_forge_client::Entry, taken: bool) {
-    let skein_forge_client::Condition::Update { .. } = entry.effect.condition else { return };
-    let Some(row) = d.changes.get(&entry.task).cloned() else { return };
-    if taken && row.pending != Some(entry.number) {
-        return;
-    }
-    let recovering = row.effect == temper_engine_domain_forge_change::EffectResult::None
-        && super::matches_updating(&row.change.state);
-    change_writer(d, env, &row, taken || recovering);
-}
-
-/// A let-go update keeps deciding whose forward head it read until containment settles.
-pub(super) fn change_writer(d: &mut Domain, env: &Env<Limits>, row: &ChangeRow, taken: bool) {
-    let resource = Resource { repository: row.repository, what: skein_forge_client::What::Branch(row.branch.clone()) };
-    let Some(name) = super::from_client(&resource, &env.limits) else { return };
-    let taken = taken || super::branch_written(d, &name, None);
-    skein_forge_client::step(
-        &mut d.client,
-        &child_env(env),
-        skein_forge_client::Event::Writer { resource, taken },
-        &mut d.client_out,
-    );
-}
-
-/// Keep a merge's held base visible as written until its outcome confirms the head.
-pub(super) fn merge_writer(d: &mut Domain, env: &Env<Limits>, entry: &skein_forge_client::Entry, taken: bool) {
-    let skein_forge_client::Condition::Merge { base } = &entry.effect.condition else { return };
-    let resource = Resource { repository: entry.repository, what: skein_forge_client::What::Branch(base.clone()) };
-    let Some(name) = super::from_client(&resource, &env.limits) else { return };
-    if !d.holds.contains_key(&name) {
-        return;
-    }
-    let taken = taken || super::branch_written(d, &name, Some(entry.number));
-    skein_forge_client::step(
-        &mut d.client,
-        &child_env(env),
-        skein_forge_client::Event::Writer { resource, taken },
-        &mut d.client_out,
-    );
 }
 
 pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {

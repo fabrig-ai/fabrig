@@ -1,5 +1,8 @@
 //! Releases and run preparation read before judging restored facts (forge/catching-up.md, 4).
 use super::*;
+
+#[path = "catching_up_releases/conversion.rs"]
+mod conversion;
 use crate::domain::{fresh_reads_in, from_client};
 use skein_forge::api::{Answer, Commit, Error, Op, Read, State, Write};
 use temper_engine_domain_forge_change as change;
@@ -348,158 +351,117 @@ fn design_workspace_waits_for_fresh_owned_goal_branch() {
     assert_eq!(d.workspace_item(seed(GOAL, None)).unwrap().start, items::Start::Base(G.into()));
 }
 
+fn restored_push(state: WriteState) -> Stored {
+    Stored::Writes(Writes {
+        name: name(C),
+        head: Some(fixtures::HEAD),
+        next: 2,
+        entries: Box::new([Written {
+            order: 1,
+            operation: writes::Operation::Push { before: Some(fixtures::HEAD), after: PUSH },
+            sender: Sender::Attempt { task: fixtures::CHANGE, attempt: 1 },
+            state,
+        }]),
+    })
+}
+
 #[test]
-fn a_reported_push_compares_its_existing_beside_during_catch_up() {
+fn a_reported_push_during_catch_up_neither_sets_the_head_nor_holds_the_branch() {
     let mut held = hold(C, fixtures::CHANGE);
-    held.beside = Some(HeadBeside { head: fixtures::HEAD, waiting: None });
     held.writer = Some(Writer::Run { task: fixtures::CHANGE, attempt: 1 });
-    let mut d = restored(C, Box::new([Stored::Hold(held)]));
+    let mut d = restored(C, Box::new([Stored::Hold(held), restored_push(WriteState::Admitted)]));
     begin(&mut d);
     outputs(&mut d, Event::Answered { task: fixtures::CHANGE, attempt: 1, pushed: Box::new([(name(C), PUSH, true)]) });
-    assert_eq!(d.hold(&name(C)).unwrap().beside, Some(HeadBeside { head: fixtures::HEAD, waiting: Some(PUSH) }));
     assert_eq!(d.branch_head(&name(C)), Some(fixtures::HEAD));
-    let (call, op) = fixtures::next_call(&mut d);
-    assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: PUSH, page: 1 }));
-    fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-    assert_eq!(d.branch_head(&name(C)), Some(fixtures::HEAD), "the fresh design head already contains the late push");
-    assert_eq!(d.hold(&name(C)).unwrap().beside, None);
+    assert!(d.hold(&name(C)).unwrap().writer.is_none());
     finish_reads(&mut d, Some(fixtures::HEAD));
-}
-
-#[test]
-fn restored_written_comparison_can_confirm_before_the_other_fresh_reads() {
-    let mut held = hold(C, fixtures::CHANGE);
-    held.beside = Some(HeadBeside { head: fixtures::HEAD, waiting: Some(PUSH) });
-    let mut d = restored(C, Box::new([Stored::Hold(held)]));
-    begin(&mut d);
-    let (call, op) = fixtures::next_call(&mut d);
-    assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: PUSH, page: 1 }));
-    let done = fixtures::answer(
-        &mut d,
-        call,
-        Ok(Answer::Commits {
-            commits: Box::new([skein_forge::api::CommitMessage {
-                id: PUSH,
-                parents: Box::new([fixtures::HEAD]),
-                message: Box::new([]),
-            }]),
-            more: false,
-        }),
-    );
-    assert_eq!(d.branch_head(&name(C)), Some(PUSH), "its own comparison confirms the reported push: {done:?}");
-    assert!(!fresh_reads_in(&d), "the client's restart branch read is still unanswered");
-    finish_reads(&mut d, Some(PUSH));
-}
-
-#[test]
-fn reported_push_compares_with_the_restored_head() {
-    let mut d = restored(C, Box::new([Stored::Hold(hold(C, fixtures::CHANGE))]));
-    begin(&mut d);
-    let mut out = Queue::uncapped();
-    domain::record_written_head(&mut d, &env(), resource(C), name(C), PUSH, fixtures::CHANGE, &mut out);
+    assert!(d.hold(&name(C)).unwrap().drift.is_none());
     assert_eq!(d.branch_head(&name(C)), Some(fixtures::HEAD));
-    assert_eq!(d.hold(&name(C)).unwrap().beside, Some(HeadBeside { head: fixtures::HEAD, waiting: Some(PUSH) }));
-    let (call, op) = fixtures::next_call(&mut d);
-    assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: PUSH, page: 1 }));
-    let done = fixtures::answer(
-        &mut d,
-        call,
-        Ok(Answer::Commits {
-            commits: Box::new([skein_forge::api::CommitMessage {
-                id: PUSH,
-                parents: Box::new([fixtures::HEAD]),
-                message: Box::new([]),
-            }]),
-            more: false,
-        }),
-    );
-    assert_eq!(d.branch_head(&name(C)), Some(PUSH));
-    let mut saved = false;
-    for request in &done {
-        if let Request::Save { record: Stored::BranchHead(head), .. } = request {
-            saved |= head.commit == PUSH && head.owned;
-        }
-    }
-    assert!(saved);
-    finish_reads(&mut d, Some(PUSH));
 }
 
 #[test]
-fn a_reported_push_comparison_survives_another_restart() {
-    let mut held = hold(C, fixtures::CHANGE);
-    held.writer = Some(Writer::Run { task: fixtures::CHANGE, attempt: 1 });
-    let mut d = restored(C, Box::new([Stored::Hold(held)]));
+fn restored_push_explains_the_first_fresh_read_before_any_readback() {
+    let mut d = restored(C, Box::new([Stored::Hold(hold(C, fixtures::CHANGE)), restored_push(WriteState::Uncertain)]));
     begin(&mut d);
-    let reported = outputs(
-        &mut d,
-        Event::Answered { task: fixtures::CHANGE, attempt: 1, pushed: Box::new([(name(C), PUSH, true)]) },
-    );
-    let mut saved = None;
-    for request in &reported {
-        if let Request::Save { record: Stored::Hold(hold), .. } = request {
-            saved = Some(hold.clone());
-        }
-    }
-    let saved = saved.expect("the waiting push is durable before any read answers");
-    assert_eq!(saved.beside, Some(HeadBeside { head: fixtures::HEAD, waiting: Some(PUSH) }));
-    assert_eq!(d.branch_head(&name(C)), Some(fixtures::HEAD));
-    let mut d = restored(C, Box::new([Stored::Hold(saved)]));
-    begin(&mut d);
+    assert_eq!(d.nearest_write(&name(C)).unwrap().state, WriteState::Uncertain);
     let (call, op) = fixtures::next_call(&mut d);
-    assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: PUSH, page: 1 }));
-    let (fresh_call, fresh_op) = fixtures::next_call(&mut d);
-    assert_eq!(fresh_op, Op::Read(Read::Branch { branch: C.into() }));
-    let observed = fixtures::answer(&mut d, fresh_call, Ok(Answer::Commit(PUSH)));
-    assert_eq!(d.hold(&name(C)).unwrap().drift, None, "the pending comparison still writes the branch: {observed:?}");
-    let confirmed = fixtures::answer(
-        &mut d,
-        call,
-        Ok(Answer::Commits {
-            commits: Box::new([skein_forge::api::CommitMessage {
-                id: PUSH,
-                parents: Box::new([fixtures::HEAD]),
-                message: Box::new([]),
-            }]),
-            more: false,
-        }),
-    );
-    assert_eq!(d.branch_head(&name(C)), Some(PUSH));
+    assert_eq!(op, Op::Read(Read::Branch { branch: C.into() }));
+    let requests = fixtures::answer(&mut d, call, Ok(Answer::Commit(PUSH)));
+    assert_eq!(d.nearest_write(&name(C)).unwrap().state, WriteState::Confirmed);
     let mut pushed = false;
-    for request in &confirmed {
+    for request in &requests {
         if let Request::Save { record: Stored::Client(skein_forge_client::Stored::Live(row)), .. } = request {
             pushed |= row.watch.resource == resource(C) && row.pushed == Some(PUSH);
         }
     }
-    assert!(pushed, "the comparison sends Pushed to the client: {confirmed:?}");
-    let fresh = finish_reads(&mut d, Some(PUSH));
-    for request in &fresh {
-        assert!(!matches!(request, Request::Drift { .. }), "{fresh:?}");
-    }
-    assert_eq!(d.hold(&name(C)).unwrap().drift, None);
+    assert!(pushed, "the record's new head reaches the client");
+    assert!(d.hold(&name(C)).unwrap().drift.is_none());
+    finish_reads(&mut d, Some(PUSH));
 }
 
 #[test]
-fn a_push_without_a_held_recorded_head_is_taken_at_once() {
+fn a_reported_older_push_does_not_rewind_the_restored_head() {
+    let mut hold = hold(C, fixtures::CHANGE);
+    hold.writer = Some(Writer::Run { task: fixtures::CHANGE, attempt: 1 });
+    let Stored::Writes(mut writes) = restored_push(WriteState::Confirmed) else { panic!("write record") };
+    writes.head = Some(PUSH);
+    let head = Stored::BranchHead(BranchHead { name: name(C), commit: PUSH, owned: true });
+    let mut d = restored(C, Box::new([Stored::Hold(hold), Stored::Writes(writes), head]));
+    begin(&mut d);
+    outputs(
+        &mut d,
+        Event::Answered { task: fixtures::CHANGE, attempt: 1, pushed: Box::new([(name(C), fixtures::HEAD, true)]) },
+    );
+    assert!(d.hold(&name(C)).unwrap().writer.is_none());
+    finish_reads(&mut d, Some(fixtures::HEAD));
+    assert_eq!(d.branch_head(&name(C)), Some(PUSH));
+    assert_eq!(d.test_expected(&resource(C)), Some(PUSH));
+    assert!(d.hold(&name(C)).unwrap().drift.is_none());
+}
+
+#[test]
+fn a_lost_push_remains_owed_through_another_restart() {
+    let mut d = restored(C, Box::new([Stored::Hold(hold(C, fixtures::CHANGE)), restored_push(WriteState::Admitted)]));
+    begin(&mut d);
+    let requests = outputs(&mut d, Event::Finished { task: fixtures::CHANGE, attempt: 1, lost: true });
+    let mut saved = None;
+    for request in requests {
+        if let Request::Save { record: Stored::Writes(row), .. } = request {
+            saved = Some(row);
+        }
+    }
+    let saved = saved.expect("the uncertain write is stored");
+    assert_eq!(saved.entries[0].state, WriteState::Uncertain);
+    let mut d = restored(C, Box::new([Stored::Hold(hold(C, fixtures::CHANGE)), Stored::Writes(saved)]));
+    begin(&mut d);
+    finish_reads(&mut d, Some(fixtures::HEAD));
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: C.into() }));
+    fixtures::answer(&mut d, call, Ok(Answer::Commit(PUSH)));
+    assert_eq!(d.branch_head(&name(C)), Some(PUSH));
+    assert_eq!(d.nearest_write(&name(C)).unwrap().state, WriteState::Confirmed);
+    assert!(d.hold(&name(C)).unwrap().drift.is_none());
+}
+
+#[test]
+fn a_push_on_a_branch_without_a_previous_head_creates_its_baseline() {
     for has_hold in [false, true] {
         let mut d = restored(C, Box::new([]));
+        d.heads.remove(&name(C));
         if has_hold {
             outputs(&mut d, Event::Restore { record: Stored::Hold(hold(C, fixtures::CHANGE)) });
-            d.heads.remove(&name(C));
         }
         begin(&mut d);
-        domain::record_written_head(
-            &mut d,
-            &env(),
-            resource(C),
-            name(C),
-            PUSH,
-            fixtures::CHANGE,
-            &mut Queue::uncapped(),
-        );
-        assert_eq!(d.branch_head(&name(C)), Some(PUSH));
-        if let Some(hold) = d.hold(&name(C)) {
-            assert_eq!(hold.beside, None);
-        }
+        let mut out = Queue::uncapped();
+        d.admit(
+            &name(C),
+            writes::Operation::Push { before: None, after: PUSH },
+            Sender::Attempt { task: fixtures::CHANGE, attempt: 1 },
+            &mut out,
+        )
+        .unwrap();
+        assert_eq!(d.observe(&name(C), Some(PUSH), Actor::Unknown, &mut out), Seen::Explained { order: 1 });
+        assert_eq!(d.writes.get(&name(C)).unwrap().head, Some(PUSH));
     }
 }
 
@@ -573,21 +535,36 @@ fn rebase_restart_reads_the_branch_instead_of_the_cached_tip() {
             Stored::Hold(hold(C, fixtures::CHANGE)),
             Stored::Change(Box::new(row)),
             Stored::Entry { entry, held: false },
+            Stored::Writes(Writes {
+                name: name(C),
+                head: Some(fixtures::HEAD),
+                next: 2,
+                entries: Box::new([Written {
+                    order: 1,
+                    operation: writes::Operation::Update {
+                        pull: 1,
+                        before: fixtures::HEAD,
+                        base: fixtures::BASE,
+                        after: None,
+                    },
+                    sender: Sender::Entry { task: fixtures::CHANGE, entry: ENTRY },
+                    state: WriteState::Sent,
+                }]),
+            }),
         ]),
     );
     // Only the branch read may explain a rewritten tip before the entry's outcome.
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::CatchUp);
     assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, None);
-    let (call, op) = fixtures::next_call(&mut d);
-    assert_eq!(op, Op::Read(Read::Branch { branch: C.into() }));
-    fixtures::answer(&mut d, call, Ok(Answer::Commit(PUSH)));
     finish_reads(&mut d, Some(PUSH));
+    assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, None);
     // An unattributed rewrite waits for its entry's exact outcome, then judges this read's head.
-    domain::change_outcome(
+    domain::scripted_outcome(
         &mut d,
         &env(),
         ENTRY,
+        fixtures::CHANGE,
         skein_forge_client::Outcome::Failed(Error::Refused),
         &mut Queue::uncapped(),
     );
@@ -599,6 +576,9 @@ fn landing_criteria_wait_until_rebuild_and_the_fresh_reads() {
     use temper_engine_domain_forge_landing as policy;
     let change = fixtures::opening_row();
     let evidence = ChangeEvidence {
+        behind: None,
+        readback_owed: false,
+        nearest_write: None,
         touched: Touched::UNKNOWN,
         size: None,
         prior: change.change.clone(),

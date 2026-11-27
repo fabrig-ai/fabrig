@@ -92,6 +92,7 @@ fn assign(world: &mut World, head: u64, base: u64) -> Result<(), String> {
         items: Ok(wire::Workspace {
             rerun: None,
             repositories: Box::new([wire::Repository {
+                admit: false,
                 tag: 0,
                 name: b"fabrig".as_slice().into(),
                 remote: REMOTE.into(),

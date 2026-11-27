@@ -65,14 +65,7 @@ fn fixture(base: &[u8]) -> (Domain, Env<Limits>) {
     domain.engine.core_mut().proofs = skein_lib::Map::with_capacity(8);
     let template = domain.engine.core().tasks.task(context.task).unwrap().clone();
     let ledger = *domain.engine.core().tasks.funding(template.funder).unwrap();
-    domain.engine.core_mut().tasks = tasks::Domain::new(
-        &env.limits.tasks,
-        tasks::Kept { revisions: env.limits.settings.revisions, versions: env.limits.settings.versions },
-        7,
-        0,
-        Box::new([]),
-        Box::new([]),
-    );
+    super::reset_tasks_for_restore(&mut domain, &env, 7);
     for (number, parent, depth) in [
         (7, None, 0),
         (8, None, 0),
@@ -634,15 +627,14 @@ fn reports_without_a_passed_current_run_and_matching_changes_goal_keep_no_passes
             results.verdict = crate::wire::Verdict::Refused;
         }
         if task == 23 {
-            tasks::step(
-                &mut domain.engine.core_mut().tasks,
-                &env.with(env.limits.tasks),
+            task_event(
+                &mut domain,
+                &env,
                 tasks::Event::Cancel {
                     reply_to: skein_lib::ReplyTo::new(Token::new(200)),
                     by: tasks::Party::Deployment { project: 1 },
                     operation: tasks::Cancel { task, reason: b"ended".as_slice().into(), grace: None, message: None },
                 },
-                &mut Queue::uncapped(),
             );
             assert!(match domain.engine.core().tasks.task(task).unwrap().phase {
                 tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,

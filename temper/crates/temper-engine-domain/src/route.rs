@@ -382,6 +382,13 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             close(domain, env, decision, out);
             return;
         }
+        Event::Worker(crate::WorkerInput::Admit { asking, tag, branch, expected, commit }) => {
+            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+            forge_route::push_admission::ask(domain, env, &mut decision, asking, tag, &branch, expected, commit);
+            route_into(domain, env, &mut decision);
+            close(domain, env, decision, out);
+            return;
+        }
         Event::Worker(crate::WorkerInput::CheckResults { run, attempt, results }) => {
             domain.work.push(Work::CheckResults { task: run.raw(), attempt: attempt.raw(), results });
         }
@@ -655,7 +662,14 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::ForgeRestored => {
                 settings_parts::restored(domain);
                 let mut output = Queue::uncapped();
-                let links = domain.forge.start_links(&domain.engine.core().tasks, &environment_forge(env), &mut output);
+                let convert_branch_writes = domain.convert_branch_writes;
+                domain.convert_branch_writes = false;
+                let links = domain.forge.start_links(
+                    &domain.engine.core().tasks,
+                    &environment_forge(env),
+                    convert_branch_writes,
+                    &mut output,
+                );
                 forge_route::outputs(domain, env, decision, &mut output);
                 if let Err(failure) = links {
                     let stop = match failure {
@@ -663,6 +677,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                         forge::StartLink::Fit(failure) => {
                             crate::StartStop::ForgeFit { phase: domain.start_phase(), failure }
                         }
+                        forge::StartLink::BranchWrites(name, count) => crate::StartStop::BranchWrites(name, count),
                         forge::StartLink::Link(link) => {
                             crate::StartStop::ForgeLink { phase: domain.start_phase(), link }
                         }

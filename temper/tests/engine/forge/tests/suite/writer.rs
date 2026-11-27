@@ -90,24 +90,28 @@ fn take_goal_at_tip(world: &mut World, task: u64, entry: u64, branch: &[u8], tip
 #[test]
 fn a_goal_started_after_a_landing_reads_the_current_default_tip() {
     const BRANCHES: u32 = 5; // main, the change, and three goals.
+    const OUTSIDE_WRITER: u64 = 2;
     let mut world = World::with_branches(292, BRANCHES);
     world.adopt();
     world.slow_calls(Duration::ZERO);
     let main = branch_name(b"main");
     world.event(top::Event::Names { task: CHANGE, resources: Box::new([main.clone()]) });
     world.run_for(0);
-    let old = top::BranchHead { name: main.clone(), commit: translate::commit(world.branch(b"main")), owned: false };
-    let tip = land_into_main(&mut world);
-    assert_ne!(old.commit, tip);
+    let before = translate::commit(world.branch(b"main"));
+    let landed = land_into_main(&mut world);
+    assert_ne!(before, landed);
+    // Settlement saves the merge tip; an unobserved outside push can still leave it behind the forge.
+    let saved = top::Stored::BranchHead(top::BranchHead { name: main.clone(), commit: landed, owned: false });
+    world.push_as(b"main", b"outside", b"pushed after the merge", OUTSIDE_WRITER);
+    let tip = translate::commit(world.branch(b"main"));
+    assert_ne!(landed, tip);
+    let main_head = top::Key::BranchHead(main);
     for (task, entry, branch) in [(27, 2, b"temper/27/g27".as_slice()), (29, 3, b"temper/29/g29")] {
-        assert_eq!(
-            world.stored().get(&top::Key::BranchHead(main.clone())),
-            Some(&top::Stored::BranchHead(old.clone()))
-        );
+        assert_eq!(world.stored().get(&main_head), Some(&saved));
         take_goal_at_tip(&mut world, task, entry, branch, tip);
     }
     world.restart();
-    assert_eq!(world.stored().get(&top::Key::BranchHead(main)), Some(&top::Stored::BranchHead(old)));
+    assert_eq!(world.stored().get(&main_head), Some(&saved));
     take_goal_at_tip(&mut world, 31, 4, b"temper/31/g31", tip);
 }
 

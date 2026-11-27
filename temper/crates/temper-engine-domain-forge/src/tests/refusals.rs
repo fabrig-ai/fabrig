@@ -1,5 +1,6 @@
 //! Configured limits refuse at the step, retaining the requested usage.
 use super::*;
+pub(super) use fixtures::adopted_domain;
 use temper_engine_domain_forge_change as change;
 
 const TASK: u64 = 7;
@@ -8,15 +9,6 @@ fn send(d: &mut Domain, env: &Env<Limits>, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     step(d, env, event, &mut out);
     out
-}
-
-pub(super) fn adopted_domain() -> Domain {
-    let mut d = fixtures::connected_domain();
-    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
-    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::CatchUp);
-
-    d
 }
 
 fn contains(out: &Queue<Request>, expected: &Request) -> bool {

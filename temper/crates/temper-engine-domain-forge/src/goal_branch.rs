@@ -334,9 +334,7 @@ fn read_result(
             if super::heads::record(d, env, head.clone(), concerning, out) {
                 emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
             }
-            if let Some(resource) = to_client(&pending.name, &env.limits) {
-                child(d, env, skein_forge_client::Event::Pushed { resource, commit }, out);
-            }
+            super::writes::accept_head(d, &pending.name, commit, out);
             wake(d, &pending.name, out);
             released(d, pending.task, out);
         }
@@ -442,19 +440,6 @@ fn make(
         released(d, pending.task, out);
         return;
     }
-    if !crate::room::check(d, &env.limits, Some(crate::room::Waiter::Making(owner))) {
-        // A passed-over waiter may still have the old turn's read in flight.
-        // It keeps its place, including the pass, until its task is released.
-        let Some(pending) = d.makings.remove(&owner) else {
-            unreachable!("making {owner:?} for task {task} keeps its row when waiting again for room");
-        };
-        wait_for_room(d, env, owner, pending, out);
-        return;
-    }
-    let pending = take_making(d, owner, task);
-    let hold = d.holds.get_mut(&pending.name).expect("making's hold");
-    hold.writer = Some(Writer::Entry(number));
-    save_hold(out, hold.clone());
     let entry = Entry {
         number,
         task: pending.task,
@@ -465,6 +450,25 @@ fn make(
         failures: 0,
         queued: false,
     };
+    let plan = super::writes::outbox::plan(d, &env.limits, &entry, None, super::writes::outbox::Pin::NONE)
+        .expect("the making's branch name has been admitted");
+    let waiter = crate::room::Waiter::Making(owner);
+    let blocked = plan.blocked(d);
+    if !crate::room::check(d, &env.limits, Some(waiter)) || blocked.is_some() {
+        // A passed-over waiter may still have the old turn's read in flight.
+        // Keep its place and its pass until its task is released.
+        crate::room::block_write(d, waiter, blocked);
+        let Some(pending) = d.makings.remove(&owner) else {
+            unreachable!("making {owner:?} for task {task} keeps its row when waiting again for room");
+        };
+        wait_for_room(d, env, owner, pending, out);
+        return;
+    }
+    let pending = take_making(d, owner, task);
+    let hold = d.holds.get_mut(&pending.name).expect("making's hold");
+    hold.writer = Some(Writer::Entry(number));
+    save_hold(out, hold.clone());
+    plan.admit(d, &entry, out);
     keep_entry(d, entry, Some(number), out);
 }
 
@@ -743,10 +747,14 @@ fn released(d: &Domain, task: u64, out: &mut Queue<Request>) {
 
 pub(super) fn restart(d: &mut Domain, env: &Env<Limits>, since: Wall, out: &mut Queue<Request>) {
     let mut names = List::with_capacity(env.limits.holds);
-    for (name, hold) in &d.holds {
-        // A design writer's confirmed branch keeps its drift baseline until
-        // that attempt's fresh read (domain/forge/branches.md, 3).
-        if is_goal(d, name) && hold.design_writers.is_empty() {
+    for (name, _) in &d.holds {
+        // A made branch's fresh keep judges against its restored record.
+        // Only a branch still without its first recorded head needs making.
+        let recorded = match d.writes.get(name) {
+            Some(row) => row.head.is_some(),
+            None => false,
+        };
+        if is_goal(d, name) && !recorded {
             names.push(name.clone()).expect("bounded holds");
         }
     }

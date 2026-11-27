@@ -227,6 +227,7 @@ fn change_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
         settling: false,
+        behind_wait: None,
         room: None,
         source: None,
         kept: None,

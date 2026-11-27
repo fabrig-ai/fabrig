@@ -55,6 +55,12 @@ cleanup wait the same way, in the same line.
 - **Room frees** as an entry leaves the outbox, by its write's outcome,
   its withdrawal or its settling as not made, and as a reservation ends
   without an entry.
+- **A branch's record of temper's writes** has room of its own, 32
+  entries (`writes.md`, 6): a write on a branch or a pull request whose
+  record has none takes no room here either, and waits in the line as a
+  write finding no free room does, its wait naming that record and its
+  unsettled entries' senders, until an entry of it settles; an agent's
+  call meeting it is answered at once, as section 5 says.
 - **An entry lives as long as its write, no longer:** it leaves at its
   write's outcome even where its writer goes on following what the
   write made, as a landing follows its gate's run; the writer keeps what

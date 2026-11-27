@@ -102,12 +102,7 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
             status: change::Status::Passed,
         }]);
         row.change.last_head = Some(super::SHA1);
-        forge::step(
-            &mut domain.forge,
-            &crate::translate::environment_forge(&env),
-            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-            &mut Queue::uncapped(),
-        );
+        super::restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Change(Box::new(row)));
     }
     super::turn_project(&mut domain);
     assert!(domain.forge.project_batch(1, 3));

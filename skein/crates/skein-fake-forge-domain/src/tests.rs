@@ -1147,6 +1147,59 @@ fn a_protected_branch_is_not_created() {
 // Pull requests, CI, merges and protection.
 
 #[test]
+fn an_outside_reset_keeps_the_pull_open_on_the_same_branch() {
+    let mut h = Harness::new(calm());
+    let old = h.commit(FIRST, &[(b"src", b"one")]);
+    let tip = h.commit(old, &[(b"src", b"two")]);
+    h.push(ENGINE, b"work", tip).expect("pushed");
+    h.open(b"work").expect("opened");
+    h.observations();
+    crate::lag(&mut h.domain, crate::Lag { chance: 1000, min: Duration::from_secs(2), max: Duration::from_secs(2) });
+    crate::reset_branch(&mut h.domain, &h.env, &repository(), b"work", old, PERSON).expect("reset");
+    assert_eq!(h.branch(b"work"), Some(old));
+    assert_eq!(h.pull(1).commit, tip, "the pull still projects the old view");
+    h.env.now = h.env.now.saturating_add(Duration::from_secs(2));
+    h.ok(PERSON, read(Read::Labels));
+    let pull = h.pull(1);
+    assert_eq!((pull.state, pull.commit), (State::Open, old));
+    assert_eq!(
+        h.observations().as_slice().first(),
+        Some(&Observation::Moved {
+            repository: repository(),
+            branch: copy_of(b"work"),
+            from: Some(tip),
+            to: old,
+            by: PERSON,
+        })
+    );
+}
+
+#[test]
+fn an_outside_retarget_keeps_the_number_and_head_of_the_open_pull() {
+    let mut h = Harness::new(calm());
+    let work = h.commit(FIRST, &[(b"src", b"one")]);
+    let base = h.commit(FIRST, &[(b"base", b"new base")]);
+    h.push(ENGINE, b"work", work).expect("pushed");
+    h.push(ENGINE, b"other", base).expect("pushed");
+    h.open(b"work").expect("opened");
+    h.observations();
+    crate::retarget_pull(&mut h.domain, &h.env, &repository(), 1, b"other", PERSON).expect("retargeted");
+    let pull = h.pull(1);
+    assert_eq!((pull.number, pull.state, &*pull.head, pull.commit), (1, State::Open, b"work".as_slice(), work));
+    assert_eq!((&*pull.base, pull.base_commit), (b"other".as_slice(), Some(base)));
+    assert_eq!(
+        h.observations().as_slice(),
+        [Observation::Retargeted {
+            repository: repository(),
+            number: 1,
+            from: copy_of(MAIN),
+            to: copy_of(b"other"),
+            by: PERSON,
+        }]
+    );
+}
+
+#[test]
 fn a_pull_request_follows_its_head_branch_while_it_is_open() {
     let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"src", b"one")]);

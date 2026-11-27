@@ -37,7 +37,7 @@ pub(crate) fn workstream(key: &[u8]) -> u64 {
 }
 
 fn repository(repository: wire::Repository) -> checkout::Repository {
-    let wire::Repository { tag: _, name, remote, git, start, access, identity, account, save } = repository;
+    let wire::Repository { tag: _, name, remote, git, start, access, identity, account, save, admit } = repository;
     let (push, expected, landing, delivered, pin, prefixes): (_, _, _, _, _, Box<[Box<[u8]>]>) = match access {
         wire::Access::ReadOnly => (None, None, None, None, None, Box::new([])),
         wire::Access::Prefixes { branches } => (None, None, None, None, None, branches),
@@ -58,6 +58,7 @@ fn repository(repository: wire::Repository) -> checkout::Repository {
         }
     };
     checkout::Repository {
+        admit,
         save,
         name,
         remote,
@@ -184,6 +185,13 @@ fn landing(landing: checkout::Landing) -> wire::Landing {
         | checkout::Landing::Landed { commit }
         | checkout::Landing::Prefixes { commit, .. }
         | checkout::Landing::DesignMerged { commit, .. } => wire::Landing::Landed { commit: commit.raw() },
+        checkout::Landing::Unadmitted { words } => wire::Landing::Explained {
+            failure: wire::PushFailure {
+                repository: None,
+                reason: wire::PushReason::Refused,
+                diagnostic: wire::PushDiagnostic::new(&words, 0),
+            },
+        },
         checkout::Landing::Moved => wire::Landing::Moved,
         checkout::Landing::Unchanged => wire::Landing::Unchanged,
         checkout::Landing::CaughtUp { .. }

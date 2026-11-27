@@ -87,9 +87,9 @@ fn a_checked_answer_is_delivered_after_its_observed_push_only_once() {
     claim(&mut world, 2);
     answer(&mut world, 2, head, true);
     assert_eq!(deliveries(&world), delivered, "a later answer accepting the same head is no delivery");
-    world.push(BRANCH, b"new delivery");
-    let next = translate::commit(world.branch(BRANCH));
     claim(&mut world, 3);
+    let next = world.push_attempt(&name(), (CHILD, 3), BRANCH, b"file", b"new delivery");
+    world.event(top::Event::Finished { task: CHILD, attempt: 3, lost: false });
     answer(&mut world, 3, next, true);
     let delivered = deliveries(&world);
     assert_eq!(delivered.len(), 2);

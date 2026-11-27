@@ -3,7 +3,6 @@ use crate::forge_routes::{Gate, StoryLimits, World};
 use crate::tier_runs;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_fake_forge_domain as fake;
 use skein_fake_forge_domain::api as raw;
 use skein_lib::Duration;
 use skein_lib::Token;
@@ -395,8 +394,8 @@ pub fn produce_delegated(
     let raw::Answer::Commit(base) = world.external(1, raw::Op::Read(raw::Read::Branch { branch: base.into() })) else {
         panic!("landing branch tip")
     };
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base }));
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, path, content, 1).expect("producer pushed");
+    let head = world.worker_commit(base, path, content);
+    world.run_push(&producer, &branch, head, 1);
     let event = world.protocol.answer(
         Token::new(7),
         producer.task,

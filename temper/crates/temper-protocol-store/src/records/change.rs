@@ -481,6 +481,10 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         asks.push(map::landing_handed_to_record(ask)).expect(FITS);
     }
     w::ChangeHot {
+        behind_wait: match value.behind_wait.as_ref() {
+            Some(wait) => Some(map::behind_wait_to_record(wait)),
+            None => None,
+        },
         ci_recheck: match value.ci_recheck.as_ref() {
             Some(value) => Some(map::ci_recheck_to_record(value)),
             None => None,
@@ -596,6 +600,10 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         asks.push(map::landing_handed_to_domain(ask)).expect(FITS);
     }
     Ok(top::ChangeHot {
+        behind_wait: match value.behind_wait {
+            Some(wait) => Some(map::behind_wait_to_domain(wait)),
+            None => None,
+        },
         ci_recheck: match value.ci_recheck {
             Some(value) => Some(map::ci_recheck_to_domain(value)),
             None => None,

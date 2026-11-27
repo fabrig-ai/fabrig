@@ -407,16 +407,7 @@ fn a_hold_past_the_repair_bound_goes_on_when_ci_passes() {
     let mut repair = repair;
     let mut next = 0;
     for count in 1..=bound {
-        next = fake::advance(
-            &mut world.fake,
-            &world.fake_env,
-            b"org/repo",
-            &branch,
-            b"file",
-            &[u8::try_from(count).expect("small bound")],
-            1,
-        )
-        .expect("repair pushed");
+        next = world.run_push_edit(&repair, &branch, b"file", &[u8::try_from(count).expect("small bound")], 1);
         status(&mut world, next, raw::Check::Failed);
         let assigned = world.assigned.len();
         answer(

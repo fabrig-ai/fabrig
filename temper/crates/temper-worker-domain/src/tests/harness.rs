@@ -135,6 +135,8 @@ impl Harness {
             | Request::ResultsIgnored { .. }
             | Request::RedsAsk { .. }
             | Request::RedsAnswer { .. }
+            | Request::AdmitAsk { .. }
+            | Request::AdmitAnswer { .. }
             | Request::Source { .. }
             | Request::ReadUsage { .. }
             | Request::ReadList { .. }

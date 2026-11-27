@@ -444,6 +444,17 @@ fn host_request(engine: &mut Engine, request: root::HostRequest) {
             let answer = match crate::translate::ask(&bytes, limits) {
                 Some(ask) => {
                     let answer = match ask {
+                        root::wire::Ask::Admit { tag, branch, expected, commit } => {
+                            let asking = root::wire::Asking { channel, run, attempt, number };
+                            engine.events.push(root::Event::Worker(root::WorkerInput::Admit {
+                                asking,
+                                tag,
+                                branch,
+                                expected,
+                                commit,
+                            }));
+                            return;
+                        }
                         ask @ (root::wire::Ask::Reds | root::wire::Ask::Landed { .. }) => {
                             root::wire::answer(&engine.domain, run.raw(), attempt.raw(), ask)
                         }
@@ -496,6 +507,13 @@ pub(crate) fn forge_rows(engine: &Engine, forges: temper_engine_domain_forge::Fo
 
 fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
     match delivery {
+        root::HostDelivery::Asked { asking, answer } => {
+            engine.events.push(root::Event::Worker(crate::translate::asked(
+                asking,
+                answer,
+                &engine.workers.encoding.limits,
+            )));
+        }
         root::HostDelivery::Settings {
             to,
             answer,

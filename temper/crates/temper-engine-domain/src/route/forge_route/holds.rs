@@ -139,6 +139,11 @@ fn drift_words(domain: &Domain, resource: &forge::Name, recorded: Option<&forge:
         append(&mut words, &decimal(drift.at.as_nanos()));
         append(&mut words, b" ns since Unix epoch: ");
         drift_change(&mut words, &drift.change);
+        if let forge::DriftChange::Branch { .. } = drift.change
+            && let Some(entry) = domain.forge.nearest_write(resource)
+        {
+            change::last_write(&mut words, entry);
+        }
     }
     append(&mut words, b"; ");
     resource_words(domain, resource, &mut words);

@@ -165,6 +165,11 @@ impl Domain {
     pub fn cached(&self, resource: &Resource) -> Option<&crate::Cached> {
         self.keep.cached(resource)
     }
+    /// The commit the owner expects of the watched branch, not its last read.
+    #[must_use]
+    pub fn expected(&self, resource: &Resource) -> Option<api::Commit> {
+        self.keep.expected(resource)
+    }
     /// The retained live rows' keys, in the keep's order (forge/client.md, the keep):
     /// for a caller naming a row on a failure path; allocates.
     #[must_use]
@@ -234,7 +239,6 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
         }
         Event::Hint { hint } => keep::poll::hint(d, env, hint),
-        Event::Writer { resource, taken } => keep::poll::writer(d, env, &resource, taken),
         Event::Pushed { resource, commit } => keep::poll::pushed(d, env, &resource, commit, out),
         Event::Fence { resource } => keep::poll::fence(d, env, &resource),
         Event::Make { entry } => {

@@ -115,6 +115,20 @@ fn observation_lines_round_trip() {
             r#"{"observation":"labelled","repository":"org/repo","number":7,"labels":["bug","ready"],"by":2}"#,
         ),
         (
+            "Retargeted",
+            Recorded::Observed {
+                observation: Observation::Retargeted {
+                    repository: boxed(b"org/repo"),
+                    number: 7,
+                    from: boxed(b"main"),
+                    to: boxed(b"other"),
+                    by: 2,
+                },
+                forward: None,
+            },
+            r#"{"observation":"retargeted","repository":"org/repo","number":7,"from":"main","to":"other","by":2}"#,
+        ),
+        (
             "Revised",
             Recorded::Observed {
                 observation: Observation::Revised {

@@ -612,6 +612,7 @@ fn record_landings(next: &mut Items, landings: &[checkout::Landing], unchecked: 
             | checkout::Landing::DesignConflict { .. }
             | checkout::Landing::DesignCode { .. }
             | checkout::Landing::Explained { .. }
+            | checkout::Landing::Unadmitted { .. }
             | checkout::Landing::Failed
             | checkout::Landing::Refused
             | checkout::Landing::DesignMoving

@@ -30,7 +30,7 @@ pub fn step(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits:
     stepped
 }
 
-#[expect(clippy::too_many_lines, reason = "the ordered guards include requester-branch moves before phase dispatch")]
+#[expect(clippy::too_many_lines, reason = "the ordered guards include the record verdict before phase dispatch")]
 fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
     let mut next = change.clone();
     if facts.kept {
@@ -41,11 +41,6 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         || change.gate_failures.len() > skein_lib::usize_of(limits.gates)
     {
         return hold(next, Hold::Failed);
-    }
-    if let Some(head) = facts.branch
-        && change.last_head != Some(head)
-    {
-        next.gate_failures = Box::new([]);
     }
     if change.way == Way::Turn
         && let Some(Handed { number, ask: Ask::Landed { prefix }, .. }) = facts.ask
@@ -81,10 +76,14 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if standing.released {
         next = released(&next, now);
     }
-    if let Some(why) = next.released.take() {
+    clear_old_gate_failures(&mut next, facts);
+    if facts.behind.is_none()
+        && let Some(why) = next.released.take()
+    {
         return released_step(next, why, facts, standing, now);
     }
-    if facts.contains_head == Status::Passed
+    if facts.behind.is_none()
+        && facts.contains_head == Status::Passed
         && (change.way == Way::Queue || facts.landing.is_none())
         && !standing.delegate_live
         && !facts.writer_taken
@@ -97,7 +96,8 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         return Stepped { took: None, change: next, decision: Decision::NoChange };
     }
     if let State::Held { was, why } = &change.state {
-        if held_on_ci(&change.state)
+        if facts.behind.is_none()
+            && held_on_ci(&change.state)
             && green_head(facts).is_some()
             && !standing.delegate_running
             && facts.drift.is_none()
@@ -110,6 +110,14 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
             return Stepped { took: None, change: next, decision: Decision::EndHold };
         }
         return Stepped { took: None, change: next, decision: Decision::None };
+    }
+    if let Some(since) = facts.behind {
+        let until = Wall::from_nanos(since.as_nanos().saturating_add(limits.stall.as_nanos()));
+        return if now >= until {
+            hold(next, Hold::Stalled)
+        } else {
+            Stepped { took: None, change: next, decision: Decision::Wait { until: Some(until) } }
+        };
     }
     // A conflicting preparation cancels its producer before waiting for that
     // producer's writer slot (domain/forge/change/questions.md, 1).
@@ -138,54 +146,18 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if let Some(why) = facts.drift {
         return hold(next, why);
     }
-    // The connector reports a changed target branch through facts.drift.
-    // A pull's base commit can lag the landing tip, including our own merge.
-    if facts.pull == Pull::Closed && closed_pull_holds(&change.state) {
-        return hold(next, Hold::PullClosed);
-    }
-    if facts.requester_branch
-        && let Some(head) = facts.branch
+    if let Some(head) = facts.branch
+        && let Some(prior) = step_head(&change.state, change.last_head, standing.effect, facts.update_head)
+        && prior != head
     {
-        let (prior_head, needs_opening) = match &change.state {
-            State::Opening { .. } => (change.last_head, facts.pull == Pull::Missing),
-            State::Checking { head }
-            | State::Judging { head, .. }
-            | State::Gating { head, .. }
-            | State::Queued { head, .. }
-            | State::First { head, .. }
-            | State::Ready { head, .. } => (Some(*head), false),
-            State::Taking { .. }
-            | State::Producing { .. }
-            | State::Recreating { .. }
-            | State::Reopening { .. }
-            | State::CancellingGates { .. }
-            | State::Preparing { .. }
-            | State::Updating { .. }
-            | State::WaitingProducer { .. }
-            | State::Resolving { .. }
-            | State::Repairing { .. }
-            | State::Landing { .. }
-            | State::Landed { .. }
-            | State::NoChange { .. }
-            | State::Ended
-            | State::Held { .. }
-            | State::Red { .. }
-            | State::Cleared { .. }
-            | State::Uncleared { .. } => (None, false),
-        };
-        if let Some(prior) = prior_head
-            && prior != head
-        {
-            if needs_opening {
-                next.clean = Box::new([]);
-                next.owns_turn = false;
-                next.since = now;
-                next.state = State::Opening { requested: false };
-                next.last_head = Some(head);
-                return opening(next, false, facts, standing, now, limits);
-            }
-            return take_pushed_head(next, head, now);
+        if facts.pull == Pull::Missing {
+            next = take_pushed_head(next, head, now).change;
+            let requested =
+                standing.effect == EffectResult::Pending && change.state == State::Opening { requested: true };
+            next.state = State::Opening { requested };
+            return opening(next, requested, facts, standing, now, limits);
         }
+        return take_pushed_head(next, head, now);
     }
     advance_phase(change, next, facts, standing, now, limits)
 }
@@ -318,7 +290,17 @@ fn after_landing(change: &Change, facts: &Facts, standing: &Heard, now: Wall) ->
     Some(Stepped { took: None, change: change.clone(), decision })
 }
 
+fn clear_old_gate_failures(change: &mut Change, facts: &Facts) {
+    if let Some(head) = facts.branch
+        && change.last_head != Some(head)
+    {
+        change.gate_failures = Box::new([]);
+    }
+}
+
 fn verifying(mut change: Change, merge: [u8; 32], since: Wall, facts: &Facts, cancelled: bool, now: Wall) -> Stepped {
+    // Verification still consumes the fresh head; gate failures belong to the old one.
+    clear_old_gate_failures(&mut change, facts);
     let decision = match facts.verification {
         Verification::Unfollowed => Decision::Finish { merge },
         Verification::Verifying | Verification::Red | Verification::Cleared if cancelled => {
@@ -408,19 +390,27 @@ fn advance_phase(
     }
 }
 
-fn closed_pull_holds(state: &State) -> bool {
+// The update's own new head retains clean-update semantics, not another push.
+fn step_head(state: &State, last: Option<[u8; 32]>, effect: EffectResult, update_head: bool) -> Option<[u8; 32]> {
     match state {
-        State::Reopening { .. } | State::Recreating { .. } => false,
+        State::Opening { .. } => last,
+        State::Checking { head }
+        | State::Judging { head, .. }
+        | State::Gating { head, .. }
+        | State::CancellingGates { head }
+        | State::Queued { head, .. }
+        | State::First { head, .. }
+        | State::Ready { head, .. } => Some(*head),
+        State::Landing { head } if effect != EffectResult::Pending => Some(*head),
+        State::Preparing { from, .. } | State::Updating { from, .. }
+            if effect != EffectResult::Pending && !update_head =>
+        {
+            Some(*from)
+        }
         State::Taking { .. }
         | State::Producing { .. }
-        | State::Opening { .. }
-        | State::Checking { .. }
-        | State::Judging { .. }
-        | State::Gating { .. }
-        | State::CancellingGates { .. }
-        | State::Queued { .. }
-        | State::First { .. }
-        | State::Ready { .. }
+        | State::Recreating { .. }
+        | State::Reopening { .. }
         | State::Preparing { .. }
         | State::Updating { .. }
         | State::WaitingProducer { .. }
@@ -428,12 +418,12 @@ fn closed_pull_holds(state: &State) -> bool {
         | State::Repairing { .. }
         | State::Landing { .. }
         | State::Landed { .. }
-        | State::Red { .. }
-        | State::Cleared { .. }
-        | State::Uncleared { .. }
         | State::NoChange { .. }
         | State::Ended
-        | State::Held { .. } => true,
+        | State::Held { .. }
+        | State::Red { .. }
+        | State::Cleared { .. }
+        | State::Uncleared { .. } => None,
     }
 }
 
@@ -757,7 +747,7 @@ fn taking(mut change: Change, facts: &Facts, standing: &Heard, now: Wall, limits
     let Some(head) = facts.taken else { return waiting(change, facts, now, limits) };
     if let Some(observed) = facts.branch {
         if observed != head {
-            return hold(change, Hold::BranchMoved);
+            return waiting(change, facts, now, limits);
         }
         if standing.effect != EffectResult::Pending {
             change.last_head = Some(head);
@@ -986,19 +976,11 @@ fn opening(
     limits: &Limits,
 ) -> Stepped {
     let Some(head) = facts.branch else {
-        return hold(change, Hold::BranchMissing);
+        return waiting(change, facts, now, limits);
     };
-    if let Some(expected) = change.last_head
-        && head != expected
-    {
-        return hold(change, Hold::BranchMoved);
-    }
     change.last_head = Some(head);
     match facts.pull {
-        Pull::Open { head: pull_head, .. } => {
-            if head != pull_head {
-                return waiting(change, facts, now, limits);
-            }
+        Pull::Open { .. } => {
             change.state = pushed(&change, head);
             change.since = now;
             Stepped { took: None, change, decision: Decision::None }
@@ -1014,7 +996,7 @@ fn opening(
                 waiting(change, facts, now, limits)
             }
         },
-        Pull::Closed | Pull::Merged { .. } => unreachable!("closed and merged pulls returned above"),
+        Pull::Closed | Pull::Merged { .. } => waiting(change, facts, now, limits),
     }
 }
 
@@ -1027,8 +1009,7 @@ fn recreating(mut change: Change, head: [u8; 32], facts: &Facts, now: Wall, limi
             };
             Stepped { took: None, change, decision: Decision::None }
         }
-        Some(_) => hold(change, Hold::BranchMoved),
-        None => waiting(change, facts, now, limits),
+        Some(_) | None => waiting(change, facts, now, limits),
     }
 }
 
@@ -1042,20 +1023,20 @@ fn reopening(
     limits: &Limits,
 ) -> Stepped {
     let Some(head) = facts.branch else {
-        return hold(change, Hold::BranchMissing);
+        return waiting(change, facts, now, limits);
     };
     match facts.pull {
-        Pull::Open { head: pull_head, .. } if pull_head == head => {
+        Pull::Open { .. } => {
             change.state = pushed(&change, head);
             change.since = now;
             Stepped { took: None, change, decision: Decision::None }
         }
-        Pull::Open { .. } | Pull::Closed | Pull::Missing if !requested => {
+        Pull::Closed | Pull::Missing if !requested => {
             change.state = State::Reopening { requested: true, retarget };
             let effect = if retarget { Effect::Retarget } else { Effect::Reopen };
             Stepped { took: None, change, decision: Decision::Effect(effect) }
         }
-        Pull::Open { .. } | Pull::Closed | Pull::Missing => match standing.effect {
+        Pull::Closed | Pull::Missing => match standing.effect {
             EffectResult::Failed | EffectResult::Conflict => hold(change, Hold::Failed),
             EffectResult::None | EffectResult::Stale | EffectResult::Pending | EffectResult::Made => {
                 waiting(change, facts, now, limits)
@@ -1086,11 +1067,8 @@ fn checking(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
-    let Some(branch) = facts.branch else {
-        return hold(change, Hold::BranchMissing);
-    };
-    if branch != head {
-        return hold(change, Hold::BranchMoved);
+    if facts.branch.is_none() {
+        return waiting(change, facts, now, limits);
     }
     change.last_head = Some(head);
     if facts.ci.head != head {
@@ -1236,11 +1214,8 @@ fn gate_verdict(change: &Change, gate: Gate, reports: &[crate::GateReport], head
 }
 
 fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
-    let Some(branch) = facts.branch else {
-        return hold(change, Hold::BranchMissing);
-    };
-    if branch != head {
-        return hold(change, Hold::BranchMoved);
+    if facts.branch.is_none() {
+        return waiting(change, facts, now, limits);
     }
     if change.way == Way::Queue && facts.ci.head == head && facts.ci.status == Status::Failed {
         if let Some(stepped) = runner_ci(&change, head, facts, now, limits) {
@@ -1333,11 +1308,8 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
 }
 
 fn cancelling_gates(mut change: Change, head: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
-    let Some(branch) = facts.branch else {
-        return hold(change, Hold::BranchMissing);
-    };
-    if branch != head {
-        return hold(change, Hold::BranchMoved);
+    if facts.branch.is_none() {
+        return waiting(change, facts, now, limits);
     }
     if facts.ci.head == head
         && facts.ci.status == Status::Failed
@@ -1368,11 +1340,8 @@ fn queued(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
-    let Some(branch) = facts.branch else {
-        return hold(change, Hold::BranchMissing);
-    };
-    if branch != head {
-        return hold(change, Hold::BranchMoved);
+    if facts.branch.is_none() {
+        return waiting(change, facts, now, limits);
     }
     if let Some(reviewed) = standing.review_request {
         return repair_due(change, Repair::Review { head: reviewed }, facts, now, limits);
@@ -1447,11 +1416,8 @@ fn first(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
-    let Some(branch) = facts.branch else {
-        return hold(change, Hold::BranchMissing);
-    };
-    if branch != head {
-        return hold(change, Hold::BranchMoved);
+    if facts.branch.is_none() {
+        return waiting(change, facts, now, limits);
     }
     if let Some(stepped) = contained_landing(&change, facts, standing, now) {
         return stepped;
@@ -1529,7 +1495,7 @@ fn updating(
                     if head == from {
                         update_due(change, from, facts.base_tip, ready_since, now, limits)
                     } else {
-                        hold(change, Hold::BranchMoved)
+                        take_pushed_head(change, head, now)
                     }
                 }
                 Status::Passed => {
@@ -1563,6 +1529,9 @@ fn stale_update(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -
     let Some(head) = facts.branch else {
         return Stepped { took: None, change, decision: Decision::Wait { until: Some(deadline) } };
     };
+    if head != from {
+        return take_pushed_head(change, head, now);
+    }
     match facts.contains_base {
         Status::Unknown | Status::Pending => {
             Stepped { took: None, change, decision: Decision::Wait { until: Some(deadline) } }
@@ -1571,23 +1540,14 @@ fn stale_update(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -
             if preparing {
                 return prepared(change, from, pin, ready_since, facts, now, limits);
             }
-            if head != from {
-                return updated(change, from, head, now, limits);
-            }
             change.state = pushed(&change, head);
             change.last_head = Some(head);
             change.since = now;
             Stepped { took: None, change, decision: Decision::None }
         }
         Status::Failed => {
-            if head != from {
-                return hold(change, Hold::BranchMoved);
-            }
-            if let Pull::Open { base, .. } = facts.pull
-                && base == facts.base_read
-                && base != pin
-            {
-                return send_update(change, from, base, ready_since, now, preparing);
+            if facts.base_read != pin {
+                return send_update(change, from, facts.base_read, ready_since, now, preparing);
             }
             let delay = change.since.as_nanos().saturating_sub(stale.as_nanos()).clamp(1_000_000_000, 60_000_000_000);
             let retry = Wall::from_nanos(change.since.max(stale).as_nanos().saturating_add(delay));
@@ -1643,7 +1603,7 @@ fn repair_due(mut change: Change, why: Repair, facts: &Facts, now: Wall, limits:
                     let ready_since = change.ready_since.unwrap_or(now);
                     return update_due(change, head, facts.base_tip, ready_since, now, limits);
                 }
-                None => return hold(change, Hold::BranchMissing),
+                None => return waiting(change, facts, now, limits),
             },
             Status::Unknown | Status::Pending => return waiting(change, facts, now, limits),
             Status::Passed => {}
@@ -1828,7 +1788,7 @@ fn waiting_producer(
     if standing.delegate_live {
         return Stepped { took: None, change, decision: Decision::Wait { until: None } };
     }
-    let Some(head) = facts.branch else { return hold(change, Hold::BranchMissing) };
+    let Some(head) = facts.branch else { return waiting(change, facts, now, limits) };
     change.last_head = Some(head);
     let released = change.released_resolution;
     if change.way == Way::Turn {
@@ -1923,6 +1883,8 @@ fn delegated(
 fn take_pushed_head(mut change: Change, head: [u8; 32], now: Wall) -> Stepped {
     change.released_resolution = false;
     change.clean = Box::new([]);
+    change.gate_failures = Box::new([]);
+    change.clock = None;
     change.owns_turn = false;
     change.state = pushed(&change, head);
     change.last_head = Some(head);
@@ -2147,19 +2109,8 @@ fn ready(
     if standing.delegate_live {
         return Stepped { took: None, change, decision: Decision::Wait { until: None } };
     }
-    let Some(branch) = facts.branch else {
-        return hold(change, Hold::BranchMissing);
-    };
-    if branch != head {
-        if change.last_head == Some(branch) {
-            let head = branch;
-            change.state = State::Gating { head, asked: Box::new([]) };
-            change.clean = Box::new([]);
-            change.gate_failures = Box::new([]);
-            change.since = now;
-            return Stepped { took: None, change, decision: Decision::None };
-        }
-        return hold(change, Hold::BranchMoved);
+    if facts.branch.is_none() {
+        return waiting(change, facts, now, limits);
     }
     let dropped = dropped_ask(head, facts);
     let ask = if dropped.is_some() { None } else { facts.ask.as_ref() };
@@ -2273,7 +2224,7 @@ fn preparing(
                     if head == from {
                         prepare_due(change, from, main, ready_since, now, limits)
                     } else {
-                        hold(change, Hold::BranchMoved)
+                        take_pushed_head(change, head, now)
                     }
                 }
                 Status::Passed => prepared(change, from, main, ready_since, facts, now, limits),
@@ -2344,15 +2295,8 @@ pub fn prefix_verdict(
 
 fn judging(mut change: Change, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
     let State::Judging { head, ready_since, target, asked } = change.state.clone() else { unreachable!("judging") };
-    let Some(branch) = facts.branch else {
-        return hold(change, Hold::BranchMissing);
-    };
-    if branch != head {
-        if change.last_head == Some(branch) {
-            let head = branch;
-            return take_pushed_head(change, head, now);
-        }
-        return hold(change, Hold::BranchMoved);
+    if facts.branch.is_none() {
+        return waiting(change, facts, now, limits);
     }
     if let Some(Handed { number, ask: Ask::Repair { gate, candidate, below }, .. }) = facts.ask {
         if facts.live_gate.is_some() {

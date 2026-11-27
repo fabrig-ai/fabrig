@@ -53,6 +53,8 @@ fn a_pull_forgejo_is_checking_waits_by_doubling_reads_then_merges() {
 
 #[test]
 fn a_pull_checking_past_poll_is_read_every_poll_then_merges() {
+    // Settlement advances the shared head from the answer (temper/docs/design/domain/forge/writes.md, 3).
+    const CALLS_THROUGH_LANDING_NEWS: u32 = 49;
     let mut world = first_on_a_checked_pull(World::new(5), Duration::from_secs(11));
     let t0 = world.wall();
     let calls = world.calls();
@@ -74,8 +76,9 @@ fn a_pull_checking_past_poll_is_read_every_poll_then_merges() {
     assert!(matches!(merged, change::Decision::Effect(change::Effect::Merge { .. })), "{merged:?}");
     assert_eq!(
         world.calls() - calls,
-        48,
-        "six steps of seven fresh reads, two workflow directories, and four calls to land the merge"
+        CALLS_THROUGH_LANDING_NEWS,
+        "six steps of seven fresh reads, two workflow directories, four calls to land the merge, \
+         and one post-merge Compare for landing paths (temper/docs/design/domain/forge/topics.md, 1.3)"
     );
     assert_eq!(world.writes(), 1, "never resolved");
 }

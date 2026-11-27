@@ -15,7 +15,7 @@ use temper_engine_domain_see::{
 /// Root to protocol: a relayed call to decode, or one the fleet dropped.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum HostRequest {
-    /// Decode an admitted application ask before reading its run's reds.
+    /// Decode an application ask already fenced by jig.
     Ask {
         channel: Token,
         run: Token,
@@ -54,6 +54,11 @@ pub enum AskHow {
 /// the hub's link names only as text (jig's `domain/hosts/README.md`, 2).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum HostDelivery {
+    /// A push admission's answer, after its write record has committed.
+    Asked {
+        asking: crate::wire::Asking,
+        answer: crate::wire::Answer,
+    },
     /// Settings reads have no durable call part; inventories include project repositories and people.
     Settings {
         to: ReplyTo,

@@ -217,6 +217,14 @@ fn a_flake_at_a_moved_branch_is_a_push_and_clears_the_regate() {
     for already_read in [false, true] {
         let (mut d, key, _) = repairing_flake();
         let advanced = [9; 32];
+        let name = run_branch(b"51");
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::BranchHead(BranchHead { name: name.clone(), commit: fixtures::HEAD, owned: true }),
+            },
+        );
+        fixtures::admit_push(&mut d, &name, 52, 1, Some(fixtures::HEAD), advanced);
         let row = d.changes.get_mut(&fixtures::CHANGE).unwrap();
         if already_read {
             row.change.last_head = Some(advanced);

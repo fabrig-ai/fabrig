@@ -330,7 +330,11 @@ fn unsettled_merge(landing: &Landing, facts: &Facts, limits: &Limits, now: Wall)
         Status::Passed if member.base == Some(fresh.main) => {
             Some(wait(landing.clone(), Some(poll_at(limits, now)), Awaited::Merge))
         }
-        Status::Failed if !facts.merge_refused && facts.round_pull == crate::RoundPull::Unread => {
+        Status::Failed
+            if !facts.merge_refused
+                && member.base == Some(fresh.main)
+                && facts.round_pull == crate::RoundPull::Unread =>
+        {
             Some(wait(landing.clone(), None, Awaited::Merge))
         }
         Status::Unknown | Status::Passed | Status::Failed => None,
@@ -1110,7 +1114,10 @@ fn turn_readback(member: &Member, fresh: &crate::MemberFacts, pull: crate::Round
             && member.base == Some(fresh.main)
             && match pull {
                 crate::RoundPull::Merged(commit) => member.candidate == Some(commit),
-                crate::RoundPull::Unread | crate::RoundPull::Open | crate::RoundPull::Closed => false,
+                crate::RoundPull::Unread
+                | crate::RoundPull::Open
+                | crate::RoundPull::Closed
+                | crate::RoundPull::Changed => false,
             })
 }
 
@@ -1133,18 +1140,24 @@ fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Step
                 landing.round.changed = Some(0);
                 return done(landing, Decision::None);
             }
+            if let crate::RoundPull::Closed | crate::RoundPull::Changed = facts.round_pull {
+                landing.phase = Phase::Preparing;
+                landing.round.ending = Some(crate::RoundEnd::Stale);
+                landing.round.changed = Some(0);
+                return done(landing, Decision::None);
+            }
             return match fresh.merge {
-                Status::Unknown if landing.round.merges < limits.write_attempts => ask_merge(landing, top, candidate),
+                Status::Unknown
+                    if landing.round.merges < limits.write_attempts
+                        && let crate::RoundPull::Unread | crate::RoundPull::Open = facts.round_pull =>
+                {
+                    ask_merge(landing, top, candidate)
+                }
                 Status::Pending => wait(landing, None, Awaited::Merge),
                 Status::Passed => wait(landing, Some(poll_at(limits, now)), Awaited::Merge),
                 Status::Failed | Status::Unknown => match facts.round_pull {
                     crate::RoundPull::Unread => wait(landing, None, Awaited::Merge),
-                    crate::RoundPull::Closed => {
-                        landing.phase = Phase::Preparing;
-                        landing.round.ending = Some(crate::RoundEnd::Stale);
-                        landing.round.changed = Some(0);
-                        done(landing, Decision::None)
-                    }
+                    crate::RoundPull::Closed | crate::RoundPull::Changed => unreachable!("ended above"),
                     crate::RoundPull::Open if !facts.merge_refused && landing.round.merges < limits.write_attempts => {
                         ask_merge(landing, top, candidate)
                     }

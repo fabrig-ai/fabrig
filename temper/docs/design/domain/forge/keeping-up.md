@@ -448,10 +448,12 @@ for it, never a read of another kind or another party's.
     prepared; unknown, the landing waits as it does for any fact it lacks;
   - **a goal's closer,** whether its base holds the goal branch's tip
     (`branches.md`, 2): `before` the base's tip, `after` the goal's tip;
-  - **a lost writer's reread,** whether the branch moved forward from the
-    head it last knew (`branches.md`, 1): `before` the observed head, `after` the
-    known one; contained, the move is forward; not contained, it is
-    drift; unknown, the reread fails as any failed reread does.
+  - **a write's readback,** whether a branch's head holds a push's
+    commit, or moved forward from the head a previous build's writer
+    knew, and the record's one comparison of two heads of temper's
+    (`writes.md`, 3 and 4): `before` the observed head, `after` the
+    commit; contained, it holds it; not contained, it doesn't; unknown,
+    the readback is asked again as any failed read is.
 - **CI on a commit** is read as its checks, skein's `Read::Checks`: the
   commit statuses and, on GitHub, the check runs, each a row with its
   context and verdict (skein's `forge/forgejo-operations.md`, 1; `skein/docs/design/forge/github-operations.md`, 1.4),

@@ -223,7 +223,6 @@ fn departed_with_ask(mut landing: LandingRow, ask: change::Ask, why: policy::Lea
     let row = d.changes.get_mut(&fixtures::CHANGE).unwrap();
     row.change.way = change::Way::Turn;
     row.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
-    row.change.last_head = Some(head);
     row.change.ready_since = Some(env().wall);
     row.pending = None;
     row.effect = change::EffectResult::None;
@@ -233,6 +232,9 @@ fn departed_with_ask(mut landing: LandingRow, ask: change::Ask, why: policy::Lea
     hand(&mut d, &landing, 0, ask, &mut out);
     landing.landing.members[0].left = Some(why);
     landing::save(&mut d, &env(), landing, &mut out);
+    if head != fixtures::HEAD {
+        admit_member_push(&mut d, head);
+    }
     d
 }
 

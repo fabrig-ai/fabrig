@@ -1352,7 +1352,14 @@ pub(super) fn land_change(world: &mut World, producer: &engine::Assignment, bran
 }
 
 pub(crate) fn deliver_change(world: &mut World, producer: &engine::Assignment, branch: &[u8], title: &[u8]) {
-    push_change(world, branch);
+    let head = if world.fake.branch(b"org/repo", branch).is_some() {
+        world.run_push_edit(producer, branch, b"file", b"fixed", 1)
+    } else {
+        let head = world.worker_commit(1, b"file", b"fixed");
+        world.run_push(producer, branch, head, 1);
+        head
+    };
+    passed_build(world, head);
     let tasks::Contract::Change { connector, .. } = live(world, producer.task).contract else {
         panic!("change contract")
     };
@@ -1511,7 +1518,11 @@ fn handed_branches_keep_explicit_titles_and_fit_only_the_forge_bound() {
 fn push_change(world: &mut World, branch: &[u8]) {
     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.into(), commit: 1 }));
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, b"file", b"fixed", 1)
-        .expect("producer pushes its work");
+        .expect("the handed branch's head");
+    passed_build(world, head);
+}
+
+fn passed_build(world: &mut World, head: u64) {
     world.external(
         1,
         raw::Op::Write(raw::Write::Status {

@@ -8,6 +8,21 @@ use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
 
 #[test]
+fn a_fresh_directory_opens_the_engine() {
+    const PASSES: u32 = 256; // Calm store completions with the clock held fixed.
+    let mut directory = fixtures::directory::Directory::new();
+    let mut service = directory.service();
+    for _ in 0..PASSES {
+        directory.turn(&mut service);
+        assert_eq!(service.end(), None, "fresh engine start");
+        if service.engine.as_ref().expect("engine").domain.ready() {
+            return;
+        }
+    }
+    panic!("fresh engine did not reach readiness");
+}
+
+#[test]
 fn settings_history_room_follows_effective_capacities() {
     let (mut root, _, mut profile) = fixtures::store_limits();
     // Force the settings envelope to bind instead of the profile's fixed value.

@@ -11,12 +11,7 @@ const GATE_TASK: u64 = 99;
 const NEXT_GATE_TASK: u64 = 100;
 
 fn restore(domain: &mut Domain, env: &Env<Limits>, row: forge::ChangeRow) {
-    forge::step(
-        &mut domain.forge,
-        &crate::translate::environment_forge(env),
-        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-        &mut Queue::uncapped(),
-    );
+    super::restore_forge_with_engine_waits(domain, env, forge::Stored::Change(Box::new(row)));
 }
 
 fn restore_task(domain: &mut Domain, env: &Env<Limits>, changed: tasks::TaskRecord) {
@@ -35,30 +30,13 @@ fn restore_task(domain: &mut Domain, env: &Env<Limits>, changed: tasks::TaskReco
         };
         rows.push(row).unwrap();
     }
-    domain.engine.core_mut().tasks = tasks::Domain::new(
-        &env.limits.tasks,
-        tasks::Kept { revisions: env.limits.settings.revisions, versions: env.limits.settings.versions },
-        100,
-        0,
-        Box::new([]),
-        Box::new([]),
-    );
-    tasks::step(
-        &mut domain.engine.core_mut().tasks,
-        &env.with(env.limits.tasks),
-        tasks::Event::Restore { record: tasks::Stored::Ledger(period) },
-        &mut Queue::uncapped(),
-    );
+    super::reset_tasks_for_restore(domain, env, 100);
+    super::task_event(domain, env, tasks::Event::Restore { record: tasks::Stored::Ledger(period) });
     for row in rows.into_boxed() {
-        tasks::step(
-            &mut domain.engine.core_mut().tasks,
-            &env.with(env.limits.tasks),
-            tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) },
-            &mut Queue::uncapped(),
-        );
+        super::task_event(domain, env, tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) });
     }
     for event in [tasks::Event::Check, tasks::Event::Restored] {
-        tasks::step(&mut domain.engine.core_mut().tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
+        super::task_event(domain, env, event);
     }
 }
 

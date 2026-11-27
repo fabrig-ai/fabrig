@@ -236,7 +236,7 @@ fn entries(
     for (number, task) in entries.into_boxed() {
         let mut settled = Queue::uncapped();
         d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
-        super::settled_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, &mut settled);
+        super::outcome_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, &mut settled);
         super::outage::forget_entry(d, number);
         take_entry(d, number, task);
         if d.flights.remove(&(task, number)).is_some() {
@@ -464,6 +464,25 @@ fn observations(d: &mut Domain, repository: Repository, groups: &mut Queue<Box<[
             erase(groups, Key::BranchHead(key));
         } else {
             d.heads.insert(key, row).expect("retained heads");
+        }
+    }
+    let mut keys = core::mem::replace(&mut d.writes, Map::uncapped());
+    for _ in 0..keys.len() {
+        let key = keys.first().expect("counted write records").0.clone();
+        let row = keys.remove(&key).expect("counted write records");
+        let mut unsettled = false;
+        for entry in &row.entries {
+            unsettled |= entry.state.unsettled();
+        }
+        // Unsettled history outlives even adoption of this repository: a
+        // subsequent adoption still must not forget a write that may land.
+        if owns(&key, repository) && !unsettled {
+            for entry in &row.entries {
+                super::writes::readback::forget(d, &key, entry.order);
+            }
+            erase(groups, Key::Writes(key));
+        } else {
+            d.writes.insert(key, row).expect("uncapped write records");
         }
     }
     let capacity = d.pulls.capacity();
@@ -702,7 +721,6 @@ pub(super) fn retire(d: &mut Domain, repository: Repository) {
         d.capabilities.remove(&key);
     }
     super::goal_branch::release_repository(d, repository);
-    super::rebase::release_repository(d, repository);
     super::outage::release_repository(d, repository);
     crate::brief::release_repository(d, repository);
     crate::brief_document::release_repository(d, repository);

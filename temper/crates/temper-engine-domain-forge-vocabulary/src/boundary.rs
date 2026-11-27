@@ -915,7 +915,7 @@ pub struct Pushed {
 pub struct DesignWriter {
     pub task: u64,
     pub attempt: u64,
-    /// The answer or loss has requested the branch's fresh read.
+    /// Conversion only: the previous build ended this attempt and owed a read.
     pub rereading: bool,
 }
 
@@ -1096,6 +1096,7 @@ pub struct PreviousLink {
 pub struct ChangeRow {
     /// A release into the train awaits its first change decision.
     pub settling: bool,
+    pub behind_wait: Option<BehindWait>,
     pub room: Option<u64>,
     pub source: Option<ChangeSource>,
     pub kept: Option<skein_forge::api::Commit>,
@@ -1243,6 +1244,7 @@ pub struct ChangeCold {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeHot {
     pub settling: bool,
+    pub behind_wait: Option<BehindWait>,
     pub room: Option<u64>,
     pub kept: Option<skein_forge::api::Commit>,
     pub regate: Option<Regate>,
@@ -1299,6 +1301,7 @@ impl ChangeRow {
     pub fn split(self) -> (ChangeCold, ChangeHot) {
         let Self {
             settling,
+            behind_wait,
             room,
             source,
             kept,
@@ -1390,6 +1393,7 @@ impl ChangeRow {
             },
             ChangeHot {
                 settling,
+                behind_wait,
                 room,
                 kept,
                 regate,
@@ -1465,6 +1469,7 @@ impl ChangeRow {
         } = cold;
         let ChangeHot {
             settling,
+            behind_wait,
             room,
             kept,
             regate,
@@ -1511,6 +1516,7 @@ impl ChangeRow {
         assert_eq!(cold_task, task, "change parts name one task");
         Self {
             settling,
+            behind_wait,
             room,
             source,
             kept,
@@ -1900,10 +1906,38 @@ pub struct GateRemark {
     pub head: skein_forge::api::Commit,
     pub words: Box<[u8]>,
 }
+/// A step read these commits before the forge's view caught up.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum BehindRead {
+    Branch,
+    Base,
+    PullHead,
+    PullBase,
+    PullState,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct ReadBehind {
+    pub read: BehindRead,
+    pub expected: Option<skein_forge::api::Commit>,
+    pub found: Option<skein_forge::api::Commit>,
+}
+
+/// A caller's stall on a view behind the write record (temper/docs/design/domain/forge/writes.md, 5).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct BehindWait {
+    pub since: skein_lib::Wall,
+    pub until: skein_lib::Wall,
+    pub evidence: ReadBehind,
+}
+
 /// Coherent provider facts used by the root to check a change effect before
 /// releasing its durable outbox entry.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeEvidence {
+    pub behind: Option<ReadBehind>,
+    pub readback_owed: bool,
+    pub nearest_write: Option<u64>,
     pub touched: crate::Touched,
     /// State to restore if the root does not authorize this effect.
     pub prior: change::Change,
@@ -2065,6 +2099,7 @@ pub enum Stored {
     HistoryChange(crate::history::ChangeIndex),
     HistoryLanding(crate::history::LandingIndex),
     HistoryLast(crate::history::Last),
+    Writes(crate::writes::Writes),
 }
 /// One durable limit hold; `room` is the operation's additional occupancy
 /// (temper/docs/design/protocol/configuration/limit-settings.md, 6).
@@ -2156,6 +2191,7 @@ pub enum Key {
     ChangeHot(u64),
     Milestone(u64),
     PersonBrief { party: u64, project: u32 },
+    Writes(Name),
     HistoryProject { project: u32 },
     HistoryEvent { project: u32, number: u64 },
     HistoryChange { project: u32, change: u64, number: u64 },
@@ -2669,6 +2705,12 @@ pub enum Event {
         task: u64,
         attempt: u64,
         pushed: Box<[(Name, skein_forge::api::Commit, bool)]>,
+    },
+    /// Settle an attempt's admitted pushes, independent of its reported heads.
+    Finished {
+        task: u64,
+        attempt: u64,
+        lost: bool,
     },
     /// Read a lost writer's resource afresh before making its slot available.
     Lost {

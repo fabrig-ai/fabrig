@@ -732,6 +732,7 @@ impl World {
             };
             let push = if writable { Some(base.clone().into()) } else { None };
             let spec = Repository {
+                admit: false,
                 prefixes: Box::new([]),
                 save: Some(saved.clone().into()),
                 git: None,
@@ -766,6 +767,7 @@ impl World {
             match self.rng.below(7) {
                 0 => key = Vec::new(),
                 1 => repositories.push(Repository {
+                    admit: false,
                     prefixes: Box::new([]),
                     save: Some(saved.clone().into()),
                     git: None,
@@ -942,7 +944,9 @@ impl World {
     fn request(&mut self, request: Request) {
         self.log(&format!("checkout -> {}", describe_request(&request)));
         match request {
-            Request::DependencyLanded { .. } => panic!("merged dependency questions use the hold-level stories"),
+            Request::DependencyLanded { .. } | Request::AdmitPush { .. } | Request::WithdrawAdmission { .. } => {
+                panic!("merged dependency questions use the hold-level stories")
+            }
             Request::Results { .. } | Request::ResultsEnd { .. } => {}
             Request::Held { client, hold } => {
                 let name = client.raw();
@@ -1146,7 +1150,9 @@ impl World {
                     }
                     stats.failed += 1;
                 }
-                Landing::Refused | Landing::Explained { fault: Fault::Refused, .. } => stats.push_refused += 1,
+                Landing::Refused | Landing::Unadmitted { .. } | Landing::Explained { fault: Fault::Refused, .. } => {
+                    stats.push_refused += 1;
+                }
                 Landing::Aborted => stats.landings_aborted += 1,
             }
         }
@@ -1688,6 +1694,7 @@ fn in_git(path: &[u8]) -> bool {
 fn describe_event(event: &Event) -> String {
     match event {
         Event::DependencyLanded { hold, landed } => format!("dependency landed {} {landed}", hold.raw()),
+        Event::PushAdmission { hold, answer } => format!("push admission {} {answer:?}", hold.raw()),
         Event::Prepare { client, spec } => {
             format!("prepare {} {:?}", client.raw(), String::from_utf8_lossy(&spec.key))
         }
@@ -1706,6 +1713,10 @@ fn describe_event(event: &Event) -> String {
 fn describe_request(request: &Request) -> String {
     match request {
         Request::DependencyLanded { client, head } => format!("dependency landed? {} {head:?}", client.raw()),
+        Request::AdmitPush { client, branch, expected, commit, .. } => {
+            format!("admit push {} {branch:?} {expected:?} {commit:?}", client.raw())
+        }
+        Request::WithdrawAdmission { client } => format!("withdraw admission {}", client.raw()),
         Request::Results { client, check, repository, .. } => {
             format!("results {} {check} repository {repository}", client.raw())
         }

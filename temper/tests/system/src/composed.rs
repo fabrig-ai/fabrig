@@ -32,6 +32,8 @@ use temper_engine_domain_world::walking;
 use temper_engine_forge_world::translate as api;
 use temper_fake_checkout::Checkout;
 use temper_fake_checkout::git::Tree;
+#[cfg(test)]
+use temper_protocol_worker_wire::v1::Record as _;
 use temper_worker_checkout_world::forge::Forge;
 use temper_worker_domain as worker;
 use temper_worker_domain_world::protocol as worker_protocol;
@@ -116,6 +118,10 @@ pub struct Observed {
     pub pieces: usize,
     /// Turns the engine told the worker it keeps.
     pub turn_acks: usize,
+    #[cfg(test)]
+    pub push_asks: Vec<(Token, Token, u64, temper_protocol_worker_wire::v1::Admit)>,
+    #[cfg(test)]
+    pub push_answers: Vec<(Token, Token, u64)>,
     pub relays: usize,
     pub replies: usize,
     /// Settled host replies replayed byte for byte after a lost delivery.
@@ -322,6 +328,10 @@ fn configure(mut config: engine::Config) -> engine::Config {
 /// which fit the engine's charter.
 fn worker_limits() -> worker::Limits {
     let mut limits = temper_worker_domain_world::limits();
+    let largest = temper_protocol_worker_wire::largest(&temper_protocol_worker_wire::v1::CEILINGS)
+        .expect("the application layout fits the link");
+    limits.host.application_ask_bytes = largest.ask;
+    limits.host.application_answer_bytes = largest.answer;
     limits.host.slots = 1;
     limits.host.charter_bytes = 65536;
     limits.agent.charter_bytes = 65536;
@@ -1259,11 +1269,35 @@ impl World {
                     )]);
                 }
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
-                ask @ engine::HostRequest::Ask { .. } => {
-                    return Err(Box::new(engine::Request::Worker(engine::WorkerRequest::Host(Box::new(ask)))));
+                engine::HostRequest::Ask { channel, run, attempt, number, bytes } => {
+                    let asking = engine::wire::Asking { channel, run, attempt, number };
+                    if let Some(event) = temper_engine_domain_world::protocol::push_ask(asking, &bytes) {
+                        return Ok(vec![event]);
+                    }
+                    let limits = &temper_protocol_worker_wire::v1::CEILINGS;
+                    let Some(ask) = temper_engine_service_vocabulary::translate::ask(&bytes, limits) else {
+                        panic!("unscripted application ask");
+                    };
+                    let answer = match ask {
+                        engine::wire::Ask::Results(results) => {
+                            self.root_events.push_back(engine::Event::Worker(engine::WorkerInput::CheckResults {
+                                run,
+                                attempt,
+                                results,
+                            }));
+                            engine::wire::Answer::Kept
+                        }
+                        ask => engine::wire::answer(&self.root, run.raw(), attempt.raw(), ask),
+                    };
+                    temper_engine_service_vocabulary::translate::asked(asking, answer, limits)
                 }
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {
+                engine::HostDelivery::Asked { asking, answer } => temper_engine_service_vocabulary::translate::asked(
+                    asking,
+                    answer,
+                    &temper_protocol_worker_wire::v1::CEILINGS,
+                ),
                 engine::HostDelivery::Render { to, answer, tool, key, read, job, page, ask, .. } => {
                     engine::WorkerInput::RenderedHostCall {
                         to,
@@ -1768,6 +1802,16 @@ impl World {
     }
 
     fn deliver_link(&mut self, at: usize, down: host::LinkDown) {
+        #[cfg(test)]
+        if let host::LinkDown::Asked { run, attempt, number, answer: host::AskAnswer::Bytes(bytes) } = &down
+            && let Ok(temper_protocol_worker_wire::v1::Answer::Admitted) =
+                temper_protocol_worker_wire::v1::Answer::decode(
+                    &temper_protocol_worker_wire::v1::CEILINGS,
+                    &mut skein_lib::Reader::new(bytes),
+                )
+        {
+            self.observed.push_answers.push((*run, *attempt, *number));
+        }
         if matches!(down, host::LinkDown::Relayed { answer: host::Relayed::Answer { .. }, .. })
             && let Some((pending, previous)) = &mut self.replay
         {
@@ -1803,6 +1847,19 @@ impl World {
                 let answer = temper_worker_service::translate::answer(&bytes, &limits);
                 self.lanes[at].worker_events.push_back(worker::Event::RedsAnswer { owner, check, answer });
             }
+            worker::Request::AdmitAsk { client, cookie, ask } => {
+                let bytes = temper_worker_service::translate::ask(ask);
+                self.lanes[at].worker_events.push_back(worker::Event::AdmitAsk { client, cookie, bytes });
+            }
+            worker::Request::AdmitAnswer { client, cookie, bytes } => {
+                let own = temper_service_core::limits::stock();
+                let limits = temper_worker_service::worker_settings::payload_limits(
+                    &temper_worker_service::worker_settings::Limits::shared(own),
+                )
+                .expect("worker payload limits");
+                let answer = temper_worker_service::translate::answer(&bytes, &limits);
+                self.lanes[at].worker_events.push_back(worker::Event::AdmitAnswer { client, cookie, answer });
+            }
             worker::Request::ReadUsage { .. }
             | worker::Request::ReadList { .. }
             | worker::Request::CancelRead { .. }
@@ -1824,6 +1881,16 @@ impl World {
             }
             worker::Request::Link(up) => {
                 self.remember_call(&up);
+                #[cfg(test)]
+                if let host::LinkUp::Ask { run, attempt, number, bytes } = &up
+                    && let Ok(temper_protocol_worker_wire::v1::Ask::Admit(ask)) =
+                        temper_protocol_worker_wire::v1::Ask::decode(
+                            &temper_protocol_worker_wire::v1::CEILINGS,
+                            &mut skein_lib::Reader::new(bytes),
+                        )
+                {
+                    self.observed.push_asks.push((*run, *attempt, *number, ask));
+                }
                 match &up {
                     host::LinkUp::Turn { .. } => self.observed.turns += 1,
                     host::LinkUp::Piece { .. } => self.observed.pieces += 1,

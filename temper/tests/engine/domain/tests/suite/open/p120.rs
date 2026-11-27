@@ -68,7 +68,7 @@ fn the_newest_ruling_reaches_the_resolution() {
     // The scripted resolver follows only the current ruling, deleting file.
     let merged = merge_job::push_merge_tree(
         &mut world,
-        task,
+        merge_job::Writer::Run(&next),
         head,
         base,
         Box::new([raw::File {

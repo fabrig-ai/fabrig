@@ -1,4 +1,4 @@
-//! Store adapters for the core's restart script (jig's domain/root.md, 8).
+//! Store adapters for the core's restart script (temper/docs/design/domain/root-restart.md, 1.1).
 //! Window texts keep cut turns and their lengths (temper/docs/design/domain/root.md, 7).
 use crate::archive::{Waiting, goal_failed, goal_loaded, note_failed, settings_note_loaded, waiting};
 use crate::boundary::{Request, Work};
@@ -79,34 +79,9 @@ pub(crate) fn request_load(
             return;
         }
         match range {
-            Range::History(_) => {
-                crate::archive::history_failed(domain, waiter);
-                return;
-            }
-            Range::Core(crate::CoreRange::RequesterWord { .. }) => {
-                goal_failed(domain, waiter);
-                return;
-            }
-            Range::Core(
-                crate::CoreRange::Calls
-                | crate::CoreRange::Deployment
-                | crate::CoreRange::Tasks
-                | crate::CoreRange::RunProofs
-                | crate::CoreRange::Settings
-                | crate::CoreRange::Accounts
-                | crate::CoreRange::People
-                | crate::CoreRange::Sweep
-                | crate::CoreRange::TaskResult { .. }
-                | crate::CoreRange::Turns { .. },
-            )
-            | Range::Census(_)
-            | Range::Forge => {}
-            Range::Core(crate::CoreRange::ApplicationNotes(_)) => {
-                note_failed(domain, waiter);
-                return;
-            }
-        }
-        match range {
+            Range::History(_) => crate::archive::history_failed(domain, waiter),
+            Range::Core(crate::CoreRange::RequesterWord { .. }) => goal_failed(domain, waiter),
+            Range::Core(crate::CoreRange::ApplicationNotes(_)) => note_failed(domain, waiter),
             Range::Core(
                 crate::CoreRange::Calls
                 | crate::CoreRange::Deployment
@@ -117,16 +92,14 @@ pub(crate) fn request_load(
                 | crate::CoreRange::Sweep
                 | crate::CoreRange::RunProofs
                 | crate::CoreRange::Turns { .. }
-                | crate::CoreRange::RequesterWord { .. }
                 | crate::CoreRange::TaskResult { .. },
             )
             | Range::Census(_)
             | Range::Forge => {
                 unreachable!("startup/result load room reserved")
             }
-            Range::History(_) => unreachable!("history load failure handled above"),
-            Range::Core(crate::CoreRange::ApplicationNotes(_)) => unreachable!("notes load failure handled above"),
         }
+        return;
     }
     match load_out.pop().expect("load issued") {
         loads::Request::Load { owner, range, after, most, bytes } => {
@@ -274,8 +247,23 @@ pub(crate) fn startup_page(
         return;
     }
     if let Some(after) = next {
-        emit(&mut decision, &env.limits, Delivery::Load { waiter: Token::new(u64::MAX), range, after: Some(after) });
-        close(domain, env, decision, out);
+        // A read-only forge page can ask for the next page through the door.
+        // Keep the release when this page or older journal work must go first.
+        if range == Range::Forge
+            && decision.empty()
+            && !domain.engine.core().counters.dirty()
+            && domain.journal.backlog() == 0
+        {
+            close(domain, env, decision, out);
+            request_load(domain, Token::new(u64::MAX), range, Some(after), out);
+        } else {
+            emit(
+                &mut decision,
+                &env.limits,
+                Delivery::Load { waiter: Token::new(u64::MAX), range, after: Some(after) },
+            );
+            close(domain, env, decision, out);
+        }
         return;
     }
     let following = match range {

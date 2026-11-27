@@ -49,18 +49,19 @@ fn without_deleted_repository_job() -> OwnerSets {
     OwnerSets { sets: &[store::SKEIN_SET, store::SMITH_SET, jig_protocol_accounts::JIG_SET, APPLICATION] }
 }
 
-// The floor has neither the registered change parts nor person briefs. Keep every
-// other current declaration and range, without leaking an owner set at each open.
-const PARTS: usize = 3;
+// The floor predates the registered change parts, person briefs and branch writes.
+// Keep every other current declaration and range without leaking an owner set at each open.
+const NEW_TYPES: usize = 4;
 const fn after_floor(from: &[u8]) -> bool {
     from.len() == 1
         && (from[0] == crate::keys::CHANGE_COLD
             || from[0] == crate::keys::CHANGE_HOT
-            || from[0] == crate::keys::PERSON_BRIEF)
+            || from[0] == crate::keys::PERSON_BRIEF
+            || from[0] == crate::keys::WRITES)
 }
-const fn floor_types() -> [store::ValueType; crate::OWNER_SET.families[0].types.len() - PARTS] {
+const fn floor_types() -> [store::ValueType; crate::OWNER_SET.families[0].types.len() - NEW_TYPES] {
     let types = crate::OWNER_SET.families[0].types;
-    let mut kept = [types[0]; crate::OWNER_SET.families[0].types.len() - PARTS];
+    let mut kept = [types[0]; crate::OWNER_SET.families[0].types.len() - NEW_TYPES];
     let mut read = 0;
     let mut written = 0;
     while read < types.len() {
@@ -73,9 +74,9 @@ const fn floor_types() -> [store::ValueType; crate::OWNER_SET.families[0].types.
     assert!(written == kept.len());
     kept
 }
-const fn floor_keys() -> [store::Keys; crate::OWNER_SET.families[0].keys.len() - PARTS] {
+const fn floor_keys() -> [store::Keys; crate::OWNER_SET.families[0].keys.len() - NEW_TYPES] {
     let keys = crate::OWNER_SET.families[0].keys;
-    let mut kept = [keys[0]; crate::OWNER_SET.families[0].keys.len() - PARTS];
+    let mut kept = [keys[0]; crate::OWNER_SET.families[0].keys.len() - NEW_TYPES];
     let mut read = 0;
     let mut written = 0;
     while read < keys.len() {

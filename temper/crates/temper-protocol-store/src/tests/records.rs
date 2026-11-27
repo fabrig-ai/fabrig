@@ -158,23 +158,22 @@ fn a_landing_past_name_bytes_fails_to_decode() {
 }
 
 #[test]
-fn a_holds_design_writers_and_their_fresh_read_progress_round_trip() {
+fn a_holds_design_writers_round_trip_the_previous_reread_flag() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let writer = forge::DesignWriter { task: 1, attempt: 2, rereading: false };
+    let row = forge::Stored::Hold(forge::Hold {
+        name: forge::Name { forge: 1, repository: 2, what: forge::What::Branch(Box::new([b"g1".as_slice().into()])) },
+        task: 1,
+        writer: None,
+        beside: None,
+        design_writers: Box::new([writer]),
+        drift: None,
+    });
+    let bytes = records::encode(&row);
+    assert_eq!(records::decode(&bytes, &bounds), Ok(row));
     for rereading in [false, true] {
-        let row = forge::Stored::Hold(forge::Hold {
-            name: forge::Name {
-                forge: 1,
-                repository: 2,
-                what: forge::What::Branch(Box::new([b"g1".as_slice().into()])),
-            },
-            task: 1,
-            writer: None,
-            beside: None,
-            design_writers: Box::new([forge::DesignWriter { task: 1, attempt: 2, rereading }]),
-            drift: None,
-        });
-        let bytes = records::encode(&row);
-        assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+        let old = v25::DesignWriter { task: 1, attempt: 2, rereading };
+        assert_eq!(records::by_hand::design_writer_to_domain(old), forge::DesignWriter { rereading, ..writer });
     }
 }
 
@@ -4426,6 +4425,46 @@ fn a_change_row_written_before_no_test_defaults_its_verdict_to_false() {
     }
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
+}
+
+#[test]
+fn the_writes_family_keeps_a_branch_and_its_bounded_ordered_entries() {
+    use forge::writes::{Operation, Sender, WRITES, WriteState, Writes, Written};
+    let name = forge::Name {
+        forge: fixtures::REPO.forge,
+        repository: fixtures::REPO.repository,
+        what: forge::What::Branch(Box::new([b"goals".as_slice().into(), b"one".as_slice().into()])),
+    };
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let limit = u64::try_from(WRITES).unwrap();
+    let mut entries = skein_lib::List::with_capacity(u32::try_from(WRITES).unwrap());
+    for order in 1..=limit {
+        entries
+            .push(Written {
+                order,
+                operation: Operation::Update { pull: 19, before: [1; 32], base: [2; 32], after: None },
+                sender: Sender::Entry { task: 4, entry: order },
+                state: WriteState::Uncertain,
+            })
+            .unwrap();
+    }
+    let mut row = Writes {
+        name: name.clone(),
+        entries: entries.into_boxed(),
+        head: Some([2; 32]),
+        next: limit.checked_add(1).unwrap(),
+    };
+    let key = forge::Key::Writes(name);
+    let key_bytes = crate::keys::encode(&key, u32::MAX).unwrap();
+    assert_eq!(key_bytes[0], crate::keys::WRITES);
+    assert_eq!(crate::keys::decode(&key_bytes, &fixtures::LIMITS), Some(key));
+    let stored = forge::Stored::Writes(row.clone());
+    let bytes = records::encode(&stored);
+    assert_eq!(records::row(&key_bytes, &bytes, &bounds), Ok(stored));
+    row.next = limit;
+    let bytes = records::encode(&forge::Stored::Writes(row));
+    assert_eq!(records::row(&key_bytes, &bytes, &bounds), Err(crate::Undecodable::Malformed));
+    assert_eq!(v25::CEILINGS.writes_entries, u32::try_from(WRITES).unwrap());
 }
 
 #[test]

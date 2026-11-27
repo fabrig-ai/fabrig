@@ -91,11 +91,9 @@ fn setup(count: usize) -> Domain {
                     task: *task,
                     attempt: 1,
                     name: name.clone(),
-                    comparison: None,
-                    baseline: None,
                     state: LostReadState::Asked,
                     last_answer: None,
-                    kind: LostWriterKind::Written,
+                    kind: LostWriterKind::Slot,
                 },
             )
             .unwrap();

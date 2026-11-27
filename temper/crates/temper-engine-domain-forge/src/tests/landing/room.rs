@@ -160,9 +160,11 @@ fn answer_for(op: Op, base: api::Commit, run: Option<&api::Run>) -> Result<Answe
         Op::Read(Read::Branch { branch }) => {
             Ok(Answer::Commit(if branch.as_ref() == b"main" { base } else { fixtures::HEAD }))
         }
+        Op::Read(Read::Pull { number: 2, .. }) => Ok(Answer::Pull(open_round_pull(base))),
         Op::Read(Read::Pull { number, .. }) => {
             let mut pull = fixtures::open_pull();
             pull.number = number;
+            pull.base_commit = Some(base);
             Ok(Answer::Pull(pull))
         }
         Op::Read(Read::Reviews { .. }) => Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),

@@ -236,12 +236,9 @@ pub(super) fn close_job(world: &mut World) -> host::JobAssignment {
 pub(super) fn finish_close(world: &mut World, task: u64, branch: &[u8], job: &host::JobAssignment) {
     let own = row(world, task).branch.clone();
     let tip = branch_tip(world, branch);
-    assert_eq!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: own.clone(), commit: tip })),
-        raw::Answer::Branch(raw::Created::Created)
-    );
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &own, b"status", &job.run.raw().to_be_bytes(), 2)
-        .expect("close job pushed");
+    assert!(world.fake.branch(b"org/repo", &own).is_none(), "new status branch");
+    let commit = world.worker_commit(tip, b"status", &job.run.raw().to_be_bytes());
+    world.job_push(CHANNEL, job, &own, commit, 2);
     let event = world.protocol.answer_job(
         CHANNEL,
         job.run.raw(),
@@ -303,13 +300,10 @@ fn produce_with_status(
 ) {
     let own = row(world, task).branch.clone();
     let tip = branch_tip(world, branch);
-    assert_eq!(
-        world.external(1, raw::Op::Git(raw::Git::Create { branch: own.clone(), commit: tip })),
-        raw::Answer::Branch(raw::Created::Created)
-    );
+    assert!(world.fake.branch(b"org/repo", &own).is_none(), "new change branch");
     let contents = if title == b"failures" { temper_engine_domain_world::tier_runs::FAILURES } else { b"added" };
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &own, title, contents, 1)
-        .expect("producer pushed");
+    let head = world.worker_commit(tip, title, contents);
+    world.run_push(producer, &own, head, 1);
     if let Some(check) = check {
         status(world, head, check);
     }
@@ -518,8 +512,7 @@ fn a_far_diverged_goal_closes_lands_and_reports_without_comparisons() {
     world.forge_reads = Some(Vec::new());
     let mut goal_tips = vec![translate::commit(branch_tip(&mut world, &branch))];
     for n in 0_u8..21 {
-        let tip = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"goal", &[n], 1)
-            .expect("goal advances");
+        let tip = world.run_push_edit(&goal, &branch, b"goal", &[n], 1);
         goal_tips.push(translate::commit(tip));
     }
     for n in 0_u8..22 {
@@ -692,10 +685,7 @@ fn a_goal_reads_the_resolution_under_its_closers_conflicting_landing() {
         b"Resolve closer landing",
     )
     .expect("resolution commit");
-    assert_eq!(
-        world.external(1, raw::Op::Git(raw::Git::Push { branch, commit: merge, expected: Some(old) })),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    world.run_push(&resolver, &branch, merge, 1);
     finish_run(
         &mut world,
         &resolver,
@@ -730,9 +720,7 @@ fn a_closers_landing_held_escalates_to_the_goal() {
         status(&mut world, head, raw::Check::Failed);
         let repair = reviews::next_assignment(&mut world, before);
         assert_eq!(live_task(&world, repair.task).requester, tasks::Party::Task(landing));
-        head =
-            fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"repair", &number.to_be_bytes(), 1)
-                .expect("repair pushed g");
+        head = world.run_push_edit(&repair, &branch, b"repair", &number.to_be_bytes(), 1);
         status(&mut world, head, raw::Check::Pending);
         finish_run(
             &mut world,
@@ -1033,8 +1021,7 @@ fn a_cancelled_landing_release_makes_its_new_landing_at_the_moved_head() {
     assert_eq!(row(&world, landing).change.last_head, Some(translate::commit(old)));
     cancel_landing(&mut world, &goal, landing);
     wait_held(&mut world, closer, goal.task);
-    let moved = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"later", b"new work", 1)
-        .expect("goal branch advances while its closer holds");
+    let moved = world.run_push_edit(&goal, &branch, b"later", b"new work", 1);
     assert_ne!(moved, old);
     status(&mut world, moved, raw::Check::Pending);
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {

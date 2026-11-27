@@ -49,9 +49,9 @@ pub(crate) fn next_assignment(world: &mut World, index: usize) -> engine::Assign
 }
 
 pub(super) fn produce(world: &mut World, producer: &engine::Assignment, branch: &[u8]) -> [u8; 32] {
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.into(), commit: 1 }));
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, FILE, CONTENT, 1)
-        .expect("producer pushed review head");
+    let parent = world.fake.branch(b"org/repo", branch).unwrap_or(1);
+    let head = world.worker_commit(parent, FILE, CONTENT);
+    world.run_push(producer, branch, head, 1);
     let event = world.protocol.answer(
         CHANNEL,
         producer.task,
@@ -314,9 +314,9 @@ fn rendered_review_in(
     branch: &[u8],
     content: &[u8],
 ) -> (engine::Assignment, [u8; 32]) {
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.into(), commit: 1 }));
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, b"generated", content, 1)
-        .expect("generated file pushed");
+    let parent = world.fake.branch(b"org/repo", branch).unwrap_or(1);
+    let generated = world.worker_commit(parent, b"generated", content);
+    world.run_push(producer, branch, generated, 1);
     let review_index = world.assigned.len();
     let head = produce(world, producer, branch);
     let reviewer = next_assignment(world, review_index);
@@ -1224,14 +1224,27 @@ fn waiting_review_repair(other_change: Option<u64>) -> (World, engine::Assignmen
 }
 
 pub(crate) fn preparing_review_repair(other_change: Option<u64>) -> (World, u64) {
+    use temper_engine_domain_forge_change::{Hold, State};
     let (mut world, _, change, branch, _) = waiting_review_repair(other_change);
     world.advance_ticks(MAX_TICKS);
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"another-file", b"another writer", 2)
         .expect("another writer advances the idle repair's branch");
+    wait_held(&mut world, change);
+    assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { why: tasks::Hold::Drift, .. }));
+    let held = change_row(&world, change).change.state;
+    assert!(
+        matches!(&held, State::Held { why: Hold::BranchMoved, was } if matches!(was.as_ref(), State::WaitingProducer { .. })),
+        "{held:?}"
+    );
+    world.signed_in = None;
+    world.sign_in();
+    // Keep the change's own update in flight while the rest of the release settles.
+    world.hold_write_answers = Some(temper_engine_domain_world::forge_routes::HoldWrite::Update);
+    release(&mut world, change);
     for _ in 0..MAX_TICKS {
         world.tick();
         let row = change_row(&world, change);
-        if matches!(row.change.state, temper_engine_domain_forge_change::State::Preparing { .. })
+        if matches!(row.change.state, State::Preparing { .. })
             && row.pending.is_some_and(|entry| world.root.forge().inspection_entry(entry).is_some())
             && world.events.is_empty()
             && world.store.idle()
@@ -1244,6 +1257,7 @@ pub(crate) fn preparing_review_repair(other_change: Option<u64>) -> (World, u64)
 }
 
 fn delivered_review_repair(moved: bool, idle: bool) {
+    use forge_top::writes::{Operation, Sender, WriteState};
     let (mut world, requester, change, branch, repair) = waiting_review_repair(None);
     if idle {
         world.advance_ticks(MAX_TICKS);
@@ -1271,11 +1285,43 @@ fn delivered_review_repair(moved: bool, idle: bool) {
     let resumed = next_assignment(&mut world, 7);
     assert_eq!(resumed.task, repair.task);
     push_append(&mut world, &resumed, &branch, b"both lines");
-    if moved {
-        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"another-file", b"another writer", 2)
-            .expect("another writer advances the delivered branch");
-    }
-    let head = translate::commit(world.fake.branch(b"org/repo", &branch).expect("repaired branch"));
+    let repaired = world.fake.branch(b"org/repo", &branch).expect("repaired branch");
+    let head = if moved {
+        let outside = fake::advance(
+            &mut world.fake,
+            &world.fake_env,
+            b"org/repo",
+            &branch,
+            b"another-file",
+            b"another writer",
+            2,
+        )
+        .expect("another writer advances the delivered branch");
+        wait_held(&mut world, change);
+        assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { why: tasks::Hold::Drift, .. }));
+        let held = change_row(&world, change).change;
+        assert_eq!(held.repairs, 2, "the outside move spends no further repair");
+        assert!(matches!(
+            held.state,
+            temper_engine_domain_forge_change::State::Held {
+                why: temper_engine_domain_forge_change::Hold::BranchMoved,
+                ..
+            }
+        ));
+        let sender = Sender::Attempt { task: resumed.task, attempt: resumed.attempt };
+        assert!(world.store.rows.values().any(|record| matches!(record,
+            Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Writes(writes)
+                if writes.entries.iter().any(|entry| entry.sender == sender && entry.state == WriteState::Confirmed
+                    && matches!(entry.operation, Operation::Push { after, .. } if after == translate::commit(repaired))))
+        )), "the outside tip contains the confirmed repair");
+        world.signed_in = None;
+        world.sign_in();
+        release(&mut world, change);
+        outside
+    } else {
+        repaired
+    };
+    let head = translate::commit(head);
     for _ in 0..MAX_TICKS {
         world.tick();
         if world.assigned.len() > 8 {
@@ -1286,7 +1332,11 @@ fn delivered_review_repair(moved: bool, idle: bool) {
     assert_eq!(row.change.last_head, Some(head), "delivered repair must advance the change: {row:?}");
     let fresh = world.assigned.get(8).expect("successful repair must be reviewed");
     assert_review_head(&world, fresh, head);
-    assert_eq!(row.change.repairs, 2, "taking a delivery spends no further repair");
+    if moved {
+        assert_eq!(row.change.repairs, 0, "the owner's release starts the repair count again");
+    } else {
+        assert_eq!(row.change.repairs, 2, "taking a delivery spends no further repair");
+    }
     assert!(row.questions.open.is_empty());
     assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
 }
@@ -2040,8 +2090,7 @@ fn a_review_at_a_head_whose_ci_fails_is_cancelled_and_the_repair_is_funded() {
     assert!(row.verdicts.is_empty());
     assert!(row.change.gate_failures.is_empty(), "cancellation uses no failed-review retry");
     assert_eq!(live_task(&world, change).made, 4, "producer, cancelled review and repair each count as made");
-    let second_head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, FILE, b"repaired", 1)
-        .expect("repair pushed H2");
+    let second_head = world.run_push_edit(&repair, &branch, FILE, b"repaired", 1);
     assert_ne!(second_head, first_head);
     let event = world.protocol.answer(
         CHANNEL,
@@ -2514,8 +2563,9 @@ fn third_append_conflict() -> (World, u64, Box<[u8]>) {
     let (mut world, _, producer, branch) = change_world_with_gate(false, 1000, None, true);
     let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", FILE, b"README\n\n", 1)
         .expect("original blank line");
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base }));
-    push_append(&mut world, &producer, &branch, THIRD_APPEND);
+    let head = world.worker_commit(base, FILE, THIRD_APPEND);
+    world.run_push(&producer, &branch, head, 1);
+    super::delegates::fixtures::answer_producer(&mut world, &producer);
     let review = next_assignment(&mut world, 2);
     let change = requester(&world, review.task);
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", FILE, b"README\n\nBREAK the slow check\n", 1)
@@ -2557,8 +2607,7 @@ fn reject_lost_content(world: &mut World, run: &engine::Assignment, words: &[u8]
 }
 
 fn push_append(world: &mut World, run: &engine::Assignment, branch: &[u8], content: &[u8]) {
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, FILE, content, 1)
-        .expect("scripted worker push");
+    world.run_push_edit(run, branch, FILE, content, 1);
     super::delegates::fixtures::answer_producer(world, run);
 }
 
@@ -2574,9 +2623,6 @@ fn resolve_append(world: &mut World, run: &engine::Assignment, branch: &[u8], co
         b"Resolve conflict",
     )
     .expect("scripted resolution");
-    assert_eq!(
-        world.external(1, raw::Op::Git(raw::Git::Push { branch: branch.into(), commit: merge, expected: Some(old) })),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    world.run_push(run, branch, merge, 1);
     super::delegates::fixtures::answer_producer(world, run);
 }
