@@ -650,7 +650,7 @@ pub fn refuse(directory: &Path) {
     stories::setup_settings(world::Phase::Story);
     let (configuration, defaults) = startup_configuration(directory);
     READ_DEFAULTS.with(|at| *at.borrow_mut() = Some(defaults));
-    let mut disk = files::load(directory);
+    let mut disk = files::load_kept(directory);
     files::change_record(&mut disk, &[0, 13], None);
     let before = files::image(&mut disk);
     let active = files::active(&mut disk);
@@ -737,7 +737,7 @@ fn load_reader(directory: &Path) -> (skein_fake_machine::Machine, temper_playgro
     // The reader holds the playground reset while inspecting the permanent history.
     document["world_settings"] = temper_playground::documents::world_document()["world_settings"].clone();
     document["world_settings"]["adopt_only"] = true.into();
-    let mut disk = files::load(directory);
+    let mut disk = files::load_kept(directory);
     // Kept deployments use the current operator's prepare step in the loaded copy only.
     let directories =
         jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache").expect("world directories");

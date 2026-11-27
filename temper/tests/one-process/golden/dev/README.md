@@ -11,6 +11,13 @@ directory again.** The settled image's README rewrite instruction does not
 apply here: this is a golden deployment, not the current story's output
 (`temper/docs/design/protocol/floor.md`, 5).
 
+In each loaded copy, the loader appends one commit with the two frame layout
+rows written by dev.fabrig.ai's 2026-11-25 08:44Z open: `jig-store-core`'s
+`TurnRecord` at id 6 and `smith-transcript`'s `Turn` at id 7. It fingerprints
+the corresponding schema texts already in this store. The same commit
+advances the copy's deployment header to its commit number. The kept bytes
+predate that open and do not change.
+
 `state/`, `worker/`, `client/` and `setup/` are the four machine roots.
 `modes.txt` records private modes and empty directories that git cannot keep;
 the floor's loader recreates them. Host `dot-git` components represent machine

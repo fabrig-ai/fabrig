@@ -364,7 +364,7 @@ pub fn golden(directory: &Path) {
     stories::set(world::Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
     let document = crate::golden::read_configuration(directory);
-    let mut disk = crate::golden::files::load(directory);
+    let mut disk = crate::golden::files::load_kept(directory);
     let before = image(&mut disk);
     let (report, code, jobs) = drive(&mut disk, &document, temper_engine_service::store::OWNER_SETS, Until::Check);
     assert_eq!(code, 0, "{report}");
