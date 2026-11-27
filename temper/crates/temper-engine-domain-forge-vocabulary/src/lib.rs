@@ -266,8 +266,6 @@ pub struct AgentEffect {
     pub effect: skein_forge_client::Effect,
     pub kind: u16,
     pub state: [u8; 32],
-    pub form: EffectForm,
-    pub recovery: Recovery,
 }
 
 /// Classify and bound an agent write in the connector's own vocabulary.
@@ -316,12 +314,12 @@ pub fn describe_agent_effect(
         return Err(skein_forge::api::Error::Forbidden);
     }
     let effect = skein_forge_client::Effect { write, condition: skein_forge_client::Condition::None };
-    let (form, recovery) = effect_shape(kind).expect("permitted agent writes have declared kinds");
+    write_kind(kind).expect("permitted agent writes have declared kinds");
     match skein_forge_client::measure::effect(&effect) {
         Some(bytes) if bytes <= u64::from(op_bytes) => {}
         Some(_) | None => return Err(skein_forge::api::Error::Forbidden),
     }
-    Ok(AgentEffect { effect, kind, state, form, recovery })
+    Ok(AgentEffect { effect, kind, state })
 }
 
 /// Describe current access from the forge's adopted role and effect kinds.
