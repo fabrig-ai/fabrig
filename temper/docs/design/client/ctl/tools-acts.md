@@ -150,9 +150,11 @@ agent must name.
   the `settings-fields` page ends with the file's formats and each
   move, as `help config` lists `temper.toml`'s
   (`../../protocol/configuration/file.md`, 7). The engine host's read of
-  a settings file takes its `format` as ctl does; a proposal's inline
-  items, an agent's, take none. `settings upgrade` prints a file at the
-  newest format (`tools-reads.md`, 1).
+  a settings file takes its `format` as ctl does and returns the read's
+  notices to the agent with its result, one line each in the file's form
+  (`../../protocol/configuration/file-formats.md`, 4). A proposal's inline
+  items, an agent's, take no `format`. `settings upgrade` prints a file
+  at the newest format (`tools-reads.md`, 1).
 - **A goal template's work** (`../../protocol/configuration/settings-kinds.md`, 1, kind
   11): its SETTING `{"kind": "template-goal", "number": N}`, N the
   template's, the deployment's as a template is, and its VALUE

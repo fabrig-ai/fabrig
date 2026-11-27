@@ -7,3 +7,7 @@
 - **Not yet:** 2 to 8: a settings file's format, its moves, notices and refusal, `settings upgrade`, and format 1's `settings/1/` and `charters/1/` fixtures [in flight: change 21449].
 - **Not yet:** 2 and 5: a charter file's front matter and its refusals [in flight: change 21450].
 - **Not yet:** 7: the check refusing an edit of a frozen fixture [in flight: change 21451].
+- **Not yet:** 4: the engine host's read of a settings file returns no
+  notices: a successful read carries its typed call alone
+  (`temper-engine-smith`'s settings read). Format 1 has no moves, so no
+  notices arise.
