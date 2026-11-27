@@ -2,9 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [agents.md](agents.md).
 
-- **Not yet:** 3, *A goal's report*: charter 5's `goal` file asks for no
-  `Asked:` block (*What its request asked for in its result*, *Who is
-  told*) [in flight: change 21035].
 
 - **Not yet:** 3, *What a document draws*: `chat.txt` and `drafter.txt`
   draw a flow only where a sequence says more drawn, with no example and

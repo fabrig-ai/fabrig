@@ -103,9 +103,6 @@ a change's merge job from the engine through its worker to the fake forge
   -  upstream contributions remain `README.status.md`, 8.
   -  the rule-change gate stories remain `change/gates.status.md`, 3.
 
-- **Not yet:** 2: the closer's report read takes no `Asked:` block, its
-  row keeps none, and its report has no part for one (*The report*,
-  *What the goal's request asked for in its result*) [in flight: change 21034].
 
 - **Not yet:** 3: a goal with a confirmed goal branch and a modifying charter delivers to
   its own run branch and lands through a change into g; later runs merge r into g's tip before delivering
