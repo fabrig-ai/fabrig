@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-deployment-fixtures.workspace = true
 temper-faults.workspace = true
 temper-limits-fixtures.workspace = true
 jig-protocol-config-fixtures.workspace = true
