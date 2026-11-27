@@ -25,3 +25,12 @@
   7: the comparison in the composed world. [in flight: change 15012]
   8.5: the engine domain world's opening and follows sweeps taking their
   cases from the seam. [in flight: change 19837]
+  8.5: the forge world's branch patterns, path rules, member message,
+  simulation, gate keys and pull cutoff sweeps taking their cases from the
+  seam. [in flight: change 20025]
+  8.5: the forge world's queue history and restarts sweeps taking their
+  cases from the seam. [in flight: change 20026]
+  8.5: the forge world's landing batches, busy, lagging and CI faults'
+  sweeps taking their cases from the seam. [in flight: change 20027]
+  8.5: the forge world's opens and stale state sweeps taking their cases
+  from the seam. [in flight: change 20028]
