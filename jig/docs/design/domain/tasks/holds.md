@@ -35,8 +35,11 @@ again. Words alone do not release it (../people/acts.md, 1).
   nothing. That alone does not keep waits from circling: a task holding
   a resource may wait for its delegates or, kept, for its dependencies.
   The check of 7 does.
-- **Refuse or wait.** For each kind of resource, its connector says
-  whether a hold that is taken refuses or waits. A batch whose task needs
+- **Refuse or wait.** For each kind of resource, its connector's
+  declaration says whether a hold that is taken refuses or waits
+  (../connectors.md, 2), the rule the core installs in this child as it
+  is built; a resource's report below says it for that resource and wins
+  over its kind's. A batch whose task needs
   a hold that refuses is refused, naming the holder. A task whose hold
   waits is made, and waits in the resource's queue.
 - **What a task holds is its connector's to name,** asked once the task

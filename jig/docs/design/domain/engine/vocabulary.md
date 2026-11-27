@@ -147,8 +147,25 @@ the store's port (2.4).
 
 ### 2.1 Its functions
 
-- **`Engine`** holds the core and nothing else. `Engine::new(config, limits)` builds it as
-  `Core::new` does, refusing what that refuses with the same `Problem`.
+- **`Engine`** holds the core and nothing else. `Engine::new(config, connectors, limits)`, its
+  `connectors` a `&[Declaration]` (`../connectors.md`, 2), builds it as `Core::new` does, refusing
+  what that refuses with the same `Problem`, and refuses a start whose declarations don't hold.
+  It returns the first of these that fails, taking each declaration in the order given (its
+  connector, then its resource kinds, then its effect kinds), then each configured connector, then
+  the total:
+  - `Problem::Declared { connector }`: a declaration's connector is not among `config.connectors`,
+    or is declared twice;
+  - `Problem::ResourceKind { connector, kind }` and `Problem::EffectKind { connector, kind }`: a
+    connector declares one kind twice;
+  - `Problem::Undeclared { connector }`: a configured connector has no declaration;
+  - `Problem::HoldKinds { limit }`: the declarations' resource kinds together are more than
+    `tasks.hold_kinds`, the tasks child's table.
+
+  `Problem` is `jig-domain-link`'s, beside the workers' cases. Built, the engine has installed
+  every declared resource kind's rule in the tasks child, before anything is restored, and keeps
+  the effect kinds, by which it judges each description (`../connectors-effects.md`, 1.1). No root,
+  kit or world installs hold kinds: the core's step takes no `tasks::Event::Kinds` from outside,
+  and one given is a fault.
 - **`step(engine, env, input, out)`** takes one input as one decision and appends its outputs to
   `out`, in the order the core made them. For `In::Core(event)` they are exactly what the core's
   own step returns for `event`, each as `Out::Core`, but for its loads, each of which leaves as
@@ -310,7 +327,14 @@ The engine's own enums gain the port (2.2): `In::Store(store::In)`, and `Out::He
   their public watermark, until the parties' port and admission take it
   (`temper/docs/design/draft/jig-domain-api.md`, 4.4 and 5.3).
 - **The engine as the API** (`temper/docs/design/draft/jig-domain-api.md`, 4 to 6, by its
-  execution file): the ports beside `In::Core` and `Out::Core`; connectors' declarations given to
-  `Engine::new`; one class per input, and `idle` in place of `quiescent` and `finish_owed`; then
-  `In::Core`, `Out::Core` and the access gone, and `In` and `Out` named `Event` and `Request` once
-  today's are.
+  execution file): the ports beside `In::Core` and `Out::Core`; one class per input, and `idle` in
+  place of `quiescent` and `finish_owed`; then `In::Core`, `Out::Core` and the access gone, and
+  `In` and `Out` named `Event` and `Request` once today's are.
+- **The rest of a declaration** (`temper/docs/design/draft/jig-domain-api.md`, 6.2 and 6.3): its
+  reads, topics, parts, procedures, symbols, settings, requests and whether it projects goals, each
+  with the capability the engine asks it by, and the `Connector` number type with the ports that
+  carry it; a start refused, too, for a kind its configuration names (a grant's, a requirement's, a
+  template's symbol) that no connector declared, once reads and symbols are declared, since a
+  grant's kind may be a read's. An effect kind's resource kinds, whether it is priced, and a
+  resource kind's path shape wait for a check that reads them: the engine reads an effect's
+  resources as names and its price as given.
