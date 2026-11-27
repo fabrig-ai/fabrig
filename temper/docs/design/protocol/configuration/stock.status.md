@@ -7,7 +7,6 @@
 
 
 
-- **Not yet:** charter 5's lean design and charter 2's `## Simpler`, with section 7's brief bound following charter 5's room: the stock's charter files keep the detailed `## Steps` and design, and `standard`'s `root.brief.brief_bytes` the room of today's text [in flight: change 21024].
 
 - **Not yet:** "Claude's cache prices are Anthropic's": the stock prices Claude's cached input as input and no cache write, so C is still 10,896 ("Budgets in runs of the costliest model") [in flight: change 913].
 
