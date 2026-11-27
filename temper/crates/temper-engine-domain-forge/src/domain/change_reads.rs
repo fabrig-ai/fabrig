@@ -6,7 +6,7 @@ use skein_lib::{Queue, Wall};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(super) struct Drift {
-    pub(super) why: change::Hold,
+    pub(super) why: change::Cause,
     pub(super) nearest: Option<u64>,
 }
 
@@ -66,7 +66,7 @@ pub(super) fn branch(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, o
     let pin = row.change.state.pinned_head().or(row.change.last_head).or(row.kept);
     let expected = writes::record_head(d, &name).or(pin);
     let actor = actor(d, row, pending.branch, BehindRead::Branch);
-    let accept = super::takes_released_head(&row.change);
+    let accept = if let Some(head) = pending.branch { super::takes_released_head(&row.change, head) } else { false };
     let recovery = recovery(&row.change.state);
     let creating = recovery == Recovery::Taking || recovery == Recovery::Recreating;
     let legacy = if let Some(head) = d.heads.get(&name)
@@ -79,10 +79,10 @@ pub(super) fn branch(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, o
     };
     let held_new_head = super::change_requester_writing(d, row);
     let seen = d.observe(&name, pending.branch, actor, out);
-    if accept {
-        return Judgement::Read;
-    }
     match seen {
+        Seen::Current | Seen::Explained { .. } | Seen::Drift { .. } if accept && pending.branch.is_some() => {
+            Judgement::Read
+        }
         Seen::Current if !d.writes.contains_key(&name) => {
             // Older procedure rows can predate the write record. Their last
             // confirmed head is the baseline until they have a record.
@@ -124,7 +124,7 @@ pub(super) fn branch(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, o
 }
 
 fn drifted_branch(found: Option<Commit>, nearest: Option<u64>) -> Judgement {
-    let why = if found.is_some() { change::Hold::BranchMoved } else { change::Hold::BranchMissing };
+    let why = if found.is_some() { change::Cause::BranchMoved } else { change::Cause::BranchMissing };
     Judgement::Drift(Drift { why, nearest })
 }
 
@@ -186,7 +186,7 @@ pub(super) fn pull(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out
             return behind(BehindRead::PullState, None, None);
         }
         return if row.pull.is_some() && !reopening && !pending.heard.cancelled {
-            Judgement::Drift(Drift { why: change::Hold::PullClosed, nearest: writes::nearest_order(d, &name) })
+            Judgement::Drift(Drift { why: change::Cause::PullClosed, nearest: writes::nearest_order(d, &name) })
         } else {
             Judgement::Read
         };
@@ -206,7 +206,7 @@ pub(super) fn pull(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out
             if reopening {
                 return Judgement::Read;
             }
-            let why = if target_changed { change::Hold::Retargeted } else { change::Hold::PullClosed };
+            let why = if target_changed { change::Cause::Retargeted } else { change::Cause::PullClosed };
             return Judgement::Drift(Drift { why, nearest });
         }
         Seen::Behind { .. } => return behind(BehindRead::PullState, None, None),
@@ -272,8 +272,17 @@ pub(super) fn keep(
 ) -> bool {
     // A hint identifying another writer, or a missing branch, is not made
     // ambiguous by a later view of the base or of the pull.
-    if pending.drift.is_some() {
-        return true;
+    let releasing = match d.changes.get(&pending.task) {
+        Some(row) => row.change.released.is_some(),
+        None => false,
+    };
+    match judgement {
+        Judgement::Owed | Judgement::Behind(_) if releasing => {}
+        Judgement::Read | Judgement::Owed | Judgement::Behind(_) | Judgement::Drift(_) => {
+            if pending.drift.is_some() {
+                return true;
+            }
+        }
     }
     match judgement {
         Judgement::Read => true,

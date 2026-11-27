@@ -5,6 +5,16 @@ use alloc::boxed::Box;
 use jig::{json::Refusal, table::Limits};
 use skein_json::writer::{self, Encoder};
 use skein_lib::{Overflow, Writer};
+/// Present `task measure` beside `task release` without moving the tool indices.
+fn help_rows() -> [&'static [&'static jig::table::Tool]; 4] {
+    let (before_measure, from_measure) =
+        table::TOOLS.split_at_checked(usize::from(jig::rows::MEASURE_AT)).expect("measure tool index");
+    let (measure, after_measure) = from_measure.split_at_checked(1).expect("measure tool row");
+    let (through_release, after_release) = before_measure
+        .split_at_checked(usize::from(jig::rows::RELEASE_AT).saturating_add(1))
+        .expect("release tool index");
+    [through_release, measure, after_release, after_measure]
+}
 /// The reference page `ctl-GROUP`, whole, as docs/help/reference holds it.
 pub fn reference(group: &Group, out: &mut Writer) -> Result<(), Overflow> {
     out.put(b"# temper ctl ")?;
@@ -12,12 +22,12 @@ pub fn reference(group: &Group, out: &mut Writer) -> Result<(), Overflow> {
     out.put(b"\n\nKind: reference\n\n")?;
     out.put(group.line)?;
     out.put(b".\n")?;
-    for (index, row) in table::TOOLS.iter().enumerate() {
+    for (index, row) in help_rows().into_iter().flatten().enumerate() {
         if jig::table::name_words(row.name).0 != group.name {
             continue;
         }
         let mut earlier = false;
-        for prior in table::TOOLS.get(..index).ok_or(Overflow)? {
+        for prior in help_rows().into_iter().flatten().take(index) {
             earlier |= prior.name == row.name;
         }
         if earlier {
@@ -74,7 +84,7 @@ pub enum Selection {
     Group(u8),
     Tool(u8),
 }
-/// Every selected record, whole, in a JSON array in table order.
+/// Every selected record, whole, in a JSON array in help order.
 pub fn json(selected: Selection, limits: &Limits) -> Result<Box<[u8]>, Refusal> {
     let encoding = writer::Limits { depth: 6, length: u32::MAX };
     let mut measured = Encoder::measure(&encoding);
@@ -99,7 +109,7 @@ fn encode_json(selected: Selection, limits: &Limits, out: &mut Encoder) -> Resul
         }
         Selection::Group(index) => {
             let group = table::GROUPS.get(usize::from(index)).ok_or(Refusal::Text)?;
-            for row in table::TOOLS {
+            for row in help_rows().into_iter().flatten() {
                 if jig::table::name_words(row.name).0 == group.name {
                     jig::json::encode_tool(row, limits, out);
                 }
@@ -161,7 +171,7 @@ pub fn selected(selected: Selection, out: &mut Writer) -> Result<(), Overflow> {
 }
 fn group(index: u8, out: &mut Writer) -> Result<(), Overflow> {
     let group = table::GROUPS.get(usize::from(index)).ok_or(Overflow)?;
-    for row in table::TOOLS {
+    for row in help_rows().into_iter().flatten() {
         if jig::table::name_words(row.name).0 == group.name {
             jig::help::usage(row, out)?;
             out.put(b"  ")?;

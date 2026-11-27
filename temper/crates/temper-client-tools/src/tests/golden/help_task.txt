@@ -18,6 +18,8 @@ task answer TASK --rev REV --cannot REASON [--key KEY]
   Answer a numbered question or a revisioned person task
 task release TASK --hold REV [--again] [--key KEY]
   Lift a task's hold
+task measure TASK --hold REV [--key KEY]
+  Ask for one fresh measurement of what a held procedure judged
 task stop TASK REASON [--key KEY]
   Hold a task and every task below it, stopping their runs
 task cancel TASK [--grace DURATION] REASON [--key KEY]

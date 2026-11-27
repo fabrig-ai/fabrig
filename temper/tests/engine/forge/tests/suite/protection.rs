@@ -202,7 +202,7 @@ fn a_protected_merge_holds_without_retrying() {
     );
     assert_eq!(
         change_step(&mut world, 2, change::Status::Unknown, Box::new([])),
-        change::Decision::Hold(change::Hold::Failed)
+        change::Decision::Hold(change::Cause::Failed)
     );
     assert_eq!(change_step(&mut world, 3, change::Status::Unknown, Box::new([])), change::Decision::None);
     assert_eq!(world.writes(), 1, "the refused merge is never retried");

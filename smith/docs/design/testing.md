@@ -135,12 +135,12 @@ Every component's files and processes go through it:
 - **The menu:** the argument bodies the fake copies into the calls it
   draws, `smith-session-world`'s `provider::menu`, which the session,
   agent, host and local worlds share. The fake draws a tool and a body
-  apart, so each body carries the fields of every tool: a path, a
-  content, a command, a pattern and edits, and in some of them `job`'s
-  number and a shell's `yield_seconds`, 0. A drawn call reads its
-  own tool's fields, so a `job`, `shell`, `read` or `write` call takes
-  its own from any body. Its invalid entries are an unknown tool's name,
-  a cut object and an empty one.
+  apart, so each body carries the fields of every tool, and a drawn
+  call reads its own tool's fields from any body. Its bodies for every
+  tool, its slots, the refusals they target and its weights are
+  [drawn-agent.md](drawn-agent.md)'s, and what the worlds count of
+  their completions is [shapes.md](shapes.md)'s. Its invalid entries
+  are an unknown tool's name, a cut object and an empty one.
 - **The `job` slot:** `job`'s number in a body is the menu's numeric
   slot `job` (`skein/docs/design/testing/fakes/drawn-agent.md`, 2),
   between `job ` and a space, as the product renders a job

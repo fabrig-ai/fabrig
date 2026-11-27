@@ -249,7 +249,13 @@ fn a_new_head_touching_the_header_waits_for_approval() {
     settle(&mut world);
     assert!(matches!(
         change_row(&world, change).change.state,
-        State::Held { why: temper_engine_domain_forge_change::Hold::BranchMoved, .. }
+        State::Held {
+            hold: temper_engine_domain_forge_change::Hold {
+                cause: temper_engine_domain_forge_change::Cause::BranchMoved,
+                ..
+            },
+            ..
+        }
     ));
     // A person's push is drift until the owner accepts that new head.
     world.sign_in();

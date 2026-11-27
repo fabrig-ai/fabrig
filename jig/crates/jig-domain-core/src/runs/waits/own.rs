@@ -296,7 +296,7 @@ impl Own {
 // Release starts a new task wait. The original additions and delegate
 // creations are still the facts for waits that haven't been released.
 fn after_release(row: &TaskRecord, since: Wall) -> Wall {
-    if row.due_reason == tasks::Why::Released
+    if (row.due_reason == tasks::Why::Released || row.due_reason == tasks::Why::Measured)
         && let Phase::Waiting | Phase::Active(tasks::Active::Idle) = row.phase
     {
         since.max(row.phase_since)

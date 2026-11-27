@@ -382,7 +382,10 @@ fn a_change_waiting_for_room_has_no_poll_and_never_stalls() {
     fire(&mut d, &clock, &mut expired);
     for request in &expired {
         assert!(
-            !matches!(request, Request::ChangeDecision { decision: change::Decision::Hold(change::Hold::Stalled), .. }),
+            !matches!(
+                request,
+                Request::ChangeDecision { decision: change::Decision::Hold(change::Cause::Stalled), .. }
+            ),
             "{expired:?}"
         );
     }
@@ -398,7 +401,10 @@ fn a_change_waiting_for_room_has_no_poll_and_never_stalls() {
     let out = pull_step_at(&mut d, FIRST, FRESH, "unknown", true, &clock);
     for request in &out {
         assert!(
-            !matches!(request, Request::ChangeDecision { decision: change::Decision::Hold(change::Hold::Stalled), .. }),
+            !matches!(
+                request,
+                Request::ChangeDecision { decision: change::Decision::Hold(change::Cause::Stalled), .. }
+            ),
             "{out:?}"
         );
     }
@@ -447,7 +453,7 @@ fn a_full_outbox_does_not_hide_an_oversize_or_duplicate_change_effect() {
             refused |= if oversized {
                 matches!(
                     request,
-                    Request::ChangeDecision { decision: change::Decision::Hold(change::Hold::Failed), .. }
+                    Request::ChangeDecision { decision: change::Decision::Hold(change::Cause::Failed), .. }
                 )
             } else {
                 matches!(request, Request::Refused { task: FIRST })

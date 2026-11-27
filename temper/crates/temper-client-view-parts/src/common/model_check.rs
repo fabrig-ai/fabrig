@@ -1,5 +1,5 @@
 //! Shared setup items (temper/docs/design/client/view-crates.md, 3.3).
-use crate::words::{Word, Words};
+use crate::words::{Times, Word, Words};
 use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_ui::phrases::Hole;
@@ -15,6 +15,7 @@ pub enum First {
 #[derive(Debug)]
 pub enum Answer {
     SignIn { way: Way },
+    AllWays,
 }
 
 #[derive(Debug)]
@@ -23,6 +24,7 @@ pub enum State {
     Usable,
     Answered { seconds: u64 },
     Stopped { at: usize, why: Box<[u8]>, answer: Option<Answer> },
+    Limited { passed: bool, why: Box<[u8]> },
 }
 
 #[derive(Debug)]
@@ -35,15 +37,23 @@ pub struct Trial {
     pub state: State,
 }
 
-/// A failed trial for Home (domain/trial.md, 6.3); its caller is wired by home-line.
+/// A failed or limited trial for Home (domain/trial.md, 6.3).
 #[must_use]
-pub fn stopped(root: &Domain, w: &Words) -> Option<(Box<[u8]>, u32)> {
+pub fn stopped(root: &Domain, w: &Words, times: &mut Times) -> Option<(Box<[u8]>, u32)> {
     if root.forge().trial_asked().is_some() {
         return None;
     }
     for row in root.forge().trials() {
         match row.state {
-            trials::State::Failed { .. } => return Some((row_trial(root, w, row).who, row.account)),
+            trials::State::Failed { .. } => {
+                let trial = row_trial(root, w, row, times);
+                return Some((named(w, Word::HomeTryStopped, &trial.who), row.account));
+            }
+            trials::State::Limited { .. } => {
+                if let State::Limited { why, .. } = row_trial(root, w, row, times).state {
+                    return Some((why, row.account));
+                }
+            }
             trials::State::Running | trials::State::Answered { .. } => {}
         }
     }
@@ -86,7 +96,7 @@ fn sign_in(row: &c::AccountLine, source: &c::AccountSource) -> Option<Answer> {
 }
 
 #[must_use]
-pub fn row_trial(root: &Domain, w: &Words, row: &trials::Row) -> Trial {
+pub fn row_trial(root: &Domain, w: &Words, row: &trials::Row, times: &mut Times) -> Trial {
     let number = row.took.unwrap_or(row.account);
     let account = account_line(root, number);
     let source = match account {
@@ -127,17 +137,73 @@ pub fn row_trial(root: &Domain, w: &Words, row: &trials::Row) -> Trial {
     let state = match row.state {
         trials::State::Running => match root.forge().trial_wait() {
             Some(wait) if !crate::choice::wait_settles(wait) => {
-                State::Stopped { at, why: crate::choice::wait_why(root, w, wait), answer }
+                State::Stopped { at, why: crate::choice::wait_why(root, w, wait), answer: wait_answer(root, wait) }
             }
             Some(_) | None => State::Running { at },
         },
         trials::State::Answered { seconds } => State::Answered { seconds: u64::from(seconds) },
+        trials::State::Limited { reset } => limited(w, times, &name, account, reset),
         trials::State::Failed { why } => {
             let (why, answering) = failure(root, w, why, &who, answer);
             State::Stopped { at, why, answer: answering }
         }
     };
     Trial { account: name, account_number: Some(row.account), who, detail, first, state }
+}
+
+fn limited(
+    w: &Words,
+    times: &mut Times,
+    name: &[u8],
+    account: Option<&c::AccountLine>,
+    reset: Option<skein_lib::Wall>,
+) -> State {
+    let Some(reset) = reset else {
+        return State::Limited { passed: false, why: named(w, Word::WelcomeTryLimitedUnknownReset, name) };
+    };
+    let Some(clock) = times.trial_reset(w, reset) else {
+        return State::Limited { passed: true, why: named(w, Word::WelcomeTryLimitHasPassed, name) };
+    };
+    let window = w.say(limited_window(account), &[]);
+    let why = w.say(Word::WelcomeTryLimitedUntil, &[Hole::Name(name.into()), Hole::Name(window), Hole::Name(clock)]);
+    State::Limited { passed: false, why }
+}
+
+fn limited_window(account: Option<&c::AccountLine>) -> Word {
+    let Some(account) = account else { return Word::WelcomeTryUsageLimit };
+    let mut window = None;
+    for fact in &account.facts {
+        if fact.kind == c::FACT_USAGE
+            && let c::AccountFactValue::Window(value) = &fact.value
+            && value.state == c::WINDOW_LIMITED
+        {
+            if window.is_some() {
+                return Word::WelcomeTryUsageLimit;
+            }
+            window = Some(fact.label.as_ref());
+        }
+    }
+    match window {
+        Some(b"five_hour") => Word::WelcomeTryFiveHourLimit,
+        Some(b"seven_day") => Word::WelcomeTryWeeklyLimit,
+        Some(_) | None => Word::WelcomeTryUsageLimit,
+    }
+}
+
+fn wait_answer(root: &Domain, wait: &c::TaskRunWait) -> Option<Answer> {
+    use c::{TaskSourceState as S, TaskWaitWhy as R};
+    let c::TaskRunWait::Account { account, source, why } = *wait else { return None };
+    if let R::Source(S::Limited { .. }) = why {
+        return Some(Answer::AllWays);
+    }
+    let needs_sign_in = why == R::Host || why == R::Source(S::NeedsSignIn);
+    let account = account_line(root, account?)?;
+    for entry in &account.sources {
+        if Some(entry.number) == source && (needs_sign_in || entry.expiring) {
+            return sign_in(account, entry);
+        }
+    }
+    None
 }
 
 fn failure(
@@ -149,7 +215,7 @@ fn failure(
 ) -> (Box<[u8]>, Option<Answer>) {
     match why {
         trials::Why::Waited => match root.forge().trial_wait() {
-            Some(wait) => (crate::choice::wait_why(root, w, wait), answer),
+            Some(wait) => (crate::choice::wait_why(root, w, wait), wait_answer(root, wait)),
             None => (named(w, Word::WelcomeTryWaited, who), None),
         },
         trials::Why::Ended { class: trials::Class::Permanent } => (named(w, Word::WelcomeTryRefused, who), answer),

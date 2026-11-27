@@ -193,7 +193,7 @@ enum Freshness = c::Freshness
 enum GateKind = c::GateKind
 enum AuthorityLack = c::AuthorityLack
 record AuthorityHold by hand
-enum ChangeHold = c::Hold { authority tuple }
+enum ChangeHold by hand
 enum EffectResult = c::EffectResult
 record LandingRepair
 record LandedBelow = c::Landed
@@ -573,7 +573,7 @@ record HistoryEvent = h::Event { at via s::wall, source_at via s::wall }
 record HistoryChange = h::ChangeIndex
 record HistoryLanding = h::LandingIndex
 record HistoryLast = h::Last { at via s::wall }
-record TaskRelease = d::TaskRelease { at via s::wall }
+record TaskRelease = d::TaskRelease { at via s::wall, measured = measure }
 record FindingsTopic
 enum Topic = d::Topic
 record ChangeSource = d::ChangeSource

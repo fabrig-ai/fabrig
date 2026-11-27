@@ -201,7 +201,7 @@ pub(super) fn deadline(d: &Domain) -> Option<Wall> {
         if !session.started || session.exempt || row.frozen() || row.room.is_some() {
             continue;
         }
-        if let change::State::Held { .. } = row.change.state {
+        if super::matches_held(&row.change.state) && row.change.released.is_none() {
             continue;
         }
         next = Some(match next {
@@ -231,7 +231,7 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
             }
             continue;
         }
-        if let change::State::Held { .. } = row.change.state {
+        if super::matches_held(&row.change.state) && row.change.released.is_none() {
             continue;
         }
         if row.room.is_some() || connection_wait::waiting(d, task, row.repository.forge) {
@@ -273,7 +273,7 @@ pub(super) fn fresh(d: &mut Domain, env: &Env<Limits>) {
     // Some callers have not taken their first step of this start. A saved
     // read-behind wait still owns its timer; an ordinary taking counts from here.
     for (task, row) in &d.changes {
-        if row.frozen() || super::matches_held(&row.change.state) {
+        if row.frozen() || super::matches_held(&row.change.state) && row.change.released.is_none() {
             continue;
         }
         if let Some(wait) = row.behind_wait {

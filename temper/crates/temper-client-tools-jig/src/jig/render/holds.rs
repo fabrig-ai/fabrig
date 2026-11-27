@@ -38,16 +38,28 @@ pub fn way_out(task: &c::Task, vocabulary: &dyn Parts, out: &mut Text) {
     } else {
         out.put(recovery(task.hold.as_ref().expect("supplied hold"), vocabulary));
     }
-    out.put(b"task release ");
-    out.number(task.chip.task);
-    out.put(b" --hold ");
-    out.number(task.hold.as_ref().expect("supplied hold").revision().value);
+    release_command(task.chip.task, task.hold.as_ref().expect("supplied hold").revision().value, out);
     if uncertain {
         out.put(b" --again (only to repeat the effect)");
     }
     out.put(b"; or cancel it: task cancel ");
     out.number(task.chip.task);
     out.put(b" REASON");
+}
+
+pub(super) fn release_command(task: u64, revision: u64, out: &mut Text) {
+    out.put(b"task release ");
+    out.number(task);
+    out.put(b" --hold ");
+    out.number(revision);
+}
+
+pub(super) fn lift_command(hold: u64, revision: u64, out: &mut Text) {
+    out.put(b"hold lift ");
+    out.number(hold);
+    out.put(b" --rev ");
+    out.number(revision);
+    out.put(b" --with-tasks");
 }
 
 fn recovery(hold: &c::ChipHold, vocabulary: &dyn Parts) -> &'static [u8] {

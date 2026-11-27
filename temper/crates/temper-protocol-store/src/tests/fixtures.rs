@@ -888,7 +888,7 @@ pub fn change_cold(row: top::ChangeRow) -> top::Stored {
 }
 pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::ChangeRow {
     use temper_engine_domain_forge_change::{
-        Change, Delegate, EffectResult, Freshness, Gate, GateKind, GateReport, Hold, Status,
+        Cause, Change, Delegate, EffectResult, Freshness, Gate, GateKind, GateReport, Status,
     };
     top::ChangeRow {
         settling: false,
@@ -898,7 +898,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         kept: None,
         regate: None,
         ci_recheck: None,
-        task_release: Some(top::TaskRelease { revision: 3, at: skein_lib::Wall::from_nanos(7) }),
+        task_release: Some(top::TaskRelease { revision: 3, at: skein_lib::Wall::from_nanos(7), measure: false }),
         job: None,
         signed: Box::new([]),
         task: 1,
@@ -928,7 +928,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
             clean: Box::new([[8; 32], [9; 32]]),
             gate_failures: Box::new([temper_engine_domain_forge_change::GateFailure { number: 7, count: 1 }]),
             released_resolution: true,
-            released: Some(Hold::Failed),
+            released: Some(Cause::Failed),
             repairs: 10,
             resolutions: 11,
             updates: 12,
@@ -963,7 +963,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         resolution_tasks: Box::new([]),
         result: top::ChangeResult::empty(),
         gate_remarks: Box::new([top::GateRemark { number: 23, head: [24; 32], words: Box::new([25]) }]),
-        drift: Some(Hold::BranchMoved),
+        drift: Some(Cause::BranchMoved),
         base_repair: true,
         queue_repair: Some(26),
         queue_repairs: 27,
@@ -998,7 +998,7 @@ pub fn merge_change_row(from: Option<[u8; 32]>) -> top::ChangeRow {
 }
 
 pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
-    use temper_engine_domain_forge_change::{Hold, Repair, State};
+    use temper_engine_domain_forge_change::{Cause, Hold, Judged, Repair, State};
     let mut states = List::with_capacity(25);
     for state in [
         State::Taking { requested: true },
@@ -1027,9 +1027,23 @@ pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
     ] {
         states.push(state).expect("fixture room");
     }
-    let held = State::Held { was: Box::new(State::Checking { head: [17; 32] }), why: Hold::Stalled };
-    states.push(held.clone()).expect("fixture room");
-    states.push(State::Held { was: Box::new(held), why: Hold::BranchMissing }).expect("fixture room");
+    states
+        .push(State::Held {
+            was: Box::new(State::Checking { head: [17; 32] }),
+            hold: Hold::new(Cause::Stalled, skein_lib::Wall::EPOCH),
+        })
+        .expect("fixture room");
+    states
+        .push(State::Held {
+            was: Box::new(State::Repairing { requested: false, why: Repair::Ci }),
+            hold: Hold {
+                cause: Cause::RedStands,
+                since: skein_lib::Wall::from_nanos(18),
+                words: b"the red stands at the same head and spec".as_slice().into(),
+                judged: Some(Judged { head: [15; 32], spec: 0 }),
+            },
+        })
+        .expect("fixture room");
     states
 }
 

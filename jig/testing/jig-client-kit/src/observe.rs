@@ -75,7 +75,9 @@ pub fn jig_sent(attempt: skein_lib::Token, request_key: [u8; 16], ask: &Ask) -> 
         Ask::Answer { on: AnswerOn::Person { task, revision, .. }, .. } => {
             (Some(key(ObjectKey::PersonTask(*task))), Some((3, revision.value)), None)
         }
-        Ask::Release { task, revision, .. } => (Some(key(ObjectKey::Task(*task))), Some((2, revision.value)), None),
+        Ask::Measure { task, revision, .. } | Ask::Release { task, revision, .. } => {
+            (Some(key(ObjectKey::Task(*task))), Some((2, revision.value)), None)
+        }
         Ask::Decide { on: DecideOn::Escalation { task, revision, .. }, .. } => {
             (Some(key(ObjectKey::Escalation(*task))), Some((2, revision.value)), None)
         }

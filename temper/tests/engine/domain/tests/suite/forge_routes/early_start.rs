@@ -437,7 +437,10 @@ fn an_early_producers_start_lines_keep_dependency_order_and_survive_amendment_an
     let required = [b"Fix the parser\n".as_slice(), &lines, b"## Goal\n..."].concat();
     let spec = &live_task(&world, producer.task).spec;
     assert!(spec.words.starts_with(&required));
-    assert!(spec.words[required.len()..].starts_with(b"\n\nThe host pushes what you deliver;"));
+    assert!(spec.words[required.len()..].starts_with(
+        b"\n\nFinishing with your change checks it and the host pushes it; the change task opens the pull request, \
+waits for CI and merges it. Finish with your change once it is done; only the change task reports landing after merge."
+    ));
     assert_eq!(spec.words.split(|byte| *byte == b'\n').next(), Some(b"Fix the parser".as_slice()));
     let original_revision = spec_revision(&world, producer.task);
     amend_words(&mut world, &goal, change, b"Fix the parser completely\n## Goal\nNew words");

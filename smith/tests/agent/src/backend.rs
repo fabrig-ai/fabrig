@@ -81,7 +81,7 @@ impl Typed {
         translate::completion_with(answer, |name, arguments| {
             // Owned file calls use the caller's receiving bounds; served
             // calls retain the typed host fixture's contract decoder.
-            if matches!(name, b"read" | b"list" | b"search" | b"write" | b"edit") {
+            if matches!(name, b"read" | b"list" | b"search" | b"write" | b"edit" | b"remove") {
                 smith_protocol_llm::decode(name, arguments, grants, served, asker, &self.translation)
             } else {
                 translate::decode(name, arguments, grants, served, asker)

@@ -85,6 +85,7 @@ pub fn store_asks() -> List<c::Ask> {
         },
         c::Ask::Lift { hold: u64::MAX, revision, with_tasks: true },
         c::Ask::Release { project: 7, task: u64::MAX, revision, again: Some(true) },
+        c::Ask::Measure { project: 7, task: u64::MAX, revision },
         c::Ask::Amend {
             project: 7,
             task: u64::MAX,

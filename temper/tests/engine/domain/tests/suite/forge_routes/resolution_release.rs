@@ -3,7 +3,7 @@
 use super::goal_branch::{branch_tip, running_goal_in};
 use super::goal_landing::{ended, finish_run, land_into_goal, mine, row, status};
 use super::*;
-use temper_engine_domain_forge_change::{Delegate, Hold, State};
+use temper_engine_domain_forge_change::{Cause, Delegate, State};
 
 const STEPS: u32 = 1000;
 const CHANNEL: Token = Token::new(7);
@@ -33,7 +33,14 @@ fn wait_held(world: &mut World, task: u64) {
             break;
         }
     }
-    assert!(matches!(row(world, task).change.state, State::Held { why: Hold::Failed, .. }), "{:?}", row(world, task));
+    assert!(
+        matches!(
+            row(world, task).change.state,
+            State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed, .. }, .. }
+        ),
+        "{:?}",
+        row(world, task)
+    );
     assert!(matches!(live_task(world, task).phase, tasks::Phase::Held { .. }));
 }
 

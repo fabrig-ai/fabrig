@@ -396,7 +396,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     world.run_for(1);
     assert!(world.seen().iter().any(|event| matches!(
         event,
-        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Hold::BranchMoved), .. }
+        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Cause::BranchMoved), .. }
     )));
     world.event(top::Event::ReleaseChange { task: 51, release: None });
     world.take_seen();
@@ -404,7 +404,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     world.run_for(1);
     assert!(!world.seen().iter().any(|event| matches!(
         event,
-        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Hold::BranchMoved), .. }
+        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Cause::BranchMoved), .. }
     )));
 }
 
