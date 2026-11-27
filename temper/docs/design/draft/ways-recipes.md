@@ -39,7 +39,7 @@ Split from [ways.md](ways.md), its section 3, on 2026-11-27, and part of that dr
 | `delegates` | an agent | which of the way's tasks it may start, each with `at_most` | none; `at_most` left out is the policy's task bound |
 | `wakes` | an agent | when it runs: `results`, `questions`, `news`, `words`, `timers` | the charter's wake policy |
 | `budget`, `deadline`, `priority`, `tracked` | every task | its spend asked for, a span from its start in whole seconds, its place in its queue, and whether it is tracked | the template's |
-| `lands`, `into`, `landing`, `gates`, `catch_up` | a task holding a branch | how its branch lands (3) | `"whole"`, `"base"`, the defaults (`ways.md`, 5.3), `"when-needed"` |
+| `lands`, `into`, `landing`, `gates`, `share`, `catch_up` | a task holding a branch | how its branch lands (3) | `"whole"`, `"base"`, the defaults (`ways.md`, 5.3), `"when-needed"` |
 | `gathers` | a gathering | which of the way's tasks it holds | required |
 | `into`, `producer`, `gates`, `landing`, `questions`, `share` | a change | 3 | 3 |
 
@@ -68,7 +68,7 @@ A task with `executor = "change"` is temper's change procedure, code and no agen
 
 A task holding a branch lands it whole, by temper's closer, as a goal's branch lands today:
 
-- `lands = "whole"`, `into` `"parent"` or `"base"`, and its own `landing` and `gates` for the branch's landing.
+- `lands = "whole"`, `into` `"parent"` or `"base"`, and its own `landing`, `gates` and `share` for the branch's landing, which is a change as any other.
 - **`catch_up`, built late:** `when-needed`, the default, a coordinator asking for a catch-up for a change that needs what the base gained (`../domain/forge/updates.md`, section 1); or `after-each-landing`, temper making one itself, a merge of the base's new tip into the branch after each landing into the base. A conflict in it goes to the merge hook ([hooks.md](hooks.md)), then to a resolution.
 - **A gathering may hold a branch** and land whole (the user, 2026-11-27): its gathered tasks land `into = "parent"`, its branch. It then gets a closer of its own, as a goal does, and jig's gathering waits for it before it concludes, where today it concludes once its last task ends (jig's `domain/tasks/gatherings.md`). What landed into the branch lands, a failed or cancelled task's work never having reached it. Built late. A gathering holding none, the default, lets each of its tasks land on its own, which keeps drift from the base small.
 
@@ -145,6 +145,7 @@ contract = "change"
 ## 5. The gallery
 
 - **Ways built into temper as references:** each a way's file, written as 1 to 3 say, a `ways.toml` default (`ways.md`, 5.3), or for a floor's recipe the settings it asks of the project's owners, with its words, its drawing and its tests. None runs anywhere until a project picks it (`ways-temper-dir.md`, 7). The stock three are its first entries.
+- **Its entries' full files** are [ways-gallery.md](ways-gallery.md)'s.
 - **The first ten** (the user's gallery of 2026-11-27):
 
   | Entry | What it shows | Needs |
