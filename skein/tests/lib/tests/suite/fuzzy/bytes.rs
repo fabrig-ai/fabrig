@@ -1,74 +1,92 @@
 //! The byte search against a naive one (runtime/lib-bytes.md, 1), over many random
 //! haystacks and needles, and streaming SHA-256 across every cut (runtime/lib-bytes.md, 1.2).
+//! Each seeded stream is one case (skein/docs/design/testing/sweeps.md, 4.2).
 
+use core::convert::Infallible;
 use skein_lib::Rng;
 use skein_lib::bytes::{count, find_from};
 use skein_lib_tests::search::{fill, naive, naive_count, up_to};
+use skein_world::{sweep::cases, this_test};
 
 #[test]
 fn random_ip_text_matches_core_display() {
-    use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-    let mut rng = Rng::new(0x1F_AD_D2);
-    for round in 0..20_000 {
-        let v4 = Ipv4Addr::from(u32::try_from(rng.below(1_u64 << 32)).expect("four octets"));
-        let mut groups = [0_u16; 8];
-        for group in &mut groups {
-            *group = if rng.chance(500) { 0 } else { u16::try_from(rng.below(1_u64 << 16)).expect("one group") };
+    let test = this_test!("random_ip_text_matches_core_display");
+    cases::<_, Infallible, _>(test, [0x1F_AD_D2], |seed| {
+        use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+        let mut rng = Rng::new(seed);
+        for round in 0..20_000 {
+            let v4 = Ipv4Addr::from(u32::try_from(rng.below(1_u64 << 32)).expect("four octets"));
+            let mut groups = [0_u16; 8];
+            for group in &mut groups {
+                *group = if rng.chance(500) { 0 } else { u16::try_from(rng.below(1_u64 << 16)).expect("one group") };
+            }
+            for ip in [IpAddr::V4(v4), IpAddr::V6(Ipv6Addr::from(groups)), IpAddr::V6(v4.to_ipv6_mapped())] {
+                assert_eq!(skein_lib::bytes::ip_text(ip).as_ref(), format!("{ip}").as_bytes(), "round {round}");
+            }
         }
-        for ip in [IpAddr::V4(v4), IpAddr::V6(Ipv6Addr::from(groups)), IpAddr::V6(v4.to_ipv6_mapped())] {
-            assert_eq!(skein_lib::bytes::ip_text(ip).as_ref(), format!("{ip}").as_bytes(), "round {round}");
-        }
-    }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 #[test]
 fn the_search_agrees_with_a_naive_one() {
-    let mut rng = Rng::new(0x5EA2_C4ED);
-    let mut haystack_buffer = [0_u8; 64];
-    let mut needle_buffer = [0_u8; 12];
-    for round in 0_u32..20_000 {
-        let letters = rng.between(1, 4);
-        let len = up_to(&mut rng, haystack_buffer.len());
-        fill(&mut rng, &mut haystack_buffer[..len], letters);
-        let haystack = &haystack_buffer[..len];
-        let needle: &[u8] = if rng.chance(500) && !haystack.is_empty() {
-            // A piece of the haystack, so that it occurs at least once.
-            let start = up_to(&mut rng, haystack.len() - 1);
-            &haystack[start..start + 1 + up_to(&mut rng, haystack.len() - start - 1)]
-        } else {
-            let len = up_to(&mut rng, needle_buffer.len());
-            fill(&mut rng, &mut needle_buffer[..len], letters);
-            &needle_buffer[..len]
-        };
-        for from in 0..=haystack.len() + 1 {
-            assert_eq!(find_from(haystack, needle, from), naive(haystack, needle, from), "round {round}");
+    let test = this_test!("the_search_agrees_with_a_naive_one");
+    cases::<_, Infallible, _>(test, [0x5EA2_C4ED], |seed| {
+        let mut rng = Rng::new(seed);
+        let mut haystack_buffer = [0_u8; 64];
+        let mut needle_buffer = [0_u8; 12];
+        for round in 0_u32..20_000 {
+            let letters = rng.between(1, 4);
+            let len = up_to(&mut rng, haystack_buffer.len());
+            fill(&mut rng, &mut haystack_buffer[..len], letters);
+            let haystack = &haystack_buffer[..len];
+            let needle: &[u8] = if rng.chance(500) && !haystack.is_empty() {
+                // A piece of the haystack, so that it occurs at least once.
+                let start = up_to(&mut rng, haystack.len() - 1);
+                &haystack[start..start + 1 + up_to(&mut rng, haystack.len() - start - 1)]
+            } else {
+                let len = up_to(&mut rng, needle_buffer.len());
+                fill(&mut rng, &mut needle_buffer[..len], letters);
+                &needle_buffer[..len]
+            };
+            for from in 0..=haystack.len() + 1 {
+                assert_eq!(find_from(haystack, needle, from), naive(haystack, needle, from), "round {round}");
+            }
+            for cap in [0, 1, 2, 3, u32::MAX] {
+                assert_eq!(count(haystack, needle, cap), naive_count(haystack, needle, cap), "round {round}");
+            }
         }
-        for cap in [0, 1, 2, 3, u32::MAX] {
-            assert_eq!(count(haystack, needle, cap), naive_count(haystack, needle, cap), "round {round}");
-        }
-    }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 #[test]
 fn random_bytes_round_trip_through_both_alphabets() {
-    use skein_lib::{
-        Writer,
-        base64::{self, Alphabet},
-    };
-    let mut rng = Rng::new(0xBACE_6400);
-    let mut buffer = [0_u8; 64];
-    for _ in 0..1_000 {
-        let len = up_to(&mut rng, buffer.len());
-        for byte in &mut buffer[..len] {
-            *byte = u8::try_from(rng.below(256)).expect("one byte");
+    let test = this_test!("random_bytes_round_trip_through_both_alphabets");
+    cases::<_, Infallible, _>(test, [0xBACE_6400], |seed| {
+        use skein_lib::{
+            Writer,
+            base64::{self, Alphabet},
+        };
+        let mut rng = Rng::new(seed);
+        let mut buffer = [0_u8; 64];
+        for _ in 0..1_000 {
+            let len = up_to(&mut rng, buffer.len());
+            for byte in &mut buffer[..len] {
+                *byte = u8::try_from(rng.below(256)).expect("one byte");
+            }
+            for alphabet in [Alphabet::Standard, Alphabet::Url] {
+                let size = base64::encoded_len(alphabet, u32::try_from(len).expect("short")).expect("short");
+                let mut writer = Writer::new(usize::try_from(size).expect("short"));
+                base64::encode(alphabet, &buffer[..len], &mut writer).expect("measured");
+                assert_eq!(base64::decode(alphabet, &writer.finish(), 64).expect("canonical").as_ref(), &buffer[..len]);
+            }
         }
-        for alphabet in [Alphabet::Standard, Alphabet::Url] {
-            let size = base64::encoded_len(alphabet, u32::try_from(len).expect("short")).expect("short");
-            let mut writer = Writer::new(usize::try_from(size).expect("short"));
-            base64::encode(alphabet, &buffer[..len], &mut writer).expect("measured");
-            assert_eq!(base64::decode(alphabet, &writer.finish(), 64).expect("canonical").as_ref(), &buffer[..len]);
-        }
-    }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 /// The digest's 64 lowercase hexadecimal digits.
@@ -110,26 +128,31 @@ fn every_message_to_200_bytes_digests_alike_cut_at_any_point() {
 
 #[test]
 fn random_messages_cut_at_two_random_points_digest_alike() {
-    let mut rng = Rng::new(0x5A26_0001);
-    let mut buffer = [0_u8; 200];
-    for round in 0..20_000 {
-        let length = up_to(&mut rng, buffer.len());
-        let message = &mut buffer[..length];
-        for byte in message.iter_mut() {
-            *byte = u8::try_from(rng.below(256)).expect("one byte");
+    let test = this_test!("random_messages_cut_at_two_random_points_digest_alike");
+    cases::<_, Infallible, _>(test, [0x5A26_0001], |seed| {
+        let mut rng = Rng::new(seed);
+        let mut buffer = [0_u8; 200];
+        for round in 0..20_000 {
+            let length = up_to(&mut rng, buffer.len());
+            let message = &mut buffer[..length];
+            for byte in message.iter_mut() {
+                *byte = u8::try_from(rng.below(256)).expect("one byte");
+            }
+            let first = up_to(&mut rng, length);
+            let second = first + up_to(&mut rng, length - first);
+            let mut state = skein_lib::sha256::Sha256::new();
+            state.update(&message[..first]);
+            state.update(&message[first..second]);
+            state.update(&message[second..]);
+            assert_eq!(
+                printed_digest(state.finish()),
+                printed_digest(skein_lib::sha256::digest(message)),
+                "round {round}, cuts {first}, {second}"
+            );
         }
-        let first = up_to(&mut rng, length);
-        let second = first + up_to(&mut rng, length - first);
-        let mut state = skein_lib::sha256::Sha256::new();
-        state.update(&message[..first]);
-        state.update(&message[first..second]);
-        state.update(&message[second..]);
-        assert_eq!(
-            printed_digest(state.finish()),
-            printed_digest(skein_lib::sha256::digest(message)),
-            "round {round}, cuts {first}, {second}"
-        );
-    }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 /// RFC 4231, section 4: key, data and HMAC-SHA256; case 5 in full.
