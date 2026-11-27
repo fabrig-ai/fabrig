@@ -286,8 +286,11 @@
   nothing*).
 - **Its record,** on the change's row (family `ChangeHot`): at CI,
   `ci_recheck: option CiRecheck = none`, `record CiRecheck { job:
-  JobAttempt taken: option u32 = none }`, the failed job's attempt that
-  ran again and, once taken, the attempt that took it; at a landing, the
+  JobAttempt taken: option u32 = none semantic: bool = false }`, the
+  failed job's attempt that ran again, once taken the attempt that took
+  it, and whether the repair it checks was `Semantic` rather than `Ci`,
+  so the hold its red leaves and a fresh repair its amendment asks keep
+  that reason through the check and a restart; at a landing, the
   regate (`../../landing-regate.md`, 5). Until the step that reads the
   head classifies the repair, its words wait beside the head it reported
   and its verdict flags, as `delegate_words: option ResultText = none`,
