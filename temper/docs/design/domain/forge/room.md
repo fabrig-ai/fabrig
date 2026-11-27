@@ -123,17 +123,19 @@ no room still waits, or is answered `Unavailable`, as a value (sections
   the outbox under its write's task. An outcome for an entry the outbox
   no longer holds, reported again by the client or late from an outage,
   is a value, dropped as now.
-- **Each holder against its owner.** At each use, the holder's owner is
-  in a state that holds it: an asked waiter's owner keeps its place in
-  the line (section 3); an agent call's or a goal projection's
-  reservation has its effect staged in the root (section 5, `issues.md`);
-  an entry's owner is live, or has ended with the entry sent (section
-  2). So the step that ends an owner (a change, a landing, release
-  cleanup, a goal branch's making, a call's or a projection's staged
-  effect, a verification tier's write) gives back its place, its
-  reservation and its unsent entries, and asserts that it still holds
-  only sent entries, each marked as its ended owner's, which leave as
-  they settle.
+- **Each holder against its owner.** At each use, the holder is checked
+  against its owner's state, where the forge or the root keeps it: an
+  asked waiter's owner keeps its place in the line and is neither held
+  nor ended (sections 3 and 4); an agent call's or a goal projection's
+  reservation has its effect staged in the root (section 5,
+  `issues.md`); an entry is its write's task's, marked as its ended
+  owner's from that task's end, which section 4's bound reads. An owner
+  that ends (a change or a landing cancelled, release cleanup done, a
+  goal branch's making dropped, a staged effect ended) gives back its
+  place and its reservation in the step it ends, each asserted as its
+  own, and a landing withdraws its unsent entries (section 2), so that
+  an ended owner holds no place and no reservation, only entries
+  waiting for their outcome.
 - **Its sums are exact:** free room and the room reserved are counted by
   checked arithmetic, never saturated, since every take above asserts
   its place.
