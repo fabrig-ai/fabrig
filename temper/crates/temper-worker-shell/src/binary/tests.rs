@@ -140,9 +140,7 @@ fn config_upgrade_refusals_match_the_serve_read() {
 
 fn read_scripted(bytes: &[u8], shape: Shape) -> Result<Read, String> {
     let facts = temper_config_shell::Facts { login: "tester".into(), hostname: "fixture".into(), provider_key: false };
-    let temper_config_shell::Read { file, document, keys } =
-        temper_config_shell::parse(bytes, shape, &facts).map_err(|why| why.to_string())?;
-    Ok(Read { file, document, keys })
+    temper_config_shell::parse(bytes, shape, &facts).map(Read::from).map_err(|why| why.to_string())
 }
 
 fn render(shape: Shape) -> Box<[u8]> {

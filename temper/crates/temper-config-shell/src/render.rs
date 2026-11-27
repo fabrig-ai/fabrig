@@ -1,13 +1,18 @@
 //! The file's canonical spelling, with comments from the rows (file.md, 7).
 use crate::{
     File, Shape, Transport, binary,
-    rows::{self, Form},
+    formats::{FIRST, Formats, KEY, PRODUCTION},
+    rows::{self, Form, Row},
 };
 use std::{fmt::Write, path::Path};
 use toml::{Table, Value};
 
 #[must_use]
 pub fn render(file: &File, shape: Shape) -> Box<[u8]> {
+    render_at(file, shape, PRODUCTION)
+}
+
+pub(crate) fn render_at(file: &File, shape: Shape, formats: Formats) -> Box<[u8]> {
     let about = match shape {
         Shape::Standalone => "configuration",
         Shape::EngineAlone => "engine",
@@ -18,19 +23,25 @@ pub fn render(file: &File, shape: Shape) -> Box<[u8]> {
         out.push_str("# Everything else is changed by asking temper.\n");
     }
     out.push('\n');
-    let value = values(file);
-    table(&mut out, &value, "", "", shape, file);
+    let mut value = values(file);
+    if formats.newest > FIRST {
+        value.insert(KEY.into(), Value::Integer(formats.newest));
+    }
+    table(&mut out, &value, &children("", shape), "", shape, file);
     out.into_bytes().into_boxed_slice()
 }
-fn table(out: &mut String, value: &Table, template: &str, path: &str, shape: Shape, file: &File) {
-    let children: Vec<_> = rows::ROWS
+fn children(template: &str, shape: Shape) -> Vec<(&'static str, &'static Row)> {
+    rows::ROWS
         .iter()
-        .filter(|row| {
-            row.shapes.contains(&shape) && row.key.rsplit_once('.').map_or("", |(parent, _)| parent) == template
+        .filter_map(|row| {
+            let (parent, key) = row.key.rsplit_once('.').unwrap_or(("", row.key));
+            (parent == template && row.shapes.contains(&shape)).then_some((key, row))
         })
-        .collect();
-    for row in &children {
-        let key = row.key.rsplit('.').next().expect("key");
+        .collect()
+}
+
+fn table(out: &mut String, value: &Table, fields: &[(&str, &Row)], path: &str, shape: Shape, file: &File) {
+    for &(key, row) in fields {
         if let Some(value) = value.get(key)
             && row.form != Form::Table
             && row.form != Form::Members
@@ -40,8 +51,7 @@ fn table(out: &mut String, value: &Table, template: &str, path: &str, shape: Sha
             writeln!(out, "{key} = {}   # {}", spelling(value), row.line).expect("string");
         }
     }
-    for row in children {
-        let key = row.key.rsplit('.').next().expect("key");
+    for &(key, row) in fields {
         let Some(value) = value.get(key) else {
             continue;
         };
@@ -49,21 +59,18 @@ fn table(out: &mut String, value: &Table, template: &str, path: &str, shape: Sha
         match row.form {
             Form::Table => {
                 let value = value.as_table().expect("typed table");
-                let direct = rows::ROWS.iter().any(|child| {
-                    child
-                        .key
-                        .rsplit_once('.')
-                        .is_some_and(|(p, k)| p == row.key && child.form != Form::Table && value.contains_key(k))
-                });
+                let fields = children(row.key, shape);
+                let direct = fields.iter().any(|&(key, row)| row.form != Form::Table && value.contains_key(key));
                 if direct || value.is_empty() {
                     writeln!(out, "\n[{path}]   # {}", row.line).expect("string");
                 }
-                table(out, value, row.key, &path, shape, file);
+                table(out, value, &fields, &path, shape, file);
             }
             Form::Members | Form::Records => {
+                let fields = children(&format!("{}[]", row.key), shape);
                 for value in value.as_array().expect("typed records") {
                     writeln!(out, "\n[[{path}]]   # {}", row.line).expect("string");
-                    table(out, value.as_table().expect("typed record"), &format!("{}[]", row.key), &path, shape, file);
+                    table(out, value.as_table().expect("typed record"), &fields, &path, shape, file);
                 }
             }
             Form::Environment => {
@@ -72,7 +79,8 @@ fn table(out: &mut String, value: &Table, template: &str, path: &str, shape: Sha
                     writeln!(out, "{} = {}", quote(key), quote(value)).expect("string");
                 }
             }
-            Form::Socket
+            Form::Format
+            | Form::Socket
             | Form::Origin
             | Form::Address
             | Form::Name
