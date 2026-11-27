@@ -6,13 +6,13 @@ Draft, 2026-11-27, part of [ways.md](ways.md): each entry of the gallery ([ways-
 
 ### 1.1 Pair
 
-You and one agent working on the change together; "Land this" asks it to finish, and CI lands it. No review: you're there, and the agent can open a sub-agent for a review in place when you ask. Needs [pair.md](pair.md)'s connected implementer, and is held back from the gallery until its goal lands (`ways.execution.md`, W9).
+You and one agent working on the change together; "Land this" asks it to finish, and CI lands it. No review: you're there, and the agent can open a sub-agent for a review in place when you ask. Needs [pair.md](pair.md)'s connected implementer, released by W9 once its goal lands; its model choice is W6's. It adds no gate: a floor's review still holds.
 
 ```toml
 # .temper/ways/pair.toml
 format = 1
-headline = "You and one agent, in its own copy"
-line = "You work with one agent on the change; when it's right, you say Land this."
+headline = "You and one agent, on one change"
+line = "You work with one agent on the change, which saves as it goes; when it's right, you say Land this."
 start = "change"
 
 [tasks.change]

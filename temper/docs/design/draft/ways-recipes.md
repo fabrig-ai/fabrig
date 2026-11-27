@@ -15,7 +15,7 @@ Split from [ways.md](ways.md), its section 3, on 2026-11-27, and part of that dr
 
 `ways.toml` holds, beside the list of ways, the project's `[defaults]` across them (`ways.md`, 5.3).
 
-- **In jig's terms** (jig's `domain/model.md`, section 3): a task has a spec, a result contract, a requester, an executor, an authority, a wake policy and the resources it holds. A way's tasks say those, and temper's connector adds its own: branches and copies to hold, the change procedure, the closer, landing's requirements, and what reaches a person.
+- **In jig's terms** (jig's `domain/model.md`, section 3): a task has a spec, a result contract, a requester, an executor, an authority, a wake policy and the resources it holds. A way's tasks say those, and temper's connector adds its own: branches to hold, the change procedure, the closer, landing's requirements, and what reaches a person.
 - **Names are the project's.** `start = "milestone"` and `[tasks.lead]` name nothing temper knows. temper knows only the executors, contracts, resources and procedures a task names.
 - **What temper keeps, over every way:**
   1. **Only temper's procedures write a landing branch:** an agent's work reaches one only as a change (3), and an agent writes only what it holds.
