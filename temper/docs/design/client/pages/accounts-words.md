@@ -169,8 +169,13 @@ The words for each offered source are:
   ChatGPT · answered in 6 s" for a plan's sign-in, its plan as *The
   providers' words* has it; "Billed to the key’s organization · answered
   in 6 s" for a key. The account's name and email are its heading already
-  (the look request `accounts-usage`). A trial under way or stopped keeps
-  the welcome's lines, its steps and its why (`welcome.md`, 1, *The try*).
+  (the look request `accounts-usage`). A trial under way, stopped or
+  limited keeps the welcome's lines, its steps and its why (`welcome.md`, 1,
+  *The try*). A limited trial's line, "Claude subscription is at its 5-hour
+  limit until 09:30." and then "Claude subscription's limit has passed.",
+  offers "Try again" and "All ways", to `ConnectModel` with no way chosen:
+  never "Sign in again" beside a source's "Limited", whose acts stay
+  *Each state*'s (`../../domain/trial.md`, 6.2 and 6.4).
 - **Its acts,** opened, on one line after its facts: "Add an API key",
   "Manage usage", its moves, then "Remove account", last; the key field
   a key act opens, and its outcome, under the line. Every act on the page
