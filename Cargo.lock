@@ -959,6 +959,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "skein-http",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -2379,6 +2380,7 @@ dependencies = [
  "skein-lib",
  "skein-oauth",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
@@ -2409,6 +2411,7 @@ dependencies = [
  "skein-kv",
  "skein-lib",
  "skein-sim",
+ "skein-world",
  "tempfile",
 ]
 
@@ -2510,6 +2513,7 @@ dependencies = [
  "skein-codegen",
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -2763,6 +2767,7 @@ dependencies = [
  "skein-heap",
  "skein-lib",
  "skein-scratch",
+ "skein-world",
  "smith-channel",
  "smith-charter",
 ]
