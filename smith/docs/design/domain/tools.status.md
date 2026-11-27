@@ -2,9 +2,6 @@
 
 2026-11-26. Where smith's code lags or departs from [tools.md](tools.md).
 
-- **Not yet:** 5: a yielding command's cell reserved at its admission,
-  and each job cell and job read's place asserted at insertion and at
-  release. [in flight: change 19479]
 - **Not yet:** 2, 5: commands in the workspace's view, through skein's
   contained trees. A command runs with `sh` in its own process group
   (`smith-protocol-machine/src/process.rs`), with the agent user's
