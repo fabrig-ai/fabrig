@@ -788,14 +788,12 @@ fn adjacent_reads_run_together_and_a_write_runs_alone_and_results_go_back_in_ord
     let &[run_a, run_b] = first.as_slice() else { panic!("two reads, not {first:?}") };
     assert_eq!(h.step(ran(run_b, b"b")), None, "the batch waits for all its runs");
     // The read before the write, alone; the write; the read after it.
-    assert_eq!(h.step(ran(run_a, b"a")), None);
-    let (run_c, op) = running(h.after_reclaim());
+    let (run_c, op) = running(h.step(ran(run_a, b"a")));
     assert_eq!(loading(&op), place(b"c"));
-    assert_eq!(h.step(ran(run_c, b"c")), None);
-    let (run_d, op) = running(h.after_reclaim());
+    let (run_d, op) = running(h.step(ran(run_c, b"c")));
     let Op::Store { .. } = op else { panic!("one write") };
-    assert_eq!(h.step(Event::Done { owner: run_d, done: Done::Stored { version: Version::new([2, 0, 0, 0]) } }), None);
-    let (run_e, op) = running(h.after_reclaim());
+    let (run_e, op) =
+        running(h.step(Event::Done { owner: run_d, done: Done::Stored { version: Version::new([2, 0, 0, 0]) } }));
     assert_eq!(loading(&op), place(b"e"));
     let (_, prompt) = calling(h.step(ran(run_e, b"e")));
     let results = [
@@ -1006,13 +1004,11 @@ fn owned_and_delegated_calls_run_in_one_order_of_batches() {
     assert_eq!(call, Token::new(9));
     assert_eq!(h.step(answered(read_b, 20, 3, false)), None);
     // The write alone, then the last read.
-    assert_eq!(h.step(ran(read_a, b"a")), None);
-    let Some(Request::Delegate { owner: write_c, call, .. }) = h.after_reclaim() else {
+    let Some(Request::Delegate { owner: write_c, call, .. }) = h.step(ran(read_a, b"a")) else {
         panic!("expected the opener's write");
     };
     assert_eq!(call, Token::new(10));
-    assert_eq!(h.step(answered(write_c, 21, 3, false)), None);
-    let (read_d, _) = running(h.after_reclaim());
+    let (read_d, _) = running(h.step(answered(write_c, 21, 3, false)));
     let (_, prompt) = calling(h.step(ran(read_d, b"d")));
     let results = [
         result(b"a", read(b"a")),
@@ -1946,8 +1942,7 @@ fn later_owned_call(call: Call) -> (Harness, Token, Token, Op) {
     let (session, _) = h.open_with(1, selected);
     let (first, _) =
         running(h.step(Event::Completed { owner: session, completion: completion(content, Stop::ToolUse) }));
-    assert_eq!(h.step(ran(first, &answer(u64::from(b'x'), 65_536))), None);
-    let (later, operation) = running(h.after_reclaim());
+    let (later, operation) = running(h.step(ran(first, &answer(u64::from(b'x'), 65_536))));
     (h, session, later, operation)
 }
 

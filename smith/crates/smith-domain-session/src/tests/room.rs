@@ -25,10 +25,9 @@ fn reverse_read_terminals_return_only_their_own_batch_shares() {
     assert_eq!(held(&h, owner), (paired, None, paired, 0));
     assert_eq!(h.step(ran(b, b"second")), None);
     assert_eq!(held(&h, owner), (share, None, share, 0));
-    assert_eq!(h.step(ran(a, b"first")), None, "the terminal cannot start the next batch");
-    assert_eq!(held(&h, owner), (0, None, 0, 0));
-    let (c, op) = running(h.after_reclaim());
+    let (c, op) = running(h.step(ran(a, b"first")));
     assert_eq!(loading(&op), place(b"c"));
+    assert_eq!(held(&h, owner), (share, None, share, 0), "only the next batch's read holds a share");
     let (_, prompt) = calling(h.step(ran(c, b"third")));
     assert_eq!(held(&h, owner), before);
     assert_eq!(

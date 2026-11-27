@@ -267,8 +267,10 @@ fn a_builtin_after_waiting_writers_is_done_immediately() {
     assert_eq!(owners.len(), 2);
     assert_ne!(owners[0], owners[1], "program and opener calls share the same issuer");
     assert_eq!(harness.step(result_event(session, b"read", b"done early", false)), None);
-    assert_eq!(harness.step(answered(*first.get(0).unwrap(), 7, 4, false)), None);
-    let Some(Request::Delegate { owner: second, .. }) = harness.after_reclaim() else { panic!("second writer") };
+    let Some(Request::Delegate { owner: second, .. }) = harness.step(answered(*first.get(0).unwrap(), 7, 4, false))
+    else {
+        panic!("second writer")
+    };
     let (_, prompt) = calling(harness.step(answered(second, 7, 4, false)));
     assert_eq!(returned(&prompt.messages, b"read"), expected(b"done early", false));
 }

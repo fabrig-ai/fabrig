@@ -264,8 +264,9 @@ enum State {
     Backoff { attempt: u32, until: Time, rate_limited: bool },
     /// Running the tool calls of the last assistant message.
     Tooling { tools: Tools },
-    /// The last batch has settled. The ready list starts the next batch
-    /// once the settled runs have been reclaimed.
+    /// The tools answered every call of the last batch in the step that
+    /// started it: the session is on the ready list, and the next batch
+    /// starts once the runs it ended have been reclaimed.
     Resting { tools: Tools },
     /// The LLM stopped calling tools: waiting for the opener to continue or
     /// close the session.
@@ -2217,10 +2218,6 @@ fn tool_ran(
     }
     if tools.running > 0 {
         return State::Tooling { tools };
-    }
-    tools.end_batch();
-    if tools.next < count(conversation.transcript.last().expect("assistant awaiting results").content.len()) {
-        return State::Resting { tools };
     }
     advance(conversation, id, calls, tools, env, out)
 }

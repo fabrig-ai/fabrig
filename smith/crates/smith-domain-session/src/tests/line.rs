@@ -108,14 +108,10 @@ fn a_later_batch_shares_what_the_first_left() {
     const FIRST: u64 = 960;
     let (mut harness, owner, completion) = scene(CALLS, ROOM, None, reported());
     let runs = harness.batch(Event::Completed { owner, completion });
-    let mut runs = runs.into_boxed().into_iter();
-    assert_eq!(harness.step(ran(runs.next().expect("first batch read"), &[b'x'; 4096])), None);
-    assert_eq!(harness.step(ran(runs.next().expect("first batch read"), &[b'x'; 4096])), None);
-    assert!(!harness.domain.is_ready());
-    harness.domain.reclaim();
-    assert!(harness.domain.is_ready());
+    let &[first, last] = runs.as_slice() else { panic!("two reads in the first batch") };
+    assert_eq!(harness.step(ran(first, &[b'x'; 4096])), None);
     harness.keep_facts();
-    resume(&mut harness.domain, &harness.env, &mut harness.out);
+    step(&mut harness.domain, &harness.env, ran(last, &[b'x'; 4096]), &mut harness.out);
     let mut later = List::with_capacity(READS);
     for _ in 0..READS {
         let Some(Request::Io { owner, .. }) = harness.next() else { panic!("read in the next batch") };
