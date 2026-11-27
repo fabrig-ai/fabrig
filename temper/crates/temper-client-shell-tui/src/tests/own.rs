@@ -379,7 +379,7 @@ fn a_places_empty_box_has_no_launchpad_or_pane_keys() {
             Screen::Talk => unreachable!(),
         };
         give(&mut host, Event::Own { command: Own::Tell });
-        for key in [Key::Up, Key::Down, Key::Control(b'p')] {
+        for key in [Key::Up, Key::Down, Key::Control(b'o')] {
             host.frame();
             assert_eq!(host.event_of(&key), None, "{screen:?}, {key:?}");
             empty(&host.report(Report::Key(key)));
@@ -389,7 +389,7 @@ fn a_places_empty_box_has_no_launchpad_or_pane_keys() {
         assert_eq!(host.words(), b"n");
         assert!(host.state().walk().is_none());
         assert!(!text(&mut host).contains("n to walk"));
-        assert!(!text(&mut host).contains("Ctrl-P"));
+        assert!(!text(&mut host).contains("Ctrl-o"));
     }
 }
 

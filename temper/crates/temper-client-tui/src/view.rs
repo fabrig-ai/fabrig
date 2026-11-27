@@ -833,7 +833,7 @@ pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
     commands.into_boxed()
 }
 
-/// Ctrl-P, decoded against the tree last built.
+/// Ctrl-o, decoded against the tree last built.
 #[must_use]
 pub fn pane_key(view: &View) -> Option<Event> {
     let (_shown, mode) = view.pane?;

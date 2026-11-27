@@ -6,7 +6,7 @@ playground's composition, with both shipped clients and no terminal
 repository and the OpenAI sign-in account shown as "your ChatGPT plan".
 The browser approves the TUI. `/draft Plan a farewell line for hello.`
 opens a design session whose drafter writes `farewell-line.md`, asks
-where the line belongs, and offers three choices. Ctrl-P cycles half,
+where the line belongs, and offers three choices. Ctrl-o cycles half,
 all, folded and half again. Sending "1" chooses "At the end of README.md";
 the drafter settles Open questions. `/goal` starts the draft's goal by
 Hello's first way, Task by task, and returns to the chat.
@@ -27,11 +27,11 @@ Each number has an `.html` page and a `.txt` frame:
   Enter leads to the session.
 - `03`: half, the filename beside the conversation, all first-draft
   sections marked new, and the drafter's three choices below the box.
-  Ctrl-P widens the pane.
+  Ctrl-o widens the pane.
 - `04`: all, the draft from its head through Purpose, Checks and Open
-  questions, the choices still below the box. Ctrl-P folds it.
+  questions, the choices still below the box. Ctrl-o folds it.
 - `05`: folded, the conversation and choices alone, with no document.
-  Ctrl-P opens the half pane again.
+  Ctrl-o opens the half pane again.
 - `06`: half again with "1" typed; the quiet line replaces the choices.
   Enter sends "At the end of README.md".
 - `07`: the second reply says nothing blocks the work. The pane starts
@@ -52,6 +52,6 @@ rule names Hello, the shortened title, T2 and that service address.
 The quiet line shows `Live · Hello · fake` on the launchpad and
 `Live · Hello · drafter · fake` in the session, with no effort label.
 Where choices or a command prompt do not replace it, its right side
-says `pane: half · Ctrl-P widens`; at this width the linked goal's part
+says `pane: half · Ctrl-o widens`; at this width the linked goal's part
 is left out. Pages without a key link lead on by their neighbours.
 The journeys' writer owns the pages and accompanying files.

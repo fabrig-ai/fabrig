@@ -339,17 +339,22 @@ stays the web's.
   projects, with its byline and `/brief`.
 - **Where you left off:** the conversations the person can go back to,
   newest first, each its project, what it is (a design session, a talk
-  with a role, a chat), when, and what is open in it, numbered.
+  with a role, a chat), when, and what is open in it.
 - **Needs you:** a line each, marked "?" for a question, "$" for money,
-  "✓" for a sign-off; `n` walks them, one prompt after another, as
-  `tui.md`, section 3, has needs from elsewhere.
+  "✓" for a sign-off; `/needs` walks them, one prompt after another, as
+  `tui.md`, section 3, has needs from elsewhere, and Enter on one walks
+  from it.
 - **Team on PROJECT:** each role, its area and its Now in a line.
 - **Start:** `/draft`, a design session that ends in a draft and a goal;
   `/change`, one change, run as the project's way says; `/talk`, a role,
   about its area; `/ask`, Ask temper.
+- **The sections are a list above the box:** ↑ on the box's first line
+  moves the focus to the list's first row, the newest conversation;
+  ↑ ↓ and Ctrl-p Ctrl-n move a row, Tab and Shift-Tab a section; Enter
+  or → opens the row; Esc or typing goes back to the box, its words kept.
 - **The box:** "Draft, ask, or talk to a role. / for commands". The quiet
   line: the project, the model and effort, the link's state, and "N need
-  you · n to walk".
+  you · /needs".
 - **Its mockup:** `launchpad.html`.
 
 ### 11.2 A design session and the drafter
@@ -359,7 +364,7 @@ stays the web's.
   the project's code through the forge, surveys with sub-agents where its
   model has them, and writes the draft as the chat's document.
 - **The draft beside it:** the side pane, folded, half the screen or all
-  of it, Ctrl-P cycling them (`tui.md`, section 3); what the last turn
+  of it, Ctrl-o cycling them (`tui.md`, section 3); what the last turn
   changed marked "new" at its right. No diffs.
 - **One question at a time,** as a prompt with numbered choices, the
   recommended first with its reason, "Tell it something else" last.
@@ -382,8 +387,9 @@ stays the web's.
   now on…" is answered with "Add it to NAME's rules?", numbered: "Yes, add
   it", a proposal an owner accepts in place; "Just for this port";
   "Tell it something else".
-- **Leaving,** by Esc or `/exit`, ends the session, and the role writes
-  its Now. The quiet line says so, with the session's length and cost.
+- **Leaving,** by ← at the box's start or `/exit`, ends the session, and
+  the role writes its Now. The quiet line says so, with the session's
+  length and cost.
 - **Its mockup:** `role.html`.
 
 ### 11.4 Commands
@@ -392,8 +398,12 @@ stays the web's.
   terminal*, and 6.14), `/chats` among them.
 - **Added:** `/draft`, a design session, or in one, the draft shown or
   hidden as today; `/change`; `/talk NAME`; `/ask`; `/brief`, the brief
-  whole; `/needs`, walking what needs the person, as `n`; `/tell`, Tell
-  temper; `/open`, the object in focus on the web (`tui.md`, section 7).
+  whole; `/needs`, walking what needs the person; `/tell`, Tell temper;
+  `/open`, the object in focus on the web (`tui.md`, section 7).
+- **Keys,** as Claude Code's and Codex's: ← at the box's start goes back,
+  and leaving a box never loses its words; Esc stops the agent's turn on
+  a chat, or closes a list; ↑ ↓ and Ctrl-p Ctrl-n are previous and next,
+  and Ctrl-a Ctrl-e the box's start and end, as in Emacs.
 
 ### 11.5 Views in the terminal
 

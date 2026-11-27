@@ -21,7 +21,7 @@ Replace raft with vsr in cowsql.
 ────────────────────────────────────────────── cowsql / Raft to vsr T2 on box ──
 ❯ 1
 ────────────────────────────────────────────────────────────────────────────────
- ● Live · cowsql · drafter · Opus 5.5 · xhigh          pane: all · Ctrl-P folds
+ ● Live · cowsql · drafter · Opus 5.5 · xhigh          pane: all · Ctrl-o folds
 --
 aaaaaaaaaaaaaa..................................................................
 ................................................................................

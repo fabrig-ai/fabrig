@@ -11,13 +11,13 @@ tui key enter
 tui see "Tell it something else"
 tui see "farewell-line.md"
 tui mark
-tui key control "p"
+tui key control "o"
 tui see "Check README.md keeps its greeting and contains one farewell line."
 tui mark
-tui key control "p"
+tui key control "o"
 tui see "I wrote the farewell draft beside us. Where should the farewell line go?"
 tui mark
-tui key control "p"
+tui key control "o"
 tui see "farewell-line.md"
 tui see "Tell it something else"
 tui key char "1"
