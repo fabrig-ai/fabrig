@@ -1440,6 +1440,7 @@ impl World {
         let located = temper_engine_forge_world::translate::locate_name(op);
         let name = located.as_deref().unwrap_or(&self.repository_name);
         let raw = api::op(op, client);
+        let reopen = self.workload_reopen_point(name, &raw);
         let mut result = match self.forge.api_configured(name, self.forge_binding.user, raw, config) {
             Ok(answer) => {
                 let mut answer = api::answer(op, answer, client);
@@ -1465,6 +1466,9 @@ impl World {
             )),
         };
         let moves = self.forge.moves();
+        if let Some((number, before)) = reopen {
+            self.workload_reopen_after_close(number, before);
+        }
         match &mut result {
             Ok(skein_forge::api::Answer::Pull(pull)) => self.workload_base_behind_reply(op, pull),
             Ok(skein_forge::api::Answer::Merged(to))

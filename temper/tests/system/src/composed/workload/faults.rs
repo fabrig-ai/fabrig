@@ -64,6 +64,7 @@ pub const CAMPAIGN_KINDS: &[Kind] = &[
     temper_blame::SILENT,
     temper_blame::MISSING_REPORT,
     // stale
+    stale::REOPENED,
     // provider
     skein_llm_kit::faults::SPENT_CREDITS,
     skein_llm_kit::faults::EXPIRED_SIGN_IN,

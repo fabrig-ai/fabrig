@@ -292,6 +292,59 @@ impl World {
         config
     }
 
+    pub(in crate::composed) fn workload_reopen_point(&self, repository: &[u8], op: &raw::Op) -> Option<(u64, usize)> {
+        let raw::Op::Write(raw::Write::Close { number }) = *op else { return None };
+        let f = self.workload_faults.as_ref()?;
+        (repository == REMOTE && f.due(stale::REOPENED) && self.pull_goal(number) == f.target(stale::REOPENED))
+            .then(|| (number, self.forge.observations().len()))
+    }
+
+    pub(in crate::composed) fn workload_reopen_after_close(&mut self, number: u64, before: usize) {
+        // A successful close of an already closed pull is a no-op. Require the
+        // engine's write to have closed it, then interleave before its next step.
+        if !self.forge.observations()[before..].iter().any(|observation| {
+            matches!(
+                observation,
+                fake::Observation::Closed { repository, number: closed, by }
+                    if repository.as_ref() == REMOTE && *closed == number && *by == self.forge_binding.user
+            )
+        }) {
+            return;
+        }
+        let pull = match self.forge.inspect(REMOTE, &raw::Read::Pull { number }) {
+            Ok(raw::Answer::Pull(pull)) if pull.state == raw::State::Closed && pull.merged.is_none() => Some(pull),
+            Ok(raw::Answer::Pull(_)) | Err(raw::Error::Missing(raw::What::Item | raw::What::Pull)) => None,
+            other => panic!("read of pull {number} before outside reopen: {other:?}"),
+        };
+        let f = self.workload_faults.as_mut().expect("faulted workload");
+        f.fire(stale::REOPENED);
+        if let Some(pull) = pull {
+            assert_ne!(OUTSIDE_USER, self.forge_binding.user);
+            match self.forge.api(REMOTE, OUTSIDE_USER, raw::Op::Write(raw::Write::Reopen { number })) {
+                Ok(raw::Answer::Done) => {
+                    let entry = f.ledger.inject(
+                        stale::REOPENED,
+                        self.env.now,
+                        Struck {
+                            candidate: Some(hex(pull.commit)),
+                            request: Some(number.to_string()),
+                            ..Struck::default()
+                        },
+                    );
+                    f.ledger.stop(entry, self.env.now).expect("outside reopen");
+                    f.stopped(self.env.now);
+                    return;
+                }
+                // The head vanished or a replacement owns this branch pair.
+                Err(
+                    raw::Error::Exists | raw::Error::Missing(raw::What::Item | raw::What::Pull | raw::What::Branch),
+                ) => {}
+                other => panic!("outside reopen of pull {number}: {other:?}"),
+            }
+        }
+        f.ledger.ineligible(stale::REOPENED);
+    }
+
     fn workload_other_merge(&mut self, f: &mut Faults, number: u64) {
         let kind = kinds::MERGED_BY_ANOTHER;
         let forge = self.root.forge();

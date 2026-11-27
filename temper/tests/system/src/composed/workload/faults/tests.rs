@@ -744,6 +744,57 @@ fn merged_by_another_draws_its_own_coin_non_train_goal_and_moment() {
 }
 
 #[test]
+fn reopened_draws_its_own_coin_goal_and_moment() {
+    use stale::REOPENED;
+
+    assert!(CAMPAIGN_KINDS.contains(&REOPENED));
+    assert!(!GATE_KINDS.contains(&REOPENED));
+    let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+    let without: Vec<_> = kinds.iter().copied().filter(|&kind| kind != REOPENED).collect();
+    let mut targets = BTreeSet::new();
+    let mut skipped = false;
+    for seed in (0..64).chain([u64::MAX]) {
+        let streams = Streams::new(seed);
+        let workload = Workload::draw(&streams, &COMPOSED);
+        let draw = FaultDraw::new(seed, &kinds);
+        let baseline = FaultDraw::new(seed, &without);
+        assert_eq!(
+            draw.plans.iter().filter(|plan| plan.kind != REOPENED).collect::<Vec<_>>(),
+            baseline.plans.iter().collect::<Vec<_>>(),
+            "seed {seed}: other injection plans"
+        );
+        assert_eq!(
+            draw.planned().into_iter().filter(|&(kind, _)| kind != REOPENED).collect::<Vec<_>>(),
+            baseline.planned(),
+            "seed {seed}: other planned kinds"
+        );
+        assert_eq!(draw.ineligible(), baseline.ineligible(), "seed {seed}: ineligible kinds");
+        assert_eq!(draw.acts(), baseline.acts(), "seed {seed}: party acts");
+
+        let mut rng = streams.rng(Stream::Faults, "stale/reopened_by_another");
+        let expected = if rng.below(2) == 0 {
+            skipped = true;
+            None
+        } else {
+            let goals = u64::try_from(workload.goals.len()).expect("bounded goals");
+            let index = usize::try_from(rng.below(goals)).expect("goal index");
+            let goal = workload.goals[index].name.as_str();
+            targets.insert(index);
+            Some((goal, rng.below(16)))
+        };
+        let actual: Vec<_> = draw
+            .plans
+            .iter()
+            .filter(|plan| plan.kind == REOPENED)
+            .map(|plan| (plan.goal.as_str(), plan.after))
+            .collect();
+        assert_eq!(actual, expected.as_slice(), "seed {seed}: reopen's coin, goal and moment");
+    }
+    assert!(skipped);
+    assert_eq!(targets, BTreeSet::from([0, 1, 2]));
+}
+
+#[test]
 fn wrong_tree_is_observed_without_a_coin_when_a_change_can_go_red() {
     use temper_blame::WRONG_TREE;
     let (mut planned, mut ineligible) = (false, false);
