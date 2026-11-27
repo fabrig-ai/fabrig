@@ -19,7 +19,7 @@
 #   fabrig: package(=fabrig-boundary)
 #
 # The tier profiles are browser-skein, live-skein, real-skein; live-smith,
-# real-smith; live-jig, browser-jig, real-jig; process-temper, live-temper,
+# real-smith, campaign-smith; live-jig, browser-jig, real-jig; process-temper, live-temper,
 # browser-temper, real-temper, campaign-temper; conformance-hearth and real-hearth.
 # A change to a tree's default or fuzzy clause changes its copy in real-TREE;
 # a change to its fuzzy clause also changes its copy in campaign-TREE.
@@ -307,6 +307,25 @@ slow-timeout = { period = "2000ms" }
 [[profile.browser-temper.overrides]]
 platform = 'cfg(target_os = "macos")'
 slow-timeout = { period = "80s" }
+
+[profile.campaign-smith]
+junit = { path = "junit.xml", store-success-output = true, store-failure-output = true }
+default-filter = """
+(
+  package(/^smith(-|$)/)
+  & (kind(test) & test(/^fuzzy::/)) & not binary(=live)
+) & (binary_id(=smith-agent-world::suite) | binary_id(=smith-run-world::suite) | binary_id(=smith-tools-world::suite))
+"""
+
+# macOS doubles the inherited Linux slow periods.
+[[profile.campaign-smith.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.campaign-smith.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "12s" }
 
 [profile.campaign-temper]
 junit = { path = "junit.xml", store-success-output = true, store-failure-output = true }
