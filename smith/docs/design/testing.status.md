@@ -11,12 +11,3 @@
   - 7: the chat store's layout cases run over a real directory in
     `smith-local-protocol::suite`, not on the fake disk.
     [in flight: change 13947]
-  - 6.3: the tools world's fuzzy loops take no case from skein's seam,
-    and there is no `campaign-smith` pair.
-    [in flight: change 19841]
-  - 6.3: the run world's fuzzy loops take no case from skein's seam,
-    and `campaign-smith` doesn't list `smith-run-world::suite`.
-    [in flight: change 19843]
-  - 6.3: the agent world's fuzzy loops take no case from skein's seam,
-    and `campaign-smith` doesn't list `smith-agent-world::suite`.
-    [in flight: change 19844]
