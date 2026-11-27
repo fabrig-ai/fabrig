@@ -1,11 +1,14 @@
 //! Seeded host, parent and committing engine histories across channel loss.
 
+use std::convert::Infallible;
+
 use jig_host_world::turn_world::World;
 use skein_lib::Rng;
+use skein_world::{sweep::cases, this_test};
 
 #[test]
 fn turn_windows_and_replays_settle_under_seeded_contact_histories() {
-    for seed in 0..512 {
+    cases(this_test!("turn_windows_and_replays_settle_under_seeded_contact_histories"), 0..512, |seed| {
         let mut rng = Rng::new(seed);
         let mut world = World::new();
         let workspace = rng.chance(500);
@@ -25,8 +28,8 @@ fn turn_windows_and_replays_settle_under_seeded_contact_histories() {
         if lost {
             world.lose_contact();
         }
-        let second =
-            vec![u8::try_from((seed + 1) % 251).expect("small"); usize::try_from(rng.between(1, 32)).expect("small")];
+        let next = seed.wrapping_add(1) % 251;
+        let second = vec![u8::try_from(next).expect("small"); usize::try_from(rng.between(1, 32)).expect("small")];
         world.turn(2, &second);
         let parked = rng.chance(500);
         world.finish(2, parked);
@@ -44,5 +47,7 @@ fn turn_windows_and_replays_settle_under_seeded_contact_histories() {
         world.assert_settled();
         let stats = world.stats();
         assert_eq!((stats.commits, stats.turn_acks, stats.answers, stats.answer_acks), (2, 2, 1, 1), "seed {seed}");
-    }
+        Ok::<(), Infallible>(())
+    })
+    .expect("world checks assert");
 }

@@ -109,6 +109,7 @@ pub struct World {
     iteration: u64,
     pub ends: crate::ends::Ends,
     idle_revision: Option<(u64, Option<Time>)>,
+    checked_quiet: Option<(u64, Time, u64, bool)>,
     auto_prepare: bool,
     restart_config: engine::Config,
     /// Delivered forge documents, including updates to a live watch.
@@ -1311,14 +1312,6 @@ impl World {
                 bound.result = bound.result.min(limits.tasks.result_bytes);
                 config.core.jobs = if omit_prepare { Box::new([]) } else { Box::new([bound]) };
             }
-            if merge_kind {
-                let mut bound = protocol::merge_bound();
-                bound.spec = bound.spec.min(limits.tasks.spec_bytes);
-                bound.result = bound.result.min(limits.tasks.result_bytes);
-                let mut jobs = config.core.jobs.to_vec();
-                jobs.push(bound);
-                config.core.jobs = jobs.into_boxed_slice();
-            }
             if merge_authority {
                 let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
                 let mut extended = kinds.to_vec();
@@ -1462,6 +1455,15 @@ impl World {
             }
             if let Some((command, authority)) = &timing.close_job {
                 configure_close_job(&mut config, &mut limits, command.as_deref(), *authority);
+            }
+            if merge_kind {
+                let mut bound = protocol::merge_bound();
+                bound.spec = bound.spec.min(limits.tasks.spec_bytes);
+                bound.result = bound.result.min(limits.tasks.result_bytes);
+                let mut jobs = config.core.jobs.to_vec();
+                jobs.push(bound);
+                jobs.sort_by_key(|job| job.kind.0);
+                config.core.jobs = jobs.into_boxed_slice();
             }
             if timing.goal_closer {
                 configure_goal_closer(&mut config, &mut limits);
@@ -1795,6 +1797,7 @@ impl World {
             ends,
             restart_config: crate::oracle::config::copy(&config),
             idle_revision: None,
+            checked_quiet: None,
             oracle_documents: Vec::new(),
             forges_documents: Vec::new(),
             documents: Vec::new(),
@@ -2633,6 +2636,7 @@ impl World {
         assert!(self.store.pending.is_empty(), "store answers precede a restart");
         assert!(self.pending.is_empty(), "API answers precede a restart");
         self.idle_revision = None;
+        self.checked_quiet = None;
         self.root =
             engine::Domain::new(crate::oracle::config::copy(&config), &self.env.limits).expect("restart config");
         self.restart_config = config;
@@ -3468,7 +3472,15 @@ impl World {
 
     fn check_quiet(&mut self) {
         if self.quiet() {
-            self.checks.quiet(&self.root, self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            // The next tick can see the same frozen point. The operator's
+            // landing hold is a separate input that does not bump the revision.
+            let point = (self.root.revision(), self.env.now, self.iteration, self.root.forge().landing_held());
+            if self.checked_quiet != Some(point) {
+                self.checks
+                    .quiet(&self.root, self.env.now, self.iteration)
+                    .unwrap_or_else(|finding| panic!("{finding}"));
+                self.checked_quiet = Some(point);
+            }
             if let Some((kinds, ledger)) = &mut self.bounds {
                 let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
                 temper_engine_inspect::inspect(&self.root, &mut inspection);
@@ -4391,6 +4403,7 @@ impl World {
         }
         self.root = engine::Domain::new(config, &self.env.limits).expect("restart configuration");
         self.idle_revision = None;
+        self.checked_quiet = None;
         self.out = Queue::uncapped();
         self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
         self.drained = None;

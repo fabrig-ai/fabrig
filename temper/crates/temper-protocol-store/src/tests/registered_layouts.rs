@@ -90,6 +90,7 @@ fn an_earlier_closer_defaults_to_an_unread_report() {
         closer: Closer::new(),
         making: None,
         close_changes: Box::new([]),
+        catch_up_changes: Box::new([]),
         superseded: Box::new([]),
         landing_changes: Box::new([]),
         relay: Relay::new(),
@@ -238,13 +239,13 @@ fn an_earlier_change_defaults_measurements_and_runner_state_to_none() {
     assert!(row.runner_ci.is_none());
 }
 
-#[test]
-fn earlier_close_tips_default_to_not_asked_or_refused() {
-    const BRANCH: [u8; 32] = [3; 32];
-    const LANDING: [u8; 32] = [4; 32];
+const CLOSE_BRANCH: [u8; 32] = [3; 32];
+const CLOSE_LANDING: [u8; 32] = [4; 32];
+
+fn earlier_close_at(earlier_layout: &str, earlier: &[u8]) -> crate::v25::CloseAt {
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let close_at = family.current.lines().find(|line| line.starts_with("record CloseAt {")).unwrap();
-    let before = family.current.replacen(close_at, "record CloseAt { branch: fixed 32 landing: fixed 32 }", 1);
+    let before = family.current.replacen(close_at, earlier_layout, 1);
     let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
     let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
     let plan = skein_codec::layout::Plan::derive(
@@ -259,10 +260,45 @@ fn earlier_close_tips_default_to_not_asked_or_refused() {
     let mut work = skein_codec::layout::Workspace::new();
     assert!(work.fit(&plan));
     let mut out = skein_lib::Buffer::with_capacity(1024);
-    let earlier = [BRANCH, LANDING].concat();
-    plan.convert(&earlier, &mut out, &mut work).unwrap();
-    let at = crate::v25::CloseAt::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice())).unwrap();
-    assert_eq!(at, crate::v25::CloseAt { branch: BRANCH, landing: LANDING, asked: false, refused: None });
+    plan.convert(earlier, &mut out, &mut work).unwrap();
+    crate::v25::CloseAt::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice())).unwrap()
+}
+
+#[test]
+fn earlier_close_tips_default_to_not_asked_or_refused() {
+    let earlier = [CLOSE_BRANCH, CLOSE_LANDING].concat();
+    let at = earlier_close_at("record CloseAt { branch: fixed 32 landing: fixed 32 }", &earlier);
+    assert_eq!(
+        at,
+        crate::v25::CloseAt {
+            branch: CLOSE_BRANCH,
+            landing: CLOSE_LANDING,
+            asked: false,
+            refused: None,
+            outdated: None,
+        }
+    );
+}
+
+#[test]
+fn earlier_close_attempts_default_to_not_outdated() {
+    const COUNTS: [u8; 32] = [5; 32];
+    // Asked, a refusal present, and its counts present.
+    let earlier = [CLOSE_BRANCH.as_slice(), CLOSE_LANDING.as_slice(), &[1, 1, 1], COUNTS.as_slice()].concat();
+    let at = earlier_close_at(
+        "record CloseAt { branch: fixed 32 landing: fixed 32 asked: bool = false refused: option CloseRefused = none }",
+        &earlier,
+    );
+    assert_eq!(
+        at,
+        crate::v25::CloseAt {
+            branch: CLOSE_BRANCH,
+            landing: CLOSE_LANDING,
+            asked: true,
+            refused: Some(crate::v25::CloseRefused { counts: Some(COUNTS) }),
+            outdated: None,
+        }
+    );
 }
 
 #[test]

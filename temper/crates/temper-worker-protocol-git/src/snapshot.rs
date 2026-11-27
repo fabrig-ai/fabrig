@@ -23,6 +23,7 @@ pub(crate) fn enabled(op: &git::Op) -> bool {
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
         | git::Op::DiffPaths { .. }
+        | git::Op::Message { .. }
         | git::Op::Brings { .. }
         | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. }
@@ -129,6 +130,7 @@ pub(crate) fn after(op: &git::Op, command: &Command, code: u8, stdout: &[u8]) ->
         | Command::WriteTree
         | Command::CommitTree { .. }
         | Command::MergeBases { .. }
+        | Command::ReadMessage { .. }
         | Command::BringsList { .. }
         | Command::IsAncestor { .. }
         | Command::Push { .. } => None,
@@ -153,6 +155,7 @@ fn parameters(op: &git::Op) -> (&git::Commit, &Option<git::Commit>, &git::Snapsh
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
         | git::Op::DiffPaths { .. }
+        | git::Op::Message { .. }
         | git::Op::Brings { .. }
         | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. }

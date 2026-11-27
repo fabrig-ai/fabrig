@@ -128,7 +128,7 @@ fn assign(world: &mut World, head: u64, program: &[u8]) -> Result<(), String> {
                 account: None,
             }]),
         }),
-        spec: Ok(wire::JobSpec { command: program.into(), request: REQUEST.into(), refusal: false }),
+        spec: Ok(wire::JobSpec { command: program.into(), request: REQUEST.into(), refusal: false, outdated: false }),
     })?;
     Ok(())
 }

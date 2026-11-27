@@ -20,6 +20,14 @@ Generated from temper-worker's table (`skein/docs/design/runtime/shell-table.md`
 - **Absent:** The close command uses its exit statuses from before typed refusals.
 - Asks the close command to report a typed refusal with exit status 3.
 
+### `TEMPER_CLOSE_OUTDATED`
+
+- **Set:** public
+- **Sets**
+- **Form:** 3
+- **Absent:** The close command runs without the outdated ask.
+- Asks the close command to report an outdated finding with exit status 3.
+
 ### `TEMPER_WORKER_DISK_BUDGET`
 
 - **Set:** public

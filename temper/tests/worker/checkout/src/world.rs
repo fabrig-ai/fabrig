@@ -1292,6 +1292,7 @@ impl World {
             | Op::CheckOut { .. }
             | Op::Look { .. }
             | Op::DiffPaths { .. }
+            | Op::Message { .. }
             | Op::Brings { .. }
             | Op::IsAncestor { .. }
             | Op::Merge { .. } => {
@@ -1358,6 +1359,7 @@ impl World {
                 | Done::Paths { .. }
                 | Done::ParentUnreachable { .. }
                 | Done::Looked { .. }
+                | Done::Message { .. }
                 | Done::Brings { .. }
                 | Done::IsAncestor { .. }
                 | Done::Merged
@@ -1422,6 +1424,7 @@ impl World {
             | Op::Push { .. }
             | Op::Look { .. }
             | Op::DiffPaths { .. }
+            | Op::Message { .. }
             | Op::Brings { .. }
             | Op::IsAncestor { .. }
             | Op::Merge { .. } => None,
@@ -1522,6 +1525,7 @@ impl World {
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -1578,6 +1582,7 @@ impl World {
                     | Kind::Push
                     | Kind::Look
                     | Kind::DiffPaths
+                    | Kind::Message
                     | Kind::Brings
                     | Kind::IsAncestor
                     | Kind::Merge => {}

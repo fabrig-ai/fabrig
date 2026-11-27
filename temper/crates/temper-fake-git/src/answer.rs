@@ -304,6 +304,14 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
             }
             Answer::success(Vec::new())
         }
+        Command::ReadMessage { commit } => {
+            let commit = count(*commit);
+            if !git::object_present(checkout, at, commit) {
+                return Answer::local_failure();
+            }
+            // The fake's object model holds the message, not git's object headers.
+            Answer::success([b"tree fake\n\n".as_slice(), &transport.message(commit)].concat())
+        }
         Command::IsAncestor { expected, commit } => {
             let mut out = Answer::success(Vec::new());
             out.exit = u8::from(!transport.is_ancestor(count(*expected), count(*commit)));

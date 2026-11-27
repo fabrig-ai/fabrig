@@ -14,6 +14,18 @@ fn a_prepare_squash_has_the_merged_tree_one_parent_and_commits_even_when_empty()
     }
 }
 #[test]
+fn a_flagged_prepare_squash_keeps_the_heads_trailers() {
+    assert_eq!(run(17, Case::HeadTrailers).expect("world checks").pushes, 1);
+}
+#[test]
+fn an_absent_head_message_leaves_the_squash_message_unchanged() {
+    assert_eq!(run(18, Case::NoHeadMessage).expect("world checks").pushes, 1);
+}
+#[test]
+fn a_non_boolean_head_trailers_field_is_refused() {
+    assert_eq!(run(19, Case::MalformedHeadTrailers).expect("world checks").pushes, 0);
+}
+#[test]
 fn a_squash_that_brings_upstream_commits_is_merged_and_one_that_does_not_is_squashed() {
     for case in [Case::Upstream, Case::NoContribution] {
         assert_eq!(run(3, case).expect("world checks").pushes, 1);

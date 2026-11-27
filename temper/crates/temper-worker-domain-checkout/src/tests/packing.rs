@@ -84,6 +84,7 @@ fn prepare_and_release(h: &mut Harness, fetches: &mut u32, pin: bool, pack_end: 
             | Op::Pack { .. }
             | Op::Create { .. }
             | Op::IsAncestor { .. }
+            | Op::Message { .. }
             | Op::Brings { .. }
             | Op::DiffPaths { .. }
             | Op::Merge { .. }

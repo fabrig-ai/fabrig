@@ -68,7 +68,6 @@ mod execution;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 use temper_engine_domain_forge_vocabulary::commit;
 mod connect;
-pub mod member_message;
 pub use closer::{CloserPark, CloserRow};
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod status;
