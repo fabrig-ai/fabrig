@@ -5,7 +5,11 @@ use jig_domain_tasks::{
 };
 use jig_tasks_world::{LIMITS, PERSON_PARTY, Reply, World, task};
 use skein_lib::{ReplyTo, Rng, Token};
-use std::collections::BTreeSet;
+use skein_world::{
+    sweep::{Case, Test, cases, gate},
+    this_test,
+};
+use std::{collections::BTreeSet, convert::Infallible};
 
 const DRAW_SOURCE: u64 = 731;
 const DRAWN_SEEDS: usize = 64;
@@ -526,12 +530,12 @@ fn apply(world: &mut World, operation: Operation, seen: &mut BTreeSet<Reached>, 
 }
 
 #[test]
-fn random_amendments_preserve_the_promise_and_leave_no_circle() {
-    sweep();
+fn random_amendments_preserve_the_promise_and_leave_no_circle() -> Result<(), Case<Infallible>> {
+    sweep(this_test!("random_amendments_preserve_the_promise_and_leave_no_circle"))
 }
 
 #[expect(clippy::disallowed_methods, reason = "jig's round: reads JIG_WORLD_TRACE to enable amendment sweep tracing")]
-fn sweep() {
+fn sweep(test: Test) -> Result<(), Case<Infallible>> {
     let mut random = Rng::new(DRAW_SOURCE);
     let mut seeds = BTreeSet::new();
     while seeds.len() < DRAWN_SEEDS {
@@ -540,8 +544,10 @@ fn sweep() {
     eprintln!("amendment drawn seeds={seeds:?}, steps={STEPS}");
     let mut seen = BTreeSet::new();
     let tracing = std::env::var_os("JIG_WORLD_TRACE").is_some();
-    for seed in seeds {
-        eprintln!("amendment seed={seed}");
+    cases(test, seeds, |seed| {
+        if tracing {
+            eprintln!("amendment seed={seed}");
+        }
         let mut world = population(seed);
         let mut random = Rng::new(seed);
         let mut attempt = 0;
@@ -589,9 +595,13 @@ fn sweep() {
         world.complete_cancel();
         assert_eq!(world.results.len(), 6, "seed {seed}: every task ends");
         assert_eq!(world.live(), 0);
-    }
+        Ok(())
+    })?;
     eprintln!("amendment reach={seen:?}");
-    for marker in MARKERS {
-        assert!(seen.contains(&marker), "sweep reaches {marker:?}");
+    if gate() {
+        for marker in MARKERS {
+            assert!(seen.contains(&marker), "sweep reaches {marker:?}");
+        }
     }
+    Ok(())
 }
