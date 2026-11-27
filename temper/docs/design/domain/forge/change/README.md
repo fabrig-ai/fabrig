@@ -77,7 +77,12 @@ within the deployment's parameters per spec (jig's `tasks.parameters`,
 empty where the change names none. A choice is spelled as jig keeps
 it, by configured index (jig's `domain/tasks/README.md`, section 3): its main,
 then each sub-agent, separated by one space, each `M` or `M.E`, the
-model's index and its effort's, in decimal (`6;3.1 0.0 2;3.0`). A
+model's index and its effort's, in decimal, then, where it names a
+speed, `@` and the speed by its name, `standard` included, since jig
+keeps a speed by name (`6;3.1@ultrafast 0.0 2;3.0`). An entry with no
+`@` names no speed, so a parameter 11 spelled before speeds reads as it
+did, and a follow's producer, spelled the same (`../follows.md`), reads
+the speed too. A
 change without parameter 11, or with an empty part, runs its producer
 under the forge's change charter, or leaves that role to its charter's
 default; a parameter 11 that does not spell them refuses the change's

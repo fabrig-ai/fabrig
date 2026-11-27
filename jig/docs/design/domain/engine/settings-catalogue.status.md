@@ -2,6 +2,7 @@
 
 2026-11-27. Where the tree's code lags or departs from [settings-catalogue.md](settings-catalogue.md).
 
+- **Not yet:** 1: a charter's resolution at the charter's speed for a model, and a decision leaving a charter naming an undeclared speed refused [in flight: change 21878].
 
 - **Not yet:** 2: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read

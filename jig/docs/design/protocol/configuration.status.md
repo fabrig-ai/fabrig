@@ -4,6 +4,7 @@
 
 
 - **Not yet:** 4: the `programs` row's credential source on a provider's `direct` endpoint (`../domain/accounts-sources.md`, 1) [in flight: change 928].
+- **Not yet:** 9: a template's `llm` entries' `speed` [in flight: change 21878].
 
 - **Departs:** 5: the reference service's first periods come from its engine's routing, which hands the core each `Period` (`jig/testing/jig-test-service/src/engine.rs`), not from a child of its root, because jig's test root composes no period child.
 
