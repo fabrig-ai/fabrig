@@ -43,7 +43,11 @@ fn shared_override_names_match_engine_and_handed_owners() {
 }
 
 #[test]
-fn worker_close_kind_matches_engine() {
+fn worker_close_kind_covers_engine_placement_and_contract() {
     assert_eq!(crate::worker_settings::CLOSE_KIND, temper_engine_domain_forge::CLOSE_KIND);
-    assert_eq!(crate::worker_settings::close_bound(), crate::limits::close_bound());
+    let worker = crate::worker_settings::close_bound();
+    let placement = crate::limits::close_bound();
+    assert_eq!(placement.result, 512);
+    assert_eq!(worker, jig_domain_link::JobBound { result: 8_192, ..placement });
+    assert_eq!(worker.result, crate::limits::CLOSE_RESULT_BYTES);
 }

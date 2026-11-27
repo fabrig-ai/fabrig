@@ -183,6 +183,7 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
             command: Box::new([]),
             request: request.clone().into_bytes().into(),
             refusal: false,
+            result: 512,
             outdated: false,
         }),
     };
@@ -434,6 +435,7 @@ fn run_stack(seed: u64, case: Case) -> Result<Report, String> {
             command: Box::new([]),
             request: request.clone().into_bytes().into(),
             refusal: false,
+            result: 512,
             outdated: false,
         }),
     };

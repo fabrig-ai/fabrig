@@ -355,6 +355,7 @@ fn entering_checking_arms_the_first_execution_reading() {
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             };
     }
     assert!(scheduled, "first reading within poll_max: {out:?}");

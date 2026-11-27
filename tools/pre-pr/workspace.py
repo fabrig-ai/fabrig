@@ -90,22 +90,29 @@ def target_filter(targets):
     return ' | '.join(f'({part})' for part in parts)
 
 
-def rust_commands(groups, prerequisites, directory, runner='tools/tiers/one-process'):
-    """Helper builds, a check of crates without tests, then every group's tests in one run a profile.
+def dependent_packages(packages, failed):
+    """Follow reverse path dependencies, including through packages outside the test selection."""
+    directories = {Path(package['manifest_path']).parent: name for name, package in packages.items()}
+    consumers = defaultdict(set)
+    for name, package in packages.items():
+        for dep in package['dependencies']:
+            if dep.get('path') and (provider := directories.get(Path(dep['path']))) is not None:
+                consumers[provider].add(name)
+    affected, pending = set(failed), list(failed)
+    while pending:
+        new = consumers[pending.pop()] - affected
+        affected.update(new)
+        pending.extend(new)
+    return affected
 
-    One run builds the selection in parallel and runs its binaries side by side, where a run per
-    group of identical target flags paid a build, a listing and a serial pass each (11-23: 47 groups).
-    """
-    tested = {name for targets, names in groups.items() if targets for name in names}
-    helpers = {(entry['package'], entry['bin']) for name in tested for entry in prerequisites.get(name, [])}
-    for package, binary in sorted(helpers):
-        yield ['cargo', 'build', '--offline', '--locked', '-p', package, '--bin', binary]
-    checked = sorted(name for targets, names in groups.items() if not targets for name in names)
-    if checked:
-        yield ['cargo', 'check', '--offline', '--locked', *[arg for name in checked for arg in ('-p', name)]]
-    runs = sorted((targets, names) for targets, names in groups.items() if targets)
+
+def rust_test_command(groups, directory, profile, runner, omitted=()):
+    """One run builds the selected targets in parallel and runs their binaries side by side."""
+    runs = [(targets, [name for name in names if name not in omitted])
+            for targets, names in sorted(groups.items()) if targets]
+    runs = [(targets, names) for targets, names in runs if names]
     if not runs:
-        return
+        return None
     names = sorted({name for _, members in runs for name in members})
     selected = ' | '.join(
         '((' + ' | '.join(f'package(={name})' for name in members) + ') & (' + target_filter(targets) + '))'
@@ -114,8 +121,20 @@ def rust_commands(groups, prerequisites, directory, runner='tools/tiers/one-proc
     boundary = workspace_filter(names)
     if boundary:
         expression += ' & ' + boundary[1].removeprefix('default() & ')
-    # Then the same packages' fuzzy tests, which the gate judges as their own profile: default() is each
-    # profile's own filter, so one expression selects both.
-    for step, profile in enumerate(('default', 'fuzzy')):
-        yield [runner, '--out', str(directory / str(step)), '--fail-fast', profile, '--offline', '--locked',
-               '--no-tests=warn', *[arg for name in names for arg in ('-p', name)], '-E', expression]
+    # default() is each profile's own filter, so one expression selects both.
+    return [runner, '--out', str(directory), profile, '--offline', '--locked',
+            '--no-tests=warn', *[arg for name in names for arg in ('-p', name)], '-E', expression]
+
+
+def rust_commands(groups, prerequisites, directory, runner='tools/tiers/one-process'):
+    """Helper builds, a check of crates without tests, then the focused and fuzzy profiles."""
+    tested = {name for targets, names in groups.items() if targets for name in names}
+    helpers = {(entry['package'], entry['bin']) for name in tested for entry in prerequisites.get(name, [])}
+    for package, binary in sorted(helpers):
+        yield ['cargo', 'build', '--offline', '--locked', '-p', package, '--bin', binary]
+    checked = sorted(name for targets, names in groups.items() if not targets for name in names)
+    if checked:
+        yield ['cargo', 'check', '--offline', '--locked', *[arg for name in checked for arg in ('-p', name)]]
+    if tested:
+        for step, profile in enumerate(('default', 'fuzzy')):
+            yield rust_test_command(groups, directory / str(step), profile, runner)

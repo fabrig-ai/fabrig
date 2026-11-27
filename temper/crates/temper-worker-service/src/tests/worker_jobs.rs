@@ -277,6 +277,7 @@ fn a_job_spec_that_does_not_decode_reaches_the_root_undecodable() {
         command: b"tool".as_slice().into(),
         request: b"{}".as_slice().into(),
         refusal: true,
+        result: 512,
         outdated: true,
     };
     let valid = valid.encode(&v1::CEILINGS).unwrap();
@@ -319,6 +320,7 @@ fn a_job_spec_that_does_not_decode_reaches_the_root_undecodable() {
                     command: b"tool".as_slice().into(),
                     request: b"{}".as_slice().into(),
                     refusal: true,
+                    result: 512,
                     outdated: true,
                 })
             } else {

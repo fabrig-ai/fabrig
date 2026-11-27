@@ -4676,6 +4676,7 @@ fn delegate_result(
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             },
         );
     }
@@ -4724,6 +4725,7 @@ fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queu
                     entry: None,
                     evidence: None,
                     close_at: None,
+                    close_refusal: None,
                 },
             );
         }
@@ -5123,7 +5125,17 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         return;
     }
     if let Some(decision) = change_terminal(row) {
-        emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None, close_at: None });
+        emit(
+            out,
+            Request::ChangeDecision {
+                task,
+                decision,
+                entry: None,
+                evidence: None,
+                close_at: None,
+                close_refusal: None,
+            },
+        );
         return;
     }
     if let Some(merge) = landed_commit(&row.change.state) {
@@ -5145,6 +5157,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             },
         );
         return;
@@ -5164,6 +5177,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             },
         );
         return;
@@ -5423,7 +5437,14 @@ fn step_verified(
     save_change(d, out, row);
     emit(
         out,
-        Request::ChangeDecision { task, decision: stepped.decision, entry: None, evidence: None, close_at: None },
+        Request::ChangeDecision {
+            task,
+            decision: stepped.decision,
+            entry: None,
+            evidence: None,
+            close_at: None,
+            close_refusal: None,
+        },
     );
 }
 
@@ -5477,7 +5498,14 @@ fn step_read(
         if let Some(decision) = change_terminal(row) {
             emit(
                 out,
-                Request::ChangeDecision { task: pending.task, decision, entry: None, evidence: None, close_at: None },
+                Request::ChangeDecision {
+                    task: pending.task,
+                    decision,
+                    entry: None,
+                    evidence: None,
+                    close_at: None,
+                    close_refusal: None,
+                },
             );
         } else if let Some(merge) = landed_commit(&row.change.state) {
             step_verified(d, env, pending.task, merge, pending.heard, out);
@@ -6317,6 +6345,7 @@ fn wait_for_forge(
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             },
         );
         return;
@@ -6355,6 +6384,7 @@ fn wait_for_forge(
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         },
     );
 }
@@ -6409,6 +6439,7 @@ fn hold_read_session(
             entry: None,
             evidence: Some(evidence),
             close_at: None,
+            close_refusal: None,
         },
     );
 }
@@ -6450,6 +6481,7 @@ pub(super) fn hold_room_change(
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         },
     );
 }
@@ -6483,6 +6515,7 @@ fn titled_change(
                     entry: None,
                     evidence: None,
                     close_at: None,
+                    close_refusal: None,
                 },
             );
             return None;
@@ -6510,7 +6543,17 @@ fn titled_change(
         } else {
             change::Decision::Wait { until: Some(until) }
         };
-        emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None, close_at: None });
+        emit(
+            out,
+            Request::ChangeDecision {
+                task,
+                decision,
+                entry: None,
+                evidence: None,
+                close_at: None,
+                close_refusal: None,
+            },
+        );
         return None;
     }
     Some(row)
@@ -6605,7 +6648,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
     if crate::follow_check::asked(&row).is_some() {
         row.change.since = env.wall;
     }
-    crate::close::judged(&mut row, pending.branch.is_some());
+    let close_refusal = crate::close::judged(&mut row, pending.branch.is_some());
     if let Some(recheck) = &mut row.ci_recheck {
         if pending.branch.is_some() && pending.branch != Some(recheck.job.head) {
             row.ci_recheck = None;
@@ -6874,7 +6917,9 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                 } else {
                     None
                 };
-                let choice = if close_at.is_some() {
+                let close_refusal =
+                    if decision == change::Decision::Hold(change::Cause::CloseRefused) { close_refusal } else { None };
+                let choice = if close_at.is_some() || close_refusal.is_some() {
                     decision
                 } else {
                     repair_poll(
@@ -6903,6 +6948,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                             None
                         },
                         close_at,
+                        close_refusal,
                     },
                 );
                 return;
@@ -6981,7 +7027,17 @@ fn drive_check(
             crate::readiness::reconcile(d, env, &mut row, None, out);
             d.changes.insert(task, row.clone()).expect("known change");
             save_change(d, out, row);
-            emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None, close_at: None });
+            emit(
+                out,
+                Request::ChangeDecision {
+                    task,
+                    decision,
+                    entry: None,
+                    evidence: None,
+                    close_at: None,
+                    close_refusal: None,
+                },
+            );
             if let Action::Done = action {
                 emit(out, Request::WakeProcedure { task });
             }
@@ -7523,6 +7579,7 @@ fn emit_change_effect(
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             },
         );
         return;
@@ -7571,6 +7628,7 @@ fn emit_change_effect(
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             },
         );
         return;
@@ -7597,6 +7655,7 @@ fn emit_change_effect(
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             },
         );
         return;
@@ -7689,6 +7748,7 @@ fn emit_change_effect(
             entry: Some(pending.entry),
             evidence: Some(step_evidence(d, row, pending, prior)),
             close_at: None,
+            close_refusal: None,
         },
     );
 }
@@ -7930,7 +7990,14 @@ pub(crate) fn change_outcome(
     }
     emit(
         out,
-        Request::ChangeDecision { task, decision: change::Decision::None, entry: None, evidence: None, close_at: None },
+        Request::ChangeDecision {
+            task,
+            decision: change::Decision::None,
+            entry: None,
+            evidence: None,
+            close_at: None,
+            close_refusal: None,
+        },
     );
 }
 
@@ -11164,6 +11231,7 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     entry: None,
                     evidence: None,
                     close_at: None,
+                    close_refusal: None,
                 },
             );
         }

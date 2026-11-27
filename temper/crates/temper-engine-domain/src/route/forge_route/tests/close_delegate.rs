@@ -34,6 +34,7 @@ fn the_root_keeps_the_close_tips_through_admission() {
         entry: None,
         evidence: None,
         close_at: Some(TIPS),
+        close_refusal: None,
     });
     let mut journal = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::super::outputs(&mut domain, &env, &mut journal, &mut out);

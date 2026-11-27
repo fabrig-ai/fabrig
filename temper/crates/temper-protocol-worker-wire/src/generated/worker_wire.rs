@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 12;
 pub const LAYOUT: [u8; 32] = [
-    0xb7, 0xb9, 0x67, 0xf5, 0x84, 0x21, 0x9e, 0x29, 0xe2, 0x2e, 0xce, 0x98, 0x36, 0x72, 0x5f, 0xf5, 0xe2, 0x40, 0xad,
-    0x9b, 0xf3, 0x21, 0xdb, 0xc5, 0x72, 0x0a, 0xf5, 0x16, 0x81, 0x55, 0xe7, 0xf6,
+    0x79, 0x5b, 0x45, 0x3f, 0x59, 0x2b, 0x85, 0x29, 0x66, 0x60, 0x86, 0xfe, 0x76, 0x49, 0x36, 0xce, 0x8d, 0xaf, 0x8d,
+    0x7b, 0x63, 0xec, 0x40, 0x32, 0x6b, 0xc6, 0x77, 0x8e, 0x93, 0x8c, 0x8a, 0x34,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -339,6 +339,7 @@ pub mod paths {
     pub const JOB_SPEC_COMMAND: Path = Path::new("JobSpec.command");
     pub const JOB_SPEC_REQUEST: Path = Path::new("JobSpec.request");
     pub const JOB_SPEC_REFUSAL: Path = Path::new("JobSpec.refusal");
+    pub const JOB_SPEC_RESULT: Path = Path::new("JobSpec.result");
     pub const JOB_SPEC_OUTDATED: Path = Path::new("JobSpec.outdated");
     pub const JOB_SPEC_TAIL: Path = Path::new("JobSpec (tail)");
     pub const LANDED_TAG: Path = Path::new("Landed.tag");
@@ -1036,6 +1037,7 @@ pub struct JobSpec {
     pub command: Box<[u8]>,
     pub request: Box<[u8]>,
     pub refusal: bool,
+    pub result: u32,
     pub outdated: bool,
 }
 
@@ -1045,12 +1047,13 @@ impl JobSpec {
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, job_spec_command) },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, job_spec_request) },
         skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Scalar(1),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3] },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 10;
+    pub const ENCODED_AT_ZERO: u64 = 14;
 }
 
 impl Record for JobSpec {
@@ -1078,6 +1081,7 @@ impl Record for JobSpec {
         field::write(field::Bytes { limit: limits.job_spec_command.min(CEILINGS.job_spec_command) }, &self.command, limits, out, paths::JOB_SPEC_COMMAND)?;
         field::write(field::Bytes { limit: limits.job_spec_request.min(CEILINGS.job_spec_request) }, &self.request, limits, out, paths::JOB_SPEC_REQUEST)?;
         field::write(field::Boolean, &self.refusal, limits, out, paths::JOB_SPEC_REFUSAL)?;
+        field::write(field::U32, &self.result, limits, out, paths::JOB_SPEC_RESULT)?;
         field::write(field::Boolean, &self.outdated, limits, out, paths::JOB_SPEC_OUTDATED)?;
         Ok(())
     }
@@ -1087,6 +1091,7 @@ impl Record for JobSpec {
             command: field::read(field::Bytes { limit: limits.job_spec_command.min(CEILINGS.job_spec_command) }, limits, reader, paths::JOB_SPEC_COMMAND)?,
             request: field::read(field::Bytes { limit: limits.job_spec_request.min(CEILINGS.job_spec_request) }, limits, reader, paths::JOB_SPEC_REQUEST)?,
             refusal: field::read(field::Boolean, limits, reader, paths::JOB_SPEC_REFUSAL)?,
+            result: field::read(field::U32, limits, reader, paths::JOB_SPEC_RESULT)?,
             outdated: field::read(field::Boolean, limits, reader, paths::JOB_SPEC_OUTDATED)?,
         })
     }

@@ -14,7 +14,7 @@ Flake: ceilings encoded=2568 decoded=2560; at_most(3) encoded=14 decoded=6
 Head: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
 Identity: ceilings encoded=1118993 decoded=1125120; at_most(3) encoded=92 decoded=147
 Items: ceilings encoded=987787 decoded=1006592; at_most(3) encoded=836 decoded=1368
-JobSpec: ceilings encoded=1052682 decoded=1052672; at_most(3) encoded=16 decoded=6
+JobSpec: ceilings encoded=1052686 decoded=1052672; at_most(3) encoded=20 decoded=6
 Kind: ceilings encoded=1118213 decoded=1124352; at_most(3) encoded=71 decoded=138
 Landed: ceilings encoded=41 decoded=0; at_most(3) encoded=41 decoded=0
 Landing: ceilings encoded=4198405 decoded=4210688; at_most(3) encoded=33 decoded=57

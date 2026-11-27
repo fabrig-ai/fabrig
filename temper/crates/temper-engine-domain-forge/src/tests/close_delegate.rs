@@ -50,6 +50,7 @@ fn a_close_decision_carries_both_tips_it_read() {
             entry: None,
             evidence: None,
             close_at: Some(TIPS),
+            close_refusal: None,
         }]
     );
 }

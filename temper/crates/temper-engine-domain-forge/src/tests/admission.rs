@@ -315,6 +315,7 @@ fn assert_connection_wait(out: &Queue<Request>) {
                 entry: None,
                 evidence: None,
                 close_at: None,
+                close_refusal: None,
             };
         assert!(!matches!(request, Request::ResourceRefused { .. } | Request::Call { .. }), "{out:?}");
     }

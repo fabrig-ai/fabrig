@@ -468,6 +468,7 @@ fn ready_answer(domain: &mut Domain, task: u64) {
         entry: None,
         evidence: None,
         close_at: None,
+        close_refusal: None,
     });
     domain.work.push(Work::ForgeSettings(out));
 }

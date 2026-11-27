@@ -110,16 +110,21 @@ def run(arguments, cwd, env, output=None, stdout=False):
 
 
 class RustcDiagnostic:
-    """Stream the build log and keep its first coded error for the close hold."""
+    """Stream the build log, retaining compiler errors and the packages that failed to build."""
 
     def __init__(self):
-        self.code = self.message = ''
+        self.code = self.message = self.first_error = ''
         self.location = None
+        self.failed_packages = set()
 
     def consume(self, line, log):
         log.add(line)
         sys.stdout.buffer.write(line)
         sys.stdout.flush()
+        if failed := re.match(rb'^error: could not compile `([^`]+)`', line):
+            self.failed_packages.add(failed[1].decode(errors='replace'))
+        if not self.first_error and line.startswith(b'error: '):
+            self.first_error = stderr_line(line[:512].decode(errors='replace'))
         if not self.code:
             error = re.match(rb'^error\[(E[0-9]{4})\]: (.*)', line[:512])
             if error:
@@ -1009,10 +1014,8 @@ def listing_failed_to_build(code, log):
     return code == 2 and log.rstrip('\r\n').rsplit('\n', 1)[-1] == 'one-process: nextest listing exited with 101'
 
 
-def close_test_errors(directory, what, code, log, diagnostic):
-    """Take only one-process's build or test verdicts as candidate failures (section 6)."""
-    if listing_failed_to_build(code, log):
-        return [dict(failure('build' + (' fuzzy' if what == 'fuzzy tests' else ''), log), diagnostic=diagnostic)]
+def close_test_errors(directory, what, code, log):
+    """Take only one-process's test verdicts as candidate failures (section 6)."""
     if code not in (0, 100):
         return [command_break(what, code, log)]
     errors = []
@@ -1257,13 +1260,16 @@ def settled(error):
     return error['inherited'] or 'flake' in error
 
 
+def failure_class(error):
+    return ('broke' if 'broke' in error else 'inherited' if error['inherited'] else
+            'flake' if 'flake' in error else 'new')
+
+
 def failure_groups(errors):
-    """The record's and summary's class order; inherited takes precedence over a flake."""
+    """The summary's class order; inherited takes precedence over a flake."""
     groups = {kind: [] for kind in ('new', 'flake', 'inherited', 'broke')}
     for error in errors:
-        kind = ('broke' if 'broke' in error else 'inherited' if error['inherited'] else
-                'flake' if 'flake' in error else 'new')
-        groups[kind].append(error)
+        groups[failure_class(error)].append(error)
     groups['flake'].sort(key=lambda e: e['key'])
     return groups
 
@@ -1291,7 +1297,7 @@ def replace_file(path, data):
         raise
 
 
-def failure_file(tree_id, base_id, verdict, cached, groups, root, scope, commits, head):
+def failure_file(tree_id, base_id, verdict, cached, groups, root, scope, commits, head, *, errors):
     """Keep every structured failure atomically, before the summary (sections 6–7)."""
     relative = {'child': 'target/temper/goal-child-pre-pr.json',
                 'close': 'target/temper/goal-close-pre-pr.json',
@@ -1299,24 +1305,25 @@ def failure_file(tree_id, base_id, verdict, cached, groups, root, scope, commits
     path = root / relative
     try:
         entries = []
-        for kind, group in groups.items():
-            for error in group:
-                key = error['key']
-                structured = None
-                if key and error['name'].startswith('test '):
-                    structured = dict(zip(('kind', 'binary', 'test'), ('test', *key)))
-                elif key and error['name'].startswith('clippy '):
-                    structured = dict(zip(('kind', 'package', 'code', 'file', 'message'), ('lint', *key)))
-                elif key and len(key) == 4 and error['name'].startswith('old-forms '):
-                    structured = dict(zip(('kind', 'tree', 'form', 'count', 'baseline'), ('old-forms', *key)))
-                entry = {'class': kind, 'name': error['name'], 'key': structured}
-                if kind == 'broke':
-                    entry['detail'] = error['broke']
-                elif error['name'] in ('format', 'budgets'):
-                    entry['detail'] = error['log'].strip()
-                if error.get('figures'):
-                    entry['figures'] = error['figures']
-                entries.append(entry)
+        ordered = ((failure_class(error), error) for error in errors) if scope == 'close' else (
+            (kind, error) for kind, group in groups.items() for error in group)
+        for kind, error in ordered:
+            key = error['key']
+            structured = None
+            if key and error['name'].startswith('test '):
+                structured = dict(zip(('kind', 'binary', 'test'), ('test', *key)))
+            elif key and error['name'].startswith('clippy '):
+                structured = dict(zip(('kind', 'package', 'code', 'file', 'message'), ('lint', *key)))
+            elif key and len(key) == 4 and error['name'].startswith('old-forms '):
+                structured = dict(zip(('kind', 'tree', 'form', 'count', 'baseline'), ('old-forms', *key)))
+            entry = {'class': kind, 'name': error['name'], 'key': structured}
+            if kind == 'broke':
+                entry['detail'] = error['broke']
+            elif error['name'] in ('format', 'budgets'):
+                entry['detail'] = error['log'].strip()
+            if error.get('figures'):
+                entry['figures'] = error['figures']
+            entries.append(entry)
         header = {'form': 'pre-pr-failures 1', 'tree': tree_id, 'base': base_id,
                   'cached': cached, 'verdict': verdict,
                   'counts': counts_by_class(groups)}
@@ -1432,7 +1439,18 @@ def typed_close(scope, env):
     return scope == 'close' and env.get('TEMPER_CLOSE_REFUSAL') == '3'
 
 
-def refusal_bytes(head, tree, base, counts, failures):
+def close_result_bound(env):
+    value = env.get('TEMPER_CLOSE_RESULT_BYTES', '')
+    if not (value.isascii() and value.isdecimal()):
+        return 512
+    digits = value.lstrip('0')
+    if len(digits) > len(str(sys.maxsize)):
+        # No result that fits in memory can reach this bound.
+        return sys.maxsize
+    return max(512, int(digits or '0'))
+
+
+def refusal_bytes(head, tree, base, counts, failures, bound):
     """Bound the close result in whole names (temper/docs/design/protocol/tooling.md, 4.2)."""
     refused = dict(head=head, tree=tree, base=base, counts=counts, failures=failures)
 
@@ -1440,7 +1458,7 @@ def refusal_bytes(head, tree, base, counts, failures):
         return (json.dumps({'refused': refused}, ensure_ascii=True, separators=(',', ':')) + '\n').encode('ascii')
 
     full = encode()
-    if len(full) <= 512:
+    if len(full) <= bound:
         return full
     refused['failures'] = []
     for index, name in enumerate(failures):
@@ -1450,7 +1468,7 @@ def refusal_bytes(head, tree, base, counts, failures):
             refused['more'] = remaining
         else:
             refused.pop('more', None)
-        if len(encode()) > 512:
+        if len(encode()) > bound:
             refused['failures'].pop()
             refused['more'] = remaining + 1
             break
@@ -1462,7 +1480,7 @@ def finish(tree_id, base_id, errors, root, env, scope, commits, heads, lints=(),
     groups = failure_groups(errors)
     verdict = outcome(groups)
     head = heads[0] if heads else None
-    location = failure_file(tree_id, base_id, verdict, False, groups, root, scope, commits, head)
+    location = failure_file(tree_id, base_id, verdict, False, groups, root, scope, commits, head, errors=errors)
     summary(base_id, lints, tests, groups, verdict, location, warnings, scope, base_name)
     if verdict == 'passed':
         return 0
@@ -1485,13 +1503,60 @@ def finish(tree_id, base_id, errors, root, env, scope, commits, heads, lints=(),
             if not head or not tree_id:
                 raise ValueError('the close did not identify its head and tree')
             names = [error['name'] for error in groups['new']]
-            data = refusal_bytes(head, tree_id, base_id, counts_ref, names)
+            data = refusal_bytes(head, tree_id, base_id, counts_ref, names, close_result_bound(env))
         replace_file(Path(job) / 'result.json', data)
     except (OSError, ValueError) as error:
         kind = 'outdated finding' if finding is not None else 'refusal'
         print_broke(f'cannot write close {kind}: {error}')
         return 2
     return 3
+
+
+def close_test_profile(root, env, plan, packages, groups, omitted, args):
+    """After a listing fails, retry only if removing packages shrinks the selection (section 4.1)."""
+    runner, _, directory, profile = args[:4]
+    directory = Path(directory)
+    label = 'focused tests' if profile == 'default' else 'fuzzy tests'
+    selected = {name for targets, names in groups.items() if targets for name in names} - omitted
+    left_out, findings = set(), []
+    build_log, first_diagnostic = Tail(), None
+    attempt = 0
+    while args:
+        print(f"pre-pr: {label}: {shlex.join(args)}", flush=True)
+        start = time.monotonic()
+        diagnostic = RustcDiagnostic()
+        rc, log = run(args, root, env, output=diagnostic.consume, stdout=True)
+        build_failed = listing_failed_to_build(rc, log)
+        if not build_failed:
+            findings = close_test_errors(Path(args[2]), label, rc, log)
+        status = 'broke' if rc == 0 and findings else f'exit {rc}'
+        print(f'pre-pr: {label}: {status}, {time.monotonic() - start:.3f} s', flush=True)
+        if not build_failed:
+            break
+
+        build_log.add(log.encode())
+        if first_diagnostic is None:
+            first_diagnostic = diagnostic.reason() or diagnostic.first_error or stderr_line(log)
+        failed = diagnostic.failed_packages
+        if not failed or failed - packages.keys():
+            break
+        dropped = selected & plan['dependent_packages'](packages, failed)
+        if not dropped:
+            break
+        left_out.update(dropped)
+        selected.difference_update(dropped)
+        attempt += 1
+        args = plan['rust_test_command'](groups, directory.with_name(f'{directory.name}-{attempt}'), profile,
+                                         runner, omitted | left_out)
+
+    if first_diagnostic is not None:
+        if left_out:
+            line = f"left out, unbuilt: {', '.join(sorted(left_out))}\n"
+            print(line, end='', flush=True)
+            build_log.add(line.encode())
+        name = 'build' if profile == 'default' else 'build fuzzy'
+        findings.insert(0, dict(failure(name, build_log.text()), diagnostic=first_diagnostic))
+    return findings, left_out
 
 
 def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, completed_goal=False, counts_source=None,
@@ -1501,7 +1566,7 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
         errors += format_workspace(root, env)
     elif not whole:
         errors += format_changes(root, paths, env)
-    if errors:
+    if errors and not completed_goal:
         return []
     plan = planner() if completed_goal else None
     if completed_goal and whole:
@@ -1537,22 +1602,17 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
     print(f'pre-pr: selection: {len(paths)} paths, {len(suites)} test packages, '
           f'{time.monotonic() - start:.3f} s', flush=True)
 
-    def command(label, args, *, test_run=None, build=False):
+    def command(label, args, *, build=False):
         print(f"pre-pr: {label}: {shlex.join(args)}", flush=True)
         start = time.monotonic()
-        diagnostic = RustcDiagnostic() if build or test_run is not None else None
+        diagnostic = RustcDiagnostic() if build else None
         rc, log = run(args, root, env, output=diagnostic.consume if diagnostic else None, stdout=True)
-        reason = diagnostic.reason() if diagnostic else ''
-        if test_run is not None:
-            found = close_test_errors(test_run, label, rc, log, reason)
-        else:
-            found = command_errors(label, rc, log)
-            if reason and rc:
-                red = dict(failure(label, log), diagnostic=reason)
-                found = [red, *found] if 'broke' in found[0] else [red]
+        found = command_errors(label, rc, log)
+        if rc and diagnostic and (reason := diagnostic.reason()):
+            red = dict(failure(label, log), diagnostic=reason)
+            found = [red, *found] if 'broke' in found[0] else [red]
         errors.extend(found)
-        status = f'exit {rc}' if rc or not found else 'broke'
-        print(f'pre-pr: {label}: {status}, {time.monotonic() - start:.3f} s', flush=True)
+        print(f'pre-pr: {label}: exit {rc}, {time.monotonic() - start:.3f} s', flush=True)
         return bool(found)
 
     for name in ('skein', 'smith', 'jig', 'temper', 'hearth'):
@@ -1588,22 +1648,25 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
             target.mkdir(parents=True, exist_ok=True)
             scratch = tempfile.TemporaryDirectory(prefix='pre-pr-close-', dir=target)
         with scratch as directory:
-            runs = defaultdict(list)
+            runs, omitted = {}, set()
             runner = str(TIERS / 'one-process')
             for args in plan['rust_commands'](groups, prerequisites, Path(directory) if suites else None, runner):
-                if args[0] == runner:
-                    out = Path(args[2])
-                    profile = args[args.index('--fail-fast') + 1]
-                    runs[profile].append(out)
-                    label = 'focused tests' if profile == 'default' else f'{profile} tests'
-                    if command(label, args, test_run=out):
-                        break
-                elif command('build check', args, build=True):
-                    break
-            else:
-                if runs:
-                    repository, git_env = counts_source if counts_source is not None else (root, env)
-                    errors += close_budgets(root, repository, git_env, runs, published)
+                if args[0] != runner:
+                    if command('build check', args, build=True) and args[1] == 'build':
+                        helper = {'package': args[args.index('-p') + 1], 'bin': args[args.index('--bin') + 1]}
+                        omitted.update(name for name in suites if helper in prerequisites.get(name, []))
+                    continue
+                out, profile = Path(args[2]), args[3]
+                if omitted:
+                    args = plan['rust_test_command'](groups, out, profile, runner, omitted)
+                if args:
+                    found, left_out = close_test_profile(root, env, plan, packages, groups, omitted, args)
+                    errors.extend(found)
+                    omitted.update(left_out)
+                    runs[profile] = [out]
+            if runs and not errors and not omitted:
+                repository, git_env = counts_source if counts_source is not None else (root, env)
+                errors += close_budgets(root, repository, git_env, runs, published)
     return suites
 
 

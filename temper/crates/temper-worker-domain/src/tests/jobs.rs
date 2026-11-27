@@ -79,6 +79,7 @@ fn assignment(decoded: bool, writable: bool) -> Event {
             command: Box::from(b"home/tools/check".as_slice()),
             request: Box::from(b"request".as_slice()),
             refusal: false,
+            result: 512,
             outdated: false,
         })
     } else {

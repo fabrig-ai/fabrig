@@ -82,6 +82,8 @@ pub struct JobSpec {
     pub command: Box<[u8]>,
     pub request: Box<[u8]>,
     pub refusal: bool,
+    /// The engine’s limit on a typed refusal result.
+    pub result: u32,
     pub outdated: bool,
 }
 

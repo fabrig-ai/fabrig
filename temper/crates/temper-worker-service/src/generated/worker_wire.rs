@@ -173,12 +173,13 @@ pub fn items_to_domain(record: temper_protocol_worker_wire::v1::Items) -> temper
 
 #[must_use]
 pub fn job_spec_to_domain(record: temper_protocol_worker_wire::v1::JobSpec) -> temper_worker_domain::wire::JobSpec {
-    let temper_protocol_worker_wire::v1::JobSpec { command: field_000000, request: field_000001, refusal: field_000002, outdated: field_000003 } = record;
+    let temper_protocol_worker_wire::v1::JobSpec { command: field_000000, request: field_000001, refusal: field_000002, result: field_000003, outdated: field_000004 } = record;
     temper_worker_domain::wire::JobSpec {
         command: field_000000,
         request: field_000001,
         refusal: field_000002,
-        outdated: field_000003
+        result: field_000003,
+        outdated: field_000004
     }
 }
 

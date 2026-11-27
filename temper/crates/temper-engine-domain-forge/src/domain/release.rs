@@ -445,6 +445,7 @@ fn work(
                     entry: None,
                     evidence: None,
                     close_at: None,
+                    close_refusal: None,
                 },
             );
         }

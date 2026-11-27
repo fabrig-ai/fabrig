@@ -157,6 +157,7 @@ pub(crate) fn run(
                 command: spec.command,
                 request: spec.request,
                 refusal: spec.refusal,
+                result: spec.result,
                 outdated: spec.outdated,
             },
             deadline,
