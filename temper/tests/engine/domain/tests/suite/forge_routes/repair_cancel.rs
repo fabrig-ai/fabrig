@@ -102,7 +102,7 @@ fn a_released_cancelled_repair_asks_again_at_a_head_still_failing() {
     let row = change_row(&world, change);
     let (fresh, _) = row.delegate.expect("replacement repair");
     assert_ne!(fresh, repair);
-    assert_eq!(row.change.repairs, 1, "replacement spends the reset allowance");
+    assert_eq!(row.change.repairs, 2, "the replacement counts on from the cancelled repair");
     assert!(row.producer_failure.is_none(), "fresh delegation clears the cancellation account");
     assert!(matches!(row.change.state, State::Repairing { .. }));
     world.advance_ticks(STEPS);
@@ -141,7 +141,7 @@ fn a_released_failed_repair_receives_the_job_log_again_and_merges_nothing() {
     assert_ne!(replacement.task, first.task);
     super::change_tool::check_pull_repair_brief(&replacement);
     assert_eq!(ci_words(&first), ci_words(&replacement), "the same failed step and diagnostic");
-    assert_eq!(change_row(&world, change).change.repairs, 1, "release resets the repair allowance");
+    assert_eq!(change_row(&world, change).change.repairs, 2, "the replacement counts on from the failed repair");
     super::reviews::finish_review(&mut world, &replacement, tasks::TaskResult::Failure { reason: REASON.into() });
     world.advance_ticks(STEPS);
     assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }), "replacement's failure holds again");
