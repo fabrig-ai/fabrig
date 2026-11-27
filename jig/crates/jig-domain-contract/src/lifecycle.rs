@@ -26,3 +26,28 @@ pub struct AdoptedParty {
     pub subject: Box<[u8]>,
     pub role: Role,
 }
+
+/// A connector's resource path, opaque to people (domain/connectors.md, section 12).
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct ResourceName {
+    pub connector: u16,
+    pub path: Box<[Box<[u8]>]>,
+}
+
+/// How an adopted resource participates in the project.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum ResourceRole {
+    Owned,
+    Fork,
+    Context,
+}
+
+/// A resource and its connector-specific options, opaque to people. The whole
+/// path and options payload fits `Limits::amendment_bytes` at admission.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Adoption {
+    pub resource: ResourceName,
+    pub role: ResourceRole,
+    /// Bounded connector-specific fields, interpreted by the application's root.
+    pub options: Box<[Box<[u8]>]>,
+}

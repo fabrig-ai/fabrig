@@ -147,7 +147,7 @@ pub(crate) fn read(core: &Core, limits: &Limits, row: &tasks::TaskRecord) -> Pro
             let Some(candidate) = core.tasks.task(number) else { continue };
             candidate
         };
-        phases.add(&candidate.phase);
+        crate::documents::task_tree::count_phase(&mut phases, &candidate.phase);
         for entry in &own::party_entries(core, limits, candidate) {
             let entry = *entry;
             entries = entries.saturating_add(1);

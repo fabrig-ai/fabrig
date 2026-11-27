@@ -1,5 +1,7 @@
 //! A party's batch (domain/tasks/README.md, sections 3 and 4).
-use crate::{Authority, Grant, Parameter, PersonAddress, WakePolicy};
+pub use jig_domain_contract::ops::party::{Given, TaskExecutor};
+
+use crate::{Authority, Grant, Parameter, WakePolicy};
 use alloc::boxed::Box;
 pub use jig_domain_contract::procedures::Budget;
 use skein_lib::length::len_u64;
@@ -61,13 +63,6 @@ pub struct Member {
     /// The agent task's LLM choice; `None` takes its charter's default (domain/tasks/README.md, 3).
     pub llm: Option<crate::LlmChoice>,
 }
-/// Who carries out a member.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum TaskExecutor {
-    Agent { charter: u32 },
-    Procedure { connector: u16, code: u32 },
-    Person(PersonAddress),
-}
 /// The member's result contract, mirroring tasks' contracts.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Contract {
@@ -87,12 +82,6 @@ pub enum Deadline {
 pub enum Dependency {
     Batch(u32),
     Existing(u64),
-}
-/// The resolved amount of a member whose budget was `AsAllowed`.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Given {
-    pub task: u64,
-    pub amount: u64,
 }
 /// One allowed verdict.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

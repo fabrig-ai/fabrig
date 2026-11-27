@@ -1,5 +1,7 @@
 //! Public reading's documents and messages (jig/docs/design/domain/people/public-reading.md).
 
+pub use jig_domain_contract::parts::PublicApplication;
+
 use alloc::boxed::Box;
 use skein_lib::Time;
 
@@ -97,13 +99,6 @@ pub struct PublicCounts {
     pub held: u32,
     pub closing: u32,
     pub ended: u32,
-}
-
-/// An application's record and the internal task numbers it names.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct PublicApplication {
-    pub tasks: Box<[u64]>,
-    pub record: Box<[u8]>,
 }
 
 /// Executor kind, without its identity or configured name.

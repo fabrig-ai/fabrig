@@ -1,5 +1,24 @@
 //! Task and batch values carried by operations (jig/docs/design/domain/connectors.md, 2).
 
+mod activation;
+mod admission;
+pub mod party;
+mod waits;
+
+pub use activation::{
+    Added, CallKey, Carried, DelegateState, Endings, EscalationDecider, EscalationHolder, InvalidResult, Mode, Payer,
+    PersonOffer, PersonStallNotice, PersonWait, REASON_NAMES, Reasons, RetryNotice, Revisions, RunContext, Scope,
+    Tries,
+};
+pub use admission::{
+    AccountWhy, Capacity, CapacityAction, CapacityCause, LlmFault, Problem, QuestionAnswerer, Refusal, Status,
+};
+pub use party::{Act, Outcome};
+pub use waits::{
+    AgentShortfall, AtBound, Figures, HelloRefusal, HostKind, JobShort, JobWhy, Place, TaskRunWait, TaskSourceState,
+    TaskWaitRefused, TaskWaitWhy, Thing, Unbounded, Unread, WaitKind, WaitObject,
+};
+
 use crate::parts::Part;
 use crate::resources::{Holding, Name};
 use crate::topics::NewsClass;

@@ -1,15 +1,7 @@
 //! Project names' shape and Unicode simple case folding (domain/model.md, 6.1).
-mod fold;
+pub use jig_domain_contract::ops::party::NameRule;
 
-/// Why a project's name is out of shape (domain/model.md, 6.1).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum NameRule {
-    Empty,
-    Long,
-    Control,
-    Space,
-    Digits,
-}
+mod fold;
 
 /// The most bytes a project's name has.
 pub const NAME_BYTES: usize = 64;

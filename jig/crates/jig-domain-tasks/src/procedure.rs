@@ -32,7 +32,7 @@ pub(crate) fn stepped(
     let checked = match check(domain, env, number, step, read, &decision, reads_project) {
         Ok(checked) => checked,
         Err(problem) => {
-            if let Some(room) = problem.freeing_count() {
+            if let Some(room) = crate::freeing_count(&problem) {
                 crate::room::wait(domain, env, number, room, out);
             }
             return out.push(Request::ProcedureRefused { task: number, step, problem });

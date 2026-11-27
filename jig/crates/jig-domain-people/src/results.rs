@@ -1,4 +1,6 @@
 //! Bounded unread result and reply references (domain/people/README.md, 5).
+pub use jig_domain_contract::ops::party::Seen;
+
 use crate::Entry;
 use skein_lib::Wall;
 
@@ -37,13 +39,4 @@ pub enum Update {
     Result(ResultRef),
     Reply(Entry),
     ChatReply(ReplyRef),
-}
-
-/// A party's requested read position (domain/people/README.md, section 5).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Seen {
-    /// Results committed through this position.
-    Results { through: u64 },
-    /// Replies of one conversation through this position.
-    Conversation { task: u64, through: u64 },
 }

@@ -1,6 +1,8 @@
 //! Effect identities, descriptions and verdicts (jig/docs/design/domain/connectors.md, 2).
 
+use crate::ops::{CallKey, Party, Proposal};
 use alloc::boxed::Box;
+use skein_lib::{ReplyTo, Wall};
 
 /// The purpose fixes the key independently of retry or outbox numbering.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -307,4 +309,64 @@ pub struct Name {
     /// Literal ordered segments, bounded by `Limits::segments` and `Limits::segment_bytes` when
     /// admitted.
     pub segments: Box<[Box<[u8]>]>,
+}
+
+/// Who requested the connector-owned effect and when a call must answer.
+#[derive(Hash, Debug)]
+pub enum EffectOrigin {
+    /// A connector-owned goal projection, independent of executable task grants.
+    Projection {
+        goal: u64,
+        entry: Option<u64>,
+    },
+    Call {
+        to: ReplyTo,
+        key: CallKey,
+        deadline: Wall,
+    },
+    /// An explicit proposal keeps its connector payload without making it.
+    Propose {
+        to: ReplyTo,
+        key: CallKey,
+        reason: Box<[u8]>,
+        as_holder: bool,
+    },
+    /// A holder decision already authenticated by the core's proposal route.
+    Accept {
+        to: ReplyTo,
+        key: Option<CallKey>,
+        proposal: Box<Proposal>,
+        by: Party,
+    },
+    Procedure {
+        task: u64,
+        step: u64,
+        entry: Option<u64>,
+    },
+}
+
+impl EffectOrigin {
+    #[must_use]
+    pub fn task(&self) -> u64 {
+        match self {
+            Self::Projection { goal, .. } => *goal,
+            Self::Call { key, .. } | Self::Propose { key, .. } => key.task,
+            Self::Accept { proposal, .. } => proposal.proposer,
+            Self::Procedure { task, .. } => *task,
+        }
+    }
+}
+
+/// Root-verified writer-hold relationship for a run's written resource; authority performs no
+/// ownership discovery. (domain/authority-checks.md, section 1.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Writer {
+    /// Hold belongs to the running task.
+    Task,
+    /// Hold belongs to a root-verified ancestor of the running task.
+    Ancestor,
+    /// Hold is unresolved; run admission waits.
+    Pending,
+    /// Another task holds the writer; run admission waits.
+    Other,
 }

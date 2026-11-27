@@ -52,7 +52,7 @@ fn a_refused_procedure_batch_keeps_its_room_wait_write_with_the_refusal() {
             Request::Ask { connector: 1, ask: Ask::StepRefused { task: 1, step, why } } => {
                 assert_eq!(step, step_number);
                 let StepRefusal::Refused(problem) = why else { panic!("task refusal") };
-                assert_eq!(problem.freeing_count(), Some(tasks::LiveRoom::Deployment));
+                assert_eq!(tasks::freeing_count(&problem), Some(tasks::LiveRoom::Deployment));
                 refused = refused.checked_add(1).unwrap();
             }
             Request::ProjectMade { .. }

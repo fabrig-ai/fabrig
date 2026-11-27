@@ -10,6 +10,7 @@ pub mod ops;
 pub mod parts;
 pub mod procedures;
 pub mod projections;
+pub mod requests;
 pub mod resources;
 pub mod settings;
 pub mod topics;

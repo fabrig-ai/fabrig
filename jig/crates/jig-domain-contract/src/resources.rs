@@ -1,5 +1,6 @@
 //! Resource names, roles and holdings (jig/docs/design/domain/connectors.md, 2).
 
+use crate::ops::{Executor, Spec};
 use alloc::boxed::Box;
 
 /// What one adopted resource permits this project to do.
@@ -69,4 +70,43 @@ pub enum Rule {
 pub struct ResourceKind {
     pub kind: u16,
     pub hold: Rule,
+}
+
+/// Why a connector refuses a member's holdings (domain/tasks/holds.md, 1 and 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum HoldingsRefusal {
+    /// The member names a symbol this connector does not offer it.
+    Symbol { symbol: u16 },
+    /// The member would write a resource this task holds, outside its subtree.
+    Held { holder: u64 },
+}
+
+/// One member's concrete identity passed to a connector for its own holdings.
+#[derive(Clone, Hash, Debug)]
+pub struct HoldingsNeed {
+    pub project: u32,
+    pub root: u64,
+    pub number: u64,
+    pub executor: Executor,
+    pub spec: Spec,
+    pub tracked: bool,
+    /// This connector's symbols of the member, in the member's order.
+    pub symbols: Box<[u16]>,
+}
+
+/// A connector resource on which a run left state for its next activation.
+/// The path is opaque to tasks and ordered by literal segment bytes.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct SavedResource {
+    pub connector: u16,
+    pub path: Box<[Box<[u8]>]>,
+}
+
+/// The one writer of an exclusively held resource (domain/tasks/holds.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Writer {
+    /// A claimed agent run, fenced by its attempt.
+    Run { task: u64, attempt: u64 },
+    /// A connector-owned outbox effect.
+    Effect { entry: u64 },
 }

@@ -11,6 +11,8 @@
 //! efforts and belongs to no charter. Effort `e` is the `e`th effort that row declares
 //! (domain/engine/settings-catalogue.md, 1; `../../../docs/design/protocol/configuration-engine.md`, section 1).
 
+pub use jig_domain_contract::ops::{AccountWhy, LlmFault};
+
 use alloc::boxed::Box;
 pub use jig_domain_contract::ops::{LlmChoice, LlmLater, ModelEffort};
 
@@ -22,23 +24,6 @@ use crate::{Authority, Executor, Models, Refusal};
 /// Most catalogue rows, the bits of `Models` (`../../../docs/design/protocol/configuration-engine.md`, section 1). A
 /// choice's sub-agents name at most this many.
 pub const MODELS: u32 = 64;
-
-/// Why an LLM choice is refused (domain/tasks/README.md, section 4 and domain/tasks/changes.md).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum LlmFault {
-    /// The model is not configured.
-    Unconfigured,
-    /// The effort is not one the model declares, or none is named for a model that declares some.
-    Effort,
-    /// The model is not one of the task's charter's.
-    Charter,
-    /// The task's authority does not allow the model (domain/authority.md, section 3).
-    Authority,
-    /// The task is a procedure's or a person's, whose executor runs no model.
-    Procedure,
-    /// The sub-agents name the model twice.
-    Repeated,
-}
 
 /// One charter version's models, in charter order; a removal offers none
 /// (domain/engine/settings.md, 3).
@@ -237,13 +222,4 @@ pub(crate) fn replaces_account(kept: Option<u32>, choice: &LlmChoice) -> bool {
         Some(account) => kept.is_some() && kept != Some(account),
         None => false,
     }
-}
-
-/// Why an explicit account cannot fund the prospective task (domain/accounts-uses.md, 1.3).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum AccountWhy {
-    Unknown,
-    Provider,
-    Uses,
-    Limited,
 }

@@ -1,5 +1,9 @@
 //! The core's vocabulary toward its root (`domain/engine/vocabulary.md`, section 1).
 
+pub use jig_domain_contract::ops::Carried;
+pub use jig_domain_contract::procedures::StepRefusal;
+pub use jig_domain_contract::resources::{HoldingsNeed, HoldingsRefusal};
+
 use crate::waits::Figures;
 use crate::{CallKey, CallPart, Delegate, Key, ProcedureStep, Record, RunCharter};
 use alloc::boxed::Box;
@@ -43,15 +47,6 @@ pub struct Assignment {
 pub struct PlannedDocument {
     pub token: Token,
     pub document: crate::Document,
-}
-
-/// A value a client's request carried, kept in the secrets' store before
-/// the core sees the request (`protocol/client/README.md`, section 3): the core
-/// gets its number and digest, never the value.
-#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
-pub struct Carried {
-    pub number: u64,
-    pub digest: [u8; 32],
 }
 
 /// A request from the core to its application root. Its variant fixes the
@@ -1312,27 +1307,6 @@ pub enum Event {
         read: Token,
     },
 }
-/// Why a connector refuses a member's holdings (domain/tasks/holds.md, 1 and 2).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum HoldingsRefusal {
-    /// The member names a symbol this connector does not offer it.
-    Symbol { symbol: u16 },
-    /// The member would write a resource this task holds, outside its subtree.
-    Held { holder: u64 },
-}
-
-/// One member's concrete identity passed to a connector for its own holdings.
-#[derive(Clone, Hash, Debug)]
-pub struct HoldingsNeed {
-    pub project: u32,
-    pub root: u64,
-    pub number: u64,
-    pub executor: tasks::Executor,
-    pub spec: tasks::Spec,
-    pub tracked: bool,
-    /// This connector's symbols of the member, in the member's order.
-    pub symbols: Box<[u16]>,
-}
 /// Connector-free shape of a root-owned host payload after refusal.
 #[derive(Hash, Debug)]
 pub enum PayloadRefusal {
@@ -1529,14 +1503,6 @@ pub enum Timer {
     Account,
     /// Ended work's serialized retention pass (protocol/store/retention.md, 5).
     Retention,
-}
-
-/// Why an entire connector-owned procedure step was refused.
-#[derive(PartialEq, Eq, Hash, Debug)]
-pub enum StepRefusal {
-    Moved { task: u64, now: people::Moved },
-    Refused(tasks::Problem),
-    Denied { answer: authority::Answer, findings: Box<[authority::Finding]> },
 }
 
 impl Event {

@@ -7,6 +7,8 @@
 //! observations are distinct from placement/adoption clocks. Application subjects
 //! and connector panels belong to their connectors.
 
+pub use jig_domain_contract::parts::{Chip, Count, Cursor, ExecutorKind, PhaseLine, Text, Window};
+
 pub mod accounts;
 pub mod catalogue;
 pub mod chip_phase;
@@ -71,14 +73,7 @@ use alloc::boxed::Box;
 use jig_domain_people as people;
 use jig_domain_people::ApplicationScope;
 use jig_domain_tasks as tasks;
-use skein_lib::{Duration, List, Wall};
-
-/// One bounded UTF-8 text value, with loss stated separately.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Text {
-    pub bytes: Box<[u8]>,
-    pub cut: bool,
-}
+use skein_lib::{Duration, List};
 
 /// Versions of jig's contract served by this configured deployment.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -100,22 +95,6 @@ pub struct DocumentLimits {
     pub chips: u32,
     pub lines: u32,
     pub versions: Versions,
-}
-
-/// Continuation position in a subject's stable numbered list.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Cursor {
-    /// A task or goal number in the subject's ordered list.
-    Number { number: u64 },
-    /// Exact identity of one inbox row; number families may overlap.
-    Inbox { task: u64, object: InboxObject, at: Option<Wall> },
-}
-
-/// The bounded slice requested by a watch or read.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Window {
-    pub rows: u32,
-    pub after: Option<Cursor>,
 }
 
 /// Identity of the immutable proposal's maker.
@@ -348,56 +327,6 @@ pub enum Missing {
     Ended,
     /// The requested whole value exceeds construction bounds.
     TooLarge,
-}
-
-/// A bounded count, with saturation stated.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Count {
-    /// Every currently known entry was counted.
-    Known(u32),
-    /// The bounded cache may omit older entries.
-    AtLeast(u32),
-}
-
-/// A task's executor kind; its detail lives on the task document.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum ExecutorKind {
-    /// An application job.
-    Job,
-    /// An agent with a configured charter.
-    Agent,
-    /// A connector-owned procedure.
-    Procedure,
-    /// A party or project role.
-    Person,
-}
-
-/// A compact typed phase and its immediate waiting facts.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum PhaseLine {
-    /// Waiting for live dependencies or resource holdings.
-    Waiting { dependencies: List<u64>, more: bool, holds: bool },
-    /// Current activation state of an agent or procedure.
-    Active(tasks::Active),
-    /// Waiting for the addressed party or role.
-    Person { address: tasks::PersonAddress, taken_by: Option<u64>, since: Option<Wall> },
-    /// Closing through its ordered obligations.
-    Closing(tasks::Stage),
-    /// Held for this reason at this independent revision.
-    Held { reason: tasks::Hold, revision: u64 },
-    /// Ended outside the live arena.
-    Ended,
-}
-
-/// A task named in passing, with its bounded first-line title.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Chip {
-    pub number: u64,
-    pub title: Text,
-    pub executor: ExecutorKind,
-    pub phase: PhaseLine,
-    /// Nonrecursive owner facts and optional fenced live observations.
-    pub details: Box<ChipDetails>,
 }
 
 /// A held project role and the current funding facts available to the party.

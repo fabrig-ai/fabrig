@@ -28,6 +28,8 @@
 //! holds the workstreams its hello listed and those of the runs placed on it
 //! since: placing one beyond the room evicts the one used longest ago.
 
+pub use jig_domain_contract::ops::JobShort;
+
 use alloc::boxed::Box;
 use core::mem;
 
@@ -527,16 +529,6 @@ pub(crate) fn constrained(domain: &Domain, placement: crate::PlacementConstraint
         return None;
     }
     Some(id)
-}
-
-/// Jobs use declared bounds and room alone (jig/docs/design/domain/engine/executors.md, 5).
-/// Why a host cannot cover an application's job kind (domain/engine/fleet.md, 2).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum JobShort {
-    Kind,
-    Spec,
-    Result,
-    Deadline,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

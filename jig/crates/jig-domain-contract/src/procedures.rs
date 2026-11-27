@@ -6,6 +6,12 @@ use crate::ops::{
 };
 use alloc::boxed::Box;
 
+mod waits;
+pub use waits::{ReportRefusal, Reported, ReportedBound};
+
+use crate::effects::{Answer, Finding};
+use crate::ops::{Problem, party::Moved};
+
 /// A dependency named by a delegate before the core assigns batch task IDs.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Dependency {
@@ -161,4 +167,12 @@ pub enum ProcedureEnd {
 pub enum Budget {
     Named,
     AsAllowed { cap: Option<u64> },
+}
+
+/// Why an entire connector-owned procedure step was refused.
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum StepRefusal {
+    Moved { task: u64, now: Moved },
+    Refused(Problem),
+    Denied { answer: Answer, findings: Box<[Finding]> },
 }

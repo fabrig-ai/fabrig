@@ -169,7 +169,7 @@ fn tree_delegates_and_inbox_refusals_do_not_wait() {
         assert!(
             out.iter().any(|request| match request {
                 Request::ProcedureRefused { problem, .. } =>
-                    problem.why == why && problem.capacity.is_some() && problem.freeing_count().is_none(),
+                    problem.why == why && problem.capacity.is_some() && crate::freeing_count(problem).is_none(),
                 _ => false,
             }),
             "{out:?}"
@@ -261,9 +261,9 @@ fn freeing_count_requires_the_batch_cause_and_matching_refusal() {
             action: CapacityAction::Batch { first: Some(2), members: 1 },
             cause,
         };
-        assert_eq!(Problem::capacity(None, why, capacity).freeing_count(), expected);
+        assert_eq!(crate::freeing_count(&Problem::capacity(None, why, capacity)), expected);
         capacity.action = CapacityAction::Message { task: 1, number: 2 };
-        assert_eq!(Problem::capacity(None, why, capacity).freeing_count(), None);
+        assert_eq!(crate::freeing_count(&Problem::capacity(None, why, capacity)), None);
     }
-    assert_eq!(Problem::new(None, Refusal::Live).freeing_count(), None);
+    assert_eq!(crate::freeing_count(&Problem::new(None, Refusal::Live)), None);
 }

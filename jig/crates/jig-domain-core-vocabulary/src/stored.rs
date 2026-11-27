@@ -1,5 +1,7 @@
 //! The core's durable run and call identities (domain/engine/decisions.md, 1.4 and domain/engine/executors.md).
 
+pub use jig_domain_contract::ops::CallKey;
+
 pub mod fit;
 
 use crate::{Deployment, Limits};
@@ -423,18 +425,6 @@ pub enum Key {
     Notes(jig_domain_notes::Key),
     /// Accounts address.
     Accounts(jig_domain_accounts::Key),
-}
-
-/// Stable call identity supplied by a run and scoped by the root's task and
-/// claim (domain/engine/decisions.md, section 1.4, and domain/engine/executors-tools.md, section 1).
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct CallKey {
-    pub task: u64,
-    pub attempt: u64,
-    /// One-based assistant completion.
-    pub completion: u32,
-    /// Zero-based assistant block position.
-    pub position: u32,
 }
 
 /// Root to store: an accepted numbered transcript and cumulative priced spend,

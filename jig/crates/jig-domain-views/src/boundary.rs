@@ -1,6 +1,8 @@
 //! Opaque subjects and pacing requests (`domain/engine/views.md`).
 //! The parent owns documents, authorization and each subject's meaning.
 
+pub use jig_domain_contract::parts::{End, Made};
+
 use alloc::boxed::Box;
 use skein_lib::{List, Token};
 
@@ -16,30 +18,6 @@ pub struct Window {
 pub enum Refusal {
     /// A configured capacity is exhausted.
     Busy,
-}
-
-/// Why a watch ended.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum End {
-    /// Its watcher left.
-    Unwatched,
-    /// Its subject left the engine.
-    Gone,
-    /// Its party may no longer see the subject.
-    NotAllowed,
-    /// Its party signed out.
-    SignedOut,
-    /// Its parent is stopping.
-    Stopping,
-}
-
-/// The parent's result of making a document; its content stays with the parent.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Made {
-    /// A whole bounded document is ready.
-    Ready,
-    /// No visible document remains.
-    Gone { why: End },
 }
 
 /// A provisional retry, fenced by its attempt and activation turn.

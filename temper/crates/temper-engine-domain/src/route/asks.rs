@@ -89,7 +89,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             }
             if let core::StepRefusal::Refused(problem) = why {
                 if connector == domain.config.forge_connector
-                    && problem.freeing_count().is_some()
+                    && tasks::freeing_count(&problem).is_some()
                     && let Some(kind) = delegation
                 {
                     domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
