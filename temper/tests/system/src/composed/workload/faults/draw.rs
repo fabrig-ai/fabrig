@@ -20,6 +20,8 @@ const INJECTED_CATALOGUE: &[(Kind, Eligible)] = &[
     // busy
     (forge_faults::UNAVAILABLE, |_| true),
     (forge_faults::LIMITED, |_| true),
+    // lagging
+    (forge_faults::BASE_BEHIND, |_| true),
     // ci
     (temper_blame::SET_UP, |_| true),
     // provider
@@ -35,6 +37,7 @@ pub struct FaultDraw {
     people: Vec<(Kind, String)>,
     pub(super) ineligible: BTreeSet<Kind>,
     pub(super) bounds: Vec<Kind>,
+    pub(super) base_behind_configured: bool,
     wrong_tree: bool,
     pub(super) disk: worker::Disk,
     pub(super) read_latency: Duration,
@@ -141,6 +144,7 @@ impl FaultDraw {
             people,
             ineligible,
             bounds: kinds.iter().copied().filter(|kind| *kind == bounds::FORGE_READ_ADMISSIONS).collect(),
+            base_behind_configured: kinds.contains(&forge_faults::BASE_BEHIND),
             wrong_tree,
             disk,
             read_latency: Duration::from_millis(streams.rng(Stream::Scheduling, "system").between(1000, 1500)),

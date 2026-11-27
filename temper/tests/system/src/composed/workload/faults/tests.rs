@@ -326,6 +326,50 @@ fn set_up_draws_its_own_coin_goal_and_moment() {
 }
 
 #[test]
+fn base_behind_draws_its_own_coin_target_and_moment() {
+    use forge_faults::BASE_BEHIND;
+    assert!(CAMPAIGN_KINDS.contains(&BASE_BEHIND));
+    assert!(!GATE_KINDS.contains(&BASE_BEHIND));
+    let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+    let without: Vec<_> = kinds.iter().copied().filter(|&kind| kind != BASE_BEHIND).collect();
+    for seed in (0..64).chain([u64::MAX]) {
+        let streams = Streams::new(seed);
+        let workload = Workload::draw(&streams, &COMPOSED);
+        let draw = FaultDraw::new(seed, &kinds);
+        let other = FaultDraw::new(seed, &without);
+        assert_eq!(
+            draw.plans.iter().filter(|plan| plan.kind != BASE_BEHIND).collect::<Vec<_>>(),
+            other.plans.iter().collect::<Vec<_>>(),
+            "seed {seed}: other injection plans"
+        );
+        let planned = draw.planned();
+        assert_eq!(
+            planned.iter().copied().filter(|(kind, _)| *kind != BASE_BEHIND).collect::<Vec<_>>(),
+            other.planned(),
+            "seed {seed}: other planned kinds"
+        );
+        assert_eq!(draw.ineligible(), other.ineligible(), "seed {seed}: ineligible kinds");
+        assert_eq!(draw.acts(), other.acts(), "seed {seed}: party acts");
+
+        let mut rng = streams.rng(Stream::Faults, "lagging/base_behind");
+        let expected = if rng.below(2) == 0 {
+            None
+        } else {
+            let count = u64::try_from(workload.goals.len()).expect("bounded goals");
+            let index = usize::try_from(rng.below(count)).expect("goal index");
+            Some((workload.goals[index].name.as_str(), rng.below(16)))
+        };
+        let actual: Vec<_> = draw
+            .plans
+            .iter()
+            .filter(|plan| plan.kind == BASE_BEHIND)
+            .map(|plan| (plan.goal.as_str(), plan.after))
+            .collect();
+        assert_eq!(actual, expected.as_slice(), "seed {seed}: BASE_BEHIND's coin, goal and moment");
+    }
+}
+
+#[test]
 fn wrong_tree_is_observed_without_a_coin_when_a_change_can_go_red() {
     use temper_blame::WRONG_TREE;
     let (mut planned, mut ineligible) = (false, false);

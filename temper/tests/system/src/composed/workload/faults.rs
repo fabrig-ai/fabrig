@@ -48,6 +48,7 @@ pub const CAMPAIGN_KINDS: &[Kind] = &[
     forge_faults::UNAVAILABLE,
     forge_faults::LIMITED,
     // lagging
+    forge_faults::BASE_BEHIND,
     // bounds
     // refusing
     // ci
@@ -83,6 +84,8 @@ pub(in crate::composed) struct Faults {
     unavailable_until: Option<Time>,
     limited_until: Option<Time>,
     lag_until: Option<Time>,
+    base_behind_configured: bool,
+    base_lag: Option<forge::BaseLag>,
     log_restore: Option<(u64, u32, Box<[u8]>, Injection)>,
     closed: Option<(u64, Injection, Time)>,
     restored: Option<u64>,
@@ -115,7 +118,17 @@ pub(in crate::composed) struct Faults {
 
 impl Faults {
     pub(super) fn new(seed: u64, draw: FaultDraw) -> Self {
-        let FaultDraw { plans, actions, ineligible, bounds, disk, read_latency, release_configured, .. } = draw;
+        let FaultDraw {
+            plans,
+            actions,
+            ineligible,
+            bounds,
+            disk,
+            read_latency,
+            release_configured,
+            base_behind_configured,
+            ..
+        } = draw;
         let mut ledger = FaultLedger::new();
         for kind in ineligible {
             ledger.ineligible(kind);
@@ -140,6 +153,8 @@ impl Faults {
             unavailable_until: None,
             limited_until: None,
             lag_until: None,
+            base_behind_configured,
+            base_lag: None,
             log_restore: None,
             closed: None,
             restored: None,

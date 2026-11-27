@@ -1,15 +1,29 @@
-//! Forge faults travel through the shared fake, never fabricated client replies.
+//! Forge faults on the composed world's forge calls (temper/docs/design/testing/composed-catalogue.md, 2).
 use super::{Faults, World, forge_faults as kinds, stale};
 use crate::composed::{engine, people, tasks};
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_forge::api;
-use skein_lib::{Duration, Env, Wall};
+use skein_lib::{Duration, Env, Time, Wall};
 use skein_world::faults::{Kind, Struck};
 use temper_blame::{Observed, Reaction};
+use temper_engine_forge_world::translate::commit;
+use temper_worker_checkout_world::forge::Move;
 
 const REMOTE: &[u8] = b"org/repo";
 const UNAVAILABLE_SPAN: Duration = Duration::from_secs(2);
 const LIMITED_SPAN: Duration = Duration::from_secs(2);
+const LAG: fake::Lag = fake::Lag { chance: 1000, min: Duration::from_millis(100), max: Duration::from_secs(1) };
+const NO_LAG: fake::Lag = fake::Lag { chance: 0, min: Duration::ZERO, max: Duration::ZERO };
+
+const BASE_LAG_SPAN: Duration = Duration::from_secs(2);
+
+pub(super) struct BaseLag {
+    pulls: Vec<u64>,
+    branch: Vec<u8>,
+    before: u64,
+    at: Time,
+    until: Time,
+}
 
 fn hex(commit: u64) -> String {
     String::from_utf8(
@@ -226,14 +240,78 @@ impl World {
             );
             f.log_restore = Some((attempt.job, step.number, step.log.clone(), entry));
         }
-        // This injector configures head lag, not a late merge record. The
-        // fake's one lag switch covers both, so merges run with it disabled.
+        // Head lag's forge switch also delays merge records, so turn it off for merges.
         if matches!(op, api::Op::Write(api::Write::Merge { .. })) {
-            fake::lag(self.forge.domain_mut(), fake::Lag { chance: 0, min: Duration::ZERO, max: Duration::ZERO });
+            fake::lag(self.forge.domain_mut(), NO_LAG);
         }
         self.observe_gate_call(&mut f, op);
         self.workload_faults = Some(f);
         config
+    }
+
+    pub(in crate::composed) fn workload_base_advance(&mut self, moves: &[Move], to: api::Commit) {
+        let Some(f) = &self.workload_faults else { return };
+        if !f.base_behind_configured
+            || !f.due(kinds::BASE_BEHIND)
+            || f.base_lag.as_ref().is_some_and(|lag| self.env.now < lag.until)
+        {
+            return;
+        }
+        let goal = f.target(kinds::BASE_BEHIND);
+        for movement in moves.iter().rev() {
+            let Some(before) = movement.from else { continue };
+            if movement.remote != REMOTE || before == movement.to || commit(movement.to) != to {
+                continue;
+            }
+            let mut pulls = Vec::new();
+            for page in 1..=self.forge.config().limits.items {
+                let read =
+                    raw::Read::OpenPulls { head: None, base: Some(movement.branch.as_slice().into()), page, limit: 1 };
+                let Ok(raw::Answer::Pulls(found)) = self.forge.inspect(REMOTE, &read) else { break };
+                let Some(pull) = found.first() else { break };
+                if self.pull_goal(pull.number) == goal {
+                    pulls.push(pull.number);
+                }
+            }
+            if !pulls.is_empty() {
+                self.workload_faults.as_mut().expect("faulted workload").base_lag = Some(BaseLag {
+                    pulls,
+                    branch: movement.branch.clone(),
+                    before,
+                    at: self.env.now,
+                    until: self.env.now.saturating_add(BASE_LAG_SPAN),
+                });
+                return;
+            }
+        }
+    }
+
+    pub(in crate::composed) fn workload_base_behind_reply(&mut self, op: &api::Op, pull: &mut api::Pull) {
+        let Some(f) = &mut self.workload_faults else { return };
+        let Some(lag) = &f.base_lag else { return };
+        if !matches!(op, api::Op::Read(api::Read::Pull { .. }))
+            || self.env.now >= lag.until
+            || !lag.pulls.contains(&pull.number)
+            || pull.base.as_ref() != lag.branch
+            || pull.state != api::State::Open
+        {
+            return;
+        }
+        // Change only the base field, leaving head lag and merge records alone.
+        let before = commit(lag.before);
+        if pull.base_commit == Some(before) {
+            return;
+        }
+        pull.base_commit = Some(before);
+        let kind = kinds::BASE_BEHIND;
+        if f.due(kind) {
+            let (at, until, base) = (lag.at, lag.until, hex(lag.before));
+            let goal = f.fire(kind);
+            let entry =
+                f.ledger.inject(kind, at, Struck { request: Some(goal), base: Some(base), ..Struck::default() });
+            f.ledger.stop(entry, until).expect("base lag interval");
+            f.stopped(until);
+        }
     }
 
     pub(in crate::composed) fn workload_forge_answer(&mut self, _op: &api::Op) {
@@ -246,10 +324,7 @@ impl World {
             f.stopped(self.env.now);
         }
         if f.lag_until.is_some() {
-            fake::lag(
-                self.forge.domain_mut(),
-                fake::Lag { chance: 1000, min: Duration::from_millis(100), max: Duration::from_secs(1) },
-            );
+            fake::lag(self.forge.domain_mut(), LAG);
         }
         self.workload_faults = Some(f);
     }
@@ -258,6 +333,18 @@ impl World {
         assert_eq!(self.forge.domain_mut().fell_lost(), 0, "fake forge lost fault records");
         while let Some(fell) = self.forge.domain_mut().pop_fell() {
             let kind = Kind { family: fell.fault.family(), name: fell.fault.name() };
+            let until = fell.until.or(match kind {
+                kinds::UNAVAILABLE => f.unavailable_until,
+                kinds::LIMITED => f.limited_until,
+                _ => None,
+            });
+            let until = until.unwrap_or(fell.at);
+            if f.base_behind_configured && kind == kinds::BASE_BEHIND {
+                // HEAD_BEHIND can lag other base pushes while its switch is on.
+                // Keep their time bound, but count only a scoped, observed view.
+                f.stopped(until);
+                continue;
+            }
             if kind == temper_blame::SET_UP {
                 assert_eq!(
                     fell.commit.and_then(|commit| self.candidate_goal(commit)),
@@ -276,12 +363,6 @@ impl World {
                     ..Struck::default()
                 },
             );
-            let until = fell.until.or(match kind {
-                kinds::UNAVAILABLE => f.unavailable_until,
-                kinds::LIMITED => f.limited_until,
-                _ => None,
-            });
-            let until = until.unwrap_or(fell.at);
             f.ledger.stop(entry, until).expect("fake forge interval");
             f.stopped(until);
         }
@@ -290,14 +371,11 @@ impl World {
     pub(super) fn workload_forge_tick(&mut self, f: &mut Faults) {
         if f.due(kinds::HEAD_BEHIND) {
             f.fire(kinds::HEAD_BEHIND);
-            fake::lag(
-                self.forge.domain_mut(),
-                fake::Lag { chance: 1000, min: Duration::from_millis(100), max: Duration::from_secs(1) },
-            );
+            fake::lag(self.forge.domain_mut(), LAG);
             f.lag_until = Some(self.env.now.saturating_add(Duration::from_secs(1200)));
         }
         if f.lag_until.is_some_and(|until| self.env.now >= until || f.ledger.fell().contains(&kinds::HEAD_BEHIND)) {
-            fake::lag(self.forge.domain_mut(), fake::Lag { chance: 0, min: Duration::ZERO, max: Duration::ZERO });
+            fake::lag(self.forge.domain_mut(), NO_LAG);
             f.lag_until = None;
             f.stopped(self.env.now);
         }

@@ -1423,7 +1423,7 @@ impl World {
         let located = temper_engine_forge_world::translate::locate_name(op);
         let name = located.as_deref().unwrap_or(&self.repository_name);
         let raw = api::op(op, client);
-        let result = match self.forge.api_configured(name, self.forge_binding.user, raw, config) {
+        let mut result = match self.forge.api_configured(name, self.forge_binding.user, raw, config) {
             Ok(answer) => {
                 let mut answer = api::answer(op, answer, client);
                 if let Ok(skein_forge::api::Answer::Run(run)) = &mut answer {
@@ -1447,13 +1447,28 @@ impl World {
                 skein_fake_forge_domain::time(&temper_worker_checkout_world::forge::config(), self.env.now),
             )),
         };
+        let moves = self.forge.moves();
+        match &mut result {
+            Ok(skein_forge::api::Answer::Pull(pull)) => self.workload_base_behind_reply(op, pull),
+            Ok(skein_forge::api::Answer::Merged(to))
+                if matches!(
+                    op,
+                    skein_forge::api::Op::Write(skein_forge::api::Write::Merge {
+                        how: skein_forge::api::MergeHow::Style | skein_forge::api::MergeHow::FastForwardOnly,
+                        ..
+                    })
+                ) =>
+            {
+                self.workload_base_advance(&moves, *to);
+            }
+            _ => {}
+        }
         self.workload_forge_reply(
             op,
             engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
                 skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result },
             ))),
         );
-        let _moves = self.forge.moves();
         self.workload_forge_answer(op);
     }
 
@@ -1961,9 +1976,19 @@ impl World {
                 let op = forge_operation(op, &self.forge_binding.git);
                 self.observe_merge_fetch(&op);
                 self.observe_close_io(&op);
+                let pushed = match &op {
+                    worker::checkout::git::Op::Push { commit, .. } => Some(*commit),
+                    _ => None,
+                };
                 let done = self.workload_io(at, owner, op);
+                let moves = self.forge.moves();
+                if let Some(to) = pushed
+                    && !moves.is_empty()
+                {
+                    let to = temper_worker_checkout_world::translate::fake(to);
+                    self.workload_base_advance(&moves, temper_engine_forge_world::translate::commit(to));
+                }
                 self.lanes[at].worker_events.push_back(worker::Event::Done { owner, done });
-                let _moves = self.forge.moves();
             }
             // Diagnostics do not affect the story. IO ends at once, winning the cancellation race.
             worker::Request::Paused { .. }
