@@ -360,7 +360,9 @@ pub(crate) fn limits() -> Limits {
         },
         connectors: 2,
         resume_bytes: 256,
-        run_bytes: 512,
+        // The scripted charter needs 565 bytes with the speed fields. Its load-core
+        // variant needs 8 more for the longer model name, counted twice.
+        run_bytes: 573,
         policy_bytes: 8192,
         escalation_reason_bytes: 128,
         load_slots: 2,
