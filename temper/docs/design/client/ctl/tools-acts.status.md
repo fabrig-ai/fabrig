@@ -2,6 +2,7 @@
 
 2026-11-27. Where the tree's code lags or departs from [tools-acts.md](tools-acts.md).
 
+- **Not yet:** 1: a settings file's template choice's `speed`, and a template's or charter's speed checked against `me` [in flight: change 21907].
 
 - **Not yet:** 1: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].
