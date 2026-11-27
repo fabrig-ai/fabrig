@@ -39,18 +39,32 @@ impl Checks {
         iteration: u64,
         others: &[&Inspection],
     ) -> Result<(), String> {
+        let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
+        self.quiet_reusing(root, at, iteration, &mut inspection, others)
+    }
+
+    /// Refresh the engine inspection at the quiet point, leaving its tables for other checks.
+    /// The labels of bounded waits move to the driver to report a bound between quiet points.
+    pub fn quiet_reusing(
+        &mut self,
+        root: &temper_engine_domain::Domain,
+        at: Time,
+        iteration: u64,
+        inspection: &mut Inspection,
+        others: &[&Inspection],
+    ) -> Result<(), String> {
         if let Some(finding) = &self.finding {
             return Err(finding.clone());
         }
-        let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
-        temper_engine_inspect::inspect(root, &mut inspection);
+        inspection.reset();
+        temper_engine_inspect::inspect(root, inspection);
         let moment = Moment { seed: self.seed, at, iteration };
         let core = root.core();
         self.observe_wall(core.inspection_wall());
         let result = if let Some((task, why)) = root.forge().inspection_wait_refusal() {
             Err(inspection.finding(moment, &format!("task {task}"), &format!("wait report refused: {why:?}")))
         } else {
-            let primary = [&inspection];
+            let primary = [&*inspection];
             let combined;
             let inspections = if others.is_empty() {
                 &primary[..]

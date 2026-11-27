@@ -241,6 +241,44 @@ fn an_answer_is_sent_again_after_a_hello_until_acknowledged() {
 }
 
 #[test]
+fn the_hub_exposes_its_slot_relay_and_unacknowledged_terminal() {
+    let mut world = World::new();
+    world.assign(false);
+    world.hold_relays();
+    let name =
+        jig_protocol_charter::call_name(&jig_protocol_charter::CallKey { activation: 932, completion: 3, position: 1 });
+    world.agent_report(FromAgent::Called {
+        owner: world.owner(),
+        call: name.clone(),
+        ask: jig_host_world::fixtures::relay(Box::from(&b"read"[..])),
+    });
+    let records = |world: &World| {
+        let mut inspection = skein_world::inspect::Inspection::new("jig host", &[]);
+        jig_inspect::host(world.hub(), &mut inspection);
+        inspection
+    };
+    let inspection = records(&world);
+    let [slot, relay] = inspection.relateds() else { panic!("slot and relay: {:?}", inspection.relateds()) };
+    assert_eq!(slot.relation, "a run's placement");
+    assert_eq!(slot.key, "run 31 attempt 932");
+    assert_eq!(slot.holds, "a hosted slot");
+    assert_eq!(relay.relation, "a run's host calls");
+    assert_eq!(relay.key, "task 31 attempt 932 completion 3 position 1");
+    assert_eq!(relay.holds, "a relay in flight");
+
+    world.agent_report(FromAgent::Withdrawn { owner: world.owner(), call: name });
+    world.finish(0, false);
+    let inspection = records(&world);
+    let [terminal] = inspection.relateds() else { panic!("terminal: {:?}", inspection.relateds()) };
+    assert_eq!(terminal.relation, "a run's placement");
+    assert_eq!(terminal.key, "run 31 attempt 932");
+    assert_eq!(terminal.holds, "a terminal awaiting its acknowledgement");
+
+    world.acknowledge_answer();
+    assert_eq!(records(&world).relateds(), []);
+}
+
+#[test]
 fn an_unacknowledged_answer_keeps_its_runs_slot() {
     let mut world = World::new();
     world.assign(false);

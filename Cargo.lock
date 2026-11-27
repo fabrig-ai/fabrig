@@ -1399,6 +1399,7 @@ dependencies = [
  "skein-lib",
  "skein-world",
  "smith-channel",
+ "smith-faults",
 ]
 
 [[package]]
@@ -1694,6 +1695,8 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-host",
  "jig-domain-link",
+ "jig-inspect",
+ "jig-protocol-charter",
  "skein-lib",
  "skein-world",
 ]
@@ -1703,8 +1706,10 @@ name = "jig-inspect"
 version = "0.0.0"
 dependencies = [
  "jig-domain-core",
+ "jig-domain-host",
  "jig-domain-people",
  "jig-domain-tasks",
+ "jig-protocol-charter",
  "jig-protocol-engine-clients",
  "skein-lib",
  "skein-world",
@@ -1730,6 +1735,7 @@ dependencies = [
  "jig-client-protocol-kit",
  "jig-client-shell-native",
  "jig-conformance",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-core",
  "jig-domain-host",
@@ -1768,6 +1774,7 @@ dependencies = [
  "smith-channel",
  "smith-charter",
  "smith-domain",
+ "smith-faults",
  "smith-host-domain",
  "smith-host-protocol",
  "smith-protocol-channel",
@@ -4698,6 +4705,7 @@ dependencies = [
  "smith-faults",
  "smith-host-domain",
  "smith-host-world",
+ "smith-inspect",
  "smith-protocol-events",
  "smith-protocol-events-fixtures",
  "smith-protocol-llm",
@@ -5091,6 +5099,17 @@ dependencies = [
  "skein-lib",
  "smith-domain",
  "smith-inline-agent",
+]
+
+[[package]]
+name = "smith-inspect"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-world",
+ "smith-domain",
+ "smith-domain-session",
+ "smith-domain-tools",
 ]
 
 [[package]]
@@ -5579,6 +5598,7 @@ dependencies = [
  "smith-domain-session-fixtures",
  "smith-domain-tools",
  "smith-domain-tools-fixtures",
+ "smith-inspect",
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
  "smith-shapes",
@@ -7886,6 +7906,7 @@ dependencies = [
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-conformance",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-core",
  "jig-domain-people",
@@ -7935,9 +7956,11 @@ dependencies = [
  "smith-charter",
  "smith-domain",
  "smith-fake-claude",
+ "smith-faults",
  "smith-protocol-channel",
  "smith-protocol-llm",
  "smith-protocol-program",
+ "smith-transcript",
  "temper-agent-fixtures",
  "temper-client-domain",
  "temper-client-protocol-wire",
@@ -8538,6 +8561,7 @@ name = "temper-system-world"
 version = "0.0.0"
 dependencies = [
  "jig-conformance",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
@@ -8576,6 +8600,7 @@ dependencies = [
  "smith-domain-session",
  "smith-faults",
  "smith-host-domain",
+ "smith-inspect",
  "smith-protocol-channel",
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",

@@ -121,7 +121,7 @@ use crate::{opening, prompt};
 
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent start policy, transcript and host-stop state")]
-pub(crate) struct Run {
+pub struct Run {
     /// The budget phase stays known through an accepted terminal.
     wind_down: Option<crate::wind_down::WindDown>,
     /// Exact retained children; closures are emitted one per resume.
@@ -180,6 +180,29 @@ pub(crate) struct Run {
     turns: u32,
     /// Last historical session turn sequence, including a restored prefix.
     sequence: Option<u32>,
+}
+
+impl Run {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_host_name(&self) -> Token {
+        self.host_name
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_closed(&self) -> bool {
+        match self.state {
+            State::Closed => true,
+            State::Awaiting { .. }
+            | State::Preparing { .. }
+            | State::Working { .. }
+            | State::Stopping { .. }
+            | State::Waiting { .. }
+            | State::Listening { .. }
+            | State::Winding { .. } => false,
+        }
+    }
 }
 
 /// The host's grace starts only after every sent completion has answered.
