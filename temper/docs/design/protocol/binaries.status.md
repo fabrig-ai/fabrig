@@ -1,6 +1,8 @@
 # binaries: status
 
-2026-11-20. Where the tree's code lags or departs from [binaries.md](binaries.md).
+2026-11-27. Where the tree's code lags or departs from [binaries.md](binaries.md).
+
+- **Not yet:** 2: `versions` prints `wire NAME LOWEST HIGHEST` and a `layout` line per version for each wire, the host tools' contract among them. [in flight: change 21338]
 
 
 - **Not yet:** 1 and 2: `upgrade --check` has no per-job timing: each `Event::Ran` job line ends `time unavailable` (`temper-engine-shell/src/upgrade/report.rs`). The whole rehearsal/tool time is printed separately.

@@ -1,6 +1,8 @@
 # channel: status
 
-2026-11-26. Where skein's code lags or departs from [channel.md](channel.md).
+2026-11-27. Where skein's code lags or departs from [channel.md](channel.md).
+
+- **Not yet:** 1, 4, 5 and 9: a schema holds a range of versions with a kinds' table each; the responder refuses an `Open` whose range it does not meet with *version* and the owner accepts with a version of the range; ready names the version. [in flight: change 21335]
 
 - **Departs:** 8.3: four cells of `skein-channel/src/machine.rs` break "its
   owner hears closed once, with why" or "closing stops now", because the

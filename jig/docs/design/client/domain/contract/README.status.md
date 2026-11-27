@@ -1,6 +1,8 @@
 # contract: status
 
-2026-11-24. Where jig's code lags or departs from [README.md](README.md).
+2026-11-27. Where jig's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 6: *version not served* names the ranges the engine serves, which the client reads. [in flight: change 21337]
 
 
 `requests.md`, section 2, and `documents.md`, section 1 have no known gap in charter parts or `later` on

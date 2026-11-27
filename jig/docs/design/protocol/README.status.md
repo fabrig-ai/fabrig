@@ -1,6 +1,8 @@
 # README: status
 
-2026-11-24. Where jig's code lags or departs from [README.md](README.md).
+2026-11-27. Where jig's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 7: the engine serves a range of versions per owner, and *version not served* names the ranges served. [in flight: change 21336]
 
 
 - **Not yet:** 4: agents in a host's own process: no engine or worker of jig's composes `smith-inline-agent`.
