@@ -329,6 +329,7 @@ dependencies = [
  "hearth-protocol-accounts",
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
