@@ -68,7 +68,6 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::MakingActed { .. }
             | forge::Event::MakingAgain { .. }
             | forge::Event::OrderLanding { .. }
-            | forge::Event::JoinLanding { .. }
             | forge::Event::Landing { .. }
             | forge::Event::TrainRefusal { .. }
             | forge::Event::VetoLanding { .. }
@@ -151,7 +150,6 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Priority { .. }
             | forge::Event::QueueRepairStarted { .. }
             | forge::Event::Delegated { .. }
-            | forge::Event::CloseDelegated { .. }
             | forge::Event::DelegateAdmissionRefused { .. }
             | forge::Event::DelegateRefused { .. }
             | forge::Event::WaitsRefused { .. }

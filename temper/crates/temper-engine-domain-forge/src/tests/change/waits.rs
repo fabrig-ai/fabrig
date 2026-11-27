@@ -176,6 +176,7 @@ fn a_silent_reset_holds_at_its_original_read_bound_after_restart() {
             decision: Decision::Hold(Cause::Stalled),
             entry: None,
             evidence: Some(evidence),
+            ..
         } = request
         {
             behind = evidence.behind;
@@ -333,7 +334,7 @@ fn live_children_clear_the_report_until_their_ends() {
     ] {
         let mut d = started();
         outputs(&mut d, Event::Change { row: opened(State::Checking { head: HEAD }) });
-        let admitted = outputs(&mut d, Event::Delegated { task: CHANGE, child: CHILD, kind });
+        let admitted = outputs(&mut d, Event::Delegated { task: CHANGE, child: CHILD, kind, close_at: None });
         let ended = outputs(&mut d, terminal(CHILD));
         assert_eq!(wait_report(&admitted, CHANGE), Some([].as_slice()), "{kind:?}");
         assert_eq!(
@@ -383,7 +384,8 @@ fn a_live_asker_and_the_held_change_report_none() {
         ..change::Questions::default()
     };
     outputs(&mut d, Event::Relayed { task: CHANGE, questions: questions.clone() });
-    let opened = outputs(&mut d, Event::Delegated { task: CHANGE, child: CHILD, kind: Delegate::Produce });
+    let opened =
+        outputs(&mut d, Event::Delegated { task: CHANGE, child: CHILD, kind: Delegate::Produce, close_at: None });
     let answered = outputs(&mut d, Event::Relayed { task: CHANGE, questions: change::Questions::default() });
     outputs(&mut d, terminal(CHILD));
     let held = outputs(&mut d, Event::RelayRefused { task: CHANGE, questions, words: b"Refused".as_slice().into() });

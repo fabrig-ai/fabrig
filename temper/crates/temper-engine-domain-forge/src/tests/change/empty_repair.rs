@@ -493,6 +493,7 @@ fn a_green_measurement_goes_on_and_ending_or_moving_clears_the_record() {
             task: fixtures::CHANGE,
             child: REPAIR + 1,
             kind: change::Delegate::Repair(change::Repair::Ci),
+            close_at: None,
         },
     );
     assert!(repaired.change(fixtures::CHANGE).unwrap().ci_recheck.is_none());

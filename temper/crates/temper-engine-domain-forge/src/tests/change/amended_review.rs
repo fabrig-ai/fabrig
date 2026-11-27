@@ -42,7 +42,7 @@ fn a_review_ending_after_amendment_reports_at_its_asked_revision() {
     let kind = c::Delegate::Gate { number: 9, head: fixtures::HEAD };
     let asked = gate_step(&mut d);
     assert_asked(&asked, kind);
-    outputs(&mut d, Event::Delegated { task: fixtures::CHANGE, child: 52, kind });
+    outputs(&mut d, Event::Delegated { task: fixtures::CHANGE, child: 52, kind, close_at: None });
     let mut revision_output = Queue::uncapped();
     d.refresh_spec_revision(fixtures::CHANGE, 1, &mut revision_output);
     assert_eq!(d.change(fixtures::CHANGE).expect("amended").gate_revision, 0);

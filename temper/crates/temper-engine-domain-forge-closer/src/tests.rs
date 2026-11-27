@@ -4,7 +4,7 @@
 
 use crate::{
     GoalFinish, LOG_START_BYTES, Landed, Landing, Report, SELECTION_LINE_BYTES, SELECTION_PREFIX, Selection, Unlanded,
-    Why, first_line, goal_left, left_section, selection_line, words,
+    Why, first_line, goal_asked, goal_left, left_section, selection_line, words,
 };
 use alloc::boxed::Box;
 use skein_lib::Rng;
@@ -16,6 +16,7 @@ fn empty_report() -> Report {
         title: Box::from(b"TITLE".as_slice()),
         landed: Box::new([]),
         unlanded: Box::new([]),
+        goal_asked: None,
         goal_left: None,
         landing: Landing::NoBranch,
         selections: Box::new([]),
@@ -67,6 +68,26 @@ fn a_report_lists_landed_and_unlanded_changes_the_landing_and_ci_selection() {
         Selection { pull: 51, line: None },
     ]);
     assert_eq!(words(&report, 8192).as_ref(), b"Goal T7: Add OAuth login\nLanded:\n- T9 Parser: pull request #41 into temper/1/g7\n  Left: two items\n  - a flaky test in x\n- T12 Lexer: pull request #42 into temper/1/g7\n  Left: none given\nEnded without landing:\n- T10 Docs: cancelled\n- T11 Retry: failed: build broke\n- T13 Noop: no change: Already there.\nLeft by the goal: the switch, not yet cut.\nThe landing: pull request #50, merged into main as 0123abcd; repairs T20, T21; resolutions T22.\nCI selection:\n- pull request #50: selection: full\n- pull request #51: unknown\n");
+}
+
+#[test]
+fn the_goals_answers_follow_the_changes_and_precede_its_left() {
+    let mut report = empty_report();
+    report.landed = Box::new([landed(9, b"Parser", 41, None)]);
+    report.goal_asked = Some(b"Asked: WORDS\nLINE\n  LINE".as_slice().into());
+    report.goal_left = Some(b"the switch".as_slice().into());
+    let landed = b"Goal T7: TITLE\nLanded:\n- T9 Parser: pull request #41 into temper/1/g7\n  Left: none given\n";
+    let last = b"Asked: WORDS\n  LINE\n    LINE\nLeft by the goal: the switch\nThe landing: none, no goal branch.\n";
+    for (unlanded, middle) in [
+        (None, b"".as_slice()),
+        (
+            Some(Unlanded { task: 10, title: b"Docs".as_slice().into(), why: Why::Cancelled }),
+            b"Ended without landing:\n- T10 Docs: cancelled\n".as_slice(),
+        ),
+    ] {
+        report.unlanded = unlanded.into_iter().collect();
+        assert_eq!(words(&report, 8192), concat(&[landed, middle, last]));
+    }
 }
 
 #[test]
@@ -131,6 +152,32 @@ fn a_goal_report_takes_its_last_left_field() {
         (b"Left: earlier\nLeft: ", Some(b"".as_slice())),
     ] {
         assert_eq!(goal_left(body), expected, "{body:?}");
+    }
+}
+
+#[test]
+fn a_goal_report_takes_its_first_asked_block() {
+    let causes = Some(b"Asked: causes\nthe cache was cold".as_slice());
+    for (body, expected) in [
+        (
+            b"I landed it.\n\nAsked: the parser's figures.\nparse: 41 ms before, 12 ms after\nallocations: 310 before, 96 after\n\nRisk: none.".as_slice(),
+            Some(b"Asked: the parser's figures.\nparse: 41 ms before, 12 ms after\nallocations: 310 before, 96 after".as_slice()),
+        ),
+        (b"  Asked: causes\nthe cache was cold\nLeft: the switch", causes),
+        (b"Asked: causes\nthe cache was cold\n \tLeft: the switch", causes),
+        (b"Asked: causes\nthe cache was cold\n  Risk: none", causes),
+        (b"Asked: causes\nthe cache was cold\n  Decided: defer", causes),
+        (b"Asked: causes\nthe cache was cold", causes),
+        (b"Asked: causes\nthe cache was cold\n", causes),
+        (b"Asked: causes\nthe cache was cold\n  \nnot in the block", causes),
+        (b"Asked: causes\nthe cache was cold\n\nAsked: figures\nparse: 12 ms", causes),
+        (b"Asked: causes\r\nthe cache was cold\r\n \t\r\nnot in the block", Some(b"Asked: causes\r\nthe cache was cold".as_slice())),
+        (b"I landed it.", None),
+        (b"Asked nothing.", None),
+        (b"We were Asked: x", None),
+        (b"Asked:\nnot a block", None),
+    ] {
+        assert_eq!(goal_asked(body), expected, "{body:?}");
     }
 }
 
@@ -203,6 +250,48 @@ fn a_bounded_report_cuts_left_before_the_goals_finish() {
     let expected = b"Goal T7: TITLE\nLanded:\n- T9 Parser: pull request #41 into temper/1/g7\n  Left: [109 bytes cut]\nThe landing: none, no goal branch.\nThe goal's finish:\n  Delivered one file.\n[148 bytes cut]\n";
     let bound = u32::try_from(expected.len()).expect("fixture bound");
     assert_eq!(words(&report, bound).as_ref(), expected);
+}
+
+#[test]
+fn a_bounded_report_keeps_the_answers_until_later_parts_are_cut() {
+    let mut report = empty_report();
+    let left = format!("Left: {}", "x".repeat(100));
+    report.landed = Box::new([landed(9, b"Parser", 41, Some(left.as_bytes()))]);
+    report.goal_asked = Some(b"Asked: causes\nthe cache was cold".as_slice().into());
+    report.goal_left = Some(b"the switch".as_slice().into());
+    report.selections = Box::new([Selection { pull: 50, line: Some(b"selection: full".as_slice().into()) }]);
+    report.goal_finish =
+        Some(GoalFinish::Words(b"Delivered one file.\nNothing else to add to this report.".as_slice().into()));
+
+    // After the 109-byte change Left section is replaced, the tail still cuts last to first.
+    let head = b"Goal T7: TITLE\nLanded:\n- T9 Parser: pull request #41 into temper/1/g7\n  Left: [109 bytes cut]\n";
+    let asked = b"Asked: causes\n  the cache was cold";
+    let goal_left = b"\nLeft by the goal: the switch";
+    let landing = b"\nThe landing: none, no goal branch.";
+    let selection = b"\nCI selection:\n- pull request #50: selection: full";
+    let finish_start = b"\nThe goal's finish:\n  Delivered one file.";
+    let reduced = concat(&[
+        head,
+        asked,
+        goal_left,
+        landing,
+        selection,
+        finish_start,
+        b"\n  Nothing else to add to this report.\n",
+    ]);
+    assert_eq!(words(&report, u32::try_from(reduced.len()).expect("fixture bound")), reduced);
+    for kept in [
+        concat(&[head, asked, goal_left, landing, selection, finish_start]),
+        concat(&[head, asked, goal_left, landing, selection]),
+        concat(&[head, asked, goal_left, landing]),
+        concat(&[head, asked, goal_left]),
+        concat(&[head, asked]),
+        concat(&[head, b"Asked: causes"]),
+    ] {
+        let marker = format!("\n[{} bytes cut]\n", 109 + reduced.len() - kept.len());
+        let bound = u32::try_from(kept.len() + marker.len()).expect("fixture bound");
+        assert_eq!(words(&report, bound), concat(&[&kept, marker.as_bytes()]));
+    }
 }
 
 #[test]

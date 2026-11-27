@@ -13,8 +13,8 @@ use skein_world::domain::heap::Meter;
 use smith_domain_run as run;
 
 // stock.md: charter 5's host room less 64 section titles and framing and 66 bytes spare.
-const CHARTER_5_HOST_ROOM: u32 = 317_460;
-const STOCK_BRIEF_BYTES: u32 = 315_922;
+const CHARTER_5_HOST_ROOM: u32 = 317_043;
+const STOCK_BRIEF_BYTES: u32 = 315_505;
 const FRAMING: u32 = 64 * (16 + 7);
 const MARGIN: u32 = 66;
 const REFERENCE_SPEC_BYTES: usize = 63_740;
@@ -223,7 +223,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
             // Six boxed alternative LLMs carry an 80-byte optional speed:
             // 16 each for name and alias slice, 48 for prices. Main's
             // inline LLM isn't charged here, and no speed owns a payload.
-            const CHARTER_5_WITH_SMALL_BRIEF_OWNED: u64 = 62_102;
+            const CHARTER_5_WITH_SMALL_BRIEF_OWNED: u64 = 62_519;
             assert_eq!(original.owned_bytes().unwrap(), CHARTER_5_WITH_SMALL_BRIEF_OWNED);
 
             assert_eq!(receiving, 127_391);

@@ -4297,10 +4297,7 @@ pub(crate) fn outputs(
     out: &mut Queue<forge::Request>,
 ) {
     while let Some(request) = out.pop() {
-        if let forge::Request::ChangeDecision { task, .. }
-        | forge::Request::CloseDecision { task, .. }
-        | forge::Request::ReplayJudgement { task, .. } = &request
-        {
+        if let forge::Request::ChangeDecision { task, .. } | forge::Request::ReplayJudgement { task, .. } = &request {
             domain.forge.set_settling(*task, false, out);
         }
         match request {
@@ -5061,15 +5058,11 @@ pub(crate) fn outputs(
                     domain.work.push(Work::Forge(forge::Event::ReviewRequested { task, head }));
                 }
             }
-            forge::Request::CloseDecision { task, at } => {
-                let choice = forge_change::Decision::Delegate(forge_change::Delegate::Close);
-                change_decision_from_read(domain, env, task, choice, None, Some(at));
-            }
             forge::Request::ReplayJudgement { task, replay, .. } => {
                 change_decision(domain, env, task, forge_change::Decision::Hold(replay.cause()));
             }
             forge::Request::RelayRefusal { .. } => {}
-            forge::Request::ChangeDecision { task, decision: choice, entry, evidence } => match choice {
+            forge::Request::ChangeDecision { task, decision: choice, entry, evidence, close_at } => match choice {
                 forge_change::Decision::Effect(effect) => {
                     if let Some(entry) = entry
                         && let Some(evidence) = evidence
@@ -5170,7 +5163,7 @@ pub(crate) fn outputs(
                     if choice == forge_change::Decision::None {
                         save_restored_hold(domain, env, task, out);
                     }
-                    change_decision_from_read(domain, env, task, choice, evidence.as_ref(), None);
+                    change_decision_from_read(domain, env, task, choice, evidence.as_ref(), close_at);
                 }
                 forge_change::Decision::ReplayJudgement(_) => {
                     unreachable!("the forge carries the account evidence separately")

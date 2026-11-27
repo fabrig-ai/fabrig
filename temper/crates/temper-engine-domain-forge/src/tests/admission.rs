@@ -230,10 +230,11 @@ fn a_change_waiting_on_the_write_record_keeps_its_bound_through_an_outage() {
     use temper_engine_domain_forge_change as change;
     use temper_engine_domain_forge_vocabulary::writes::Operation;
 
+    use fixtures::{GATHER_BACKOFF, assert_gather_wait, gather_clock, wall_after};
+
     for readback in [false, true] {
         let mut d = gathering();
-        let mut env = env();
-        env.limits.client.read_attempts = 1;
+        let mut env = gather_clock();
         let task = fixtures::CHANGE;
         let name = run_branch(b"51");
         let head = fixtures::HEAD;
@@ -260,10 +261,11 @@ fn a_change_waiting_on_the_write_record_keeps_its_bound_through_an_outage() {
         let bound = d.inspection_change_read_bound(task).expect("gather's bound");
         let (call, op) = fixtures::next_at(&mut d, &env);
         assert!(matches!(op, Op::Read(Read::Branch { .. })));
-        fixtures::answer_at(&mut d, &env, call, Ok(Answer::Commit(observed)));
+        let wait = collected(fixtures::answer_at(&mut d, &env, call, Ok(Answer::Commit(observed))));
+        assert_gather_wait(&wait, wall_after(&env, GATHER_BACKOFF));
 
         // The branch must be asked again, rather than judged by the inconclusive read.
-        fixtures::advance(&mut d, &mut env, Duration::from_secs(1));
+        fixtures::advance(&mut d, &mut env, GATHER_BACKOFF);
         send(&mut d, &env, fixtures::change_step());
         let (mut call, retry) = fixtures::next_at(&mut d, &env);
         if retry != op {
@@ -312,6 +314,7 @@ fn assert_connection_wait(out: &Queue<Request>) {
                 decision: temper_engine_domain_forge_change::Decision::Wait { until: None },
                 entry: None,
                 evidence: None,
+                close_at: None,
             };
         assert!(!matches!(request, Request::ResourceRefused { .. } | Request::Call { .. }), "{out:?}");
     }
