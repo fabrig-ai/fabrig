@@ -19,6 +19,7 @@ impl World {
                 FromDomain::Op { deadline, .. }
                 | FromDomain::Read { deadline, .. }
                 | FromDomain::Probe { deadline, .. }
+                | FromDomain::ProbeHooks { deadline, .. }
                 | FromDomain::Check { cap: deadline, .. } => {
                     *deadline = base.saturating_add(Duration::from_nanos(deadline.as_nanos()));
                 }

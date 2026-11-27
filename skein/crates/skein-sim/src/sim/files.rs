@@ -120,6 +120,7 @@ impl Sim {
             | Op::Lock { .. }
             | Op::Stat { .. }
             | Op::Rename { .. }
+            | Op::ReadLink { .. }
             | Op::HardLink { .. }
             | Op::Remove { .. }
             | Op::MakeDirectory { .. }
@@ -162,6 +163,7 @@ impl Sim {
             | Ask::Lock { .. }
             | Ask::Stat { .. }
             | Ask::Rename { .. }
+            | Ask::ReadLink { .. }
             | Ask::HardLink { .. }
             | Ask::Remove { .. }
             | Ask::MakeDirectory { .. }
@@ -186,6 +188,7 @@ impl Sim {
             Op::Open {
                 how:
                     OpenHow::PathNoFollow
+                    | OpenHow::PathSiblingFile
                     | OpenHow::Read
                     | OpenHow::ReadNoFollow
                     | OpenHow::Directory
@@ -195,7 +198,7 @@ impl Sim {
             | Op::Lock { .. }
             | Op::Stat { .. }
             | Op::List { .. } => (false, false, false),
-            Op::Read { .. } => (false, false, true),
+            Op::Read { .. } | Op::ReadLink { .. } => (false, false, true),
             Op::Write { .. } | Op::Append { .. } => (true, true, true),
             Op::Sync { .. } => (true, false, true),
             Op::Remove { .. } => (false, true, false),
@@ -245,6 +248,10 @@ impl Sim {
             Op::Read { fd, buf, at } => {
                 let len = u32::try_from(buf.len()).expect("a valid Read's length is a count");
                 (Ask::Read { file: self.handle(pid, *fd), at: *at, len }, len)
+            }
+            Op::ReadLink { dir, name, buf } => {
+                let room = u32::try_from(buf.len()).expect("a valid ReadLink buffer fits a count");
+                (Ask::ReadLink { dir: self.handle(pid, *dir), name: name.clone(), room }, room)
             }
             Op::Write { fd, bytes, from, at } => {
                 let left = bytes.get(usize_of(*from)..).expect("a valid Write has bytes left");
@@ -350,6 +357,13 @@ impl Sim {
                     None
                 }
             }
+            (Op::ReadLink { buf, .. }, Reply::Read(bytes)) => {
+                if bytes.is_empty() || bytes.len() >= buf.len() {
+                    Some(format!("{} bytes of link target, with {len} bytes of room", bytes.len()))
+                } else {
+                    None
+                }
+            }
             (Op::List { entries, names, .. }, Reply::Listed(listed)) => {
                 let used = listed.iter().try_fold(0_usize, |used, (_, name)| used.checked_add(name.len()));
                 if listed.len() > entries.len()
@@ -423,6 +437,10 @@ impl Sim {
                 };
                 slots.copy_from_slice(read);
                 Done::Count(u32::try_from(n).expect("no more than asked"))
+            }
+            (Op::ReadLink { buf, .. }, Reply::Read(bytes)) => {
+                buf.get_mut(..bytes.len()).expect("the link target fits").copy_from_slice(&bytes);
+                Done::Count(u32::try_from(bytes.len()).expect("no more than asked"))
             }
             (Op::Write { .. }, Reply::Done) => Done::Count(len),
             (Op::Append { fd, .. }, Reply::Done) => {

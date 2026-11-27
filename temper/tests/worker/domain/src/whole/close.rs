@@ -15,12 +15,15 @@ const REQUEST: &[u8] = b"{\"version\":1,\"goal\":7,\"changes\":[{\"task\":9,\"la
 const TITLE: &[u8] = b"Settle goal 7's status";
 const SETTLED: &[u8] = b"{\"settled\":[\"docs/a.status.md\"]}";
 const UNCHANGED: &[u8] = b"{\"settled\":[]}";
+const CLOSE_HOOK: &[u8] = b"fabrig/.temper/hooks/close";
+const MISSING: &[u8] = b"hook `.temper/hooks/close`: missing";
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Case {
     Changed,
     Unchanged,
     Failed,
+    MissingHook,
 }
 
 fn kind() -> tooling::Kind {
@@ -36,6 +39,9 @@ fn kind() -> tooling::Kind {
 pub fn run(seed: u64, case: Case) -> Result<Report, String> {
     let mut limits = crate::limits();
     limits.tooling.file_bytes = 16_384;
+    if case == Case::MissingHook {
+        limits.host.detail_bytes = u32::try_from(MISSING.len()).expect("room for the hook failure line");
+    }
     let mut world = World::new(seed, kind(), limits);
     world.repository = b"fabrig".as_slice().into();
     world.request = REQUEST.into();
@@ -45,9 +51,14 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
     world.forge.advance(REMOTE, b"main", b"code", b"later main\n");
     world.event(Event::Ready)?;
     assert_eq!(world.report.kinds.as_ref(), [kind().bound]);
-    assign(&mut world, head)?;
-    let owner = world.start(b"fabrig/tools/close")?;
-    command(&mut world, owner, head, case)?;
+    let program = if case == Case::MissingHook { CLOSE_HOOK } else { b"fabrig/tools/close" };
+    assign(&mut world, head, program)?;
+    if case == Case::MissingHook {
+        missing_hook(&mut world)?;
+    } else {
+        let owner = world.start(program)?;
+        command(&mut world, owner, head, case)?;
+    }
     let commit = world.forge.branch(REMOTE, b"topic").expect("close branch");
     assert_eq!(world.forge.branch(REMOTE, b"goal"), Some(head));
     if case == Case::Changed {
@@ -67,10 +78,11 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
             assert!(work.saved.is_none());
             assert_eq!(work.left.is_some(), case == Case::Changed);
         }
-        Case::Failed => {
+        Case::Failed | Case::MissingHook => {
             let host::JobEnding::Failed { failure, detail, work } = answer else { panic!("failed: {answer:?}") };
             assert_eq!(*failure, host::JobFailure::Failed);
-            assert_eq!(detail.as_ref(), b"exit 1: close failed");
+            let expected = if case == Case::MissingHook { MISSING } else { b"exit 1: close failed" };
+            assert_eq!(detail.as_ref(), expected);
             assert_eq!(*work, host::Work { left: None, saved: None });
         }
     }
@@ -84,7 +96,7 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
     Ok(world.report)
 }
 
-fn assign(world: &mut World, head: u64) -> Result<(), String> {
+fn assign(world: &mut World, head: u64, program: &[u8]) -> Result<(), String> {
     world.event(Event::AssignJob {
         job: host::JobAssignment {
             run: RUN,
@@ -116,14 +128,21 @@ fn assign(world: &mut World, head: u64) -> Result<(), String> {
                 account: None,
             }]),
         }),
-        spec: Ok(wire::JobSpec {
-            command: b"fabrig/tools/close".as_slice().into(),
-            request: REQUEST.into(),
-            refusal: false,
-            outdated: false,
-        }),
+        spec: Ok(wire::JobSpec { command: program.into(), request: REQUEST.into(), refusal: false, outdated: false }),
     })?;
     Ok(())
+}
+
+fn missing_hook(world: &mut World) -> Result<(), String> {
+    let owner = world.spawning(CLOSE_HOOK)?;
+    world.event(Event::Job {
+        owner,
+        event: tooling::Event::Exited { owner, exit: tooling::Exit::NotRun, tail: MISSING.into() },
+    })?;
+    assert!(world.operations.is_empty(), "no result read after a failed check");
+    assert!(world.report.answer.is_none(), "answer after both terminals");
+    world.event(Event::Job { owner, event: tooling::Event::Gone { owner } })?;
+    world.event(Event::Job { owner, event: tooling::Event::Gone { owner } })
 }
 
 fn command(world: &mut World, owner: Token, head: u64, case: Case) -> Result<(), String> {

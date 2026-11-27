@@ -22,7 +22,7 @@ fn an_outdated_close_ends_on_its_first_job() {
     outputs(&mut d, Event::Change { row });
 
     let at = c::CloseAt { branch: HEAD, landing: fixtures::BASE, asked: true, refused: None, outdated: None };
-    outputs(&mut d, Event::CloseDelegated { task: CHANGE, child: JOB, at });
+    outputs(&mut d, Event::Delegated { task: CHANGE, child: JOB, kind: c::Delegate::Close, close_at: Some(at) });
     outputs(
         &mut d,
         Event::DelegateResult {
@@ -42,13 +42,18 @@ fn an_outdated_close_ends_on_its_first_job() {
 
     step_change(&mut d);
     let ended = answer_next(&mut d, Err(Error::Missing));
-    let decision =
-        Request::ChangeDecision { task: CHANGE, decision: c::Decision::NoChange, entry: None, evidence: None };
+    let decision = Request::ChangeDecision {
+        task: CHANGE,
+        decision: c::Decision::NoChange,
+        entry: None,
+        evidence: None,
+        close_at: None,
+    };
     let stored_at = c::CloseAt { outdated: Some(c::CloseOutdated::Ancestry), ..at };
     let mut decided = false;
     let mut saved = false;
     for request in &ended {
-        if let Request::CloseDecision { .. } | Request::ChangeDecision { .. } = request {
+        if let Request::ChangeDecision { .. } = request {
             assert!(!decided, "one decision for the finished job");
             assert_eq!(request, &decision);
             decided = true;

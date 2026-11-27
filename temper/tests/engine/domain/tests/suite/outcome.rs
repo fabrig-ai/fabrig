@@ -43,6 +43,22 @@ fn outcome_reads_a_landed_goal_and_main() {
     assert_eq!(outcome.goals["g0"].end, End::Landed);
     assert_eq!(outcome.goals["g0"].landed, ["g0.c0"]);
     assert_eq!(outcome.main, [("g0/c0/file".into(), "landed\n".into())].into());
+
+    // Closing projection cleanup can erase the closer before the world reads the outcome.
+    let mut store = run.world.store;
+    let goal = run.names.task("g0").expect("goal");
+    let closer = store
+        .rows
+        .iter()
+        .find_map(|(key, record)| {
+            let Record::Forge { row } = record else { return None };
+            let temper_engine_domain_forge::Stored::Closer(row) = row.as_ref() else { return None };
+            (row.goal == goal).then(|| key.clone())
+        })
+        .expect("the closer projection was present");
+    store.rows.remove(&closer);
+    let settled = outcome::read(&store, &run.main, &run.names, &run.workload, &run.ledger);
+    assert_eq!(settled.goals["g0"].end, End::Landed);
 }
 
 #[test]

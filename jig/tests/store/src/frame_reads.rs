@@ -181,6 +181,7 @@ pub fn decode(component: &mut store::Store, env: &Env<store::Limits>, raw: &[u8]
             | file::Request::Create { .. }
             | file::Request::CreateNoFollow { .. }
             | file::Request::OpenReadNoFollow { .. }
+            | file::Request::OpenSiblingFile { .. }
             | file::Request::OpenWrite { .. }
             | file::Request::OpenWriteNoFollow { .. }
             | file::Request::OpenDirectory { .. }

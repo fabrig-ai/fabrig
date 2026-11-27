@@ -208,6 +208,7 @@ impl Forge {
 
     fn answer(&mut self, decision: Decision) {
         match decision {
+            Decision::ReadMerge { .. } => unreachable!("this forge has merge jobs disabled"),
             Decision::Effect(effect) => {
                 let head = self.facts.branch;
                 match effect {

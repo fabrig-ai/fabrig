@@ -118,7 +118,15 @@ pub(crate) fn start_closer_step(
     let dependencies = domain.engine.core().tasks.task(task).expect("due closer").dependencies.len();
     let at = goal_report::At { step: procedure_step, dependencies };
     let Some(observation) = goal_report::observed(domain, env, task, at) else { return };
-    let facts = facts(domain, &row, branch.as_deref(), base_holds, observation);
+    let hooks = match domain.forge.closer_close_checked(task, procedure_step, dependencies) {
+        Some(Ok(hooks)) => Some(hooks),
+        Some(Err(_)) => {
+            submit(domain, env, row, ProcedureStep::new(StepEnd::Wait), None);
+            return;
+        }
+        None => None,
+    };
+    let facts = facts(domain, &row, branch.as_deref(), base_holds, hooks, observation);
     let stepped = c::step(&row.closer, &facts);
     let mut replacement = None;
     let (decision, wait) = match stepped.decision {
@@ -150,6 +158,24 @@ pub(crate) fn start_closer_step(
             }));
             return;
         }
+        c::Decision::CheckClose => {
+            row.closer = stepped.closer;
+            domain.work.push(Work::Forge(forge::Event::Closer { row }));
+            domain.work.push(Work::Forge(forge::Event::ReadCloserClose {
+                task,
+                step: procedure_step,
+                dependencies,
+                repository: repository.provider,
+                branch: branch.expect("only a held goal branch asks for its close command"),
+            }));
+            return;
+        }
+        c::Decision::SkipClose { change } => {
+            let mut decision = ProcedureStep::new(StepEnd::Wait);
+            decision.cancels = Box::new([supersede(env, change, &row.closer, &facts.landed)]);
+            replacement = Some(Replacement { change, landed: facts.landed });
+            (decision, None)
+        }
         making @ (c::Decision::Make(_) | c::Decision::Supersede { .. }) => {
             let (kind, supersedes) = match making {
                 c::Decision::Make(kind) => (kind, None),
@@ -157,6 +183,8 @@ pub(crate) fn start_closer_step(
                 c::Decision::ReadReport
                 | c::Decision::HoldReport
                 | c::Decision::Check
+                | c::Decision::CheckClose
+                | c::Decision::SkipClose { .. }
                 | c::Decision::Wake { .. }
                 | c::Decision::Wait
                 | c::Decision::Hold(_)
@@ -169,7 +197,14 @@ pub(crate) fn start_closer_step(
                 return;
             }
             let branch = branch.expect("only a held goal branch makes a step");
-            let draft = delegate(domain, env, &row, &repository, &branch, &goal_words, kind, &facts.landed);
+            let step = match kind {
+                c::Step::Land => ClosingStep::Land,
+                c::Step::CatchUp => ClosingStep::CatchUp,
+                c::Step::Close => ClosingStep::Close {
+                    hook: if let Some(forge::Hooks::Directory { close, .. }) = hooks { close } else { false },
+                },
+            };
+            let draft = delegate(domain, env, &row, &repository, &branch, &goal_words, step, &facts.landed);
             let mut next = stepped.closer;
             if supersedes.is_some() {
                 // Keep the old attempt until cancellation and replacement are admitted together.
@@ -214,7 +249,7 @@ pub(crate) fn start_closer_step(
             row.closer = stepped.closer;
             let decision = ProcedureStep::new(StepEnd::HoldFrom {
                 why: tasks::Hold::Procedure,
-                source: Box::new(super::holds::source(domain, None, hold_words(domain, &row, hold))),
+                source: Box::new(super::holds::source(domain, None, hold_words(domain, &row, hold, hooks))),
             });
             (decision, Some(forge::CloserPark::DelegateOrHeld))
         }
@@ -291,6 +326,7 @@ fn facts(
     row: &forge::CloserRow,
     branch: Option<&[u8]>,
     base_holds: Option<bool>,
+    hooks: Option<forge::Hooks>,
     report: c::ReportRead,
 ) -> c::Facts {
     let mut landed = List::uncapped();
@@ -319,9 +355,13 @@ fn facts(
     c::Facts {
         report,
         goal_branch: branch.is_some(),
-        close_job: domain.forge.close_job(task.project).is_some(),
+        close_job: match hooks {
+            None => None,
+            Some(forge::Hooks::Legacy) => Some(domain.forge.close_job(task.project).is_some()),
+            Some(forge::Hooks::Directory { close, .. }) => Some(close),
+        },
         catch_up: if running == c::Child::Outdated || row.closer.retry == Some(c::Step::CatchUp) || releasing_catch_up {
-            catch_up::observed(domain, row, task)
+            catch_up::observed(domain, row, task, hooks)
         } else {
             None
         },
@@ -749,6 +789,12 @@ fn change_tasks(given: u32, room: u32, bound: u8, ended: u32) -> u32 {
     given.min(share).max(1)
 }
 
+enum ClosingStep {
+    Close { hook: bool },
+    Land,
+    CatchUp,
+}
+
 #[expect(
     clippy::too_many_arguments,
     reason = "the step uses the resolved destination and the goal's latest landed work"
@@ -760,7 +806,7 @@ fn delegate(
     repository: &forge::Repository,
     branch: &[u8],
     goal_words: &[u8],
-    kind: c::Step,
+    step: ClosingStep,
     landed: &[u64],
 ) -> Result<super::super::Delegate, Short> {
     let context = domain.engine.core().tasks.delegation(row.task).ok_or(Short::Terms)?;
@@ -782,31 +828,34 @@ fn delegate(
     let minimum = domain.engine.core().authority.rules().minimum_run_spend;
     let origin =
         super::ChangeOrigin { authority: context.authority.clone(), tasks_left: context.tasks_left, source: None };
-    let draft = match kind {
-        c::Step::Close => {
+    let (kind, draft) = match step {
+        ClosingStep::Close { .. } => {
             let mut words = List::uncapped();
             append(&mut words, b"Settle goal ");
             append(&mut words, &super::decimal(row.goal));
             append(&mut words, b"'s status.");
             let change = questions_up(words.into_boxed());
-            super::chat_change(domain, env, &origin, &change, repository, branch.into(), None, spend)
+            (c::Step::Close, super::chat_change(domain, env, &origin, &change, repository, branch.into(), None, spend))
         }
-        c::Step::Land => {
+        ClosingStep::Land => {
             let change = questions_up(landing_words(goal_words));
-            super::chat_change(
-                domain,
-                env,
-                &origin,
-                &change,
-                repository,
-                repository.landing.clone(),
-                Some(branch.into()),
-                spend,
+            (
+                c::Step::Land,
+                super::chat_change(
+                    domain,
+                    env,
+                    &origin,
+                    &change,
+                    repository,
+                    repository.landing.clone(),
+                    Some(branch.into()),
+                    spend,
+                ),
             )
         }
-        c::Step::CatchUp => {
+        ClosingStep::CatchUp => {
             let close = catch_up::last_close(domain, row).expect("a catch-up follows an outdated close");
-            catch_up::delegate(domain, env, &origin, repository, close, row.goal, spend)
+            (c::Step::CatchUp, catch_up::delegate(domain, env, &origin, repository, close, row.goal, spend))
         }
     };
     let mut delegate = match draft {
@@ -826,7 +875,7 @@ fn delegate(
         kinds.push(tasks::AuthorityExecutor::Job(forge::CLOSE_KIND)).expect("uncapped executor list");
     }
     delegate.authority.delegation.kinds = kinds.into_boxed();
-    if kind == c::Step::Close {
+    if let ClosingStep::Close { hook } = step {
         let mut expanded = List::uncapped();
         for parameter in delegate.spec.parameters {
             expanded.push(parameter).expect("uncapped parameter list");
@@ -836,6 +885,11 @@ fn delegate(
             None => close_request(domain, row, branch),
         };
         expanded.push(tasks::Parameter::Bytes { name: 17, value: request }).expect("uncapped parameter list");
+        if hook {
+            expanded
+                .push(tasks::Parameter::Bytes { name: 20, value: Box::from(forge::CLOSE_HOOK) })
+                .expect("uncapped parameter list");
+        }
         delegate.spec.parameters = expanded.into_boxed();
     }
     Ok(delegate)
@@ -1005,9 +1059,9 @@ fn report_hold_words(closer: &c::Closer) -> Box<[u8]> {
     skein_lib::bytes::concat(&[PREFIX, &line])
 }
 
-fn hold_words(domain: &Domain, closer: &forge::CloserRow, hold: c::Hold) -> Box<[u8]> {
+fn hold_words(domain: &Domain, closer: &forge::CloserRow, hold: c::Hold, hooks: Option<forge::Hooks>) -> Box<[u8]> {
     let c::Hold::ClosingStep { step, change } = hold;
-    if let Some(words) = catch_up::hold_words(domain, closer, step, change) {
+    if let Some(words) = catch_up::hold_words(domain, closer, step, change, hooks) {
         return words;
     }
     let mut words = List::uncapped();
@@ -1061,7 +1115,7 @@ pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>
     if let Some(pending) = &mut pending
         && let Some(replacement) = pending.replacement.take()
     {
-        // Only an admitted cancellation and delegation supersede an attempt.
+        // Only an admitted cancellation (with a replacement where selected) supersedes an attempt.
         let mut superseded = List::uncapped();
         for change in &row.superseded {
             superseded.push(*change).expect("admitted close changes");
@@ -1069,7 +1123,13 @@ pub(crate) fn made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>
         superseded.push(replacement.change).expect("admitted close change");
         row.superseded = superseded.into_boxed();
         row.closer.closed = Some(replacement.landed);
-        row.making = Some(c::Step::Close);
+        if child.is_some() {
+            row.making = Some(c::Step::Close);
+        } else {
+            row.closer.running = None;
+            domain.work.push(Work::Forge(forge::Event::Closer { row: row.clone() }));
+            pending.more = true;
+        }
     }
     if let Some(child) = child
         && let Some(kind) = row.making.take()

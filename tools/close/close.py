@@ -156,7 +156,7 @@ def result_bytes(settled, kept):
 
 def main():
     if len(sys.argv) != 3 or sys.argv[1] != 'close':
-        raise ValueError('usage: .temper/close close <request.json>')
+        raise ValueError('usage: .temper/hooks/close close <request.json>')
     _, ends = parse_request(Path(sys.argv[2]).read_bytes())
     repository = Path(__file__).resolve().parents[2]
     result = Path(os.environ['TEMPER_JOB']) / 'result.json'

@@ -51,11 +51,13 @@ fn a_catch_up_change_uses_the_outdated_closes_pinned_main() {
 
 #[test]
 fn an_unavailable_catch_up_explains_what_it_lacks() {
-    for (job, kinds, expected) in [
-        (false, [tasks::AuthorityExecutor::Job(forge::MERGE_KIND)].as_slice(), "the project names no merge_job"),
-        (true, &[], "its authority does not delegate to the merge job"),
+    let merge = [tasks::AuthorityExecutor::Job(forge::MERGE_KIND)];
+    for (hooks, job, kinds, expected) in [
+        (forge::Hooks::Legacy, false, merge.as_slice(), "the project names no merge_job"),
+        (forge::Hooks::Legacy, true, &[], "its authority does not delegate to the merge job"),
+        (forge::Hooks::Directory { merge: false, close: true }, true, &merge, "`.temper/hooks/` names no `merge`"),
     ] {
-        let lack = catch_up::lack(job, kinds).expect("catch-up is unavailable");
+        let lack = catch_up::lack(hooks, job, kinds).expect("catch-up is unavailable");
         let words = catch_up::outdated_words(OUTDATED_CLOSE, AT, CloseOutdated::Ancestry, Err(lack));
         let expected = skein_lib::bytes::concat(&[
             b"the close step's change T20 found the goal's branch at 121212121212 outdated: its ancestry was incomplete; the closer can't catch it up from main: ",
@@ -64,6 +66,7 @@ fn an_unavailable_catch_up_explains_what_it_lacks() {
         ]);
         assert_eq!(words, expected);
     }
+    assert_eq!(catch_up::lack(forge::Hooks::Directory { merge: true, close: true }, false, &merge), None);
 }
 
 #[test]

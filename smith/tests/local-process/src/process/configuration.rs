@@ -250,6 +250,7 @@ fn local_policy(lower: &agent::Config, change: bool, tools: bool) -> (local::Con
         conventions: tools.then(|| run::Conventions {
             guide: b".smith-test/guide".as_slice().into(),
             checks: b".smith-test/check".as_slice().into(),
+            hooks: None,
         }),
         contract: if change {
             local::Contract::Change(outcome::ChangeSpec {

@@ -120,6 +120,7 @@ impl<'b, B: Backend> Run<'b, B> {
             | Op::Sync { .. }
             | Op::Lock { .. }
             | Op::Stat { .. }
+            | Op::ReadLink { .. }
             | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Remove { .. }
@@ -809,6 +810,7 @@ enum Summary {
     Close { fd: Fd },
     Open { root: Fd, path: usize, how: OpenHow },
     Read { fd: Fd, len: usize, at: u64 },
+    ReadLink { dir: Fd, name: usize, room: usize },
     Write { fd: Fd, len: usize, from: u32, at: u64 },
     Append { fd: Fd, len: usize, from: u32 },
     Truncate { fd: Fd, length: u64 },
@@ -845,6 +847,7 @@ impl Summary {
             Op::Close { fd } => Summary::Close { fd: *fd },
             Op::Open { root, path, how } => Summary::Open { root: *root, path: path.len(), how: *how },
             Op::Read { fd, buf, at } => Summary::Read { fd: *fd, len: buf.len(), at: *at },
+            Op::ReadLink { dir, name, buf } => Summary::ReadLink { dir: *dir, name: name.len(), room: buf.len() },
             Op::Write { fd, bytes, from, at } => Summary::Write { fd: *fd, len: bytes.len(), from: *from, at: *at },
             Op::Append { fd, bytes, from } => Summary::Append { fd: *fd, len: bytes.len(), from: *from },
             Op::Truncate { fd, length } => Summary::Truncate { fd: *fd, length: *length },
@@ -914,6 +917,7 @@ fn boxes_of(op: &Op) -> Vec<&[u8]> {
             boxes
         }
         Op::Open { path, .. } => vec![path],
+        Op::ReadLink { name, buf, .. } => vec![name, buf],
         Op::Rename { from, to, .. } | Op::HardLink { from, to, .. } => vec![from, to],
         Op::Remove { name, .. } | Op::MakeDirectory { name, .. } => vec![name],
         Op::List { names, .. } => vec![names],
@@ -958,6 +962,7 @@ fn entries_of(op: &Op) -> Option<&[Entry]> {
         | Op::Sync { .. }
         | Op::Lock { .. }
         | Op::Stat { .. }
+        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::Rename { .. }
         | Op::Remove { .. }
