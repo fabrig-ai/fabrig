@@ -218,7 +218,7 @@ chat, the running line above them.
 - **A narrow terminal:** the header's lines are cut at their ends
   (section 3); then, where the quiet line's two halves, two spaces between them and its
   padding are wider than the window's columns, it leaves out "n to walk"
-  and its " · ", on a chat the pane's goal part and then its Ctrl-P
+  and its " · ", on a chat the pane's goal part and then its Ctrl-o
   words, each with its " · " (`design-session.md`, section 1), then the closed line
   and its " · ", and skein cuts what
   still does not fit from the left half's end, so the link's state, at
