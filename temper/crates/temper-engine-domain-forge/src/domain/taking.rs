@@ -1,10 +1,11 @@
 //! Select once before committing the make (temper/docs/design/domain/forge/change/opened.md, 4).
 use super::{
-    ChangeRow, Domain, Env, Limits, PendingStep, Request, change, emit, finish_step, save_change, wait_for_forge,
+    ChangeRow, Domain, Env, Limits, PendingStep, Request, change, change_reads, emit, finish_step, save_change,
+    wait_for_forge,
 };
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Error};
-use skein_lib::{List, Queue, Wall};
+use skein_lib::{List, Queue};
 
 pub(super) fn answered(
     d: &mut Domain,
@@ -90,7 +91,13 @@ pub(super) fn answered(
     save_change(d, out, row.clone());
     emit(
         out,
-        Request::ChangeDecision { task: row.task, decision: change::Decision::Failed, entry: None, evidence: None },
+        Request::ChangeDecision {
+            task: row.task,
+            decision: change::Decision::Failed,
+            entry: None,
+            evidence: None,
+            close_at: None,
+        },
     );
 }
 
@@ -133,8 +140,7 @@ fn read_error(
     d.changes.insert(row.task, row.clone()).expect("known change");
     save_change(d, out, row.clone());
     if retry {
-        let retry = Wall::from_nanos(env.wall.as_nanos().saturating_add(1_000_000_000));
-        wait_for_forge(d, env, pending, Some(retry), out);
+        wait_for_forge(d, env, pending, Some(change_reads::retry_at(env)), out);
     } else {
         emit(
             out,
@@ -143,6 +149,7 @@ fn read_error(
                 decision: change::Decision::Hold(change::Cause::Failed),
                 entry: None,
                 evidence: None,
+                close_at: None,
             },
         );
     }

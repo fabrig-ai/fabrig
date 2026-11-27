@@ -324,9 +324,9 @@ them.
   (jig's `protocol/channel/layouts.md`, 5.1), and `upgrade --check`
   names the worker (10.2); or it moves the kind's number. A step of the
   worker's own whose absence the job's command meets needs neither: main's
-  counts (`../domain/worker/checkouts-prepare.md`, 5), whose absence the
-  checked close warns of and leaves to the gate
-  (`tools/pre-pr/design.md`, 4.1), is one.
+  counts (`../domain/worker/checkouts-prepare.md`, 5), without which the
+  checked close breaks at once, judging nothing, and is tried again in its
+  job's class (`tools/pre-pr/design.md`, 4.1), is one.
 - **A close asks for its typed refusal in its spec:** `JobSpec`'s
   `refusal`, a `bool` defaulting to `false`, true on every close job the
   engine makes (`tooling.md`, 4.2). A worker given it sets
@@ -549,8 +549,8 @@ verdict does not change its exit code.
   a 30-minute deadline over a worker whose hello declared it at 10
   minutes; the close job was claimed and never placed, and sat
   *claimed by a host* until the worker restarted on the new build. The
-  missing `counts` step was not the cause: the checked close only warns
-  without main's counts (section 8).
+  missing `counts` step was not the cause: that build's checked close
+  only warned without main's counts, where it now breaks (section 8).
 - **The window is not judged here:** the whole rehearsal/tool time is
   a rehearsal line (`binaries.md`, section 2), and comparing the window
   with the workers' grace is the referee's of a redeploy, its

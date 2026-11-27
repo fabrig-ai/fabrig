@@ -89,24 +89,6 @@ fn failed_delegate(domain: &Domain, task: u64) -> Option<u64> {
     }
 }
 
-pub(super) fn replay_words(at: forge_change::CloseAt, failure: &[u8]) -> Box<[u8]> {
-    let mut words = skein_lib::List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
-    super::append(&mut words, b"not measured again: the goal's branch is at ");
-    short_commit(&mut words, &at.branch);
-    super::append(&mut words, b" and main at ");
-    short_commit(&mut words, &at.landing);
-    super::append(&mut words, b", as when its close check refused; it checks again once either moves.\n\n");
-    let room = usize::try_from(words.room()).expect("hold bound fits usize");
-    super::append(&mut words, &forge::text::fit(failure, room, b""));
-    words.into_boxed()
-}
-
-fn short_commit(words: &mut skein_lib::List<u8>, commit: &[u8; 32]) {
-    for byte in commit.get(..6).expect("six bytes of a commit") {
-        super::append(words, &forge::hex(*byte));
-    }
-}
-
 pub(super) fn retire_on_hold(domain: &mut Domain, task: u64) -> Option<jig_domain_core::StepCancel> {
     let child = failed_delegate(domain, task)?;
     domain.work.push(Work::Forge(forge::Event::RetireFailedClose { task, child }));

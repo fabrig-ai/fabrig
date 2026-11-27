@@ -2463,11 +2463,6 @@ pub enum Event {
         task: u64,
         changes: Box<[u64]>,
     },
-    JoinLanding {
-        task: u64,
-        member: landing::Member,
-        after: Box<[u64]>,
-    },
     Landing {
         row: LandingRow,
     },
@@ -2805,12 +2800,8 @@ pub enum Event {
         task: u64,
         child: u64,
         kind: change::Delegate,
-    },
-    /// Remember the two measured tips when a close job is admitted.
-    CloseDelegated {
-        task: u64,
-        child: u64,
-        at: change::CloseAt,
+        /// For a close job only, the goal and landing tips read by its decision, if both were read.
+        close_at: Option<change::CloseAt>,
     },
     /// The whole procedure batch was refused before a child number was admitted.
     DelegateAdmissionRefused {
@@ -3481,12 +3472,18 @@ pub enum Request {
         decision: change::Decision,
         entry: Option<u64>,
         evidence: Option<ChangeEvidence>,
+        /// For a decision to delegate a close job only, the goal and landing tips, if both were read.
+        close_at: Option<change::CloseAt>,
     },
-    /// A close job offer or the replay of its failure, with the tips just read.
-    CloseDecision {
+    /// A fresh read confirmed the same judgement. Only rejection needs its previous hold's account.
+    ReplayJudgement {
         task: u64,
-        at: change::CloseAt,
-        replay: bool,
+        replay: change::Replay,
+        prior_rejection: Box<[u8]>,
+    },
+    /// The relay already held the task; the change's row keeps the refusal evidence.
+    RelayRefusal {
+        task: u64,
     },
     /// Task-specific news with a connector classification.
     News {

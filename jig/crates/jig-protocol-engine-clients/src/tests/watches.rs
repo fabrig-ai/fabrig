@@ -177,6 +177,19 @@ fn an_application_watch_keeps_its_owner_and_rejects_foreign_deliveries() {
     assert_eq!((value.watch, value.document.version, value.document.record.as_ref()), (17, 2, &[88][..]));
 }
 #[test]
+fn a_family_watch_refuses_a_continuation_at_another_layout() {
+    let (mut world, stream) = stream_world();
+    let subject = fixtures::family_owned(Box::new([77]), Some(fixtures::foreign_window_cursor()));
+    let owner = world.open_record(stream, 17, subject);
+    assert!(world.out.is_empty(), "no application watch");
+    let (status, body) = world.response(owner);
+    assert_eq!(status, 200);
+    let unknown = w::OpenAnswer::Refused(w::OpenAnswerRefused { why: w::WatchRefusal::Unknown });
+    assert_eq!(w::OpenAnswer::decode(&fixtures::wire(), &mut Reader::new(body)), Ok(unknown));
+    assert!(world.stream().watches.is_empty());
+}
+
+#[test]
 fn a_watch_admission_or_refusal_cannot_answer_another_exchange() {
     let (mut world, stream) = stream_world();
     let (first, watcher) = request_task(&mut world, stream, 17);

@@ -10,6 +10,8 @@ use crate::api::{
 use crate::tests::{CONFIG, query, says, script, user};
 use crate::{Config, Domain, Event, Request, fire, step};
 
+mod stretch;
+
 fn text(text: &[u8]) -> Part {
     Part::Text { text: copy_of(text) }
 }
@@ -465,6 +467,8 @@ fn malformed_or_oversized_replays_are_refused_at_configuration() {
                 after: copy_of(b">"),
                 unissued: copy_of(b"missing"),
                 weight: 0,
+                with: Box::new([]),
+                foreign: 0,
                 numeric: None,
             }]),
             ..menu()

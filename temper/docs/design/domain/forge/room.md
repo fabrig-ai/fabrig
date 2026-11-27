@@ -118,7 +118,9 @@ no room still waits, or is answered `Unavailable`, as a value (sections
   write.
 - **A reservation is made once and used by its holder.** An ask asserts
   that its waiter is not asked already, a call's reservation that its
-  flight holds none, a projection's that its number holds none. An
+  flight holds none, a projection's that its number holds none, and
+  each, as it is made, that the outbox had its place, naming its holder
+  and its owner. An
   entry kept into one, and one that ends without an entry, assert that
   the reservation was held, naming its holder and its owner. A call or
   a projection whose reservation is not held never falls back to the
@@ -142,9 +144,11 @@ no room still waits, or is answered `Unavailable`, as a value (sections
   own, and a landing withdraws its unsent entries (section 2), so that
   an ended owner holds no place and no reservation, only entries
   waiting for their outcome.
-- **Its sums are exact:** free room and the room reserved are counted by
-  checked arithmetic, never saturated, since every take above asserts
-  its place.
+- **Its sums only count:** free room and the room reserved are their
+  holders' counts, in the arithmetic of
+  skein/docs/foundation/programming-model.md, 10.3. No check of the
+  room sits at a sum or a debit: each take above asserts its own place
+  (skein/docs/foundation/programming-model.md, 10.4).
 
 ## 3. The line
 

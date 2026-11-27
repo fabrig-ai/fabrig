@@ -25,6 +25,7 @@ const REMOTE: &[u8] = b"org/repo";
 
 pub(super) struct Story {
     workload: Workload,
+    producer_seeds: skein_fake_llm_domain::api::Seeds,
     names: Names,
     other: parties::Party,
     replies: BTreeMap<u64, people::Reply>,
@@ -75,6 +76,7 @@ impl World {
         let comparison = Some(comparison::Run::new(seed, &workload, points));
         world.workload = Some(Story {
             workload,
+            producer_seeds: setup::producer_seeds(streams),
             comparison,
             named_at: None,
             names: Names::new(),
@@ -346,7 +348,11 @@ impl World {
             }
             parked
         } else {
-            Process::new(self.seed, script)
+            let draw = (!super::stretches::plan(&script).is_empty())
+                .then(|| self.workload.as_ref().expect("workload").producer_seeds);
+            let mut process = Process::new(self.seed, script);
+            process.draw = draw;
+            process
         };
         process.configure_settings = Some(|settings| {
             settings.provider.accounts = 2;
@@ -489,7 +495,7 @@ impl World {
                 self.assert_workload_train(task, &changes)?;
             }
         }
-        Ok(())
+        self.observed.stretches.check()
     }
 
     fn assert_workload_change(

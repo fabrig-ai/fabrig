@@ -39,7 +39,7 @@ fn a_close_with_unchanged_tips_holds_on_its_refusal() {
     f.close_at = Some(REFUSAL);
     let h = Heard { delegate: Status::Failed, ..heard() };
     let next = decide(&c, &f, &h);
-    assert_eq!(next.decision, Decision::Hold(Cause::CloseRefused));
+    assert_eq!(next.decision, Decision::ReplayJudgement(crate::Replay::CloseRefused { branch: HEAD, landing: BASE }));
     assert_eq!(
         next.change.state,
         State::Held {

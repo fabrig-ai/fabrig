@@ -1250,11 +1250,11 @@ fn a_call_ended_before_its_reply_says_its_exchange_gone_once() {
             None,
             Box::from([kit::FromTransport::StreamGone { stream: exchange }]),
         ),
-        ("public read", Method::Get, b"/jig/v1/public/0/1/1", true, None, gone()),
+        ("public read", Method::Get, public::PATH, true, None, gone()),
         (
             "answered public read",
             Method::Get,
-            b"/jig/v1/public/0/1/1",
+            public::PATH,
             true,
             Some(kit::ToTransport::Public { exchange, reply: kit::PublicReply::Unknown }),
             Box::new([]),

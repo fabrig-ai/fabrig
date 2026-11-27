@@ -3513,6 +3513,7 @@ fn a_closers_report_check_and_its_last_line_round_trip() {
         let forge::Stored::Closer(mut row) = closer_relay_row(Relay::new()) else { panic!("closer fixture") };
         row.closer.report_check = check;
         row.closer.goal_left = Some(b"the switch, not yet cut.".as_slice().into());
+        row.closer.goal_asked = Some(b"Asked: causes\nthe cache was cold".as_slice().into());
         let stored = forge::Stored::Closer(row);
         let meter = skein_world::domain::heap::Meter::new();
         meter.start();

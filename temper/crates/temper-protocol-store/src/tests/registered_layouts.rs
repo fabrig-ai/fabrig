@@ -75,8 +75,10 @@ fn an_earlier_closer_defaults_to_an_unread_report() {
     use temper_engine_domain_forge_closer::{Closer, ReportCheck, relay::Relay};
     use temper_engine_domain_forge_vocabulary::{CloserRow, Stored};
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
-    let before =
-        family.current.replace("report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none ", "");
+    let before = family.current.replace(
+        "report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none goal_asked: option bytes 1048576 = none ",
+        "",
+    );
     assert_ne!(before, family.current);
     let old = schema::parse(before.as_bytes()).unwrap();
     let new = schema::parse(family.current.as_bytes()).unwrap();
@@ -97,8 +99,10 @@ fn an_earlier_closer_defaults_to_an_unread_report() {
     let expected = Stored::Closer(row.clone());
     assert_eq!(row.closer.report_check, ReportCheck::Unread);
     assert_eq!(row.closer.goal_left, None);
+    assert_eq!(row.closer.goal_asked, None);
     row.closer.report_check = ReportCheck::Held;
     row.closer.goal_left = Some(b"an earlier layout cannot retain this".as_slice().into());
+    row.closer.goal_asked = Some(b"Asked: earlier layouts\nThis one cannot retain the block.".as_slice().into());
     let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));

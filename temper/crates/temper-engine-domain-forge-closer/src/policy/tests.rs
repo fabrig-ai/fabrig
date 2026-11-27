@@ -2,7 +2,7 @@ use super::*;
 
 fn facts() -> Facts {
     Facts {
-        report: ReportRead::Read(None),
+        report: ReportRead::Read(ReportFields::empty()),
         goal_branch: true,
         close_job: true,
         catch_up: None,
@@ -233,9 +233,33 @@ fn a_failed_report_read_waits_and_then_asks_again() {
 }
 
 #[test]
+fn the_goals_answers_pass_without_holding_the_closer() {
+    let mut f = facts();
+    let asked = b"Asked: causes\nthe cache was cold".as_slice();
+    f.report = ReportRead::Read(ReportFields { left: None, asked: Some(asked.into()) });
+    let next = step(&Closer::new(), &f);
+    assert_eq!(next.decision, Decision::Make(Step::Close));
+    assert_eq!(next.closer.goal_asked.as_deref(), Some(asked));
+    assert_eq!(next.closer.goal_left, None);
+}
+
+#[test]
+fn a_report_holding_the_closer_keeps_both_parts() {
+    let mut f = facts();
+    let asked = b"Asked: causes\nthe cache was cold".as_slice();
+    let left = b"the switch".as_slice();
+    f.report = ReportRead::Read(ReportFields { left: Some(left.into()), asked: Some(asked.into()) });
+    let held = step(&Closer::new(), &f);
+    assert_eq!(held.decision, Decision::HoldReport);
+    assert_eq!(held.closer.report_check, ReportCheck::Held);
+    assert_eq!(held.closer.goal_left.as_deref(), Some(left));
+    assert_eq!(held.closer.goal_asked.as_deref(), Some(asked));
+}
+
+#[test]
 fn a_released_report_check_can_read_but_not_hold_again() {
     let mut f = facts();
-    f.report = ReportRead::Read(Some(b"the switch".as_slice().into()));
+    f.report = ReportRead::Read(ReportFields { left: Some(b"the switch".as_slice().into()), ..ReportFields::empty() });
     let held = step(&Closer::new(), &f);
     assert_eq!(held.decision, Decision::HoldReport);
     f.released = true;
@@ -246,7 +270,8 @@ fn a_released_report_check_can_read_but_not_hold_again() {
     f.report = ReportRead::Unread;
     let read = step(&released.closer, &f);
     assert_eq!(read.decision, Decision::ReadReport);
-    f.report = ReportRead::Read(Some(b"a different switch".as_slice().into()));
+    f.report =
+        ReportRead::Read(ReportFields { left: Some(b"a different switch".as_slice().into()), ..ReportFields::empty() });
     let next = step(&read.closer, &f);
     assert_eq!(next.decision, Decision::Make(Step::Land));
     assert_eq!(next.closer.goal_left.as_deref(), Some(b"a different switch".as_slice()));
@@ -469,7 +494,8 @@ fn an_idle_close_cannot_bypass_the_report_hold() {
     {
         let mut f = facts();
         f.child = Child::Idle { held: false };
-        f.report = ReportRead::Read(Some(b"the switch".as_slice().into()));
+        f.report =
+            ReportRead::Read(ReportFields { left: Some(b"the switch".as_slice().into()), ..ReportFields::empty() });
         let mut c = Closer::new();
         c.closed = Some(Box::new(closed));
         c.running = Some(Running { step: Step::Close, change: CLOSE });

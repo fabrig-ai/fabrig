@@ -529,22 +529,22 @@ pub(crate) fn release_place(d: &mut Domain, waiter: Waiter, at: Wall) {
     }
 }
 
-pub(crate) fn reserved(d: &Domain) -> u32 {
-    let asked_and_calls =
-        d.room.asked.len().checked_add(d.call_room.len()).expect("asked waiters and calls fit within forge.entries");
-    asked_and_calls.checked_add(d.projection_room.len()).expect("all outbox reservations fit within forge.entries")
+pub(crate) fn reserved(d: &Domain) -> u64 {
+    u64::from(d.room.asked.len())
+        .saturating_add(u64::from(d.call_room.len()))
+        .saturating_add(u64::from(d.projection_room.len()))
 }
 
-pub(crate) fn taken(d: &Domain) -> u32 {
-    d.entries.len().checked_add(reserved(d)).expect("outbox entries and reservations together fit within forge.entries")
+pub(crate) fn taken(d: &Domain) -> u64 {
+    u64::from(d.entries.len()).saturating_add(reserved(d))
 }
 
-pub(crate) fn free(d: &Domain, limits: &Limits) -> u32 {
+pub(crate) fn free(d: &Domain, limits: &Limits) -> u64 {
     free_at(d, limits.entries)
 }
 
-fn free_at(d: &Domain, limit: u32) -> u32 {
-    limit.checked_sub(taken(d)).expect("forge.entries covers all outbox entries and reservations")
+fn free_at(d: &Domain, limit: u32) -> u64 {
+    u64::from(limit).saturating_sub(taken(d))
 }
 
 pub(crate) fn place(d: &Domain, waiter: Waiter) -> Option<u64> {
@@ -688,6 +688,10 @@ pub(crate) fn reserve_ask(d: &mut Domain, waiter: Waiter, task: u64) {
     let ask = Asked { task, place: order };
     assert_place(d, waiter, ask);
     assert!(eligible(d, waiter), "waiter {waiter:?} of task {task} is eligible for its outbox ask");
+    assert!(
+        taken(d) < u64::from(d.entries.capacity()),
+        "outbox reservation for waiter {waiter:?} of task {task} has room within forge.entries"
+    );
     let inserted = d.room.asked.insert(waiter, ask);
     assert!(inserted.is_ok(), "outbox reservation for waiter {waiter:?} of task {task} fits its room");
     let ended = d.room.closing.get(&task).copied();

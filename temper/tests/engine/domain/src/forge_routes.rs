@@ -3604,26 +3604,18 @@ impl World {
         self.changed_tasks.clear();
         // A Busy retry keeps the offered change step in flight. Drain that
         // read's timer before snapshotting; an idle procedure's poll is not work.
-        let retrying_change = self.oracle_running
+        let retry = if self.oracle_running
             && self.events.is_empty()
             && self.immediate.is_empty()
             && self.pending.is_empty()
             && self.store.idle()
-            && self.store.rows.values().any(|row| {
-                matches!(row,
-                Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
-                if matches!(task.executor, tasks::Executor::Procedure { code: 2, .. })
-                    && task.phase == tasks::Phase::Active(tasks::Active::Due))
-            });
-        let retrying_change = retrying_change
-            && self
-                .root
-                .next_deadline(&self.env)
-                .is_some_and(|due| due <= self.env.now.saturating_add(Duration::from_secs(1)));
-        let mut next = self.env.now;
-        if retrying_change && let Some(due) = self.root.next_deadline(&self.env) {
-            next = next.max(due);
-        }
+            && self.change_due()
+        {
+            self.root.next_deadline(&self.env).filter(|due| *due <= self.env.now.saturating_add(Duration::from_secs(1)))
+        } else {
+            None
+        };
+        let mut next = retry.map_or(self.env.now, |due| self.env.now.max(due));
         if self.oracle_running {
             if !self.pending.is_empty()
                 && let Some(due) = self.fake.next_deadline()
@@ -3647,7 +3639,17 @@ impl World {
             self.fake.reclaim();
             return false;
         }
-        self.tick_at_now(target, resume, retrying_change) || lost
+        self.tick_at_now(target, resume, retry.is_some()) || lost
+    }
+
+    fn change_due(&self) -> bool {
+        let live = |task| Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task)));
+        self.store.rows.range(live(u64::MIN)..=live(u64::MAX)).any(|(_, row)| {
+            matches!(row,
+                Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
+                if matches!(task.executor, tasks::Executor::Procedure { code: 2, .. })
+                    && task.phase == tasks::Phase::Active(tasks::Active::Due))
+        })
     }
 
     /// Move the story's clock through every kept bound, draining its timers at

@@ -66,5 +66,6 @@ record WaitCursor { now via s::wall }
 enum Cursor = r::Cursor
 record Tree by hand
 record Owner by hand
+record Window by hand
 enum Form by hand
 record Held by hand

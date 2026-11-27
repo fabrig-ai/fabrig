@@ -125,7 +125,9 @@ pub(crate) fn document(
         };
         match request {
             core::Request::Held(output) => match *output {
-                core::Held::Store(load) => held(decision, Output::Store(load)),
+                core::Held::Store(_) => {
+                    unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
+                }
                 core::Held::ApplicationDelivery { watcher: due, connector: owner, subject: named } => {
                     assert!(number == owner && subject == named, "document keeps its owning connector");
                     let document = value.take().expect("ready document belongs to this construction");

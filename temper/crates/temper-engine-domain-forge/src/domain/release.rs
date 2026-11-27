@@ -349,7 +349,8 @@ fn outputs(
             | Request::ProjectionSettled { .. }
             | Request::ProjectionFailed { .. }
             | Request::Reviewed { .. }
-            | Request::CloseDecision { .. }
+            | Request::ReplayJudgement { .. }
+            | Request::RelayRefusal { .. }
             | Request::ChangeDecision { .. }
             | Request::News { .. }
             | Request::Drift { .. }
@@ -443,6 +444,7 @@ fn work(
                     decision: temper_engine_domain_forge_change::Decision::Cancel,
                     entry: None,
                     evidence: None,
+                    close_at: None,
                 },
             );
         }
