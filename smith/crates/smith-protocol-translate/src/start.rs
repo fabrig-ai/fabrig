@@ -16,6 +16,7 @@ pub struct Mount {
     pub git: bool,
     pub conflicts: Box<[Box<[u8]>]>,
     pub results: Option<Box<[u8]>>,
+    pub hooks: Option<run::HookTimes>,
 }
 
 /// One grant name and validity; the agent channel keeps its credential value.

@@ -123,7 +123,7 @@ fn an_engine_s_items_reach_the_worker_s_workspace_field_for_field() {
     }
     assert_eq!(
         translate::workspace(None),
-        wire::Workspace { rerun: None, hook_timeout_max_seconds: 3600, repositories: Box::new([]) }
+        wire::Workspace { hook_timeout_max_seconds: 3600, rerun: None, repositories: Box::new([]) }
     );
 }
 

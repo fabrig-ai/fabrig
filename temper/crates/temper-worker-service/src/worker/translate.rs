@@ -45,9 +45,9 @@ pub(crate) fn items_to_domain(items: v1::Items) -> worker::Workspace {
         repositories.push(worker_wire::repository_to_domain(repository)).expect("one output per repository");
     }
     worker::Workspace {
+        hook_timeout_max_seconds: items.hook_timeout_max_seconds,
         repositories: repositories.into_boxed(),
         rerun: items.rerun,
-        hook_timeout_max_seconds: items.hook_timeout_max_seconds,
     }
 }
 
@@ -67,9 +67,9 @@ pub fn workspace(items: Option<&v1::Items>) -> Assigned {
     match items {
         Some(items) => items_to_domain(items.clone()),
         None => worker::Workspace {
+            hook_timeout_max_seconds: temper_service_core::limits::HOOK_TIMEOUT_MAX_DEFAULT,
             rerun: None,
             repositories: Box::new([]),
-            hook_timeout_max_seconds: temper_service_core::limits::HOOK_TIMEOUT_MAX_DEFAULT,
         },
     }
 }

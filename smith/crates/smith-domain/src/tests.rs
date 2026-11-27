@@ -369,6 +369,7 @@ fn workspace() -> Workspace {
     Workspace {
         directories: Box::new([Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: bytes(b"temper"),
             root: Token::new(900),
@@ -842,6 +843,7 @@ fn an_unsafe_workspace_mount_refuses_start_before_discovery() {
     let checkout = Workspace {
         directories: Box::new([Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: bytes(b"ai/temper"),
             root: Token::new(900),
@@ -1410,6 +1412,7 @@ fn convention_workspace() -> Workspace {
         directories: Box::new([
             Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"work"),
                 root: Token::new(900),
@@ -1419,6 +1422,7 @@ fn convention_workspace() -> Workspace {
             },
             Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"reference"),
                 root: Token::new(901),
@@ -1744,6 +1748,7 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
                 directories: Box::new([
                     Directory {
                         results: None,
+                        hooks: None,
                         host: Box::from(b"/host".as_slice()),
                         name: bytes(b"work"),
                         root: Token::new(900),
@@ -1753,6 +1758,7 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
                     },
                     Directory {
                         results: None,
+                        hooks: None,
                         host: Box::from(b"/host".as_slice()),
                         name: bytes(b"reference"),
                         root: Token::new(901),

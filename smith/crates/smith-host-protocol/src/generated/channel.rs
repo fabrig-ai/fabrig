@@ -33,6 +33,38 @@ pub fn window_to_record(value: &smith_host_domain::channel::Window) -> smith_cha
 }
 
 #[must_use]
+pub fn hook_time_to_record(value: &smith_host_domain::channel::HookTime) -> smith_channel::v14::HookTime {
+    let smith_host_domain::channel::HookTime { time: field_000000, asked: field_000001 } = value;
+    smith_channel::v14::HookTime {
+        time: *field_000000,
+        asked: *field_000001
+    }
+}
+
+#[must_use]
+pub fn hook_times_to_record(value: &smith_host_domain::channel::HookTimes) -> smith_channel::v14::HookTimes {
+    let smith_host_domain::channel::HookTimes { deliver: field_000000, finish: field_000001, ceiling: field_000002, fault: field_000003 } = value;
+    smith_channel::v14::HookTimes {
+        deliver: match field_000000 {
+            Some(item) => {
+                let converted = hook_time_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        finish: match field_000001 {
+            Some(item) => {
+                let converted = hook_time_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        ceiling: *field_000002,
+        fault: field_000003.clone()
+    }
+}
+
+#[must_use]
 pub fn list_row_to_domain(record: smith_channel::v14::ListRow) -> smith_host_domain::ListedModel {
     let smith_channel::v14::ListRow { name: field_000000, shown: field_000001, window: field_000002, output: field_000003, efforts: field_000004 } = record;
     smith_host_domain::ListedModel {

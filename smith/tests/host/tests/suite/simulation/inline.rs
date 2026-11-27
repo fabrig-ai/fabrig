@@ -406,6 +406,7 @@ fn workspace_start(seed: u64) -> smith_host_domain::Start {
     source.workspace = Some(Token::new(9));
     source.directories = Box::from([smith_host_domain::Directory {
         results: None,
+        hooks: None,
         host: Box::from(b"/host".as_slice()),
         name: b"work".as_slice().into(),
         root: Token::new(1),

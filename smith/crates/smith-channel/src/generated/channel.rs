@@ -9,14 +9,15 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 14;
 pub const LAYOUT: [u8; 32] = [
-    0x73, 0xcc, 0xbf, 0xa7, 0x9a, 0xfd, 0x36, 0x02, 0x06, 0x73, 0x1c, 0xd7, 0x2b, 0x17, 0x19, 0xd1, 0xbd, 0x2c, 0x5e,
-    0x04, 0xf1, 0x99, 0x68, 0x24, 0xec, 0x6d, 0x03, 0x5b, 0x45, 0xb6, 0xd1, 0x0f,
+    0x83, 0x3e, 0x35, 0x5d, 0xb3, 0x83, 0xc8, 0x22, 0x89, 0x12, 0x90, 0xe2, 0xd8, 0x15, 0x36, 0x5b, 0x3d, 0x54, 0xd9,
+    0x5a, 0x0c, 0x6b, 0xb8, 0x5c, 0x58, 0xa6, 0x7f, 0x9e, 0x59, 0x2a, 0xb5, 0x39,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
+    pub hook_times_fault: u32,
     pub directory_name: u32,
     pub directory_path: u32,
     pub directory_conflicts: u32,
@@ -69,6 +70,7 @@ pub struct Limits {
 }
 
 pub const CEILINGS: Limits = Limits {
+    hook_times_fault: 1_024,
     directory_name: 1_024,
     directory_path: 4_096,
     directory_conflicts: 1_024,
@@ -121,6 +123,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 pub const LIMIT_NAMES: &[&str] = &[
+    "hook_times_fault",
     "directory_name",
     "directory_path",
     "directory_conflicts",
@@ -176,6 +179,7 @@ impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
         List::from_boxed([
+            self.hook_times_fault,
             self.directory_name,
             self.directory_path,
             self.directory_conflicts,
@@ -232,6 +236,7 @@ impl Limits {
     pub fn at_most(&self, most: u32) -> Limits {
         let _: u32 = most;
         Limits {
+            hook_times_fault: self.hook_times_fault.min(most),
             directory_name: self.directory_name.min(most),
             directory_path: self.directory_path.min(most),
             directory_conflicts: self.directory_conflicts.min(most),
@@ -286,6 +291,7 @@ impl Limits {
 }
 
 const LIMIT_PATHS: &[Path] = &[
+    paths::HOOK_TIMES_FAULT,
     paths::DIRECTORY_NAME,
     paths::DIRECTORY_PATH,
     paths::DIRECTORY_CONFLICTS,
@@ -356,12 +362,21 @@ pub mod paths {
     pub const WINDOW_TURNS: Path = Path::new("Window.turns");
     pub const WINDOW_BYTES: Path = Path::new("Window.bytes");
     pub const WINDOW_TAIL: Path = Path::new("Window (tail)");
+    pub const HOOK_TIME_TIME: Path = Path::new("HookTime.time");
+    pub const HOOK_TIME_ASKED: Path = Path::new("HookTime.asked");
+    pub const HOOK_TIME_TAIL: Path = Path::new("HookTime (tail)");
+    pub const HOOK_TIMES_DELIVER: Path = Path::new("HookTimes.deliver");
+    pub const HOOK_TIMES_FINISH: Path = Path::new("HookTimes.finish");
+    pub const HOOK_TIMES_CEILING: Path = Path::new("HookTimes.ceiling");
+    pub const HOOK_TIMES_FAULT: Path = Path::new("HookTimes.fault");
+    pub const HOOK_TIMES_TAIL: Path = Path::new("HookTimes (tail)");
     pub const DIRECTORY_NAME: Path = Path::new("Directory.name");
     pub const DIRECTORY_PATH: Path = Path::new("Directory.path");
     pub const DIRECTORY_WRITABLE: Path = Path::new("Directory.writable");
     pub const DIRECTORY_GIT: Path = Path::new("Directory.git");
     pub const DIRECTORY_CONFLICTS: Path = Path::new("Directory.conflicts");
     pub const DIRECTORY_RESULTS: Path = Path::new("Directory.results");
+    pub const DIRECTORY_HOOKS: Path = Path::new("Directory.hooks");
     pub const DIRECTORY_TAIL: Path = Path::new("Directory (tail)");
     pub const WORKSPACE_DIRECTORIES: Path = Path::new("Workspace.directories");
     pub const WORKSPACE_TAIL: Path = Path::new("Workspace (tail)");
@@ -763,6 +778,124 @@ impl Record for Window {
     }
 }
 
+// Type: HookTime.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HookTime {
+    pub time: skein_lib::Duration,
+    pub asked: skein_lib::Duration,
+}
+
+// Record: HookTime.
+impl HookTime {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 16;
+}
+
+impl Record for HookTime {
+    type Limits = Limits;
+    const TAIL: Path = paths::HOOK_TIME_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "HookTime")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "HookTime")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Span, &self.time, limits, out, paths::HOOK_TIME_TIME)?;
+        field::write(field::Span, &self.asked, limits, out, paths::HOOK_TIME_ASKED)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            time: field::read(field::Span, limits, reader, paths::HOOK_TIME_TIME)?,
+            asked: field::read(field::Span, limits, reader, paths::HOOK_TIME_ASKED)?,
+        })
+    }
+}
+
+// Type: HookTimes.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HookTimes {
+    pub deliver: Option<HookTime>,
+    pub finish: Option<HookTime>,
+    pub ceiling: skein_lib::Duration,
+    pub fault: Box<[u8]>,
+}
+
+// Record: HookTimes.
+impl HookTimes {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("HookTime"),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Named("HookTime"),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, hook_times_fault) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 4, 5] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 46;
+}
+
+impl Record for HookTimes {
+    type Limits = Limits;
+    const TAIL: Path = paths::HOOK_TIMES_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "HookTimes")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "HookTimes")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Optional { item: field::Nested }, &self.deliver, limits, out, paths::HOOK_TIMES_DELIVER)?;
+        field::write(field::Optional { item: field::Nested }, &self.finish, limits, out, paths::HOOK_TIMES_FINISH)?;
+        field::write(field::Span, &self.ceiling, limits, out, paths::HOOK_TIMES_CEILING)?;
+        field::write(field::Text { limit: limits.hook_times_fault.min(CEILINGS.hook_times_fault) }, &self.fault, limits, out, paths::HOOK_TIMES_FAULT)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            deliver: field::read(field::Optional { item: field::Nested }, limits, reader, paths::HOOK_TIMES_DELIVER)?,
+            finish: field::read(field::Optional { item: field::Nested }, limits, reader, paths::HOOK_TIMES_FINISH)?,
+            ceiling: field::read(field::Span, limits, reader, paths::HOOK_TIMES_CEILING)?,
+            fault: field::read(field::Text { limit: limits.hook_times_fault.min(CEILINGS.hook_times_fault) }, limits, reader, paths::HOOK_TIMES_FAULT)?,
+        })
+    }
+}
+
 // Type: Directory.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Directory {
@@ -772,6 +905,7 @@ pub struct Directory {
     pub git: bool,
     pub conflicts: List<Box<[u8]>>,
     pub results: Option<Box<[u8]>>,
+    pub hooks: Option<HookTimes>,
 }
 
 // Record: Directory.
@@ -785,11 +919,13 @@ impl Directory {
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, directory_conflicts), item: 4, size: size_of::<Box<[u8]>>() },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, directory_results_some) },
         skein_codec::bounds::Node::Option { item: 6 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7] },
+        skein_codec::bounds::Node::Named("HookTimes"),
+        skein_codec::bounds::Node::Option { item: 8 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7, 9] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 19;
+    pub const ENCODED_AT_ZERO: u64 = 66;
 }
 
 impl Record for Directory {
@@ -820,6 +956,7 @@ impl Record for Directory {
         field::write(field::Boolean, &self.git, limits, out, paths::DIRECTORY_GIT)?;
         field::write(field::Sequence { limit: limits.directory_conflicts.min(CEILINGS.directory_conflicts), minimum: 4, item: field::Text { limit: limits.directory_conflicts_item.min(CEILINGS.directory_conflicts_item) } }, &self.conflicts, limits, out, paths::DIRECTORY_CONFLICTS)?;
         field::write(field::Optional { item: field::Text { limit: limits.directory_results_some.min(CEILINGS.directory_results_some) } }, &self.results, limits, out, paths::DIRECTORY_RESULTS)?;
+        field::write(field::Optional { item: field::Nested }, &self.hooks, limits, out, paths::DIRECTORY_HOOKS)?;
         Ok(())
     }
 
@@ -831,6 +968,7 @@ impl Record for Directory {
             git: field::read(field::Boolean, limits, reader, paths::DIRECTORY_GIT)?,
             conflicts: field::read(field::Sequence { limit: limits.directory_conflicts.min(CEILINGS.directory_conflicts), minimum: 4, item: field::Text { limit: limits.directory_conflicts_item.min(CEILINGS.directory_conflicts_item) } }, limits, reader, paths::DIRECTORY_CONFLICTS)?,
             results: field::read(field::Optional { item: field::Text { limit: limits.directory_results_some.min(CEILINGS.directory_results_some) } }, limits, reader, paths::DIRECTORY_RESULTS)?,
+            hooks: field::read(field::Optional { item: field::Nested }, limits, reader, paths::DIRECTORY_HOOKS)?,
         })
     }
 }
@@ -875,13 +1013,13 @@ impl Record for Workspace {
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
-        field::write(field::Sequence { limit: limits.workspace_directories.min(CEILINGS.workspace_directories), minimum: 15, item: field::Nested }, &self.directories, limits, out, paths::WORKSPACE_DIRECTORIES)?;
+        field::write(field::Sequence { limit: limits.workspace_directories.min(CEILINGS.workspace_directories), minimum: 16, item: field::Nested }, &self.directories, limits, out, paths::WORKSPACE_DIRECTORIES)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
-            directories: field::read(field::Sequence { limit: limits.workspace_directories.min(CEILINGS.workspace_directories), minimum: 15, item: field::Nested }, limits, reader, paths::WORKSPACE_DIRECTORIES)?,
+            directories: field::read(field::Sequence { limit: limits.workspace_directories.min(CEILINGS.workspace_directories), minimum: 16, item: field::Nested }, limits, reader, paths::WORKSPACE_DIRECTORIES)?,
         })
     }
 }
@@ -7744,6 +7882,8 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Grant", nodes: Grant::SHAPE },
     skein_codec::bounds::Declaration { name: "GrantRefresh", nodes: GrantRefresh::SHAPE },
     skein_codec::bounds::Declaration { name: "GrantValue", nodes: GrantValue::SHAPE },
+    skein_codec::bounds::Declaration { name: "HookTime", nodes: HookTime::SHAPE },
+    skein_codec::bounds::Declaration { name: "HookTimes", nodes: HookTimes::SHAPE },
     skein_codec::bounds::Declaration { name: "HostAnswer", nodes: HostAnswer::SHAPE },
     skein_codec::bounds::Declaration { name: "HostAsk", nodes: HostAsk::SHAPE },
     skein_codec::bounds::Declaration { name: "HostReply", nodes: HostReply::SHAPE },
@@ -7818,6 +7958,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
 ];
 
 static CEILING_VALUES: &[u32] = &[
+    CEILINGS.hook_times_fault,
     CEILINGS.directory_name,
     CEILINGS.directory_path,
     CEILINGS.directory_conflicts,

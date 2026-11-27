@@ -65,6 +65,7 @@ use crate::translate;
 #[derive(Debug)]
 pub(crate) struct Items {
     workstream: u64,
+    hook_timeout_max_seconds: u32,
     spec: Option<wire::Workspace>,
     tags: Box<[u64]>,
     branches: Box<[Option<Box<[u8]>>]>,
@@ -160,6 +161,7 @@ fn stage_items(
     }
     let entry = Items {
         workstream,
+        hook_timeout_max_seconds: items.hook_timeout_max_seconds,
         spec: Some(items),
         tags: tags.into_boxed(),
         branches: branches.into_boxed(),
@@ -833,6 +835,7 @@ pub(crate) fn directories(domain: &mut Domain, workspace: Token) -> (Token, Box<
         roots
             .push(agent::Directory {
                 results: None,
+                hooks: None,
                 root: directory,
                 name: copy_of(&root.name),
                 host: Box::new([]),
@@ -846,6 +849,23 @@ pub(crate) fn directories(domain: &mut Domain, workspace: Token) -> (Token, Box<
         roots.get_mut(conflicts.repository).expect("known repository").conflicts = conflicts.files;
     }
     (directory, roots.into_boxed())
+}
+
+/// The ceiling of the named run's held checkout, for the worker's start read.
+pub(crate) fn hook_timeout_ceiling(domain: &Domain, run: Token, directory: Token) -> Option<u32> {
+    for (_, workspace) in &domain.workspaces {
+        let held = match workspace.state {
+            State::Ready { directory, .. } => directory,
+            State::Preparing { .. } | State::Releasing | State::Closed => continue,
+        };
+        if held == directory
+            && let Some(hosting) = domain.host.hosting(workspace.run)
+            && hosting.run == run
+        {
+            return Some(domain.items.get(&workspace.items).expect("held workspace items").hook_timeout_max_seconds);
+        }
+    }
+    None
 }
 
 /// The prepared checkout's directory and writable repository name, for a job.

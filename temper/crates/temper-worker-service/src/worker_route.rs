@@ -250,6 +250,7 @@ pub fn fit_start(mut start: smith::Start, limits: &smith_domain_run::Limits, cha
                     git: directory.git,
                     conflicts: directory.conflicts.clone(),
                     results: None,
+                    hooks: directory.hooks.clone(),
                 })
                 .expect("one entry per prepared directory");
         }

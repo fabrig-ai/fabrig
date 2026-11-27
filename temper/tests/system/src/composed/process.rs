@@ -800,6 +800,7 @@ fn mount(directories: &[agent::Directory], disk: &Checkout, mounted: &mut Disk) 
         }
         mounts.push(run::Directory {
             results: None,
+            hooks: None,
             name: directory.name.clone(),
             host: [b"/".as_slice(), directory.name.as_ref()].concat().into_boxed_slice(),
             root: Token::new(mounted.root(&directory.name)),

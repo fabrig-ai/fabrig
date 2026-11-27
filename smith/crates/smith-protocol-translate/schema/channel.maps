@@ -10,6 +10,8 @@ direction to record
 
 record CallName = r::CallName to domain
 record Window = smith_domain::Window to domain
+record HookTime = r::HookTime to domain
+record HookTimes = r::HookTimes to domain
 record Directory = crate::Mount to domain { conflicts slice }
 enum GrantValue by hand
 record Grant by hand

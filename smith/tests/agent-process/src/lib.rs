@@ -371,6 +371,7 @@ pub(crate) fn start_workspace_message(
                 directories
                     .push(smith_channel::Directory {
                         results: None,
+                        hooks: None,
                         name: name.into(),
                         path: path.into(),
                         writable: false,

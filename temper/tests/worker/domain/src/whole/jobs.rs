@@ -271,7 +271,7 @@ impl World {
                 grants: Box::new([]),
                 workspace: Some(host::Workspace { workstream: 81, items: Token::new(0) }),
             },
-            items: Ok(wire::Workspace { rerun: None, hook_timeout_max_seconds: 3600, repositories }),
+            items: Ok(wire::Workspace { hook_timeout_max_seconds: 3600, rerun: None, repositories }),
             spec,
         })?;
         Ok(())

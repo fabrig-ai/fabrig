@@ -203,6 +203,7 @@ fn workspace(writable: bool) -> (Checkout, run::Workspace) {
         run::Workspace {
             directories: Box::new([run::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root,

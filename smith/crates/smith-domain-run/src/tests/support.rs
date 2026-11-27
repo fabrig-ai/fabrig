@@ -317,6 +317,7 @@ pub(crate) fn workspace() -> Workspace {
     Workspace {
         directories: Box::new([Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: bytes(b"temper"),
             root: Token::new(900),
@@ -415,6 +416,7 @@ pub(crate) fn failed(failure: RunFailure, spent: Spend) -> Answer {
 pub(crate) fn repository(name: &[u8]) -> Directory {
     Directory {
         results: None,
+        hooks: None,
         host: Box::from(b"/host".as_slice()),
         name: bytes(name),
         root: Token::new(1),
@@ -486,6 +488,7 @@ pub(crate) fn coding_workspace() -> Workspace {
         directories: Box::new([
             Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"temper"),
                 root: Token::new(900),
@@ -495,6 +498,7 @@ pub(crate) fn coding_workspace() -> Workspace {
             },
             Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"docs"),
                 root: Token::new(901),
@@ -736,6 +740,7 @@ pub(crate) fn workspace_directory(name: &[u8], root: u64, writable: bool, git: b
     }
     Directory {
         results: None,
+        hooks: None,
         host: Box::from(b"/host".as_slice()),
         name: bytes(name),
         root: Token::new(root),

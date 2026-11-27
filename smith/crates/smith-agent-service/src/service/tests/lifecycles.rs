@@ -128,6 +128,7 @@ fn a_start_attaches_its_mounts_in_order_then_enters_the_domain() {
         decoded_start(Box::new([
             smith_protocol_translate::Mount {
                 results: None,
+                hooks: None,
                 name: Box::from(b"first".as_slice()),
                 path: Box::from(b"/first".as_slice()),
                 writable: true,
@@ -136,6 +137,7 @@ fn a_start_attaches_its_mounts_in_order_then_enters_the_domain() {
             },
             smith_protocol_translate::Mount {
                 results: None,
+                hooks: None,
                 name: Box::from(b"second".as_slice()),
                 path: Box::from(b"/second".as_slice()),
                 writable: false,
@@ -230,6 +232,7 @@ fn start_stubborn_command(stages: &mut Stages) -> (Token, Token, [Token; 2]) {
             git: false,
             conflicts: Box::new([]),
             results: None,
+            hooks: None,
         }]),
     });
     stages.machine.from_domain(

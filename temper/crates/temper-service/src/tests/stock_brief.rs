@@ -8,7 +8,7 @@
 )]
 use super::{engine, fixtures, generated};
 use fixtures::parsed_agent as worker_agent;
-use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 use smith_domain_run as run;
 
@@ -111,6 +111,12 @@ fn workspace(writable: bool) -> run::Workspace {
     run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: writable.then_some(run::HookTimes {
+                deliver: Some(run::HookTime { time: Duration::from_secs(900), asked: Duration::from_secs(900) }),
+                finish: None,
+                ceiling: Duration::from_secs(3600),
+                fault: Box::default(),
+            }),
             name: b"work".as_slice().into(),
             host: b"/work".as_slice().into(),
             root: Token::new(1),
@@ -218,7 +224,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
             const CHARTER_5_WITH_SMALL_BRIEF_OWNED: u64 = 62_052;
             assert_eq!(original.owned_bytes().unwrap(), CHARTER_5_WITH_SMALL_BRIEF_OWNED);
 
-            assert_eq!(receiving, 127_391);
+            assert_eq!(receiving, 127_319, "the joint bound also owns the directory’s hook metadata");
             assert!(original.owned_bytes().unwrap() <= receiving, "the goal's smaller offer keeps its maximal brief");
         }
         if original.owned_bytes().unwrap() > receiving {

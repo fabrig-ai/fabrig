@@ -23,8 +23,40 @@ pub fn window_to_domain(record: smith_channel::v14::Window) -> smith_domain::Win
 }
 
 #[must_use]
+pub fn hook_time_to_domain(record: smith_channel::v14::HookTime) -> smith_domain::run::HookTime {
+    let smith_channel::v14::HookTime { time: field_000000, asked: field_000001 } = record;
+    smith_domain::run::HookTime {
+        time: field_000000,
+        asked: field_000001
+    }
+}
+
+#[must_use]
+pub fn hook_times_to_domain(record: smith_channel::v14::HookTimes) -> smith_domain::run::HookTimes {
+    let smith_channel::v14::HookTimes { deliver: field_000000, finish: field_000001, ceiling: field_000002, fault: field_000003 } = record;
+    smith_domain::run::HookTimes {
+        deliver: match field_000000 {
+            Some(item) => {
+                let converted = hook_time_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        finish: match field_000001 {
+            Some(item) => {
+                let converted = hook_time_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        ceiling: field_000002,
+        fault: field_000003
+    }
+}
+
+#[must_use]
 pub fn directory_to_domain(record: smith_channel::v14::Directory) -> crate::Mount {
-    let smith_channel::v14::Directory { name: field_000000, path: field_000001, writable: field_000002, git: field_000003, conflicts: field_000004, results: field_000005 } = record;
+    let smith_channel::v14::Directory { name: field_000000, path: field_000001, writable: field_000002, git: field_000003, conflicts: field_000004, results: field_000005, hooks: field_000006 } = record;
     crate::Mount {
         name: field_000000,
         path: field_000001,
@@ -43,6 +75,13 @@ pub fn directory_to_domain(record: smith_channel::v14::Directory) -> crate::Moun
         results: match field_000005 {
             Some(item) => {
                 let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        hooks: match field_000006 {
+            Some(item) => {
+                let converted = hook_times_to_domain(item);
                 Some(converted)
             }
             None => None,

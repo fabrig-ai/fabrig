@@ -101,6 +101,12 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// The items' hook ceiling in seconds for an agent start's held checkout.
+    #[must_use]
+    pub fn hook_timeout_ceiling(&self, run: Token, directory: Token) -> Option<u32> {
+        crate::workspace::hook_timeout_ceiling(self, run, directory)
+    }
+
     /// Entries between the root's children. Child outputs are empty between
     /// entry points, since each completes its hand-offs; payload hand-outs
     /// remain pending until their ordered returns.

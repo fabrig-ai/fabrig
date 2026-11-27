@@ -120,6 +120,7 @@ fn workspace() -> run::Workspace {
     run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: b"work".as_slice().into(),
             root: Token::new(7),
@@ -1106,6 +1107,7 @@ fn maximum_workspace(limits: &run::Limits) -> run::Workspace {
         directories: Box::new([
             run::Directory {
                 results: None,
+                hooks: None,
                 host: format!(
                     "/{:h<width$}",
                     "",
@@ -1133,6 +1135,7 @@ fn maximum_workspace(limits: &run::Limits) -> run::Workspace {
             },
             run::Directory {
                 results: None,
+                hooks: None,
                 host: format!(
                     "/{:h<width$}",
                     "",

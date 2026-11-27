@@ -202,6 +202,7 @@ fn admission_refusals_preserve_separate_process_rights() {
             Start {
                 directories: Box::new([smith_host_domain::Directory {
                     results: None,
+                    hooks: None,
                     host: Box::from(b"/host".as_slice()),
                     root: Token::new(1),
                     name: Box::from(&b"a"[..]),

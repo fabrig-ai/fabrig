@@ -66,6 +66,7 @@ pub const LIMITS: Limits = Limits {
 pub(super) fn workspace() -> Workspace {
     let repository = Directory {
         results: None,
+        hooks: None,
         host: Box::from(b"/host".as_slice()),
         name: (*b"temper").into(),
         root: Token::new(1),

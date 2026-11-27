@@ -522,11 +522,20 @@ pub enum Returned {
         check: Box<[u8]>,
         /// The time allowed by the check timeout or the caller's earlier deadline.
         given: Duration,
+        /// The directory’s requested time, only when cut by the host’s ceiling.
+        ceiling_cut: Option<Duration>,
         /// Checks' process terminal, including its bounded diagnostic tail.
         ran: Ran,
     },
     /// The repository's required check reached no verdict; the same tree may be delivered again.
-    ChecksNotJudged { repository: Box<[u8]>, check: Box<[u8]>, given: Duration, ran: Ran },
+    ChecksNotJudged {
+        repository: Box<[u8]>,
+        check: Box<[u8]>,
+        given: Duration,
+        /// The directory’s requested time, only when cut by the host’s ceiling.
+        ceiling_cut: Option<Duration>,
+        ran: Ran,
+    },
     /// Delivery cannot land later because the host context moved, and
     /// the run ends.
     Stale,

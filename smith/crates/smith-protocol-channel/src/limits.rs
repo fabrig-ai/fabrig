@@ -96,6 +96,7 @@ fn start_cells(limits: &smith_channel::Limits) -> Option<u64> {
         directory_name: 0,
         directory_path: 0,
         directory_results_some: 0,
+        hook_times_fault: 0,
         directory_conflicts_item: 0,
         credential_value_bytes: 0,
         program_value_name: 0,

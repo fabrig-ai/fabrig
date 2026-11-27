@@ -5,6 +5,7 @@
 //! checked against receiving Limits before retained state changes. Durable decisions
 //! belong to the parent, which scopes `CallName` by the same logical run after restart.
 pub use crate::source_name::SourceName;
+pub use smith_domain::run::{HOOK_FAULT_BYTES, HookTime, HookTimes};
 
 use crate::{Charter, Declared, Delivery, Fields, Transcript, TurnValue};
 use alloc::boxed::Box;
@@ -103,6 +104,7 @@ pub struct Directory {
     pub conflicts: Box<[Box<[u8]>]>,
     /// Check results retained by the host beside the workspace tree.
     pub results: Option<Box<[u8]>>,
+    pub hooks: Option<HookTimes>,
 }
 
 /// Credential name and value form forwarded to the protocol; never credential bytes
