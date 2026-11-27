@@ -105,7 +105,7 @@ fn an_accept_with_another_channel_version_keeps_the_link_ready() {
     world.run();
     assert!(world.has_channel());
     assert!(world.root().iter().any(|event| matches!(event, Request::Ready)));
-    assert!(world.facts().is_empty());
+    assert_eq!(world.facts(), []);
     world.advance(Duration::from_millis(100));
     assert_eq!(world.dials().len(), 1);
 }
