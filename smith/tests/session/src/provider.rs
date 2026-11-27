@@ -44,6 +44,8 @@ pub fn menu() -> Menu {
             after: b" ".as_slice().into(),
             unissued: UNISSUED_JOB.to_string().into_bytes().into_boxed_slice(),
             weight: 100,
+            with: Box::new([]),
+            foreign: 0,
             numeric: Some(Bounds { low: 1, high: u64::from(u32::MAX) }),
         }]),
     }
