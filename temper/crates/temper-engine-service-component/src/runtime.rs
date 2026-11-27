@@ -249,7 +249,7 @@ impl engine::Engine {
     pub fn build_name(&mut self, name: &'static str) {
         self.store.build_name(name);
     }
-    /// Test seam: replace this service's patch sets before `adopt_store`
+    /// Test seam: replace this service's owner sets before `adopt_store`
     /// (protocol/floor.md, 3). Production keeps the binary's sets.
     pub fn owner_sets(&mut self, sets: jig_protocol_store::OwnerSets) {
         self.store.owner_sets(sets);

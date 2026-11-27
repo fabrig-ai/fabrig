@@ -126,7 +126,7 @@ pub(super) fn drive(disk: &mut Disk, store: &mut Store, first: Box<[Event]>) -> 
                 rows += u64::try_from(page.rows.len()).unwrap();
                 commits += 1;
                 // Context reads remain served while a job page is out.
-                let context = store.patch_page(skein_kv::Range::prefix(b"l"), None, 1).unwrap();
+                let context = store.job_read(skein_kv::Range::prefix(b"l"), None, 1).unwrap();
                 assert!(context.rows.len() <= 1);
                 let before = store.stores.store.last();
                 let response = answer(&page, of, &job);

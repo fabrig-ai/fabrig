@@ -14,6 +14,9 @@ pub fn family_subject() -> Watchable {
     }
 }
 pub fn hello_event(heartbeat: Duration) -> Box<[u8]> {
+    event_bytes(&w::StreamEvent::Opened(opened(heartbeat)))
+}
+pub fn opened(heartbeat: Duration) -> w::Opened {
     let mut served = List::with_capacity(2);
     served
         .push(w::Served {
@@ -24,11 +27,14 @@ pub fn hello_event(heartbeat: Duration) -> Box<[u8]> {
         .unwrap();
     served.push(w::Served { owner: w::Owner::Family(w::Family { number: 19 }), first: 23, last: 23 }).unwrap();
     let hello = w::Hello { stream: STREAM, served, heartbeat };
-    event_bytes(&jig_client_test_records::opened_with_layouts(
+    let w::StreamEvent::Opened(opened) = jig_client_test_records::opened_with_layouts(
         hello,
         frame_record(),
         &[jig_client_test_records::family_layout(OWNER.family, OWNER.layout)],
-    ))
+    ) else {
+        unreachable!("Opened fixture");
+    };
+    opened
 }
 pub fn event_bytes(value: &w::StreamEvent) -> Box<[u8]> {
     let mut binary = Writer::new(
@@ -292,8 +298,9 @@ impl Harness {
 }
 
 pub fn not_served() -> w::NotServed {
-    let owner = w::Owner::Family(w::Family { number: 19 });
+    let owner = w::Owner::Family(w::Family { number: OWNER.family });
     let mut served = List::with_capacity(1);
-    served.push(w::Served { owner: owner.clone(), first: 28, last: 28 }).unwrap();
+    // Even a range containing the client's version cannot override the refusal.
+    served.push(w::Served { owner: owner.clone(), first: OWNER.version, last: OWNER.version }).unwrap();
     w::NotServed { owner, served }
 }

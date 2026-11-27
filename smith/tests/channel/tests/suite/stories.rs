@@ -5,26 +5,12 @@ use smith_channel_world::{Observation, World, initial_grant, latest_grant, refre
 use smith_charter::Record;
 
 #[test]
-fn the_halves_open_on_the_highest_version_both_speak() {
+fn the_halves_open_at_the_frozen_version() {
     for mode in [StreamMode::One, StreamMode::Two] {
         let mut world = World::new(CEILINGS, CEILINGS, mode);
         world.settle();
         assert!(world.observations().contains(&Observation::HostOpened(smith_channel::kind::VERSION)));
         assert!(world.observations().contains(&Observation::AgentOpened(smith_channel::kind::VERSION)));
-    }
-}
-
-#[test]
-fn no_version_in_common_ends_the_channel_before_a_start() {
-    for version in [1, 2, 3, 4, 5] {
-        let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-        world.agent_hears_foreign_version(version);
-        world.settle();
-        assert!(world.observations().contains(&Observation::AgentEnded(Closed::RefusedHere(1))), "version {version}");
-        assert!(
-            !world.observations().contains(&Observation::AgentOpened(smith_channel::kind::VERSION)),
-            "version {version}"
-        );
     }
 }
 

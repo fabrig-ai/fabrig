@@ -64,9 +64,7 @@ fn trial_root(kind: c::AccountKind) -> (d::Domain, Token, Token) {
             kept: List::with_capacity(0),
             with: Some(jig_client::With::Transport),
         },
-        d::Event::Client {
-            event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
-        },
+        d::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
     ] {
         d::step(
             &mut root,

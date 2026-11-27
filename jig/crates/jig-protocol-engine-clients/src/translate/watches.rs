@@ -51,15 +51,7 @@ pub(crate) fn refused(why: core::WatchRefusal) -> w::WatchRefusal {
     mapped::watch_refusal_to_record(&why)
 }
 pub(crate) fn hello(name: [u8; 16], settings: &crate::Settings) -> w::Hello {
-    let mut served = List::with_capacity(settings.served.len());
-    for range in &settings.served {
-        let owner = match range.family {
-            None => w::Owner::Jig,
-            Some(number) => w::Owner::Family(w::Family { number }),
-        };
-        served.push(w::Served { owner, first: range.first, last: range.last }).expect("served ranges fit");
-    }
-    w::Hello { stream: name, served, heartbeat: settings.heartbeat }
+    w::Hello { stream: name, served: crate::served::wire_ranges(settings), heartbeat: settings.heartbeat }
 }
 pub(crate) fn layouts(settings: &crate::Settings) -> List<w::Layout> {
     let mut layouts = List::with_capacity(settings.served.len());

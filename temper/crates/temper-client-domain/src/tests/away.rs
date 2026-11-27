@@ -43,14 +43,7 @@ fn opened() -> (Domain, Token, Token) {
     f::confirm(&mut root, frame, f::PARTY, &mut out);
     let watch = opening(&mut out).expect("Away watch");
     up(&mut root, Up::Watched { watch, event: c::WatchEvent::Opened });
-    up(
-        &mut root,
-        Up::FamilyServed {
-            family: wire::FORGE,
-            served: true,
-            versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
-        },
-    );
+    up(&mut root, Up::FamilyServed { family: wire::FORGE, served: true });
     (root, watch, frame)
 }
 fn record(projects: &[u32]) -> Family {

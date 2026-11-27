@@ -66,12 +66,10 @@ impl From<skein_lib::Overflow> for Error {
 pub fn output_bytes(limits: &Limits) -> Option<u32> {
     let schema = smith_protocol_channel::schema_for_start(&limits.bodies, limits.start_bytes).ok()?;
     let mut largest = 0;
-    for version in &schema.versions {
-        for kind in &version.kinds {
-            match kind.direction {
-                skein_channel::Direction::FromInitiator => largest = largest.max(kind.largest),
-                skein_channel::Direction::FromResponder => (),
-            }
+    for kind in &schema.kinds {
+        match kind.direction {
+            skein_channel::Direction::FromInitiator => largest = largest.max(kind.largest),
+            skein_channel::Direction::FromResponder => (),
         }
     }
     largest.checked_add(8)

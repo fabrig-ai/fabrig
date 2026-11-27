@@ -58,8 +58,8 @@ Refused unchanged if the configuration directory holds a current or former confi
 
 - **Set:** public
 - **Forms:** ``
-- Print this binary's patch levels, its store's and families' versions, and its wires, one line each.
-- **Notes:** Reads no configuration and no store.
+- Print levels, store and family versions, wire fingerprints, the host tools' contract floor and version, and bounds.
+- **Notes:** Each entry takes one line. Reads no configuration and no store.
 
 ### `temper-box upgrade --check`
 
@@ -83,10 +83,10 @@ Refused unchanged if the configuration directory holds a current or former confi
 
 - **Set:** public
 - **Forms:** `[DIRECTORIES]`
-- Makes the previous generation active again, before the patched one's first commit.
+- Makes the previous generation active again, before the upgraded one's first commit.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
-- **Notes:** Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.
+- **Notes:** Stop the deployment first, then start the old binary after going back. Past the upgraded generation's first commit, going back is restoring a backup.
 
 ### `temper-box checkpoint`
 

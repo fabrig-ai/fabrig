@@ -79,8 +79,8 @@ pub struct World {
 #[derive(Clone, Copy, Debug)]
 pub enum Step {
     Construct,
-    Begin { input: u64, patching: bool },
-    End { patching: bool },
+    Begin { input: u64, upgrading: bool },
+    End { upgrading: bool },
 }
 
 /// Disk-changing kernel calls, including durable replace's internal steps.
@@ -151,7 +151,7 @@ fn file_heap(event: &file::Event) -> u64 {
 fn drivers(root: skein_io::kernel::Fd, limits: &jig_protocol_store::Limits) -> ([FileIo; 4], FileLimits) {
     let whole = jig_protocol_store::host::max_whole(limits);
     jig_protocol_store::sizes::whole(whole).expect("world drivers hold the largest manifest");
-    // A rehearsal's patch holds deployment/scratch/transcript roots, three directory pairs, and two copy files.
+    // An upgrade rehearsal holds deployment/scratch/transcript roots, three directory pairs, and two copy files.
     let files = FileLimits {
         files: 11,
         read: jig_protocol_store::host::max_read(limits).max(limits.store.record.saturating_add(17)),
@@ -220,7 +220,7 @@ impl World {
         }
         let component = Store::on_directory(checked, root::APPLICATION, &[], seeded);
         if let Some(observe) = observer {
-            observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&component) });
+            observe(Step::End { upgrading: jig_protocol_store::sizes::is_upgrading(&component) });
         }
         World {
             operation_hook: None,
@@ -603,9 +603,9 @@ impl World {
     }
 
     pub fn enqueue(&mut self, request: Request) {
-        self.observe(Step::Begin { input: 0, patching: jig_protocol_store::sizes::is_patching(&self.store) });
+        self.observe(Step::Begin { input: 0, upgrading: jig_protocol_store::sizes::is_upgrading(&self.store) });
         jig_protocol_store::down(&mut self.store, &self.env, request, &mut self.above, &mut self.below);
-        self.observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&self.store) });
+        self.observe(Step::End { upgrading: jig_protocol_store::sizes::is_upgrading(&self.store) });
     }
 
     #[must_use]
@@ -653,9 +653,9 @@ impl World {
         rows: u32,
         bytes: u64,
     ) -> Result<jig_protocol_store::retained::Page, jig_protocol_store::restore::Failure> {
-        self.observe(Step::Begin { input: 0, patching: jig_protocol_store::sizes::is_patching(&self.store) });
+        self.observe(Step::Begin { input: 0, upgrading: jig_protocol_store::sizes::is_upgrading(&self.store) });
         let page = self.store.retained_page(after, rows, bytes);
-        self.observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&self.store) });
+        self.observe(Step::End { upgrading: jig_protocol_store::sizes::is_upgrading(&self.store) });
         page
     }
 
@@ -816,7 +816,7 @@ impl World {
                 if self.halted || self.cut.is_some_and(|cut| self.operations >= cut) {
                     return None;
                 }
-                // Patching may have ready in-memory work between file asks.
+                // An upgrade may have ready in-memory work between file asks.
                 // Keep firing until its next job page, file ask or terminal.
                 self.drive();
                 events = answers(&mut self.above);
@@ -1085,9 +1085,9 @@ impl World {
 
     fn drive_until(&mut self, pause: Option<u32>) {
         for _ in 0..10_000 {
-            self.observe(Step::Begin { input: 0, patching: jig_protocol_store::sizes::is_patching(&self.store) });
+            self.observe(Step::Begin { input: 0, upgrading: jig_protocol_store::sizes::is_upgrading(&self.store) });
             jig_protocol_store::fire(&mut self.store, &self.env, &mut self.above, &mut self.below);
-            self.observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&self.store) });
+            self.observe(Step::End { upgrading: jig_protocol_store::sizes::is_upgrading(&self.store) });
             if !self.kernel_cuts {
                 self.operation_boundary();
             }
@@ -1196,11 +1196,11 @@ impl World {
             _ => panic!("four drivers"),
         };
         if let Some(observe) = self.observer {
-            observe(Step::Begin { input, patching: jig_protocol_store::sizes::is_patching(&self.store) });
+            observe(Step::Begin { input, upgrading: jig_protocol_store::sizes::is_upgrading(&self.store) });
         }
         jig_protocol_store::up(&mut self.store, &self.env, event, &mut self.above, &mut self.below);
         if let Some(observe) = self.observer {
-            observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&self.store) });
+            observe(Step::End { upgrading: jig_protocol_store::sizes::is_upgrading(&self.store) });
         }
     }
 
@@ -1383,7 +1383,7 @@ fn answer_job(
     page: &jig_protocol_store::JobPage,
     store: &mut Store,
 ) -> Result<jig_protocol_store::JobAnswer, jig_protocol_store::JobRefusal> {
-    if let Some(answer) = crate::patches::job(of, name, page) {
+    if let Some(answer) = crate::upgrade_fixtures::job(of, name, page) {
         return Ok(answer);
     }
     if of == Owner::Jig {

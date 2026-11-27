@@ -67,6 +67,7 @@ pub fn judge_held_layout(
         },
         stored: true,
         retire: false,
+        later: false,
     };
     let current = binary.text(family).ok_or(Unplanned::Text)?;
     let held =

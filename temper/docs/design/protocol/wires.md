@@ -86,14 +86,12 @@ them.
   engine's is refused at the opening (jig's `protocol/channel/wires.md`,
   3), and a change of its layout is met by draining the workers of the
   build before (`../draft/archive/redeploys.md`, 6.1).
-- **One old text stays, as the store's seed:** transcript frames
-  written before the registry hold turns at `smith-transcript` 7, which
-  the open registers from that text (jig's
-  `protocol/store/transcripts.md`, 6). It is kept as
-  `smith/crates/smith-transcript/schema/seed/smith-transcript-v7.schema`,
-  read by the store alone, never by a wire, and goes once dev.fabrig.ai's
-  store holds the rows (`../draft/archive/store-floor.md`). No other
-  text of a build that isn't running is kept.
+- **No old text is kept:** transcript frames written before the
+  registry hold turns at `smith-transcript` 7, which a store reads by
+  the registry row its open wrote for that layout; dev.fabrig.ai's has
+  held it since its open of 2026-11-25 (jig's
+  `protocol/store/transcripts.md`, 6; `../draft/archive/store-floor.md`).
+  No text of a build that isn't running is kept.
 - **Each wire crate says what it speaks,** in a module `wire`:
 
   ```rust
@@ -160,8 +158,9 @@ them.
     the engine's order;
   - the engine, at each opening it refuses: `worker NAME refused at its
     opening: REASON: TEXT`, or, refused by skein's machine before the
-    credential is read, `a worker refused at its opening: version:
-    TEXT` (skein's `net/channel.md`, 5.2);
+    credential is read, `a worker refused at its opening: framing:
+    TEXT` (skein's `net/channel.md`, 5.2), the machine comparing no
+    version;
   - the worker, at each refusal it hears: `the engine refused the
     opening: REASON: TEXT`, then its redial as after any refusal;
   - the engine, at its settled stop, for each worker its component
@@ -201,7 +200,7 @@ them.
   for another worker (jig's `protocol/channel/layouts.md`, 5.1).
 - **The engine's log names either,** in place of `Invalid(Start(Other)):
   charter`: `task T run R attempt A refused: REASON`, REASON the
-  refusal's words: `version mismatch: WIRE N, the worker reads L..H`, or
+  refusal's words: `version mismatch: WIRE N, the worker reads V`, or
   `the worker's layout cannot keep WIRE DECLARATION.PART: WHY`. The
   task's retry notice says the same reason.
 
@@ -376,9 +375,10 @@ them.
   passes (jig's `protocol/client/versions.md`, section 1). A focused test in each crate holds
   the version constants equal to the header (`VERSION`,
   `PUBLIC_VERSION`, `CLIENT_VERSION`).
-- **An engine serves its one version and layout of each,** and refuses
-  another version with *version not served*, naming the ranges served
-  (jig's `protocol/README.md`, section 7). temper declares its owner's
+- **An engine serves its one version and layout of each,** and answers
+  another version *version not served*, naming the owner (jig's
+  `protocol/README.md`, section 7); a client judges the layouts alone
+  (jig's `protocol/client/versions.md`, section 1). temper declares its owner's
   client layout beside its version, to the clients' component and to
   each client it makes, and its public kinds' layout beside theirs: a
   client at another layout of temper's owner finds that owner not
@@ -401,27 +401,30 @@ them.
 - **Two tables:** `temper_engine_service::wires()` builds the display
   table for `versions`, in this order: jig's four
   (`jig_protocol_worker_wire::spoken()`), then `temper-worker-wire`,
-  then `temper-host-tools`. Each worker wire has its one version and
-  its layout, from its `Spoken`, and `temper-host-tools` has its range
-  from its floor and each version's layout. The store takes its own
-  static `WIRES`; tests hold its names and versions equal to the names
-  and highest versions in the display table, in order. The engine's
-  workers component builds its own list of `Spoken`s. The worker's
-  link states the same from its crates (4).
+  each its name and its layout, from its `Spoken`; no wire's version is
+  read as a range. The host tools' contract is no wire of it: a text
+  contract with versions of its own (7), shown apart with its floor
+  and its current version. The store takes its own static `WIRES`;
+  tests hold its names and versions equal to the `Spoken`s' names and
+  frozen versions, in order, then `temper-host-tools` at the
+  contract's current version. The engine's workers component builds
+  its own list of `Spoken`s. The worker's link states the same from its
+  crates (4).
 - **`versions` prints,** after the families' lines (`binaries.md`,
-  section 2), for each wire in the table's order:
+  section 2), one line per wire in the table's order, then the host
+  tools' contract:
 
   ```
-  wire NAME LOWEST HIGHEST
-  layout NAME VERSION FINGERPRINT
+  wire NAME FINGERPRINT
+  contract temper-host-tools FLOOR CURRENT
   ```
 
-  one `layout` line per version from LOWEST to HIGHEST, FINGERPRINT its
-  64 lowercase hex digits: for a worker wire, LOWEST and HIGHEST its one
-  version and one `layout` line, its layout.
+  FINGERPRINT the wire's family fingerprint, 64 lowercase hex digits,
+  once; FLOOR and CURRENT the contract's floor and version (7).
 - **The store keeps the wires** the last start spoke (jig's
   `protocol/store/records.md`, 3, `Wires`): one `{name, version}` per
-  wire of the table, its version the highest.
+  wire of the table, its frozen version, and `temper-host-tools` at the
+  contract's current version, its stored form as before.
 
 ### 10.1 The workers' openings kept
 
@@ -458,14 +461,13 @@ verdict does not change its exit code.
 
 1. **The copy keeps no wires,** a store from before the row: `workers
    may stay: unknown; the copy keeps no wires`, and nothing more.
-2. **The engine's own wires,** those of the table the opening does not
-   state (`temper-host-tools`, section 2): each must be kept, at a
-   version within this binary's range of it, from its floor to its
-   current, since a run adopted across the restart goes on calling the
-   tools of the contract it started with (section 7). Else, for each,
-   `wire NAME: kept V, this binary speaks L..H` or `wire NAME is not
-   kept by the copy`, and no worker may stay. A kept wire the table
-   lacks is passed over.
+2. **The host tools' contract,** which the opening does not state
+   (section 2): it must be kept, at a version this binary answers, from
+   its floor to its current, since a run adopted across the restart
+   goes on calling the tools of the contract it started with (section
+   7). Else `the host tools' contract: kept V, this binary answers
+   F..C` or `the host tools' contract is not kept by the copy`, and no
+   worker may stay. A kept wire the table lacks is passed over.
 3. **The copy's current workers,** read without a restore: temper's
    default workers (`Defaults.workers`, the box's `local` where it
    passes one: `cluster.md`, 1) with the copy's stored worker settings

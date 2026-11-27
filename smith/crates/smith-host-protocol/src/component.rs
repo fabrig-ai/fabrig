@@ -53,7 +53,7 @@ impl CallKey {
 /// A checked channel message or transport event for the host service.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Received {
-    /// Framing and terms have been agreed at this version.
+    /// The channel is ready; `version` is this half's frozen wire version.
     Opened { version: u16 },
     /// The channel ended before or after opening.
     Hangup { why: Closed },
@@ -424,8 +424,8 @@ impl Component {
                         below,
                     );
                 }
-                Some(Event::Ready { version, terms }) => {
-                    match smith_channel::peer_terms_gap(&self.schema, Role::Initiator, version, &terms) {
+                Some(Event::Ready { terms }) => {
+                    match smith_channel::peer_terms_gap(&self.schema, Role::Initiator, &terms) {
                         Some(kind) => {
                             self.machine.down(
                                 Request::Refuse { reason: LIMITS, text: smith_channel::kind::text(kind) },
@@ -435,7 +435,7 @@ impl Component {
                         }
                         None => {
                             self.state = State::Opened;
-                            to_service.push(Received::Opened { version });
+                            to_service.push(Received::Opened { version: self.schema.version });
                         }
                     }
                 }

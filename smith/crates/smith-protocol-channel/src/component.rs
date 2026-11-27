@@ -52,7 +52,7 @@ pub(crate) enum CallRoute {
 /// One channel event for the agent service.
 #[derive(Debug)]
 pub enum Heard {
-    /// Framing and terms have been agreed at this version.
+    /// The channel is ready; `version` is this half's frozen wire version.
     Opened { version: u16 },
     /// Decoded Start whose mounts, live settings and reply right the service resolves before domain admission.
     Start { start: Box<DecodedStart> },

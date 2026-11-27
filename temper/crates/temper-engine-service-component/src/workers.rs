@@ -7,8 +7,9 @@ use jig_domain_host as host;
 use jig_protocol_config::{self as config, Problems, What};
 use jig_protocol_engine_workers as kit;
 use jig_protocol_worker_wire::Part;
+use skein_codec::layout::Refusal;
 use skein_io::{self as io};
-use skein_lib::{List, Map, Queue, Reader, Time, Token};
+use skein_lib::{Buffer, List, Map, Queue, Reader, Time, Token};
 use temper_client_protocol_wire::v1::AgentFigures;
 use temper_engine_domain as root;
 use temper_protocol_worker_wire::v1 as wire;
@@ -17,6 +18,49 @@ use temper_protocol_worker_wire::v1::Record;
 /// families in the engine's statement (temper/docs/design/protocol/wires.md, 4 and 10).
 pub fn application(limits: &wire::Limits) -> Result<jig_protocol_worker_wire::Application, wire::Problem> {
     temper_protocol_worker_wire::application(limits)
+}
+
+// The service calls the wire owner's function before taking another output
+// (jig/docs/design/protocol/channel/layouts.md, 7).
+fn convert(
+    kit::host::Converting { wire, mode, from, to, value, bound }: kit::host::Converting<'_>,
+) -> Result<Box<[u8]>, Refusal> {
+    let mut out = Buffer::with_capacity(bound);
+    let result = if jig_protocol_worker_wire::owns(wire) {
+        jig_protocol_worker_wire::convert(mode, &from, &to, value, &mut out)
+    } else {
+        assert_eq!(wire, temper_protocol_worker_wire::wire::FAMILY, "a declared application wire");
+        temper_protocol_worker_wire::convert(mode, &from, &to, value, &mut out)
+    };
+    result?;
+    Ok(out.to_boxed())
+}
+
+#[cfg(test)]
+#[test]
+fn routes_written_conversions_by_the_waiting_wire() {
+    use skein_codec::{
+        layout::{Mode, Side},
+        schema::parse,
+    };
+    let text = parse(temper_protocol_worker_wire::wire::TEXT.as_bytes()).expect("temper's text");
+    let root = text.root(b"Items", None).expect("temper Items");
+    let cases = [
+        ("jig-worker-wire", "jig"),
+        ("smith-pieces", "jig"),
+        ("smith-charter", "jig"),
+        ("smith-transcript", "jig"),
+        ("temper-worker-wire", "temper"),
+    ];
+    for (wire, owner) in cases {
+        let from = Side { text: &text, root, held: &[] };
+        let to = Side { text: &text, root, held: &[] };
+        let refused = convert(kit::host::Converting { wire, mode: Mode::Keep, from, to, value: b"items", bound: 16 })
+            .expect_err("with no written converters the owner refuses");
+        assert_eq!(&*refused.declaration, "Items");
+        assert_eq!(&*refused.part, "");
+        assert!(refused.why.starts_with(owner), "{wire} was routed to {refused:?}");
+    }
 }
 
 #[derive(Debug)]
@@ -306,6 +350,13 @@ impl Workers {
     }
     pub(crate) fn route(&mut self, output: kit::host::Output, events: &mut Queue<root::Event>) {
         match output {
+            kit::host::Output::Convert => {
+                let answer = match self.host.converting() {
+                    Some(waiting) => convert(waiting),
+                    None => Ok(Box::<[u8]>::default()), // The channel went away before the answer.
+                };
+                self.host.converted(self.host.now(), answer);
+            }
             kit::host::Output::Unpaused { worker, version, mode } => {
                 self.notes.push(crate::Note::WorkerUnpaused { worker, version, mode });
             }

@@ -29,19 +29,6 @@ impl Decoder {
         Ok(())
     }
 
-    pub(crate) fn seed_frames(&mut self, store: &Store) -> Result<(), OpenRefusal> {
-        let mut binary = texts::Binary::new(&store.owner_sets, &mut self.layouts)?;
-        for set in store.owner_sets.sets {
-            for family in set.families {
-                if let Some(frames) = &family.frames {
-                    rows::seed_frames(&mut self.layouts, &mut binary, family, frames)
-                        .ok_or(OpenRefusal::Set { owner: set.owner })?;
-                }
-            }
-        }
-        Ok(())
-    }
-
     pub(crate) fn transcript(
         &mut self,
         family: &str,

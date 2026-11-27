@@ -1,6 +1,6 @@
 //! Project record sizes into skein's schema (protocol/channel/README.md, 4.1).
 use crate::{MAGIC, VERSION, v22};
-use skein_channel::{Direction, Kind as ChannelKind, Role, Schema, Term, Version};
+use skein_channel::{Direction, Kind as ChannelKind, Role, Schema, Term};
 use skein_lib::List;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -154,20 +154,18 @@ pub enum Overflow {
     Body,
 }
 
-pub(crate) fn current(limits: &v22::Limits) -> Result<Version, Overflow> {
+pub(crate) fn current(limits: &v22::Limits) -> Result<List<ChannelKind>, Overflow> {
     let mut kinds = List::with_capacity(u32::try_from(KINDS.len()).expect("the current kinds fit"));
     for rule in KINDS {
         let largest = crate::sizes::body(limits, rule.body).ok_or(Overflow::Body)?;
         kinds.push(ChannelKind { kind: rule.kind, direction: rule.direction, largest }).expect("one row per kind");
     }
-    Ok(Version { version: VERSION, kinds })
+    Ok(kinds)
 }
 
 /// The channel offers the current schema at its one version.
 pub fn schema(limits: &v22::Limits) -> Result<Schema, Overflow> {
-    let mut versions = List::with_capacity(1);
-    versions.push(current(limits)?).expect("one version");
-    Ok(Schema { magic: MAGIC, versions })
+    Ok(Schema { magic: MAGIC, version: VERSION, kinds: current(limits)? })
 }
 
 /// The channel table and jig's current texts.
@@ -177,18 +175,12 @@ pub fn schema_and_spoken(limits: &v22::Limits) -> Result<(Schema, List<crate::Sp
 
 /// The first sending kind whose peer bound does not hold this side's largest.
 #[must_use]
-pub fn terms_gap(schema: &Schema, version: u16, role: Role, terms: &List<Term>) -> Option<u16> {
-    terms_gap_at(schema.version(version)?, role, terms)
-}
-
-/// Check terms against this connection's kinds.
-#[must_use]
-pub fn terms_gap_at(table: &Version, role: Role, terms: &List<Term>) -> Option<u16> {
+pub fn terms_gap(table: &List<ChannelKind>, role: Role, terms: &List<Term>) -> Option<u16> {
     let sending = match role {
         Role::Initiator => Direction::FromInitiator,
         Role::Responder => Direction::FromResponder,
     };
-    for rule in &table.kinds {
+    for rule in table {
         if rule.direction == sending {
             let mut accepted = false;
             for term in terms {

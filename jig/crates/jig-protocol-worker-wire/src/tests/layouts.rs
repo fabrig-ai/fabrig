@@ -1,7 +1,7 @@
 //! Opening and converting worker layouts (jig/docs/design/protocol/channel/layouts.md, 8).
 use crate as wire;
 use crate::layouts::{Cause, MAX_TEXTS, Nested, Peer, Plans, Site, Theirs};
-use crate::{Carried, KINDS, Kind, Record, Root, VERSION, v22};
+use crate::{Carried, KINDS, Kind, Record, Root, v22};
 #[expect(clippy::disallowed_types, reason = "the test spells a fingerprint independently of the protocol")]
 use core::fmt::Write;
 use skein_codec::{
@@ -50,8 +50,17 @@ fn judge_worker(worker: &Schema) -> Peer {
         .expect("worker layout fits")
 }
 
-fn current_table() -> skein_channel::Version {
-    crate::schema(&LIMITS).expect("current wire table").version(VERSION).expect("current version").clone()
+fn current_table() -> List<skein_channel::Kind> {
+    crate::schema(&LIMITS).expect("current wire table").kinds
+}
+
+fn kind_in(table: &List<skein_channel::Kind>, number: u16) -> Option<skein_channel::Kind> {
+    for rule in table {
+        if rule.kind == number {
+            return Some(*rule);
+        }
+    }
+    None
 }
 
 #[test]
@@ -221,7 +230,7 @@ fn cached_kind_bounds_follow_the_supplied_limits() {
 
     let limits = v22::Limits { ask_bytes: ASK_BYTES, ..LIMITS };
     let table = plans.fit_table(&peer, &limits).expect("fit updated bounds");
-    assert_eq!(table.kind(Kind::Ask.number()).expect("ask kind").largest, ASK_BOUND);
+    assert_eq!(kind_in(&table, Kind::Ask.number()).expect("ask kind").largest, ASK_BOUND);
 }
 
 #[test]
@@ -444,10 +453,9 @@ fn the_workers_table_uses_worker_tags_and_known_limit_names() {
     let mut peer = judge_worker(&parse(&worker));
     let table = peer.table(&LIMITS).expect("peer table");
     let current = current_table();
-    assert_eq!(table.version, VERSION);
-    assert_eq!(table.kinds.len(), current.kinds.len().checked_sub(1).expect("one fewer kind"));
-    assert!(table.kind(UP).is_none(), "worker-only receipt stays out of terms");
-    assert!(table.kind(Kind::PartBusy.number()).is_none(), "dropped send stays out of terms");
+    assert_eq!(table.len(), current.len().checked_sub(1).expect("one fewer kind"));
+    assert!(kind_in(&table, UP).is_none(), "worker-only receipt stays out of terms");
+    assert!(kind_in(&table, Kind::PartBusy.number()).is_none(), "dropped send stays out of terms");
     for rule in KINDS {
         if rule.body == Kind::PartBusy {
             continue;
@@ -461,8 +469,8 @@ fn the_workers_table_uses_worker_tags_and_known_limit_names() {
         } else {
             rule.kind
         };
-        let got = table.kind(mapped).expect("mapped kind occurs");
-        let original = current.kind(rule.kind).expect("current kind");
+        let got = kind_in(&table, mapped).expect("mapped kind occurs");
+        let original = kind_in(&current, rule.kind).expect("current kind");
         let delta = if rule.body == Kind::Assignment {
             LIMITS.assignment_parts.checked_add(4).expect("length plus bytes")
         } else {
@@ -528,4 +536,70 @@ fn per_wire_cache_is_keyed_by_text_and_evicts_the_least_recently_seen() {
     assert_eq!(plans.derivations("jig-test-app"), MAX_TEXTS.checked_add(1).expect("one new plan"));
     plans.judge(&[second]).expect("evicted entry is derived again");
     assert_eq!(plans.derivations("jig-test-app"), MAX_TEXTS.checked_add(2).expect("two new plans"));
+}
+
+#[test]
+fn written_passes_use_the_value_layout_and_cache_both_sides_by_text() {
+    const NAME: &str = "written-layout-test";
+    const ENGINE: &str = "family written-layout-test 1\nrecord Value { n: text 10 }\n";
+    const WORKER: &str = "family written-layout-test 1\nrecord Value { n: u32 }\n";
+    let worker = parse(WORKER);
+    let layout = worker.layout(worker.root(b"Value", None).expect("root"), &[]).expect("value layout").digest();
+    let roots = List::from_boxed(Box::new([
+        Root { carried: Carried::Items, wire: NAME, declaration: "Value" },
+        Root { carried: Carried::Left, wire: NAME, declaration: "Value" },
+    ]));
+    let entry = crate::Written { wire: NAME, declaration: "Value", layout };
+    let theirs = stated(&worker);
+    assert_ne!(theirs.layout, layout);
+    for entries in [List::uncapped(), List::from_boxed(Box::new([crate::Written { layout: theirs.layout, ..entry }]))] {
+        let bad = Plans::with_written(&[ENGINE], &roots, &entries).expect("engine text").judge(&[theirs]);
+        assert_eq!(
+            &*bad.expect_err("no entry of the value layout"),
+            b"wire written-layout-test Value: no plan to the worker: retyped at Value.n"
+        );
+    }
+    let mut plans = Plans::with_written(&[ENGINE], &roots, &List::from_boxed(Box::new([entry]))).expect("engine text");
+    for _ in 0_u32..2 {
+        let peer = plans.judge(&[theirs]).expect("written pass admits the worker");
+        assert!(peer.gaps().is_empty());
+        for (mode, carried, from, to) in
+            [(Mode::Keep, Carried::Items, ENGINE, WORKER), (Mode::Read, Carried::Left, WORKER, ENGINE)]
+        {
+            let pass = peer.written_part(mode, Nested::Carried(carried)).expect("written pass");
+            assert_eq!(pass.wire, NAME);
+            assert_eq!(pass.from.text.text(), from.as_bytes());
+            assert_eq!(pass.to.text.text(), to.as_bytes());
+            assert_eq!(pass.from.text.root(b"Value", None), Some(pass.from.root));
+            assert_eq!(pass.to.text.root(b"Value", None), Some(pass.to.root));
+        }
+        assert_eq!(plans.derivations(NAME), 2);
+    }
+    let commented = parse("family written-layout-test 1\nrecord Value { n: u32 }\n# another text\n");
+    assert_eq!(stated(&commented).layout, theirs.layout);
+    let peer = plans.judge(&[stated(&commented)]).expect("new text at the same layout");
+    assert_eq!(plans.derivations(NAME), 4);
+    let pass = peer.written_part(Mode::Read, Nested::Carried(Carried::Left)).expect("written pass");
+    assert_eq!(pass.from.text.text(), commented.text());
+}
+
+#[test]
+fn written_entries_require_spoken_text_with_a_unique_declaration_and_layout() {
+    let entry = crate::Written { wire: "jig-test-app", declaration: "Down", layout: [3; 32] };
+    let known = parse(APP);
+    let spoken = List::from_boxed(Box::new([crate::Spoken {
+        name: entry.wire,
+        version: 1,
+        text: APP,
+        layout: known.fingerprints().family().digest(),
+    }]));
+    for (entries, valid) in [
+        (List::from_boxed(Box::new([crate::Written { wire: "unspoken", ..entry }])), false),
+        (List::from_boxed(Box::new([crate::Written { declaration: "Missing", ..entry }])), false),
+        (List::from_boxed(Box::new([entry, entry])), false),
+        (List::from_boxed(Box::new([entry, crate::Written { layout: [4; 32], ..entry }])), true),
+    ] {
+        assert_eq!(crate::written_present(&spoken, &entries), valid);
+        assert_eq!(Plans::with_written(&[APP], &List::uncapped(), &entries).is_ok(), valid);
+    }
 }

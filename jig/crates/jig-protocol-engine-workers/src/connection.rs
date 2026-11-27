@@ -1,8 +1,10 @@
 //! One accepted stream and its opening (protocol/channel/worker-link.md, 1.3).
-use crate::{Loss, Statement};
+use crate::{Loss, Statement, component::conversion::Conversion};
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::{Kind, layouts::Peer};
-use skein_channel::{Event, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, Version, WriteWait};
+use skein_channel::{
+    Event, Kind as ChannelKind, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, WriteWait,
+};
 use skein_lib::{Duration, List, Queue, Time, Token};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Phase {
@@ -29,7 +31,8 @@ pub(crate) struct Connection {
     pub worker: Option<u32>,
     pub channel: Token,
     pub peer: Option<Box<Peer>>,
-    pub table: Option<Version>,
+    pub conversion: Conversion,
+    pub table: Option<List<ChannelKind>>,
     pub converted: List<Box<str>>,
     pub statement: Option<Statement>,
     pub refusal: bool,
@@ -64,6 +67,7 @@ impl Connection {
             worker: None,
             channel: Token::new(0),
             peer: None,
+            conversion: Conversion::new(channel.output_frames),
             table: None,
             converted: List::uncapped(),
             statement: None,

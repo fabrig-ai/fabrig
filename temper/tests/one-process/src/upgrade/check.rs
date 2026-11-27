@@ -176,7 +176,7 @@ fn drive(
 }
 
 /// Pre-baseline component layouts have no wires and must reach a refusal,
-/// including the layout before patch levels were added to version 3.
+/// including the layout before levels were added to version 3.
 pub fn prebaseline_rehearsals() {
     let mut unleveled = jig_protocol_store::format::current(1, [7; 16]);
     unleveled.tasks = 9;
@@ -213,13 +213,13 @@ fn source_rehearsal(format: &[u8], expected: &str) {
     ]);
     disk.close(root);
     let before = image(&mut disk);
-    let (report, code, patches) =
+    let (report, code, jobs) =
         drive(&mut disk, &fixtures::document(), temper_engine_service::store::OWNER_SETS, Until::Check);
     eprintln!("{report}");
     assert_eq!(code, 1, "{report}");
     assert!(report.contains(expected), "{report}");
     assert!(report.contains("the copy keeps no wires"), "{report}");
-    assert_eq!(patches.len(), 0);
+    assert_eq!(jobs.len(), 0);
     assert_eq!(image(&mut disk), before, "every source path and byte unchanged");
     let scratch = disk.reopen_root(1);
     assert!(disk.list(scratch, 32, 4096).expect("scratch list").is_empty(), "scratch emptied");
@@ -299,18 +299,17 @@ pub fn opened_worker_rehearsal() {
     let mut disk = stopped_chat(CURRENT_SETS);
     let document = fixtures::document();
     let before = image(&mut disk);
-    let (report, code, patches) = drive(&mut disk, &document, temper_engine_service::store::OWNER_SETS, Until::Check);
+    let (report, code, jobs) = drive(&mut disk, &document, temper_engine_service::store::OWNER_SETS, Until::Check);
     eprintln!("{report}");
     assert_eq!(code, 0, "{report}");
-    assert!(patches.is_empty(), "an equal-level rehearsal patches nothing");
+    assert!(jobs.is_empty(), "this equal-level rehearsal runs no jobs");
     // The box defaults to local; the world starts at 2026-01-01 UTC.
     assert!(report.contains("temper-box upgrade: worker local may stay: opened 2026-01-01T00:00:00Z\n"), "{report}");
     assert!(report.ends_with("temper-box upgrade: workers may stay: yes\n"), "{report}");
     assert_eq!(image(&mut disk), before, "rehearsal leaves the stopped deployment unchanged");
-    let (workers, code, patches) =
-        drive(&mut disk, &document, temper_engine_service::store::OWNER_SETS, Until::Workers);
+    let (workers, code, jobs) = drive(&mut disk, &document, temper_engine_service::store::OWNER_SETS, Until::Workers);
     assert_eq!(code, 0, "{workers}");
-    assert!(patches.is_empty(), "Openings runs no job");
+    assert!(jobs.is_empty(), "Openings runs no job");
     let verdict = report.split_inclusive('\n').filter(|line| line.contains(" upgrade: worker")).collect::<String>();
     // The stopped-chat fixture copies its two map files and has no sealed files to link.
     let counts = "temper-box upgrade: rehearsal linked 0 files, copied 2\n";
@@ -365,11 +364,11 @@ pub fn golden(directory: &Path) {
     stories::set(world::Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
     let document = crate::golden::read_configuration(directory);
-    let mut disk = crate::golden::files::load(directory);
+    let mut disk = crate::golden::files::load_kept(directory);
     let before = image(&mut disk);
-    let (report, code, patches) = drive(&mut disk, &document, temper_engine_service::store::OWNER_SETS, Until::Check);
+    let (report, code, jobs) = drive(&mut disk, &document, temper_engine_service::store::OWNER_SETS, Until::Check);
     assert_eq!(code, 0, "{report}");
-    assert!(patches.is_empty(), "floor store needs no jobs");
+    assert!(jobs.is_empty(), "floor store needs no jobs");
     assert!(report.contains("registry commit, jobs and restores pass; opened in "), "{report}");
     assert_eq!(image(&mut disk), before);
 }

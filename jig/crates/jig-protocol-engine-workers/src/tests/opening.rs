@@ -106,3 +106,19 @@ fn a_configured_worker_authenticates_with_its_secret() {
     assert!(fitted.converted.is_empty());
     assert_eq!(statement.wires.len(), 5);
 }
+
+#[test]
+fn written_entries_must_name_a_spoken_declaration_and_be_unique_at_a_layout() {
+    use skein_lib::List;
+    let good = wire::Written { wire: "test-worker-wire", declaration: "Test", layout: [5; 32] };
+    for (entries, accepted) in [
+        (List::from_boxed(Box::new([wire::Written { wire: "unspoken", ..good }])), false),
+        (List::from_boxed(Box::new([wire::Written { declaration: "Missing", ..good }])), false),
+        (List::from_boxed(Box::new([good, good])), false),
+        (List::from_boxed(Box::new([good, wire::Written { layout: [6; 32], ..good }])), true),
+    ] {
+        let application = wire::Application { written: entries, ..wire::Application::opaque(fixtures::application()) };
+        let result = crate::Component::new(&fixtures::LIMITS, fixtures::workers(), wire::spoken(), application);
+        assert_eq!(result.err(), if accepted { None } else { Some(crate::Unusable::Application) });
+    }
+}
