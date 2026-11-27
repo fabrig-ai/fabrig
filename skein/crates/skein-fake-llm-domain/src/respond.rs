@@ -11,6 +11,7 @@
 //! - A system cue, then the latest request's cue, then fallback turns choose
 //!   the script. System turns count every assistant message; request and
 //!   fallback turns count those after the last user message holding text.
+//!   A stretch spans several counts and draws over named offered tools.
 //!   Opted-in rules select a fixed turn from fresh text and tool output.
 //!   Past its last turn, a script answers "done", or fails under strict (2.5).
 //! - While the conversation has had fewer rounds of tool calls than
@@ -38,7 +39,7 @@ use crate::api::{
 };
 use crate::domain::{Config, Played};
 use crate::draws::{Draws, SlotCapture};
-use crate::{limits, pieces};
+use crate::{limits, pieces, stretches};
 
 mod random;
 
@@ -57,7 +58,8 @@ pub(crate) fn cut_count(scripts: &[Script]) -> Option<u32> {
             for line in &turn.lines {
                 match line {
                     Line::Cut { .. } => count = count.checked_add(1)?,
-                    Line::Take { .. }
+                    Line::Drawn { .. }
+                    | Line::Take { .. }
                     | Line::Fail { .. }
                     | Line::Pieces { .. }
                     | Line::Text { .. }
@@ -248,35 +250,28 @@ fn unstruck(
         return Ok((answer(query, parts, Finish::ToolCalls, 4, cut_text()), None));
     }
     let mut missing_script = None;
+    let mut stretch = None;
     if let Some((script, turn_index)) = played.choose_by_input(query, rules) {
         let turns = &played.scripts.get(script).expect("found among the scripts").turns;
         if let Some(turn) = turns.get(turn_index) {
-            if let Err(failure) = crate::take::check(turn, query, config.answer_bytes) {
-                return Err((failure, None));
-            }
-            let place = match turn.lines.first() {
-                Some(Line::Pieces { .. }) if turn.tokens <= u64::from(query.max_tokens) => {
-                    Some(pieces::Place { script, turn: turn_index })
+            if let Some((_, tools)) = stretches::drawn(turn) {
+                if menu.arguments.is_empty() || !query_offers(query, tools) {
+                    return Err((undrawable(played, script, query), None));
                 }
-                Some(
-                    Line::Cut { .. }
-                    | Line::Take { .. }
-                    | Line::Fail { .. }
-                    | Line::Pieces { .. }
-                    | Line::Text { .. }
-                    | Line::Opaque { .. }
-                    | Line::Served { .. }
-                    | Line::Call { .. },
-                )
-                | None => None,
-            };
-            let position = pieces::Place { script, turn: turn_index };
-            return match scripted(minted, query, turn, &mut played.resets, &mut played.cuts, position, now) {
-                Ok(answer) => Ok((answer, place)),
-                Err(failure) => Err((failure, place)),
-            };
+                stretch = Some((script, tools));
+            } else {
+                return regular_turn(
+                    minted,
+                    played,
+                    query,
+                    config.answer_bytes,
+                    pieces::Place { script, turn: turn_index },
+                    now,
+                );
+            }
+        } else {
+            missing_script = Some(script);
         }
-        missing_script = Some(script);
     }
     let key = draws.key(query);
     if let Some(replay) = draws.replay(key) {
@@ -294,22 +289,67 @@ fn unstruck(
         slots.replay(&replay.slots, &parts);
         return Ok((drawn_answer(draws, key, query, parts, finish, tokens, slots), None));
     }
-    if config.strict {
-        return Err((no_script(played, missing_script, query), None));
+    let tools = match stretch {
+        Some((_, tools)) => tools,
+        None => {
+            if config.strict {
+                return Err((no_script(played, missing_script, query), None));
+            }
+            if missing_script.is_some() {
+                let parts = Box::new([Part::Text { text: copy_of(b"done") }]);
+                return Ok((answer(query, parts, Finish::Stop, 1, cut_text()), None));
+            }
+            &[]
+        }
+    };
+    match random(draws, key, minted, config, menu, query, tools) {
+        Ok(Some(answer)) => Ok((answer, None)),
+        Ok(None) => {
+            let Some((script, _)) = stretch else { unreachable!("an unrestricted draw can answer with text") };
+            Err((undrawable(played, script, query), None))
+        }
+        Err(error) => Err((error.into(), None)),
     }
-    if missing_script.is_some() {
-        return Ok((
-            answer(query, Box::new([Part::Text { text: copy_of(b"done") }]), Finish::Stop, 1, cut_text()),
-            None,
-        ));
-    }
-    random(draws, key, minted, config, menu, query)
 }
 
 #[cfg_attr(
     target_pointer_width = "64",
     expect(clippy::result_large_err, reason = "the response retains owned failure evidence and its stream position")
 )]
+fn regular_turn(
+    minted: &mut u64,
+    played: &mut Played,
+    query: &Query,
+    answer_bytes: u32,
+    position: pieces::Place,
+    now: Time,
+) -> Response {
+    let script = played.scripts.get(position.script).expect("found among the scripts");
+    let turn = script.turns.get(position.turn).expect("found among the turns");
+    if let Err(failure) = crate::take::check(turn, query, answer_bytes) {
+        return Err((failure, None));
+    }
+    let place = match turn.lines.first() {
+        Some(Line::Pieces { .. }) if turn.tokens <= u64::from(query.max_tokens) => Some(position),
+        Some(
+            Line::Drawn { .. }
+            | Line::Cut { .. }
+            | Line::Take { .. }
+            | Line::Fail { .. }
+            | Line::Pieces { .. }
+            | Line::Text { .. }
+            | Line::Opaque { .. }
+            | Line::Served { .. }
+            | Line::Call { .. },
+        )
+        | None => None,
+    };
+    match scripted(minted, query, turn, &mut played.resets, &mut played.cuts, position, now) {
+        Ok(answer) => Ok((answer, place)),
+        Err(failure) => Err((failure, place)),
+    }
+}
+
 fn random(
     draws: &mut Draws,
     key: Key,
@@ -317,7 +357,8 @@ fn random(
     config: &Config,
     menu: &crate::api::Menu,
     query: &Query,
-) -> Response {
+    tools: &[Box<[u8]>],
+) -> Result<Option<Answer>, Error> {
     let bound = draws.menu_bound;
     let mut slots = draws.slot_capture();
     let mut named = draws.agent(key);
@@ -325,30 +366,32 @@ fn random(
         Some(rng) => rng,
         None => draws.faults(),
     };
-    let outside = rng.chance(config.outside_choice) && tool_count(query, true) != 0;
-    if tool_rounds(&query.messages) < config.tool_rounds
-        && tool_count(query, outside) != 0
-        && !menu.arguments.is_empty()
-    {
-        let count = u32::try_from(rng.between(1, config.calls_per_answer.max(1).into())).expect("drawn below a u32");
-        let bytes = match bound {
-            Some(bound) => bound.answer(query, count),
-            None => None,
-        };
-        if !limits::fits(bytes, config.answer_bytes) {
-            return Err((Error::ContextTooLong.into(), None));
+    let outside = rng.chance(config.outside_choice) && tool_count(query, tools, true) != 0;
+    if !tools.is_empty() || tool_rounds(&query.messages) < config.tool_rounds {
+        let eligible = tool_count(query, tools, outside);
+        if eligible != 0 && !menu.arguments.is_empty() {
+            let count =
+                u32::try_from(rng.between(1, config.calls_per_answer.max(1).into())).expect("drawn below a u32");
+            let bytes = match bound {
+                Some(bound) => bound.answer(query, count, tools),
+                None => None,
+            };
+            if !limits::fits(bytes, config.answer_bytes) {
+                return Err(Error::ContextTooLong);
+            }
+            let batch =
+                random::Batch { count, outside, eligible, malformed: config.malformed, bytes: config.answer_bytes };
+            let calls = random::batch(rng, minted, menu, query, tools, batch, &mut slots)?;
+            let tokens = u64::from(calls.len()).saturating_mul(8);
+            return Ok(Some(drawn_answer(draws, key, query, calls.into_boxed(), Finish::ToolCalls, tokens, slots)));
         }
-        let batch = random::Batch { count, outside };
-        let calls = match random::batch(rng, minted, config, menu, query, batch, &mut slots) {
-            Ok(calls) => calls,
-            Err(error) => return Err((error.into(), None)),
-        };
-        let tokens = u64::from(calls.len()).saturating_mul(8);
-        return Ok((drawn_answer(draws, key, query, calls.into_boxed(), Finish::ToolCalls, tokens, slots), None));
+    }
+    if !tools.is_empty() {
+        return Ok(None);
     }
     let tokens = rng.between(1, config.answer_tokens.max(1).into());
     let parts = Box::new([Part::Text { text: copy_of(b"done") }]);
-    Ok((drawn_answer(draws, key, query, parts, Finish::Stop, tokens, slots), None))
+    Ok(Some(drawn_answer(draws, key, query, parts, Finish::Stop, tokens, slots)))
 }
 
 /// Replay uses literal lines, not script interpolation, and mints new ids.
@@ -361,7 +404,8 @@ fn replay_parts(minted: &mut u64, turn: &Turn) -> Result<Box<[Part]>, Error> {
                 Part::ToolCall { id: call_id(*minted), name: name.clone(), arguments: arguments.clone() }
             }
             Line::Text { text } => Part::Text { text: text.clone() },
-            Line::Take { .. }
+            Line::Drawn { .. }
+            | Line::Take { .. }
             | Line::Cut { .. }
             | Line::Fail { .. }
             | Line::Pieces { .. }
@@ -400,19 +444,30 @@ fn no_script(played: &Played, selected: Option<usize>, query: &Query) -> Failure
     let reason = match selected {
         Some(index) => {
             let script = played.scripts.get(index).expect("selected among the scripts");
-            let count = skein_lib::Decimal::of(skein_lib::len_u64(script.turns.len()));
-            let named = played.cued.checked_add(played.asked).expect("admitted script groups");
-            let source = if index < named {
-                bytes::concat(&[b"the script cued \"", &script.cue, b"\""])
-            } else {
-                copy_of(b"otherwise")
-            };
+            let count = skein_lib::Decimal::of(stretches::count(&script.turns));
+            let source = script_source(played, index);
             bytes::concat(&[b"past the ", count.as_bytes(), b" turns of ", &source])
         }
         None => copy_of(b"no cue matches"),
     };
     let reason = bytes::concat(&[b"no script answers: ", &reason]);
     invalid_script(b"no_script", &reason, query)
+}
+
+fn undrawable(played: &Played, index: usize, query: &Query) -> Failure {
+    let source = script_source(played, index);
+    let reason = bytes::concat(&[b"no script answers: the stretch of ", &source, b" offers none of its tools"]);
+    invalid_script(b"no_script", &reason, query)
+}
+
+fn script_source(played: &Played, index: usize) -> Box<[u8]> {
+    let named = played.cued.checked_add(played.asked).expect("admitted script groups");
+    if index < named {
+        let script = played.scripts.get(index).expect("selected among the scripts");
+        bytes::concat(&[b"the script cued \"", &script.cue, b"\""])
+    } else {
+        copy_of(b"otherwise")
+    }
 }
 
 /// Shared Invalid evidence and last-request text for strict and take failures.
@@ -499,10 +554,19 @@ fn allowed(choice: &crate::api::ToolChoice, name: &[u8]) -> bool {
     }
 }
 
-fn tool_count(query: &Query, outside: bool) -> u64 {
+fn query_offers(query: &Query, tools: &[Box<[u8]>]) -> bool {
+    for tool in &query.tools {
+        if stretches::includes(tools, &tool.name) {
+            return true;
+        }
+    }
+    false
+}
+
+fn tool_count(query: &Query, tools: &[Box<[u8]>], outside: bool) -> u64 {
     let mut count: u64 = 0;
     for tool in &query.tools {
-        if allowed(&query.choice, &tool.name) != outside {
+        if stretches::includes(tools, &tool.name) && allowed(&query.choice, &tool.name) != outside {
             count = count.checked_add(1).expect("a count through a bounded tool array");
         }
     }
@@ -546,7 +610,8 @@ impl Played {
             if let Some(turn) = input_turn(&rules.cued, script, &query.messages) {
                 return Some((script, turn));
             }
-            return Some((script, said(&query.messages)));
+            let count = said(&query.messages);
+            return Some((script, self.counted_turn(script, count)));
         }
         let end = self.cued.checked_add(self.asked).expect("retained asked range");
         let requested_scripts = self.scripts.get(..end).expect("retained request range");
@@ -561,7 +626,7 @@ impl Played {
                             };
                             let turn = match selected {
                                 Some(turn) => turn,
-                                None => requested(&query.messages).1,
+                                None => self.counted_turn(script, requested(&query.messages).1),
                             };
                             return Some((script, turn));
                         }
@@ -570,7 +635,12 @@ impl Played {
                 }
             }
         }
-        if self.scripts.len() > end { Some((end, requested(&query.messages).1)) } else { None }
+        if self.scripts.len() > end { Some((end, self.counted_turn(end, requested(&query.messages).1))) } else { None }
+    }
+
+    fn counted_turn(&self, script: usize, count: usize) -> usize {
+        let script = self.scripts.get(script).expect("selected among the scripts");
+        stretches::position(&script.turns, count)
     }
 }
 
@@ -674,6 +744,7 @@ fn scripted(
     let mut count = u32::try_from(turn.lines.len()).expect("a script's answer fits a u32");
     for line in &turn.lines {
         match line {
+            Line::Drawn { .. } => unreachable!("stretches use the random batch path"),
             Line::Take { .. } | Line::Cut { .. } | Line::Served { .. } => {
                 count = count.checked_sub(1).expect("a control line emits no part");
             }
@@ -685,6 +756,7 @@ fn scripted(
     for (index, line) in turn.lines.iter().enumerate() {
         let earlier = turn.lines.get(..index).expect("line prefix");
         let part = match line {
+            Line::Drawn { .. } => unreachable!("stretches use the random batch path"),
             Line::Served { name } => {
                 served = Some(name);
                 continue;

@@ -1997,6 +1997,14 @@ fn procedure_root() -> (super::Domain, skein_lib::Env<super::Limits>) {
 }
 
 fn procedure_root_with_limits(mut limits: super::Limits) -> (super::Domain, skein_lib::Env<super::Limits>) {
+    procedure_root_with_grants(&mut limits, Box::new([]), &[])
+}
+
+fn procedure_root_with_grants(
+    limits: &mut super::Limits,
+    grants: Box<[super::authority::Grant]>,
+    records: &[crate::Record],
+) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::{authority, forge};
     let mut config = crate::tests::resume_fixture::config(7);
     let kinds = Box::new([
@@ -2009,13 +2017,15 @@ fn procedure_root_with_limits(mut limits: super::Limits) -> (super::Domain, skei
     config.core.defaults.rules.maximum_run_spend = 1000;
     config.core.defaults.rules.ceiling.delegation.kinds = kinds.clone();
     config.core.seed_projects[0].policy.policy.ceiling.delegation.kinds = kinds;
+    config.core.defaults.rules.ceiling.grants = grants.clone();
+    config.core.seed_projects[0].policy.policy.ceiling.grants = grants;
     // The closer procedure and close job add two executor places.
     limits.authority.executors = 5;
     // The closer procedure and close job add two executor places.
     limits.tasks.executor_kinds = 5;
     limits.tasks.parameters = 4;
     limits.tasks.spec_bytes = 256;
-    let (mut domain, env) = crate::tests::resume_fixture::root_with_config_and_limits(config, &limits);
+    let (mut domain, env) = crate::tests::resume_fixture::root_with_records(config, limits, records);
     for event in [
         jig_domain_core::Event::Tasks(super::tasks::Event::Restored),
         jig_domain_core::Event::Period { project: 1, period: 1, budget: 1000, next: None },
@@ -2217,7 +2227,7 @@ fn a_landing_merge_waiting_on_authority_is_deferred_not_vetoed() {
     assert!(domain.work.is_empty(), "waiting does not hold the landing");
 }
 
-fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) {
+fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) -> u64 {
     use super::tasks;
     let seed = domain.engine.core_mut().repair_seed(1).expect("unreserved period can fund an agent");
     let task = seed.number();
@@ -2242,6 +2252,7 @@ fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits
     let funder = tasks::Funder::Period { project: 1, period: domain.engine.core().period(1) };
     let ledger = domain.engine.core().tasks.funding(funder).unwrap();
     assert_eq!(ledger.numbers.reserved, ledger.numbers.budget);
+    task
 }
 
 fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, super::forge::LandingRow) {
@@ -2250,14 +2261,19 @@ fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, sup
 fn reserved_turn_landing_with_limits(
     limits: &super::Limits,
 ) -> (super::Domain, skein_lib::Env<super::Limits>, super::forge::LandingRow) {
-    use super::{Work, forge, forge_change};
     let (mut domain, env) = procedure_root_with_limits(*limits);
     reserve_period(&mut domain, &env);
+    let row = form_turn_landing(&mut domain, &env);
+    (domain, env, row)
+}
+
+fn form_turn_landing(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) -> super::forge::LandingRow {
+    use super::{Work, forge, forge_change};
     let mut row = change_row(Some(7));
     row.repository = adopted(1).provider;
     row.change.way = forge_change::Way::Turn;
     row.change.state = forge_change::State::Ready { head: SHA1, ready_since: env.wall };
-    restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Change(Box::new(row)));
+    restore_forge_with_engine_waits(domain, env, forge::Stored::Change(Box::new(row)));
     assert!(domain.forge.project_landing(
         1,
         forge_change::Way::Turn,
@@ -2272,11 +2288,11 @@ fn reserved_turn_landing_with_limits(
             bound: skein_lib::Duration::from_secs(7200),
         }
     ));
-    super::start_landing(&mut domain, &env, 7);
+    super::start_landing(domain, env, 7);
     let Some(Work::Core(resource)) = domain.work.pop() else { panic!("branch resource") };
-    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(&env), resource));
+    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(env), resource));
     let Some(Work::Core(event)) = domain.work.pop() else { panic!("landing task") };
-    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(&env), event));
+    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(env), event));
     let Some(Work::LandingAdmission { row, names }) = domain.work.pop() else { panic!("landing admission") };
     assert_eq!(row.landing.members[0].change, 7);
     for name in names {
@@ -2288,7 +2304,7 @@ fn reserved_turn_landing_with_limits(
         }));
     }
     domain.forge_forming = None;
-    (domain, env, row)
+    row
 }
 
 #[test]

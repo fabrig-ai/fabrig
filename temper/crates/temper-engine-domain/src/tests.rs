@@ -957,33 +957,42 @@ mod worker_pause;
 #[test]
 fn forge_declaration_offers_every_write_and_makes_merges_wait() {
     use jig_domain_contract::{
-        effects::{EffectForm, Recovery},
+        effects::{
+            EffectForm::{Creation, Set, Transition},
+            Recovery::{Conditional, Idempotent, Unrecoverable},
+        },
         resources::{ResourceKind, Rule, Taken},
     };
-    use temper_engine_domain_forge as forge;
-    let declaration = crate::translate::forge_declaration(7);
-    assert_eq!(declaration.connector, 7);
+    const FORGE: u16 = 7;
+    let declaration = crate::translate::forge_declaration(FORGE);
+    assert_eq!(declaration.connector, FORGE);
     assert_eq!(
         declaration.resources.as_ref(),
         &[ResourceKind { kind: 1, hold: Rule::Exclusive { taken: Taken::Waits } }]
     );
-    assert_eq!(declaration.effects.len(), 16);
-    for (number, effect) in (2..=17).zip(&declaration.effects) {
-        let (form, recovery) = forge::effect_shape(number).unwrap();
-        let form = match form {
-            forge::EffectForm::Creation => EffectForm::Creation,
-            forge::EffectForm::Transition => EffectForm::Transition,
-            forge::EffectForm::Set => EffectForm::Set,
-        };
-        let recovery = match recovery {
-            forge::Recovery::Keyed => Recovery::Keyed,
-            forge::Recovery::Conditional => Recovery::Conditional,
-            forge::Recovery::Idempotent => Recovery::Idempotent,
-            forge::Recovery::Unrecoverable => Recovery::Unrecoverable,
-        };
-        assert_eq!(
-            (effect.kind, effect.form, effect.recovery, effect.waits_for_dependencies),
-            (number, form, recovery, number == 4)
-        );
+    let mut rows = List::uncapped();
+    for effect in &declaration.effects {
+        rows.push((effect.kind, effect.form, effect.recovery, effect.waits_for_dependencies)).unwrap();
     }
+    assert_eq!(
+        rows.as_slice(),
+        &[
+            (2, Transition, Unrecoverable, false),
+            (3, Creation, Conditional, false),
+            (4, Transition, Conditional, true),
+            (5, Creation, Unrecoverable, false),
+            (6, Set, Idempotent, false),
+            (7, Creation, Unrecoverable, false),
+            (8, Creation, Unrecoverable, false),
+            (9, Creation, Unrecoverable, false),
+            (10, Set, Idempotent, false),
+            (11, Transition, Idempotent, false),
+            (12, Set, Idempotent, false),
+            (13, Set, Idempotent, false),
+            (14, Set, Idempotent, false),
+            (15, Set, Idempotent, false),
+            (16, Creation, Unrecoverable, false),
+            (17, Transition, Unrecoverable, false),
+        ]
+    );
 }

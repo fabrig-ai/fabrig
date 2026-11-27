@@ -48,6 +48,72 @@ fn released_continuations_are_taken_in_arrival_order_at_the_watermark() {
 }
 
 #[test]
+fn a_resumed_core_load_leaves_once_in_held_order() {
+    use crate::{Delivery, StoreRequest, decision};
+    use jig_domain_core as core;
+    use jig_domain_core::engine::{self, In, store};
+    use jig_domain_notes as notes;
+
+    const PROJECT: u32 = 1;
+    // Temper releases one held delivery per pass; the last pass checks for duplicates.
+    const RELEASE_PASSES: u32 = 4;
+    let (mut domain, env) = root();
+    let core_env = crate::limits::environment_core(&env);
+    let mut full = core_env.with(core_env.limits);
+    full.limits.load_slots = 0;
+    let mut blocked = Queue::uncapped();
+    engine::step(
+        &mut domain.engine,
+        &full,
+        In::Core(core::Event::Notes(notes::Event::DropProject { owner: skein_lib::Token::new(1), project: PROJECT })),
+        &mut blocked,
+    );
+    assert!(blocked.is_empty(), "the notes page waits for load room");
+
+    let mut decision = decision::Decision::decide(&mut domain.journal, &env.limits.journal);
+    let mut requests = Queue::uncapped();
+    requests.push(core::Request::Write(core::Write::Erase(core::Key::Notes(notes::Key::Entry { name: 1 }))));
+    requests.push(core::Request::ProjectMade { project: 2 });
+    let resumed = core::resume_fleet(domain.engine.core_mut(), &core_env);
+    for request in resumed.into_boxed() {
+        requests.push(request);
+    }
+    requests.push(core::Request::ProjectMade { project: 3 });
+    crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
+    decision::accept_routed(
+        &mut domain.journal,
+        &mut domain.engine.core_mut().counters,
+        &env.limits.journal,
+        decision,
+        true,
+    )
+    .unwrap();
+
+    let mut out = Queue::uncapped();
+    crate::release(&mut domain, &env, &mut out);
+    let Some(Request::Store(StoreRequest::Commit { number, .. })) = out.pop() else {
+        panic!("the write commits first")
+    };
+    assert!(out.is_empty(), "nothing held leaves before the commit is durable");
+    crate::step(&mut domain, &env, Event::Store(StoreInput::Committed { number, fill: 0 }));
+    for _ in 0..RELEASE_PASSES {
+        crate::release(&mut domain, &env, &mut out);
+    }
+    let released = out.into_boxed();
+    let [
+        Request::ToChild(crate::Released(Delivery::ProjectMade { project: 2 })),
+        Request::Store(StoreRequest::Engine(store::Out::Load {
+            range: store::Range::Notes(notes::Range::Project { project: PROJECT, after: None }),
+            ..
+        })),
+        Request::ToChild(crate::Released(Delivery::ProjectMade { project: 3 })),
+    ] = released.as_ref()
+    else {
+        panic!("one held load at its place: {released:?}");
+    };
+}
+
+#[test]
 fn every_public_mutating_entry_advances_the_root_revision() {
     let (mut domain, env) = root();
     let mut out = Queue::uncapped();

@@ -60,7 +60,8 @@ pub fn scripts(config: &Config, accepted: &[Credential], scripts: &[api::Script]
                             return Err(Error::Limits);
                         }
                     }
-                    api::Line::Cut { .. }
+                    api::Line::Drawn { .. }
+                    | api::Line::Cut { .. }
                     | api::Line::Take { .. }
                     | api::Line::Text { .. }
                     | api::Line::Opaque { .. }

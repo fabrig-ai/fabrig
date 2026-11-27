@@ -286,7 +286,8 @@ fn valid_turn(turn: &Turn) -> bool {
         let valid = match line {
             Line::Call { .. } => turn.finish == Finish::ToolCalls,
             Line::Text { .. } => turn.finish == Finish::Stop && turn.lines.len() == 1,
-            Line::Cut { .. }
+            Line::Drawn { .. }
+            | Line::Cut { .. }
             | Line::Take { .. }
             | Line::Fail { .. }
             | Line::Pieces { .. }
@@ -305,6 +306,7 @@ fn is_call(line: Option<&Line>) -> bool {
         Some(Line::Call { .. }) => true,
         Some(
             Line::Text { .. }
+            | Line::Drawn { .. }
             | Line::Cut { .. }
             | Line::Take { .. }
             | Line::Fail { .. }

@@ -97,6 +97,13 @@ pub(crate) fn scripts(scripts: &[Script]) -> Option<u64> {
             total = total.checked_add(array(turn.lines.len(), size_of::<Line>())?)?;
             for line in &turn.lines {
                 let owned = match line {
+                    Line::Drawn { tools, .. } => {
+                        let mut owned = array(tools.len(), size_of::<Box<[u8]>>())?;
+                        for name in tools {
+                            owned = owned.checked_add(bytes(name)?)?;
+                        }
+                        owned
+                    }
                     Line::Cut { .. } => u64::try_from(size_of::<crate::respond::Cuts>()).ok()?,
                     Line::Pieces { pieces } => {
                         let mut owned = array(pieces.len(), size_of::<Piece>())?;
@@ -165,6 +172,7 @@ pub(crate) fn scripted_answer(turn: &Turn) -> Option<u64> {
                 total = total.checked_sub(u64::try_from(size_of::<Part>()).ok()?)?;
                 bytes(name)?
             }
+            Line::Drawn { .. } => return None,
             Line::Take { .. } | Line::Cut { .. } => {
                 total = total.checked_sub(u64::try_from(size_of::<Part>()).ok()?)?;
                 0
@@ -206,7 +214,8 @@ pub(crate) fn replay(capture: &Capture) -> Option<u64> {
             let owned = match line {
                 Line::Text { text } => bytes(text)?,
                 Line::Call { name, arguments } => bytes(name)?.checked_add(bytes(arguments)?)?,
-                Line::Cut { .. }
+                Line::Drawn { .. }
+                | Line::Cut { .. }
                 | Line::Take { .. }
                 | Line::Fail { .. }
                 | Line::Pieces { .. }
@@ -247,7 +256,8 @@ pub(crate) fn slots(slots: &[crate::api::Slot]) -> Option<u64> {
             .checked_add(bytes(&slot.name)?)?
             .checked_add(bytes(&slot.before)?)?
             .checked_add(bytes(&slot.after)?)?
-            .checked_add(bytes(&slot.unissued)?)?;
+            .checked_add(bytes(&slot.unissued)?)?
+            .checked_add(bytes(&slot.with)?)?;
     }
     Some(total)
 }
@@ -281,10 +291,12 @@ impl MenuBound {
         Some(Self { name, arguments })
     }
 
-    pub(crate) fn answer(self, query: &Query, count: u32) -> Option<u64> {
+    pub(crate) fn answer(self, query: &Query, count: u32, tools: &[Box<[u8]>]) -> Option<u64> {
         let mut name = self.name;
         for tool in &query.tools {
-            name = name.max(bytes(&tool.name)?);
+            if crate::stretches::includes(tools, &tool.name) {
+                name = name.max(bytes(&tool.name)?);
+            }
         }
         u64::from(count).checked_mul(random_call(name, self.arguments)?)
     }

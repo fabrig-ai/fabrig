@@ -14,6 +14,9 @@ use skein_fake_llm_domain::api as provider;
 use skein_lib::Token;
 use smith_domain_tools::{Effect, Grants, Namespace};
 use smith_protocol_llm::{Error, render_outcome};
+use smith_shapes::workspace::{decode_bounded, decode_limits, path_fields};
+
+pub use smith_shapes::workspace::decode;
 
 /// The product's result bound; this world has no separate host tool or message replies.
 pub(crate) fn render_bound(limits: &smith_domain_session::Limits) -> u32 {
@@ -252,25 +255,6 @@ fn failure(error: provider::Error) -> agent::Failure {
     }
 }
 
-/// The call the LLM made to the tool `name` with `arguments`, as the agent's
-/// protocol layer decodes it: or what keeps it from being one.
-#[must_use]
-pub fn decode(name: &[u8], arguments: &[u8]) -> agent::Decoded {
-    decode_bounded(name, arguments, &decode_limits(&crate::TOOLS))
-}
-
-fn decode_limits(tools: &smith_domain_tools::Limits) -> smith_protocol_llm::Limits {
-    let mut client = skein_llm_kit::limits();
-    // Like the profile, leave room for the longest path and Write's JSON
-    // framing, then apply the native escape factor (limits-derivation.md, 1).
-    let framing = u32::try_from(br#"{"path":"","content":""}"#.len()).expect("small framing");
-    let escape = skein_llm::ESCAPE;
-    let input = tools.tool_payload.saturating_add(tools.path_bytes).saturating_add(framing.div_ceil(escape));
-    client.input = client.input.min(input.saturating_mul(escape));
-    let stated = smith_protocol_llm::Stated::from_tools(tools, client.input).expect("finite workspace fixture");
-    smith_protocol_llm_fixtures::small(client, stated)
-}
-
 type Inputs<T> = BTreeMap<Box<[u8]>, T>;
 type Calls = BTreeMap<(u32, u32), Inputs<Inputs<agent::Decoded>>>;
 
@@ -325,28 +309,17 @@ impl Decoder {
 
     pub(crate) fn path_fields(&mut self, arguments: &[u8]) -> (bool, bool) {
         let Some(memo) = self.memo.as_mut().filter(|_| arguments.len() <= CACHED_INPUT_BYTES) else {
-            return crate::shapes::path_fields(arguments);
+            return path_fields(arguments);
         };
         if let Some(&fields) = memo.fields.get(arguments) {
             return fields;
         }
-        let fields = crate::shapes::path_fields(arguments);
+        let fields = path_fields(arguments);
         if memo.entries < CACHED_INPUTS {
             memo.fields.insert(arguments.into(), fields);
             memo.entries += 1;
         }
         fields
-    }
-}
-
-fn decode_bounded(name: &[u8], arguments: &[u8], limits: &smith_protocol_llm::Limits) -> agent::Decoded {
-    use smith_domain::llm;
-
-    let grants = Grants { inspect: true, modify: true, shell: true };
-    match smith_protocol_llm::decode(name, arguments, grants, &[], llm::Asker::Main, limits) {
-        llm::Decoded::Owned { call } => agent::Decoded::Owned { call },
-        llm::Decoded::Invalid { problem } => agent::Decoded::Invalid { descriptor: None, problem },
-        llm::Decoded::Builtin { .. } | llm::Decoded::Served { .. } => unreachable!("only workspace tools are granted"),
     }
 }
 

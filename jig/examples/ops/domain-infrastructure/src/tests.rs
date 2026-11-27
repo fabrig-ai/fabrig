@@ -41,14 +41,13 @@ fn event(domain: &mut Domain, seconds: u64, input: Event) -> Queue<Request> {
 }
 
 #[test]
-fn effect_descriptions_name_their_recovery_and_price() {
+fn effect_descriptions_name_instance_resources_price_and_state() {
     let mut domain = Domain::new(Backend::OperationIds, &limits());
     let effect = Effect::CreateEnvironment { environment: environment(), until: 100, price: 50 };
     let mut out = event(&mut domain, 1, Event::Describe { token: Token::new(1), effect });
     assert_eq!(
         out.pop(),
         Some(Request::Described {
-            waits_for_dependencies: true,
             token: Token::new(1),
             description: Description {
                 kind: 4,
@@ -57,8 +56,6 @@ fn effect_descriptions_name_their_recovery_and_price() {
                     Resource::Pool(Pool(Box::from(*b"staging")))
                 ]),
                 condition: false,
-                form: Form::Creation,
-                recovery: Recovery::Keyed,
                 price: Some(50),
                 state: 100,
             }
@@ -73,19 +70,51 @@ fn effect_descriptions_name_their_recovery_and_price() {
     assert_eq!(
         restart.pop(),
         Some(Request::Described {
-            waits_for_dependencies: true,
             token: Token::new(2),
             description: Description {
                 kind: 1,
                 resources: Box::from([Resource::Service(service())]),
                 condition: false,
-                form: Form::Transition,
-                recovery: Recovery::Unrecoverable,
                 price: None,
                 state: 9,
             }
         })
     );
+}
+
+#[test]
+fn effect_kinds_declare_policy_for_each_backend() {
+    let vocabulary = Vocabulary::reference();
+    for (backend, restart_recovery) in
+        [(Backend::OperationIds, Recovery::Keyed), (Backend::NoOperationIds, Recovery::Unrecoverable)]
+    {
+        assert_eq!(
+            effect_kinds(&vocabulary, backend).as_ref(),
+            &[
+                EffectKind {
+                    kind: 1,
+                    form: Form::Transition,
+                    recovery: restart_recovery,
+                    waits_for_dependencies: true
+                },
+                EffectKind { kind: 2, form: Form::Set, recovery: Recovery::Conditional, waits_for_dependencies: true },
+                EffectKind {
+                    kind: 3,
+                    form: Form::Transition,
+                    recovery: Recovery::Conditional,
+                    waits_for_dependencies: true
+                },
+                EffectKind { kind: 4, form: Form::Creation, recovery: Recovery::Keyed, waits_for_dependencies: true },
+                EffectKind {
+                    kind: 5,
+                    form: Form::Transition,
+                    recovery: Recovery::Conditional,
+                    waits_for_dependencies: true
+                },
+            ],
+            "{backend:?}",
+        );
+    }
 }
 
 #[test]
@@ -939,11 +968,7 @@ fn spec_hold_and_effect_identifiers_come_from_configuration() {
     let held = holdings(&vocabulary, 2, Executor::Procedure { connector: 2, code: PROVISION_CODE }, &spec).unwrap();
     assert_eq!(held[0], Holding::Write { resource: Resource::Environment(environment()), kind: 12 });
     assert_eq!(held[1], Holding::Slot { pool: Pool(environment().pool), kind: 13 });
-    assert_eq!(
-        domain::describe(&Effect::Restart { service: service(), operation: 1 }, Backend::OperationIds, &vocabulary)
-            .kind,
-        11
-    );
+    assert_eq!(domain::describe(&Effect::Restart { service: service(), operation: 1 }, &vocabulary).kind, 11);
 }
 
 #[test]

@@ -486,7 +486,7 @@ pub use funding::edit_role;
 ///
 /// # Errors
 /// Configured membership or declarations do not hold.
-pub fn new_core(config: core::Config, limits: &core::Limits) -> Result<core::Core, jig_domain_link::Problem> {
+pub fn new_core(config: core::Config, limits: &core::Limits) -> Result<core::Core, jig_domain_contract::StartProblem> {
     let declarations: Box<[_]> =
         config.connectors.iter().copied().map(jig_domain_contract::Declaration::empty).collect();
     core::Core::new(config, &declarations, limits)

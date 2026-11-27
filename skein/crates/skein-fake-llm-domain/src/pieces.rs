@@ -78,6 +78,11 @@ pub(crate) fn valid(scripts: &[Script]) -> bool {
                             }
                         }
                     }
+                    Line::Drawn { rounds, tools } => {
+                        if !crate::stretches::valid(turn, *rounds, tools) {
+                            return false;
+                        }
+                    }
                     Line::Take { .. } | Line::Text { .. } | Line::Opaque { .. } | Line::Call { .. } => {}
                 }
             }
@@ -107,7 +112,8 @@ fn at(scripts: &[Script], place: Place) -> &[Piece] {
     match turn.lines.first() {
         Some(Line::Pieces { pieces }) => pieces,
         Some(
-            Line::Cut { .. }
+            Line::Drawn { .. }
+            | Line::Cut { .. }
             | Line::Take { .. }
             | Line::Fail { .. }
             | Line::Text { .. }
