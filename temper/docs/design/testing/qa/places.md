@@ -254,33 +254,33 @@ installs another build.
        without the `temper.toml` it now requires, a configuration
        member that has moved. As for 3, that copy is removed, printing
        `copy Rj removed: ` and that failure line, and step 1 goes on
-       from the next ancestor up; from no copy, the box emptied as for
-       `fresh`.
+       from the next ancestor up.
      - **4, the box failed** otherwise, from a fresh box, at a later
        walk of the round or once the walk answered a line: it stops,
        printing `setup NAME: the box failed walking R` and the walk's
        last 40 lines, exit 4. A box that will not start from a fresh
        box, or panics, is a finding (`../../draft/archive/landed-qa.md`,
        7).
-
-     Why the first walk alone, and why no line answered: a later
-     walk's box is the one this build walked and stopped, so its
-     failure is the build's own; and the walk prints nothing before its
-     session's first answer (`../../client/recipe.md`, 5.1), which
-     comes only once the box is ready, so a walk that answered nothing
-     failed at its start, or at once at its first line, on what the
-     copy holds. The QA tool reads only what any place's build prints:
-     a ready mark added to the walk's output, which an older build
-     would not print, and the start's words (`box exited N before
-     ready`, a link past its bound, a sign-in refused), which differ by
-     cause, were turned down. A start that fails for a reason no copy
-     holds, a port in use, removes each copy up the chain before the
-     fresh walk stops as a finding; the next setup makes them again.
      - **5, stopped at a line:** it stops, printing `setup NAME: stopped
        at R:N: WHY`, the walk's last 40 lines and section 7's facts,
        exit 5.
      - **1 or another:** it stops, printing the walk's last 40 lines,
        exit 1.
+
+     Why 4 at a copy's start is the first walk alone, with no line
+     answered: a later walk's box is the one this build walked and
+     stopped, so its failure is the build's own; and the walk prints
+     nothing before its session's first answer
+     (`../../client/recipe.md`, 5.1), which comes only once the box is
+     ready, so a walk that answered nothing failed at its start, or at
+     once at its first line, on what the copy holds. The QA tool reads
+     only what any place's build prints: a ready mark added to the
+     walk's output, which an older build would not print, and the
+     start's words (`box exited N before ready`, a link past its bound,
+     a sign-in refused), which differ by cause, were turned down. A
+     start that fails for a reason no copy holds, a port in use,
+     removes each copy up the chain before the fresh walk stops as a
+     finding; the next setup makes them again.
 - **Restored:** `setup` written, `NAME HASH`, the box stopped and ready
   for `pass open`; it prints how, one line: `setup NAME: restored from
   its copy made at COMMIT12`, `setup NAME: made again from R's copy` or
