@@ -1,6 +1,6 @@
 # tui: status
 
-2026-11-21. Where the design lags or departs from [tui.md](tui.md).
+2026-11-27. Where the design lags or departs from [tui.md](tui.md).
 
 - **Design lags:** 3, 6 and 7, from 2026-11-08: the launchpad as drawn, design sessions with the side pane and talking with a standing role are v0.1.0's through `surfaces.md`, section 11, whose status holds their lags; the side pane and drafting are
   `../client/tui/pages/design-session.md`, 1, as `surfaces.md`, 11.2
@@ -8,7 +8,7 @@
   web's hand-off, a page's terminal command to copy, and the project
   chosen from a checkout; approval between hosts and managing sign-ins;
   all await the user's refinement, and `../client/README.md`, section 5
-  defers them. The needs walked from the launchpad, by `n` or `/needs`,
+  defers them. The needs walked from the launchpad, by `/needs` or from a need's row,
   and `/open`, the hand-off to the web, are `../client/tui/pages/README.md`,
   as `surfaces.md`, 11.1 and 11.4 take them into v0.1.0. `tui.md`, section 3's launchpad, a chat read as the browser's chat
   terminal reads it, and the terminal's commands are

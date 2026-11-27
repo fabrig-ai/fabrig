@@ -75,7 +75,10 @@ fn a_change_waiting_for_room_has_a_bound() {
     world.run_to(Wall::from_nanos(due.as_nanos() - 1));
     assert!(!matches!(world.change(WAITER).change.state, change::State::Held { .. }));
     world.run_to(after(due, Duration::from_secs(1)));
-    assert!(matches!(world.change(WAITER).change.state, change::State::Held { why: change::Hold::Stalled, .. }));
+    assert!(matches!(
+        world.change(WAITER).change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
+    ));
     assert_eq!(world.change(WAITER).room, Some(1), "held in the same place");
     let words = &world.change(WAITER).effect_account.as_ref().expect("room hold account").words;
     assert_eq!(words.as_ref(), format!("no progress at opening for {} minutes: waiting for room in the forge's outbox, held by entry {ENTRY} of ended task {WRITER}", LIMITS.waits.room.as_nanos() / Duration::from_secs(60).as_nanos()).as_bytes());
@@ -88,7 +91,7 @@ fn a_live_writer_stalls_before_its_room_waiter() {
     let stall = after(world.change(WRITER).change.since, LIMITS.change_policy.stall);
     world.unavailable(world.wall(), stall);
     world.run_to(stall);
-    assert_eq!(open(&mut world, WRITER, ENTRY + 2), change::Decision::Hold(change::Hold::Stalled));
+    assert_eq!(open(&mut world, WRITER, ENTRY + 2), change::Decision::Hold(change::Cause::Stalled));
     assert_uncertain(&world);
     assert!(!matches!(world.change(WAITER).change.state, change::State::Held { .. }));
     let inspection = world.inspection();

@@ -715,7 +715,7 @@ fn a_closers_landing_checks_its_updates_head_and_lands_with_or_without_a_close_o
 
 #[test]
 fn a_push_from_outside_during_a_closers_landing_update_holds_with_both_heads() {
-    use temper_engine_domain_forge_change::{Hold, State};
+    use temper_engine_domain_forge_change::{Cause, State};
     let (mut world, goal, branch, _, landing) = super::goal_closer::updating_landing(false);
     let expected = row(&world, landing).change.last_head.expect("own head");
     world.hold_write_answers = Some(HoldWrite::All);
@@ -739,7 +739,10 @@ fn a_push_from_outside_during_a_closers_landing_update_holds_with_both_heads() {
             break;
         }
     }
-    assert!(matches!(row(&world, landing).change.state, State::Held { why: Hold::BranchMoved, .. }));
+    assert!(matches!(
+        row(&world, landing).change.state,
+        State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::BranchMoved, .. }, .. }
+    ));
     let tasks::Phase::Held { source: Some(source), why: tasks::Hold::Drift, .. } = &live_task(&world, landing).phase
     else {
         panic!("drift's task account: {:?}", live_task(&world, landing).phase)
@@ -752,7 +755,12 @@ fn a_push_from_outside_during_a_closers_landing_update_holds_with_both_heads() {
         core::str::from_utf8(&before[..12]).unwrap(),
         core::str::from_utf8(&after[..12]).unwrap()
     );
-    assert!(words.starts_with(prefix.as_bytes()) && words.ends_with(b", confirmed"), "{words:?}");
+    let revision = live_task(&world, landing).revisions.hold;
+    let tail = format!(
+        "; resolve this reason, then task release {landing} --hold {revision}; or task cancel {landing} REASON"
+    );
+    let account = words.strip_suffix(tail.as_bytes()).expect("current hold's recovery tail");
+    assert!(account.starts_with(prefix.as_bytes()) && account.ends_with(b", confirmed"), "{words:?}");
     world.hold_write_answers = None;
     world.events.extend(world.held_write_answers.drain(..));
     world.signed_in = None;
@@ -794,7 +802,7 @@ fn a_change_into_the_goal_branch_while_its_landing_is_checked_is_its_new_head() 
 
 #[test]
 fn a_move_of_the_goal_branch_by_another_identity_holds_its_landing_for_drift() {
-    use temper_engine_domain_forge_change::{Hold, State};
+    use temper_engine_domain_forge_change::{Cause, State};
     let (mut world, goal, branch, landing, old) = checking_landing();
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"outside", b"pushed", 2)
         .expect("another identity moves the goal branch");
@@ -812,14 +820,19 @@ fn a_move_of_the_goal_branch_by_another_identity_holds_its_landing_for_drift() {
     })));
     for _ in 0..STEPS {
         world.tick();
-        if matches!(row(&world, landing).change.state, State::Held { why: Hold::BranchMoved, .. })
-            && matches!(live_task(&world, landing).phase, tasks::Phase::Held { .. })
+        if matches!(
+            row(&world, landing).change.state,
+            State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::BranchMoved, .. }, .. }
+        ) && matches!(live_task(&world, landing).phase, tasks::Phase::Held { .. })
             && forge_hold(&world, &branch).is_some_and(|hold| hold.drift.is_some())
         {
             break;
         }
     }
-    assert!(matches!(row(&world, landing).change.state, State::Held { why: Hold::BranchMoved, .. }));
+    assert!(matches!(
+        row(&world, landing).change.state,
+        State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::BranchMoved, .. }, .. }
+    ));
     assert!(matches!(live_task(&world, landing).phase, tasks::Phase::Held { .. }));
     let hold = forge_hold(&world, &branch).expect("the goal retains its branch");
     assert_eq!(hold.task, goal.task);
@@ -827,7 +840,7 @@ fn a_move_of_the_goal_branch_by_another_identity_holds_its_landing_for_drift() {
         hold.drift.as_ref().expect("the hold names the outside move").change,
         forge_top::DriftChange::Branch { expected: translate::commit(old), observed: Some(translate::commit(head)) }
     );
-    assert_eq!(row(&world, landing).drift, Some(Hold::BranchMoved));
+    assert_eq!(row(&world, landing).drift, Some(Cause::BranchMoved));
     assert_eq!(world.merges, PLAN_MERGES, "only the plan landed; the goal landing merges nothing");
     let number = row(&world, landing).pull.expect("goal landing pull");
     assert!(!world.writes.iter().any(|write| matches!(write,

@@ -455,8 +455,9 @@ comes and lands its branch, and the report carries what the run said
     person's rejection of a required gate (`Rejected`), its pull
     request closed without a merge (`PullClosed`) or its branch missing
     (`BranchMissing`), the change's holds (`change/repairs.md`). The
-    change keeps the hold its state was in as that state becomes
-    `Ended`, as `Change.ended_held`, an `Option<Hold>`, none where it
+    change keeps the hold's cause its state was in as that state becomes
+    `Ended`, as `Change.ended_held`, an `Option<Cause>`
+    (`change/repairs-releases.md`, 2), none where it
     was not held, so that its reason outlives the hold. The store keeps
     it in the stored state it already has, an ended state with that
     one hold (`ChangeState`'s `holds`), so that its format stays and

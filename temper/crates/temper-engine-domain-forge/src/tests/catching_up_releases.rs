@@ -568,7 +568,7 @@ fn rebase_restart_reads_the_branch_instead_of_the_cached_tip() {
         skein_forge_client::Outcome::Failed(Error::Refused),
         &mut Queue::uncapped(),
     );
-    assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, Some(change::Hold::BranchMoved));
+    assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, Some(change::Cause::BranchMoved));
 }
 
 #[test]

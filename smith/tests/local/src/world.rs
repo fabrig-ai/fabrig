@@ -796,6 +796,12 @@ impl World {
         self.store.turns.len()
     }
 
+    /// The durable turns across invocations, including any saved before a cut.
+    #[must_use]
+    pub fn recorded_turns(&self) -> &[agent::Turn] {
+        &self.store.turns
+    }
+
     /// Whether the child reported that it waits for another person message.
     #[must_use]
     pub fn waiting(&self) -> bool {

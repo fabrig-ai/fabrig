@@ -178,7 +178,7 @@ fn terminal_login_endings_and_press_refusals_return_to_the_right_form() {
         assert_eq!(
             match login_state(&root) {
                 S::Waiting { .. } => true,
-                S::Idle | S::Usable { .. } | S::NotFinished | S::Refused { .. } => false,
+                S::Idle | S::Usable { .. } | S::SignedInHeld | S::NotFinished | S::Refused { .. } => false,
             },
             waiting
         );

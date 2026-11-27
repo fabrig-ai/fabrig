@@ -837,7 +837,7 @@ impl World {
         self.tick();
     }
 
-    fn source_held(&self, account: u32) -> bool {
+    pub(super) fn source_held(&self, account: u32) -> bool {
         self.store.rows.values().any(|row| matches!(row,
             engine::Record::Core(jig_domain_core::Record::Accounts(Stored::Source { account: number, held: Some(_), .. })) if *number == account))
     }

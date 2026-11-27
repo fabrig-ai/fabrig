@@ -73,7 +73,13 @@ pub(super) fn authority(context: &tasks::DelegationContext) -> tasks::Authority 
 fn failed_delegate(domain: &Domain, task: u64) -> Option<u64> {
     let row = domain.forge.change(task)?;
     let Some((child, forge_change::Delegate::Close)) = row.delegate else { return None };
-    let forge_change::State::Held { was, why: forge_change::Hold::Failed } = &row.change.state else { return None };
+    let forge_change::State::Held {
+        was,
+        hold: forge_change::Hold { cause: forge_change::Cause::Failed | forge_change::Cause::CloseRefused, .. },
+    } = &row.change.state
+    else {
+        return None;
+    };
     if **was == (forge_change::State::Producing { requested: true })
         && row.delegate_status == forge_change::Status::Failed
     {

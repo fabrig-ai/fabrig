@@ -35,6 +35,7 @@ pub enum State {
     Running,
     Answered { seconds: u32 },
     Failed { why: Why },
+    Limited { reset: Option<Wall> },
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Why {
@@ -62,6 +63,7 @@ pub enum Event {
     Turn { task: u64 },
     Finished { task: u64 },
     RunFailed { task: u64, class: Class },
+    RunLimited { task: u64, reset: Option<Wall> },
     Due,
     AccountGone { account: u32 },
 }
@@ -91,6 +93,18 @@ impl Trials {
             }
         }
         rows.into_boxed().into_iter()
+    }
+
+    /// The running row for a task, for the root's reading of its account.
+    #[must_use]
+    #[expect(clippy::manual_find, reason = "step code scans rows without closures")]
+    pub fn running_row(&self, task: u64) -> Option<&Row> {
+        for row in &self.rows {
+            if row.task == Some(task) && is_running(row) {
+                return Some(row);
+            }
+        }
+        None
     }
 
     /// The tasks of running rows, for the root's observation.
@@ -143,6 +157,7 @@ pub fn step(trials: &mut Trials, env: &Env<Limits>, event: Event, out: &mut Queu
         | Event::Turn { .. }
         | Event::Finished { .. }
         | Event::RunFailed { .. }
+        | Event::RunLimited { .. }
         | Event::Due => {
             for row in trials.rows.iter_mut() {
                 if is_running(row) && update(row, env.wall, event, out) {
@@ -156,7 +171,7 @@ pub fn step(trials: &mut Trials, env: &Env<Limits>, event: Event, out: &mut Queu
 fn is_running(row: &Row) -> bool {
     match row.state {
         State::Running => true,
-        State::Answered { .. } | State::Failed { .. } => false,
+        State::Answered { .. } | State::Failed { .. } | State::Limited { .. } => false,
     }
 }
 
@@ -224,6 +239,13 @@ fn update(row: &mut Row, wall: Wall, event: Event, out: &mut Queue<Request>) -> 
             }
             end(row, State::Failed { why: Why::Ended { class } }, out);
         }
+        Event::RunLimited { task, reset } => {
+            if row.task != Some(task) {
+                return false;
+            }
+            row.step = Step::Answers;
+            end(row, State::Limited { reset }, out);
+        }
         Event::Due => {
             if wall < due(row) {
                 return false;
@@ -266,7 +288,7 @@ fn start(trials: &mut Trials, wall: Wall, account: u32, person: u64, again: bool
         }
         match row.state {
             State::Running => {}
-            State::Answered { .. } | State::Failed { .. } => {
+            State::Answered { .. } | State::Failed { .. } | State::Limited { .. } => {
                 let replace = match oldest {
                     Some((_, began)) => row.began < began,
                     None => true,

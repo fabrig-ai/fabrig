@@ -234,11 +234,5 @@ pub fn current_merged(current: &super::Current, overrides: &[jig_domain_people::
 /// Whether `chosen` names a configured model and an effort it takes: one it declares, or none
 /// for a model that declares none (protocol/configuration-templates.md, 1).
 fn takes(models: &[crate::Model], chosen: jig_domain_tasks::ModelEffort) -> bool {
-    let Some(model) = models.get(usize::from(chosen.model)) else {
-        return false;
-    };
-    match chosen.effort {
-        Some(effort) => usize::from(effort) < model.efforts.len(),
-        None => model.efforts.is_empty(),
-    }
+    super::check::effort_valid(models, chosen)
 }

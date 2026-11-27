@@ -3,7 +3,7 @@ use super::{Limits, Request, Side, wire_limits};
 use crate::generated::client_wire as maps;
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
-use skein_lib::{List, Queue, Reader, Token};
+use skein_lib::{List, Queue, Reader, Token, Wall};
 use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
@@ -26,6 +26,7 @@ pub enum State {
     Running,
     Answered { seconds: u32 },
     Failed { why: Why },
+    Limited { reset: Option<Wall> },
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Why {

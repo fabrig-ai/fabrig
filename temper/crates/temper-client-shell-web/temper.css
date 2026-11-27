@@ -3460,6 +3460,7 @@ html:root[data-night] #app > .temper-settings .temper-way-acts > .temper-ways-us
 /* model-check-pane: the model's check runs in the background, in the pane beside the forge's line. */
 #app > .temper-welcome .temper-welcome-status > * + p:not(.temper-welcome-status-why) { margin-top: 18px; }
 #app > .temper-welcome .temper-welcome-status > p.temper-flow-failed::before { content: '✕' / ''; color: var(--gf-signal); }
+#app > .temper-welcome .temper-welcome-status > p.temper-trial-limit-passed::before { content: '✕' / ''; }
 #app > .temper-welcome .temper-welcome-status > p.temper-flow-failed > span.temper-flow-muted { color: var(--gf-signal); }
 #app > .temper-welcome .temper-welcome-status > p.temper-welcome-status-why { display: block; margin: 6px 0 0 24px; font-size: 13.5px; line-height: 1.45; color: var(--gf-ink-2); }
 #app > .temper-welcome .temper-welcome-status > p.temper-welcome-status-why::before { content: none; }

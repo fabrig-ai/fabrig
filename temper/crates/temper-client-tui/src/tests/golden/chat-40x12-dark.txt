@@ -7,7 +7,7 @@
   values with a comma or a
 ✦ working
 ───────────── Hello / What landed… T2 ──
-❯ Reply
+❯ Reply, or ← to leave.
 ────────────────────────────────────────
  ● Live · Hello             1 needs you
 --
@@ -20,7 +20,7 @@
 ..........................a.............
 bcccccccc...............................
 ddddddddddddddeeeeedddeeeeeeeeeeeecccddd
-bbddddd.................................
+bbddddddddddddddddddddd.................
 dddddddddddddddddddddddddddddddddddddddd
 .ffffffdddccccc.............bbbbbbbbbbb.
 --

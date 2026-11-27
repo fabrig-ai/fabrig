@@ -557,6 +557,21 @@ pub const RELEASE: Tool = Tool {
     area: 1,
     notes: b"A task a party's hold holds is theirs to release, or a role's above\ntheirs: task show says whether you may. Releasing the stopped task\nitself lifts its hold, with every task the hold holds.\n",
 };
+/// Appended to the host's table so existing tool positions keep their meanings.
+pub const MEASURE_AT: u8 = 122;
+pub const MEASURE: Tool = Tool {
+    name: b"task measure",
+    line: b"Ask for one fresh measurement of what a held procedure judged",
+    prints: RELEASE.prints,
+    result: RELEASE.result,
+    forms: &[&[
+        positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
+        flag(b"hold", b"REV", Kind::Number, Required, b"The hold's revision, as the task prints it"),
+    ]],
+    keyed: Keyed::Optional,
+    area: 1,
+    notes: b"Lifts the procedure's own hold and asks it to measure its judgement\nonce more. It cannot lift a placed hold or settle an uncertain effect.\nA measurement asked again under its key prints its first answer.\n",
+};
 pub const LIFT: Tool = Tool {
     name: b"hold lift",
     line: b"Lift a placed hold you may lift",

@@ -254,7 +254,7 @@ fn model_line(
         PaneStep::Model => false,
         PaneStep::Ready => true,
     };
-    if let Some(trial) = super::model_check::trial(root, w) {
+    if let Some(trial) = super::model_check::trial(root, w, &mut bindings.model_times) {
         super::model_check::line(b, root, w, accounts, &trial, super::model_check::Place::Welcome);
     } else if temper_client_domain::pages::welcome::model_usable(root).is_some() {
         if let Some(provider) = super::accounts::own_signing_name(root, w) {

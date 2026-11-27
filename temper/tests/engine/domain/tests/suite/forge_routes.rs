@@ -483,7 +483,7 @@ fn a_change_whose_ci_never_reports_is_stalled_and_held() {
         world.store.rows.values().any(|stored| matches!(stored,
             Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(change)
                 if matches!(change.change.state, temper_engine_domain_forge_change::State::Held {
-                    why: temper_engine_domain_forge_change::Hold::Stalled, .. }))
+                    hold: temper_engine_domain_forge_change::Hold { cause: temper_engine_domain_forge_change::Cause::Stalled, .. }, .. }))
         )),
         "CI silence did not stall the change: {:?}",
         world.store.rows.values().filter(|row| matches!(row, Record::Forge { .. })).collect::<Vec<_>>()

@@ -63,7 +63,7 @@ fn a_first_try_makes_a_task() {
 
 #[test]
 fn again_on_an_ended_row_replaces_it() {
-    for state in [State::Answered { seconds: 2 }, State::Failed { why: Why::Refused }] {
+    for state in [State::Answered { seconds: 2 }, State::Failed { why: Why::Refused }, State::Limited { reset: None }] {
         let mut t = seed([row(ACCOUNT, ALICE, Some(TASK), 0, state)]);
         let mut out = decide(&mut t, SECOND, try_it(ACCOUNT, true));
         assert_eq!(t.rows.as_slice(), &[running(ACCOUNT, None, SECOND)]);
@@ -76,7 +76,7 @@ fn a_full_table_evicts_the_oldest_ended_row() {
     let mut t = seed([
         row(ACCOUNT, BOB, Some(TASK), SECOND, State::Answered { seconds: 1 }),
         running(OTHER, Some(OTHER_TASK), 0),
-        row(THIRD, ALICE, None, 0, State::Failed { why: Why::Refused }),
+        row(THIRD, ALICE, Some(THIRD_TASK), 0, State::Limited { reset: None }),
     ]);
     let mut out = decide(&mut t, SECOND, try_it(THIRD + 1, false));
     assert_eq!(
@@ -92,7 +92,12 @@ fn a_full_table_evicts_the_oldest_ended_row() {
 
 #[test]
 fn a_second_try_of_an_account_asks_nothing() {
-    for state in [State::Running, State::Answered { seconds: 1 }, State::Failed { why: Why::Refused }] {
+    for state in [
+        State::Running,
+        State::Answered { seconds: 1 },
+        State::Failed { why: Why::Refused },
+        State::Limited { reset: None },
+    ] {
         let mut t = seed([row(ACCOUNT, ALICE, Some(TASK), 0, state)]);
         assert!(decide(&mut t, SECOND, try_it(ACCOUNT, false)).is_empty());
         assert_eq!(first(&t), &row(ACCOUNT, ALICE, Some(TASK), 0, state));
@@ -169,6 +174,27 @@ fn seconds_round_up_and_are_at_least_one() {
         let mut t = seed([running(ACCOUNT, Some(TASK), began)]);
         drop(decide(&mut t, wall, Event::Turn { task: TASK }));
         assert_eq!(first(&t).state, State::Answered { seconds });
+    }
+}
+
+#[test]
+fn a_limited_run_ends_at_answers_and_nothing_retries_it_on_the_clock() {
+    for reset in [None, Some(Wall::from_nanos(MINUTE))] {
+        let mut t = seed([running(ACCOUNT, Some(TASK), 0), running(OTHER, Some(OTHER_TASK), SECOND)]);
+        let event = Event::RunLimited { task: TASK, reset };
+        assert!(decide(&mut t, SECOND, Event::RunLimited { task: THIRD_TASK, reset }).is_empty());
+        let mut out = decide(&mut t, SECOND, event);
+        requests(&mut out, &[Request::Cancel { task: TASK }, Request::Changed { person: ALICE }]);
+        assert_eq!(first(&t).state, State::Limited { reset });
+        assert_eq!(first(&t).step, Step::Answers);
+        assert_eq!(t.next_due(), Some(Wall::from_nanos(MINUTE + SECOND)));
+        assert!(decide(&mut t, MINUTE, event).is_empty(), "an ended row takes nothing");
+        assert!(decide(&mut t, MINUTE, Event::Due).is_empty(), "nothing at the reset or the original deadline");
+        assert_eq!(first(&t).state, State::Limited { reset });
+        let mut out = decide(&mut t, MINUTE + SECOND, Event::Due);
+        requests(&mut out, &[Request::Cancel { task: OTHER_TASK }, Request::Changed { person: ALICE }]);
+        assert_eq!(first(&t).state, State::Limited { reset });
+        assert_eq!(t.next_due(), None);
     }
 }
 

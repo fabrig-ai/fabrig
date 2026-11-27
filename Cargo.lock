@@ -5002,6 +5002,7 @@ dependencies = [
  "smith-protocol-llm-world",
  "smith-protocol-machine",
  "smith-protocol-machine-fixtures",
+ "smith-session-world",
 ]
 
 [[package]]

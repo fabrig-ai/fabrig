@@ -1,5 +1,7 @@
 //! Seeded arbitrary producer bytes preserve the tooling message contract.
 use skein_lib::Rng;
+use skein_world::sweep::cases;
+use std::convert::Infallible;
 use temper_engine_domain_forge::{
     commit_text,
     member_message::{Kind, Member, commit_message, names_head, trailers},
@@ -7,7 +9,7 @@ use temper_engine_domain_forge::{
 
 #[test]
 fn arbitrary_member_words_preserve_message_bounds_and_trailers() {
-    for seed in 0..256 {
+    cases(skein_world::this_test!("arbitrary_member_words_preserve_message_bounds_and_trailers"), 0..256, |seed| {
         let mut rng = Rng::new(seed);
         let mut words = Vec::new();
         let length = rng.below(8193);
@@ -66,7 +68,9 @@ fn arbitrary_member_words_preserve_message_bounds_and_trailers() {
         }
         let member = Member { words: &squash_words, head_trailers: &head_trailers, ..member };
         check_squash(seed, &member);
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 fn check_merge(seed: u64, member: &Member<'_>) {

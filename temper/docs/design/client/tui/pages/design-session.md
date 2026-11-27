@@ -27,7 +27,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
 ───────────────────────────────────────────── cowsql / Raft to vsr T12 on box ──
 ❯ 1
 ────────────────────────────────────────────────────────────────────────────────
- cowsql · drafter · Opus 5.5 · xhigh                 pane: half · Ctrl-P widens
+ cowsql · drafter · Opus 5.5 · xhigh                 pane: half · Ctrl-o widens
 ```
 
 - **What it is:** a chat whose chip's executor is template 6's charter,
@@ -44,7 +44,7 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
   the browser's new chat with a draft; it opens with the pane at half,
   as the domain's start leaves it (`Mode::Split`, `../../pages/README.md`, *A new chat*).
 - **Sittings:** a session is kept (`../../../domain/agent/agents.md`, 4). Opened
-  again, from `launchpad.md`, 4, *Where you left off*, `/chats N` or `/chats`, it is the
+  again, from `launchpad.md`, 4, *Where you left off*, or `/chats`, it is the
   root's chat as any chat is, its conversation and draft read as they
   stand, and the domain opens a design session with its pane at half
   (`../../pages/README.md`, *A design session*); `launchpad.md`, 4, *Where you left off* says ", a design
@@ -65,13 +65,14 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
     says "pane: all": at 80 each half keeps 38 columns of words, the
     conversation's after its two-column indent and the pane's after its
     divider and padding, the narrowest the halves read at.
-  - *Ctrl-P* cycles them on a chat whose pane can show, whatever the box
+  - *Ctrl-o* cycles them on a chat whose pane can show, whatever the box
     holds and whatever list stands: the host reads the key before
-    skein's key reader, as it reads `n` (`temper_client_tui::pane_key(view)`,
-    from the tree last built), and the TUI's event is the root's
-    `Act::Mode` with the next state after the one shown: folded to half,
-    or to all where too narrow; half to all; all to folded. With no pane
-    to show, Ctrl-P does nothing.
+    skein's key reader (`temper_client_tui::pane_key(view)`, from the
+    tree last built), and the TUI's event is the root's `Act::Mode` with
+    the next state after the one shown: folded to half, or to all where
+    too narrow; half to all; all to folded. With no pane to show, Ctrl-o
+    does nothing. It is Ctrl-o, the user's word of 2026-11-27, since
+    Ctrl-p is Up as in Emacs (skein's `ui/screen.md`, 6.2).
   - *`/draft`* on such a chat is the root's `Command::Draft`, as the
     browser's terminal's "Draft": the draft shown at half, or hidden
     (`README.md`, section 2, *Offered*).
@@ -192,14 +193,14 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
     drafter · Opus · xhigh"; in any other chat, as before;
   - *at its right,* after "paused · a message resumes it" where the
     person paused the chat: the pane's state, "pane: folded", "pane:
-    half" or "pane: all", as shown; " · " and what the next Ctrl-P does,
-    "Ctrl-P opens", "Ctrl-P widens" or "Ctrl-P folds"; then the goal's
+    half" or "pane: all", as shown; " · " and what the next Ctrl-o does,
+    "Ctrl-o opens", "Ctrl-o widens" or "Ctrl-o folds"; then the goal's
     part, " · " and "/goal starts a goal from the draft" while `/goal`
     is offered, or "goal TITLE · /open opens it" while a goal is linked,
     TITLE its chip's title cut at 20 characters as the rule's title is;
     all in `tui-hint`; then the count of what needs the person, as
     before;
-  - *narrow:* the goal's part goes first, then the Ctrl-P words, each
+  - *narrow:* the goal's part goes first, then the Ctrl-o words, each
     with its " · ", then as `README.md`, section 1, *A narrow terminal* says.
 - **Where it departs from its mockup** (`tui/whole-story/design-session.html`;
   `../../../draft/surfaces.md`, 13), each for a reason:
@@ -219,8 +220,8 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
     request asks (`../../../draft/tui-design-session.md`), as well as in the
     reply, where the mockup prints them in the reply alone; and the
     last says "Tell it something else", the TUI's words;
-  - the quiet line at half says "Ctrl-P widens", where the mockup has
-    "Ctrl-P folds", since its words say what the next press does; at 80
+  - the quiet line at half says "Ctrl-o widens", where the mockup has
+    "Ctrl-o folds", since its words say what the next press does; at 80
     columns the goal's part is left out, which the mockup's 110 hold;
     and the link's state stands first, Live included, which the mockup,
     live, leaves out: the user's request `tui-21` of 2026-11-15 has it

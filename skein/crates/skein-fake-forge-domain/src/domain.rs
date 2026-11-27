@@ -255,6 +255,7 @@ pub struct Domain {
     pub(crate) runners: crate::runners::Pool,
     pub(crate) rng: Rng,
     pub(crate) lag: Option<crate::scenario::Lag>,
+    pub(crate) omit_report: Option<u64>,
     pub(crate) tally: Tally,
 }
 
@@ -357,6 +358,7 @@ impl Domain {
             runners: crate::runners::Pool::new(limits),
             rng: Rng::new(seed),
             lag: None,
+            omit_report: None,
             tally: Tally::ZERO,
         }
     }

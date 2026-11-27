@@ -458,6 +458,20 @@ kind = "removed"
 why = "The write record replaces the former forge write and readback paths. The stories now produce 534 live commits instead of 557; the sweep still cold-starts at every live commit of every story."
 by = "Change 19914"
 
+[[gate.fuzzy.check_reasons]]
+binary = "smith-run-world::suite"
+checks = { seed = 96 }
+kind = "duplicate"
+why = "The check-wait sweep still runs the same 96 seeds and folds every fault ledger. Each case was counted by both cases and Sweep::ran; cases now counts it once."
+by = "Landing repair 20318"
+
+[[gate.fuzzy.check_reasons]]
+binary = "temper-system-world::suite"
+checks = { seed = 1 }
+kind = "duplicate"
+why = "The mixed composed sweep still runs seed 6 and folds its fault ledger. The seed was counted by both each_seed and Sweep::ran; cases counts it once."
+by = "Change 20409"
+
 [[gate.fuzzy.moves]]
 from = "temper.real-loop"
 to = "temper.domain"
