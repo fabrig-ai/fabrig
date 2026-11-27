@@ -47,7 +47,13 @@ fn compaction_answer(book: &mut crate::responses::Book, owner: skein_lib::Token,
     let usage = llm::Usage { input_tokens: Some(2), output_tokens: Some(3), ..llm::Usage::NONE };
     book.received(
         skein_lib::Token::new(99),
-        &llm::Completion { content: Box::new([]), stop, usage, reasoning_dropped: Box::new([]) },
+        &llm::Completion {
+            content: Box::new([]),
+            stop,
+            usage,
+            served: llm::ServedSpeed::Unreported,
+            reasoning_dropped: Box::new([]),
+        },
     );
     book.fact(
         skein_lib::Time::ZERO,

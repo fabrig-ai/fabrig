@@ -171,6 +171,7 @@ pub(crate) fn cap(
         | change::Decision::CancelMovedDelegate { .. }
         | change::Decision::EndHold
         | change::Decision::RepairEnded { .. }
+        | change::Decision::ReadMerge { .. }
         | change::Decision::Effect(_)
         | change::Decision::Ready
         | change::Decision::QueueRepair

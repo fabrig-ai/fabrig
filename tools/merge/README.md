@@ -1,11 +1,12 @@
 # The reference's merge job
 
-`.temper/merge merge <request.json>` runs from a job directory with the merge
-in progress in `<repository name>/` (temper/docs/design/protocol/tooling.md, 4.1). It recounts
-unmerged tree baselines from the head's comments and the larger side counts,
-stages successful recounts, and regenerates known conflicted recordings on the
-merged tree. A new `# Raised:` line on the incoming side or a failed recount
-leaves the baseline.
+`<repository name>/.temper/hooks/merge merge <request.json>` runs from a job
+directory with the merge in progress in `<repository name>/`
+(temper/docs/design/protocol/tooling.md, 4.1). The older `.temper/merge`
+forwards to the hook. The hook recounts unmerged tree baselines from the
+head's comments and the larger side counts, stages successful recounts, and
+regenerates known conflicted recordings on the merged tree. A new `# Raised:`
+line on the incoming side or a failed recount leaves the baseline.
 The recording rule knows `temper/tests/playground/tests/fixtures/story-a.log`:
 it runs only `walk::story_a_walks_from_the_welcome_to_the_csv_change_landed`
 in `temper-playground-world`'s `suite` binary through `cargo nextest`, with

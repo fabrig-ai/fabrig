@@ -71,6 +71,7 @@ fn seen(request: &file::Request) -> Seen {
         | file::Request::Stat { .. }
         | file::Request::Cut { .. }
         | file::Request::List { .. }
+        | file::Request::OpenSiblingFile { .. }
         | file::Request::ListPage { .. } => Seen::Other,
     }
 }

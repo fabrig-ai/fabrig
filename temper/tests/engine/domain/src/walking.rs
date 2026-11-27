@@ -489,6 +489,8 @@ pub fn charter() -> engine::Charter {
                 price_unit: 1000,
                 efforts: Box::new([]),
                 effort: None,
+                speeds: Box::default(),
+                speed: None,
             },
             alternatives: Box::new([]),
             inspect: true,

@@ -98,6 +98,7 @@ fn text_stream_preserves_initial_text_deltas_and_cumulative_usage() {
     assert_eq!(
         out.pop(),
         Some(Output::Completed {
+            served: None,
             stop: Stop::EndTurn,
             usage: Usage {
                 input: Some(10),
@@ -653,7 +654,7 @@ fn anthropic_usage_preserves_omission_zero_and_cumulative_reports() {
             progress(&mut decoder, document.as_bytes(), &LIMITS, &mut out);
             progress(&mut decoder, br#"{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":"bad","output_tokens":null,"cache_read_input_tokens":-1,"reasoning_tokens":88}}"#, &LIMITS, &mut out);
             feed(&mut decoder, STOP, &LIMITS, &mut out);
-            assert_eq!(out.pop(), Some(Output::Completed { stop: Stop::EndTurn, usage: expected }));
+            assert_eq!(out.pop(), Some(Output::Completed { stop: Stop::EndTurn, usage: expected, served: None }));
         }
     }
     for usage in ["", r#", "usage":null"#, r#", "usage":{}"#] {
@@ -665,7 +666,7 @@ fn anthropic_usage_preserves_omission_zero_and_cumulative_reports() {
         progress(&mut decoder, document.as_bytes(), &LIMITS, &mut out);
         progress(&mut decoder, br#"{"type":"message_delta","delta":{"stop_reason":"end_turn"}}"#, &LIMITS, &mut out);
         feed(&mut decoder, STOP, &LIMITS, &mut out);
-        assert_eq!(out.pop(), Some(Output::Completed { stop: Stop::EndTurn, usage: Usage::NONE }));
+        assert_eq!(out.pop(), Some(Output::Completed { stop: Stop::EndTurn, usage: Usage::NONE, served: None }));
     }
 }
 
@@ -693,6 +694,7 @@ fn consecutive_thinking_items_form_one_replay_block_before_text() {
     assert_eq!(
         out.pop(),
         Some(Output::Completed {
+            served: None,
             stop: Stop::EndTurn,
             usage: Usage {
                 input: Some(10),

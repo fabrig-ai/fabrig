@@ -49,6 +49,8 @@ fn model() -> engine::Model {
         price_unit: PRICE_UNIT,
         efforts: Box::new([]),
         effort: None,
+        speeds: Box::default(),
+        speed: None,
     }
 }
 

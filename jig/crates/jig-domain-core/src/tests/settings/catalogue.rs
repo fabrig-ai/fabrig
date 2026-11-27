@@ -518,3 +518,68 @@ fn catalogue_list_changes_preserve_whole_models_and_account_names() {
     }
     assert_eq!(NEW_FOR, Duration::from_secs(604_800));
 }
+
+#[test]
+fn new_models_take_stock_figures_but_no_speeds() {
+    let settings = crate::tests::config(1).settings;
+    let mut stock = catalogue_model(1, b"stock", ModelSource::Stock);
+    crate::tests::speed_example(&mut stock.model);
+    let stock = [stock];
+    let name = b"new-model";
+    let added =
+        settings::catalogue::new_model(1, name.as_slice().into(), ModelSource::Person, &stock, &settings.endpoints)
+            .expect("free catalogue number");
+    let list = ProviderList { keep: Box::new([b"*".as_slice().into()]), drop: Box::default() };
+    let change = from_list(1, &list, &[listed(name)], 0, READ_AT, &stock, &settings.endpoints);
+    let Edit::Set(value) = &change.items.first().expect("new listed model").edit else {
+        panic!("list adds a model");
+    };
+    let listed = value.as_model().expect("listed model value");
+    for model in [&added.model, &listed.model] {
+        assert_eq!(model.input_price, stock[0].model.input_price);
+        assert!(model.speeds.is_empty());
+        assert_eq!(model.speed, None);
+    }
+}
+
+#[test]
+fn full_speed_declarations_fit_the_catalogue_and_count_in_a_charters_size() {
+    let mut config = crate::tests::config(1);
+    let policy = &mut config.defaults.charters[0].policy;
+    let before = jig_domain_core_vocabulary::limits::policy_owned_bytes(policy).unwrap();
+    let mut speeds = List::with_capacity(4);
+    for (name, first, second) in [(b'a', b'b', b'c'), (b'd', b'e', b'f'), (b'g', b'h', b'i'), (b'j', b'k', b'l')] {
+        speeds
+            .push(crate::Speed {
+                name: Box::new([name; 32]),
+                also: Box::new([Box::new([first; 32]), Box::new([second; 32])]),
+                input_price: 1,
+                cached_price: 1,
+                cache_write_price: Some(1),
+                output_price: 1,
+            })
+            .unwrap();
+    }
+    let model = &mut policy.model;
+    model.speeds = speeds.into_boxed();
+    model.speed = Some(Box::new([b'a'; 32]));
+    let row = CatalogueModel { model: model.clone(), ..catalogue_model(1, b"stock", ModelSource::Stock) };
+    assert!(settings::catalogue::fits(&row, 1));
+    // Each speed owns three names and two alias pointers. The default name is a separate allocation.
+    let allocated = 4 * (size_of::<crate::Speed>() + 3 * 32 + 2 * size_of::<Box<[u8]>>()) + 32;
+    // The route with four speeds has no program allocation.
+    let carrier_without_speed_allocations = size_of::<CatalogueModel>()
+        + 2 * usize::try_from(crate::MODEL_NAME_BYTES).unwrap()
+        + usize::try_from(crate::MODEL_DESCRIPTION_BYTES).unwrap()
+        + 16 * (size_of::<Box<[u8]>>() + 32)
+        + 32;
+    assert_eq!(
+        settings::catalogue::bound().unwrap(),
+        u64::try_from(carrier_without_speed_allocations + allocated).unwrap()
+    );
+    // The main model can also be a sub-agent: the run's worst case prices it twice.
+    assert_eq!(
+        jig_domain_core_vocabulary::limits::policy_owned_bytes(policy),
+        Some(before + 2 * u64::try_from(allocated).unwrap())
+    );
+}

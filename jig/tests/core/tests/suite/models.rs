@@ -227,6 +227,43 @@ fn a_prices_change_makes_a_charter_version() {
 }
 
 #[test]
+fn speeds_and_the_default_speed_version_only_the_charters_that_include_the_model() {
+    let (mut config, limits) = configured(2);
+    let mut other = config.core.defaults.charters[0].clone();
+    other.number = 2;
+    other.rest = false;
+    other.policy.model = config.core.defaults.models[1].model.clone();
+    other.policy.alternatives = Box::default();
+    let mut charters = config.core.defaults.charters.into_vec();
+    charters.push(other);
+    config.core.defaults.charters = charters.into_boxed_slice();
+    let (mut world, signed) = start_with(config, &limits);
+    let task = make(&mut world, signed, None);
+    let original = world.domain.core_mut().charter_of(task).clone();
+    let other = world.domain.core_mut().charter(2).expect("another resolution").clone();
+    let mut value = entry(&world, 1);
+    let model = &mut value.model;
+    model.speeds = Box::new([core::Speed {
+        name: b"fast".as_slice().into(),
+        also: Box::new([b"priority".as_slice().into()]),
+        input_price: model.input_price,
+        cached_price: model.cached_price,
+        cache_write_price: model.cache_write_price,
+        output_price: model.output_price,
+    }]);
+    for revision in [2, 3] {
+        apply(&mut world, signed, set(value.clone()));
+        assert_eq!(world.domain.settings().lookup(s::Setting::Charter(1)).1, Some((false, revision)));
+        assert_eq!(world.domain.settings().lookup(s::Setting::Charter(2)).1, Some((false, 1)));
+        assert_eq!(world.domain.core_mut().charter(1).expect("new resolution").policy.model, value.model);
+        assert_eq!(world.domain.core_mut().charter(2), Some(&other));
+        assert_eq!(world.domain.core_mut().charter_of(task), &original);
+        assert_eq!(versions(&world), 1);
+        value.model.speed = Some(b"fast".as_slice().into());
+    }
+}
+
+#[test]
 fn a_withdrawn_model_leaves_the_offer_and_the_resolution() {
     for (source, withdrawn, expected) in [
         (s::ModelSource::Stock, false, s::ModelSource::Stock),

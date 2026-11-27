@@ -124,6 +124,9 @@ its tests, is `cluster.md`.
     binary, `temper help`, and agents' `read_docs`.
 16. **tooling.md:** the contract with a project's own `prepare` and
     `key` commands, run as jobs on a worker for a landing by turn.
+    - **hooks.md:** a repository's hooks, `.temper/hooks/deliver`,
+      `finish`, `merge` and `close`: how each is found, and the rule by
+      repository while the older paths and settings stay.
 17. **floor.md:** the oldest store this build opens: its families and
     versions, the owner sets temper hands jig's store, the golden
     deployment, named refusals and the policy on stored changes.

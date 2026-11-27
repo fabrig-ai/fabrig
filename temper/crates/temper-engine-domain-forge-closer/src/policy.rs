@@ -85,11 +85,11 @@ pub enum Child {
 }
 
 #[derive(Debug)]
-#[expect(clippy::struct_excessive_bools, reason = "the root supplies independent observations to the pure policy")]
 pub struct Facts {
     pub report: ReportRead,
     pub goal_branch: bool,
-    pub close_job: bool,
+    /// None until the goal branch tip has answered the close-command read.
+    pub close_job: Option<bool>,
     pub pending: bool,
     pub landed: Box<[u64]>,
     pub base_holds: Option<bool>,
@@ -106,9 +106,11 @@ pub enum Decision {
     ReadReport,
     HoldReport,
     Check,
+    CheckClose,
     Wait,
     Make(Step),
     Supersede { change: u64 },
+    SkipClose { change: u64 },
     Wake { change: u64 },
     Report,
     Hold(Hold),
@@ -145,8 +147,10 @@ pub fn step(closer: &Closer, facts: &Facts) -> Stepped {
         // An ended landing may still need containment to judge its ending.
         Decision::Check if facts.pending => stepped,
         Decision::Check
+        | Decision::CheckClose
         | Decision::Make(Step::Close | Step::Land)
         | Decision::Supersede { .. }
+        | Decision::SkipClose { .. }
         | Decision::Wake { .. }
         | Decision::Report => {
             if facts.pending {
@@ -179,11 +183,17 @@ fn closing_step(mut closer: Closer, facts: &Facts) -> Stepped {
             Child::Pending => {
                 if running.step == Step::Land
                     && !facts.pending
-                    && facts.close_job
+                    && facts.goal_branch
                     && closer.closed.as_deref() != Some(facts.landed.as_ref())
                 {
-                    closer.running = None;
-                    return Stepped { closer, decision: Decision::Make(Step::Close) };
+                    match facts.close_job {
+                        None => return Stepped { closer, decision: Decision::CheckClose },
+                        Some(true) => {
+                            closer.running = None;
+                            return Stepped { closer, decision: Decision::Make(Step::Close) };
+                        }
+                        Some(false) => {}
+                    }
                 }
                 return Stepped { closer, decision: Decision::Wait };
             }
@@ -191,8 +201,14 @@ fn closing_step(mut closer: Closer, facts: &Facts) -> Stepped {
                 let decision = if facts.pending || running.step != Step::Close {
                     Decision::Wait
                 } else if closer.closed.as_deref() != Some(facts.landed.as_ref()) {
-                    closer.running = None;
-                    Decision::Supersede { change: running.change }
+                    match facts.close_job {
+                        None => Decision::CheckClose,
+                        Some(true) => {
+                            closer.running = None;
+                            Decision::Supersede { change: running.change }
+                        }
+                        Some(false) => Decision::SkipClose { change: running.change },
+                    }
                 } else if held {
                     Decision::Wait
                 } else {
@@ -216,8 +232,11 @@ fn closing_step(mut closer: Closer, facts: &Facts) -> Stepped {
     }
     let decision = if facts.pending {
         Decision::Wait
-    } else if facts.goal_branch && facts.close_job && closer.closed.as_deref() != Some(facts.landed.as_ref()) {
-        Decision::Make(Step::Close)
+    } else if facts.goal_branch
+        && facts.close_job != Some(false)
+        && closer.closed.as_deref() != Some(facts.landed.as_ref())
+    {
+        close(facts)
     } else if let Some(change) = closer.landing {
         match facts.landing_child {
             Child::Pending | Child::Idle { .. } => Decision::Wait,
@@ -231,6 +250,14 @@ fn closing_step(mut closer: Closer, facts: &Facts) -> Stepped {
         land(facts)
     };
     Stepped { closer, decision }
+}
+
+fn close(facts: &Facts) -> Decision {
+    match facts.close_job {
+        None => Decision::CheckClose,
+        Some(true) => Decision::Make(Step::Close),
+        Some(false) => land(facts),
+    }
 }
 
 fn land(facts: &Facts) -> Decision {
@@ -258,13 +285,14 @@ fn retry_step(closer: &mut Closer, facts: &Facts, kind: Step) -> Decision {
         return Decision::Wait;
     }
     let decision = match kind {
-        Step::Close => Decision::Make(Step::Close),
+        Step::Close => close(facts),
         Step::Land => land(facts),
     };
     match decision {
-        Decision::ReadReport | Decision::HoldReport | Decision::Check => {}
+        Decision::ReadReport | Decision::HoldReport | Decision::Check | Decision::CheckClose => {}
         Decision::Make(Step::Close | Step::Land)
         | Decision::Supersede { .. }
+        | Decision::SkipClose { .. }
         | Decision::Wake { .. }
         | Decision::Report
         | Decision::Wait
@@ -301,8 +329,10 @@ fn ended_landing(closer: &mut Closer, facts: &Facts, change: u64, branch: bool) 
         }
         Decision::ReadReport
         | Decision::HoldReport
+        | Decision::CheckClose
         | Decision::Make(Step::Close)
         | Decision::Supersede { .. }
+        | Decision::SkipClose { .. }
         | Decision::Wake { .. }
         | Decision::Wait
         | Decision::Hold(_) => {

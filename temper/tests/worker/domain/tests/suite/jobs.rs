@@ -16,6 +16,20 @@ fn a_job_runs_its_command_in_its_prepared_checkout_and_answers_its_result() {
     assert_eq!(run(2, Case::Finished).expect("world checks").pushes, 0);
 }
 
+/// temper/docs/design/protocol/hooks.md, 4.3: missing checkout hooks are command failures, not start refusals.
+#[test]
+fn a_missing_close_hook_answers_as_a_command_failure() {
+    use temper_worker_domain_world::whole::close;
+    assert_eq!(close::run(8, close::Case::MissingHook).expect("world checks").pushes, 0);
+}
+
+/// temper/docs/design/protocol/hooks.md, 4.3: an unmerged hook fails before it can be run.
+#[test]
+fn an_unmerged_hook_does_not_reach_the_spawn_boundary() {
+    use temper_worker_domain_world::whole::merge;
+    assert_eq!(merge::run(9, merge::Case::ConflictedHook).expect("world checks").pushes, 0);
+}
+
 /// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_delivering_kinds_job_pushes_its_writable_repositorys_head_before_answering() {

@@ -971,6 +971,7 @@ pub fn escapes_within<B: Backend>(backend: &mut B, limits: PathLimits) -> Escape
             (
                 Ok(fd),
                 OpenHow::PathNoFollow
+                | OpenHow::PathSiblingFile
                 | OpenHow::Directory
                 | OpenHow::DirectoryNoFollow
                 | OpenHow::Create { .. }

@@ -64,6 +64,7 @@ impl Sample {
                 account: None,
                 model: self.text(),
                 effort: None,
+                speed: None,
                 window: 32,
                 output: 8,
                 prices: c::Prices { input: 1, cached: 0, cache_write: None, output: 1, unit: 1 },

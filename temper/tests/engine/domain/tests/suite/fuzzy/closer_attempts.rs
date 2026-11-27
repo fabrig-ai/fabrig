@@ -16,7 +16,7 @@ fn seeded_step_endings_hold_only_for_the_branch_or_the_bound() {
         let mut f = Facts {
             report: ReportRead::Read(ReportFields::empty()),
             goal_branch: true,
-            close_job: true,
+            close_job: Some(true),
             pending: false,
             landed: Box::new([]),
             base_holds: Some(false),
