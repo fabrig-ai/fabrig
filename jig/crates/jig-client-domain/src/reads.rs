@@ -23,12 +23,7 @@ impl Domain {
         false
     }
 
-    pub(crate) fn refuse_reads(
-        &mut self,
-        family: Option<u16>,
-        served: Option<crate::contract::VersionRange>,
-        out: &mut Queue<Request>,
-    ) {
+    pub(crate) fn refuse_reads(&mut self, family: Option<u16>, out: &mut Queue<Request>) {
         let mut refused = List::with_capacity(self.reads.len());
         for (handle, pending) in &self.reads {
             if family.is_none() || pending.family == family {
@@ -37,7 +32,7 @@ impl Domain {
         }
         for handle in &refused {
             self.reads.remove(handle);
-            tell(out, Told::Page { handle: *handle, page: Readout::NotServed { family, served } });
+            tell(out, Told::Page { handle: *handle, page: Readout::NotServed { family } });
         }
     }
 
@@ -46,15 +41,12 @@ impl Domain {
         let refused = match &what {
             Readable::Family { record, .. } => {
                 let owner = self.family(record);
-                (!owner.served).then_some(Readout::NotServed { family: Some(record.family), served: owner.versions })
+                (!owner.served).then_some(Readout::NotServed { family: Some(record.family) })
             }
             Readable::Jig(_) => None,
         };
-        let refused = if self.link == crate::Link::OutOfDate {
-            Some(Readout::NotServed { family: None, served: self.jig_versions })
-        } else {
-            refused
-        };
+        let refused =
+            if self.link == crate::Link::OutOfDate { Some(Readout::NotServed { family: None }) } else { refused };
         if let Some(page) = refused {
             tell(out, Told::Page { handle, page });
             return;

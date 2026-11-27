@@ -178,7 +178,7 @@ fn a_real_get_refusal_keeps_its_category_and_bounded_site() {
 }
 
 #[test]
-fn a_real_patch_count_walk_refusal_keeps_its_category() {
+fn an_upgrade_count_walk_refusal_keeps_its_category() {
     let mut store = cold();
     store.owner_sets(SETS);
     let mut above = Queue::uncapped();

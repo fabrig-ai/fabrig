@@ -274,6 +274,8 @@ pub enum Prepared {
 pub struct Conflicts {
     pub repository: u32,
     pub files: Box<[Box<[u8]>]>,
+    /// There are more conflicted paths than the retained prefix.
+    pub cut: bool,
 }
 
 /// Why a prepare failed.

@@ -6,7 +6,7 @@ use crate::routing::{HoldingsNeed, Work, effect::procedure::ProcedureCall};
 
 use crate::loads::point::Point;
 use crate::{
-    Ask, CallKey, CallPart, Core, Delegate, Dependency, Event, HoldingsRefusal, Limits, PendingCall, ProcedureStep,
+    Ask, CallHolder, CallKey, CallPart, Core, Delegate, Dependency, Event, HoldingsRefusal, Limits, ProcedureStep,
     Request, StepRefusal, ToolKind,
     routing::{
         BatchKind, DelegateCreation, ProcedureCreation,
@@ -44,13 +44,13 @@ pub(crate) fn delegate(
     batch: Box<[Delegate]>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    let to = if core.pending_calls.get(&key) == Some(&PendingCall::Application) {
+    let to = if core.pending_calls.get(&key) == Some(&CallHolder::Application) {
         // A connector that loaded words for this batch passes the same place to the engine.
         if !core.current_proof(key.task, key.attempt) {
             core.release_pending_call(key);
             return out;
         }
-        core.handoff_call(key, PendingCall::Application, PendingCall::Routed);
+        core.handoff_call(key, CallHolder::Application, CallHolder::Routed);
         to
     } else {
         let Some(to) = admit_named_call(core, &mut out, to, key) else { return out };
@@ -75,7 +75,7 @@ pub(crate) fn delegate(
         return delegate_validated(core, env, to, key, batch, Box::new([]));
     }
     let stubs = List::with_capacity(u32::try_from(ids.len()).expect("bounded input IDs"));
-    core.handoff_call(key, PendingCall::Routed, PendingCall::DelegateInput);
+    core.handoff_call(key, CallHolder::Routed, CallHolder::DelegateInput);
     load_input(core, env, DelegateInput { to, key, batch, ids, at: 0, project, stubs })
 }
 
@@ -92,7 +92,7 @@ pub(crate) struct DelegateInput {
 
 fn load_input(core: &mut Core, env: &Env<Limits>, read: DelegateInput) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    assert!(core.pending_calls.get(&read.key) == Some(&PendingCall::DelegateInput), "input load owns {:?}", read.key);
+    assert!(core.pending_calls.get(&read.key) == Some(&CallHolder::DelegateInput), "input load owns {:?}", read.key);
     if core.loads.room(&env.limits) {
         assert!(
             crate::loads::try_point(core, &env.limits, &mut out, Point::DelegateInput(Box::new(read))),
@@ -110,7 +110,7 @@ pub(crate) fn input_loaded(
     mut read: DelegateInput,
     row: Option<Box<tasks::TaskRecord>>,
 ) -> Queue<Request> {
-    if core.pending_calls.get(&read.key) != Some(&PendingCall::DelegateInput) {
+    if core.pending_calls.get(&read.key) != Some(&CallHolder::DelegateInput) {
         return Queue::uncapped();
     }
     if core.stopping() || !core.current_proof(read.key.task, read.key.attempt) {
@@ -130,7 +130,7 @@ pub(crate) fn input_loaded(
     if read.at < read.ids.len() {
         load_input(core, env, read)
     } else {
-        core.handoff_call(read.key, PendingCall::DelegateInput, PendingCall::Routed);
+        core.handoff_call(read.key, CallHolder::DelegateInput, CallHolder::Routed);
         delegate_validated(core, env, read.to, read.key, read.batch, read.stubs.into_boxed())
     }
 }
@@ -147,7 +147,7 @@ fn delegate_validated(
     mut batch: Box<[Delegate]>,
     stubs: Box<[tasks::Stub]>,
 ) -> Queue<Request> {
-    assert!(core.pending_calls.get(&key) == Some(&PendingCall::Routed), "delegation holds the routed call {key:?}");
+    assert!(core.pending_calls.get(&key) == Some(&CallHolder::Routed), "delegation holds the routed call {key:?}");
     if let Some(part) = core.authorize_tool(key, ToolKind::Delegate) {
         let mut out = Queue::uncapped();
         call_decision(core, &mut out, to, key, part);

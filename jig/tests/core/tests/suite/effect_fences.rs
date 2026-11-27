@@ -123,7 +123,7 @@ fn a_delayed_judge_cannot_keep_or_charge_an_effect_after_its_calling_run_is_canc
             | core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Keep { .. }), .. }
     )));
     assert_eq!(core.tasks.task(key.task).expect("closing task").numbers, before);
-    assert!(!core.pending_calls.contains_key(&key));
+    assert!(!core.call_pending(key));
 }
 
 fn a_delayed_judge_is_checked_against_the_policy_that_exists_when_it_completes() {
@@ -362,7 +362,7 @@ fn late_busy_or_refused_descriptions_cannot_answer_a_cancelled_run() {
                 core::Request::Write(_) | core::Request::Held(_) | core::Request::Now(_)
             ));
         }
-        assert!(!core.pending_calls.contains_key(&key));
+        assert!(!core.call_pending(key));
     }
 }
 

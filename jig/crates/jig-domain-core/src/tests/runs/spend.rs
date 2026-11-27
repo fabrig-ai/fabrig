@@ -118,3 +118,35 @@ fn a_whole_at_or_below_the_minimum_or_a_half_short_of_the_reserve_is_held_for_bu
         assert_eq!(row.run_reserved, 0);
     }
 }
+
+#[test]
+fn a_run_needs_the_reserve_at_its_default_speed() {
+    for (budget, allowed) in [(19, false), (20, true)] {
+        let (mut core, _) = funded(budget, false);
+        let policy = &mut core.current.test_charter_mut(1).policy;
+        let model = &mut policy.model;
+        model.speeds = Box::new([Speed {
+            name: b"fast".as_slice().into(),
+            also: Box::default(),
+            input_price: 1_000,
+            cached_price: 1_000,
+            cache_write_price: None,
+            output_price: 1_000,
+        }]);
+        model.speed = Some(b"fast".as_slice().into());
+        // 8,192 input and 1,024 output tokens, rounded up at 1,000 / 1,000,000,
+        // cost 10 units per completion; the run needs two completions.
+        let context = core.tasks.run_context(TASK).expect("due task");
+        let admission = core.run_admission(&context, Wall::EPOCH, Box::new([]));
+        if allowed {
+            let RunAdmission::Allow(allowance) = admission else { panic!("at the exact floor: {admission:?}") };
+            assert_eq!(allowance.spend, budget);
+        } else {
+            assert_eq!(admission, RunAdmission::Hold(tasks::Hold::Budget));
+        }
+        core.current.test_charter_mut(1).policy.model.speed = None;
+        let admission = core.run_admission(&context, Wall::EPOCH, Box::new([]));
+        let RunAdmission::Allow(allowance) = admission else { panic!("standard fits: {admission:?}") };
+        assert_eq!(allowance.spend, budget);
+    }
+}

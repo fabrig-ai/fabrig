@@ -11,7 +11,7 @@ const PASSES: u32 = 10_000; // Bounded calm directory operations, including gene
 #[expect(
     clippy::disallowed_methods,
     clippy::disallowed_types,
-    reason = "ordinary Rust fixture builds a static patch set with only the pending job omitted"
+    reason = "ordinary Rust fixture builds a static owner set with only the pending job omitted"
 )]
 fn old_sets() -> OwnerSets {
     OwnerSets {

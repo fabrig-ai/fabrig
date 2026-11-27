@@ -52,51 +52,20 @@ fn the_forge_address_goes_to_the_forge_side() {
     assert_eq!(root.forge().address(), None, "leaving drops the forge page");
 }
 #[test]
-fn a_family_hello_outside_the_version_makes_the_side_out_of_date() {
+fn a_family_layout_verdict_updates_the_forges_side() {
     let limits = fixtures::limits();
     let mut root = crate::unlinked(&limits, fixtures::SEED);
     let mut out = Queue::uncapped();
-    for (name, versions, expected) in [
-        (
-            "served",
-            contract::VersionRange {
-                first: temper_client_protocol_wire::CLIENT_VERSION,
-                last: temper_client_protocol_wire::CLIENT_VERSION,
-            },
-            forge::Served::Yes,
-        ),
-        (
-            "newer",
-            contract::VersionRange {
-                first: temper_client_protocol_wire::CLIENT_VERSION + 1,
-                last: temper_client_protocol_wire::CLIENT_VERSION + 1,
-            },
-            forge::Served::OutOfDate,
-        ),
-        (
-            "inverted",
-            contract::VersionRange {
-                first: temper_client_protocol_wire::CLIENT_VERSION + 1,
-                last: temper_client_protocol_wire::CLIENT_VERSION,
-            },
-            forge::Served::OutOfDate,
-        ),
-    ] {
+    for (served, expected) in [(false, forge::Served::OutOfDate), (true, forge::Served::Yes)] {
         crate::step(
             &mut root,
             &fixtures::env(&limits),
             Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::FamilyServed {
-                        family: fixtures::FORGE,
-                        versions: Some(versions),
-                        served: versions.contains(temper_client_protocol_wire::CLIENT_VERSION),
-                    },
-                },
+                event: jig_client::Event::Up { up: jig_client::Up::FamilyServed { family: fixtures::FORGE, served } },
             },
             &mut out,
         );
-        assert_eq!(root.forge().served(), expected, "{name}");
+        assert_eq!(root.forge().served(), expected, "served = {served}");
     }
 }
 

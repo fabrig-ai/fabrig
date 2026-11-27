@@ -653,7 +653,7 @@ pub(crate) fn started_with_limits(
     };
     harness.client(client::Event::StartUnlinked { kept });
     harness.client(client::Event::SignIn { with: client::With::Transport });
-    harness.client(client::Event::Up { up: client::Up::Served { served: true, versions: None } });
+    harness.client(client::Event::Up { up: client::Up::Served { served: true } });
     harness
 }
 pub(crate) fn signed_in(party: u64) -> Harness {

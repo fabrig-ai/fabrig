@@ -17,6 +17,8 @@ pub(crate) enum Guide {
     OpeningRead { max: u32, deadline: Time },
     /// An open has been requested for executable metadata.
     OpeningProbe { deadline: Time },
+    /// The hooks directory and its two entries are being probed.
+    Hooks(crate::hook_probe::Probe),
     /// A bounded prefix is being read.
     Reading { file: Token, len: u64, max: u32 },
     /// Metadata is being read.
@@ -35,6 +37,7 @@ impl Guide {
     pub(crate) const fn cancellable(&self) -> bool {
         match self {
             Self::OpeningRead { .. } | Self::OpeningProbe { .. } | Self::Reading { .. } | Self::Probing { .. } => true,
+            Self::Hooks(probe) => probe.cancellable(),
             Self::Closing { .. } => false,
         }
     }
@@ -42,6 +45,7 @@ impl Guide {
     #[expect(clippy::wildcard_enum_match_arm, reason = "skein event and kernel error vocabularies are external")]
     pub(crate) fn event(self, owner: Token, event: file::Event, below: &mut Queue<Below>) -> Next {
         match self {
+            Guide::Hooks(probe) => probe.event(owner, event, below),
             Guide::OpeningRead { max, deadline } => match event {
                 file::Event::Opened { file, len, .. } => {
                     if max == 0 {

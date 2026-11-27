@@ -104,23 +104,13 @@ impl Peer {
         use jig_protocol_worker_wire as wire;
         use skein_lib::{Duration, Secret, Writer};
         let (mut schema, limits) = crate::fixtures::peer_bounds();
-        let chosen = if matches!(case, Some(Opening::Version)) { 14 } else { wire::VERSION };
         if matches!(case, Some(Opening::Family)) {
             schema.magic = *b"else";
         }
-        if matches!(case, Some(Opening::Version)) {
-            schema.versions.truncate(1);
-            schema.versions.get_mut(0).expect("one version").version = chosen;
-        }
         if matches!(case, Some(Opening::Terms)) {
-            for version in schema.versions.iter_mut() {
-                if version.version != wire::VERSION {
-                    continue;
-                }
-                for kind in version.kinds.iter_mut() {
-                    if kind.kind == 0x0180 {
-                        kind.largest = 1;
-                    }
+            for kind in schema.kinds.iter_mut() {
+                if kind.kind == 0x0180 {
+                    kind.largest = 1;
                 }
             }
         }
@@ -137,14 +127,9 @@ impl Peer {
         };
         let mut writer = Writer::new(credential.measure(&wire::CEILINGS).expect("record within limits") as usize);
         credential.write(&wire::CEILINGS, &mut writer).expect("credential");
-        let mut peer = skein_fake_channel::ScriptedPeer::new(
-            schema,
-            skein_channel::Role::Initiator,
-            limits,
-            chosen,
-            writer.finish(),
-        )
-        .expect("independent channel peer");
+        let mut peer =
+            skein_fake_channel::ScriptedPeer::new(schema, skein_channel::Role::Initiator, limits, writer.finish())
+                .expect("independent channel peer");
         if mode.is_some() {
             peer.play(crate::fixtures::peer_hello());
         }

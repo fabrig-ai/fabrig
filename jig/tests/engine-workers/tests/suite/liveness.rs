@@ -188,8 +188,7 @@ fn a_start_past_the_room_is_answered_and_the_link_lives() {
         };
         let codec = wire::sizes::limits(&limits.sizes).expect("row codec");
         let schema = wire::schema(&codec).expect("row schema");
-        let mut peer =
-            fixtures::peer_with_output(schema, wire::VERSION, WORKER_A, SECRET_A, fixtures::APPLICATION_VERSION, room);
+        let mut peer = fixtures::peer_with_output(schema, WORKER_A, SECRET_A, fixtures::APPLICATION_VERSION, room);
         peer.play(fixtures::hello_frame());
         let mut world = World::new(&limits, &fixtures::workers(), 1);
         let connection = world.connect(peer);
@@ -344,8 +343,7 @@ fn a_resumed_start_fits_the_room() {
     for (calls, whole) in [(3, 3), (5, 2)] {
         let codec = wire::sizes::limits(&limits.sizes).expect("row codec");
         let schema = wire::schema(&codec).expect("row schema");
-        let mut peer =
-            fixtures::peer_with_output(schema, wire::VERSION, WORKER_A, SECRET_A, fixtures::APPLICATION_VERSION, ROOM);
+        let mut peer = fixtures::peer_with_output(schema, WORKER_A, SECRET_A, fixtures::APPLICATION_VERSION, ROOM);
         peer.play(fixtures::hello_frame());
         let mut world = World::new(&limits, &fixtures::workers(), 1);
         let connection = world.connect(peer);

@@ -35,7 +35,6 @@ pub enum Readout {
     Limit,
     NotServed {
         family: Option<u16>,
-        served: Option<contract::VersionRange>,
     },
     Jig(contract::ReadResult),
     Family {
@@ -103,8 +102,8 @@ pub enum Up {
     SignedOut,
     Unreadable,
     NotKept { key: RequestKey },
-    Served { served: bool, versions: Option<contract::VersionRange> },
-    FamilyServed { family: u16, versions: Option<contract::VersionRange>, served: bool },
+    Served { served: bool },
+    FamilyServed { family: u16, served: bool },
     Answer { attempt: Token, envelope: RequestEnvelope, answer: Option<Answered>, why: Option<Retry> },
     Watched { watch: Token, event: contract::WatchEvent },
     FamilyDelivered { watch: Token, record: Family },

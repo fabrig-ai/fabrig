@@ -204,6 +204,19 @@ fn a_read_none_answer_keeps_each_wire_reason_once() {
     }
 }
 #[test]
+fn a_not_served_read_answer_refuses_its_owner_even_with_a_matching_range() {
+    let (mut h, exchange) = fixtures::Harness::reading_family();
+    let family = Some(fixtures::OWNER.family);
+    let bytes = fixtures::encoded_read_answer(&w::ReadAnswer::NotServed(fixtures::not_served()));
+    h.answer(exchange, &bytes);
+    h.answer(exchange, &bytes);
+    assert!(h.has(&Request::Hello { family, served: false }));
+    assert_eq!(h.read_answered(), Some(&Readout::NotServed { family }));
+    assert_eq!(h.read_terminals(), 1);
+    assert!(!h.has(&Request::CloseStream));
+}
+
+#[test]
 fn a_family_read_is_answered_once_with_its_opaque_value() {
     let (mut h, exchange) = fixtures::Harness::reading_family();
     h.answer(exchange, &fixtures::family_read_answer(19, 23));

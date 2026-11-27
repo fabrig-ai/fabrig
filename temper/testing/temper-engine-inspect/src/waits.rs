@@ -205,15 +205,7 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
             }
             if matches!(row.change.state, State::Producing { requested: false }) {
                 follow_restart(view, row.task, &mut wakes);
-                if row.close.is_some()
-                    && let Some(root) = view.root
-                    && let Some(task) = root.tasks().task(row.task)
-                    && let tasks::Party::Task(closer) = task.requester
-                    && view.forge.closer(closer).is_some()
-                    && root.tasks().task(closer).is_some_and(|owner| !owner.waiting_on.is_empty())
-                {
-                    wakes.push(view.waiter(closer));
-                }
+                close_wakes(view, row, &mut wakes);
             }
         }
     }
@@ -228,6 +220,27 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
         }
     }
     wakes
+}
+
+fn close_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow, wakes: &mut Vec<Wake>) {
+    if row.close.is_none() {
+        return;
+    }
+    let Some(root) = view.root else { return };
+    let Some(task) = root.tasks().task(row.task) else { return };
+    let tasks::Party::Task(closer) = task.requester else { return };
+    let Some(owner) = root.tasks().task(closer) else { return };
+    let Some(closing) = view.forge.closer(closer) else { return };
+    if !owner.waiting_on.is_empty() {
+        wakes.push(view.waiter(closer));
+    } else if closing.closer.running.is_some_and(|running| running.change == row.task) {
+        // Once the work ends, the closer reads the new tip and its hooks
+        // before replacing the released close. Those reads can still wake it.
+        wakes.extend(view.read_wakes(closer));
+        if let Some(due) = view.forge.inspection_change_due(closer) {
+            wakes.push(Wake::Timer(Time::from_nanos(due.as_nanos())));
+        }
+    }
 }
 
 fn refused_train(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow, wakes: &mut Vec<Wake>) {

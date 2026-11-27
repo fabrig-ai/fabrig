@@ -18,6 +18,7 @@ mod catching_up_state;
 mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;
+mod close_delegate;
 mod closer;
 mod completed_reads;
 mod connect;
@@ -692,7 +693,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::AskDropped { .. }
         | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
-        | Request::CloseDecision { .. }
         | Request::ReplayJudgement { .. }
         | Request::RelayRefusal { .. }
         | Request::ChangeDecision { .. }
@@ -810,7 +810,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::AskDropped { .. }
         | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
-        | Request::CloseDecision { .. }
         | Request::ReplayJudgement { .. }
         | Request::RelayRefusal { .. }
         | Request::ChangeDecision { .. }
@@ -921,7 +920,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::AskDropped { .. }
         | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
-        | Request::CloseDecision { .. }
         | Request::ReplayJudgement { .. }
         | Request::RelayRefusal { .. }
         | Request::ChangeDecision { .. }

@@ -4,8 +4,8 @@
 
 use super::{Call, Proposing};
 use crate::{
-    CallKey, CallPart, CallRecord, Core, CoreRecord, EscalationChoice, Event, Held, Limits, NamedAction,
-    PayloadRefusal, PendingCall, ProposalChoice, Record, Request, RoutedCall, ToolKind, Write,
+    CallHolder, CallKey, CallPart, CallRecord, Core, CoreRecord, EscalationChoice, Event, Held, Limits, NamedAction,
+    PayloadRefusal, ProposalChoice, Record, Request, RoutedCall, ToolKind, Write,
     routing::{NoteRoute, Work, run::delegation::propose_batch},
 };
 use alloc::boxed::Box;
@@ -40,7 +40,7 @@ pub(crate) fn admit_named_call(
         out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part: part.clone() })));
         return None;
     }
-    if !core.reserve_call(key, PendingCall::Routed) {
+    if !core.reserve_call(key, CallHolder::Routed) {
         out.push(Request::Now(Box::new(crate::Now::CallBusy { to })));
         return None;
     }
@@ -742,7 +742,7 @@ pub(crate) fn named_action(
         }
         NamedAction::WithdrawProposal { proposal } => {
             if core.tasks.proposal(key.task, proposal).is_none() {
-                core.handoff_call(key, PendingCall::Routed, PendingCall::DecidedProposal(proposal));
+                core.handoff_call(key, CallHolder::Routed, CallHolder::DecidedProposal(proposal));
                 let point = crate::loads::point::Point::Proposal { to: ReplyTo::new(token), key, proposal };
                 if !crate::loads::try_point(core, &env.limits, &mut out, point) {
                     return crate::routing::party::ended::decided_proposal(
@@ -912,7 +912,7 @@ pub(crate) fn named_tool_kind(action: &NamedAction) -> ToolKind {
 pub(crate) fn route_named_answer(core: &mut Core, to: ReplyTo, key: CallKey, part: CallPart) -> Queue<Request> {
     // A translated answer can complete a reserved application call or be the
     // whole decision of a new call (for example, a refusal of its input).
-    if core.pending_calls.get(&key) == Some(&PendingCall::Application) {
+    if core.pending_calls.get(&key) == Some(&CallHolder::Application) {
         return route_pending_answer(core, to, key, part);
     }
     let mut out = Queue::uncapped();

@@ -76,7 +76,7 @@ fn pending_call(core: &mut Core) {
     core.proofs
         .insert(task, RunProof::claimed(task, attempt, 1, None, fleet::HostKind::Worker))
         .expect("current call proof");
-    assert!(core.reserve_call(key(), PendingCall::Routed));
+    assert!(core.reserve_call(key(), CallHolder::Routed));
 }
 
 fn kept_call(out: &mut Queue<Request>) -> CallRecord {

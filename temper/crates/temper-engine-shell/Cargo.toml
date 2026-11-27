@@ -30,6 +30,7 @@ skein-oauth-accounts.workspace = true
 skein-tls.workspace = true
 temper-client-bundle.workspace = true
 temper-engine-service.workspace = true
+temper-engine-smith.workspace = true
 temper-shell.workspace = true
 temper-forge-setup.workspace = true
 temper-forge-setup-shell.workspace = true

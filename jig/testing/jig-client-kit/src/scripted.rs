@@ -2,9 +2,7 @@
 use crate::harness::{ClientId, Front, FrontFault, Observed};
 use crate::test::Test;
 use jig_client::{Ask, Down, Readable, Watchable};
-use jig_client_domain::contract::{
-    ObjectKey, Read, ReadNone, ReadResult, ReadValue, Subject, VersionRange, WatchEnd, WatchEvent,
-};
+use jig_client_domain::contract::{ObjectKey, Read, ReadNone, ReadResult, ReadValue, Subject, WatchEnd, WatchEvent};
 use jig_client_scripted_engine::{self as engine, Application, ApplicationValue, Decision, Envelope, Truth, Up};
 use jig_client_test_domain::{self as domain, Event, Request, family, first};
 use sha2::{Digest, Sha256};
@@ -231,7 +229,7 @@ impl Scripted {
     }
     fn open_me(&mut self, client: ClientId, now: Time) {
         let party = self.parties[&client];
-        if !self.engine.versions().contains(jig_client_protocol_wire::VERSION) {
+        if !self.engine.served() {
             return;
         }
         if !self.engine.truth().sign_ins.contains_key(&party) {
@@ -254,13 +252,7 @@ impl Scripted {
             if self.engine.truth().sign_ins.contains_key(&self.parties[&client]) {
                 self.open_me(client, now);
             }
-            events.push((
-                client,
-                crate::test::up(jig_client::Up::Served {
-                    served: self.engine.versions().contains(jig_client_protocol_wire::VERSION),
-                    versions: None,
-                }),
-            ));
+            events.push((client, crate::test::up(jig_client::Up::Served { served: self.engine.served() })));
         }
         events
     }
@@ -631,7 +623,7 @@ impl Front<Test> for Scripted {
             }
             FrontFault::Versions => {
                 self.hellos.extend(self.parties.keys().copied());
-                engine::Fault::Versions(VersionRange { first: 2, last: 2 })
+                engine::Fault::Served(false)
             }
             FrontFault::ObjectGone => unreachable!("object disappearance handled above"),
         };

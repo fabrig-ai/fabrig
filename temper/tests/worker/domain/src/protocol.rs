@@ -40,6 +40,7 @@ pub fn charter() -> Box<[u8]> {
         account: None,
         model: Box::from(&b"fake"[..]),
         effort: None,
+        speed: None,
         window: 1_048_576,
         output: 512,
         prices,

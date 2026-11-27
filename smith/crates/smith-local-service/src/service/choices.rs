@@ -47,6 +47,7 @@ mod tests {
     fn models() -> [smith_domain::run::charter::Llm; 2] {
         let main = smith_domain::run::charter::Llm {
             effort: None,
+            speed: None,
             prices: smith_domain::run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
             dialect: 0,
             account: Some(0),

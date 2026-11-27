@@ -137,6 +137,35 @@ fn a_report_only_run_probes_checks_in_its_writable_directory() {
 }
 
 #[test]
+fn host_measure_uses_the_longer_rendered_check_label() {
+    use crate::prepare::{Check, Kind};
+    use crate::{Conventions, Hook, Hooks, prompt};
+
+    let mut mounted = workspace();
+    mounted.directories[0].writable = true;
+    let mounted = Some(&mounted);
+    let rendered_len = |selected: &Charter, kind| {
+        let mut found = Found::with_capacity(1);
+        found.checks.push(Check { directory: 0, kind }).expect("one check");
+        prompt::system(selected, mounted, &found, BUDGET, false).len()
+    };
+
+    for checks in [b".temper/pre-pr".as_slice(), b".temper/checks/legacy-with-a-longer-name-than-hooks"] {
+        let mut selected = charter();
+        selected.conventions = Some(Conventions { guide: bytes(b"AGENTS.md"), checks: bytes(checks), hooks: None });
+        let legacy_host = prompt::host_bytes(&selected, mounted, 0).unwrap();
+        let legacy_len = rendered_len(&selected, Kind::Legacy);
+
+        selected.conventions.as_mut().unwrap().hooks = Some(bytes(b".temper/hooks"));
+        let hooks_len =
+            rendered_len(&selected, Kind::Hooks(Hooks { deliver: Hook::Executable, finish: Hook::Executable }));
+        // Only the checkout label differs between the two rendered systems.
+        let extra = u64::try_from(hooks_len.saturating_sub(legacy_len)).unwrap();
+        assert_eq!(prompt::host_bytes(&selected, mounted, 0), Some(legacy_host + extra));
+    }
+}
+
+#[test]
 fn a_run_with_nothing_to_look_for_opens_main_at_once() {
     let mut harness = Harness::new(LIMITS);
     let requests = harness.start_workspace(1, charter(), None);

@@ -40,7 +40,7 @@ Draft, 2026-11-27, from a session with the user that day. On the ways draft's `.
 ## 6. A newer format
 
 - **Refused by name:** `temper.toml: format 3; this temper-engine reads formats 1 to 2: upgrade it, or write the file at format 2`. The binary doesn't start, since it can't know what a newer key means.
-- **The same for every file:** a settings file at a newer format is refused before anything is applied, and a repository's `.temper/` at a newer format keeps its last good revision ([ways.md](ways.md), 8.5 and 8.8).
+- **The same for every file:** a settings file at a newer format is refused before anything is applied, and a repository's `.temper/` at a newer format keeps its last good revision ([ways-temper-dir.md](ways-temper-dir.md), 5 and 8).
 
 ## 7. Seen and rewritten
 
@@ -56,7 +56,7 @@ Draft, 2026-11-27, from a session with the user that day. On the ways draft's `.
 | `temper.toml`, each binary's | `format`, its top table | the binary's start and every command that reads it (`file.md`, section 6) |
 | a settings file | `"format"`, beside `items` | `temper ctl settings apply`, `propose` and `upgrade` |
 | a charter file a settings file names | `format`, its front matter | the same, with its settings file |
-| `.temper/ways.toml`, `ways/*.toml`, `hooks/config.toml` | `format`, its top table | the engine's read of `.temper/` ([ways.md](ways.md), 8.5 and 8.8); the worker for `hooks/config.toml` ([hooks.md](hooks.md), 3.4) |
+| `.temper/ways.toml`, `ways/*.toml`, `hooks/config.toml` | `format`, its top table | the engine's read of `.temper/` ([ways-temper-dir.md](ways-temper-dir.md), 5 and 8); the worker for `hooks/config.toml` ([hooks.md](hooks.md), 3.4) |
 | `.temper/charters/*.md` | `format`, its front matter | the engine's read of `.temper/` |
 
 - **A settings file's items** are read at their format's shapes: each format names the kinds' shapes it was written for, and an item at an older shape is converted as the store converts a value it reads ([layouts-both-ways.md](layouts-both-ways.md)), from the shapes the release keeps. So a settings file kept in a repository, as fabrig's charter sets are, keeps applying after a release that reshapes a kind.

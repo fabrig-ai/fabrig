@@ -112,3 +112,11 @@ fn configuration_is_the_table_reference() {
         );
     }
 }
+
+#[test]
+fn merge_help_names_the_hook_and_limits_legacy_fallback_to_repositories_without_hooks() {
+    let page = String::from_utf8(reference().into_vec()).expect("UTF-8");
+    assert!(page.contains(
+        "the repository's `.temper/hooks/merge`, or the project's `merge_job` in a repository without `.temper/hooks/`"
+    ));
+}

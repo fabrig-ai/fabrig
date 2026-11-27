@@ -199,6 +199,7 @@ fn contract_schemas_reach_the_scripted_byte_peer_in_both_dialects() {
     for configuration in &client_peer::configurations() {
         let prompt = llm::Prompt {
             effort: None,
+            speed: None,
             purpose: llm::Purpose::Ordinary { guard: None },
             choice: smith_domain::llm::ToolChoice::Auto,
             namespace: smith_domain::tools::Namespace::One,

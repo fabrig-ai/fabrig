@@ -768,11 +768,11 @@ impl Client {
                     self.defer_read(env.now, read, what, true);
                 }
             }
-            link::Request::Hello { family: None, versions, served } => {
-                self.up(env, Up::Served { served, versions });
+            link::Request::Hello { family: None, served } => {
+                self.up(env, Up::Served { served });
             }
-            link::Request::Hello { family: Some(family), versions, served } => {
-                self.up(env, Up::FamilyServed { family, versions, served });
+            link::Request::Hello { family: Some(family), served } => {
+                self.up(env, Up::FamilyServed { family, served });
             }
             link::Request::AskedLink(answer) => out.push(Request::AskedLink(answer)),
             link::Request::Approval(answer) => out.push(Request::Approval(answer)),

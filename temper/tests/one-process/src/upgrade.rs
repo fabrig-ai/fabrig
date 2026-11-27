@@ -82,7 +82,7 @@ fn first_build() -> OwnerSets {
 /// Every non-reserved record belongs to exactly one family. Report all bad keys,
 /// including both family names when ranges overlap.
 pub fn golden_ranges(directory: &Path) {
-    let mut disk = crate::golden::files::load(directory);
+    let mut disk = crate::golden::files::load_kept(directory);
     let maps = maps::Maps::read(&mut disk);
     let reserved = [
         (keys::encode_own(&keys::Own::Format, 64).expect("format key"), "format"),

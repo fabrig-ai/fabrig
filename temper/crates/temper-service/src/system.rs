@@ -211,10 +211,10 @@ impl Service {
     pub fn setup_page(&self, forge: u16, state: &[u8], now: Time) -> Option<&[u8]> {
         self.engine.as_ref().expect("composition engine").setup_page(forge, state, now)
     }
-    /// Test seam: replace this service's patch sets before `adopt_store`
+    /// Test seam: replace this service's owner sets before `adopt_store`
     /// (protocol/floor.md, 3). Production keeps the binary's sets.
     pub fn owner_sets(&mut self, sets: jig_protocol_store::OwnerSets) {
-        self.engine.as_mut().expect("engine patch sets").owner_sets(sets);
+        self.engine.as_mut().expect("engine owner sets").owner_sets(sets);
     }
     /// The directory component's checked bounds before runtime settings.
     #[must_use]

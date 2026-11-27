@@ -899,7 +899,7 @@ filter = "binary(=suite) & test(=upgrade::floorless_golden_rehearsal_refuses_bef
 [[fixture.reader]]
 pair = "default"
 package = "temper-one-process-world"
-filter = "binary(=suite) & test(=upgrade::every_golden_key_has_exactly_one_patch_family_or_a_reserved_component_row)"
+filter = "binary(=suite) & test(=upgrade::every_golden_key_has_exactly_one_owner_family_or_a_reserved_component_row)"
 [[fixture.reader]]
 pair = "default"
 package = "temper-one-process-world"

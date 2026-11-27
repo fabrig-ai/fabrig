@@ -69,7 +69,13 @@ pub(super) fn wait(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
     d.change_due.remove(&task);
     emit(
         out,
-        Request::ChangeDecision { task, decision: change::Decision::Wait { until: None }, entry: None, evidence: None },
+        Request::ChangeDecision {
+            task,
+            decision: change::Decision::Wait { until: None },
+            entry: None,
+            evidence: None,
+            close_at: None,
+        },
     );
 }
 

@@ -261,6 +261,16 @@ A close change never asks an agent producer: a head on its branch at
 producing, which only a close job's success pushes, opens its pull
 request as that job's push does.
 
+The two commits reach the root on the change's own decision, the one
+that makes its close job, and come back on that job's admission, as any
+delegate's admission comes back, for its row to keep (2026-11-27): the
+forge's change decision and its delegate's admission each carry them as
+an optional member, none for any other delegate and none where the
+decision read no pair. Neither is stored or sent on a wire: both live
+within the engine's own steps. Turned down: a close decision and a close
+admission of their own, each the change's with the commits added, two
+names for one thing.
+
 The two commits a close change read as it made its last close job are
 stored with its row, as `ChangeHot`'s `close_at`, a `CloseAt` of the
 goal branch's and the landing branch's commits, a field of the store's

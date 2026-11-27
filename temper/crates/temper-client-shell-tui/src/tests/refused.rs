@@ -4,13 +4,7 @@ use crate::host::{Need, Phase};
 use jig_client::{Event as ClientEvent, Link, Streamed, Up};
 
 fn not_served_hello(family: bool) -> Box<[u8]> {
-    let mut served = List::with_capacity(1);
-    if family {
-        served
-            .push(w::Served { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION })
-            .expect("Jig served, application family omitted");
-    }
-    let hello = w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) };
+    let hello = w::Hello { stream: [7; 16], served: List::with_capacity(0), heartbeat: Duration::from_secs(30) };
     stream_bytes(&if family { records::opened(hello, records::frame_record()) } else { w::StreamEvent::Hello(hello) })
 }
 
@@ -35,9 +29,9 @@ fn a_reported_build_refusal_draws_and_stops_every_host_send_until_close() {
                 assert!(temper_client_tui::sign_in_drawn(&host.root, host.state()));
                 ClientEvent::Up {
                     up: if family {
-                        Up::FamilyServed { family: temper_client_protocol_wire::FORGE, versions: None, served: false }
+                        Up::FamilyServed { family: temper_client_protocol_wire::FORGE, served: false }
                     } else {
-                        Up::Served { served: false, versions: None }
+                        Up::Served { served: false }
                     },
                 }
             };

@@ -37,7 +37,8 @@
 - **Reserved before it is made.** Before each completion, its
   sub-agents' included, a session reserves that completion's maximum
   cost from the run's budget: the input it sends and the output its
-  `max_tokens` allows, at its model's prices. The input's maximum counts
+  `max_tokens` allows, at its model's prices, its speed's where its LLM
+  has one (session.md, section 6). The input's maximum counts
   what the agent sends as at most one token per byte, plus an allowance
   its limits give for what the protocol layer and the provider add. Each
   input token is reserved at the highest of the input, cached and
@@ -72,7 +73,8 @@
 - **The reserve** is the charter's `reserve { turns, time }`, which the
   product's presets give a default (`../shell/README.md`). Its spend is
   derived: its turns, each at the main model's maximum completion cost
-  (its window of input at its highest input rate, and its most output).
+  (its window of input at its highest input rate, and its most output),
+  at its speed's prices where main's LLM has one (session.md, section 6).
   When the charter's contract allows a change, the reserve's time holds
   at least one run of the checks (`check_timeout`, ../protocol/limits.md,
   2.3). A finish in the wind-down then always has time to check what it

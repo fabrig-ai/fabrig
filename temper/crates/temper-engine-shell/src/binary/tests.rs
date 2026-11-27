@@ -210,8 +210,10 @@ fn engine_commands_refuse_the_former_file_by_name() {
 }
 
 #[test]
-fn versions_print_each_wire_range_then_its_layout() {
+fn versions_print_each_wire_fingerprint_then_the_contract() {
     use std::fmt::Write;
+    use temper_engine_smith::wire as contract;
+
     let text = printed(&["versions"]);
     let mut lines = text.lines();
     assert!(lines.by_ref().take(4).eq(["level skein 0", "level smith 0", "level jig 6", "level temper 14"]));
@@ -228,32 +230,21 @@ fn versions_print_each_wire_range_then_its_layout() {
     ] {
         assert_eq!(lines.next(), Some(format!("family {family} {version}").as_str()));
     }
+    let names = ["jig-worker-wire", "smith-pieces", "smith-charter", "smith-transcript", "temper-worker-wire"];
     let wires = temper_engine_service::wires();
-    assert_eq!(wires.len(), 6);
-    for (worker, (name, frozen)) in wires.iter().take(5).zip([
-        ("jig-worker-wire", 22),
-        ("smith-pieces", 1),
-        ("smith-charter", 5),
-        ("smith-transcript", 8),
-        ("temper-worker-wire", 12),
-    ]) {
-        assert_eq!((worker.name, worker.lowest, worker.highest()), (name, frozen, frozen));
-    }
-    assert_eq!(wires.get(5).expect("host-tools row").name, "temper-host-tools");
-    for wire in &wires {
-        let (name, lowest, highest) = (wire.name, wire.lowest, wire.highest());
-        assert_eq!(lines.next(), Some(format!("wire {name} {lowest} {highest}").as_str()));
-        for version in lowest..=highest {
-            let layout = lines.next().expect("one layout follows for each spoken version");
-            let fingerprint =
-                layout.strip_prefix(&format!("layout {name} {version} ")).expect("layout name and version");
-            let mut expected = String::new();
-            for byte in wire.layout(version).expect("kept layout") {
-                write!(expected, "{byte:02x}").expect("writing into a string");
-            }
-            assert_eq!(fingerprint, expected);
+    assert!(wires.iter().map(|wire| wire.name).eq(names));
+    for (wire, name) in wires.iter().zip(names) {
+        let mut expected = format!("wire {name} ");
+        for byte in wire.layout {
+            write!(expected, "{byte:02x}").expect("writing into a string");
         }
+        assert_eq!(lines.next(), Some(expected.as_str()), "{text}");
     }
+    assert_eq!(
+        lines.next(),
+        Some(format!("contract temper-host-tools {} {}", contract::FLOOR, contract::VERSION).as_str()),
+        "{text}"
+    );
     assert_eq!(lines.next(), Some("bound stop 602"));
     assert_eq!(lines.next(), Some("bound report 30"));
     assert_eq!(lines.next(), None);
