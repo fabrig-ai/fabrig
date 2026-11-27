@@ -17,8 +17,12 @@ runs, the same draft's 4.
 
 ## 1. In one page
 
-Every worker `deliver` and `finish` calls `.temper/pre-pr` in the implementer's
-checkout. It checks current files, including staged, unstaged and new sources.
+Every worker `deliver` and `finish` calls `.temper/hooks/deliver` in the
+implementer's checkout, `.temper/hooks/finish` being a link to it
+(`temper/docs/design/protocol/hooks.md`, 2.2); `.temper/pre-pr`, kept as a
+wrapper that runs it, is what a build that reads no hooks calls
+(`temper/docs/design/protocol/hooks.md`, 5). It checks current files,
+including staged, unstaged and new sources.
 The checker creates a private Git index and object store from those files. An
 exported source tree also works. Git ignore rules select sources, and an existing
 checkout's tracked files stay included even if they match an ignore rule.
@@ -58,8 +62,11 @@ budget tables when they or the layers changed. A format refusal returns
 early. Ordinary delivery runs these checks without compiling Rust. Its
 receipt is `target/temper/pre-pr-light-failures.json`.
 
-`.temper/checked-close` runs the close check itself, in the goal's
-checkout, after settling status. Close builds and tests there, warm with the
+`.temper/hooks/close` runs the close check itself, in the goal's
+checkout, after settling status with `tools/close/close.py`; `.temper/close`
+and `.temper/checked-close` are wrappers that run it, so that every build
+serving fabrig runs the same checked close, whichever path its project's
+`close_job` names. Close builds and tests there, warm with the
 worker's build cache, rather than in a copy. It selects the focused targets
 and helpers of the changed packages and their direct dependents using the
 current package map, with the gate's always-run packages
@@ -289,6 +296,15 @@ destination and comparison base in its verdict. The CI caller uses the
 exit status and validates the receipt against the exact pair it requested.
 A later head or destination requires a fresh invocation.
 
+The checker's entry points are `.temper/hooks/deliver`,
+`.temper/hooks/finish`, `.temper/hooks/close`, and the wrappers
+`.temper/pre-pr`, `.temper/close` and `.temper/checked-close`, beside
+`.temper/goal-child-pre-pr` and `.temper/goal-pre-pr`: a delivery that
+changes one runs the checker's own tests, and the gate's scope
+(`.forgejo/scripts/gate_scope.py`) holds the same list, as before. Each
+wrapper only runs its hook, with its arguments, so a build that reads no
+hooks runs the same code (`temper/docs/design/protocol/hooks.md`, 5).
+
 ## 3. What it selects
 
 - **The tree** is the working tree as git sees it, untracked files
@@ -319,7 +335,8 @@ A later head or destination requires a fresh invocation.
 - **Code inputs:** Rust (`.rs`); Cargo manifests and locks; rustfmt,
   clippy and Rust toolchain configuration, including under `docs/`;
   non-docs paths under a `.cargo/` directory, `.config/` and `tools/`;
-  `.temper/pre-pr`, `.temper/goal-child-pre-pr` and `.temper/goal-pre-pr`;
+  `.temper/hooks/deliver`, `.temper/hooks/finish`, `.temper/pre-pr`,
+  `.temper/goal-child-pre-pr` and `.temper/goal-pre-pr`;
   `skein/scripts/*.sh` (the boundary profile check's
   inputs); each tree's
   `scripts/old_forms.py` and `scripts/old-forms.txt`; and non-docs paths
@@ -678,7 +695,7 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
    - **Passed:** none of these; a delivery whose own paths are written files
      alone among them.
 9. **The merge job's tests,** where section 3's changed paths include
-   `.temper/merge` or a path under `tools/merge/` other than its
+   `.temper/hooks/merge`, `.temper/merge` or a path under `tools/merge/` other than its
    `README.md` and `codecs.txt`: `python3 -I -B tools/merge/test_merge.py`
    from the tree's root, after check 7 and before check 8, announced
    `pre-pr: merge …` and ended `pre-pr: merge: passed|failed, <seconds>
