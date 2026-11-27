@@ -59,6 +59,14 @@ pub const MERGE_SPEC_BYTES: u32 = 4_096;
 pub const MERGE_RESULT_BYTES: u32 = 512;
 pub const MERGE_DEADLINE: Duration = Duration::from_secs(600);
 
+/// Time for a merge or close hook when the repository is silent, or for a fallback command.
+/// See temper/docs/design/protocol/hooks.md, 2.3.
+pub const HOOK_TIME: Duration = Duration::from_secs(600);
+/// The default project hook ceiling, in seconds.
+pub const HOOK_TIMEOUT_MAX_DEFAULT: u32 = 3_600;
+/// The greatest project hook ceiling, in seconds.
+pub const HOOK_TIMEOUT_MAX_LIMIT: u32 = 86_400;
+
 /// The merge job's kind and bounds (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn merge_bound() -> JobBound {
