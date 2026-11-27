@@ -1,3 +1,5 @@
 # releases: status
 
 2026-11-25. Where the tree's code lags or departs from [releases.md](releases.md).
+
+No gap.
