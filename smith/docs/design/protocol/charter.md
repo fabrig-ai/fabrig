@@ -136,7 +136,9 @@ A versioned record (skein's `data/codec/README.md`, section 3):
     conversation's life, as for `effort` (skein's `llm/wire.md`, 1.7
     and 1.8). On Claude Code's program it is `fast` or none
     (programs-claude-code.md, 1.1), and on another program none: any
-    other is an invalid start, naming the speed and the program. A rate
+    other is an invalid start, naming the speed and the program in the
+    agent's refusal (the channel's `llm`, which carries no names, as for
+    an output above its declaration below). A rate
     or unit of zero is refused at the entrance, as the LLM's are. An
     agent whose layout has no `speed` is never sent one: the engine's
     conversion refuses that charter for it, and the run waits for a
