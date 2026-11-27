@@ -193,7 +193,7 @@ enum Freshness = c::Freshness
 enum GateKind = c::GateKind
 enum AuthorityLack = c::AuthorityLack
 record AuthorityHold by hand
-enum ChangeHold = c::Hold { authority tuple }
+enum ChangeHold by hand
 enum EffectResult = c::EffectResult
 record LandingRepair
 record LandedBelow = c::Landed

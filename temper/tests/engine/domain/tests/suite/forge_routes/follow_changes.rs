@@ -914,7 +914,13 @@ fn exhausted_follow_repairs_keep_the_hold_account_and_the_next_change_waits() {
     settle(&mut world);
     assert!(matches!(
         questions::row(&world, a).change.state,
-        temper_engine_domain_forge_change::State::Held { why: temper_engine_domain_forge_change::Hold::Repairs, .. }
+        temper_engine_domain_forge_change::State::Held {
+            hold: temper_engine_domain_forge_change::Hold {
+                cause: temper_engine_domain_forge_change::Cause::Repairs,
+                ..
+            },
+            ..
+        }
     ));
     let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, a).phase else { panic!("held change") };
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };

@@ -1154,7 +1154,7 @@ pub struct ChangeRow {
     pub verdicts: Box<[change::GateReport]>,
     /// Bounded explanations of gate verdicts at their named heads.
     pub gate_remarks: Box<[GateRemark]>,
-    pub drift: Option<change::Hold>,
+    pub drift: Option<change::Cause>,
     /// A deployment-owned repair of a landing branch, exempt from that branch's broken CI.
     pub base_repair: bool,
     /// The base repair started while this ordinary change owned the queue.
@@ -1282,7 +1282,7 @@ pub struct ChangeHot {
     pub delegate_words: Option<crate::ResultText>,
     pub verdicts: Box<[change::GateReport]>,
     pub gate_remarks: Box<[GateRemark]>,
-    pub drift: Option<change::Hold>,
+    pub drift: Option<change::Cause>,
     pub queue_repair: Option<u64>,
     pub queue_repairs: u32,
     pub effect_account: Option<EffectAccount>,

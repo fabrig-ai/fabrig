@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0xa7, 0xbc, 0xc3, 0xc9, 0x1e, 0x2a, 0x73, 0xd8, 0x31, 0x24, 0xc1, 0x3a, 0x1e, 0xe0, 0x85, 0xda, 0xe2, 0x63, 0x42,
-    0x3c, 0x66, 0x65, 0xc2, 0x0e, 0xe6, 0x18, 0xf7, 0x65, 0x06, 0x04, 0xef, 0x9b,
+    0xd1, 0x1d, 0x50, 0xe8, 0x83, 0xb4, 0xe9, 0xdf, 0xdc, 0xc7, 0x3c, 0xda, 0xb3, 0x2d, 0x1e, 0x78, 0x60, 0x7d, 0xa0,
+    0xee, 0x04, 0x3b, 0x0c, 0xb3, 0xf0, 0x8e, 0x6b, 0x50, 0xa4, 0x34, 0x4a, 0xa7,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -117,6 +117,7 @@ pub struct Limits {
     pub judgement_base: u32,
     pub judging_asked: u32,
     pub change_state_holds: u32,
+    pub change_state_words_some: u32,
     pub gate_remark_words: u32,
     pub early_heads_heads: u32,
     pub change_gates: u32,
@@ -503,6 +504,7 @@ pub const CEILINGS: Limits = Limits {
     judgement_base: 4_096,
     judging_asked: 1_024,
     change_state_holds: 8,
+    change_state_words_some: 512,
     gate_remark_words: 1_048_576,
     early_heads_heads: 64,
     change_gates: 1_024,
@@ -889,6 +891,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "judgement_base",
     "judging_asked",
     "change_state_holds",
+    "change_state_words_some",
     "gate_remark_words",
     "early_heads_heads",
     "change_gates",
@@ -1279,6 +1282,7 @@ impl Limits {
             self.judgement_base,
             self.judging_asked,
             self.change_state_holds,
+            self.change_state_words_some,
             self.gate_remark_words,
             self.early_heads_heads,
             self.change_gates,
@@ -1670,6 +1674,7 @@ impl Limits {
             judgement_base: self.judgement_base.min(most),
             judging_asked: self.judging_asked.min(most),
             change_state_holds: self.change_state_holds.min(most),
+            change_state_words_some: self.change_state_words_some.min(most),
             gate_remark_words: self.gate_remark_words.min(most),
             early_heads_heads: self.early_heads_heads.min(most),
             change_gates: self.change_gates.min(most),
@@ -2058,6 +2063,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::JUDGEMENT_BASE,
     paths::JUDGING_ASKED,
     paths::CHANGE_STATE_HOLDS,
+    paths::CHANGE_STATE_WORDS,
     paths::GATE_REMARK_WORDS,
     paths::EARLY_HEADS_HEADS,
     paths::CHANGE_GATES,
@@ -2928,6 +2934,8 @@ pub mod paths {
     pub const CHANGE_LIVE_TAG: Path = Path::new("ChangeLive (tag)");
     pub const CHANGE_STATE_LIVE: Path = Path::new("ChangeState.live");
     pub const CHANGE_STATE_HOLDS: Path = Path::new("ChangeState.holds");
+    pub const CHANGE_STATE_SINCE: Path = Path::new("ChangeState.since");
+    pub const CHANGE_STATE_WORDS: Path = Path::new("ChangeState.words");
     pub const CHANGE_STATE_TAIL: Path = Path::new("ChangeState (tail)");
     pub const GATE_NUMBER: Path = Path::new("Gate.number");
     pub const GATE_KIND: Path = Path::new("Gate.kind");
@@ -13396,6 +13404,7 @@ pub enum ChangeHold {
     NoTest,
     Runner,
     RedStands,
+    CloseRefused,
 }
 
 // Record: ChangeHold.
@@ -13417,7 +13426,8 @@ impl ChangeHold {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -13463,6 +13473,7 @@ impl Record for ChangeHold {
             Self::NoTest => field::put(out, &[13], paths::CHANGE_HOLD_TAG),
             Self::Runner => field::put(out, &[14], paths::CHANGE_HOLD_TAG),
             Self::RedStands => field::put(out, &[15], paths::CHANGE_HOLD_TAG),
+            Self::CloseRefused => field::put(out, &[16], paths::CHANGE_HOLD_TAG),
         }
     }
 
@@ -13485,7 +13496,8 @@ impl Record for ChangeHold {
             13 => Ok(Self::NoTest),
             14 => Ok(Self::Runner),
             15 => Ok(Self::RedStands),
-            16..=u8::MAX => Err(Problem { path: paths::CHANGE_HOLD_TAG, reason: skein_codec::Reason::Tag }),
+            16 => Ok(Self::CloseRefused),
+            17..=u8::MAX => Err(Problem { path: paths::CHANGE_HOLD_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -15122,6 +15134,8 @@ impl Record for ChangeLive {
 pub struct ChangeState {
     pub live: ChangeLive,
     pub holds: List<ChangeHold>,
+    pub since: Option<u64>,
+    pub words: Option<Box<[u8]>>,
 }
 
 // Record: ChangeState.
@@ -15130,11 +15144,15 @@ impl ChangeState {
         skein_codec::bounds::Node::Named("ChangeLive"),
         skein_codec::bounds::Node::Named("ChangeHold"),
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, change_state_holds), item: 1, size: size_of::<ChangeHold>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, change_state_words_some) },
+        skein_codec::bounds::Node::Option { item: 5 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 6] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 107;
+    pub const ENCODED_AT_ZERO: u64 = 121;
 }
 
 impl Record for ChangeState {
@@ -15161,6 +15179,8 @@ impl Record for ChangeState {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.live, limits, out, paths::CHANGE_STATE_LIVE)?;
         field::write(field::Sequence { limit: limits.change_state_holds.min(CEILINGS.change_state_holds), minimum: 1, item: field::Nested }, &self.holds, limits, out, paths::CHANGE_STATE_HOLDS)?;
+        field::write(field::Optional { item: field::U64 }, &self.since, limits, out, paths::CHANGE_STATE_SINCE)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.change_state_words_some.min(CEILINGS.change_state_words_some) } }, &self.words, limits, out, paths::CHANGE_STATE_WORDS)?;
         Ok(())
     }
 
@@ -15168,6 +15188,8 @@ impl Record for ChangeState {
         Ok(Self {
             live: field::read(field::Nested, limits, reader, paths::CHANGE_STATE_LIVE)?,
             holds: field::read(field::Sequence { limit: limits.change_state_holds.min(CEILINGS.change_state_holds), minimum: 1, item: field::Nested }, limits, reader, paths::CHANGE_STATE_HOLDS)?,
+            since: field::read(field::Optional { item: field::U64 }, limits, reader, paths::CHANGE_STATE_SINCE)?,
+            words: field::read(field::Optional { item: field::Bytes { limit: limits.change_state_words_some.min(CEILINGS.change_state_words_some) } }, limits, reader, paths::CHANGE_STATE_WORDS)?,
         })
     }
 }
@@ -16190,7 +16212,7 @@ impl Change {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 462;
+    pub const ENCODED_AT_ZERO: u64 = 476;
 }
 
 impl Record for Change {
@@ -37999,7 +38021,7 @@ impl ChangeHot {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1699;
+    pub const ENCODED_AT_ZERO: u64 = 1713;
 }
 
 impl Record for ChangeHot {
@@ -43164,7 +43186,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1700;
+    pub const ENCODED_AT_ZERO: u64 = 1714;
 }
 
 impl Record for Value {
@@ -43319,7 +43341,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1702;
+    pub const ENCODED_AT_ZERO: u64 = 1716;
 }
 
 impl Record for Row {
@@ -44080,6 +44102,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.judgement_base,
     CEILINGS.judging_asked,
     CEILINGS.change_state_holds,
+    CEILINGS.change_state_words_some,
     CEILINGS.gate_remark_words,
     CEILINGS.early_heads_heads,
     CEILINGS.change_gates,

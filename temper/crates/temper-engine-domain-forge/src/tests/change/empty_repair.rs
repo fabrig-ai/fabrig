@@ -148,7 +148,7 @@ fn empty_repairs_rerun_read_jobs_only_on_a_forge_that_writes_reruns() {
             );
             assert_eq!(row.ci_recheck, Some(CiRecheck { job: ATTEMPT, taken: None }));
         } else {
-            assert_eq!(decision, change::Decision::Hold(change::Hold::RedStands));
+            assert_eq!(decision, change::Decision::Hold(change::Cause::RedStands));
             assert_eq!(row.change.repairs, 1);
             assert_eq!(row.change.updates, 0);
             assert!(row.pending.is_none());
@@ -213,7 +213,7 @@ fn a_flake_terminal_during_gathering_uses_the_post_terminal_branch() {
     let (d, decision, branches) = checked_repair(Kind::Forgejo, true, false, true, why, Some(advanced), Some(ATTEMPT));
     assert_eq!(branches, 2, "flake verdicts require a branch read sent after the end");
     assert_eq!(d.change(fixtures::CHANGE).unwrap().change.last_head, Some(advanced));
-    assert_ne!(decision, change::Decision::Hold(change::Hold::Flake));
+    assert!(!matches!(decision, change::Decision::Hold(_)));
 }
 
 #[test]
@@ -224,7 +224,7 @@ fn a_review_repair_delivery_during_gathering_reads_its_branch_after_the_end() {
             checked_repair(Kind::Forgejo, true, false, false, why, Some(advanced), Some(ATTEMPT));
         assert_eq!(branches, 2, "{why:?}: a delivery needs a branch read after its terminal");
         assert_eq!(d.change(fixtures::CHANGE).expect("delivered change").change.last_head, Some(advanced));
-        assert_ne!(decision, change::Decision::Hold(change::Hold::Failed));
+        assert_ne!(decision, change::Decision::Hold(change::Cause::Failed));
     }
 }
 
@@ -349,7 +349,7 @@ fn a_restarted_recheck_waits_for_its_later_ended_attempt_then_holds_and_releases
     ];
     assert_eq!(
         read_ci(&mut d, fixtures::HEAD, Ci::Failed, &checks, &ended),
-        change::Decision::Hold(change::Hold::RedStands)
+        change::Decision::Hold(change::Cause::RedStands)
     );
     let row = d.change(fixtures::CHANGE).unwrap();
     assert_eq!(row.ci_recheck, Some(CiRecheck { job: ATTEMPT, taken: Some(2) }));
@@ -357,7 +357,7 @@ fn a_restarted_recheck_waits_for_its_later_ended_attempt_then_holds_and_releases
         row.change.state,
         change::State::Held {
             was: Box::new(change::State::Repairing { requested: false, why: change::Repair::Ci }),
-            why: change::Hold::RedStands,
+            hold: change::Hold::new(change::Cause::RedStands, env().wall),
         }
     );
     assert_eq!(row.change.repairs, 1);
@@ -401,7 +401,7 @@ fn a_green_measurement_goes_on_and_ending_or_moving_clears_the_record() {
     assert_eq!(row.ci_recheck, Some(CiRecheck { job: ATTEMPT, taken: Some(2) }));
 
     let mut moved = restored(&d);
-    assert_eq!(read_ci(&mut moved, [9; 32], Ci::Passed, &[], &run), change::Decision::Hold(change::Hold::BranchMoved));
+    assert_eq!(read_ci(&mut moved, [9; 32], Ci::Passed, &[], &run), change::Decision::Hold(change::Cause::BranchMoved));
     assert!(moved.change(fixtures::CHANGE).unwrap().ci_recheck.is_none());
 
     let mut repaired = restored(&d);
@@ -441,7 +441,7 @@ fn runner_failure_after_a_recheck_keeps_the_runner_path() {
     let checking = [ci_check(b"ci/test", Check::Failed, Some(last))];
     assert_eq!(
         read_ci(&mut d, fixtures::HEAD, Ci::Failed, &checking, &fixtures::failed_run(last, Some(0))),
-        change::Decision::Hold(change::Hold::Runner)
+        change::Decision::Hold(change::Cause::Runner)
     );
     let row = d.change(fixtures::CHANGE).unwrap();
     assert_eq!(row.change.repairs, 1);
@@ -455,7 +455,7 @@ fn a_refused_recheck_write_holds_instead_of_waiting_for_an_attempt() {
     let checks = [ci_check(b"ci/test", Check::Failed, Some(ATTEMPT))];
     assert_eq!(
         read_ci(&mut d, fixtures::HEAD, Ci::Failed, &checks, &fixtures::failed_run(ATTEMPT, Some(1))),
-        change::Decision::Hold(change::Hold::RedStands)
+        change::Decision::Hold(change::Cause::RedStands)
     );
     let row = d.change(fixtures::CHANGE).unwrap();
     assert_eq!(row.change.repairs, 1);

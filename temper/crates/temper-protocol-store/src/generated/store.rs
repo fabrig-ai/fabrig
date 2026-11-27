@@ -1944,50 +1944,6 @@ pub fn authority_lack_to_domain(record: crate::v25::AuthorityLack) -> temper_eng
 }
 
 #[must_use]
-pub fn change_hold_to_record(value: &temper_engine_domain_forge_change::Hold) -> crate::v25::ChangeHold {
-    match value {
-        temper_engine_domain_forge_change::Hold::Stalled => crate::v25::ChangeHold::Stalled,
-        temper_engine_domain_forge_change::Hold::Repairs => crate::v25::ChangeHold::Repairs,
-        temper_engine_domain_forge_change::Hold::Resolutions => crate::v25::ChangeHold::Resolutions,
-        temper_engine_domain_forge_change::Hold::Updates => crate::v25::ChangeHold::Updates,
-        temper_engine_domain_forge_change::Hold::BranchMoved => crate::v25::ChangeHold::BranchMoved,
-        temper_engine_domain_forge_change::Hold::BranchMissing => crate::v25::ChangeHold::BranchMissing,
-        temper_engine_domain_forge_change::Hold::PullClosed => crate::v25::ChangeHold::PullClosed,
-        temper_engine_domain_forge_change::Hold::Retargeted => crate::v25::ChangeHold::Retargeted,
-        temper_engine_domain_forge_change::Hold::Failed => crate::v25::ChangeHold::Failed,
-        temper_engine_domain_forge_change::Hold::Rejected => crate::v25::ChangeHold::Rejected,
-        temper_engine_domain_forge_change::Hold::Authority(held) => crate::v25::ChangeHold::Authority(crate::records::by_hand::authority_hold_to_record(held)),
-        temper_engine_domain_forge_change::Hold::Questions => crate::v25::ChangeHold::Questions,
-        temper_engine_domain_forge_change::Hold::Flake => crate::v25::ChangeHold::Flake,
-        temper_engine_domain_forge_change::Hold::NoTest => crate::v25::ChangeHold::NoTest,
-        temper_engine_domain_forge_change::Hold::Runner => crate::v25::ChangeHold::Runner,
-        temper_engine_domain_forge_change::Hold::RedStands => crate::v25::ChangeHold::RedStands,
-    }
-}
-
-#[must_use]
-pub fn change_hold_to_domain(record: crate::v25::ChangeHold) -> temper_engine_domain_forge_change::Hold {
-    match record {
-        crate::v25::ChangeHold::Stalled => temper_engine_domain_forge_change::Hold::Stalled,
-        crate::v25::ChangeHold::Repairs => temper_engine_domain_forge_change::Hold::Repairs,
-        crate::v25::ChangeHold::Resolutions => temper_engine_domain_forge_change::Hold::Resolutions,
-        crate::v25::ChangeHold::Updates => temper_engine_domain_forge_change::Hold::Updates,
-        crate::v25::ChangeHold::BranchMoved => temper_engine_domain_forge_change::Hold::BranchMoved,
-        crate::v25::ChangeHold::BranchMissing => temper_engine_domain_forge_change::Hold::BranchMissing,
-        crate::v25::ChangeHold::PullClosed => temper_engine_domain_forge_change::Hold::PullClosed,
-        crate::v25::ChangeHold::Retargeted => temper_engine_domain_forge_change::Hold::Retargeted,
-        crate::v25::ChangeHold::Failed => temper_engine_domain_forge_change::Hold::Failed,
-        crate::v25::ChangeHold::Rejected => temper_engine_domain_forge_change::Hold::Rejected,
-        crate::v25::ChangeHold::Authority(held) => temper_engine_domain_forge_change::Hold::Authority(crate::records::by_hand::authority_hold_to_domain(held)),
-        crate::v25::ChangeHold::Questions => temper_engine_domain_forge_change::Hold::Questions,
-        crate::v25::ChangeHold::Flake => temper_engine_domain_forge_change::Hold::Flake,
-        crate::v25::ChangeHold::NoTest => temper_engine_domain_forge_change::Hold::NoTest,
-        crate::v25::ChangeHold::Runner => temper_engine_domain_forge_change::Hold::Runner,
-        crate::v25::ChangeHold::RedStands => temper_engine_domain_forge_change::Hold::RedStands,
-    }
-}
-
-#[must_use]
 pub fn effect_result_to_record(value: &temper_engine_domain_forge_change::EffectResult) -> crate::v25::EffectResult {
     match value {
         temper_engine_domain_forge_change::EffectResult::None => crate::v25::EffectResult::None,

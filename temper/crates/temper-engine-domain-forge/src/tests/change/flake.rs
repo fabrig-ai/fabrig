@@ -96,13 +96,16 @@ pub(super) fn next_landing(d: &mut Domain, key: &ReceiptKey) {
     outputs(d, Event::Landing { row });
 }
 
-pub(super) fn release_legacy(d: &mut Domain, key: &ReceiptKey, hold: change::Hold) {
+pub(super) fn release_legacy(d: &mut Domain, key: &ReceiptKey, flake: bool) {
     let row = d.changes.get_mut(&fixtures::CHANGE).unwrap();
-    row.change.state = change::State::Held { was: Box::new(row.change.state.clone()), why: hold };
+    row.change.state = change::State::Held {
+        was: Box::new(row.change.state.clone()),
+        hold: change::Hold::new(change::Cause::RedStands, Wall::EPOCH),
+    };
     row.delegate = None;
     row.delegate_status = change::Status::Passed;
-    row.delegate_flake = hold == change::Hold::Flake;
-    row.delegate_no_test = hold == change::Hold::NoTest;
+    row.delegate_flake = flake;
+    row.delegate_no_test = !flake;
     *d = restart(d, key);
     outputs(d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
     assert_eq!(change_step_at(d, fixtures::HEAD), change::Decision::Ready);
@@ -158,7 +161,7 @@ fn an_unchanged_flake_regates_across_restart_and_proves_green_without_a_commit()
 #[test]
 fn a_previous_flake_hold_releases_into_one_regate_whose_red_stands() {
     let (mut d, key, mut run) = repairing_flake();
-    release_legacy(&mut d, &key, change::Hold::Flake);
+    release_legacy(&mut d, &key, true);
     run.conclusion = Some(api::Conclusion::Failure);
     run.jobs = Box::new([api::RunJob {
         id: 9,
@@ -176,13 +179,13 @@ fn a_previous_flake_hold_releases_into_one_regate_whose_red_stands() {
         landing::Decision::Leave { member: 0, why: landing::Leave::Failed { gate: 0, run: 58 } }
     );
     d = restart(&d, &key);
-    assert_eq!(change_step_at(&mut d, fixtures::HEAD), change::Decision::Hold(change::Hold::RedStands));
+    assert_eq!(change_step_at(&mut d, fixtures::HEAD), change::Decision::Hold(change::Cause::RedStands));
     let held = d.change(fixtures::CHANGE).unwrap();
     assert_eq!(
         held.change.state,
         change::State::Held {
             was: Box::new(change::State::Repairing { requested: false, why: why() }),
-            why: change::Hold::RedStands
+            hold: change::Hold::new(change::Cause::RedStands, env().wall),
         }
     );
     assert_eq!(held.producer_failure.as_deref(), Some(b"its red at 030303030303 stands: repair task 52 changed nothing, and the same content failed again: test a::t x; release this change to ask a fresh repair, or cancel it".as_slice()));
@@ -204,7 +207,7 @@ fn a_flake_without_its_receipt_holds_and_keeps_its_words() {
     d.landing.receipts.remove(&key);
     let words = "test a::t x passed again; ".repeat(100);
     verdict_terminal(&mut d, 52, words.as_bytes());
-    assert_eq!(change_step_at(&mut d, fixtures::HEAD), change::Decision::Hold(change::Hold::RedStands));
+    assert_eq!(change_step_at(&mut d, fixtures::HEAD), change::Decision::Hold(change::Cause::RedStands));
     let row = d.change(fixtures::CHANGE).unwrap();
     assert_eq!(row.producer_failure.as_deref(), Some(b"its red at 030303030303 stands: repair task 52 changed nothing, and the same content can't be checked again: the landing no longer keeps its failed receipt; release this change to ask a fresh repair, or cancel it".as_slice()));
     assert!(row.result.repairs.bytes.ends_with(words.as_bytes()));

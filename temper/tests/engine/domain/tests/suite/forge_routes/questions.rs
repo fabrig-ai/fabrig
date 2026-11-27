@@ -832,7 +832,13 @@ fn past_its_bound_the_change_holds_naming_the_question() {
     assert_eq!(words.as_ref(), expected.as_bytes());
     assert!(matches!(
         row(&world, change).change.state,
-        temper_engine_domain_forge_change::State::Held { why: temper_engine_domain_forge_change::Hold::Questions, .. }
+        temper_engine_domain_forge_change::State::Held {
+            hold: temper_engine_domain_forge_change::Hold {
+                cause: temper_engine_domain_forge_change::Cause::Questions,
+                ..
+            },
+            ..
+        }
     ));
     assert!(replies(&world, requester.task, change).iter().any(|word| word.words.as_ref() == expected.as_bytes()));
     assert_eq!(row(&world, change).questions.open[0].stands, Stands::Taken);
@@ -965,7 +971,7 @@ fn a_resolution_that_ends_with_a_relayed_question_still_holds_its_change() {
         }
     }
     assert!(
-        matches!(&row(&world, change).change.state, State::Held { was, why: temper_engine_domain_forge_change::Hold::Failed }
+        matches!(&row(&world, change).change.state, State::Held { was, hold: temper_engine_domain_forge_change::Hold { cause: temper_engine_domain_forge_change::Cause::Failed, .. } }
         if matches!(was.as_ref(), State::Resolving { .. }))
     );
     let tasks::Phase::Held { why: tasks::Hold::Procedure, source: Some(source), .. } = &live_task(&world, change).phase

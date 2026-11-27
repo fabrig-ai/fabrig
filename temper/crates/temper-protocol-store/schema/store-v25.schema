@@ -167,7 +167,7 @@ enum Freshness { exact, clean }
 enum GateKind { agent, person, check, follow }
 enum AuthorityLack { tasks, depth, spend }
 record AuthorityHold { lack: AuthorityLack had: u64 released: bool task: u64 spec: u64 hold: u64 tasks: u64 }
-enum ChangeHold { stalled, repairs, resolutions, updates, branch_moved, branch_missing, pull_closed, retargeted, failed, rejected, authority: AuthorityHold, questions, flake, no_test, runner, red_stands }
+enum ChangeHold { stalled, repairs, resolutions, updates, branch_moved, branch_missing, pull_closed, retargeted, failed, rejected, authority: AuthorityHold, questions, flake, no_test, runner, red_stands, close_refused }
 enum EffectResult { none, pending, made, conflict, failed, stale }
 record LandingRepair { gate: u16 }
 record LandedBelow { change: u64 pull: u64 }
@@ -195,7 +195,7 @@ record Preparing { from: fixed 32 main: fixed 32 ready_since: u64 }
 record Judgement { landing: u64 round: u16 pull: u64 branch: bytes 4096 base: bytes 4096 prefix: fixed 32 }
 record Judging { head: fixed 32 ready_since: u64 target: Judgement asked: list 1024 u64 }
 enum ChangeLive { producing: Producing, opening: Producing, recreating: ChangeHead, reopening: Reopening, checking: ChangeHead, gating: Gating, queued: ReadyHead, first: ReadyHead, updating: Updating, resolving: Resolving, repairing: Repairing, landing: ChangeHead, landed: LandedChange, ended, cancelling_gates: ChangeHead, ready: ReadyHead, preparing: Preparing, no_change: NoChange, red: LandedChange, cleared: MergeChange, uncleared: MergeChange, waiting_producer: WaitingProducer, judging: Judging, taking: Producing }
-record ChangeState { live: ChangeLive holds: list 8 ChangeHold }
+record ChangeState { live: ChangeLive holds: list 8 ChangeHold since: option u64 = none words: option bytes 512 = none }
 record Gate { number: u64 kind: GateKind blocking: bool freshness: Freshness eager: bool }
 record GateReport { number: u64 head: fixed 32 status: ChangeStatus revision: u64 = 0 }
 record GateFailure { number: u64 count: u32 }

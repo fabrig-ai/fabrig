@@ -95,7 +95,7 @@ fn close_and_release(world: &mut World, task: u64) {
     let injection = world.inject(CLOSED, Struck { request: Some(pull.to_string()), ..Struck::default() });
     assert_eq!(world.external_now(raw::Op::Write(raw::Write::Close { number: pull }), 2), raw::Answer::Done);
     world.stop(injection);
-    assert_eq!(step(world, task, 80_001, false), change::Decision::Hold(change::Hold::PullClosed));
+    assert_eq!(step(world, task, 80_001, false), change::Decision::Hold(change::Cause::PullClosed));
     world.event(top::Event::ReleaseChange { task, release: None });
     assert_eq!(step(world, task, 80_002, true), change::Decision::Effect(change::Effect::Reopen));
     assert_eq!(step(world, task, 80_003, false), change::Decision::Ready);

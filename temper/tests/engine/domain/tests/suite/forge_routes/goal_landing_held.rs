@@ -6,7 +6,7 @@ use super::goal_landing::{
     assert_goal_holds, ended, finish_run, land_into_goal, mine, producing_into_goal, row, status,
 };
 use super::*;
-use temper_engine_domain_forge_change::{Delegate, Hold, Repair, State};
+use temper_engine_domain_forge_change::{Cause, Delegate, Repair, State};
 
 const STEPS: u32 = 1000; // The forge world's bound for a full landing and release.
 const REPAIRS: u32 = 3;
@@ -133,7 +133,10 @@ fn exhausted(world: &mut World, goal: &engine::Assignment, landing: u64, head: u
     world.until(Until::Ready);
     assert_eq!(
         row(world, landing).change.state,
-        State::Held { was: Box::new(State::Checking { head: translate::commit(head) }), why: Hold::Repairs }
+        State::Held {
+            was: Box::new(State::Checking { head: translate::commit(head) }),
+            hold: temper_engine_domain_forge_change::Hold::new(Cause::Repairs, skein_lib::Wall::EPOCH)
+        }
     );
     assert_eq!(row(world, landing).change.repairs, REPAIRS);
     assert!(matches!(live_task(world, landing).phase, tasks::Phase::Held { why: tasks::Hold::Procedure, .. }));

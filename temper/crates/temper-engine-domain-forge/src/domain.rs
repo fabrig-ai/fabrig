@@ -1814,6 +1814,25 @@ impl Domain {
         self.changes.get(&task)
     }
 
+    /// Complete the account at the root, where the read and delegate evidence meet.
+    /// A later save of the same hold must not replace it.
+    pub fn keep_hold_words(&mut self, task: u64, cause: change::Cause, since: skein_lib::Wall, words: Box<[u8]>) {
+        if let Some(row) = self.changes.get_mut(&task)
+            && let change::State::Held { hold, .. } = &mut row.change.state
+            && hold.cause == cause
+            && hold.since == since
+            && hold.words.is_empty()
+        {
+            hold.words = words;
+        }
+    }
+
+    pub fn save_hold_words(&mut self, task: u64, out: &mut Queue<Request>) {
+        if let Some(row) = self.changes.get(&task) {
+            save_change_parts(self, out, row.clone());
+        }
+    }
+
     /// A change's committed pull identity for bounded root brief sections.
     #[must_use]
     #[expect(clippy::manual_find, reason = "the strict subset uses explicit iteration instead of iterator closures")]
@@ -2524,7 +2543,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
                 let before = crate::panel::ready(row);
                 let owned = row.change.owns_turn;
                 row.questions = questions;
-                row.change.state = relay_hold(&row.change.state, change::Hold::Failed);
+                row.change.state = relay_hold(&row.change.state, change::Cause::Failed, env.wall, Some(&words));
                 row.change.owns_turn = false;
                 row.producer_failure = Some(words);
                 let saved = row.clone();
@@ -2547,7 +2566,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
                 row.questions = questions;
                 let answered = was_asking && !has_agent_question(row);
                 if hold {
-                    row.change.state = relay_hold(&row.change.state, change::Hold::Questions);
+                    row.change.state = relay_hold(&row.change.state, change::Cause::Questions, env.wall, None);
                     row.change.owns_turn = false;
                 }
                 let saved = row.clone();
@@ -4116,38 +4135,20 @@ fn effect_permitted(kinds: Kinds, write: &skein_forge::api::Write) -> bool {
     }
 }
 
-fn relay_hold(state: &change::State, why: change::Hold) -> change::State {
-    if *state == change::State::Ended {
-        return change::State::Ended;
+fn relay_hold(
+    state: &change::State,
+    cause: change::Cause,
+    now: skein_lib::Wall,
+    words: Option<&[u8]>,
+) -> change::State {
+    if let change::State::Ended | change::State::Held { .. } = state {
+        return state.clone();
     }
-    let was = match state {
-        change::State::Held { was, .. } => was.as_ref().clone(),
-        change::State::Taking { .. }
-        | change::State::Producing { .. }
-        | change::State::Opening { .. }
-        | change::State::Recreating { .. }
-        | change::State::Reopening { .. }
-        | change::State::Checking { .. }
-        | change::State::Judging { .. }
-        | change::State::Gating { .. }
-        | change::State::CancellingGates { .. }
-        | change::State::Ready { .. }
-        | change::State::Preparing { .. }
-        | change::State::Queued { .. }
-        | change::State::First { .. }
-        | change::State::Updating { .. }
-        | change::State::WaitingProducer { .. }
-        | change::State::Resolving { .. }
-        | change::State::Repairing { .. }
-        | change::State::Landing { .. }
-        | change::State::Landed { .. }
-        | change::State::Red { .. }
-        | change::State::Cleared { .. }
-        | change::State::Uncleared { .. }
-        | change::State::NoChange { .. }
-        | change::State::Ended => state.clone(),
-    };
-    change::State::Held { was: Box::new(was), why }
+    let mut hold = change::Hold::new(cause, now);
+    if let Some(words) = words {
+        hold.words = crate::text::fit(words, skein_lib::usize_of(jig_domain_tasks::HOLD_ACCOUNT_BYTES), b"...");
+    }
+    change::State::Held { was: Box::new(state.clone()), hold }
 }
 
 fn register_change(d: &mut Domain, env: &Env<Limits>, mut row: ChangeRow, out: &mut Queue<Request>) {
@@ -4340,8 +4341,13 @@ fn delegate_refused(d: &mut Domain, env: &Env<Limits>, task: u64, child: u64, ou
     row.delegate_words = None;
     let owned = row.change.owns_turn;
     row.change.owns_turn = false;
-    let state = unasked(row, kind);
-    row.change.state = change::State::Held { was: Box::new(state), why: change::Hold::Failed };
+    if let change::State::Held { .. } = row.change.state {
+        // Retire the refused delegate without replacing the current hold.
+    } else {
+        let state = unasked(row, kind);
+        row.change.state =
+            change::State::Held { was: Box::new(state), hold: change::Hold::new(change::Cause::Failed, env.wall) };
+    }
     let saved = row.clone();
     wake_after_turn(d, &saved, owned);
     save_queue_change(d, env, before, saved, out);
@@ -4382,8 +4388,10 @@ fn delegate_admission_refused(
     row.change.state = unasked(row, kind);
     match kind {
         change::Delegate::Resolve { .. } | change::Delegate::Merge { .. } => {
-            row.change.state =
-                change::State::Held { was: Box::new(row.change.state.clone()), why: change::Hold::Failed };
+            row.change.state = change::State::Held {
+                was: Box::new(row.change.state.clone()),
+                hold: change::Hold::new(change::Cause::Failed, env.wall),
+            };
         }
         change::Delegate::Produce
         | change::Delegate::Close
@@ -4528,8 +4536,8 @@ fn delegate_result(
     let mut held_why = None;
     let owned = row.change.owns_turn;
     let mut ended = false;
-    if let change::State::Held { was, why } = &row.change.state
-        && *why == change::Hold::Stalled
+    if let change::State::Held { was, hold: change::Hold { cause: why, .. } } = &row.change.state
+        && *why == change::Cause::Stalled
         && delegate_wait(was)
     {
         held_why = Some(*why);
@@ -4689,7 +4697,7 @@ fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queu
     let row = d.changes.get_mut(&task).expect("live dependent change");
     let owned = row.change.owns_turn;
     let mut ended = false;
-    if let change::State::Held { was, why: change::Hold::Stalled } = &row.change.state
+    if let change::State::Held { was, hold: change::Hold { cause: change::Cause::Stalled, .. } } = &row.change.state
         && **was == (change::State::Producing { requested: false })
     {
         row.change.state = (**was).clone();
@@ -4700,7 +4708,7 @@ fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queu
         row.change.since = env.wall;
         let mut saved = row.clone();
         if ended {
-            crate::readiness::released(d, env, &mut saved, change::Hold::Stalled, out);
+            crate::readiness::released(d, env, &mut saved, change::Cause::Stalled, out);
         }
         wake_after_turn(d, &saved, owned);
         save_change(d, out, saved);
@@ -5675,7 +5683,7 @@ fn step_read(
                 return;
             }
             let numbered_missing =
-                if let Some(change_reads::Drift { why: change::Hold::PullClosed, .. }) = pending.drift {
+                if let Some(change_reads::Drift { why: change::Cause::PullClosed, .. }) = pending.drift {
                     pending.pull.is_none()
                 } else {
                     false
@@ -6322,7 +6330,10 @@ fn hold_read_session(
     let prior = row.change.clone();
     let owned = row.change.owns_turn;
     row.change.owns_turn = false;
-    row.change.state = change::State::Held { was: Box::new(row.change.state), why: change::Hold::Stalled };
+    row.change.state = change::State::Held {
+        was: Box::new(row.change.state),
+        hold: change::Hold::new(change::Cause::Stalled, env.wall),
+    };
     let evidence = match pending {
         Some(pending) => step_evidence(d, &row, pending, prior),
         None => crate::ChangeEvidence {
@@ -6350,7 +6361,7 @@ fn hold_read_session(
         out,
         Request::ChangeDecision {
             task,
-            decision: change::Decision::Hold(change::Hold::Stalled),
+            decision: change::Decision::Hold(change::Cause::Stalled),
             entry: None,
             evidence: Some(evidence),
         },
@@ -6368,7 +6379,10 @@ pub(super) fn hold_room_change(
     let before = crate::panel::ready(&row);
     let owned = row.change.owns_turn;
     row.change.owns_turn = false;
-    row.change.state = change::State::Held { was: Box::new(row.change.state), why: change::Hold::Stalled };
+    row.change.state = change::State::Held {
+        was: Box::new(row.change.state),
+        hold: change::Hold::new(change::Cause::Stalled, env.wall),
+    };
     row.effect_account = Some(account);
     if let Some(owner) = step_owner(d, task) {
         d.steps.remove(&owner);
@@ -6387,7 +6401,7 @@ pub(super) fn hold_room_change(
         out,
         Request::ChangeDecision {
             task,
-            decision: change::Decision::Hold(change::Hold::Stalled),
+            decision: change::Decision::Hold(change::Cause::Stalled),
             entry: None,
             evidence: None,
         },
@@ -6438,11 +6452,14 @@ fn titled_change(
             let before = crate::panel::ready(&row);
             let owned = row.change.owns_turn;
             row.change.owns_turn = false;
-            row.change.state = change::State::Held { was: Box::new(row.change.state), why: change::Hold::Stalled };
+            row.change.state = change::State::Held {
+                was: Box::new(row.change.state),
+                hold: change::Hold::new(change::Cause::Stalled, env.wall),
+            };
             wake_after_turn(d, &row, owned);
             d.changes.insert(task, row.clone()).expect("replaces change");
             save_queue_change(d, env, before, row, out);
-            change::Decision::Hold(change::Hold::Stalled)
+            change::Decision::Hold(change::Cause::Stalled)
         } else {
             change::Decision::Wait { until: Some(until) }
         };
@@ -6549,9 +6566,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
     let mut facts = change_facts(d, env, &row, &pending, base_tip);
     let mut heard = change_standing(d, &row, &pending);
     let mut regate = if let Some(why) = crate::recheck::landing_repair(&row.change.state)
-        && (heard.delegate == change::Status::Passed
-            || row.change.released == Some(change::Hold::Flake)
-            || row.change.released == Some(change::Hold::NoTest))
+        && (heard.delegate == change::Status::Passed || facts.legacy_regate)
     {
         d.landing_regate(row.task, why)
     } else {
@@ -6587,7 +6602,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         d.review_requests.remove(&row.task);
         heard.review_request = None;
         let advanced = stepped.change != row.change;
-        if stepped.decision == change::Decision::Hold(change::Hold::Stalled)
+        if stepped.decision == change::Decision::Hold(change::Cause::Stalled)
             && pending.stall.is_none()
             && let change::State::Checking { head } = row.change.state
         {
@@ -6600,7 +6615,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             gather_read(d, env, owner, repository, skein_forge::api::Read::Checks { commit: head }, out);
             return;
         }
-        let measured = if stepped.decision == change::Decision::Hold(change::Hold::RedStands)
+        let measured = if stepped.decision == change::Decision::Hold(change::Cause::RedStands)
             && !change::held_on_ci(&stepped.change.state)
             && facts.recheck == change::Recheck::Taken
             && let Some(ask) = &facts.ask
@@ -6628,13 +6643,13 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             &mut row,
             &mut regate,
             &effect_prior,
-            &facts,
+            &mut facts,
             heard.delegate,
             stepped.decision,
             env.limits.client.answer_bytes,
         );
         take_ci_repair(&mut row, &effect_prior, &facts, heard.delegate, env.limits.client.answer_bytes);
-        if stepped.decision == change::Decision::Hold(change::Hold::RedStands) {
+        if stepped.decision == change::Decision::Hold(change::Cause::RedStands) {
             row.producer_failure = if change::held_on_ci(&row.change.state) {
                 match (row.change.last_head, row.repair_tasks.last()) {
                     (Some(commit), Some(repair)) => {
@@ -6717,7 +6732,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             | change::Decision::Finish { .. }
             | change::Decision::Cancel
             | change::Decision::Hold(_)) => {
-                if decision == change::Decision::Hold(change::Hold::Runner) {
+                if decision == change::Decision::Hold(change::Cause::Runner) {
                     let commit = pending.branch.expect("runner fault at the checked head");
                     let words = pending.failed.hold_words(commit, crate::change_ci::baseline(&row));
                     row.runner_ci = Some(crate::RunnerCi::Held { words });
@@ -6725,7 +6740,9 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                     if let Some(crate::RunnerCi::Held { .. }) = &row.runner_ci {
                         row.runner_ci = None;
                     }
-                    if let change::State::Held { why: change::Hold::RedStands, .. } = effect_prior.state {
+                    if let change::State::Held { hold: change::Hold { cause: change::Cause::RedStands, .. }, .. } =
+                        effect_prior.state
+                    {
                         row.producer_failure = None;
                     }
                 }
@@ -6756,7 +6773,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                 topics::refresh(d, env, row.task, out);
                 crate::waits::change_policy(d, &row, decision, facts.execution.is_some());
                 if let Some(at) = facts.close_tips {
-                    let replay = decision == change::Decision::Hold(change::Hold::Failed)
+                    let replay = decision == change::Decision::Hold(change::Cause::CloseRefused)
                         && effect_prior.state == (change::State::Producing { requested: false });
                     if replay || decision == change::Decision::Delegate(change::Delegate::Close) {
                         emit(out, Request::CloseDecision { task: row.task, at, replay });
@@ -6781,7 +6798,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                             ),
                         ),
                         entry: None,
-                        evidence: if decision == change::Decision::Hold(change::Hold::BranchMoved) {
+                        evidence: if decision == change::Decision::Hold(change::Cause::BranchMoved) {
                             Some(step_evidence(d, &row, &pending, effect_prior))
                         } else {
                             None
@@ -6842,9 +6859,11 @@ fn drive_check(
             d.read_sessions.remove(&task);
             let decision = match action {
                 Action::Held => {
-                    row.change.state =
-                        change::State::Held { was: Box::new(row.change.state), why: change::Hold::Failed };
-                    change::Decision::Hold(change::Hold::Failed)
+                    row.change.state = change::State::Held {
+                        was: Box::new(row.change.state),
+                        hold: change::Hold::new(change::Cause::Failed, env.wall),
+                    };
+                    change::Decision::Hold(change::Cause::Failed)
                 }
                 Action::Wait => {
                     let at = d.client.poll_at(&env.limits.client, env.now, row.repository, env.limits.client.poll);
@@ -7038,7 +7057,7 @@ fn take_landing_repair(
     row: &mut ChangeRow,
     regate: &mut Option<crate::Regate>,
     prior: &change::Change,
-    facts: &change::Facts,
+    facts: &mut change::Facts,
     status: change::Status,
     decision: change::Decision,
     bound: u32,
@@ -7046,11 +7065,11 @@ fn take_landing_repair(
     if crate::recheck::landing_repair(&prior.state).is_none() {
         return;
     }
-    let legacy = prior.released == Some(change::Hold::Flake) || prior.released == Some(change::Hold::NoTest);
+    let legacy = facts.legacy_regate && prior.released == Some(change::Cause::RedStands);
     let rereading = decision == change::Decision::None
         && prior.state != row.change.state
         && (legacy || status == change::Status::Passed);
-    let cannot = decision == change::Decision::Hold(change::Hold::RedStands);
+    let cannot = decision == change::Decision::Hold(change::Cause::RedStands);
     let ended = !legacy && row.terminal() && status == change::Status::Passed && facts.branch.is_some();
     if !(rereading || cannot || ended) {
         return;
@@ -7059,7 +7078,11 @@ fn take_landing_repair(
     if rereading && (legacy || unchanged) {
         row.regate = regate.take();
     }
-    if !legacy {
+    if legacy {
+        row.delegate_flake = false;
+        row.delegate_no_test = false;
+        facts.legacy_regate = false;
+    } else {
         crate::recheck::completed(row, unchanged, bound);
     }
 }
@@ -7178,6 +7201,8 @@ fn change_facts(
             None => false,
         },
         regate: false,
+        legacy_regate: row.change.released == Some(change::Cause::RedStands)
+            && (row.delegate_flake || row.delegate_no_test),
         recheck: step_recheck(d, row, pending, crate::landing::members::head(row)),
         repair_head: row.delegate_head,
         pending: pending.pending.clone(),
@@ -7369,7 +7394,7 @@ fn emit_change_effect(
             out,
             Request::ChangeDecision {
                 task: row.task,
-                decision: change::Decision::Hold(change::Hold::Failed),
+                decision: change::Decision::Hold(change::Cause::Failed),
                 entry: None,
                 evidence: None,
             },
@@ -7416,7 +7441,7 @@ fn emit_change_effect(
             out,
             Request::ChangeDecision {
                 task: row.task,
-                decision: change::Decision::Hold(change::Hold::Failed),
+                decision: change::Decision::Hold(change::Cause::Failed),
                 entry: None,
                 evidence: None,
             },
@@ -7867,7 +7892,7 @@ pub(crate) fn matches_held(state: &change::State) -> bool {
 }
 
 fn takes_released_head(change: &change::Change) -> bool {
-    change.released_resolution || change.released == Some(change::Hold::BranchMoved)
+    change.released_resolution || change.released == Some(change::Cause::BranchMoved)
 }
 
 /// A release adopts an observed head, including the client's drift baseline.
@@ -7939,15 +7964,22 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
         return;
     };
     let before = crate::panel::ready(row);
-    if let change::State::Held { why: change::Hold::RedStands, .. } = row.change.state {
+    if let change::State::Held { hold: change::Hold { cause: change::Cause::RedStands, .. }, .. } = row.change.state {
         row.producer_failure = None;
         row.delegate_status = change::Status::Unknown;
         row.ci_recheck = None;
     }
+    // The old flake/no-test arms owe one regate. Retire their delegate as
+    // before, but carry the marks until the fresh read takes the release.
+    let (flake, no_test) = (row.delegate_flake, row.delegate_no_test);
     retire_failed_delegate(row);
     let mut released = change::released(&row.change, env.wall);
+    if released.released == Some(change::Cause::RedStands) {
+        row.delegate_flake = flake;
+        row.delegate_no_test = no_test;
+    }
     if row.close.is_some()
-        && released.released == Some(change::Hold::Failed)
+        && (released.released == Some(change::Cause::Failed) || released.released == Some(change::Cause::CloseRefused))
         && released.state == (change::State::Producing { requested: true })
     {
         // A failed close is a new producing decision, not drift recovery. Put
@@ -7962,7 +7994,7 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
     }
     // Reborrow after resetting the room clock.
     let row = d.changes.get_mut(&task).expect("released change");
-    if released.released == Some(change::Hold::Runner) {
+    if released.released == Some(change::Cause::Runner) {
         row.runner_ci = Some(crate::RunnerCi::Released);
     }
     row.change = released;
@@ -8026,7 +8058,7 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
         hold.drift = None;
         save_hold(out, hold.clone());
     }
-    if saved.change.released == Some(change::Hold::BranchMoved)
+    if saved.change.released == Some(change::Cause::BranchMoved)
         && let Some(head) = observed
     {
         // A poll may finish before the procedure's fresh snapshot does.
@@ -8655,7 +8687,7 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
     let ended = ended_change_state(&row.change.state, merge, cancelled, env.wall);
     if ended == change::State::Ended
         && row.change.ended_held.is_none()
-        && let change::State::Held { why, .. } = &row.change.state
+        && let change::State::Held { hold: change::Hold { cause: why, .. }, .. } = &row.change.state
     {
         row.change.ended_held = Some(*why);
     }
@@ -10388,9 +10420,9 @@ pub(crate) fn drift(
         }
         if let Some(row) = d.changes.get_mut(task) {
             row.drift = Some(match change {
-                crate::DriftChange::Branch { .. } => change::Hold::BranchMoved,
-                crate::DriftChange::PullClosed { .. } => change::Hold::PullClosed,
-                crate::DriftChange::Retargeted { .. } => change::Hold::Retargeted,
+                crate::DriftChange::Branch { .. } => change::Cause::BranchMoved,
+                crate::DriftChange::PullClosed { .. } => change::Cause::PullClosed,
+                crate::DriftChange::Retargeted { .. } => change::Cause::Retargeted,
             });
             let saved = row.clone();
             save_change(d, out, saved);
@@ -10407,9 +10439,9 @@ pub(crate) fn drift(
     for (task, name) in changes.into_boxed() {
         let Some(row) = d.changes.get_mut(&task) else { unreachable!("collected change") };
         row.drift = Some(match change {
-            crate::DriftChange::Branch { .. } => change::Hold::BranchMoved,
-            crate::DriftChange::PullClosed { .. } => change::Hold::PullClosed,
-            crate::DriftChange::Retargeted { .. } => change::Hold::Retargeted,
+            crate::DriftChange::Branch { .. } => change::Cause::BranchMoved,
+            crate::DriftChange::PullClosed { .. } => change::Cause::PullClosed,
+            crate::DriftChange::Retargeted { .. } => change::Cause::Retargeted,
         });
         let saved = row.clone();
         save_change(d, out, saved);

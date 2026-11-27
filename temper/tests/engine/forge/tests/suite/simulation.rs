@@ -873,7 +873,7 @@ fn a_pull_closed_by_someone_else_is_held_then_reopened_on_release() {
     world.close(pull);
     assert_eq!(
         change_step(&mut world, 1, change::Status::Passed, Box::new([])),
-        change::Decision::Hold(change::Hold::PullClosed)
+        change::Decision::Hold(change::Cause::PullClosed)
     );
     // The kept pull supplies durable drift evidence on the branch hold.
     let watched = top::Name { forge: REPO.forge, repository: REPO.repository, what: top::What::Pull(pull) };
@@ -1217,7 +1217,7 @@ fn runner_reruns_keep_gates_and_only_a_workflow_red_asks_repair() {
         if fault == Failing::NoStep {
             assert_eq!(
                 change_step(&mut world, 2, change::Status::Passed, Box::new([])),
-                change::Decision::Hold(change::Hold::Runner)
+                change::Decision::Hold(change::Cause::Runner)
             );
             let Some(top::RunnerCi::Held { words }) = &world.change(51).runner_ci else { panic!("runner hold") };
             assert!(String::from_utf8_lossy(words).contains("no step failed, run again 1 time"));
@@ -1307,7 +1307,7 @@ fn failed_ci_repair_world() -> World {
     });
     assert_eq!(
         change_step(&mut world, 2, change::Status::Unknown, Box::new([])),
-        change::Decision::Hold(change::Hold::Failed)
+        change::Decision::Hold(change::Cause::Failed)
     );
     let Some(top::Stored::ChangeHot(saved)) = world.stored().get(&top::Key::ChangeHot(51)) else {
         panic!("retained change")
@@ -2798,7 +2798,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     world.run_for(1);
     assert!(world.seen().iter().any(|event| matches!(
         event,
-        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Hold::BranchMoved), .. }
+        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Cause::BranchMoved), .. }
     )));
     world.event(top::Event::ReleaseChange { task: 51, release: None });
     world.take_seen();
@@ -2829,7 +2829,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     world.run_for(1);
     assert!(!world.seen().iter().any(|event| matches!(
         event,
-        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Hold::BranchMoved), .. }
+        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Cause::BranchMoved), .. }
     )));
 }
 
@@ -2863,15 +2863,11 @@ fn a_released_opening_move_on_a_requesters_branch_opens_before_ci() {
     assert_ne!(head, prior);
     assert_eq!(
         change_step(&mut world, 1, change::Status::Passed, Box::new([])),
-        change::Decision::Hold(change::Hold::BranchMoved)
+        change::Decision::Hold(change::Cause::BranchMoved)
     );
-    assert_eq!(
-        world.change(51).change.state,
-        change::State::Held {
-            was: Box::new(change::State::Opening { requested: false }),
-            why: change::Hold::BranchMoved,
-        }
-    );
+    let change::State::Held { was, hold } = &world.change(51).change.state else { panic!("held at opening") };
+    assert_eq!(**was, change::State::Opening { requested: false });
+    assert_eq!(hold.cause, change::Cause::BranchMoved);
     assert_eq!(world.change(51).pull, None);
     world.status(BRANCH, skein_fake_forge_domain::api::Check::Pending);
     world.event(top::Event::ReleaseChange { task: 51, release: None });
@@ -3487,14 +3483,16 @@ fn a_failed_producer_keeps_its_words_through_restart_and_holds_at_producing() {
     world.restart();
     assert_eq!(
         change_step(&mut world, 100, change::Status::Unknown, Box::new([])),
-        change::Decision::Hold(change::Hold::Failed)
+        change::Decision::Hold(change::Cause::Failed)
     );
     let Some(top::Stored::ChangeHot(saved)) = world.stored().get(&top::Key::ChangeHot(51)) else {
         panic!("retained change")
     };
     assert_eq!(saved.producer_failure.as_deref(), Some(REASON));
-    assert!(matches!(&saved.change.state, change::State::Held { was, why: change::Hold::Failed }
-        if matches!(was.as_ref(), change::State::Producing { .. })));
+    assert!(
+        matches!(&saved.change.state, change::State::Held { was, hold: change::Hold { cause: change::Cause::Failed, .. } }
+        if matches!(was.as_ref(), change::State::Producing { .. }))
+    );
     assert_eq!(world.writes(), 0, "no pull request or other write for an inapplicable change");
 }
 

@@ -511,7 +511,7 @@ fn ask_read(
     world.send(event);
 }
 
-/// Hold the fake's terminals, filling the client's logical call slab before a tool arrives.
+/// Cause the fake's terminals, filling the client's logical call slab before a tool arrives.
 fn occupy_read_capacity(world: &mut World) -> Vec<engine::Event> {
     for serial in 0..world.env.limits.forge.client.pending {
         world.send(engine::Event::Forge(Box::new(forge_top::Event::Client(skein_forge_client::Event::Read {
@@ -1030,7 +1030,7 @@ fn a_reviews_retry_says_it_is_asked_again_naming_the_failure() {
 
 #[test]
 fn a_second_failed_review_holds_the_change_naming_it() {
-    use temper_engine_domain_forge_change::{GateFailure, Hold, State};
+    use temper_engine_domain_forge_change::{Cause, GateFailure, State};
     const SECOND_FAILURE: &[u8] = b"cannot judge the second review";
     let (mut world, first, head) = review_world();
     let change = requester(&world, first.task);
@@ -1041,7 +1041,14 @@ fn a_second_failed_review_holds_the_change_naming_it() {
     finish_review(&mut world, &second, tasks::TaskResult::Failure { reason: SECOND_FAILURE.into() });
     world.advance_ticks(MAX_TICKS);
     let row = change_row(&world, change);
-    assert!(matches!(row.change.state, State::Held { why: Hold::Failed, .. }), "{:?}", row.change.state);
+    assert!(
+        matches!(
+            row.change.state,
+            State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed, .. }, .. }
+        ),
+        "{:?}",
+        row.change.state
+    );
     assert_eq!(row.change.repairs, 0);
     assert_eq!(row.change.gate_failures.as_ref(), &[GateFailure { number: 1, count: 2 }]);
     assert!(row.verdicts.is_empty());
@@ -1224,7 +1231,7 @@ fn waiting_review_repair(other_change: Option<u64>) -> (World, engine::Assignmen
 }
 
 pub(crate) fn preparing_review_repair(other_change: Option<u64>) -> (World, u64) {
-    use temper_engine_domain_forge_change::{Hold, State};
+    use temper_engine_domain_forge_change::{Cause, State};
     let (mut world, _, change, branch, _) = waiting_review_repair(other_change);
     world.advance_ticks(MAX_TICKS);
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"another-file", b"another writer", 2)
@@ -1233,7 +1240,7 @@ pub(crate) fn preparing_review_repair(other_change: Option<u64>) -> (World, u64)
     assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { why: tasks::Hold::Drift, .. }));
     let held = change_row(&world, change).change.state;
     assert!(
-        matches!(&held, State::Held { why: Hold::BranchMoved, was } if matches!(was.as_ref(), State::WaitingProducer { .. })),
+        matches!(&held, State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::BranchMoved, .. }, was } if matches!(was.as_ref(), State::WaitingProducer { .. })),
         "{held:?}"
     );
     world.signed_in = None;
@@ -1276,7 +1283,13 @@ fn delivered_review_repair(moved: bool, idle: bool) {
         assert_ne!(row.delegate.map(|(task, _)| task), Some(repair.task), "stale repair must end: {row:?}");
         assert!(!matches!(
             row.change.state,
-            temper_engine_domain_forge_change::State::Held { why: temper_engine_domain_forge_change::Hold::Failed, .. }
+            temper_engine_domain_forge_change::State::Held {
+                hold: temper_engine_domain_forge_change::Hold {
+                    cause: temper_engine_domain_forge_change::Cause::Failed,
+                    ..
+                },
+                ..
+            }
         ));
         assert!(row.change.last_head == Some(translate::commit(head)) || row.drift.is_some());
         return;
@@ -1304,7 +1317,10 @@ fn delivered_review_repair(moved: bool, idle: bool) {
         assert!(matches!(
             held.state,
             temper_engine_domain_forge_change::State::Held {
-                why: temper_engine_domain_forge_change::Hold::BranchMoved,
+                hold: temper_engine_domain_forge_change::Hold {
+                    cause: temper_engine_domain_forge_change::Cause::BranchMoved,
+                    ..
+                },
                 ..
             }
         ));
@@ -1344,7 +1360,7 @@ fn delivered_review_repair(moved: bool, idle: bool) {
 // domain/forge/change/drift.md, 1: the procedure retains the precise hold while its review waits.
 #[test]
 fn an_external_close_holds_the_change_during_review() {
-    use temper_engine_domain_forge_change::{Hold, State};
+    use temper_engine_domain_forge_change::{Cause, State};
     const OUTSIDE_AUTHOR: u64 = 2; // The forge world's other collaborator.
     const REVIEW_GATE: u64 = 1; // review_world's configured agent gate.
     let (mut world, reviewer, head) = review_world();
@@ -1362,11 +1378,9 @@ fn an_external_close_holds_the_change_during_review() {
         world.tick();
     }
     let row = change_row(&world, change);
-    assert_eq!(
-        row.change.state,
-        State::Held { was: Box::new(State::Gating { head, asked: Box::new([REVIEW_GATE]) }), why: Hold::PullClosed },
-        "the procedure records the close before jig holds its task"
-    );
+    let State::Held { was, hold } = &row.change.state else { panic!("held change") };
+    assert_eq!(**was, State::Gating { head, asked: Box::new([REVIEW_GATE]) });
+    assert_eq!(hold.cause, Cause::PullClosed);
     assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { why: tasks::Hold::Drift, .. }));
     assert_eq!(
         row.delegate,
@@ -1444,7 +1458,7 @@ fn release(world: &mut World, task: u64) {
 }
 
 fn held_producer() -> (World, u64, engine::Assignment, Box<[u8]>) {
-    use temper_engine_domain_forge_change::{Hold, State};
+    use temper_engine_domain_forge_change::{Cause, State};
     let (mut world, _, producer, branch) = change_world(false, 1000, None);
     let task = requester(&world, producer.task);
     finish_review(
@@ -1455,7 +1469,10 @@ fn held_producer() -> (World, u64, engine::Assignment, Box<[u8]>) {
     wait_held(&mut world, task);
     assert_eq!(
         change_row(&world, task).change.state,
-        State::Held { was: Box::new(State::Producing { requested: true }), why: Hold::Failed }
+        State::Held {
+            was: Box::new(State::Producing { requested: true }),
+            hold: temper_engine_domain_forge_change::Hold::new(Cause::Failed, skein_lib::Wall::EPOCH)
+        }
     );
     assert_eq!(change_row(&world, task).change.last_head, None);
     assert_eq!(live_task(&world, task).made, 2, "change itself and first producer");
@@ -1614,22 +1631,25 @@ fn a_cancelled_held_change_ends_its_panel() {
 }
 
 /// Restore the held snapshot for each cause, then exercise the person's real release/cancel route.
-fn held_for(why: temper_engine_domain_forge_change::Hold) -> (World, u64, [u8; 32]) {
-    use temper_engine_domain_forge_change::{GateKind, GateReport, Hold, State, Status};
+fn held_for(why: temper_engine_domain_forge_change::Cause) -> (World, u64, [u8; 32]) {
+    use temper_engine_domain_forge_change::{Cause, GateKind, GateReport, State, Status};
     let (mut world, task, head) = held_review();
     let mut row = change_row(&world, task).clone();
-    row.change.state = State::Held { was: Box::new(State::Gating { head, asked: Box::new([]) }), why };
+    row.change.state = State::Held {
+        was: Box::new(State::Gating { head, asked: Box::new([]) }),
+        hold: temper_engine_domain_forge_change::Hold::new(why, skein_lib::Wall::EPOCH),
+    };
     row.change.gate_failures = Box::new([]);
     match why {
-        Hold::Repairs => {
+        Cause::Repairs => {
             row.change.repairs = world.env.limits.forge.change_policy.repairs;
             row.verdicts = Box::new([GateReport { revision: 0, number: 1, head, status: Status::Failed }]);
         }
-        Hold::Rejected => {
+        Cause::Rejected => {
             row.change.gates[0].kind = GateKind::Person;
             row.verdicts = Box::new([GateReport { revision: 0, number: 1, head, status: Status::Failed }]);
         }
-        Hold::BranchMoved => row.drift = Some(Hold::BranchMoved),
+        Cause::BranchMoved => row.drift = Some(Cause::BranchMoved),
         _ => panic!("not a held fixture for {why:?}"),
     }
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Restore {
@@ -1640,7 +1660,7 @@ fn held_for(why: temper_engine_domain_forge_change::Hold) -> (World, u64, [u8; 3
 
 #[test]
 fn a_released_change_counts_its_repairs_anew() {
-    let (mut world, task, _) = held_for(temper_engine_domain_forge_change::Hold::Repairs);
+    let (mut world, task, _) = held_for(temper_engine_domain_forge_change::Cause::Repairs);
     release(&mut world, task);
     let repair = next_assignment(&mut world, 4);
     assert!(matches!(live_task(&world, repair.task).contract, tasks::Contract::Change { .. }));
@@ -1650,12 +1670,15 @@ fn a_released_change_counts_its_repairs_anew() {
 
 #[test]
 fn a_released_change_with_a_declined_approval_is_held_again() {
-    use temper_engine_domain_forge_change::{Hold, State};
-    let (mut world, task, _) = held_for(Hold::Rejected);
+    use temper_engine_domain_forge_change::{Cause, State};
+    let (mut world, task, _) = held_for(Cause::Rejected);
     let revision = live_task(&world, task).revisions.hold;
     release(&mut world, task);
     world.advance_ticks(MAX_TICKS);
-    assert!(matches!(change_row(&world, task).change.state, State::Held { why: Hold::Rejected, .. }));
+    assert!(matches!(
+        change_row(&world, task).change.state,
+        State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::Rejected, .. }, .. }
+    ));
     assert!(matches!(live_task(&world, task).phase, tasks::Phase::Held { .. }));
     assert!(live_task(&world, task).revisions.hold > revision, "a fresh task hold matches the unchanged verdict");
     assert_eq!(world.assigned.len(), 4, "a declined approval is not asked again at the same head");
@@ -1663,7 +1686,7 @@ fn a_released_change_with_a_declined_approval_is_held_again() {
 
 #[test]
 fn a_released_change_checks_its_moved_branch_afresh() {
-    let (mut world, task, old) = held_for(temper_engine_domain_forge_change::Hold::BranchMoved);
+    let (mut world, task, old) = held_for(temper_engine_domain_forge_change::Cause::BranchMoved);
     let branch = change_row(&world, task).branch.clone();
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, FILE, b"a person's new diff", 2)
         .expect("person moved the held branch");
@@ -1680,19 +1703,19 @@ fn a_released_change_checks_its_moved_branch_afresh() {
 
 #[test]
 fn a_cancelled_change_held_for_repairs_ends_its_panel() {
-    let (mut world, task, _) = held_for(temper_engine_domain_forge_change::Hold::Repairs);
+    let (mut world, task, _) = held_for(temper_engine_domain_forge_change::Cause::Repairs);
     cancel_and_assert_panel_ended(&mut world, task);
 }
 
 #[test]
 fn a_cancelled_change_with_a_declined_approval_ends_its_panel() {
-    let (mut world, task, _) = held_for(temper_engine_domain_forge_change::Hold::Rejected);
+    let (mut world, task, _) = held_for(temper_engine_domain_forge_change::Cause::Rejected);
     cancel_and_assert_panel_ended(&mut world, task);
 }
 
 #[test]
 fn a_cancelled_change_with_a_moved_branch_ends_its_panel() {
-    let (mut world, task, _) = held_for(temper_engine_domain_forge_change::Hold::BranchMoved);
+    let (mut world, task, _) = held_for(temper_engine_domain_forge_change::Cause::BranchMoved);
     cancel_and_assert_panel_ended(&mut world, task);
 }
 
@@ -1709,7 +1732,7 @@ fn observed_move(world: &World, task: u64, head: [u8; 32]) -> bool {
 #[test]
 fn a_released_moved_change_is_not_held_again_while_its_fresh_read_is_slow() {
     const SLOW_READ_TICKS: u32 = 600;
-    let (mut world, task, _) = held_for(temper_engine_domain_forge_change::Hold::BranchMoved);
+    let (mut world, task, _) = held_for(temper_engine_domain_forge_change::Cause::BranchMoved);
     let branch = change_row(&world, task).branch.clone();
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, FILE, b"new diff", 2)
         .expect("person moved the branch");
@@ -1765,9 +1788,13 @@ fn assert_authority_hold(
     words: &[u8],
     released: bool,
 ) {
-    use temper_engine_domain_forge_change::{Hold, State};
+    use temper_engine_domain_forge_change::{Cause, State};
     let row = change_row(world, task);
-    let State::Held { why: Hold::Authority(cause), .. } = row.change.state else { panic!("{:?}", row.change.state) };
+    let State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::Authority(cause), .. }, .. } =
+        row.change.state
+    else {
+        panic!("{:?}", row.change.state)
+    };
     assert_eq!(cause.lack, lack);
     assert_eq!(cause.released, released);
     let expected = if lack == temper_engine_domain_forge_change::AuthorityLack::Spend {

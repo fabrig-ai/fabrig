@@ -375,7 +375,10 @@ fn fail_close_until_held(
         }
         world.tick();
     }
-    assert!(matches!(change_row(world, task).change.state, change::State::Held { why: change::Hold::Failed, .. }));
+    assert!(matches!(
+        change_row(world, task).change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::Failed, .. }, .. }
+    ));
     assert!(matches!(live_task(world, task).phase, tasks::Phase::Held { .. }));
     assert!(
         change_row(world, task)
@@ -665,6 +668,10 @@ fn an_unrecognized_finished_close_holds_without_another_try() {
             "the close check broke and didn't judge the goal: it finished with {reason}; its release runs it again."
         );
         super::goal_closer::assert_hold_words(&world, task, &expected);
+        assert!(matches!(
+            change_row(&world, task).change.state,
+            change::State::Held { hold: change::Hold { cause: change::Cause::Failed, .. }, .. }
+        ));
         assert_eq!(change_row(&world, task).close_at.expect("close attempt").refused, None);
         assert!(world.jobs.is_empty(), "a finished invalid result must not spend another try");
         world.close();
@@ -698,10 +705,9 @@ fn a_failed_close_job_holds_the_change() {
     assert_eq!(reason.as_ref(), b"its change holds on its failure");
     assert!(!matches!(ended.escalation, tasks::Escalation::Waiting { .. }));
     let row = change_row(&world, task);
-    assert_eq!(
-        row.change.state,
-        change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Failed }
-    );
+    let change::State::Held { was, hold } = &row.change.state else { panic!("close held at producing") };
+    assert_eq!(**was, change::State::Producing { requested: true });
+    assert_eq!(hold.cause, change::Cause::Failed);
     assert_eq!(row.delegate, None);
     assert_eq!(row.delegate_status, change::Status::Failed);
     let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, task).phase else {

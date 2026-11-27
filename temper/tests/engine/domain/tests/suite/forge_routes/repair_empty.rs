@@ -1,7 +1,7 @@
 //! Empty repairs recheck CI without spending another repair (change/repairs.md).
 use super::questions::row;
 use super::*;
-use temper_engine_domain_forge_change::{Delegate, Hold, Repair, State};
+use temper_engine_domain_forge_change::{Cause, Delegate, Repair, State};
 
 const STEPS: u32 = 300;
 const REPAIRS: u32 = 2;
@@ -87,10 +87,9 @@ fn an_empty_ci_repairs_later_red_holds_without_spending_the_bound() {
         }
     }
     let row = row(&world, change);
-    assert_eq!(
-        row.change.state,
-        State::Held { was: Box::new(State::Repairing { requested: false, why: Repair::Ci }), why: Hold::RedStands }
-    );
+    let State::Held { was, hold } = &row.change.state else { panic!("held change") };
+    assert_eq!(**was, State::Repairing { requested: false, why: Repair::Ci });
+    assert_eq!(hold.cause, Cause::RedStands);
     assert_eq!(row.change.last_head, Some(head));
     assert_eq!((row.change.repairs, row.change.updates), (1, 0));
     assert_eq!(world.assigned.len(), assigned, "no second repair was assigned");

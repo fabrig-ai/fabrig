@@ -94,11 +94,13 @@ fn taking_accounts_reach_the_task_under_the_existing_stalled_and_effect_failed_h
     let (_, env, _) = super::change_start_fixture();
     let words = b"taking docs/x: forge unavailable";
     for (cause, expected) in
-        [(change::Hold::Stalled, tasks::Hold::Stalled), (change::Hold::Failed, tasks::Hold::EffectFailed)]
+        [(change::Cause::Stalled, tasks::Hold::Stalled), (change::Cause::Failed, tasks::Hold::EffectFailed)]
     {
         let mut row = domain.forge.change(task).unwrap().clone();
-        row.change.state =
-            change::State::Held { was: Box::new(change::State::Taking { requested: false }), why: cause };
+        row.change.state = change::State::Held {
+            was: Box::new(change::State::Taking { requested: false }),
+            hold: change::Hold::new(cause, skein_lib::Wall::EPOCH),
+        };
         row.effect_account = Some(forge::EffectAccount { entry: 0, words: words.as_slice().into() });
         super::restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
         let decision = route::hold_change_decision(&domain, &env, task, cause, None, None);

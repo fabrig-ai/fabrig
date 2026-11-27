@@ -41,9 +41,10 @@ fn row(world: &World) -> &top::ChangeHot {
     row
 }
 
-fn released(world: &mut World, why: change::Hold) {
+fn released(world: &mut World, why: change::Cause) {
     let mut saved = world.change(TASK).clone();
-    saved.change.state = change::State::Held { was: Box::new(saved.change.state), why };
+    saved.change.state =
+        change::State::Held { was: Box::new(saved.change.state), hold: change::Hold::new(why, skein_lib::Wall::EPOCH) };
     saved.delegate = None;
     saved.delegate_status = change::Status::Failed;
     world.event(top::Event::Restore { record: top::Stored::Change(Box::new(saved)) });
@@ -105,7 +106,7 @@ fn a_run_in_progress_is_left_to_finish() {
 #[test]
 fn a_release_at_a_green_head_makes_no_fresh_repair() {
     let (mut world, _) = repair(change::Repair::Ci, true, false);
-    released(&mut world, change::Hold::Failed);
+    released(&mut world, change::Cause::Failed);
     assert_eq!(
         change_step_with_release(&mut world, 1, change::Status::Unknown, Box::new([]), true),
         change::Decision::Ready
@@ -118,7 +119,7 @@ fn a_release_at_a_green_head_makes_no_fresh_repair() {
 fn a_release_at_a_failing_head_still_asks_a_fresh_repair() {
     let (mut world, _) = repair(change::Repair::Ci, true, false);
     world.status(BRANCH, raw::Check::Failed);
-    released(&mut world, change::Hold::Failed);
+    released(&mut world, change::Cause::Failed);
     assert_eq!(
         change_step_with_release(&mut world, 1, change::Status::Unknown, Box::new([]), true),
         change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci))
@@ -166,7 +167,7 @@ fn ci_passed_on_an_earlier_head_changes_nothing() {
 fn a_review_repair_is_untouched_at_a_green_head() {
     let (mut world, _) = repair(change::Repair::Gate(9), true, true);
     assert!(matches!(change_step(&mut world, 1, change::Status::Pending, Box::new([])), change::Decision::Wait { .. }));
-    released(&mut world, change::Hold::Failed);
+    released(&mut world, change::Cause::Failed);
     assert_eq!(
         change_step_with_release(&mut world, 2, change::Status::Unknown, Box::new([]), true),
         change::Decision::Delegate(change::Delegate::Repair(change::Repair::Gate(9)))

@@ -89,7 +89,10 @@ fn held(world: &mut World, task: u64) {
     }
     let row = change_row(world, task);
     assert!(
-        matches!(row.change.state, change::State::Held { why: change::Hold::Updates, .. }),
+        matches!(
+            row.change.state,
+            change::State::Held { hold: change::Hold { cause: change::Cause::Updates, .. }, .. }
+        ),
         "state: {:?}; updates: {}; update writes: {}; now: {:?}; stall: {:?}; lifetime: {:?}; clock margin: {:?}; write attempts: {}",
         row.change.state,
         row.change.updates,

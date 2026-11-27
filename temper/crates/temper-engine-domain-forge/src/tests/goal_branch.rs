@@ -790,7 +790,7 @@ fn a_change_waiting_for_its_base_to_be_made_is_bounded_by_its_stall() {
         signalled |= *request == Request::WakeProcedure { task: fixtures::CHANGE };
         if let Request::ChangeDecision {
             task: fixtures::CHANGE,
-            decision: change::Decision::Hold(change::Hold::Stalled),
+            decision: change::Decision::Hold(change::Cause::Stalled),
             evidence: Some(_),
             ..
         } = request
@@ -802,7 +802,7 @@ fn a_change_waiting_for_its_base_to_be_made_is_bounded_by_its_stall() {
     assert!(held, "the read session expires without another forge answer: {wake:?}");
     assert!(matches!(
         d.change(fixtures::CHANGE).expect("change").change.state,
-        change::State::Held { why: change::Hold::Stalled, .. }
+        change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
     ));
 }
 

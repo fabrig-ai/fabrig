@@ -1,6 +1,6 @@
 //! A cancelled delegate's account and release (temper/docs/design/domain/forge/change/repairs.md).
 use super::*;
-use temper_engine_domain_forge_change::{Hold, State};
+use temper_engine_domain_forge_change::{Cause, State};
 
 const STEPS: u32 = 200;
 const REASON: &[u8] = b"try a different approach";
@@ -70,8 +70,10 @@ fn a_cancelled_repair_holds_saying_it_was_cancelled() {
         let expected =
             if reason.is_empty() { opening.into_bytes() } else { [opening.as_bytes(), b": ", reason].concat() };
         assert_eq!(account(&world, change, tasks::Hold::Procedure), expected.as_slice());
-        assert!(matches!(&change_row(&world, change).change.state, State::Held { was, why: Hold::Failed }
-            if matches!(was.as_ref(), State::Repairing { .. })));
+        assert!(
+            matches!(&change_row(&world, change).change.state, State::Held { was, hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed, .. } }
+            if matches!(was.as_ref(), State::Repairing { .. }))
+        );
         assert_eq!(change_row(&world, change).change.repairs, 1, "cancel keeps the attempted count");
         let shown = temper_engine_domain_world::tier_task_show::show(&mut world, change);
         assert_eq!(shown.status, 0);
@@ -157,6 +159,8 @@ fn a_cancelled_producer_says_it_was_cancelled() {
     cancel(&mut world, &producer, change, REASON);
     let expected = format!("its producer, task {}, was cancelled: try a different approach", producer.task);
     assert_eq!(account(&world, change, tasks::Hold::EffectFailed), expected.as_bytes());
-    assert!(matches!(&change_row(&world, change).change.state, State::Held { was, why: Hold::Failed }
-        if matches!(was.as_ref(), State::Producing { .. })));
+    assert!(
+        matches!(&change_row(&world, change).change.state, State::Held { was, hold: temper_engine_domain_forge_change::Hold { cause: Cause::Failed, .. } }
+        if matches!(was.as_ref(), State::Producing { .. }))
+    );
 }

@@ -1,7 +1,7 @@
 //! A moved pin ends an idle resolution (temper/docs/design/domain/forge/change/repairs.md).
 use super::light_rules::{change_row, pushed_change_in};
 use super::*;
-use temper_engine_domain_forge_change::{Delegate, Hold, State};
+use temper_engine_domain_forge_change::{Cause, Delegate, State};
 
 const STEPS: u32 = 300;
 
@@ -60,7 +60,10 @@ fn moved_head(conflict: bool) {
         world.tick();
         observe(&mut world, &mut facts);
         if ended(&world, resolution).is_some()
-            && matches!(change_row(&world, change).change.state, State::Held { why: Hold::BranchMoved, .. })
+            && matches!(
+                change_row(&world, change).change.state,
+                State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::BranchMoved, .. }, .. }
+            )
             && matches!(live_task(&world, change).phase, tasks::Phase::Held { .. })
         {
             break;
@@ -87,7 +90,10 @@ fn moved_head(conflict: bool) {
     }
     assert_eq!(
         change_row(&world, change).change.state,
-        State::Held { was: Box::new(State::WaitingProducer { base: translate::commit(base) }), why: Hold::BranchMoved }
+        State::Held {
+            was: Box::new(State::WaitingProducer { base: translate::commit(base) }),
+            hold: temper_engine_domain_forge_change::Hold::new(Cause::BranchMoved, skein_lib::Wall::EPOCH)
+        }
     );
     assert_eq!(change_row(&world, change).change.last_head, Some(translate::commit(head)));
     let shown = temper_engine_domain_world::tier_task_show::show(&mut world, change);

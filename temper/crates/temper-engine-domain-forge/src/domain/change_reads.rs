@@ -6,7 +6,7 @@ use skein_lib::{Queue, Wall};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(super) struct Drift {
-    pub(super) why: change::Hold,
+    pub(super) why: change::Cause,
     pub(super) nearest: Option<u64>,
 }
 
@@ -124,7 +124,7 @@ pub(super) fn branch(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, o
 }
 
 fn drifted_branch(found: Option<Commit>, nearest: Option<u64>) -> Judgement {
-    let why = if found.is_some() { change::Hold::BranchMoved } else { change::Hold::BranchMissing };
+    let why = if found.is_some() { change::Cause::BranchMoved } else { change::Cause::BranchMissing };
     Judgement::Drift(Drift { why, nearest })
 }
 
@@ -186,7 +186,7 @@ pub(super) fn pull(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out
             return behind(BehindRead::PullState, None, None);
         }
         return if row.pull.is_some() && !reopening && !pending.heard.cancelled {
-            Judgement::Drift(Drift { why: change::Hold::PullClosed, nearest: writes::nearest_order(d, &name) })
+            Judgement::Drift(Drift { why: change::Cause::PullClosed, nearest: writes::nearest_order(d, &name) })
         } else {
             Judgement::Read
         };
@@ -206,7 +206,7 @@ pub(super) fn pull(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out
             if reopening {
                 return Judgement::Read;
             }
-            let why = if target_changed { change::Hold::Retargeted } else { change::Hold::PullClosed };
+            let why = if target_changed { change::Cause::Retargeted } else { change::Cause::PullClosed };
             return Judgement::Drift(Drift { why, nearest });
         }
         Seen::Behind { .. } => return behind(BehindRead::PullState, None, None),

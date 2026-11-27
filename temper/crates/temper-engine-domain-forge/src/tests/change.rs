@@ -103,11 +103,14 @@ fn a_restart_wakes_a_change_with_words_to_pass_or_a_requester_to_tell() {
 
 #[test]
 fn ending_a_held_change_keeps_its_hold_without_a_cancelling_step() {
-    use temper_engine_domain_forge_change::{Hold, State};
-    for (why, prior) in [(Hold::Repairs, None), (Hold::Resolutions, Some(Hold::Rejected))] {
+    use temper_engine_domain_forge_change::{Cause, State};
+    for (why, prior) in [(Cause::Repairs, None), (Cause::Resolutions, Some(Cause::Rejected))] {
         let mut row = fixtures::opening_row();
         row.pending = None;
-        row.change.state = State::Held { was: Box::new(State::Producing { requested: false }), why };
+        row.change.state = State::Held {
+            was: Box::new(State::Producing { requested: false }),
+            hold: temper_engine_domain_forge_change::Hold::new(why, Wall::EPOCH),
+        };
         row.change.ended_held = prior;
         let mut d = active_domain();
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
@@ -164,8 +167,8 @@ fn ending_landed_or_no_change_keeps_no_ending_hold() {
 
 #[test]
 fn a_relay_cannot_hold_an_ended_change() {
-    use temper_engine_domain_forge_change::{Hold, Questions, State};
-    for ended_held in [None, Some(Hold::Repairs)] {
+    use temper_engine_domain_forge_change::{Cause, Questions, State};
+    for ended_held in [None, Some(Cause::Repairs)] {
         let mut row = fixtures::opening_row();
         row.change.state = State::Ended;
         row.change.ended_held = ended_held;
@@ -183,6 +186,31 @@ fn a_relay_cannot_hold_an_ended_change() {
         assert_eq!(saved.change.state, State::Ended);
         assert_eq!(saved.change.ended_held, ended_held);
     }
+}
+
+#[test]
+fn a_refused_relay_keeps_the_existing_hold() {
+    use temper_engine_domain_forge_change as change;
+    let mut row = fixtures::opening_row();
+    let was = row.change.state;
+    let hold = change::Hold {
+        cause: change::Cause::BranchMoved,
+        since: Wall::from_nanos(31),
+        words: b"its branch moved".as_slice().into(),
+    };
+    let state = change::State::Held { was: Box::new(was), hold };
+    row.change.state = state.clone();
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+    outputs(
+        &mut d,
+        Event::RelayRefused {
+            task: fixtures::CHANGE,
+            questions: change::Questions::default(),
+            words: b"relay failed".as_slice().into(),
+        },
+    );
+    assert_eq!(d.change(fixtures::CHANGE).expect("held change").change.state, state);
 }
 
 /// Reverse ancestry is read once per pair, including uncertain answers (keeping-up.md, 3).
@@ -370,7 +398,7 @@ fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
     let mut waiting = false;
     for request in &out {
         assert!(
-            !matches!(request, Request::ChangeDecision { decision: c::Decision::Hold(c::Hold::Stalled), .. }),
+            !matches!(request, Request::ChangeDecision { decision: c::Decision::Hold(c::Cause::Stalled), .. }),
             "{out:?}"
         );
         if let Request::ChangeDecision { decision: c::Decision::Wait { until: Some(deadline) }, .. } = request {
@@ -437,7 +465,7 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
         let waits: Box<[(u64, c::Decision)]> = if titled {
             Box::new([
                 (remaining - 1, c::Decision::Wait { until: Some(until) }),
-                (1, c::Decision::Hold(c::Hold::Stalled)),
+                (1, c::Decision::Hold(c::Cause::Stalled)),
             ])
         } else {
             // The first execution reading after the exemption starts its own clock.
@@ -447,7 +475,7 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
             Box::new([
                 (0, c::Decision::Wait { until: Some(poll) }),
                 (execution.as_nanos() / 1_000_000_000 - 1, c::Decision::Wait { until: Some(due) }),
-                (1, c::Decision::Hold(c::Hold::Stalled)),
+                (1, c::Decision::Hold(c::Cause::Stalled)),
             ])
         };
         for (elapsed, decision) in waits {
@@ -471,7 +499,7 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
                 let (call, _) = fixtures::next_at(&mut d, &env);
                 out = fixtures::answer_at(&mut d, &env, call, Ok(answer));
             }
-            if !titled && decision == c::Decision::Hold(c::Hold::Stalled) {
+            if !titled && decision == c::Decision::Hold(c::Cause::Stalled) {
                 let (call, read) = fixtures::next_at(&mut d, &env);
                 assert_eq!(read, skein_forge::api::Op::Read(skein_forge::api::Read::Checks { commit: fixtures::HEAD }));
                 out = fixtures::answer_at(&mut d, &env, call, Ok(Answer::Checks(Box::new([]))));
@@ -671,7 +699,7 @@ fn a_numbered_missing_pull_holds_instead_of_opening_another() {
         } else {
             change::State::Opening { requested: false }
         };
-        row.change.released = released.then_some(change::Hold::Stalled);
+        row.change.released = released.then_some(change::Cause::Stalled);
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::CatchUp);
@@ -683,12 +711,15 @@ fn a_numbered_missing_pull_holds_instead_of_opening_another() {
         assert!(matches!(op, Op::Read(Read::Pull { number: 7, .. })), "own pull by number: {op:?}");
         let held = fixtures::answer(&mut d, call, Err(Error::Missing));
         assert!(
-            decided(&held, change::Decision::Hold(change::Hold::PullClosed)),
+            decided(&held, change::Decision::Hold(change::Cause::PullClosed)),
             "numbered Missing holds before policy: {held:?}"
         );
         let row = d.change(fixtures::CHANGE).expect("held change");
         assert_eq!(row.pull, Some(7));
-        assert!(matches!(row.change.state, change::State::Held { why: change::Hold::PullClosed, .. }));
+        assert!(matches!(
+            row.change.state,
+            change::State::Held { hold: change::Hold { cause: change::Cause::PullClosed, .. }, .. }
+        ));
     }
 }
 
@@ -1601,7 +1632,7 @@ fn awaiting_a_producer_title_keeps_the_changes_stall_deadline() {
         fixtures::missing_pull(&mut d);
         let finished = fixtures::finish_missing(&mut d);
         let decision = if expired {
-            change::Decision::Hold(change::Hold::Stalled)
+            change::Decision::Hold(change::Cause::Stalled)
         } else {
             change::Decision::Wait { until: Some(WAIT_UNTIL) }
         };
@@ -1619,7 +1650,7 @@ fn awaiting_a_producer_title_keeps_the_changes_stall_deadline() {
                 d.change(fixtures::CHANGE).expect("change").change.state,
                 change::State::Held {
                     was: Box::new(change::State::Producing { requested: true }),
-                    why: change::Hold::Stalled,
+                    hold: change::Hold::new(change::Cause::Stalled, env().wall),
                 }
             );
         }
@@ -1861,17 +1892,45 @@ fn unknown_catch_up_containment_keeps_its_retry_while_dependencies_are_pending()
 
 #[test]
 fn a_dependency_end_refreshes_producing_and_ends_only_its_unrequested_stall() {
-    use change::{Hold, State};
+    use change::{Cause, State};
     use temper_engine_domain_forge_change as change;
     let unrequested = State::Producing { requested: false };
     let requested = State::Producing { requested: true };
     for (state, refresh, end) in [
         (unrequested.clone(), true, false),
         (requested.clone(), true, false),
-        (State::Held { was: Box::new(unrequested.clone()), why: Hold::Stalled }, true, true),
-        (State::Held { was: Box::new(requested), why: Hold::Stalled }, false, false),
-        (State::Held { was: Box::new(unrequested.clone()), why: Hold::Questions }, false, false),
-        (State::Held { was: Box::new(State::Checking { head: fixtures::HEAD }), why: Hold::Stalled }, false, false),
+        (
+            State::Held {
+                was: Box::new(unrequested.clone()),
+                hold: temper_engine_domain_forge_change::Hold::new(Cause::Stalled, Wall::EPOCH),
+            },
+            true,
+            true,
+        ),
+        (
+            State::Held {
+                was: Box::new(requested),
+                hold: temper_engine_domain_forge_change::Hold::new(Cause::Stalled, Wall::EPOCH),
+            },
+            false,
+            false,
+        ),
+        (
+            State::Held {
+                was: Box::new(unrequested.clone()),
+                hold: temper_engine_domain_forge_change::Hold::new(Cause::Questions, Wall::EPOCH),
+            },
+            false,
+            false,
+        ),
+        (
+            State::Held {
+                was: Box::new(State::Checking { head: fixtures::HEAD }),
+                hold: temper_engine_domain_forge_change::Hold::new(Cause::Stalled, Wall::EPOCH),
+            },
+            false,
+            false,
+        ),
         (State::Checking { head: fixtures::HEAD }, false, false),
     ] {
         let mut d = delegate_waiting(state.clone(), change::Delegate::Produce);
@@ -1980,7 +2039,10 @@ fn a_delegate_result_starts_the_stall_at_its_end_but_a_gate_does_not() {
     );
     assert_eq!(
         d.change(fixtures::CHANGE).expect("change").change.state,
-        change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Stalled }
+        change::State::Held {
+            was: Box::new(change::State::Producing { requested: true }),
+            hold: change::Hold::new(change::Cause::Stalled, late.wall)
+        }
     );
 }
 
@@ -2012,7 +2074,10 @@ fn a_result_ends_only_a_stall_at_its_delegate_wait() {
         ),
         (change::State::Producing { requested: false }, change::Delegate::Produce, false),
     ] {
-        let held = change::State::Held { was: Box::new(was.clone()), why: change::Hold::Stalled };
+        let held = change::State::Held {
+            was: Box::new(was.clone()),
+            hold: change::Hold::new(change::Cause::Stalled, Wall::EPOCH),
+        };
         let mut d = delegate_waiting(held.clone(), kind);
         let result = producer_terminal(&mut d, false);
         assert_eq!(d.change(fixtures::CHANGE).expect("change").change.state, if ends { was } else { held });
@@ -2035,7 +2100,10 @@ fn a_result_ends_only_a_stall_at_its_delegate_wait() {
 fn a_stalled_producers_title_and_result_open_its_pull_without_release() {
     use temper_engine_domain_forge_change as change;
     let mut d = delegate_waiting(
-        change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Stalled },
+        change::State::Held {
+            was: Box::new(change::State::Producing { requested: true }),
+            hold: change::Hold::new(change::Cause::Stalled, Wall::EPOCH),
+        },
         change::Delegate::Produce,
     );
     outputs(
@@ -2059,7 +2127,10 @@ fn a_stalled_producers_title_and_result_open_its_pull_without_release() {
 fn a_no_change_result_ends_a_stalled_producer_with_its_words() {
     use temper_engine_domain_forge_change as change;
     let mut d = delegate_waiting(
-        change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Stalled },
+        change::State::Held {
+            was: Box::new(change::State::Producing { requested: true }),
+            hold: change::Hold::new(change::Cause::Stalled, Wall::EPOCH),
+        },
         change::Delegate::Produce,
     );
     let result = producer_terminal(&mut d, true);
@@ -2088,7 +2159,7 @@ fn a_questions_hold_keeps_the_result_until_release_and_says_no_change_words() {
     for no_change in [false, true] {
         let held = change::State::Held {
             was: Box::new(change::State::Producing { requested: true }),
-            why: change::Hold::Questions,
+            hold: change::Hold::new(change::Cause::Questions, Wall::EPOCH),
         };
         let mut d = delegate_waiting(held.clone(), change::Delegate::Produce);
         outputs(
@@ -2451,7 +2522,8 @@ fn a_release_of_a_failed_update_drops_its_result() {
             row.pending = None;
             row.effect = effect;
             let was = if update_state { row.change.state } else { change::State::Opening { requested: true } };
-            row.change.state = change::State::Held { was: Box::new(was), why: change::Hold::Failed };
+            row.change.state =
+                change::State::Held { was: Box::new(was), hold: change::Hold::new(change::Cause::Failed, Wall::EPOCH) };
             d.changes.insert(row.task, row).expect("existing change slot");
             outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
             assert_eq!(d.change(fixtures::CHANGE).expect("released").effect, expected);
@@ -2492,7 +2564,7 @@ fn a_stored_held_update_keeps_its_hold_and_its_words() {
         );
         assert_eq!(
             d.change(fixtures::CHANGE).expect("held change").change.state,
-            change::State::Held { was: Box::new(was), why: change::Hold::Failed }
+            change::State::Held { was: Box::new(was), hold: change::Hold::new(change::Cause::Failed, env().wall) }
         );
         outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
         decide_update_again(&mut d, preparing, 1);
@@ -2521,7 +2593,10 @@ fn a_release_keeps_the_repair_and_resolution_tasks_made_before_it() {
     let row = d.changes.get_mut(&fixtures::CHANGE).expect("live change");
     row.change.repairs = 1;
     row.change.resolutions = 1;
-    row.change.state = change::State::Held { was: Box::new(row.change.state.clone()), why: change::Hold::Failed };
+    row.change.state = change::State::Held {
+        was: Box::new(row.change.state.clone()),
+        hold: change::Hold::new(change::Cause::Failed, Wall::EPOCH),
+    };
     outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
     assert_eq!(d.change(fixtures::CHANGE).expect("released").change.repairs, 0);
     outputs(&mut d, waiting_step(false, true));
@@ -2640,12 +2715,12 @@ fn head_ci_contexts_are_read_once_per_gather() {
     reason = "one table checks failed-job reads, classification, bounds and the emitted write"
 )]
 fn failed_head_jobs_are_read_once_and_only_runner_faults_run_again() {
-    use change::{Decision, Delegate, Effect, Hold, Repair};
+    use change::{Cause, Decision, Delegate, Effect, Repair};
     use skein_forge::api::{Answer, Check, Ci, CommitMessage, Conclusion, JobAttempt, Op, Read, Status, Write};
     use temper_engine_domain_forge_change as change;
     let again = Decision::Effect(Effect::Rerun { head: fixtures::HEAD });
     let repair = Decision::Delegate(Delegate::Repair(Repair::Ci));
-    let hold = Decision::Hold(Hold::Runner);
+    let hold = Decision::Hold(Cause::Runner);
     for (name, failed_step, attempt, bound, check_state, cancelled, mixed, missing, expected, account) in [
         ("set-up", Some(0), 1, 1, Check::Failed, false, false, false, again, Some("set-up failed")),
         ("distinct runs", Some(0), 1, 1, Check::Failed, false, false, false, again, Some("set-up failed")),
@@ -2924,7 +2999,10 @@ fn a_released_rerun_reads_again_instead_of_reusing_its_failed_answer() {
         let mut row = fixtures::opening_row();
         row.pending = None;
         row.effect = change::EffectResult::Failed;
-        row.change.state = change::State::Held { was: Box::new(was.clone()), why: change::Hold::Failed };
+        row.change.state = change::State::Held {
+            was: Box::new(was.clone()),
+            hold: change::Hold::new(change::Cause::Failed, Wall::EPOCH),
+        };
         outputs(&mut d, Event::Change { row });
         outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
         let row = d.change(fixtures::CHANGE).expect("released change");
@@ -3007,7 +3085,7 @@ fn a_gather_restarted_by_news_still_spends_its_steps_stall() {
     for request in &out {
         if let Request::ChangeDecision { task, decision, .. } = request
             && *task == fixtures::CHANGE
-            && *decision == change::Decision::Hold(change::Hold::Stalled)
+            && *decision == change::Decision::Hold(change::Cause::Stalled)
         {
             held = true;
         }
@@ -3015,7 +3093,7 @@ fn a_gather_restarted_by_news_still_spends_its_steps_stall() {
     assert!(held, "restarting is not progress: {out:?}");
     assert!(matches!(
         d.change(fixtures::CHANGE).unwrap().change.state,
-        change::State::Held { why: change::Hold::Stalled, .. }
+        change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
     ));
 }
 
@@ -3034,7 +3112,10 @@ fn a_release_supersedes_an_outstanding_gather_and_ignores_its_late_answer() {
     let mut d = restarted_producing();
     let (old, _) = fixtures::next_call(&mut d);
     let row = d.changes.get_mut(&fixtures::CHANGE).expect("producing");
-    row.change.state = change::State::Held { was: Box::new(row.change.state.clone()), why: change::Hold::Stalled };
+    row.change.state = change::State::Held {
+        was: Box::new(row.change.state.clone()),
+        hold: change::Hold::new(change::Cause::Stalled, Wall::EPOCH),
+    };
     outputs(&mut d, waiting_step(false, true));
     let (fresh, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }));
@@ -3100,7 +3181,7 @@ fn only_a_live_askers_question_exempts_a_title_wait() {
         fixtures::missing_pull_reads(&mut d);
         let finished = fixtures::finish_missing(&mut d);
         let expected =
-            if live { change::Decision::Wait { until: None } } else { change::Decision::Hold(change::Hold::Stalled) };
+            if live { change::Decision::Wait { until: None } } else { change::Decision::Hold(change::Cause::Stalled) };
         assert!(
             finished.contains(&Request::ChangeDecision {
                 task: fixtures::CHANGE,
@@ -3309,7 +3390,7 @@ fn capacity_retries_spend_the_gathers_original_stall_deadline() {
     assert!(
         matches!(
             d.change(fixtures::CHANGE).expect("stalled change").change.state,
-            change::State::Held { why: change::Hold::Stalled, .. }
+            change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
         ),
         "the original deadline bounds retries: {stalled:?}"
     );

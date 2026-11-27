@@ -19,6 +19,16 @@ pub struct CloseAt {
     pub refused: Option<CloseRefused>,
 }
 
+impl CloseAt {
+    #[must_use]
+    pub const fn failed_cause(self) -> Cause {
+        match self.refused {
+            Some(_) => Cause::CloseRefused,
+            None => Cause::Failed,
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct CloseRefused {
     pub counts: Option<Commit>,
@@ -161,7 +171,7 @@ pub struct AuthorityHold {
 
 /// Why a change is held for its requester or a person.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Hold {
+pub enum Cause {
     /// A forge wait exceeded its stall bound.
     Stalled,
     /// Another repair would exceed the configured bound.
@@ -184,16 +194,55 @@ pub enum Hold {
     Retargeted,
     /// A delegate or effect failed permanently.
     Failed,
-    /// Previous build: a landing repair found only flakes; release runs its gate once more.
-    Flake,
-    /// Previous build: a landing repair found no failed test; release runs its gate once more.
-    NoTest,
     /// A person rejected a required gate.
     Rejected,
+    /// A close check judged the goal's branch and refused it.
+    CloseRefused,
     /// The next delegate is beyond the change's remaining authority.
     Authority(AuthorityHold),
     /// Another question would exceed the change's bound.
     Questions,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Kind {
+    Bound,
+    Forge,
+    Judgement,
+    Failure,
+}
+
+impl Cause {
+    #[must_use]
+    pub const fn kind(self) -> Kind {
+        match self {
+            Self::Stalled
+            | Self::Repairs
+            | Self::Runner
+            | Self::Resolutions
+            | Self::Updates
+            | Self::Authority(_)
+            | Self::Questions => Kind::Bound,
+            Self::BranchMoved | Self::BranchMissing | Self::PullClosed | Self::Retargeted => Kind::Forge,
+            Self::RedStands | Self::Rejected | Self::CloseRefused => Kind::Judgement,
+            Self::Failed => Kind::Failure,
+        }
+    }
+}
+
+/// The single record retained with a held change (temper/docs/design/domain/forge/change/repairs-releases.md, 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Hold {
+    pub cause: Cause,
+    pub since: Wall,
+    pub words: Box<[u8]>,
+}
+
+impl Hold {
+    #[must_use]
+    pub fn new(cause: Cause, since: Wall) -> Self {
+        Self { cause, since, words: Box::new([]) }
+    }
 }
 
 /// A change's committed place through verification (temper/docs/design/domain/after-landing.md, 6).
@@ -240,7 +289,7 @@ pub enum State {
     /// The task ended after its outstanding effects and holdings settled.
     Ended,
     /// No write is made until a release lifts this cause.
-    Held { was: Box<State>, why: Hold },
+    Held { was: Box<State>, hold: Hold },
     /// A tier blames this landing; wait for its failures to be repaired.
     Red { merge: Commit, since: Wall },
     /// Every tier following its branch cleared this landing.
@@ -322,13 +371,13 @@ pub struct Change {
     pub way: Way,
     pub state: State,
     /// Its hold as it became `Ended` (temper/docs/design/domain/forge/branches.md, 2).
-    pub ended_held: Option<Hold>,
+    pub ended_held: Option<Cause>,
     pub gates: Box<[Gate]>,
     pub clean: Box<[Commit]>,
     /// One bounded count per gate; cleared when the head changes or the task is released.
     pub gate_failures: Box<[GateFailure]>,
     /// A lifted hold awaiting the next fresh forge snapshot.
-    pub released: Option<Hold>,
+    pub released: Option<Cause>,
     /// A failed resolution or merge job was retired; fresh facts decide its replacement (change/repairs.md, A release).
     pub released_resolution: bool,
     pub repairs: u32,
@@ -442,6 +491,8 @@ pub struct Facts {
     pub rerun: bool,
     /// Whether the landing repair's reason still resolves to a failed receipt.
     pub regate: bool,
+    /// The previous build's flake or no-test hold still owes its one check.
+    pub legacy_regate: bool,
     pub recheck: Recheck,
     /// The head its current repair was asked to repair, even after a push.
     pub repair_head: Option<Commit>,
@@ -492,7 +543,7 @@ pub struct Facts {
     pub writer_taken: bool,
     /// Its branch is its requester's held branch (domain/forge/change/README.md, 1).
     pub requester_branch: bool,
-    pub drift: Option<Hold>,
+    pub drift: Option<Cause>,
     /// The step is reading a state older than the record, counted from its first read.
     pub behind: Option<Wall>,
     /// The observed head is the outstanding update or prepare's write.
@@ -653,7 +704,7 @@ pub enum Decision {
     /// Finish cancellation after the top settles pending effects.
     Cancel,
     /// Hold the task and tell its requester why.
-    Hold(Hold),
+    Hold(Cause),
 }
 
 /// A next state and its decision from one coherent snapshot.

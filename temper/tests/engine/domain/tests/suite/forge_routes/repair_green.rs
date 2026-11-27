@@ -434,7 +434,7 @@ fn a_hold_past_the_repair_bound_goes_on_when_ci_passes() {
     }
     wait_held(&mut world, change);
     assert!(
-        matches!(&row(&world, change).change.state, State::Held { was, why: temper_engine_domain_forge_change::Hold::Repairs }
+        matches!(&row(&world, change).change.state, State::Held { was, hold: temper_engine_domain_forge_change::Hold { cause: temper_engine_domain_forge_change::Cause::Repairs, .. } }
         if matches!(was.as_ref(), State::Checking { .. }))
     );
     assert_eq!(row(&world, change).change.repairs, bound);
@@ -539,7 +539,13 @@ fn a_hold_short_of_authority_goes_on_when_ci_passes() {
     wait_held(&mut world, change);
     assert!(matches!(
         row(&world, change).change.state,
-        State::Held { why: temper_engine_domain_forge_change::Hold::Authority(_), .. }
+        State::Held {
+            hold: temper_engine_domain_forge_change::Hold {
+                cause: temper_engine_domain_forge_change::Cause::Authority(_),
+                ..
+            },
+            ..
+        }
     ));
     status(&mut world, head, raw::Check::Passed);
     goes_on(&mut world, change);
@@ -581,7 +587,10 @@ fn a_drifted_change_stays_held_at_a_green_head() {
     let mut drifted = row(&world, change).clone();
     drifted.change.state = State::Held {
         was: Box::new(State::Repairing { requested: true, why: Repair::Ci }),
-        why: temper_engine_domain_forge_change::Hold::BranchMoved,
+        hold: temper_engine_domain_forge_change::Hold::new(
+            temper_engine_domain_forge_change::Cause::BranchMoved,
+            skein_lib::Wall::EPOCH,
+        ),
     };
     world
         .store
@@ -598,7 +607,13 @@ fn a_drifted_change_stays_held_at_a_green_head() {
     assert!(matches!(task(&world, change).phase, tasks::Phase::Held { .. }));
     assert!(matches!(
         row(&world, change).change.state,
-        State::Held { why: temper_engine_domain_forge_change::Hold::BranchMoved, .. }
+        State::Held {
+            hold: temper_engine_domain_forge_change::Hold {
+                cause: temper_engine_domain_forge_change::Cause::BranchMoved,
+                ..
+            },
+            ..
+        }
     ));
     world.close();
 }

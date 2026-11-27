@@ -736,7 +736,10 @@ fn held_producing(why: tasks::Hold) -> (World, u64, u64) {
     let mut row = world.root.forge().change(change).expect("change row").clone();
     row.change.state = temper_engine_domain_forge_change::State::Held {
         was: Box::new(row.change.state),
-        why: temper_engine_domain_forge_change::Hold::Stalled,
+        hold: temper_engine_domain_forge_change::Hold::new(
+            temper_engine_domain_forge_change::Cause::Stalled,
+            skein_lib::Wall::EPOCH,
+        ),
     };
     engine::step(
         &mut world.root,

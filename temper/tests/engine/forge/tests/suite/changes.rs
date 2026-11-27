@@ -239,10 +239,13 @@ fn a_catch_up_with_uncertain_ancestry_stalls_and_a_release_retries_it() {
         assert_eq!(world.change(CHANGE).change.state, change::State::Producing { requested: false });
         assert_catch_up_range(&mut world, commit, tip);
         world.run_for(31);
-        assert!(matches!(world.change(CHANGE).change.state, change::State::Held { why: change::Hold::Stalled, .. }));
+        assert!(matches!(
+            world.change(CHANGE).change.state,
+            change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
+        ));
         assert!(world.take_seen().iter().any(|request| matches!(
             request,
-            top::Request::ChangeDecision { task: CHANGE, decision: change::Decision::Hold(change::Hold::Stalled), .. }
+            top::Request::ChangeDecision { task: CHANGE, decision: change::Decision::Hold(change::Cause::Stalled), .. }
         )));
         assert_eq!(changes::change_step(&mut world, 2, change::Status::Unknown, Box::new([])), change::Decision::None);
         world.script_ancestry(None);
