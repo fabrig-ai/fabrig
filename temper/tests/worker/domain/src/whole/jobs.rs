@@ -180,6 +180,7 @@ impl World {
                     | git::Op::CheckOut { .. }
                     | git::Op::Look { .. }
                     | git::Op::DiffPaths { .. }
+                    | git::Op::Message { .. }
                     | git::Op::Brings { .. }
                     | git::Op::IsAncestor { .. }
                     | git::Op::Merge { .. } => {}

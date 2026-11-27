@@ -111,6 +111,7 @@ fn git(h: &mut Harness, initial: Box<[Request]>, stale: bool) -> Box<[Request]> 
                 }
                 Op::DiffPaths { .. } => panic!("this job scripts no design delivery"),
                 Op::Brings { .. } => Done::Brings { brings: false },
+                Op::Message { .. } => panic!("this fixture has no commit messages"),
                 Op::Look { .. } | Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
                 Op::Reds { .. }
                 | Op::Reset { .. }

@@ -35,6 +35,7 @@ pub(super) fn preparation_detail(
         | Done::Paths { .. }
         | Done::ParentUnreachable { .. }
         | Done::Looked { .. }
+        | Done::Message { .. }
         | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged => return Box::new([]),

@@ -1274,7 +1274,7 @@ fn ending(done: &Done) -> Ending {
         Done::Looked { holds } => Ending::Looked { holds: *holds },
         Done::IsAncestor { contains } => Ending::IsAncestor { contains: *contains },
         Done::Brings { brings } => Ending::Brings { brings: *brings },
-        Done::Results { .. } | Done::Succeeded => Ending::Succeeded,
+        Done::Results { .. } | Done::Message { .. } | Done::Succeeded => Ending::Succeeded,
         Done::Fetched { commit } => Ending::Fetched { commit: *commit },
         Done::Committed { commit } => Ending::Committed { commit: *commit },
         Done::Unchanged => Ending::Unchanged,
@@ -1352,6 +1352,7 @@ fn bounded_done(done: Done, limits: &Limits) -> Done {
         | Done::Rejected
         | Done::ParentUnreachable { .. }
         | Done::Looked { .. }
+        | Done::Message { .. }
         | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
@@ -1414,6 +1415,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
         | Done::Paths { .. }
         | Done::ParentUnreachable { .. }
         | Done::Looked { .. }
+        | Done::Message { .. }
         | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
@@ -1457,6 +1459,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                 | Done::Paths { .. }
                 | Done::ParentUnreachable { .. }
                 | Done::Looked { .. }
+                | Done::Message { .. }
                 | Done::Brings { .. }
                 | Done::IsAncestor { .. }
                 | Done::Merged
@@ -1498,6 +1501,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -1526,6 +1530,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Unchanged
             | Done::Exists
             | Done::Rejected
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -1543,6 +1548,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -1566,6 +1572,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -1591,6 +1598,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -1616,6 +1624,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -1639,6 +1648,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -1659,6 +1669,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -1681,6 +1692,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -1700,6 +1712,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Committed { .. }
@@ -1721,6 +1734,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Committed { .. }
@@ -1740,6 +1754,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Committed { .. }
@@ -1761,6 +1776,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Committed { .. }
@@ -1784,6 +1800,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Committed { .. }
@@ -1829,6 +1846,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -1868,6 +1886,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -1881,6 +1900,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Committed { .. }
@@ -1902,6 +1922,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -1933,6 +1954,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Rejected => unreachable!("io ends a merge with its own terminals"),
@@ -1958,6 +1980,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::Conflicted { .. } => unreachable!("ancestry query has its own terminals"),
         },
@@ -1980,6 +2003,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::Conflicted { .. } => unreachable!("ancestry query has its own terminals"),
         },
@@ -2001,6 +2025,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged => unreachable!("explicit merge commit has its own terminals"),
@@ -2024,6 +2049,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged => unreachable!("explicit merge commit has its own terminals"),
@@ -2040,6 +2066,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -2057,6 +2084,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -2931,6 +2959,7 @@ fn pushed(
                 | Done::Paths { .. }
                 | Done::ParentUnreachable { .. }
                 | Done::Looked { .. }
+                | Done::Message { .. }
                 | Done::Brings { .. }
                 | Done::Conflicted { .. } => unreachable!("an ancestry query has its own terminals"),
             };
@@ -2996,6 +3025,7 @@ fn committed(holding: &mut Holding, repository: u32, done: Done, to: &To) -> Res
         | Done::Results { .. }
         | Done::Paths { .. }
         | Done::Looked { .. }
+        | Done::Message { .. }
         | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged => {
@@ -3097,6 +3127,7 @@ fn pushed_to(holding: &mut Holding, to: &To, repository: u32, done: Done) -> Res
         | Done::Paths { .. }
         | Done::ParentUnreachable { .. }
         | Done::Looked { .. }
+        | Done::Message { .. }
         | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
@@ -3157,6 +3188,7 @@ fn verified(holding: &mut Holding, to: &To, repository: u32, done: Done, failure
         | Done::Paths { .. }
         | Done::ParentUnreachable { .. }
         | Done::Looked { .. }
+        | Done::Message { .. }
         | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
@@ -3262,6 +3294,7 @@ const fn damages(done: &Done) -> bool {
         | Done::Paths { .. }
         | Done::ParentUnreachable { .. }
         | Done::Looked { .. }
+        | Done::Message { .. }
         | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
@@ -3295,6 +3328,7 @@ fn failed_landing(done: Done) -> Landing {
         | Done::Results { .. }
         | Done::Paths { .. }
         | Done::Looked { .. }
+        | Done::Message { .. }
         | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged => unreachable!("only a failed invocation is explained"),

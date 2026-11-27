@@ -413,6 +413,7 @@ fn note_git(domain: &Domain, hold: Token, op: &checkout::git::Op, out: &mut Queu
         | Op::Point { .. }
         | Op::Create { .. }
         | Op::IsAncestor { .. }
+        | Op::Message { .. }
         | Op::Brings { .. }
         | Op::DiffPaths { .. }
         | Op::Merge { .. }

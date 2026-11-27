@@ -94,6 +94,7 @@ pub(crate) fn identity(op: &git::Op) -> Option<u32> {
         | git::Op::Make { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
+        | git::Op::Message { .. }
         | git::Op::Brings { .. }
         | git::Op::IsAncestor { .. } => None,
     }
@@ -136,6 +137,7 @@ pub(crate) fn pick(
         | git::Op::Make { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
+        | git::Op::Message { .. }
         | git::Op::Brings { .. }
         | git::Op::IsAncestor { .. } => {
             return Ok(None);

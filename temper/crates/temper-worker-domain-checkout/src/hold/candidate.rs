@@ -213,6 +213,7 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -372,6 +373,7 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
         | Done::ParentUnreachable { .. }
         | Done::Looked { .. }
         | Done::IsAncestor { .. }
+        | Done::Message { .. }
         | Done::Unchanged
         | Done::Exists
         | Done::Rejected => unreachable!("candidate terminal"),
@@ -522,6 +524,7 @@ pub(super) fn pushed(
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -572,6 +575,7 @@ pub(super) fn pushed(
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged

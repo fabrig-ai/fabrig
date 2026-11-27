@@ -67,6 +67,7 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
         }
         Op::DiffPaths { .. } => Done::Paths { files: Box::new([]) },
         Op::Brings { .. } => Done::Brings { brings: false },
+        Op::Message { .. } => panic!("this fixture has no commit messages"),
         Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
         Op::Reds { .. }
         | Op::Reset { .. }

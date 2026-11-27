@@ -2298,6 +2298,7 @@ fn forge_operation(mut op: worker::checkout::git::Op, git_base: &[u8]) -> worker
         | Op::CheckOut { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
+        | Op::Message { .. }
         | Op::Brings { .. }
         | Op::IsAncestor { .. }
         | Op::Merge { .. }
