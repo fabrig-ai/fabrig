@@ -6,26 +6,28 @@ Draft, 2026-11-27, part of [ways.md](ways.md): each entry of the gallery ([ways-
 
 ### 1.1 Pair
 
-You and one agent working on the change together; "Land this" asks it to finish, and CI lands it. No review: you're there, and the agent can open a sub-agent for a review in place when you ask. Needs [pair.md](pair.md)'s connected implementer, released by W9 once its goal lands; its model choice is W6's. It adds no gate: a floor's review still holds.
+You and one agent in its own copy, saved as it goes; when it delivers checked work, "Land this" opens its change, by code. No review: you're there, and the agent can open a sub-agent for a review in place when you ask. Needs [pair.md](pair.md)'s goal, released by W9 once it lands; its model choice is W6's. It adds no gate: a floor's review still holds.
 
 ```toml
 # .temper/ways/pair.toml
 format = 1
-headline = "You and one agent, on one change"
-line = "You work with one agent on the change, which saves as it goes; when it's right, you say Land this."
-start = "change"
+headline = "You and one agent, in its own copy"
+line = "You work with one agent in its own copy, saved as it goes; when it delivers, you say Land this."
+start = "pair"
 
-[tasks.change]
+[tasks.pair]
+executor = { agent = "pair", model = "claude-opus-5-5", effort = "high" }
+contract = "report"
+conversation = true
+holds = ["copy"]
+delegates = { land = {} }
+
+[tasks.land]
 executor = "change"
 into = "base"
-producer = "partner"
+producer = "handed"
 gates = []
 landing = { ci = true, up_to_date = true }
-
-[tasks.partner]
-executor = { agent = "pair", model = "claude-opus-5-5", effort = "high" }
-contract = "change"
-conversation = true
 
 [reaches]
 ```
