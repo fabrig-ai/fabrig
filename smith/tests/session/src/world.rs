@@ -562,6 +562,7 @@ pub struct World {
     now: Time,
     rng: Rng,
     settings: Settings,
+    rendered_result: u32,
 
     agent: agent::Domain,
     agent_stage: Stage<agent::Limits, agent::Event, agent::Request>,
@@ -640,6 +641,7 @@ impl World {
             now: Time::ZERO,
             rng,
             settings,
+            rendered_result: translate::render_bound(&settings.agent),
             agent,
             agent_stage: Stage::uncapped(settings.agent),
             provider,
