@@ -240,6 +240,7 @@ fn a_projections_room_is_reserved_until_kept_or_dropped() {
         outputs(&mut d, Event::Change { row: row(FIRST) });
         assert_wait(&open(&mut d, FIRST, 22), FIRST);
         assert_eq!(room::reserved(&d), 1);
+        let goal = projection.goal;
         if keep {
             let kept = outputs(&mut d, Event::KeepProjection { row: projection, entry });
             assert_eq!(entries(&kept).first().unwrap().number, FRESH);
@@ -248,7 +249,7 @@ fn a_projections_room_is_reserved_until_kept_or_dropped() {
             assert!(asks(&kept).is_empty());
             assert_eq!(asks(&outputs(&mut d, Event::Withdraw { entry: FRESH })).as_ref(), &[FIRST]);
         } else {
-            let returned = outputs(&mut d, Event::DropProjection { entry: FRESH });
+            let returned = outputs(&mut d, Event::DropProjection { entry: FRESH, goal });
             assert_eq!(asks(&returned).as_ref(), &[FIRST]);
             assert!(!d.entries.contains_key(&FRESH));
             assert_eq!(room::reserved(&d), 1, "the ask owns the returned room");
@@ -282,10 +283,14 @@ fn a_projection_stays_behind_an_unasked_or_asked_change() {
 
 #[test]
 fn two_change_effects_wait_in_encounter_order_and_keep_one_fresh_entry() {
+    const NEWCOMER: u64 = 53;
     let mut d = waiters();
     assert_eq!(asks(&free_one(&mut d)).as_ref(), &[FIRST]);
     assert_eq!(room::reserved(&d), 1);
     assert!(ready(&mut d).is_empty());
+    outputs(&mut d, Event::Change { row: row(NEWCOMER) });
+    assert_wait(&open(&mut d, NEWCOMER, 23), NEWCOMER);
+    assert_eq!(d.change(NEWCOMER).unwrap().room, Some(3));
     let kept = open(&mut d, FIRST, FRESH);
     let entries = entries(&kept);
     assert_eq!(entries.len(), 1);
@@ -354,12 +359,14 @@ fn cancelling_a_waiting_or_asked_change_gives_the_next_waiter_room() {
         }
         let cancelled = outputs(&mut d, Event::ChangeEnding { task: FIRST, ending: Ending::Cancelled });
         assert_eq!(d.change(FIRST).unwrap().room, None);
+        assert!(!d.room_asked(FIRST));
         if asked {
             assert_eq!(asks(&cancelled).as_ref(), &[SECOND]);
         } else {
             assert_eq!(asks(&free_one(&mut d)).as_ref(), &[SECOND]);
         }
         assert_eq!(room::reserved(&d), 1);
+        assert_eq!(d.inspection_reservations().as_ref(), &[SECOND]);
     }
 }
 
@@ -400,13 +407,21 @@ fn a_change_waiting_for_room_has_no_poll_and_never_stalls() {
 
 #[test]
 fn a_held_waiter_is_passed_over_and_keeps_its_place() {
+    const THIRD: u64 = 53;
     let mut d = waiters();
+    outputs(&mut d, Event::Change { row: row(THIRD) });
+    assert_wait(&open(&mut d, THIRD, 23), THIRD);
     assert_eq!(asks(&free_one(&mut d)).as_ref(), &[FIRST]);
     let passed = outputs(&mut d, Event::RoomUnavailable { task: FIRST });
     assert_eq!(asks(&passed).as_ref(), &[SECOND]);
     assert_eq!(d.change(FIRST).unwrap().room, Some(1));
     assert_eq!(d.change(SECOND).unwrap().room, Some(2));
     assert_eq!(room::reserved(&d), 1);
+    // The release steps FIRST again, but SECOND's ask still holds the only room.
+    assert_wait(&open(&mut d, FIRST, FRESH), FIRST);
+    let offered = outputs(&mut d, Event::Withdraw { entry: 2 });
+    assert_eq!(asks(&offered).as_ref(), &[FIRST]);
+    assert_eq!(d.change(THIRD).unwrap().room, Some(3));
 }
 
 #[test]
@@ -546,8 +561,9 @@ fn an_asked_change_deciding_no_write_returns_its_reservation() {
     assert_eq!(room::reserved(&d), 1);
 }
 
-fn making(d: &mut Domain) {
-    outputs(d, Event::Hold { entry: 30, task: 7, resource: goal_branch::name(b"temper/7/g7"), from: None });
+fn making(d: &mut Domain, task: u64) {
+    let branch = format!("temper/{task}/g{task}");
+    outputs(d, Event::Hold { entry: 30, task, resource: goal_branch::name(branch.as_bytes()), from: None });
     fixtures::answer_next(d, Err(Error::Missing));
     let waited = fixtures::answer_next(d, Ok(Answer::Commit(fixtures::BASE)));
     assert_eq!(entries(&waited).len(), 0);
@@ -559,11 +575,11 @@ fn changes_and_goal_branch_makings_share_one_line_by_place() {
         let mut d = full();
         outputs(&mut d, Event::Change { row: row(FIRST) });
         if making_first {
-            making(&mut d);
+            making(&mut d, 7);
         }
         assert_wait(&open(&mut d, FIRST, 22), FIRST);
         if !making_first {
-            making(&mut d);
+            making(&mut d, 7);
         }
         let freed = free_one(&mut d);
         if making_first {
@@ -584,6 +600,25 @@ fn changes_and_goal_branch_makings_share_one_line_by_place() {
 }
 
 #[test]
+fn closing_a_goal_returns_its_makings_ask_before_the_fresh_tip_arrives() {
+    const GOAL: u64 = 70;
+    let mut d = full();
+    making(&mut d, GOAL);
+    outputs(&mut d, Event::Change { row: row(FIRST) });
+    assert_wait(&open(&mut d, FIRST, 22), FIRST);
+    let asked = free_one(&mut d);
+    assert!(asked.contains(&Request::ContinueGoalBranch { task: GOAL }));
+    outputs(&mut d, Event::ContinueGoalBranch { task: GOAL, entry: FRESH });
+    let (tip, _) = fixtures::next_call(&mut d);
+
+    let ended = outputs(&mut d, Event::SettleEffects { task: GOAL, root: GOAL, ending: ReleaseEnding::Cancelled });
+    assert_eq!(asks(&ended).as_ref(), &[FIRST], "closing returns the making's reservation before the read settles");
+    let late = fixtures::answer(&mut d, tip, Ok(Answer::Commit(fixtures::BASE)));
+    assert!(entries(&late).is_empty());
+    assert!(asks(&late).is_empty(), "the late read neither keeps nor frees the reservation again");
+}
+
+#[test]
 fn an_unreserved_enqueue_cannot_take_an_asked_changes_room() {
     let mut d = full();
     for task in [FIRST, SECOND] {
@@ -594,7 +629,7 @@ fn an_unreserved_enqueue_cannot_take_an_asked_changes_room() {
     start(&mut d, FIRST, FRESH);
     let (reading, _) = fixtures::next_call(&mut d);
     assert_wait(&open(&mut d, SECOND, 22), SECOND);
-    making(&mut d);
+    making(&mut d, 7);
     let refused = outputs(&mut d, Event::Enqueue { entry: refusals::entry(102) });
     assert_eq!(
         refused.as_ref(),

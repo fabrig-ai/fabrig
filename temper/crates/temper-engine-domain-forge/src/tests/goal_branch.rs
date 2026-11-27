@@ -586,6 +586,7 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
         assert!(again.is_empty());
         at_step(&mut d, &environment, Event::ContinueGoalBranch { task: GOAL, entry: 30 });
         let (reread, _) = at_call(&mut d, &environment);
+        assert_eq!(d.inspection_reservations().as_ref(), &[GOAL], "the default-branch read keeps its owner's ask");
         if case == "inverted tip answers" {
             let asked = at_step(&mut d, &environment, Event::Withdraw { entry: 2 });
             assert_room_ask(&asked, OTHER);
@@ -593,6 +594,7 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
             at_step(&mut d, &environment, Event::ContinueGoalBranch { task: OTHER, entry: 31 });
             assert!(d.is_ready(), "before the younger reread");
             at_answer(&mut d, &environment, Ok(Answer::Commit(TIP)));
+            assert_eq!(d.inspection_reservations().as_ref(), &[GOAL], "the younger making took only its own ask");
             at_step(&mut d, &environment, Event::Committed { entry: 31 });
             assert!(!d.is_ready(), "a higher fresh entry waits for the older tip read");
             at_step(

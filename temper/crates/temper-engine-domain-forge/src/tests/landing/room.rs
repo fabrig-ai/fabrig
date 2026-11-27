@@ -559,8 +559,15 @@ fn cancelling_a_waiting_or_asked_landing_returns_its_room() {
         assert_eq!(d.landing(TASK).unwrap().room, None);
         assert!(!d.room_asked(TASK));
         let out = if asked { out } else { free_one(&mut d) };
-        assert!(asks(&out).contains(&OTHER));
+        let mut offered = 0_u32;
+        for task in asks(&out) {
+            if task == OTHER {
+                offered = offered.checked_add(1).unwrap();
+            }
+        }
+        assert_eq!(offered, 1);
         assert_eq!(room::reserved(&d), 1);
+        assert_eq!(d.inspection_reservations().as_ref(), &[OTHER]);
     }
 }
 

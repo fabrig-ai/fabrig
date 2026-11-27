@@ -969,21 +969,49 @@ impl Domain {
 
     /// Promise a described call's room until its entry or terminal ask (domain/forge/room.md, 5).
     pub fn reserve_call(&mut self, env: &Env<Limits>, owner: Token, task: u64) -> bool {
+        assert!(!self.call_room.contains(&owner), "one outbox reservation for call flight {owner:?} of task {task}");
         let limits = &env.limits;
         if !crate::room::check(self, limits, None) {
             return false;
         }
-        assert!(!self.call_room.contains(&owner), "fresh call flight");
-        self.call_room.insert(owner).expect("call reservations fit the outbox");
+        let inserted = self.call_room.insert(owner);
+        assert!(inserted.is_ok(), "outbox reservation for call flight {owner:?} of task {task} fits its room");
         self.full.reserve(full::Reservation::Call(owner), task, None);
         full::filled(self, env);
         true
     }
 
+    /// Check the forge end of the root's staged call flight (domain/forge/room.md, 2.2).
+    pub fn assert_call_reservation(&self, owner: Token, task: u64) {
+        assert!(self.call_room.contains(&owner), "call flight {owner:?} of task {task} holds an outbox reservation");
+        self.full.assert_owner(full::Reservation::Call(owner), task);
+    }
+
+    fn take_call_room(&mut self, owner: Token, task: u64) {
+        self.assert_call_reservation(owner, task);
+        let removed = self.call_room.remove(&owner);
+        assert!(removed, "return the held outbox reservation of call flight {owner:?} for task {task}");
+    }
+
     /// A call ended without an entry; offer its room to the line's first waiter.
-    pub fn unreserve_call(&mut self, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
-        self.call_room.remove(&owner);
+    pub fn unreserve_call(&mut self, env: &Env<Limits>, owner: Token, task: u64, out: &mut Queue<Request>) {
+        self.take_call_room(owner, task);
         crate::room::ask(self, env, out);
+    }
+
+    /// Check the forge end of the root's staged goal projection (domain/forge/room.md, 2.2).
+    pub fn assert_projection_reservation(&self, entry: u64, goal: u64) {
+        assert!(
+            self.projection_room.contains(&entry),
+            "projection entry {entry} of goal {goal} holds an outbox reservation"
+        );
+        self.full.assert_owner(full::Reservation::Projection(entry), goal);
+    }
+
+    fn take_projection_room(&mut self, entry: u64, goal: u64) {
+        self.assert_projection_reservation(entry, goal);
+        let removed = self.projection_room.remove(&entry);
+        assert!(removed, "return the held outbox reservation of projection entry {entry} for goal {goal}");
     }
 
     /// A connector's durable payload, read again before a holder accepts it.
@@ -1265,6 +1293,9 @@ impl Domain {
         self.read_line.raise(limits);
         self.reds.raise(limits.branch_reds.checked_mul(limits.holds).expect("checked red capacity"));
         self.entries.raise(limits.entries);
+        self.room.asked.raise(limits.entries);
+        self.call_room.raise(limits.entries);
+        self.projection_room.raise(limits.entries);
         self.entry_looks.raise(limits.entries);
         self.full.raise(limits.entries);
         self.flights.raise(limits.entries);
@@ -2371,14 +2402,20 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::Enqueue { entry } => enqueue(d, env, None, entry, out),
         Event::EnqueueCall { owner, entry } => enqueue(d, env, Some(owner), entry, out),
         Event::KeepProjection { row, entry } => {
-            d.projection_room.remove(&entry.number);
+            assert_eq!(entry.task, row.goal, "projection entry {} belongs to goal {}", entry.number, row.goal);
+            assert_eq!(
+                row.pending,
+                Some(entry.number),
+                "projection row of goal {} owns entry {}",
+                row.goal,
+                entry.number
+            );
+            d.take_projection_room(entry.number, row.goal);
             d.issues.insert(row.goal, row.clone()).expect("projection capacity admitted");
             emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Issue(row) });
             keep_entry(d, entry, None, out);
         }
-        Event::DropProjection { entry } => {
-            d.projection_room.remove(&entry);
-        }
+        Event::DropProjection { entry, goal } => d.take_projection_room(entry, goal),
         Event::Milestone { row } => crate::milestone_rows::project(d, row, out),
         Event::Project { entry, repository, view } => project(d, env, entry, repository, view, out),
         Event::FailProjection { goal, repository, closing } => {
@@ -4155,11 +4192,10 @@ fn enqueue(
     entry: skein_forge_client::Entry,
     out: &mut Queue<Request>,
 ) {
-    let reserved = match owner {
-        Some(owner) => d.call_room.remove(&owner),
-        None => false,
-    };
     let task = entry.task;
+    if let Some(owner) = owner {
+        d.take_call_room(owner, task);
+    }
     let Some(repository) = d.repositories.get(&entry.repository) else {
         emit(out, Request::Refused { task });
         return;
@@ -4172,7 +4208,7 @@ fn enqueue(
         emit(out, Request::Refused { task });
         return;
     }
-    if !reserved && !crate::room::check(d, &env.limits, None) {
+    if owner.is_none() && !crate::room::check(d, &env.limits, None) {
         let outcome = skein_forge_client::Outcome::Failed(skein_forge::api::Error::Busy);
         d.named_outcome(entry.number, outcome);
         emit(out, Request::Outcome { entry: entry.number, task, outcome, account: None });
@@ -7575,7 +7611,6 @@ fn emit_change_effect(
         if waiting.room.is_none() {
             waiting.room = Some(crate::room::next_place(d));
         }
-        crate::room::leave(d, crate::room::Waiter::Change(row.task));
         d.change_due.remove(&row.task);
         read_session::pause(d, row.task);
         d.changes.insert(row.task, waiting.clone()).expect("registered change");
@@ -8473,6 +8508,7 @@ fn settle_effects(
         emit(out, Request::EffectsSettled { task });
         return;
     }
+    leave_room_change(d, task, out);
     crate::room::release_started(d, task, env.wall);
     if ending == ReleaseEnding::Cancelled || d.landing.rows.contains_key(&task) {
         withdraw_unsent(d, env, task, out);
@@ -8579,6 +8615,7 @@ fn release(
     row.failed = false;
     d.releases.insert(task, row.clone()).expect("release capacity checked");
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row) });
+    leave_room_change(d, task, out);
     crate::room::release_started(d, task, env.wall);
     if advanced {
         release_reads::advanced(d, task, env.wall);
@@ -8809,10 +8846,10 @@ fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
         unnamed(d, env, task, true, out);
         end_change(d, env, task, out);
         heads::free(d, env, out);
+        crate::room::leave(d, crate::room::Waiter::Release(task));
         d.releases.remove(&task);
         d.room.closing.remove(&task);
         d.release_reads.remove(&task);
-        crate::room::leave(d, crate::room::Waiter::Release(task));
         crate::waits::report(d, env, task, out);
         crate::waits::forget(d, task);
         emit(out, Request::Erase { key: Key::Release(task) });
@@ -9050,7 +9087,6 @@ fn enqueue_release(
         if row.room.is_none() {
             row.room = Some(crate::room::next_place(d));
         }
-        crate::room::leave(d, waiter);
         d.releases.insert(row.task, row.clone()).expect("replaces release");
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
         return;
@@ -9328,6 +9364,10 @@ fn project(
         },
         issues::Decision::Hold => fail_projection(d, env, goal, Some(repository), closing, out),
         issues::Decision::Effect(effect) => {
+            assert!(
+                !d.projection_room.contains(&number),
+                "one outbox reservation for projection entry {number} of goal {goal}"
+            );
             if !crate::room::check(d, &env.limits, None) {
                 wait_for_room(d, env, goal, out);
                 return;
@@ -9364,7 +9404,8 @@ fn project(
                 fail_projection(d, env, goal, Some(repository), closing, out);
                 return;
             };
-            d.projection_room.insert(number).expect("projection reservations fit the outbox");
+            let inserted = d.projection_room.insert(number);
+            assert!(inserted.is_ok(), "outbox reservation for projection entry {number} of goal {goal} fits its room");
             d.full.reserve(full::Reservation::Projection(number), goal, ended);
             emit(out, Request::ProjectionEffect { row, entry, description });
         }
@@ -11453,9 +11494,9 @@ pub(crate) fn save_change_parts(d: &mut Domain, out: &mut Queue<Request>, mut ro
 /// Every saved record invalidates its own panel (domain/forge/change/panel.md, 1).
 pub(crate) fn save_change(d: &mut Domain, out: &mut Queue<Request>, mut row: ChangeRow) {
     if row.frozen() {
+        crate::room::leave(d, crate::room::Waiter::Change(row.task));
         row.room = None;
         d.changes.get_mut(&row.task).expect("saved change").room = None;
-        crate::room::leave(d, crate::room::Waiter::Change(row.task));
         connection_wait::take(d, row.task);
     }
     retain_terminal_ci(d, &mut row);

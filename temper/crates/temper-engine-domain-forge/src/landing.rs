@@ -5548,8 +5548,8 @@ fn retire_finished(d: &mut Domain, out: &mut Queue<Request>) -> bool {
     };
     d.stall_words.remove(&task);
     read_wait::clear(d, task);
-    let retired = d.landing.erase(task).expect("selected finished landing");
     crate::room::leave(d, crate::room::Waiter::Landing(task));
+    let retired = d.landing.erase(task).expect("selected finished landing");
     emit(
         out,
         Request::Marked {
@@ -6891,6 +6891,7 @@ pub(crate) fn release_repository(
         }
     }
     for task in &tasks {
+        crate::room::leave(d, crate::room::Waiter::Landing(*task));
         let row = d.landing.erase(*task).expect("selected repository landing");
         members::end(d, &row, out);
         d.landing.due.remove(task);

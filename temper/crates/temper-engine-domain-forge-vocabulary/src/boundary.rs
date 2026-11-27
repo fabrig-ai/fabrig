@@ -2700,6 +2700,7 @@ pub enum Event {
     /// Return a projection flight's room when it ends without an entry.
     DropProjection {
         entry: u64,
+        goal: u64,
     },
     /// A milestone's identity and end from the tracked-task projection (domain/milestones.md, 8).
     Milestone {
