@@ -18,10 +18,11 @@
 | W10, a new project's ways: the gallery and the stock ways shown at creation and adoption; the stock ways run with nothing written; a pick written by a change, "Add .temper/ with your ways"; Hand it over preselected | 8.7 | W9 | not started |
 | W11, upgrades reviewed: after an upgrade, Ask temper reads a project's `.temper/` beside what the release changed and proposes a change, edit by edit with reasons | 11 | W9 | not started |
 | W12, sharing a landing: `landing.share`, `alone`, `with`, `at_most` and `combine`, in projects that land by turn; the turn formed from the waiting changes whose ways allow one another; the night-batch entry | 3.3, 3.5 | W9 | not started |
+| W13, a milestone landing whole, and catch-ups by way: `[milestone] whole`, the milestone's own branch, its goals landing into it and its closer landing it whole; `landing.milestone`; `catch_up`, `after-each-landing` made by temper through the merge hook; the one-landing-milestone entry | 3.2, 3.3, 3.5, 5.2 | W9; [hooks.md](hooks.md)'s merge hook | not started |
 
 ## 2. Order
 
 - After the user's approval of each milestone.
-- W1, W2, W3, then W4: the core. Then W5 to W8, in any order, each needing W4 alone (W6 also the speeds milestone). Then W9, the gallery, its entries released as their needs land, W10 and W11. W12, the landing, last.
+- W1, W2, W3, then W4: the core. Then W5 to W8, in any order, each needing W4 alone (W6 also the speeds milestone). Then W9, the gallery, its entries released as their needs land, W10 and W11. W12 and W13, the landing, last.
 - Pair's shape needs its own draft first. Until then the stock and the gallery offer Hand it over and Milestone, and a chat keeps its template.
 - The hooks are [hooks.md](hooks.md)'s own goals, already running.
