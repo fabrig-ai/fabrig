@@ -96,6 +96,48 @@ fn a_release_changes_the_template_once_and_archives_its_predecessor() {
     assert_eq!(world.domain.settings().newest(), 2);
 }
 #[test]
+fn a_new_model_default_yields_to_a_name_the_deployment_already_holds() {
+    let own_setting = settings::Setting::Model(64);
+    let stock_setting = settings::Setting::Model(9);
+    for withdrawn in [None, Some(false), Some(true)] {
+        let mut world = start(64);
+        let mut release = configuration().0;
+        let mut added = release.core.defaults.models[0].clone();
+        added.number = 9;
+        added.model.name = b"new-stock-model".as_slice().into();
+        release.core.defaults.models = Box::new([release.core.defaults.models[0].clone(), added.clone()]);
+        let stock = settings::Value::Model(Box::new(added.clone()));
+        let own = withdrawn.map(|withdrawn| {
+            added.number = 64;
+            added.withdrawn = withdrawn;
+            added.source = settings::ModelSource::Person;
+            added.picker = false;
+            settings::Value::Model(Box::new(added))
+        });
+        if let Some(value) = &own {
+            world.seed(Box::new([record(settings::Record::Changed {
+                setting: own_setting,
+                changed: settings::Changed { revision: 1, value: Some(value.clone()) },
+            })]));
+        }
+        for _ in 0..2 {
+            restart(&mut world, jig_core_world::clone_configuration(&release));
+            let settings = world.domain.settings();
+            assert_eq!(settings.value(own_setting), own.as_ref());
+            if own.is_some() {
+                assert_eq!(settings.newest(), 1, "the omitted model never makes a release revision");
+                assert_eq!(settings.value(stock_setting), None);
+                assert!(!world.store.rows.contains_key(&key(jig_domain_core::settings::Key::Default(stock_setting))));
+            } else {
+                assert_eq!(settings.newest(), 2);
+                assert_eq!(settings.value(stock_setting), Some(&stock));
+                assert!(world.store.rows.contains_key(&key(jig_domain_core::settings::Key::Default(stock_setting))));
+            }
+        }
+    }
+}
+
+#[test]
 fn a_stored_change_wins_until_reset_and_a_dropped_default_is_no_longer_offered() {
     let mut world = start(64);
     let mut template = configuration().0.core.defaults.templates[0].clone();
