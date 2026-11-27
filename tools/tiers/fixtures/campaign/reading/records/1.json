@@ -1,0 +1,1 @@
+{"profile": "campaign-temper", "binary_id": "temper-fixture::suite", "test_name": "fuzzy::numbered", "attempt": 1, "start_s": 23.0, "user_s": 0.15, "system_s": 0.01, "wall_s": 0.2, "wrapper_cpu_s": 0.01, "complete": true, "pending": false, "leaked": 0, "interrupted": 0, "exit_code": 101, "signal": null, "complete_scope": "waited-and-reaped-descendants"}
