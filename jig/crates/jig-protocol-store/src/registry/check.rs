@@ -8,8 +8,8 @@ use skein_codec::{
 };
 use skein_lib::List;
 
+mod audit;
 mod held;
-pub(super) mod later;
 pub use held::{HeldLayout, judge_held_layout};
 
 pub(super) fn count(store: &Store, layouts: &Layouts, index: u32, id: u16) -> Option<u64> {
@@ -135,14 +135,14 @@ fn conversion(job: &crate::Job, family: &str, number: u16) -> Option<crate::Layo
     let converts = job.converts.as_ref()?;
     if converts.family == family && converts.value_type == number { Some(converts.from) } else { None }
 }
-fn job(store: &mut Store, key: &RowKey, row: &Row, underived: bool) -> Result<Option<&'static str>, OpenRefusal> {
+fn job(store: &mut Store, key: &RowKey, row: &Row, unplanned: bool) -> Result<Option<&'static str>, OpenRefusal> {
     let mut one = None;
     for set in store.owner_sets.sets {
         for job in set.jobs {
             if let Some(from) = conversion(job, &key.0, key.1) {
                 match from {
                     crate::Layouts::One(from) if row.value.layout == from => one = Some(job.name),
-                    crate::Layouts::Unplanned if underived && !crate::jobs::kept::done(store, set.owner, job)? => {
+                    crate::Layouts::Unplanned if unplanned && !crate::jobs::kept::done(store, set.owner, job)? => {
                         return Ok(Some(job.name));
                     }
                     crate::Layouts::One(_) | crate::Layouts::Unplanned => {}
@@ -224,18 +224,28 @@ fn mode(layouts: &Layouts, key: &RowKey, row: &Row, binary: u16, held: bool) -> 
     if key.2 == binary {
         return None;
     }
-    let binary = layouts.rows.get(&(key.0.clone(), key.1, binary))?.value.layout;
-    let order = layouts.orders.get(&(key.0.clone(), key.1))?;
+    if is_later(layouts, key, row, binary) {
+        Some(if held { Mode::Read } else { Mode::Keep })
+    } else if held {
+        None
+    } else {
+        Some(Mode::Read)
+    }
+}
+
+fn is_later(layouts: &Layouts, key: &RowKey, row: &Row, binary: u16) -> bool {
+    let binary = layouts.rows.get(&(key.0.clone(), key.1, binary)).expect("registered binary row").value.layout;
+    let Some(order) = layouts.orders.get(&(key.0.clone(), key.1)) else { return false };
     let mut after_binary = false;
     for fingerprint in &order.value.layouts {
         if *fingerprint == row.value.layout {
-            return if after_binary { Some(if held { Mode::Read } else { Mode::Keep }) } else { None };
+            return after_binary;
         }
         if *fingerprint == binary {
             after_binary = true;
         }
     }
-    None
+    false
 }
 
 pub(super) fn plans(
@@ -244,8 +254,8 @@ pub(super) fn plans(
     binary: &mut texts::Binary,
     work: &mut Workspace,
     frame_work: &mut Workspace,
-) -> Result<later::Check, OpenRefusal> {
-    let mut later = later::Check::new();
+) -> Result<audit::Check, OpenRefusal> {
+    let mut audit = audit::Check::new();
     let mut keys = List::uncapped();
     for (key, _) in &layouts.rows {
         keys.push(key.clone()).expect("uncapped row keys");
@@ -256,91 +266,84 @@ pub(super) fn plans(
             continue;
         }
         let frame = frame_type(&store.owner_sets, &key.0, key.1);
-        let declared = declaration(store, layouts, key, frame);
         let held_outside_map = history_type(&store.owner_sets, &key.0, key.1);
-        let values = if held_outside_map {
-            None
-        } else {
-            match declared {
-                Some((index, _)) => count(store, layouts, index, key.2),
-                None => absent(store, key.2),
-            }
-        };
-        if declared.is_none() && values == Some(0) {
-            layouts.rows.get_mut(key).expect("held row").retire = true;
-            continue;
-        }
-        let mut why = Unplanned::Undeclared;
-        if let Some((index, declaration)) = declared {
-            let binary_id = layouts.types.get(index).expect("found type").binary;
-            if binary_id != key.2 && values == Some(0) {
+        let Some((index, declaration)) = declaration(store, layouts, key, frame) else {
+            let values = if held_outside_map { None } else { absent(store, key.2) };
+            if values == Some(0) {
                 layouts.rows.get_mut(key).expect("held row").retire = true;
                 continue;
             }
-            let digest = binary.text(&key.0).expect("binary text");
-            let held = if frame.is_some() {
-                List::uncapped()
-            } else {
-                binary.held(layouts, digest).ok_or(OpenRefusal::Failed)?
-            };
-            let readable = texts::row(layouts, key);
-
-            let row = layouts.rows.get(key).expect("held row");
-            let mode = mode(layouts, key, row, binary_id, held_outside_map);
-            let plan = if readable.is_some() && (frame.is_none() || row.value.held.is_empty()) {
-                derive(binary, layouts, row, digest, &declaration, &held, mode)
-            } else {
-                Err(Unplanned::Text)
-            };
-            let work = if frame.is_some() { &mut *frame_work } else { &mut *work };
-            match plan {
-                Ok(None) => {
-                    if key.2 != binary_id {
-                        layouts
-                            .types
-                            .get_mut(index)
-                            .expect("found type")
-                            .keeping
-                            .push(key.2)
-                            .expect("uncapped keeping ids");
-                    }
-                    continue;
-                }
-                Ok(Some(plan)) if key.2 == binary_id || plan.keeps() || work.fit(&plan) => {
-                    if mode == Some(Mode::Keep) {
-                        // A named written job may take a layout even when a plan reaches it.
-                        if let Some(name) = job(store, key, row, false)? {
-                            layouts.written.insert(key.clone(), name).expect("uncapped written ids");
-                            continue;
-                        }
-                        later.add(index, key, values);
-                    }
-                    let ty = layouts.types.get_mut(index).expect("found type");
-                    // A binary id is reheaded before any plan is consulted, but
-                    // its row still needs the text and fingerprint checks above.
-                    if key.2 != ty.binary {
-                        if plan.keeps() {
-                            ty.keeping.push(key.2).expect("uncapped keeping ids");
-                        } else {
-                            ty.plans.insert(key.2, plan).expect("uncapped plans");
-                        }
-                    }
-                    continue;
-                }
-                Ok(_) => {
-                    why = Unplanned::Underived(Underived {
-                        why: Why::Deep,
-                        decl: Span { start: 0, end: 0 },
-                        part: None,
-                        old: false,
-                    });
-                }
-                Err(error) => why = error,
-            }
+            return Err(OpenRefusal::Layout {
+                family: key.0.clone(),
+                value_type: key.1,
+                id: key.2,
+                values,
+                why: Unplanned::Undeclared,
+            });
+        };
+        let binary_id = layouts.types.get(index).expect("found type").binary;
+        let at_binary = key.2 == binary_id;
+        let values = if held_outside_map { None } else { count(store, layouts, index, key.2) };
+        if !at_binary && values == Some(0) {
+            layouts.rows.get_mut(key).expect("held row").retire = true;
+            continue;
         }
+        let digest = binary.text(&key.0).expect("binary text");
+        let held =
+            if frame.is_some() { List::uncapped() } else { binary.held(layouts, digest).ok_or(OpenRefusal::Failed)? };
+        let readable = texts::row(layouts, key);
+        let row = layouts.rows.get(key).expect("held row");
+        let mode = mode(layouts, key, row, binary_id, held_outside_map);
+        let plan = if readable.is_some() && (frame.is_none() || row.value.held.is_empty()) {
+            derive(binary, layouts, row, digest, &declaration, &held, mode)
+        } else {
+            Err(Unplanned::Text)
+        };
+        let work = if frame.is_some() { &mut *frame_work } else { &mut *work };
+        let why = match plan {
+            Ok(None) => {
+                if !at_binary {
+                    let ty = layouts.types.get_mut(index).expect("found type");
+                    ty.keeping.push(key.2).expect("uncapped keeping ids");
+                }
+                continue;
+            }
+            Ok(Some(plan)) if at_binary || plan.keeps() || work.fit(&plan) => {
+                if !held_outside_map && let Some(mode) = mode {
+                    // A named job may take a layout even when a plan reaches it.
+                    let refuses = plan.refuses();
+                    if let Some(name) = job(store, key, row, refuses)? {
+                        layouts.written.insert(key.clone(), name).expect("uncapped written ids");
+                        continue;
+                    }
+                    if refuses {
+                        audit.add(index, key, values, mode);
+                    }
+                }
+                // A binary id is reheaded before any plan is consulted, but
+                // its row still needs the text and fingerprint checks above.
+                if !at_binary {
+                    let ty = layouts.types.get_mut(index).expect("found type");
+                    if plan.keeps() {
+                        ty.keeping.push(key.2).expect("uncapped keeping ids");
+                    } else {
+                        ty.plans.insert(key.2, plan).expect("uncapped plans");
+                    }
+                }
+                continue;
+            }
+            Ok(Some(_)) => Unplanned::Underived(Underived {
+                why: Why::Deep,
+                decl: Span { start: 0, end: 0 },
+                part: None,
+                old: false,
+            }),
+            Err(why) => why,
+        };
         if let Unplanned::Underived(_) = why
             && !held_outside_map
-            && let Some(name) = job(store, key, layouts.rows.get(key).expect("held row"), true)?
+            && !at_binary
+            && let Some(name) = job(store, key, row, true)?
         {
             layouts.written.insert(key.clone(), name).expect("uncapped written ids");
             continue;
@@ -348,7 +351,7 @@ pub(super) fn plans(
         return Err(OpenRefusal::Layout { family: key.0.clone(), value_type: key.1, id: key.2, values, why });
     }
     texts::clear_all(layouts);
-    Ok(later)
+    Ok(audit)
 }
 
 pub(super) fn retired(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {

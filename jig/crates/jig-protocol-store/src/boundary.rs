@@ -367,12 +367,13 @@ pub enum Unplanned {
     Text,
     Undeclared,
     Retired,
-    Unkept(Unkept),
+    Unkept(Refusals),
+    Unread(Refusals),
 }
 
-/// The later layout's refusals, with the first one's names (protocol/store/opening.md, 1.8).
+/// A layout's refusals, with the first one's names (protocol/store/opening.md, 1.8).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Unkept {
+pub struct Refusals {
     pub refused: u64,
     pub why: skein_codec::layout::Refused,
     pub declaration: Box<str>,
@@ -494,6 +495,10 @@ impl OpenRefusal {
                 "",
                 " holds values a later build wrote that this build cannot keep, and this start has changed nothing in it. Start the later build again, or, with it, restore a checkpoint of ",
                 " taken before it started, then start this build.",
+            ],
+            Self::Layout { why: Unplanned::Unread(_), .. } => &[
+                "",
+                " holds values at an older layout that this build cannot read, and this start has changed nothing in it. Start the build before it again, or a later build whose written job converts that layout.",
             ],
             Self::Layout { .. } => &[
                 "",

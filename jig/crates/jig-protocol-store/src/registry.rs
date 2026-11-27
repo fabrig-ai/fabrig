@@ -502,9 +502,9 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     }
     let mut work = Workspace::new();
     let mut frames = Workspace::new();
-    let later = check::plans(store, &mut layouts, &mut binary, &mut work, &mut frames)?;
+    let audit = check::plans(store, &mut layouts, &mut binary, &mut work, &mut frames)?;
     let mut work = ReadWork::fit(work, store.limits.store.value);
-    later.run(store, &layouts, &mut work)?;
+    audit.run(store, &layouts, &mut work)?;
     let writing = changed || (!seeded && !layouts.types.is_empty());
     rows::operations(store.limits.store.key, &mut layouts)?;
     if !writing && store.directory.patch.is_none() {
