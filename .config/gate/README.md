@@ -121,6 +121,10 @@ with product or build inputs also run the regular Gate. A failed replay is red.
 18. **The merge job's tests:** `python3 -I -B tools/merge/test_merge.py`,
     its one test with the real generator building `skein-codegen`. Rules:
     `tools/merge/README.md` and `temper/docs/design/protocol/tooling.md`, 4.1.
+19. **The released format fixtures' check:** `tools/tiers/one-process default -p fabrig-boundary`,
+    part of item 4's focused suite. Rule: `temper/docs/design/protocol/configuration/file-formats.md`, 7,
+    and `tests/boundary/tests/formats.rs`: each fixture in the landing base stays at its path with the
+    same bytes. New files and directories pass.
 
 ## The gate's lists
 

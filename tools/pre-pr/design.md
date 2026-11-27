@@ -73,9 +73,10 @@ tests only where `.config/gate/read-by-tests.txt` or the fixture readers
 declare it. It runs the Python suites of changed Python files alone, runs the
 tests through one-process and judges instruction growth at the goal's base
 (section 4.1). Only candidate checks run in the snapshot. The boundary tests that compare landed
-client layouts, retained host-tool contracts, and stored-schema changes require
-repository history. At landing, those tests read the exact destination commit
-supplied by the gate in `CI_GATE_LANDING_BASE`. Their current-tree validators and fixture tests still run.
+client layouts, retained host-tool contracts, released format fixtures, and
+stored-schema changes require repository history. At landing, those tests read the
+exact destination commit supplied by the gate in `CI_GATE_LANDING_BASE`. Their
+current-tree validators and fixture tests still run.
 Close reads main's published counts from the checkout's `refs/temper/counts`,
 else fetches that one ref from the public repository into private scratch,
 once a run, for its base and its budgets alike. If
