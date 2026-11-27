@@ -24,9 +24,10 @@ Comma. The scripted model changes no repository.
   lines, and "Choose the CSV export delimiter. · Running". `/new` is
   typed, with its command hint below. Enter links to `03.html`.
 - `03.html` and `03.txt`: the launchpad with "One thing needs you.",
-  the chat under Where you left off at `/chats 1`, its question under
+  the unnumbered chat under Where you left off, its question under
   Needs you, and Start's `/draft`, `/change` and `/ask`. The quiet line
-  says "1 needs you · n to walk". `n` links to `04.html`.
+  says "1 needs you · /needs". Type `/needs` and press Enter to open
+  the walk shown in `04.html`.
 - `04.html` and `04.txt`: that launchpad with the question's prompt
   under the composer. It says "Reached you because it was asked of you
   directly." Comma is active, followed by Semicolon, Tell it something

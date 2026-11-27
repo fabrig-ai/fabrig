@@ -880,7 +880,7 @@ fn landed_reads_require_a_recorded_head_and_keep_landed_verification_states() {
         (
             change::State::Held {
                 was: Box::new(change::State::Producing { requested: true }),
-                why: change::Hold::Failed,
+                hold: change::Hold::new(change::Cause::Failed, skein_lib::Wall::EPOCH),
             },
             Answer::Unlanded,
         ),

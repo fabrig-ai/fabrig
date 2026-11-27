@@ -296,6 +296,24 @@ mod tests {
     const REFUSAL: &[u8] = br#"{"refused":{"head":"1111111111111111111111111111111111111111111111111111111111111111","tree":"2222222222222222222222222222222222222222","base":null,"counts":null,"failures":["test A::rules rule_00"]}}"#;
 
     #[test]
+    fn a_judged_close_distinguishes_a_refusal_from_a_broken_result() {
+        use crate::tests::fixtures;
+        let mut row = fixtures::opening_row();
+        row.change.state = change::State::Producing { requested: true };
+        row.delegate = Some((9, change::Delegate::Close));
+        for (result, cause) in
+            [(REFUSAL, change::Cause::CloseRefused), (b"not a verdict".as_slice(), change::Cause::Failed)]
+        {
+            row.delegate_status = change::Status::Passed;
+            row.report = Box::from(result);
+            row.close_at = Some(AT);
+            judged(&mut row, false);
+            assert_eq!(row.delegate_status, change::Status::Failed);
+            assert_eq!(row.close_at.unwrap().failed_cause(), cause);
+        }
+    }
+
+    #[test]
     fn an_unasked_or_pushed_refusal_is_not_a_judgment() {
         for (at, pushed) in [(change::CloseAt { asked: false, ..AT }, false), (AT, true)] {
             assert_eq!(

@@ -22,6 +22,8 @@ campaign-smith = [
 
 campaign-temper = [
     "temper-engine-domain-world",
+    "temper-engine-forge-world",
+    "temper-system-world",
 ]
 
 conformance-hearth = [

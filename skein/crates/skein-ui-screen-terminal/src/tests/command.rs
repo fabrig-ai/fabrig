@@ -1,4 +1,4 @@
-use crate::{Command, Key, command};
+use crate::{Command, Key, alias, command};
 use skein_lib::{Queue, Token, bytes};
 use skein_ui::{Act, Binding, Builder, Limits, Modifier, NodeId, Owner, Role, Shortcut, State, Tree};
 use skein_ui_screen::Focus;
@@ -261,6 +261,92 @@ fn shortcuts_choose_first_enabled_and_plain_never_presses_in_fields() {
         assert_eq!(command(&key, &tree, &mut Focus::default(), &LIMITS), Command::Nothing, "{key:?}");
     }
 }
+const EMACS_VALUE: &[u8] = b"abc";
+const EMACS_END: u32 = 3; // The fixture value is three ASCII bytes.
+
+fn emacs_shortcuts() -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    for (key, name) in [(b'p', b"p"), (b'n', b"n"), (b'a', b"a"), (b'e', b"e")] {
+        b.open(Role::Button);
+        b.name(name);
+        b.bind(binding());
+        b.shortcut(Shortcut { key, modifier: Modifier::Primary });
+        b.close();
+    }
+    for (role, name) in [(Role::TextField, b"Field".as_slice()), (Role::TextArea, b"Area")] {
+        b.open(role);
+        b.name(name);
+        b.value(EMACS_VALUE, 0);
+        b.bind(binding());
+        b.close();
+    }
+    b.close();
+    shown(b)
+}
+
+#[test]
+fn control_a_and_e_move_the_caret_instead_of_pressing() {
+    let tree = emacs_shortcuts();
+    for name in [b"Field".as_slice(), b"Area"] {
+        let node = Some(named(&tree, name));
+        for (letter, start, end) in [(b'a', EMACS_END, 0), (b'e', 0, EMACS_END)] {
+            let mut focus = Focus { node, caret: start, ..Focus::default() };
+            let got = command(&Key::Control(letter), &tree, &mut focus, &LIMITS);
+            assert_eq!((got, focus), (Command::Moved, Focus { node, caret: end, ..Focus::default() }));
+        }
+    }
+}
+
+#[test]
+fn control_a_and_e_remain_shortcuts_outside_text_fields() {
+    let tree = emacs_shortcuts();
+    for (letter, target) in [(b'a', b"a"), (b'e', b"e")] {
+        let wanted = Command::Act { node: named(&tree, target), act: Act::Press };
+        for node in [None, Some(named(&tree, b"n"))] {
+            let mut focus = Focus { node, ..Focus::default() };
+            assert_eq!(command(&Key::Control(letter), &tree, &mut focus, &LIMITS), wanted);
+        }
+    }
+}
+
+#[test]
+fn control_p_and_n_move_focus_instead_of_pressing() {
+    let tree = emacs_shortcuts();
+    let start = Some(named(&tree, b"a"));
+    for (letter, target) in [(b'p', b"n"), (b'n', b"e")] {
+        let mut focus = Focus { node: start, ..Focus::default() };
+        let got = command(&Key::Control(letter), &tree, &mut focus, &LIMITS);
+        assert_eq!((got, focus.node), (Command::Moved, Some(named(&tree, target))));
+    }
+}
+
+#[test]
+fn alias_gives_navigation_keys_for_the_current_focus() {
+    let tree = emacs_shortcuts();
+    for (key, in_text, elsewhere) in [
+        (Key::Control(b'p'), Some(Key::Up), Some(Key::Up)),
+        (Key::Control(b'n'), Some(Key::Down), Some(Key::Down)),
+        (Key::Control(b'a'), Some(Key::Home), None),
+        (Key::Control(b'e'), Some(Key::End), None),
+        (Key::Control(b'c'), None, None),
+        (Key::Control(b'x'), None, None),
+        (Key::Char('p'), None, None),
+        (Key::Alt('n'), None, None),
+        (Key::Up, None, None),
+    ] {
+        for (node, wanted) in [
+            (Some(named(&tree, b"Field")), &in_text),
+            (Some(named(&tree, b"Area")), &in_text),
+            (Some(named(&tree, b"a")), &elsewhere),
+            (None, &elsewhere),
+        ] {
+            let focus = Focus { node, ..Focus::default() };
+            assert_eq!(&alias(&key, &tree, &focus), wanted, "{key:?}, focus {node:?}");
+        }
+    }
+}
+
 fn cancel(b: &mut Builder, disabled: bool) {
     b.open(Role::Button);
     b.bind(binding());
@@ -393,6 +479,23 @@ fn options(role: Role, text: &[u8], disabled: bool) -> Tree {
     b.close();
     b.close();
     shown(b)
+}
+
+#[test]
+fn control_p_and_n_move_to_the_options_endpoints() {
+    let tree = options(Role::TextField, b"/", false);
+    let node = Some(named(&tree, b"Field"));
+    let first = named(&tree, b"/model");
+    let last = named(&tree, b"/help");
+    for (letter, start, end) in [(b'p', last, first), (b'n', first, last)] {
+        let mut focus = Focus { node, active: Some(start), ..Focus::default() };
+        let key = Key::Control(letter);
+        assert_eq!(command(&key, &tree, &mut focus, &LIMITS), Command::Moved);
+        assert_eq!((focus.node, focus.active), (node, Some(end)));
+        assert_eq!(command(&key, &tree, &mut focus, &LIMITS), Command::Nothing);
+        assert_eq!((focus.node, focus.active), (node, Some(end)));
+        assert_eq!(command(&Key::Enter, &tree, &mut focus, &LIMITS), Command::Act { node: end, act: Act::Press });
+    }
 }
 
 #[test]

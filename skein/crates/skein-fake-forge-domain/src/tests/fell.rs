@@ -1,5 +1,6 @@
 //! Step-level fault reports, without a world or a ledger dependency.
 use super::*;
+use crate::api::{Conclusion, RunState};
 use crate::{Called, Fault, Fell};
 
 fn blank(at: Time, fault: Fault) -> Fell {
@@ -283,6 +284,41 @@ fn workflow_silence_setup_and_loss_report_the_run_and_commit() {
         );
         assert_eq!(h.domain.pop_fell(), None);
     }
+}
+
+#[test]
+fn workflow_silence_can_be_set_and_cleared_after_creation() {
+    let mut configured = setup();
+    configured.workflows = Box::new([workflow()]);
+    let mut h = Harness::with(calm(), configured);
+    let at = h.env.now;
+    crate::set_workflow_silent(&mut h.domain, REPOSITORY, b"gate.yml", 1000);
+    h.ok(ENGINE, dispatch());
+    crate::set_workflow_silent(&mut h.domain, REPOSITORY, b"gate.yml", 0);
+    h.ok(ENGINE, dispatch());
+    h.settle();
+
+    let Answer::Runs(runs) = h
+        .inspect(&Read::Runs { workflow: Some(copy_of(b"gate.yml")), commit: None, number: None, page: 1, limit: 0 })
+        .unwrap()
+    else {
+        panic!("workflow runs")
+    };
+    let [second, first] = runs.as_ref() else { panic!("two runs, newest first") };
+    assert_eq!(first.state, RunState::Running, "the armed dispatch stays silent");
+    assert_eq!(first.conclusion, None);
+    assert_eq!(second.conclusion, Some(Conclusion::Success), "the next dispatch reports");
+    assert_eq!(h.domain.tally().silent, 1);
+    assert_eq!(
+        h.domain.pop_fell(),
+        Some(Fell {
+            repository: Some(copy_of(REPOSITORY)),
+            commit: Some(FIRST),
+            run: Some(first.id),
+            ..blank(at, Fault::Silent)
+        })
+    );
+    assert_eq!(h.domain.pop_fell(), None);
 }
 
 #[test]

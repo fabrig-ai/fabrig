@@ -19,7 +19,7 @@
 
 
 ───────────────────────────────────────── Demo / Ask temper on 127.0.0.1:8367 ──
-❯ Ask temper anything, or Esc to go back.
+❯ Ask temper anything, or ← to go back.
 ────────────────────────────────────────────────────────────────────────────────
  ● Live · Demo · model · high
 --
@@ -44,7 +44,7 @@
 ................................................................................
 ................................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbaaabbbbbbbbbbccccccccccccccccccaaa
-ddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.......................................
+ddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.........................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 .eeeeeeaaaccccaaacccccccccccc...................................................
 --

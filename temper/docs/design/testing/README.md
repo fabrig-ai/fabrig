@@ -11,6 +11,7 @@ engine's, `engine-checks.md`; blame and tries for gates, `blame.md`; the worker'
 waits, disk and faults, `worker.md`), where the box's own checks run
 (`box/README.md`) and the shells' (`shells.md`), the restarts and stops they inject (`restarts.md`),
 the workloads they draw from the seed and the sweeps that mix every failure (`workloads.md`), the
+kinds the composed sweep adds in a campaign (`composed-catalogue.md`), the
 shipped settings checked against themselves (`settings-tests.md`), every commit's store
 checked against a start (`store-check.md`), its
 layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), what

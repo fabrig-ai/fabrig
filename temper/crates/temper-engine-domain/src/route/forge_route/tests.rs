@@ -1244,7 +1244,10 @@ fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
         let mut row = change_row(Some(7));
         row.change.last_head = Some(if let change::State::Opening { .. } = was { expected } else { stale });
         row.ci = Some(change::Ci { head: stale, status: change::Status::Passed });
-        row.change.state = change::State::Held { was: Box::new(was), why: change::Hold::BranchMoved };
+        row.change.state = change::State::Held {
+            was: Box::new(was),
+            hold: change::Hold::new(change::Cause::BranchMoved, Wall::EPOCH),
+        };
         let evidence = forge::ChangeEvidence {
             behind: None,
             readback_owed: false,
@@ -1264,7 +1267,7 @@ fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
         let mut routed = Queue::uncapped();
         routed.push(forge::Request::ChangeDecision {
             task: 7,
-            decision: change::Decision::Hold(change::Hold::BranchMoved),
+            decision: change::Decision::Hold(change::Cause::BranchMoved),
             entry: None,
             evidence: Some(evidence),
         });
@@ -1273,7 +1276,7 @@ fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
             panic!("a hold carries its read to the task");
         };
         let super::tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("drift account") };
-        assert_eq!(words.as_ref(), b"its branch moved: expected abababababab, found cdcdcdcdcdcd");
+        assert_eq!(words.as_ref(), b"its branch moved: expected abababababab, found cdcdcdcdcdcd; resolve this reason, then task release 7 --hold 1; or task cancel 7 REASON");
     }
 }
 
@@ -1286,7 +1289,7 @@ fn a_change_drift_account_prefers_the_forges_pair_including_unknown() {
     row.change.last_head = Some([0xef; 32]);
     row.change.state = change::State::Held {
         was: Box::new(change::State::Checking { head: [0xef; 32] }),
-        why: change::Hold::BranchMoved,
+        hold: change::Hold::new(change::Cause::BranchMoved, skein_lib::Wall::EPOCH),
     };
     restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
     for observed in [Some([0xcd; 32]), None] {
@@ -1311,7 +1314,7 @@ fn a_change_drift_account_prefers_the_forges_pair_including_unknown() {
             b"its branch moved: expected abababababab, found unknown"
         };
         assert_eq!(
-            super::holds::change_account(&domain, &env, 7, change::Hold::BranchMoved, None).unwrap().as_ref(),
+            super::holds::change_account(&domain, &env, 7, change::Cause::BranchMoved, None).unwrap().as_ref(),
             expected
         );
     }
@@ -1946,7 +1949,7 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
             let mut row = change_row(Some(42));
             row.change.state = forge_change::State::Held {
                 was: Box::new(forge_change::State::Resolving { requested: true, base: SHA1 }),
-                why: forge_change::Hold::Failed,
+                hold: forge_change::Hold::new(forge_change::Cause::Failed, skein_lib::Wall::EPOCH),
             };
             row.delegate = Some((9, kind));
             let (mut domain, env, mut out) = restored_change([forge::Stored::Change(Box::new(row))]);
@@ -1968,7 +1971,7 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
                 },
                 &mut out,
             );
-            let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Hold::Failed, None, None);
+            let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Cause::Failed, None, None);
             let super::StepEnd::HoldFrom { why: tasks::Hold::Procedure, source } = decision.end else {
                 panic!("cancelled {name} needs a procedure hold with its account")
             };
@@ -2637,46 +2640,47 @@ fn branch_moved_and_stalled_holds_keep_the_heads_and_wait_in_their_accounts() {
     for (was, why, words) in [
         (
             change::State::Opening { requested: true },
-            change::Hold::Stalled,
+            change::Cause::Stalled,
             b"no progress at opening for 30 minutes: waiting for its pull request to open".as_slice(),
         ),
         (
             change::State::Updating { from: expected, base: found, ready_since: skein_lib::Wall::EPOCH },
-            change::Hold::BranchMoved,
+            change::Cause::BranchMoved,
             b"its branch moved: expected 0123456789ab, found 89abcdef0123".as_slice(),
         ),
         (
             change::State::Checking { head: expected },
-            change::Hold::BranchMoved,
+            change::Cause::BranchMoved,
             b"its branch moved: expected 0123456789ab, found 89abcdef0123".as_slice(),
         ),
         (
             change::State::Updating { from: expected, base: found, ready_since: skein_lib::Wall::EPOCH },
-            change::Hold::Stalled,
+            change::Cause::Stalled,
             b"no progress at updating for 30 minutes: waiting for its update of 0123456789ab with main at 89abcdef0123"
                 .as_slice(),
         ),
         (
             change::State::Checking { head: expected },
-            change::Hold::Stalled,
+            change::Cause::Stalled,
             b"no progress at checking for 30 minutes: waiting for CI at 0123456789ab".as_slice(),
         ),
         (
             change::State::First { head: expected, ready_since: skein_lib::Wall::EPOCH },
-            change::Hold::Stalled,
+            change::Cause::Stalled,
             b"no progress at first for 30 minutes: waiting for the forge to settle whether 0123456789ab merges"
                 .as_slice(),
         ),
         (
             change::State::Landing { head: expected },
-            change::Hold::Stalled,
+            change::Cause::Stalled,
             b"no progress at landing for 30 minutes: waiting for its merge of 0123456789ab".as_slice(),
         ),
     ] {
         let mut row = change_row(Some(1));
         row.change.last_head = Some(expected);
         row.ci = Some(change::Ci { head: found, status: change::Status::Pending });
-        row.change.state = change::State::Held { was: Box::new(was), why };
+        row.change.state =
+            change::State::Held { was: Box::new(was), hold: change::Hold::new(why, skein_lib::Wall::EPOCH) };
         let (domain, mut env, _) = restored_change([
             super::forge::Stored::Change(Box::new(row)),
             super::forge::Stored::BranchHead(super::forge::BranchHead {
@@ -2686,8 +2690,8 @@ fn branch_moved_and_stalled_holds_keep_the_heads_and_wait_in_their_accounts() {
             }),
         ]);
         env.limits.forge.change_policy.stall = skein_lib::Duration::from_secs(1800);
-        let decision = super::hold_change_decision(&domain, &env, 7, why, None, None);
-        let category = if why == change::Hold::BranchMoved { tasks::Hold::Drift } else { tasks::Hold::Stalled };
+        let decision = super::change_hold_step(&domain, &env, 7, why, None, None);
+        let category = if why == change::Cause::BranchMoved { tasks::Hold::Drift } else { tasks::Hold::Stalled };
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -2707,13 +2711,13 @@ fn a_record_judged_hold_names_the_deciding_read_and_its_nearest_write() {
     for (behind, why, category, words) in [
         (
             None,
-            change::Hold::BranchMoved,
+            change::Cause::BranchMoved,
             tasks::Hold::Drift,
             b"its branch moved: expected 121212121212, found 898989898989; temper's last write on it: push of 121212121212 by task 412 attempt 2, confirmed".as_slice(),
         ),
         (
             Some(forge::ReadBehind { read: forge::BehindRead::Branch, expected: Some(expected), found: Some(found) }),
-            change::Hold::Stalled,
+            change::Cause::Stalled,
             tasks::Hold::Stalled,
             b"its branch reads 898989898989, an older head of temper's (expected 121212121212): the read may be stale or another's write".as_slice(),
         ),
@@ -2722,7 +2726,7 @@ fn a_record_judged_hold_names_the_deciding_read_and_its_nearest_write() {
         row.change.last_head = Some(saved);
         row.change.state = change::State::Checking { head: expected };
         let prior = row.change.clone();
-        row.change.state = change::State::Held { was: Box::new(row.change.state), why };
+        row.change.state = change::State::Held { was: Box::new(row.change.state), hold: change::Hold::new(why, skein_lib::Wall::EPOCH) };
         let name = change_names(None)[0].clone();
         let (domain, env, _) = restored_change([
             forge::Stored::Change(Box::new(row)),
@@ -2754,7 +2758,7 @@ fn a_record_judged_hold_names_the_deciding_read_and_its_nearest_write() {
             reviews_complete: false,
             size: None,
         };
-        let decision = super::hold_change_decision(&domain, &env, 7, why, Some(&evidence), None);
+        let decision = super::change_hold_step(&domain, &env, 7, why, Some(&evidence), None);
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -2763,6 +2767,133 @@ fn a_record_judged_hold_names_the_deciding_read_and_its_nearest_write() {
             }
         );
     }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one story compares the deciding read, its committed row and the re-hold")]
+fn a_restored_hold_keeps_its_deciding_read_account_and_refreshes_its_release_revision() {
+    use super::{forge, forge_change as change, tasks};
+    const EXPECTED: [u8; 32] = [0x12; 32];
+    const FOUND: [u8; 32] = [0x89; 32];
+    const ACCOUNT: &[u8] = b"its branch moved: expected 121212121212, found 898989898989";
+    let executor = tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE };
+    let (mut domain, mut env, task) = crate::tests::live_task(None, executor);
+    env.wall = skein_lib::Wall::from_nanos(1_000);
+    let mut row = task_change_row(task, None);
+    row.change.state = change::State::Checking { head: EXPECTED };
+    let prior = row.change.clone();
+    row.change.state = change::State::Held {
+        was: Box::new(row.change.state),
+        hold: change::Hold::new(change::Cause::BranchMoved, env.wall),
+    };
+    let (_, hot) = row.clone().split();
+    domain.forge.restore_begin(env.wall);
+    restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
+    let mut out = skein_lib::Queue::uncapped();
+    out.push(forge::Request::Save {
+        record: forge::Stored::ChangeHot(Box::new(hot)),
+        release: None,
+        read_afresh: None,
+    });
+    out.push(forge::Request::ChangeDecision {
+        task,
+        decision: change::Decision::Hold(change::Cause::BranchMoved),
+        entry: None,
+        evidence: Some(forge::ChangeEvidence {
+            behind: None,
+            readback_owed: false,
+            nearest_write: None,
+            touched: forge::Touched::UNKNOWN,
+            prior,
+            head: Some(FOUND),
+            base_tip: [0; 32],
+            contains_base: change::Status::Unknown,
+            ci: change::Status::Unknown,
+            gates: Box::new([]),
+            reviews: Box::new([]),
+            reviews_complete: false,
+            size: None,
+        }),
+    });
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::outputs(&mut domain, &env, &mut decision, &mut out);
+    apply_change_task_work(&mut domain, &env);
+    let (first, first_revision) = held_change_words(&domain, task);
+    let first: Box<[u8]> = Box::from(first);
+    assert!(first.starts_with(ACCOUNT));
+    let saved = domain.forge.change(task).expect("saved hold").clone();
+    let change::State::Held { hold, .. } = &saved.change.state else { panic!("one held record") };
+    assert_eq!(hold.since, env.wall);
+    assert_eq!(hold.words.as_ref(), ACCOUNT);
+
+    // Restore the committed hot part without the read. The task is live at a later revision.
+    crate::decision::accept_routed(
+        &mut domain.journal,
+        &mut domain.engine.core_mut().counters,
+        &env.limits.journal,
+        decision,
+        false,
+    )
+    .unwrap();
+    let mut committed_hot = None;
+    while let Some(commit) = domain.journal.commit() {
+        for write in &commit.writes {
+            if let crate::Write::Save(crate::Record::Forge { row }) = write
+                && let forge::Stored::ChangeHot(hot) = row.as_ref()
+                && hot.task == task
+            {
+                committed_hot = Some(hot.clone());
+            }
+        }
+    }
+    let (cold, _) = saved.split();
+    let mut live = domain.engine.core().tasks.task(task).unwrap().clone();
+    let ledger = *domain.engine.core().tasks.funding(live.funder).unwrap();
+    live.phase = tasks::Phase::Active(tasks::Active::Due);
+    live.held_since = None;
+    live.due_reason = tasks::Why::Ready;
+    let fixture = crate::tests::resume_fixture::config(1);
+    let (mut restarted, env) = crate::tests::resume_fixture::root_with_records(
+        fixture,
+        &env.limits,
+        &[
+            crate::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ledger(ledger))),
+            crate::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(Box::new(live)))),
+        ],
+    );
+    restarted.forge.restore_begin(env.wall);
+    restore_forge(
+        &mut restarted,
+        &env,
+        forge::Stored::Change(Box::new(forge::ChangeRow::join(cold, *committed_hot.expect("committed hold")))),
+    );
+    super::change_decision(&mut restarted, &env, task, change::Decision::None);
+    apply_change_task_work(&mut restarted, &env);
+    let (again, revision) = held_change_words(&restarted, task);
+    assert!(revision > first_revision);
+    for (words, revision) in [(first.as_ref(), first_revision), (again, revision)] {
+        let task = skein_lib::Decimal::of(task);
+        let revision = skein_lib::Decimal::of(revision);
+        let tail = skein_lib::bytes::concat(&[
+            b"; resolve this reason, then task release ",
+            task.as_bytes(),
+            b" --hold ",
+            revision.as_bytes(),
+            b"; or task cancel ",
+            task.as_bytes(),
+            b" REASON",
+        ]);
+        assert_eq!(words.strip_suffix(tail.as_ref()), Some(ACCOUNT));
+    }
+}
+
+fn held_change_words(domain: &super::Domain, task: u64) -> (&[u8], u64) {
+    let row = domain.engine.core().tasks.task(task).expect("change task");
+    let super::tasks::Phase::Held { source: Some(source), .. } = &row.phase else {
+        panic!("change task held: {:?}", row.phase)
+    };
+    let super::tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("held with an account") };
+    (words, row.revisions.hold)
 }
 
 #[test]
@@ -2796,8 +2927,10 @@ fn checking_holds_name_the_bound_the_execution_clock_reached() {
         ),
     ] {
         let mut row = change_row(Some(1));
-        row.change.state =
-            change::State::Held { was: Box::new(change::State::Checking { head }), why: change::Hold::Stalled };
+        row.change.state = change::State::Held {
+            was: Box::new(change::State::Checking { head }),
+            hold: change::Hold::new(change::Cause::Stalled, Wall::EPOCH),
+        };
         row.change.clock = Some(change::Clock {
             since: Wall::EPOCH,
             head,
@@ -2813,7 +2946,7 @@ fn checking_holds_name_the_bound_the_execution_clock_reached() {
         env.wall = Wall::from_nanos(1_000_000_000);
         env.limits.forge.change_policy.stall = Duration::from_secs(1800);
         env.limits.forge.change_policy.runner_wait = Duration::from_secs(14_400);
-        let decision = super::hold_change_decision(&domain, &env, 7, change::Hold::Stalled, None, None);
+        let decision = super::hold_change_decision(&domain, &env, 7, change::Cause::Stalled, None, None);
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -2845,7 +2978,7 @@ fn a_hold_past_questions_names_its_bound() {
         row.questions.taken = 4;
         row.questions.open = open.into();
         let (domain, env, _) = restored_change([super::forge::Stored::Change(Box::new(row))]);
-        let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Hold::Questions, None, None);
+        let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Cause::Questions, None, None);
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -4180,16 +4313,16 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
 fn a_consumed_task_release_is_not_replayed_after_restore() {
     use super::{forge, tasks};
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
-    for revision in [1, 2] {
+    for (measure, revision) in [(false, 1), (false, 2), (true, 1), (true, 2)] {
         let (mut domain, env) = two_forges();
         reset_tasks_for_restore(&mut domain, &env, 7);
         let mut task = fixture.engine.core().tasks.task(task).unwrap().clone();
         task.number = 7;
-        task.due_reason = tasks::Why::Released;
+        task.due_reason = if measure { tasks::Why::Measured } else { tasks::Why::Released };
         task.revisions.hold = revision;
         task_event(&mut domain, &env, tasks::Event::Restore { record: tasks::Stored::Live(Box::new(task)) });
         let mut row = change_row(None);
-        row.task_release = Some(forge::TaskRelease { revision: 1, at: env.wall });
+        row.task_release = Some(forge::TaskRelease { revision: 1, at: env.wall, measure });
         restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Change(Box::new(row)));
         assert_eq!(
             super::delegate_record::is_release(&domain, 7),
@@ -4498,7 +4631,7 @@ fn failed_change_procedure() -> (super::Domain, skein_lib::Env<super::Limits>, u
     let mut row = task_change_row(task, None);
     row.change.state = forge_change::State::Held {
         was: Box::new(forge_change::State::Producing { requested: true }),
-        why: forge_change::Hold::Failed,
+        hold: forge_change::Hold::new(forge_change::Cause::Failed, skein_lib::Wall::EPOCH),
     };
     row.delegate_status = forge_change::Status::Failed;
     row.producer_failure = Some(FAILED_CHANGE_WORDS.into());
@@ -4537,7 +4670,7 @@ fn assert_failed_change_task(domain: &super::Domain, task: u64) {
 fn a_refused_change_step_still_holds_its_task_with_the_failure_words() {
     use super::{Work, forge_change, tasks};
     let (mut domain, env, task) = failed_change_procedure();
-    super::change_decision(&mut domain, &env, task, forge_change::Decision::Hold(forge_change::Hold::Failed));
+    super::change_decision(&mut domain, &env, task, forge_change::Decision::Hold(forge_change::Cause::Failed));
     let Some(Work::Core(jig_domain_core::Event::ProcedureStep { step, connector, .. })) = domain.work.pop() else {
         panic!("a fenced change step precedes its unfenced hold")
     };
@@ -4562,7 +4695,7 @@ fn a_stale_change_step_still_holds_its_task_with_the_failure_words() {
     use super::forge_change;
     let (mut domain, env, task) = failed_change_procedure();
     super::change_decision(&mut domain, &env, task, forge_change::Decision::Wait { until: None });
-    super::change_decision(&mut domain, &env, task, forge_change::Decision::Hold(forge_change::Hold::Failed));
+    super::change_decision(&mut domain, &env, task, forge_change::Decision::Hold(forge_change::Cause::Failed));
     apply_change_task_work(&mut domain, &env);
     assert_failed_change_task(&domain, task);
 }
@@ -4605,7 +4738,7 @@ fn a_persons_release_reaches_the_row_without_holding_its_task_again() {
 fn a_hold_decided_while_its_procedure_is_not_due_still_holds_its_task() {
     use super::{Work, forge_change, tasks};
     let (mut domain, env, task) = idle_change_procedure();
-    super::change_decision(&mut domain, &env, task, forge_change::Decision::Hold(forge_change::Hold::Stalled));
+    super::change_decision(&mut domain, &env, task, forge_change::Decision::Hold(forge_change::Cause::Stalled));
     let Some(Work::Tasks(event @ tasks::Event::HoldFrom { task: held, why: tasks::Hold::Stalled, .. })) =
         domain.work.pop()
     else {
@@ -4627,7 +4760,7 @@ fn a_hold_decided_while_its_procedure_is_not_due_still_holds_its_task() {
 fn a_hold_decided_while_its_procedure_is_not_due_keeps_its_account() {
     use super::{Work, forge_change, tasks};
     let (mut domain, env, task) = idle_change_procedure();
-    super::change_decision(&mut domain, &env, task, forge_change::Decision::Hold(forge_change::Hold::Questions));
+    super::change_decision(&mut domain, &env, task, forge_change::Decision::Hold(forge_change::Cause::Questions));
     let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
         panic!("an idle procedure's hold keeps its account")
     };
@@ -5269,24 +5402,24 @@ fn every_change_hold_has_words_even_without_an_account() {
         released: false,
     };
     for why in [
-        change::Hold::Stalled,
-        change::Hold::Runner,
-        change::Hold::Repairs,
-        change::Hold::Resolutions,
-        change::Hold::Updates,
-        change::Hold::BranchMoved,
-        change::Hold::BranchMissing,
-        change::Hold::PullClosed,
-        change::Hold::Retargeted,
-        change::Hold::Failed,
-        change::Hold::Rejected,
-        change::Hold::Authority(authority),
-        change::Hold::Questions,
+        change::Cause::Stalled,
+        change::Cause::Runner,
+        change::Cause::Repairs,
+        change::Cause::Resolutions,
+        change::Cause::Updates,
+        change::Cause::BranchMoved,
+        change::Cause::BranchMissing,
+        change::Cause::PullClosed,
+        change::Cause::Retargeted,
+        change::Cause::Failed,
+        change::Cause::Rejected,
+        change::Cause::Authority(authority),
+        change::Cause::Questions,
     ] {
         let mut row = change_row(Some(7));
         row.change.state = change::State::Held {
             was: Box::new(change::State::Repairing { requested: true, why: change::Repair::Gate(1) }),
-            why,
+            hold: change::Hold::new(why, skein_lib::Wall::EPOCH),
         };
         row.producer_failure = Some(Box::new([]));
         row.effect = change::EffectResult::Failed;
@@ -5308,11 +5441,13 @@ fn a_runner_hold_uses_its_own_account() {
         b"CI's runner failed at 030303030303: job 1 of check build: set-up failed; the change wasn't judged.";
     let (mut domain, env) = two_forges();
     let mut row = change_row(Some(TASK));
-    row.change.state =
-        change::State::Held { was: Box::new(change::State::Checking { head: HEAD }), why: change::Hold::Runner };
+    row.change.state = change::State::Held {
+        was: Box::new(change::State::Checking { head: HEAD }),
+        hold: change::Hold::new(change::Cause::Runner, skein_lib::Wall::EPOCH),
+    };
     row.runner_ci = Some(forge::RunnerCi::Held { words: WORDS.into() });
     restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
-    let step = super::hold_change_decision(&domain, &env, TASK, change::Hold::Runner, None, None);
+    let step = super::hold_change_decision(&domain, &env, TASK, change::Cause::Runner, None, None);
     let StepEnd::HoldFrom { why: tasks::Hold::Procedure, source } = step.end else { panic!("runner hold account") };
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
     assert_eq!(words.as_ref(), WORDS);

@@ -10,7 +10,9 @@ const TICKS: u32 = 200;
 const CALL: u64 = 94;
 const WORDS: &[u8] = b"Include the command line";
 const REASON: &[u8] = b"Widen to the CLI";
-const SCOPE: &[u8] = b"\n\nThe host pushes what you deliver; the change task opens the pull request, waits for CI and merges it. Finish with your change once it is checked. Report the branch and head you produced; only the change task reports landing after merge.";
+const SCOPE: &[u8] =
+    b"\n\nFinishing with your change checks it and the host pushes it; the change task opens the pull request, \
+waits for CI and merges it. Finish with your change once it is done; only the change task reports landing after merge.";
 
 fn plan_world() -> (World, engine::Assignment) {
     // A batch of two gives a 256-byte message bound, enough for the whole reason form.

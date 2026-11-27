@@ -2,7 +2,6 @@
 
 2026-11-27. Where the slow tier runner's code lags or departs from [design.md](design.md).
 
-- **Not yet:** 1 and 10.1: there is no `tools/tiers/campaign` (`tools/tiers/campaign.md`) [in flight: change 19608].
 
 - **Present:** 11.9, the build and both profile listings share target selection for package and workspace runs.
 - **Not yet:** 10.1, 10.2, 11.9: `tools/tiers/one-process --alone` runs each flagged test once, and `summary`'s `references` rows have no `alone`, `main_alone` or `swinging` (`tools/tiers/references.md`, 5 and 6) [in flight: change 8831].

@@ -119,6 +119,9 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
             revision: answers::revision(&value.revision),
             again: value.again,
         },
+        w::Ask::Measure(value) => {
+            c::Ask::Measure { project: value.project, task: value.task, revision: answers::revision(&value.revision) }
+        }
         w::Ask::Amend(value) => c::Ask::Amend {
             project: value.project,
             task: value.task,

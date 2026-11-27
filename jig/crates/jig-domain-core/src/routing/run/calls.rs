@@ -476,6 +476,7 @@ pub(crate) fn named_action(
         | NamedAction::Unsubscribe { .. }
         | NamedAction::Control { .. }
         | NamedAction::Release { .. }
+        | NamedAction::Measure { .. }
         | NamedAction::Amend { .. }
         | NamedAction::DecideEscalation { .. }
         | NamedAction::WithdrawProposal { .. }
@@ -706,6 +707,18 @@ pub(crate) fn named_action(
                 operation: tasks::Release { task: target, again, message },
             })));
         }
+        NamedAction::Measure { target, revision } => {
+            if let Some(part) = measure_refusal(core, &env.limits.tasks, key.task, target, revision) {
+                call_decision(core, &mut out, ReplyTo::new(token), key, part);
+                return out;
+            }
+            let token = core.fly_call(token, RoutedCall::Control { key, target, revised: true });
+            work.push(Work::Event(Event::Tasks(tasks::Event::Measure {
+                reply_to: ReplyTo::new(token),
+                by: tasks::Party::Task(key.task),
+                task: target,
+            })));
+        }
         NamedAction::Control { cancel } => {
             return super::controls::control(core, work, ReplyTo::new(token), key, cancel);
         }
@@ -811,6 +824,25 @@ pub(crate) fn named_action(
     out
 }
 
+fn measure_refusal(core: &Core, limits: &tasks::Limits, by: u64, task: u64, revision: u64) -> Option<CallPart> {
+    let why = match core.tasks.task(task) {
+        None => tasks::Refusal::Unknown,
+        Some(_) if !core.tasks.may_control_task(task, by, limits.tasks) => tasks::Refusal::Reference,
+        Some(row) if !row.offers_measure() => tasks::Refusal::State,
+        Some(row) => match row.phase {
+            tasks::Phase::Held { why, .. } if row.revisions.hold != revision => {
+                let now = crate::settings::revisions::hold_change(row.revisions.hold, why);
+                return Some(CallPart::Moved { task, now });
+            }
+            tasks::Phase::Held { .. } => return None,
+            tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => {
+                tasks::Refusal::State
+            }
+        },
+    };
+    Some(CallPart::ControlRefused(tasks::Problem { task: Some(task), why, blocked_by: None, capacity: None }))
+}
+
 fn malformed_recording(action: &NamedAction, limit: u32) -> bool {
     let messages = match action {
         NamedAction::MarkRead { messages } => {
@@ -831,6 +863,7 @@ fn malformed_recording(action: &NamedAction, limit: u32) -> bool {
         | NamedAction::Unsubscribe { .. }
         | NamedAction::Control { .. }
         | NamedAction::Release { .. }
+        | NamedAction::Measure { .. }
         | NamedAction::Amend { .. }
         | NamedAction::DecideEscalation { .. }
         | NamedAction::WithdrawProposal { .. }
@@ -858,7 +891,10 @@ pub(crate) fn named_tool_kind(action: &NamedAction) -> ToolKind {
         NamedAction::Message { target, .. } => ToolKind::Message { target: *target },
         NamedAction::Introduce { left, .. } => ToolKind::Message { target: *left },
         NamedAction::Subscribe { .. } | NamedAction::Unsubscribe { .. } => ToolKind::Subscribe,
-        NamedAction::Control { .. } | NamedAction::Amend { .. } | NamedAction::Release { .. } => ToolKind::Control,
+        NamedAction::Control { .. }
+        | NamedAction::Amend { .. }
+        | NamedAction::Release { .. }
+        | NamedAction::Measure { .. } => ToolKind::Control,
         NamedAction::DecideEscalation { .. }
         | NamedAction::WithdrawProposal { .. }
         | NamedAction::DecideProposal { .. } => ToolKind::Decide,

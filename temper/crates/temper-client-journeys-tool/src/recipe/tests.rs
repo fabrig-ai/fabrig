@@ -682,7 +682,7 @@ fn tui_chat_waits_for_the_answer_but_checks_the_fresh_launchpad() {
     );
     assert_eq!(
         recipe.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
-        [br#"tui see "/chats 1""#.as_slice()]
+        [br#"tui see "Where you left off""#.as_slice()]
     );
     assert_ne!(chain.hash(), [0; 32]);
     assert!(!setups.join("tui-chat/scripts.json").exists());

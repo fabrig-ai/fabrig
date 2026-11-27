@@ -701,7 +701,7 @@ fn a_turn_counted_a_byte_a_token_is_refused_by_the_guard_then_compacted() {
 
 // Seed 104 draws these sizes for the opening and the added read call and reply.
 const LAST_PROMPT: u64 = 40;
-const DRAWN_NEW_PART: u64 = 635;
+const DRAWN_NEW_PART: u64 = 752;
 const READ_LINE: u64 = LAST_PROMPT + DRAWN_NEW_PART;
 
 #[test]

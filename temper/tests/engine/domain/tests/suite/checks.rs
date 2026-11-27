@@ -159,6 +159,8 @@ fn a_parked_producing_change_with_its_live_delegate_passes() {
 
 #[test]
 fn a_preparing_change_without_a_landing_waits_on_its_write() {
+    // The new gather meets Busy at 69.7 s in this fixture and retries one second later.
+    const READ_ADMISSION_RETRY: Time = Time::from_nanos(70_700_000_000);
     let (world, change) = super::forge_routes::reviews::preparing_review_repair(None);
     let row = world.root.forge().change(change).expect("preparing change");
     assert_eq!(world.root.forge().landing_of(row.task), None);
@@ -174,7 +176,7 @@ fn a_preparing_change_without_a_landing_waits_on_its_write() {
         }
         let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("change wait");
         assert_eq!(wait.kind, "change: preparing");
-        assert_eq!(wait.wakes, [Wake::Party(format!("forge: entry {entry}"))]);
+        assert_eq!(wait.wakes, [Wake::Party(format!("forge: entry {entry}")), Wake::Timer(READ_ADMISSION_RETRY)]);
         assert_eq!(wait.bound, None);
     }
     assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
@@ -736,7 +738,10 @@ fn held_producing(why: tasks::Hold) -> (World, u64, u64) {
     let mut row = world.root.forge().change(change).expect("change row").clone();
     row.change.state = temper_engine_domain_forge_change::State::Held {
         was: Box::new(row.change.state),
-        why: temper_engine_domain_forge_change::Hold::Stalled,
+        hold: temper_engine_domain_forge_change::Hold::new(
+            temper_engine_domain_forge_change::Cause::Stalled,
+            skein_lib::Wall::EPOCH,
+        ),
     };
     engine::step(
         &mut world.root,

@@ -125,6 +125,7 @@ pub fn decision(ask: &jig_client::contract::Ask) -> Option<&jig_client::contract
         // Pause and Resume are immediate bar acts. Their status replaces a sheet's
         // facts; the request observer still checks Resume's delivered hold revision.
         Ask::Stop { .. }
+        | Ask::Measure { .. }
         | Ask::Release { .. }
         | Ask::Cancel { .. }
         | Ask::Decide { on: DecideOn::Proposal { decision: Decision::Rejected { .. }, .. }, .. } => true,

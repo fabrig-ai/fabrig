@@ -1,6 +1,6 @@
 # agent: status
 
-2026-11-17. Where temper's code lags or departs from [README.md](README.md).
+2026-11-27. Where temper's code lags or departs from [README.md](README.md).
 
 
 - **Not yet:** 5: a producer, a repair or a resolution that delivered,
