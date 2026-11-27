@@ -1,7 +1,6 @@
 //! Public HTTP step tests (jig/docs/design/protocol/client/default-http.md, 5 and jig/docs/design/protocol/client/public-reads.md).
 use super::{fixtures as f, *};
-const PATH: &[u8] = b"/jig/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/1";
-const DECIMAL_PATH: &[u8] = b"/jig/v1/public/0/1/1";
+pub(super) const PATH: &[u8] = b"/jig/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/1";
 const LAYOUT: [u8; 32] = [
     0x00, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 1,
@@ -19,20 +18,67 @@ fn mount() -> Mount {
     mount
 }
 fn read() -> kit::PublicRead {
-    kit::PublicRead { owner: 0, layout: Some(LAYOUT), kind: 1, ids: Box::new([]) }
+    kit::PublicRead { owner: 0, layout: LAYOUT, kind: 1, ids: Box::new([]) }
 }
 #[test]
 fn canonical_paths_parse_and_others_do_not() {
     for (path, owner, layout, kind, ids) in [
-        (b"/v1/public/0/0000000000000000000000000000000000000000000000000000000000000000/0".as_slice(), 0, Some([0; 32]), 0, &[][..]),
-        (b"/v1/public/65535/000123456789abcdefff00000000000000000000000000000000000000000001/2/0123456789abcdef".as_slice(), 65535, Some(LAYOUT), 2, &[0x0123_4567_89ab_cdef][..]),
-        (b"/v1/public/1/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff/65535/0000000000000000/ffffffffffffffff".as_slice(), 1, Some([0xff; 32]), 65535, &[0, u64::MAX][..]),
-        (b"/v1/public/0/0/0", 0, None, 0, &[][..]),
-        (b"/v1/public/1/65535/2/0123456789abcdef", 1, None, 2, &[0x0123_4567_89ab_cdef][..]),
+        (b"/v1/public/0/0000000000000000000000000000000000000000000000000000000000000000/0".as_slice(), 0, [0; 32], 0, &[][..]),
+        (b"/v1/public/65535/000123456789abcdefff00000000000000000000000000000000000000000001/2/0123456789abcdef".as_slice(), 65535, LAYOUT, 2, &[0x0123_4567_89ab_cdef][..]),
+        (b"/v1/public/1/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff/65535/0000000000000000/ffffffffffffffff".as_slice(), 1, [0xff; 32], 65535, &[0, u64::MAX][..]),
     ] {
         assert_eq!(public_path(path), Some(kit::PublicRead { owner, layout, kind, ids: Box::from(ids) }));
     }
+    for (name, path) in [
+        ("decimal layout", "/v1/public/0/1/1"),
+        ("decimal layout at u16::MAX", "/v1/public/1/65535/2/0123456789abcdef"),
+        ("zero layout in decimal", "/v1/public/0/0/0"),
+        ("missing prefix", "/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/1"),
+        ("missing kind", "/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001"),
+        ("owner overflow", "/v1/public/65536/000123456789abcdefff00000000000000000000000000000000000000000001/1"),
+        ("short layout", "/v1/public/0/000123456789abcdefff0000000000000000000000000000000000000000000/1"),
+        ("kind overflow", "/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/65536"),
+        ("owner leading zero", "/v1/public/00/000123456789abcdefff00000000000000000000000000000000000000000001/1"),
+        ("65-digit layout", "/v1/public/0/0000123456789abcdefff00000000000000000000000000000000000000000001/1"),
+        ("kind leading zero", "/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/01"),
+        ("plus sign", "/v1/public/+0/000123456789abcdefff00000000000000000000000000000000000000000001/1"),
+        ("minus sign", "/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/-1"),
+        (
+            "upper-case id",
+            "/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/1/0123456789abcdeF",
+        ),
+        ("short id", "/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/1/0"),
+        (
+            "long id",
+            "/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/1/00000000000000000",
+        ),
+        (
+            "non-hex id",
+            "/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/1/000000000000000g",
+        ),
+        ("encoded segment", "/v1/public/%30/000123456789abcdefff00000000000000000000000000000000000000000001/1"),
+        (
+            "encoded id",
+            "/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/1/%300000000000000",
+        ),
+        ("dot segment", "/v1/public/./000123456789abcdefff00000000000000000000000000000000000000000001/1"),
+        ("dot-dot segment", "/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/1/.."),
+        ("empty segment", "/v1/public/0//1"),
+        ("query", "/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/1?x=1"),
+        ("fragment", "/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/1#x"),
+        ("trailing slash", "/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/1/"),
+        (
+            "third id",
+            "/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/1/0000000000000000/0000000000000000/0000000000000000",
+        ),
+    ] {
+        assert_eq!(public_path(path.as_bytes()), None, "{name}");
+    }
+}
+#[test]
+fn malformed_public_layouts_are_not_handed_on() {
     for (name, target) in [
+        ("decimal layout", b"/jig/v1/public/0/1/1".as_slice()),
         (
             "upper-case layout",
             b"/jig/v1/public/0/000123456789ABCDEFFF00000000000000000000000000000000000000000001/1".as_slice(),
@@ -56,43 +102,15 @@ fn canonical_paths_parse_and_others_do_not() {
             "{name}"
         );
     }
-    for (name, path) in [
-        ("missing prefix", "/public/0/1/1"),
-        ("missing field", "/v1/public/0/1"),
-        ("overflowing number", "/v1/public/65536/1/1"),
-        ("version overflow", "/v1/public/0/65536/1"),
-        ("kind overflow", "/v1/public/0/1/65536"),
-        ("leading zero", "/v1/public/00/1/1"),
-        ("version leading zero", "/v1/public/0/01/1"),
-        ("kind leading zero", "/v1/public/0/1/01"),
-        ("plus sign", "/v1/public/+0/1/1"),
-        ("minus sign", "/v1/public/0/-1/1"),
-        ("upper-case id", "/v1/public/0/1/1/0123456789abcdeF"),
-        ("short id", "/v1/public/0/1/1/0"),
-        ("long id", "/v1/public/0/1/1/00000000000000000"),
-        ("non-hex id", "/v1/public/0/1/1/000000000000000g"),
-        ("encoded segment", "/v1/public/%30/1/1"),
-        ("encoded id", "/v1/public/0/1/1/%300000000000000"),
-        ("dot segment", "/v1/public/./1/1"),
-        ("dot-dot segment", "/v1/public/0/1/1/.."),
-        ("empty segment", "/v1/public/0//1"),
-        ("query", "/v1/public/0/1/1?x=1"),
-        ("fragment", "/v1/public/0/1/1#x"),
-        ("trailing slash", "/v1/public/0/1/1/"),
-        ("third id", "/v1/public/0/1/1/0000000000000000/0000000000000000/0000000000000000"),
-    ] {
-        assert_eq!(public_path(path.as_bytes()), None, "{name}");
-    }
 }
 fn answer(reply: kit::PublicReply, now: Time) -> (u16, Box<[u8]>, Box<[skein_http::Header]>) {
     let mut mount = mount();
     let mut out = Queue::with_capacity(32);
-    let (path, read) = match reply {
-        kit::PublicReply::NotServed { .. } => (DECIMAL_PATH, kit::PublicRead { layout: None, ..read() }),
-        kit::PublicReply::Document { .. } | kit::PublicReply::Unknown | kit::PublicReply::Busy => (PATH, read()),
-    };
-    f::call(&mut mount, &mut out, Method::Get, path, &[], b"");
-    assert_eq!(f::component(&mut out).as_ref(), &[kit::FromTransport::PublicRead { exchange: f::EXCHANGE, read }]);
+    f::call(&mut mount, &mut out, Method::Get, PATH, &[], b"");
+    assert_eq!(
+        f::component(&mut out).as_ref(),
+        &[kit::FromTransport::PublicRead { exchange: f::EXCHANGE, read: read() }]
+    );
     let mut env = f::env();
     env.now = now;
     mount.down(&env, Event::Component(kit::ToTransport::Public { exchange: f::EXCHANGE, reply }));
