@@ -2456,7 +2456,7 @@ pub fn symbol_to_domain(record: crate::settings_v3::Symbol) -> jig_domain_people
 }
 
 pub fn template_to_record(value: &jig_domain_core_vocabulary::Template, context: &crate::settings_v3::Limits) -> Result<crate::settings_v3::Template, crate::settings_v3::Problem> {
-    let jig_domain_core_vocabulary::Template { number: field_000000, name: field_000001, executor: field_000002, contract: field_000003, shallower: field_000004, budget: field_000005, deadline: field_000006, tracked: field_000007, flags: field_000008, label: field_000009, grace: field_000010, llm: field_000011, resources: field_000012 } = value;
+    let jig_domain_core_vocabulary::Template { number: field_000000, shown: field_000001, executor: field_000002, contract: field_000003, shallower: field_000004, budget: field_000005, deadline: field_000006, tracked: field_000007, flags: field_000008, label: field_000009, grace: field_000010, llm: field_000011, resources: field_000012 } = value;
     Ok(crate::settings_v3::Template {
         number: *field_000000,
         name: field_000001.clone(),
@@ -2505,7 +2505,7 @@ pub fn template_to_domain(record: crate::settings_v3::Template, context: &crate:
     let crate::settings_v3::Template { number: field_000000, name: field_000001, executor: field_000002, contract: field_000003, shallower: field_000004, budget: field_000005, deadline: field_000006, tracked: field_000007, flags: field_000008, label: field_000009, grace: field_000010, llm: field_000011, resources: field_000012 } = record;
     Ok(jig_domain_core_vocabulary::Template {
         number: field_000000,
-        name: field_000001,
+        shown: field_000001,
         executor: template_executor_to_domain(field_000002),
         contract: crate::codec::settings::contract_to_domain(field_000003, context)?,
         shallower: field_000004,

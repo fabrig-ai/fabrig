@@ -122,7 +122,7 @@ pub fn settings_values() -> List<SettingValue> {
         .push(SettingValue::Template(Box::new(Template {
             resources: List::with_capacity(0),
             number: 1,
-            name: DocumentText::complete(text(b"chat")),
+            shown: DocumentText::complete(text(b"chat")),
             executor: TemplateExecutor::Charter(2),
             contract: TaskContractDocument::Report { words: 91 },
             shallower: 1,
@@ -238,7 +238,7 @@ pub fn settings_document() -> SettingsDocument {
         settings
             .push(SettingLine {
                 setting,
-                name: if setting == Setting::Rules { None } else { Some(DocumentText::complete(text(b"name"))) },
+                shown: if setting == Setting::Rules { None } else { Some(DocumentText::complete(text(b"name"))) },
                 follows: SettingFollows::Change,
                 last: Some(6),
                 application: None,

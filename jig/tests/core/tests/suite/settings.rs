@@ -993,7 +993,7 @@ fn revision_item_previews_state_how_many_were_cut() {
     world.client_peer = Some(ClientPeer::default());
     let mut config = configuration().0;
     for template in &mut config.core.defaults.templates {
-        template.name = Box::from(b"new name".as_slice());
+        template.shown = Box::from(b"new name".as_slice());
     }
     restart(&mut world, config);
     let signed = sign_in(&mut world);
@@ -1045,7 +1045,7 @@ fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
     });
     world.client_peer = Some(ClientPeer::default());
     let mut config = configuration().0;
-    config.core.defaults.templates[0].name = vec![b'x'; NAME_BYTES].into_boxed_slice();
+    config.core.defaults.templates[0].shown = vec![b'x'; NAME_BYTES].into_boxed_slice();
     restart(&mut world, config);
     let signed = sign_in(&mut world);
     let reads::Answer::Revision(answer) = client_read(&mut world, signed, reads::Read::Revision { number: 2 }) else {

@@ -586,7 +586,7 @@ fn wire_template(value: &c::Template, limits: &w::Limits) -> Result<w::Template,
     Ok(w::Template {
         resources: super::documents::me::wire_symbols(&value.resources),
         number: value.number,
-        name: wire_document_text(&value.name),
+        shown: wire_document_text(&value.shown),
         executor: client::template_executor_to_record(&value.executor),
         contract: wire_task_contract(&value.contract, limits)?,
         shallower: value.shallower,

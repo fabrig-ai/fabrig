@@ -107,7 +107,7 @@ fn document(f: &mut Fixture, newest: u32, lines: &[(u32, u32, Option<u32>, c::Se
         settings
             .push(c::SettingLine {
                 setting: c::Setting::Application { kind: *kind, scope: *project, number: 1 },
-                name: None,
+                shown: None,
                 last: *last,
                 follows: follows.clone(),
                 application: None,

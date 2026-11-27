@@ -580,7 +580,7 @@ fn revision_replaced_states_reach_the_host_settings_form_from_the_wire() {
     }
 }
 
-const TEMPLATE_PREFIX: &[u8] = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"name":{"bytes":"draft","cut":false},"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null"#;
+const TEMPLATE_PREFIX: &[u8] = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"shown":"draft","executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null"#;
 fn template_file(resources: &[u8]) -> Box<[u8]> {
     let length = TEMPLATE_PREFIX
         .len()
@@ -600,6 +600,41 @@ fn template(bytes: &[u8], limits: &Limits) -> c::Template {
     let c::SettingValue::Template(value) = &set.value else { panic!("template") };
     *value.clone()
 }
+const TEMPLATE_SETTING: &[u8] = br#"{"kind":"template","number":33}"#;
+const TEMPLATE_VALUE: &[u8] = br#"{"number":33,"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null,"#;
+
+#[test]
+fn templates_read_both_display_forms_and_print_shown() {
+    let limits = Limits::standard();
+    let bounds = JsonLimits { depth: 32, length: 8192 };
+    for member in [
+        br#""shown":"goal for a lean design"}"#.as_slice(),
+        br#""name":"goal for a lean design"}"#,
+        br#""name":{"bytes":"goal for a lean design","cut":false}}"#,
+    ] {
+        let file = kind_file(TEMPLATE_SETTING, &joined(&[TEMPLATE_VALUE, member]));
+        let value = template(&file, &limits);
+        assert_eq!(value.shown.bytes(), b"goal for a lean design");
+        let mut measure = Encoder::measure(&bounds);
+        values::encode_template(&value, &mut measure);
+        let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+        values::encode_template(&value, &mut out);
+        let printed = out.finish();
+        assert!(skein_lib::bytes::find(&printed, br#""shown":"goal for a lean design""#).is_some());
+        assert!(skein_lib::bytes::find(&printed, br#""name""#).is_none());
+        assert_eq!(template(&kind_file(TEMPLATE_SETTING, &printed), &limits), value);
+    }
+}
+
+#[test]
+fn a_template_with_shown_refuses_name() {
+    let file = kind_file(TEMPLATE_SETTING, &joined(&[TEMPLATE_VALUE, br#""name":"old","shown":"new"}"#]));
+    assert_eq!(
+        file::decode(&file, &Limits::standard()).unwrap_err().as_ref(),
+        b"settings file item 1: name: not allowed with shown"
+    );
+}
+
 #[test]
 fn a_settings_file_template_names_its_resources() {
     let limits = Limits::standard();

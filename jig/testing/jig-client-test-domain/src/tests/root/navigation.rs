@@ -52,7 +52,7 @@ fn chat_project() -> List<MeProject> {
             resources: List::with_capacity(0),
             llm: None,
             number: jig_client::shapes::CHAT,
-            name: DocumentText::complete(Text::new(b"Chat".as_slice().into(), TEXT).unwrap()),
+            shown: DocumentText::complete(Text::new(b"Chat".as_slice().into(), TEXT).unwrap()),
             executor: TemplateExecutor::Charter(CHARTER),
             contract: TaskContractDocument::Report { words: TEXT },
             shallower: 1,

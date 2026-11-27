@@ -9,7 +9,7 @@ pub(in crate::codec) fn wire_template(value: &c::Template, limits: &w::Limits) -
     Ok(w::Template {
         resources: skein_lib::List::with_capacity(0),
         number: value.number,
-        name: wire_document_text(&value.name),
+        shown: wire_document_text(&value.shown),
         executor: wire_template_executor(&value.executor),
         contract: wire_task_contract_document(&value.contract, limits)?,
         shallower: value.shallower,

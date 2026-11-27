@@ -72,7 +72,7 @@ fn roster_fixture(service: bool) -> (Domain, Env<crate::Limits>) {
 fn goal_template() -> core::Template {
     core::Template {
         number: 4,
-        name: b"goal".as_slice().into(),
+        shown: b"goal".as_slice().into(),
         executor: TemplateExecutor::Charter(COORDINATOR),
         contract: jig_domain_tasks::Contract::Report { words: 32 },
         shallower: 0,

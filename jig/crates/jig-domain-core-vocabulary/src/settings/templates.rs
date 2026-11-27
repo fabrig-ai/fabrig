@@ -7,7 +7,7 @@ use skein_lib::Duration;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Template {
     pub number: u32,
-    pub name: Box<[u8]>,
+    pub shown: Box<[u8]>,
     pub executor: TemplateExecutor,
     pub contract: Contract,
     pub shallower: u32,

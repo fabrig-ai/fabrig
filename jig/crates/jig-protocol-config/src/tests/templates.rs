@@ -101,6 +101,15 @@ fn malformed_template_resources_are_refused_at_the_item() {
 }
 
 #[test]
+fn a_template_reads_shown_or_the_earlier_name() {
+    let modern = fixtures::with(fixtures::ENGINE_SMALL, br#""name": "goal""#, br#""shown": "goal""#);
+    for document in [modern.as_ref(), fixtures::ENGINE_SMALL] {
+        let engine = fixtures::engine(document).expect("template display text");
+        assert_eq!(engine.templates[1].shown.as_ref(), b"goal");
+    }
+}
+
+#[test]
 fn the_chat_and_goal_templates_parse_with_their_defaults() {
     let engine = fixtures::engine(fixtures::ENGINE_SMALL).expect("templates");
     assert_eq!(
@@ -109,7 +118,7 @@ fn the_chat_and_goal_templates_parse_with_their_defaults() {
             jig_domain_core_vocabulary::Template {
                 resources: Box::new([]),
                 number: CHAT,
-                name: Box::from(b"chat".as_slice()),
+                shown: Box::from(b"chat".as_slice()),
                 executor: TemplateExecutor::Charter(CHAT),
                 contract: Contract::Report { words: 512 },
                 shallower: 1,
@@ -129,7 +138,7 @@ fn the_chat_and_goal_templates_parse_with_their_defaults() {
             jig_domain_core_vocabulary::Template {
                 resources: Box::new([]),
                 number: GOAL,
-                name: Box::from(b"goal".as_slice()),
+                shown: Box::from(b"goal".as_slice()),
                 executor: TemplateExecutor::Chosen,
                 contract: Contract::Report { words: 512 },
                 shallower: 1,

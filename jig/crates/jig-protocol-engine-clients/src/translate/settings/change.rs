@@ -249,7 +249,7 @@ pub(crate) fn template_from_record(
     limits: &w::Limits,
 ) -> Result<c::Template, Untranslatable> {
     let v = value;
-    if v.name.cut {
+    if v.shown.cut {
         return Err(bad());
     }
     let flags = v.flags;
@@ -280,7 +280,7 @@ pub(crate) fn template_from_record(
     Ok(c::Template {
         resources: resources.into_boxed(),
         number: v.number,
-        name: v.name.bytes,
+        shown: v.shown.bytes,
         executor: operations::executor(v.executor),
         contract: contract(v.contract, limits)?,
         shallower: v.shallower,

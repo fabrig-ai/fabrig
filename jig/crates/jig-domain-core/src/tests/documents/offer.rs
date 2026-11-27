@@ -185,7 +185,7 @@ fn template(number: u32, executor: people::TemplateExecutor, llm: Option<tasks::
         number,
         executor,
         llm,
-        name: b"work".as_slice().into(),
+        shown: b"work".as_slice().into(),
         resources: Box::new([]),
         contract: tasks::Contract::Report { words: 32 },
         shallower: 0,

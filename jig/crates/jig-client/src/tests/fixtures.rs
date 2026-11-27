@@ -387,7 +387,7 @@ pub fn me() -> contract::Me {
                 resources: List::with_capacity(0),
                 llm: None,
                 number,
-                name: contract::DocumentText {
+                shown: contract::DocumentText {
                     bytes: contract::Text::new(b"template".as_slice().into(), 32).unwrap(),
                     cut: false,
                 },

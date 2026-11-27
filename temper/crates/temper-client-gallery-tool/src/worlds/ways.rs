@@ -401,7 +401,7 @@ pub(super) fn press(root: &mut Domain, name: &str, settings: Token, out: &mut Qu
         settings_rows
             .push(c::SettingLine {
                 setting: c::Setting::Application { kind: 2, scope: PROJECT, number: 1 },
-                name: Some(doc("Landing rule")),
+                shown: Some(doc("Landing rule")),
                 follows: c::SettingFollows::Change,
                 last: Some(REVISION),
                 application: None,

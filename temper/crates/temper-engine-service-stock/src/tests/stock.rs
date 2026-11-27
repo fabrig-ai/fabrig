@@ -422,7 +422,7 @@ A flow is one path: draw each path as a flow of its own, and set options side by
     }
     let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
     expected.number = 5;
-    expected.name = b"ask".as_slice().into();
+    expected.shown = b"ask".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(11);
     assert_eq!(*defaults.templates.iter().find(|template| template.number == 5).unwrap(), expected);
 }
@@ -449,7 +449,7 @@ fn the_drafter_is_charter_12_and_template_6() {
     assert_eq!(*charter, expected);
     let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
     expected.number = 6;
-    expected.name = b"design session".as_slice().into();
+    expected.shown = b"design session".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(12);
     assert_eq!(*defaults.templates.iter().find(|template| template.number == 6).unwrap(), expected);
     let policy = &defaults.policies.get(&1).unwrap().policy;
@@ -497,7 +497,7 @@ fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
     assert_eq!((charter.policy.turns, charter.policy.time), (coordinator.policy.turns, coordinator.policy.time));
     assert_eq!((charter.policy.reserve_turns, charter.policy.reserve_time), (1, skein_lib::Duration::from_secs(300)));
     let template = defaults.templates.iter().find(|template| template.number == 7).expect("standing role template");
-    assert_eq!(template.name.as_ref(), b"standing role");
+    assert_eq!(template.shown.as_ref(), b"standing role");
     assert_eq!(template.executor, TemplateExecutor::Chosen);
     assert_eq!(template.budget, TemplateBudget::Given);
     assert_eq!(template.deadline, TemplateDeadline::None);
@@ -523,7 +523,7 @@ fn the_milestone_is_a_tracked_requester_ended_gathering_template() {
         *template,
         jig_domain_core::Template {
             number: 8,
-            name: b"milestone".as_slice().into(),
+            shown: b"milestone".as_slice().into(),
             executor: TemplateExecutor::Chosen,
             contract: Contract::Report { words: engine.limits.core.tasks.result_bytes },
             shallower: 1,
@@ -568,7 +568,7 @@ fn the_stocks_ways_are_two_and_four_never_eight() {
     let project = me.projects.get_mut(0).unwrap();
     project.templates = skein_lib::List::uncapped();
     for template in &defaults.templates {
-        let mut client = view::goals::template(template.number, &template.name, template.tracked.is_some());
+        let mut client = view::goals::template(template.number, &template.shown, template.tracked.is_some());
         client.flags.ended_by = match template.flags.ended_by {
             EndedBy::Requester => c::EndedBy::Requester,
             EndedBy::Result => c::EndedBy::Result,
@@ -2170,7 +2170,7 @@ fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
     assert_eq!(coordinator, &expected);
     let mut expected = stock.templates.iter().find(|template| template.number == 2).unwrap().clone();
     expected.number = 4;
-    expected.name = b"goal for a draft".as_slice().into();
+    expected.shown = b"goal for a draft".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(5);
     expected.resources = Box::new([jig_domain_people::Symbol { connector: 1, symbol: 1 }]);
     expected.flags.ended_by = jig_domain_tasks::EndedBy::Closer(jig_domain_tasks::Closer { connector: 1, code: 6 });

@@ -4433,7 +4433,7 @@ pub mod paths {
     pub const NEEDS_PERSON_TASKS: Path = Path::new("Needs.person_tasks");
     pub const NEEDS_TAIL: Path = Path::new("Needs (tail)");
     pub const TEMPLATE_NUMBER: Path = Path::new("Template.number");
-    pub const TEMPLATE_NAME: Path = Path::new("Template.name");
+    pub const TEMPLATE_SHOWN: Path = Path::new("Template.shown");
     pub const TEMPLATE_EXECUTOR: Path = Path::new("Template.executor");
     pub const TEMPLATE_CONTRACT: Path = Path::new("Template.contract");
     pub const TEMPLATE_SHALLOWER: Path = Path::new("Template.shallower");
@@ -5770,7 +5770,7 @@ pub mod paths {
     pub const APPLICATION_STATE_CHARTERS: Path = Path::new("ApplicationState.charters");
     pub const APPLICATION_STATE_TAIL: Path = Path::new("ApplicationState (tail)");
     pub const SETTING_LINE_SETTING: Path = Path::new("SettingLine.setting");
-    pub const SETTING_LINE_NAME: Path = Path::new("SettingLine.name");
+    pub const SETTING_LINE_SHOWN: Path = Path::new("SettingLine.shown");
     pub const SETTING_LINE_FOLLOWS: Path = Path::new("SettingLine.follows");
     pub const SETTING_LINE_LAST: Path = Path::new("SettingLine.last");
     pub const SETTING_LINE_APPLICATION: Path = Path::new("SettingLine.application");
@@ -47838,7 +47838,7 @@ impl Record for Needs {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Template {
     pub number: u32,
-    pub name: DocumentText,
+    pub shown: DocumentText,
     pub executor: TemplateExecutor,
     pub contract: TaskContractDocument,
     pub shallower: u32,
@@ -47902,7 +47902,7 @@ impl Record for Template {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::U32, &self.number, limits, out, paths::TEMPLATE_NUMBER)?;
-        field::write(field::Nested, &self.name, limits, out, paths::TEMPLATE_NAME)?;
+        field::write(field::Nested, &self.shown, limits, out, paths::TEMPLATE_SHOWN)?;
         field::write(field::Nested, &self.executor, limits, out, paths::TEMPLATE_EXECUTOR)?;
         field::write(field::Nested, &self.contract, limits, out, paths::TEMPLATE_CONTRACT)?;
         field::write(field::U32, &self.shallower, limits, out, paths::TEMPLATE_SHALLOWER)?;
@@ -47920,7 +47920,7 @@ impl Record for Template {
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             number: field::read(field::U32, limits, reader, paths::TEMPLATE_NUMBER)?,
-            name: field::read(field::Nested, limits, reader, paths::TEMPLATE_NAME)?,
+            shown: field::read(field::Nested, limits, reader, paths::TEMPLATE_SHOWN)?,
             executor: field::read(field::Nested, limits, reader, paths::TEMPLATE_EXECUTOR)?,
             contract: field::read(field::Nested, limits, reader, paths::TEMPLATE_CONTRACT)?,
             shallower: field::read(field::U32, limits, reader, paths::TEMPLATE_SHALLOWER)?,
@@ -69583,7 +69583,7 @@ impl Record for ApplicationState {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingLine {
     pub setting: Setting,
-    pub name: Option<DocumentText>,
+    pub shown: Option<DocumentText>,
     pub follows: SettingFollows,
     pub last: Option<u32>,
     pub application: Option<ApplicationState>,
@@ -69630,7 +69630,7 @@ impl Record for SettingLine {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.setting, limits, out, paths::SETTING_LINE_SETTING)?;
-        field::write(field::Optional { item: field::Nested }, &self.name, limits, out, paths::SETTING_LINE_NAME)?;
+        field::write(field::Optional { item: field::Nested }, &self.shown, limits, out, paths::SETTING_LINE_SHOWN)?;
         field::write(field::Nested, &self.follows, limits, out, paths::SETTING_LINE_FOLLOWS)?;
         field::write(field::Optional { item: field::U32 }, &self.last, limits, out, paths::SETTING_LINE_LAST)?;
         field::write(field::Optional { item: field::Nested }, &self.application, limits, out, paths::SETTING_LINE_APPLICATION)?;
@@ -69640,7 +69640,7 @@ impl Record for SettingLine {
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             setting: field::read(field::Nested, limits, reader, paths::SETTING_LINE_SETTING)?,
-            name: field::read(field::Optional { item: field::Nested }, limits, reader, paths::SETTING_LINE_NAME)?,
+            shown: field::read(field::Optional { item: field::Nested }, limits, reader, paths::SETTING_LINE_SHOWN)?,
             follows: field::read(field::Nested, limits, reader, paths::SETTING_LINE_FOLLOWS)?,
             last: field::read(field::Optional { item: field::U32 }, limits, reader, paths::SETTING_LINE_LAST)?,
             application: field::read(field::Optional { item: field::Nested }, limits, reader, paths::SETTING_LINE_APPLICATION)?,

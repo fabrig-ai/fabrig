@@ -522,8 +522,8 @@ pub static FIELDS: [Field; 381] = [
     },
     Field {
         shape: Shape::Template,
-        name: b"name",
-        value: Value::Shape(Shape::Text),
+        name: b"shown",
+        value: Value::Text(Bound::Limit(Limit::DocumentTextBytes)),
         list: None,
         null: false,
         line: b"Its name, as clients show it.",

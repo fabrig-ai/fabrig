@@ -12,11 +12,11 @@ fn template_me() -> c::Me {
     let chat = project.templates.get(0).expect("chat template").clone();
     let mut goal = chat.clone();
     goal.number = 2;
-    goal.name = f::document_text(b"Goal");
+    goal.shown = f::document_text(b"Goal");
     goal.flags.conversation = false;
     let mut asking = chat.clone();
     asking.number = 5;
-    asking.name = f::document_text(b"Ask temper");
+    asking.shown = f::document_text(b"Ask temper");
     asking.executor = c::TemplateExecutor::Charter(11);
     let mut templates = List::with_capacity(3);
     templates.push(chat).expect("chat");

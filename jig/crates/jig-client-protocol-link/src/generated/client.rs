@@ -4265,10 +4265,10 @@ pub fn needs_to_domain(record: jig_client_protocol_wire::v44::Needs) -> jig_clie
 }
 
 pub fn template_to_domain(record: jig_client_protocol_wire::v44::Template, context: &crate::Limits) -> Result<jig_client_domain::contract::Template, jig_client_protocol_wire::v44::Problem> {
-    let jig_client_protocol_wire::v44::Template { number: field_000000, name: field_000001, executor: field_000002, contract: field_000003, shallower: field_000004, budget: field_000005, deadline: field_000006, tracked: field_000007, flags: field_000008, label: field_000009, grace: field_000010, llm: field_000011, resources: field_000012 } = record;
+    let jig_client_protocol_wire::v44::Template { number: field_000000, shown: field_000001, executor: field_000002, contract: field_000003, shallower: field_000004, budget: field_000005, deadline: field_000006, tracked: field_000007, flags: field_000008, label: field_000009, grace: field_000010, llm: field_000011, resources: field_000012 } = record;
     Ok(jig_client_domain::contract::Template {
         number: field_000000,
-        name: crate::translate::client::document_text_to_domain(field_000001, context)?,
+        shown: crate::translate::client::document_text_to_domain(field_000001, context)?,
         executor: template_executor_to_domain(field_000002),
         contract: crate::translate::client::task_contract_document_to_domain(field_000003, context)?,
         shallower: field_000004,
@@ -6948,10 +6948,10 @@ pub fn application_state_to_domain(record: jig_client_protocol_wire::v44::Applic
 }
 
 pub fn setting_line_to_domain(record: jig_client_protocol_wire::v44::SettingLine, context: &crate::Limits) -> Result<jig_client_domain::contract::SettingLine, jig_client_protocol_wire::v44::Problem> {
-    let jig_client_protocol_wire::v44::SettingLine { setting: field_000000, name: field_000001, follows: field_000002, last: field_000003, application: field_000004 } = record;
+    let jig_client_protocol_wire::v44::SettingLine { setting: field_000000, shown: field_000001, follows: field_000002, last: field_000003, application: field_000004 } = record;
     Ok(jig_client_domain::contract::SettingLine {
         setting: setting_to_domain(field_000000),
-        name: match field_000001 {
+        shown: match field_000001 {
             Some(item) => {
                 let converted = crate::translate::client::document_text_to_domain(item, context)?;
                 Some(converted)

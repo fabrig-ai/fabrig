@@ -196,7 +196,7 @@ fn inventory(count: u32) -> SettingsAnswer {
         settings
             .push(d::SettingLine {
                 setting: s::Setting::Charter(number),
-                name: None,
+                shown: None,
                 follows: d::Follows::Change,
                 last: Some(5),
                 application: None,
@@ -262,7 +262,7 @@ fn engine_and_ctl_render_the_same_settings_inventory() {
     for number in 1..=2 {
         rows.push(c::SettingLine {
             setting: c::Setting::Charter(c::SettingNumber { number }),
-            name: None,
+            shown: None,
             follows: c::SettingFollows::Change,
             last: Some(5),
             application: None,

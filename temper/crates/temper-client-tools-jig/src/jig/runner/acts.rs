@@ -328,7 +328,7 @@ fn chat_template_refusal(me: &c::Me, project: u32, template: u64) -> Failed {
                         .expect("template number fits")
                         .checked_add(1)
                         .expect("space fits")
-                        .checked_add(template.name.bytes().len())
+                        .checked_add(template.shown.bytes().len())
                         .expect("template name fits");
                     any = true;
                 }
@@ -353,7 +353,7 @@ fn chat_template_refusal(me: &c::Me, project: u32, template: u64) -> Failed {
                     let digits = Decimal::of(u64::from(template.number));
                     out.put(digits.as_bytes()).expect("measured number");
                     out.put(b" ").expect("measured space");
-                    out.put(template.name.bytes()).expect("measured name");
+                    out.put(template.shown.bytes()).expect("measured name");
                     any = true;
                 }
             }

@@ -176,7 +176,7 @@ fn template() -> Template {
     Template {
         resources: Box::new([]),
         number: 1,
-        name: Box::from(b"chat".as_slice()),
+        shown: Box::from(b"chat".as_slice()),
         executor: people::TemplateExecutor::Charter(1),
         contract: tasks::Contract::Report { words: 1 },
         shallower: 0,

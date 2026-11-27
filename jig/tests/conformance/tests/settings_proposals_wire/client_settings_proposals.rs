@@ -168,7 +168,7 @@ fn engine_proposal() -> jig_domain_core::documents::Proposal {
     let template = jig_domain_core::Template {
         resources: Box::new([]),
         number: 1,
-        name: b"chat".as_slice().into(),
+        shown: b"chat".as_slice().into(),
         executor: jig_domain_people::TemplateExecutor::Chosen,
         contract: t::Contract::Report { words: 1 },
         shallower: 0,

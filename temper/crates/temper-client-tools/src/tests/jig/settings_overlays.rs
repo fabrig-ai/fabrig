@@ -247,7 +247,7 @@ fn shown_overlay_marks_and_literal_json_apply_back_and_inventory_origin() {
         newest: 5,
         settings: list([c::SettingLine {
             setting,
-            name: None,
+            shown: None,
             follows: c::SettingFollows::Overlay,
             last: Some(5),
             application: None,

@@ -1051,7 +1051,7 @@ impl CommittedChat {
         use jig_client_protocol_wire as w;
         let template = |number, label, name: &[u8]| w::Template {
             number,
-            name: jig_client_test_records::wire_text(name),
+            shown: jig_client_test_records::wire_text(name),
             executor: w::TemplateExecutor::Charter(w::TemplateCharter { value: 7 }),
             contract: w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: 64 }),
             shallower: 1,

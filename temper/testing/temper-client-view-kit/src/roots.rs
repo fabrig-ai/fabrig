@@ -1721,7 +1721,7 @@ pub fn asking_me(mut me: c::Me) -> c::Me {
     };
     let mut asking = stock.clone();
     asking.number = 5;
-    asking.name = c::DocumentText::complete(first_run::text(b"A renamed role"));
+    asking.shown = c::DocumentText::complete(first_run::text(b"A renamed role"));
     asking.executor = c::TemplateExecutor::Charter(37);
     let mut custom = stock.clone();
     custom.number = 7;

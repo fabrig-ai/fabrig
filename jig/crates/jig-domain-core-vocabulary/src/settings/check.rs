@@ -462,7 +462,7 @@ pub fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> Result<(
             true
         }
         Value::Template(value) => {
-            value.name.len() <= skein_lib::length::usize_of(limits.documents.text_bytes)
+            value.shown.len() <= skein_lib::length::usize_of(limits.documents.text_bytes)
                 && contract_fits(&value.contract, &limits.tasks)
         }
         Value::Policy(value) => {

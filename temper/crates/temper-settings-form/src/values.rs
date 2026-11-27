@@ -270,8 +270,13 @@ pub fn encode_template(value: &c::Template, out: &mut Encoder) {
     out.array_end();
     out.key(b"number");
     out.unsigned(u64::from(value.number));
-    out.key(b"name");
-    encode_document_text(&value.name, out);
+    out.key(b"shown");
+    // A cut preview keeps its flag; whole display text prints in the settings file form.
+    if value.shown.cut {
+        encode_document_text(&value.shown, out);
+    } else {
+        out.string(value.shown.bytes());
+    }
     out.key(b"executor");
     encode_template_executor(value.executor, out);
     out.key(b"contract");

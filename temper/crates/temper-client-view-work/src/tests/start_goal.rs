@@ -50,7 +50,7 @@ impl Sheet {
         ] {
             let mut template = stock.clone();
             template.number = number;
-            template.name = c::DocumentText::complete(c::Text::new(name.into(), TEXT).unwrap());
+            template.shown = c::DocumentText::complete(c::Text::new(name.into(), TEXT).unwrap());
             template.tracked = if tracked { Some(1) } else { None };
             member.templates.push(template).unwrap();
         }

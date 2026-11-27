@@ -178,7 +178,7 @@ fn me(proposed: bool) -> w::Me {
     for number in [2, 4] {
         let mut way = template.clone();
         way.number = number;
-        way.name = records::wire_text(if number == 2 { b"goal" } else { b"goal for a draft" });
+        way.shown = records::wire_text(if number == 2 { b"goal" } else { b"goal for a draft" });
         way.tracked = Some(10);
         if proposed {
             way.budget = w::TemplateBudget::Amount(w::TemplateAmount { value: 101 });

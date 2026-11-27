@@ -45,15 +45,15 @@ pub(crate) fn build(core: &Core) -> Settings {
             }
             None => (Follows::Default, current.defaults.get(&setting).expect("named default").revision),
         };
-        let name = match current.value(setting) {
+        let shown = match current.value(setting) {
             Some(value) => match value.as_template() {
-                Some(template) => Some(Text { bytes: template.name.clone(), cut: false }),
+                Some(template) => Some(Text { bytes: template.shown.clone(), cut: false }),
                 None => None,
             },
             None => None,
         };
         settings
-            .push(SettingLine { setting, name, follows, last: Some(last), application: None })
+            .push(SettingLine { setting, shown, follows, last: Some(last), application: None })
             .expect("one line per setting");
     }
     for (&setting, state) in &current.applications {
@@ -63,7 +63,7 @@ pub(crate) fn build(core: &Core) -> Settings {
             | crate::settings::application::Follows::Removed { revision } => (Follows::Change, Some(revision)),
         };
         settings
-            .push(SettingLine { setting, name: None, follows, last, application: Some(state.clone()) })
+            .push(SettingLine { setting, shown: None, follows, last, application: Some(state.clone()) })
             .expect("one line per application setting");
     }
     let mut held = List::with_capacity(core.held.heads.capacity().checked_add(1).expect("held inventory bound"));
@@ -86,7 +86,7 @@ mod tests {
         config.defaults.templates = Box::new([crate::Template {
             resources: Box::new([]),
             number: 1,
-            name: Box::from(b"chat".as_slice()),
+            shown: Box::from(b"chat".as_slice()),
             executor: people::TemplateExecutor::Charter(1),
             contract: jig_domain_tasks::Contract::Report { words: 1 },
             shallower: 0,
@@ -164,7 +164,7 @@ mod tests {
             line(&current),
             SettingLine {
                 setting: Setting::Template(1),
-                name: Some(Text { bytes: Box::from(b"chat".as_slice()), cut: false }),
+                shown: Some(Text { bytes: Box::from(b"chat".as_slice()), cut: false }),
                 follows: Follows::Default,
                 application: None,
                 last: Some(1)
@@ -177,7 +177,7 @@ mod tests {
             line(&current),
             SettingLine {
                 setting: Setting::Template(1),
-                name: None,
+                shown: None,
                 follows: Follows::Change,
                 last: Some(3),
                 application: None
@@ -236,7 +236,7 @@ mod tests {
             for line in &inventory.settings {
                 if line.setting == (Setting::Application { kind: 4, scope: 0, number }) {
                     assert_eq!(line.application.as_ref(), Some(state));
-                    assert!(line.name.is_none());
+                    assert!(line.shown.is_none());
                     found = true;
                 }
             }

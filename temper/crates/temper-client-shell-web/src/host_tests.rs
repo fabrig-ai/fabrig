@@ -842,7 +842,7 @@ fn playground_me(client: &jig_client::DomainLimits) -> w::Me {
         let number = jig_client::shapes::CHAT + offset;
         let template = w::Template {
             number,
-            name: jig_client_test_records::wire_text(name),
+            shown: jig_client_test_records::wire_text(name),
             executor: w::TemplateExecutor::Charter(w::TemplateCharter { value: number }),
             contract: w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: client.text }),
             shallower: 1,

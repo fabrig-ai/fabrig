@@ -18,3 +18,48 @@ fn layout_constants_equal_the_family_fingerprints() {
         assert_eq!(layout, schema.fingerprints().family().digest());
     }
 }
+
+#[test]
+fn template_display_text_round_trips() {
+    use crate as w;
+    use crate::Record as _;
+    use skein_lib::{List, Reader};
+
+    let limits = super::fixtures::limits();
+    let template = w::Template {
+        number: 33,
+        shown: w::DocumentText { bytes: Box::from(b"goal for a lean design".as_slice()), cut: false },
+        executor: w::TemplateExecutor::Chosen,
+        contract: w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: 1024 }),
+        shallower: 1,
+        budget: w::TemplateBudget::Given,
+        deadline: w::TemplateDeadline::None,
+        tracked: Some(1),
+        flags: w::TaskFlags {
+            conversation: false,
+            listed: true,
+            retention: w::Retention::Kept,
+            ended_by: w::EndedBy::Result,
+        },
+        label: 2,
+        grace: None,
+        llm: None,
+        resources: List::with_capacity(0),
+    };
+    let bytes = template.encode(&limits).unwrap();
+    let mut reader = Reader::new(&bytes);
+    assert_eq!(w::Template::decode(&limits, &mut reader), Ok(template.clone()));
+    assert_eq!(reader.remaining(), 0);
+
+    let line = w::SettingLine {
+        setting: w::Setting::Template(w::SettingNumber { number: template.number }),
+        shown: Some(template.shown),
+        follows: w::SettingFollows::Change,
+        last: Some(4),
+        application: None,
+    };
+    let bytes = line.encode(&limits).unwrap();
+    let mut reader = Reader::new(&bytes);
+    assert_eq!(w::SettingLine::decode(&limits, &mut reader), Ok(line));
+    assert_eq!(reader.remaining(), 0);
+}

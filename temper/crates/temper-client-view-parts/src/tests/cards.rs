@@ -417,7 +417,7 @@ pub(crate) fn settings_root_in(page: c::ReadValue, asking: bool) -> (d::Domain, 
     for (number, name) in [(8, b"goal for a draft".as_slice()), (4, b"goal".as_slice())] {
         let mut way = templates.get(0).unwrap().clone();
         way.number = number;
-        way.name = c::DocumentText::complete(c::Text::new(name.into(), 32).unwrap());
+        way.shown = c::DocumentText::complete(c::Text::new(name.into(), 32).unwrap());
         way.tracked = Some(1);
         templates.push(way).unwrap();
     }

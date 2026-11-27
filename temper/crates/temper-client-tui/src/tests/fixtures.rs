@@ -359,7 +359,7 @@ impl GoalCase {
         if self.ways {
             for (number, name) in [(8, b"Custom".as_slice()), (4, b"goal for a draft"), (2, b"goal")] {
                 let mut way = super::foot::template(number);
-                way.name = c::DocumentText::complete(c::Text::new(name.into(), 32).unwrap());
+                way.shown = c::DocumentText::complete(c::Text::new(name.into(), 32).unwrap());
                 way.tracked = Some(1);
                 project.templates.push(way).unwrap();
             }

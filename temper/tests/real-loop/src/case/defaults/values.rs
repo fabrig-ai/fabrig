@@ -48,7 +48,7 @@ fn template(t: &Template) -> Value {
     let jig_domain_people::TemplateBudget::AsAllowed { cap } = t.budget else { panic!("stock chat budget") };
     assert_eq!(t.deadline, jig_domain_people::TemplateDeadline::None);
     assert!(t.llm.is_none());
-    json!({"number":t.number,"name":{"bytes":text(&t.name),"cut":false},"executor":{"charter":executor},"contract":{"report":{"words":words}},"shallower":t.shallower,
+    json!({"number":t.number,"shown":text(&t.shown),"executor":{"charter":executor},"contract":{"report":{"words":words}},"shallower":t.shallower,
         "budget":{"as_allowed":{"cap":cap}},"deadline":"none","tracked":t.tracked,"label":t.label,"grace":t.grace.map(skein_lib::Duration::as_nanos),"llm":null,
         "flags":{"conversation":t.flags.conversation,"listed":t.flags.listed,"retention":match t.flags.retention { jig_domain_tasks::Retention::Kept=>"kept",jig_domain_tasks::Retention::ForgottenOnceRead=>"forgotten_once_read" },
         "ended_by":match t.flags.ended_by { jig_domain_tasks::EndedBy::Requester=>"requester",jig_domain_tasks::EndedBy::Standing=>"standing",jig_domain_tasks::EndedBy::Result | jig_domain_tasks::EndedBy::Closer(_)=>"result" }}})

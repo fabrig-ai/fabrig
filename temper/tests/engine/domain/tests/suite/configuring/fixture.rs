@@ -289,7 +289,7 @@ pub(super) fn settings_config() -> engine::Config {
         .expect("stock chat template")
         .clone();
     template.number = SETTINGS_TEMPLATE;
-    template.name = b"settings".as_slice().into();
+    template.shown = b"settings".as_slice().into();
     template.executor = people::TemplateExecutor::Charter(SETTINGS_CHARTER);
     let mut templates = config.core.defaults.templates.into_vec();
     templates.push(template);
@@ -339,7 +339,7 @@ pub(super) fn moving_config() -> engine::Config {
         .expect("stock chat template")
         .clone();
     template.number = REMOVED;
-    template.name = b"removable".as_slice().into();
+    template.shown = b"removable".as_slice().into();
     template.executor = people::TemplateExecutor::Charter(REMOVED);
     let mut templates = config.core.defaults.templates.into_vec();
     templates.push(template);

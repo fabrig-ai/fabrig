@@ -192,7 +192,7 @@ fn frame(w: World, connecting: bool, asking: bool) -> c::Me {
 fn goal_template(chat: &c::Template, number: u32, name: &str) -> c::Template {
     let mut template = chat.clone();
     template.number = number;
-    template.name = doc(name);
+    template.shown = doc(name);
     template.tracked = Some(1);
     template.label = 2;
     template.flags.conversation = false;
@@ -202,7 +202,7 @@ fn goal_template(chat: &c::Template, number: u32, name: &str) -> c::Template {
 fn asking_template(chat: &c::Template) -> c::Template {
     let mut template = chat.clone();
     template.number = temper_client_domain::pages::chats::ASKING_TEMPLATE;
-    template.name = doc("ask");
+    template.shown = doc("ask");
     template.executor = c::TemplateExecutor::Charter(11);
     template
 }
@@ -266,7 +266,7 @@ fn ask_frame(me: &mut c::Me) {
     let stock = member.templates.get(0).expect("stock chat").clone();
     let mut asking = stock.clone();
     asking.number = 5;
-    asking.name = doc("Ask temper");
+    asking.shown = doc("Ask temper");
     asking.executor = c::TemplateExecutor::Charter(11);
     member.templates = List::with_capacity(2);
     member.templates.push(stock).expect("stock");
@@ -4250,7 +4250,7 @@ fn base_frame(person: &str, project: &str) -> c::Me {
         .push(c::Template {
             resources: List::with_capacity(0),
             number: 1,
-            name: doc("chat"),
+            shown: doc("chat"),
             executor: c::TemplateExecutor::Charter(1),
             contract: c::TaskContractDocument::Report { words: limits().client.domain.text },
             shallower: 1,
@@ -5518,7 +5518,7 @@ fn settings_chat_frame(me: &mut c::Me) {
     }
     let mut way = member.templates.get(0).expect("chat template").clone();
     way.number = 4;
-    way.name = doc("goal for a draft");
+    way.shown = doc("goal for a draft");
     way.tracked = Some(1);
     way.flags.conversation = false;
     way.flags.listed = true;

@@ -132,7 +132,7 @@ fn template() -> core::Template {
     core::Template {
         resources: Box::new([]),
         number: 1,
-        name: Box::from(b"template".as_slice()),
+        shown: Box::from(b"template".as_slice()),
         executor: people::TemplateExecutor::Charter(1),
         contract: tasks::Contract::Verdict {
             choices: Box::new([tasks::Verdict {

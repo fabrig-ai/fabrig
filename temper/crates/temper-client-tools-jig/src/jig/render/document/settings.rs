@@ -140,7 +140,7 @@ fn inventory_text(document: &c::SettingsDocument, vocabulary: &dyn Parts, out: &
     for line in &document.settings {
         out.put(b"  ");
         setting_text(line.setting, vocabulary, out);
-        if let Some(name) = &line.name {
+        if let Some(name) = &line.shown {
             out.put(b" \"");
             out.words(name.bytes.bytes());
             out.put(b"\"");

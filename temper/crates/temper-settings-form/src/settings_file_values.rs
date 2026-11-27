@@ -526,6 +526,7 @@ pub(super) fn template(d: &Decoder<'_>, at: u32) -> Result<c::Template, Error> {
         &[
             b"resources",
             b"number",
+            b"shown",
             b"name",
             b"executor",
             b"contract",
@@ -543,7 +544,7 @@ pub(super) fn template(d: &Decoder<'_>, at: u32) -> Result<c::Template, Error> {
         resources: template_resources(d, optional(&fields, b"resources"))?,
         number: u32::try_from(d.number(field(&fields, b"number")?)?)
             .or(Err(error(b"template_number", b"integer bound")))?,
-        name: d.document_text(field(&fields, b"name")?)?,
+        shown: template_shown(d, &fields)?,
         executor: template_executor(d, field(&fields, b"executor")?)?,
         contract: task_contract_document(d, field(&fields, b"contract")?)?,
         shallower: u32::try_from(d.number(field(&fields, b"shallower")?)?)
@@ -572,6 +573,17 @@ pub(super) fn template(d: &Decoder<'_>, at: u32) -> Result<c::Template, Error> {
             Some(llm_choice(d, field(&fields, b"llm")?)?)
         },
     })
+}
+fn template_shown(d: &Decoder<'_>, fields: &super::Fields) -> Result<c::DocumentText, Error> {
+    let at = match (optional(fields, b"shown"), optional(fields, b"name")) {
+        (Some(_), Some(_)) => return Err(error(b"name", b"not allowed with shown")),
+        (Some(at), None) | (None, Some(at)) => at,
+        (None, None) => return Err(error(b"shown", b"missing member")),
+    };
+    if d.kind(at)? == Kind::String {
+        return Ok(c::DocumentText::complete(d.words(at, d.limits.document_text_bytes, b"shown")?));
+    }
+    d.document_text(at)
 }
 fn template_resources(d: &Decoder<'_>, at: Option<u32>) -> Result<List<c::Symbol>, Error> {
     let Some(at) = at else { return Ok(List::with_capacity(0)) };

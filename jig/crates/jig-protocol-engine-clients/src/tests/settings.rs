@@ -15,7 +15,7 @@ fn settings() -> d::Settings {
     settings
         .push(d::SettingLine {
             setting: s::Setting::Template(1),
-            name: Some(d::Text { bytes: Box::from(b"chat".as_slice()), cut: false }),
+            shown: Some(d::Text { bytes: Box::from(b"chat".as_slice()), cut: false }),
             follows: d::Follows::Default,
             last: Some(6),
             application: None,
@@ -101,7 +101,7 @@ fn the_inventory_at_profile_bounds_fits_one_wire_document() {
             .settings
             .push(d::SettingLine {
                 setting: s::Setting::Template(number),
-                name: if number < NAMED {
+                shown: if number < NAMED {
                     Some(d::Text { bytes: Box::from([b'x'; NAME_BYTES].as_slice()), cut: false })
                 } else {
                     None
@@ -305,7 +305,7 @@ fn whole_setting_kinds_reach_the_clients_as_their_values() {
                 assert_eq!(value.hosts, c::SettingHosts::Both);
             }
             (s::Value::Template(source), c::SettingValue::Template(value)) => {
-                assert_eq!(value.name.bytes.bytes(), source.name.as_ref());
+                assert_eq!(value.shown.bytes.bytes(), source.shown.as_ref());
             }
             (s::Value::Policy(source), c::SettingValue::Policy(value)) => {
                 assert_eq!(value.roles.len(), u32::try_from(source.policy.roles.len()).unwrap());
@@ -548,7 +548,7 @@ fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
         settings
             .push(d::SettingLine {
                 setting: s::Setting::Application { kind: 7, scope: 0, number },
-                name: None,
+                shown: None,
                 follows: if last.is_some() { d::Follows::Change } else { d::Follows::Default },
                 last,
                 application: Some(State { follows, size: 23, charters: Box::new([1, 3]) }),
@@ -560,7 +560,7 @@ fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
     let document = link::restore_settings_document(&document, &client_limits).unwrap();
     for (number, line) in (1..).zip(&document.settings) {
         assert_eq!(line.setting, c::Setting::Application { kind: 7, scope: 0, number });
-        assert!(line.name.is_none());
+        assert!(line.shown.is_none());
         let state = line.application.as_ref().unwrap();
         assert_eq!(state.size, 23);
         assert_eq!(state.charters.as_slice(), &[1, 3]);

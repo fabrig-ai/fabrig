@@ -204,6 +204,8 @@ fn examples() -> Vec<Example> {
     let base = expanded_engine();
     assert!(engine(&base, Defaults::Document).is_empty(), "expanded fixture: {:?}", engine(&base, Defaults::Document));
     let mut examples = vec![Example { document: base.clone(), worker: false, confidential: false }];
+    let shown = fixtures::with(fixtures::ENGINE_SMALL, br#""name": "chat""#, br#""shown": "chat""#);
+    examples.push(Example { document: document(&shown), worker: false, confidential: false });
     for (parent, name, value) in [
         ("templates.0", "contract", br#"{"change":{"connector":1,"kind":1,"words":512}}"#.as_slice()),
         (

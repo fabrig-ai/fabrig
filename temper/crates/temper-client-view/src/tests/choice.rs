@@ -109,7 +109,7 @@ fn catalogue_rows(models: List<c::MeModel>) -> d::Domain {
         .push(c::Template {
             resources: List::with_capacity(0),
             number: 1,
-            name: c::DocumentText::complete(c::Text::new(Box::from(*b"Chat"), 32).unwrap()),
+            shown: c::DocumentText::complete(c::Text::new(Box::from(*b"Chat"), 32).unwrap()),
             executor: c::TemplateExecutor::Charter(1),
             contract: c::TaskContractDocument::Report { words: 32 },
             shallower: 1,

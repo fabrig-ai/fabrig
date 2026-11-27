@@ -56,7 +56,7 @@ fn me_adds_the_largest_visible_list_omission_to_the_charters_count() {
         core.current.test_templates(Box::new([Template {
             number: 1,
             executor: people::TemplateExecutor::Charter(1),
-            name: b"chat".as_slice().into(),
+            shown: b"chat".as_slice().into(),
             contract: tasks::Contract::Report { words: 32 },
             shallower: 1,
             budget: people::TemplateBudget::Given,

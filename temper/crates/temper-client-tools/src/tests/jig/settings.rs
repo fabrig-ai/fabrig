@@ -507,7 +507,7 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
             c::SettingValue::Template(Box::new(c::Template {
                 resources: List::with_capacity(0),
                 number: 4,
-                name: c::DocumentText::complete(words("work")),
+                shown: c::DocumentText::complete(words("work")),
                 executor: c::TemplateExecutor::Charter(3),
                 contract: c::TaskContractDocument::Report { words: 1024 },
                 shallower: 1,
@@ -799,14 +799,14 @@ fn whole_settings_document_renderings_are_stable() {
         settings: list([
             c::SettingLine {
                 setting: c::Setting::Charter(c::SettingNumber { number: 3 }),
-                name: Some(c::DocumentText::complete(words("worker"))),
+                shown: Some(c::DocumentText::complete(words("worker"))),
                 follows: c::SettingFollows::Change,
                 last: Some(5),
                 application: None,
             },
             c::SettingLine {
                 setting: c::Setting::Rules,
-                name: None,
+                shown: None,
                 follows: c::SettingFollows::Default,
                 last: Some(0),
                 application: None,
@@ -2268,7 +2268,7 @@ fn forge_inventory(setting: c::Setting, follows: c::ApplicationFollows) -> c::Re
         newest: 5,
         settings: list([c::SettingLine {
             setting,
-            name: None,
+            shown: None,
             follows: if follows == c::ApplicationFollows::Default {
                 c::SettingFollows::Default
             } else {
@@ -3822,7 +3822,7 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
         newest: 5,
         settings: list([c::SettingLine {
             setting,
-            name: Some(c::DocumentText::complete(words("GPT-6.1 Terra"))),
+            shown: Some(c::DocumentText::complete(words("GPT-6.1 Terra"))),
             follows: c::SettingFollows::Change,
             last: Some(5),
             application: None,

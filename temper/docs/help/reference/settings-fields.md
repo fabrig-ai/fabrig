@@ -207,7 +207,7 @@ Message batch waking a task once.
 Executor and defaults for new tasks.
 - resources:[32] symbol;Optional, default []: distinct resource-symbol pairs resolved for new task. Forge connector 1, symbol 1: its own goal branch.
 - number:u32;Template number matching `setting.number`; chat: 1, goal: 2.
-- name:text;name, as clients show it.
+- shown:t[65536];name, as clients show it.
 - executor:executor;Who runs the task.
 - contract:contract;result the task must give.
 - shallower:u32;Delegation depth below creator role; 0 makes the template unusable.

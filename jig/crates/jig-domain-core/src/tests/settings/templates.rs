@@ -69,7 +69,7 @@ fn template() -> Template {
     Template {
         resources: Box::new([people::Symbol { connector: 1, symbol: 7 }]),
         number: PROJECT,
-        name: Box::from(&b"work"[..]),
+        shown: Box::from(&b"work"[..]),
         executor: people::TemplateExecutor::Chosen,
         contract: tasks::Contract::Report { words: 32 },
         shallower: 1,
@@ -507,7 +507,7 @@ fn prospective_templates_follow_set_removal_and_reset_without_publishing() {
     use crate::settings::{self as s, Edit, Item, Setting, Value};
     let (mut core, _) = make_tree();
     core.current.test_templates(Box::new([template()]));
-    let changed = Template { name: Box::from(b"changed".as_slice()), ..template() };
+    let changed = Template { shown: Box::from(b"changed".as_slice()), ..template() };
     let added = Template { number: 33, ..template() };
     let set = |value: Template| Item {
         setting: Setting::Template(value.number),

@@ -615,7 +615,7 @@ fn inventory_text(document: &c::SettingsDocument, out: &mut Text) {
     for line in &document.settings {
         out.put(b"  ");
         setting_text(line.setting, out);
-        if let Some(name) = &line.name {
+        if let Some(name) = &line.shown {
             out.put(b" \"");
             out.words(name.bytes());
             out.put(b"\"");
@@ -775,7 +775,7 @@ fn encode_inventory(document: &c::SettingsDocument, out: &mut Encoder) {
         out.key(b"setting");
         encode_setting(line.setting, out);
         out.key(b"name");
-        match &line.name {
+        match &line.shown {
             Some(name) => values::encode_document_text(name, out),
             None => out.null(),
         }

@@ -88,7 +88,7 @@ pub struct Creating {
 pub struct Template {
     pub resources: List<super::Symbol>,
     pub number: u32,
-    pub name: DocumentText,
+    pub shown: DocumentText,
     pub executor: TemplateExecutor,
     pub contract: TaskContractDocument,
     pub shallower: u32,

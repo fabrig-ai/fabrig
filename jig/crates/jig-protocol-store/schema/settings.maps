@@ -118,7 +118,7 @@ record ModelEffort = t::ModelEffort
 record LlmLater = t::LlmLater { subagents slice }
 record LlmChoice = t::LlmChoice { subagents slice }
 record Symbol = p::Symbol
-record Template = c::Template { resources slice }
+record Template = c::Template { name = shown, resources slice }
 record Override = v::Override
 record LimitsValue by hand
 enum Value by hand

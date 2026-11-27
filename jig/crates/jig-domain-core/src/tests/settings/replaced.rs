@@ -18,7 +18,7 @@ fn fixture() -> (Core, Limits) {
     }]);
     configured.defaults.templates = Box::new([Template {
         number: 2,
-        name: b"work".as_slice().into(),
+        shown: b"work".as_slice().into(),
         resources: Box::default(),
         executor: people::TemplateExecutor::Chosen,
         contract: tasks::Contract::Report { words: 32 },

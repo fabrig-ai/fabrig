@@ -662,7 +662,7 @@ fn settings_agent_config(allowed: bool) -> engine::Config {
     config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), settings]);
     let mut template = config.core.defaults.templates[0].clone();
     template.number = SETTINGS_TEMPLATE;
-    template.name = b"settings".as_slice().into();
+    template.shown = b"settings".as_slice().into();
     template.executor = people::TemplateExecutor::Charter(SETTINGS_CHARTER);
     config.core.defaults.templates =
         Box::new([config.core.defaults.templates[0].clone(), config.core.defaults.templates[1].clone(), template]);

@@ -202,7 +202,7 @@ fn kept_rows(core: &Core) -> [(Setting, Value); 4] {
         Value::Template(Box::new(crate::Template {
             resources: Box::new([]),
             number,
-            name: b"kept".as_slice().into(),
+            shown: b"kept".as_slice().into(),
             executor: people::TemplateExecutor::Charter(executor),
             contract: crate::tasks::Contract::Report { words: 1 },
             shallower: 0,
@@ -270,7 +270,7 @@ fn stored_numbers_are_collected_before_the_whole_check() {
     let template = crate::Template {
         resources: Box::new([]),
         number: 65,
-        name: b"old".as_slice().into(),
+        shown: b"old".as_slice().into(),
         executor: people::TemplateExecutor::Charter(31),
         contract: crate::tasks::Contract::Report { words: 1 },
         shallower: 0,

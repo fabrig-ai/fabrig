@@ -62,7 +62,7 @@ pub fn add_settings_charter(defaults: &mut jig_domain_core::settings::Defaults) 
     defaults.charters = charters.into_boxed_slice();
     let mut template = defaults.templates[0].clone();
     template.number = SETTINGS_TEMPLATE;
-    template.name = b"settings".as_slice().into();
+    template.shown = b"settings".as_slice().into();
     template.executor = people::TemplateExecutor::Charter(SETTINGS_CHARTER);
     let mut templates = defaults.templates.clone().into_vec();
     templates.push(template);

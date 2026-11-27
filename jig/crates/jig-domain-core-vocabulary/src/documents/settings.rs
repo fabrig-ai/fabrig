@@ -17,7 +17,7 @@ pub enum Follows {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SettingLine {
     pub setting: Setting,
-    pub name: Option<Text>,
+    pub shown: Option<Text>,
     pub follows: Follows,
     pub last: Option<u32>,
     pub application: Option<crate::settings::application::State>,

@@ -1198,7 +1198,7 @@ fn root_with_way() -> (Domain, Env<RootLimits>) {
     let mut config = resume_fixture::config(7);
     config.core.defaults.templates = Box::new([jig_domain_core::Template {
         number: 1,
-        name: b"way".as_slice().into(),
+        shown: b"way".as_slice().into(),
         executor: people::TemplateExecutor::Chosen,
         contract: tasks::Contract::Report { words: 32 },
         shallower: 1,

@@ -88,7 +88,7 @@ fn charters(core: &jig_domain_core::Core) -> Box<[SeeName]> {
     for line in &inventory.settings {
         match line.setting {
             Setting::Charter(number) => {
-                let name = match &line.name {
+                let name = match &line.shown {
                     Some(name) => name.bytes.clone(),
                     None => Box::new([]),
                 };

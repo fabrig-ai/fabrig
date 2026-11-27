@@ -359,7 +359,7 @@ pub static SHAPES: [Shape; 66] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 286] = [
+pub static MEMBERS: [Member; 287] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -1739,11 +1739,20 @@ pub static MEMBERS: [Member; 286] = [
     },
     Member {
         shape: "template",
-        name: "name",
+        name: "shown",
         kind: "text",
         bound: "documents.text_bytes",
         required: true,
-        line: "Gives the template's name for showing.",
+        line: "Gives the template's name for showing; required unless given as the earlier form.",
+        gone: None,
+    },
+    Member {
+        shape: "template",
+        name: "name",
+        kind: "text",
+        bound: "documents.text_bytes",
+        required: false,
+        line: "Earlier form of `shown`; accepted only when `shown` is absent.",
         gone: None,
     },
     Member {

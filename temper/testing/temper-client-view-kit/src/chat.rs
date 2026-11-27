@@ -99,7 +99,7 @@ pub fn messaging_me(mut me: c::Me) -> c::Me {
         .push(c::Template {
             resources: List::with_capacity(0),
             number: CHAT_TEMPLATE,
-            name: c::DocumentText::complete(c::Text::new(Box::from(*b"Chat"), TEXT).expect("name")),
+            shown: c::DocumentText::complete(c::Text::new(Box::from(*b"Chat"), TEXT).expect("name")),
             executor: c::TemplateExecutor::Charter(CHAT_CHARTER),
             contract: c::TaskContractDocument::Report { words: TEXT },
             shallower: SINGLE_TEMPLATE,

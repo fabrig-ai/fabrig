@@ -451,7 +451,7 @@ pub struct SettingItem {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingLine {
     pub setting: Setting,
-    pub name: Option<DocumentText>,
+    pub shown: Option<DocumentText>,
     pub follows: SettingFollows,
     pub last: Option<u32>,
     pub application: Option<ApplicationState>,
@@ -559,7 +559,7 @@ pub struct Template {
     /// Connector symbols resolved to resources when the task is created.
     pub resources: List<Symbol>,
     pub number: u32,
-    pub name: DocumentText,
+    pub shown: DocumentText,
     pub executor: TemplateExecutor,
     pub contract: TaskContractDocument,
     pub shallower: u32,

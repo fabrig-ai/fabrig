@@ -2996,7 +2996,7 @@ fn home_domain(name: &str) -> Domain {
                         lines
                             .push(c::SettingLine {
                                 setting: c::Setting::Application { kind: 2, scope: 1, number: 1 },
-                                name: None,
+                                shown: None,
                                 follows: if everyday || matches!(name, "home-ready" | "home-begin-settings-left") {
                                     c::SettingFollows::Change
                                 } else {

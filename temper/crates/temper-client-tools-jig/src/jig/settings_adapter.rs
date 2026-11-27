@@ -874,7 +874,7 @@ pub fn client_setting_item(v: &n::SettingItem) -> c::SettingItem {
 pub fn form_setting_line(v: &c::SettingLine) -> n::SettingLine {
     n::SettingLine {
         setting: form_setting(v.setting),
-        name: form_optional_document_text(v.name.as_ref()),
+        shown: form_optional_document_text(v.shown.as_ref()),
         follows: form_setting_follows(&v.follows),
         last: v.last,
         application: match &v.application {
@@ -1227,7 +1227,7 @@ pub fn form_template(v: &c::Template) -> n::Template {
             out
         },
         number: v.number,
-        name: form_document_text(&v.name),
+        shown: form_document_text(&v.shown),
         executor: form_template_executor(v.executor),
         contract: form_task_contract_document(&v.contract),
         shallower: v.shallower,
@@ -1250,7 +1250,7 @@ pub fn client_template(v: &n::Template) -> c::Template {
             out
         },
         number: v.number,
-        name: client_document_text(&v.name),
+        shown: client_document_text(&v.shown),
         executor: client_template_executor(v.executor),
         contract: client_task_contract_document(&v.contract),
         shallower: v.shallower,

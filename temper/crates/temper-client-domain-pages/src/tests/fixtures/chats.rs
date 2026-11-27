@@ -18,7 +18,7 @@ pub fn me() -> Me {
         .push(Template {
             resources: List::with_capacity(0),
             number: TEMPLATE,
-            name: DocumentText::complete(acts::text(b"Chat")),
+            shown: DocumentText::complete(acts::text(b"Chat")),
             executor: TemplateExecutor::Charter(CHARTER),
             contract: TaskContractDocument::Report { words: WORDS },
             shallower: ONE,

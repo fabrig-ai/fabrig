@@ -746,7 +746,7 @@ record InboxPage { selection: option bytes 16777216 cut: bool rows: bytes 167772
 record PoolLedger { source: Funder parent: option Funder numbers: Numbers left: u64 closed: bool began: option u64 next: option u64 }
 record MeParty { number: u64 kind: PartyKind login: DocumentText name: DocumentText }
 record Needs { questions: u32 proposals: u32 escalations: u32 person_tasks: u32 }
-record Template { number: u32 name: DocumentText executor: TemplateExecutor contract: TaskContractDocument shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: TaskFlags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol }
+record Template { number: u32 shown was name: DocumentText executor: TemplateExecutor contract: TaskContractDocument shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: TaskFlags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol }
 record MePrices { input: u64 cached: u64 cache_write: option u64 output: u64 unit: u32 }
 enum ModelSource { stock, list, person }
 record MeModel { new_until: option u64 number: u32 source: ModelSource estimated: bool name: text 4096 provider: option u32 window: u32 output: u32 efforts: list 16 text 32 effort: option text 32 prices: MePrices description: option text 512 shown: option text 256 accounts: list 256 u32 picker: bool }
@@ -1100,7 +1100,7 @@ enum SettingFollows { default, change, overlay }
 record ApplicationRevision { revision: u32 }
 enum ApplicationFollows { default, changed: ApplicationRevision, removed: ApplicationRevision }
 record ApplicationState { follows: ApplicationFollows size: u32 charters: list 255 u32 }
-record SettingLine { setting: Setting name: option DocumentText follows: SettingFollows last: option u32 application: option ApplicationState }
+record SettingLine { setting: Setting shown was name: option DocumentText follows: SettingFollows last: option u32 application: option ApplicationState }
 record RevisionParty { number: u64 }
 record RevisionList { provider: u32 }
 enum RevisionDecider { first_start, release, party: RevisionParty, list: RevisionList }

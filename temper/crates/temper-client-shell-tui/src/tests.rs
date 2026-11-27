@@ -1218,7 +1218,7 @@ pub(crate) fn launchpad_me(projects: bool) -> w::Me {
     if projects {
         let template = w::Template {
             number: 5,
-            name: records::wire_text(b"Ask temper"),
+            shown: records::wire_text(b"Ask temper"),
             executor: w::TemplateExecutor::Charter(w::TemplateCharter { value: 5 }),
             contract: w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: 32 }),
             shallower: 1,
@@ -1244,7 +1244,7 @@ pub(crate) fn launchpad_me(projects: bool) -> w::Me {
         let asking = writer.finish();
         let mut chat = template;
         chat.number = jig_client::shapes::CHAT;
-        chat.name = records::wire_text(b"Chat");
+        chat.shown = records::wire_text(b"Chat");
         chat.label = 8;
         let chat = chat;
         let mut writer = Writer::new(

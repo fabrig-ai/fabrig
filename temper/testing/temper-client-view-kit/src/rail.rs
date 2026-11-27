@@ -17,7 +17,7 @@ pub fn with_goal_fact(root: &mut d::Domain, me_watch: Token, delivered: Option<b
     let goal = c::Template {
         resources: List::uncapped(),
         number: jig_client::shapes::GOAL,
-        name: f::task::document_words(b"goal"),
+        shown: f::task::document_words(b"goal"),
         executor: c::TemplateExecutor::Charter(1),
         contract: c::TaskContractDocument::Report { words: TEXT_BYTES },
         shallower: 1,

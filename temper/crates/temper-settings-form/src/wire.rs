@@ -533,7 +533,7 @@ pub(crate) fn documents_me_template(value: &w::Template, limits: &Limits) -> Res
     Ok(c::Template {
         resources,
         number: value.number,
-        name: facts_document_text(&value.name, limits)?,
+        shown: facts_document_text(&value.shown, limits)?,
         executor: operations_restore_executor(&value.executor),
         contract: documents_task_contract_document_fields(&value.contract, limits)?,
         shallower: value.shallower,
@@ -1033,7 +1033,7 @@ pub(crate) fn settings_restore_setting_line(
 ) -> Result<c::SettingLine, w::Problem> {
     Ok(c::SettingLine {
         setting: settings_restore_setting(&value.setting),
-        name: match &value.name {
+        shown: match &value.shown {
             Some(item) => Some(facts_document_text(item, limits)?),
             None => None,
         },
@@ -1418,7 +1418,7 @@ pub(crate) fn settings_wire_template(value: &c::Template, limits: &w::Limits) ->
     Ok(w::Template {
         resources,
         number: value.number,
-        name: settings_wire_document_text(&value.name),
+        shown: settings_wire_document_text(&value.shown),
         executor: operations_executor(value.executor),
         contract: settings_wire_task_contract(&value.contract, limits)?,
         shallower: value.shallower,

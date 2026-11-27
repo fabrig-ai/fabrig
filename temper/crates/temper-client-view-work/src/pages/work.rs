@@ -761,7 +761,7 @@ fn goal_way(root: &Domain, project: u32, label: u32, words: &Words) -> Option<Bo
         for template in &member.templates {
             if template.tracked.is_some() && template.flags.ended_by != c::EndedBy::Requester && template.label == label
             {
-                return Some(super::goals::way_name(template.name.bytes(), words));
+                return Some(super::goals::way_name(template.shown.bytes(), words));
             }
         }
     }

@@ -20,7 +20,7 @@ pub fn wire_settings_document(value: &c::SettingsDocument) -> w::SettingsDocumen
 pub(in crate::codec) fn wire_setting_line(value: &c::SettingLine) -> w::SettingLine {
     w::SettingLine {
         setting: wire_setting(&value.setting),
-        name: value.name.as_ref().map(wire_document_text),
+        shown: value.shown.as_ref().map(wire_document_text),
         follows: wire_setting_follows(&value.follows),
         last: value.last,
         application: value.application.as_ref().map(wire_application_state),

@@ -502,7 +502,7 @@ impl World {
             settings
                 .push(c::SettingLine {
                     setting: c::Setting::Application { kind: 2, scope: project, number: 1 },
-                    name: Some(text(if self.ways[usize::try_from(project - 1).expect("generated project")] == 0 {
+                    shown: Some(text(if self.ways[usize::try_from(project - 1).expect("generated project")] == 0 {
                         b"You approve"
                     } else {
                         b"Agents review"
@@ -515,7 +515,7 @@ impl World {
             settings
                 .push(c::SettingLine {
                     setting: c::Setting::Application { kind: 7, scope: project, number: 1 },
-                    name: Some(text(
+                    shown: Some(text(
                         if self.ways[usize::try_from(project - 1).expect("bounded density fixture")] == 0 {
                             b"You approve"
                         } else {
@@ -1119,7 +1119,7 @@ fn chat_template() -> c::Template {
     c::Template {
         resources: List::with_capacity(0),
         number: 1,
-        name: text(b"Chat"),
+        shown: text(b"Chat"),
         executor: c::TemplateExecutor::Charter(1),
         contract: c::TaskContractDocument::Report { words: 512 },
         shallower: 1,

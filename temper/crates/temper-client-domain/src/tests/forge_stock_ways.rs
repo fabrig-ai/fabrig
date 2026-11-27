@@ -112,7 +112,7 @@ fn document(f: &mut Fixture, newest: u32, configured: bool) {
         settings
             .push(c::SettingLine {
                 setting: c::Setting::Application { kind: 2, scope: f::PROJECT, number: 1 },
-                name: None,
+                shown: None,
                 last: Some(newest),
                 follows: c::SettingFollows::Change,
                 application: None,

@@ -285,7 +285,7 @@ pub struct ApplicationState {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingLine {
     pub setting: Setting,
-    pub name: Option<DocumentText>,
+    pub shown: Option<DocumentText>,
     pub follows: SettingFollows,
     pub last: Option<u32>,
     pub application: Option<ApplicationState>,

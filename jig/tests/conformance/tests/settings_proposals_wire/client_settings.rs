@@ -219,7 +219,7 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     settings
         .push(d::SettingLine {
             setting: s::Setting::Rules,
-            name: None,
+            shown: None,
             follows: d::Follows::Default,
             last: Some(6),
             application: None,

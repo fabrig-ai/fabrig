@@ -5328,10 +5328,10 @@ pub fn application_state_to_record(value: &jig_domain_core_vocabulary::settings:
 }
 
 pub fn setting_line_to_record(value: &jig_domain_core_vocabulary::documents::SettingLine) -> Result<jig_client_protocol_wire::v44::SettingLine, jig_client_protocol_wire::v44::Problem> {
-    let jig_domain_core_vocabulary::documents::SettingLine { setting: field_000000, name: field_000001, follows: field_000002, last: field_000003, application: field_000004 } = value;
+    let jig_domain_core_vocabulary::documents::SettingLine { setting: field_000000, shown: field_000001, follows: field_000002, last: field_000003, application: field_000004 } = value;
     Ok(jig_client_protocol_wire::v44::SettingLine {
         setting: setting_to_record(field_000000),
-        name: match field_000001 {
+        shown: match field_000001 {
             Some(item) => {
                 let converted = document_text_to_record(item);
                 Some(converted)

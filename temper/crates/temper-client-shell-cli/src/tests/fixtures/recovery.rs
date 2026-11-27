@@ -28,7 +28,7 @@ pub fn chat_me() -> w::Me {
     let template = w::Template {
         resources: List::with_capacity(0),
         number: jig_client::shapes::CHAT,
-        name: text(b"chat"),
+        shown: text(b"chat"),
         executor: w::TemplateExecutor::Charter(w::TemplateCharter { value: 1 }),
         contract: w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: 32 }),
         shallower: 1,
