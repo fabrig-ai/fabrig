@@ -580,6 +580,7 @@ record ChangeSource = d::ChangeSource
 record ChangeCold = d::ChangeCold
 record Regate = d::Regate
 record CloseRefused = c::CloseRefused
+enum CloseOutdated = c::CloseOutdated
 record CloseAt = c::CloseAt
 enum BehindRead = d::BehindRead
 record ReadBehind = d::ReadBehind

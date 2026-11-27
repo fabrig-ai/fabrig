@@ -116,14 +116,7 @@ fn loading_fixture(configured: bool) -> Ways {
     );
     let asking = f::asking_me(root.pages().me(root.client()).unwrap().clone());
     f::deliver_me(&mut root, me, asking);
-    up(
-        &mut root,
-        Up::FamilyServed {
-            family: wire::FORGE,
-            served: true,
-            versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
-        },
-    );
+    up(&mut root, Up::FamilyServed { family: wire::FORGE, served: true });
     let out = event(&mut root, d::Event::Went { place: d::Place::Address(Address::Ask { project: f::PROJECT }) });
     let wanted = pages::stock_ways::watch(f::PROJECT, &f::domain_limits().forge).unwrap();
     let watch = out

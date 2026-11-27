@@ -2,9 +2,8 @@
 use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{Event, OpenRefusal, Request, Wire, Write, codec, component_v3, keys};
 use jig_store_world::{
-    World,
-    patches::{self, BASE, Records, SETS},
-    root,
+    World, root,
+    upgrade_fixtures::{self, BASE, Records, SETS},
 };
 use skein_lib::{Env, Queue, Reader, Time, Token, Wall};
 
@@ -40,17 +39,17 @@ fn manifest(world: &mut World) -> codec::component::Manifest {
 #[test]
 fn a_job_copy_opens_pending_and_switches_when_asked() {
     let mut world = pending();
-    let original = patches::source(&mut world);
+    let original = upgrade_fixtures::source(&mut world);
     assert!(world.pending);
     assert_eq!(world.active(), b"1\n");
     assert!(!world.paths().iter().any(|path| path == b"generations/2/manifest"));
     assert_eq!(world.commit(restore_commit()), Some(RESTORED_LAST));
     assert_eq!(world.application(false).get(RESTORED_KEY), Some(&Box::from(RESTORED_VALUE)));
-    assert_eq!(patches::source(&mut world), original, "the pending commit leaves A's maps alone");
+    assert_eq!(upgrade_fixtures::source(&mut world), original, "the pending commit leaves A's maps alone");
     assert_eq!(world.switch(), Some(()));
     assert_eq!(world.active(), b"2\n");
     assert_eq!(manifest(&mut world).store, RESTORED_LAST);
-    assert_eq!(patches::source(&mut world), original);
+    assert_eq!(upgrade_fixtures::source(&mut world), original);
     world.crash(SEED);
     assert_eq!(world.open(), Some(RESTORED_LAST));
     assert!(!world.pending);
@@ -61,7 +60,7 @@ fn a_job_copy_opens_pending_and_switches_when_asked() {
 #[test]
 fn a_start_that_ends_before_asking_leaves_the_old_generation_active() {
     let mut world = pending();
-    let original = patches::source(&mut world);
+    let original = upgrade_fixtures::source(&mut world);
     world.commit(restore_commit());
     world.lay(&[skein_fake_machine::Item::file(b"generations/2/pending-copy", b"discard me")]);
     world.crash(SEED);
@@ -71,7 +70,7 @@ fn a_start_that_ends_before_asking_leaves_the_old_generation_active() {
     assert_ne!(world.ran(), []);
     assert!(!world.application(false).contains_key(RESTORED_KEY));
     assert!(!world.paths().iter().any(|path| path == b"generations/2/pending-copy"));
-    patches::kept(&original, &patches::source(&mut world), &"abandoned restore");
+    upgrade_fixtures::kept(&original, &upgrade_fixtures::source(&mut world), &"abandoned restore");
 }
 
 #[test]
@@ -147,7 +146,7 @@ fn a_second_switch_is_refused() {
 
 pub(crate) fn switch_cuts(cuts: Vec<u32>) -> Vec<bool> {
     let mut world = pending();
-    let original = patches::source(&mut world);
+    let original = upgrade_fixtures::source(&mut world);
     let records = Records::story();
     let sweep = crate::sweep::Sweep::start(&mut world, cuts, move |world, cut| {
         a_switch_cut_leaves_one_generation_whole(world, &records, &original, cut)
@@ -172,8 +171,8 @@ fn a_switch_cut_leaves_one_generation_whole(
     if world.pending {
         world.switch();
     }
-    patches::whole(world);
-    patches::kept(original, &patches::source(world), &cut);
+    upgrade_fixtures::whole(world);
+    upgrade_fixtures::kept(original, &upgrade_fixtures::source(world), &cut);
     records.check(world, &cut);
     old_active
 }
@@ -186,7 +185,7 @@ fn a_cut_at_the_switch_s_first_mutation_and_around_its_rename_leaves_one_generat
     completed.switch();
     let first_mutation =
         completed.changes().iter().find(|(operation, _)| *operation >= first).expect("switch's first mutation").0;
-    let rename = patches::last_change(&completed, Change::Rename);
+    let rename = upgrade_fixtures::last_change(&completed, Change::Rename);
     let sync = completed
         .changes()
         .iter()

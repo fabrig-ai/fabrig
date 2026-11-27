@@ -681,7 +681,7 @@ fn an_oversized_call_completes_under_the_peak_ceiling() {
                 arguments: vec![b'x'; 128].into(),
             },
         },
-        openai::Event::Completed { stop: openai::Stop::ToolUse, usage: openai::Usage::NONE },
+        openai::Event::Completed { stop: openai::Stop::ToolUse, usage: openai::Usage::NONE, served: None },
     ];
     let meter = Meter::new();
     let mut body = Vec::new();

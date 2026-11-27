@@ -1,12 +1,16 @@
-//! Draw owner close/abort turns across racing byte-peer and call terminals.
+//! Draw owner close/abort turns across racing byte-peer and call terminals
+//! (skein/docs/design/testing/sweeps.md, 4.2 to 4.5).
 
 use skein_lib::Rng;
 use skein_llm_connection::Request;
 use skein_llm_connection_world::world::World;
+use skein_world::{sweep::cases, this_test};
+use std::convert::Infallible;
 
 #[test]
 fn close_and_abort_cross_racing_call_terminals_without_spin_or_repeated_events() {
-    for seed in 0..48 {
+    let test = this_test!("close_and_abort_cross_racing_call_terminals_without_spin_or_repeated_events");
+    cases(test, 0..48, |seed| {
         let mut rng = Rng::new(seed);
         let turn = rng.between(0, 1200);
         let abort = rng.chance(500);
@@ -43,5 +47,16 @@ fn close_and_abort_cross_racing_call_terminals_without_spin_or_repeated_events()
             (world.trace, world.events)
         };
         assert_eq!(run(seed), run(seed), "the close and terminal races replay");
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+}
+
+#[test]
+fn byte_peers_wrap_full_width_world_seeds() {
+    let mut world = World::new(u64::MAX, 2);
+    world.tick();
+    world.tick();
+    // The peers have distinct owners, so at least one seed adds a nonzero offset.
+    assert_eq!(world.connections(), 2);
 }

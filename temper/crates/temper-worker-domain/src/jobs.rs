@@ -162,6 +162,7 @@ pub(crate) fn run(
                 command: spec.command,
                 request: spec.request,
                 refusal: spec.refusal,
+                outdated: spec.outdated,
                 hooks: tooling::Hooks::new(spec.fallback, ceiling),
             },
             deadline,

@@ -50,6 +50,7 @@ fn one_content_drain_empties_the_root_beyond_the_service_fact_allowance() {
         domain::Event::Below(smith_domain::Below::Completed {
             owner: completion.expect("provider request"),
             completion: domain::llm::Completion {
+                served: smith_domain::llm::ServedSpeed::Unreported,
                 reasoning_dropped: Box::default(),
                 content: Box::new([
                     domain::llm::Said::Text { text: b"one".as_slice().into(), replay: None },

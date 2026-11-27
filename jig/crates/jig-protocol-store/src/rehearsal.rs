@@ -223,7 +223,7 @@ fn refused(store: &mut Store, why: OpenRefusal, above: &mut Queue<Event>) {
     open::refuse(store, owner, why, above);
 }
 
-/// Read the source's last wires from its scratch copy, before any checks or patches.
+/// Read the source's last wires from its scratch copy, before any checks or jobs.
 pub(crate) fn announce(store: &mut Store, above: &mut Queue<Event>) {
     let Some(state) = &mut store.rehearsal else { return };
     if state.announced {
@@ -259,14 +259,10 @@ pub(crate) fn records(store: &mut Store, owner: Token, above: &mut Queue<Event>)
         above.push(Event::Decoded { owner, records });
         return true;
     }
-    let Some(mut walk) = frames::Walk::new(store, decoder, records) else {
+    let Some(walk) = frames::Walk::new(store, decoder, records) else {
         above.push(Event::Decoded { owner, records });
         return true;
     };
-    if let Err(why) = walk.seed(store) {
-        open::refuse(store, owner, why, above);
-        return false;
-    }
     state(store).frames = Some(Box::new(walk));
     false
 }

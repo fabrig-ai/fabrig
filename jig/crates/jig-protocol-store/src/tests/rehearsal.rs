@@ -164,13 +164,13 @@ fn openings_matches_whole_rows_and_self_closes_without_copying_task_logs() {
 }
 
 #[test]
-fn openings_links_the_same_files_as_a_patch() {
+fn openings_links_the_same_files_as_an_upgrade() {
     let mut items = source().items();
-    // Compare their common reach: patches also link task logs, which Openings skips.
+    // Compare their common reach: upgrades also link task logs, which Openings skips.
     items.retain(|item| !item.path.starts_with(b"generations/1/store/logs"));
-    let mut patch = Disk::new(&items);
+    let mut upgrade = Disk::new(&items);
     assert_eq!(
-        super::operations::copy(&mut patch, 1, fixtures::store_limits().store.chunk),
+        super::operations::copy(&mut upgrade, 1, fixtures::store_limits().store.chunk),
         crate::generations::Progress::Done
     );
     for refused in [false, true] {
@@ -201,7 +201,7 @@ fn openings_links_the_same_files_as_a_patch() {
             "scratch recovered the rows"
         );
         // Link requests include the refused attempt; only the reported counts change.
-        assert_eq!(disk.linked(), patch.linked());
+        assert_eq!(disk.linked(), upgrade.linked());
         assert_eq!(disk.contents(), before, "recovery, fallback and close leave the source unchanged");
     }
 }

@@ -46,6 +46,7 @@ fn prepared(job: Option<JobKind>) -> (Harness, Token, Box<[Request]>) {
                 command: b"app/check".as_slice().into(),
                 request: Box::new([]),
                 refusal: false,
+                outdated: false,
                 fallback: None,
             }),
         },
@@ -78,6 +79,7 @@ fn prepared(job: Option<JobKind>) -> (Harness, Token, Box<[Request]>) {
                     | Op::Create { .. }
                     | Op::CheckOut { .. } => Done::Succeeded,
                     Op::IsAncestor { .. }
+                    | Op::Message { .. }
                     | Op::Brings { .. }
                     | Op::DiffPaths { .. }
                     | Op::Merge { .. }

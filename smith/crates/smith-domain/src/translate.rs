@@ -446,6 +446,12 @@ const fn completion_phase(phase: llm::CompletionPhase) -> run::CompletionPhase {
     }
 }
 
+/// Copy the charter's selected speed to the session's own accounting vocabulary.
+pub(crate) fn speed(source: Option<&run::charter::Speed>) -> Option<session::record::Speed> {
+    let source = source?;
+    Some(session::record::Speed { name: source.name.clone(), also: source.also.clone(), prices: prices(source.prices) })
+}
+
 /// Copy a model's resolved integer rates to its session's accounting.
 pub(crate) const fn prices(source: run::Prices) -> session::record::Prices {
     session::record::Prices {

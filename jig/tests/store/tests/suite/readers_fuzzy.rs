@@ -10,7 +10,11 @@ use jig_protocol_store::{Restore, Row, Write, keys, restore::Item};
 use jig_store_world::{World, root};
 use skein_lib::{Queue, Rng};
 use skein_lib::{Token, Wall};
-use std::collections::BTreeMap;
+use skein_world::{
+    sweep::{Case, cases},
+    this_test,
+};
+use std::{collections::BTreeMap, convert::Infallible};
 
 // Each page must hold the two-byte application key and largest 32-byte value.
 const APPLICATION_BYTES: u64 = 34;
@@ -19,11 +23,12 @@ const SEEDS: u64 = 32;
 const RECORDS: u64 = 20;
 
 #[test]
-fn seeded_pages_match_committed_application_rows() {
+fn seeded_pages_match_committed_application_rows() -> Result<(), Case<Infallible>> {
     let limits = root::limits();
-    for seed in 0..SEEDS {
+    cases(this_test!("seeded_pages_match_committed_application_rows"), 0..SEEDS, |seed| {
         pages_match(seed, &limits);
-    }
+        Ok(())
+    })
 }
 
 fn pages_match(seed: u64, limits: &jig_protocol_store::Limits) {
@@ -99,10 +104,11 @@ fn pages_match(seed: u64, limits: &jig_protocol_store::Limits) {
 /// Mix retained records, summary-only owners and stale indexes, varying the
 /// page boundaries independently (protocol/store/retention.md, 7).
 #[test]
-fn seeded_task_queries_list_summary_only_owners_and_other_reads_are_gone() {
-    for seed in 0..SEEDS {
+fn seeded_task_queries_list_summary_only_owners_and_other_reads_are_gone() -> Result<(), Case<Infallible>> {
+    cases(this_test!("seeded_task_queries_list_summary_only_owners_and_other_reads_are_gone"), 0..SEEDS, |seed| {
         summary_queries(seed);
-    }
+        Ok(())
+    })
 }
 
 fn summary_owners(
@@ -125,7 +131,7 @@ fn summary_owners(
         task.ended_at = Some(Wall::from_nanos(rng.below(10)));
         let summary = tasks::TaskSummary::of(&task);
         let env = stand.env();
-        match (number + seed) % 3 {
+        match (number + seed % 3) % 3 {
             0 => {
                 expected.insert(
                     number,

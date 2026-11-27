@@ -34,6 +34,7 @@ pub(crate) fn drawn(turn: &Turn) -> Option<(u32, &[Box<[u8]>])> {
             | Line::Pieces { .. }
             | Line::Text { .. }
             | Line::Opaque { .. }
+            | Line::Served { .. }
             | Line::Call { .. },
         )
         | None => None,

@@ -65,6 +65,7 @@ pub(crate) fn query_bounded(prompt: agent::Prompt, tickets: &Tickets, maximum: u
         protocol_allowance: _,
         model,
         effort: _,
+        speed: _,
         system,
         tools,
         namespace,
@@ -191,7 +192,13 @@ fn completion(
         reasoning_tokens: reasoning,
     };
     let content = answer.parts.into_iter().map(|part| block(part, tickets, opener, served, decoder)).collect();
-    agent::Completion { reasoning_dropped: Box::default(), content, stop, usage }
+    agent::Completion {
+        served: smith_domain::llm::ServedSpeed::Unreported,
+        reasoning_dropped: Box::default(),
+        content,
+        stop,
+        usage,
+    }
 }
 
 fn block(

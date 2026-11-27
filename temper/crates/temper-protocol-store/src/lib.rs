@@ -13,8 +13,8 @@ pub mod generated {
     pub mod store;
 }
 mod lowering;
-mod patch_set;
-pub use patch_set::{OWNER_SET, introduced_branch_writes};
+mod owner_set;
+pub use owner_set::{OWNER_SET, introduced_branch_writes};
 
 use alloc::boxed::Box;
 pub mod jobs;

@@ -109,7 +109,7 @@ pub(crate) const BOX: Command = Command {
     notes: "Without --front, the box runs with no TUI, in a terminal or not. With --front, its local link goes to fd 3, its lines to fd 4 and stdin's end stops it; it writes nothing on its terminal. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.",
 };
 
-const COMMANDS: [Command; 33] = [
+const COMMANDS: [Command; 34] = [
     BOX,
     Command {
         reach: Reach::Words(&["init"]),
@@ -143,9 +143,11 @@ Refused unchanged if the configuration directory holds a current or former confi
             &environment::XDG_RUNTIME_DIR,
             &environment::JOB,
             &environment::CLOSE_REFUSAL,
+            &environment::CLOSE_OUTDATED,
         ],
         notes: "Its stdout carries only sign-in links, one a line; its stderr, its startup notes and the reason of a failure. A first termination signal settles the engine's forge writes and drains it; a second aborts. Exit 0 after a drained stop, 1 on a refused start or any failure.",
     },
+    temper_service_shell::config_upgrade::COMMAND,
     temper_worker_shell::PROGRAM_LOGIN,
     HELP,
     temper_engine_shell::commands::VERSIONS,
@@ -221,6 +223,7 @@ Refused unchanged if the configuration directory holds a current or former confi
             &environment::XDG_RUNTIME_DIR,
             &environment::JOB,
             &environment::CLOSE_REFUSAL,
+            &environment::CLOSE_OUTDATED,
         ],
         notes: "",
     },

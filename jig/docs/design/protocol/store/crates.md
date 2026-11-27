@@ -83,7 +83,7 @@ From the crate's history, `temper/docs/design/draft/archive/crate-graph.md`, 5.2
 - **The rest is one state machine.** Every other module of the crate but nine takes the component's
   state, `Store`, or the methods its modules add to it, which `temper/docs/design/draft/archive/crate-graph.md`, 5.2's fourth rule
   keeps whole. The nine that don't (`boundary`, `keys`, `intervals`, `format`, `ended`, `owners`,
-  `patch_set`, `generations` and the layouts' glue, about 4,400 lines) name the owner sets, the jobs'
+  `owner_set`, `generations` and the layouts' glue, about 4,400 lines) name the owner sets, the jobs'
   types and the restore's failures, which sit beside `Store`'s methods. A boundary piece below the
   component is Later (section 7).
 - **The tests go with the code they test** (`temper/docs/design/draft/archive/crate-graph.md`, 5.2): the translation's tests with it,
@@ -216,7 +216,7 @@ each stage a `#[cfg(test)]` module of the crate's root, in one change beside sec
 
 ### 4.4 Data and paths
 
-- **The records' owner stays** `jig-protocol-store`: its `schema/`, the patch set that embeds the
+- **The records' owner stays** `jig-protocol-store`: its `schema/`, the owner set that embeds the
   schemas, `jig/tests/codec-families.rs`' entries and the store codecs world's reads of them stay
   with the owner (`tools/crates/design.md`, 3.2). Codec tests build fixed-rule values from embedded
   schema texts or build generated records by their public fields; the store and test connector

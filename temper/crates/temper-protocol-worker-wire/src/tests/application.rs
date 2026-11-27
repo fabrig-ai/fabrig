@@ -40,6 +40,7 @@ fn payloads() -> [(Carried, &'static str, Box<[u8]>); 8] {
                 command: b"tool".as_slice().into(),
                 request: b"{}".as_slice().into(),
                 refusal: false,
+                outdated: true,
                 find: false,
                 fallback: Box::new([]),
             }
@@ -171,7 +172,7 @@ fn an_older_worker_cannot_keep_a_jobs_refusal_or_find_ask() {
     use skein_codec::{layout::Mode, schema::parse};
     let engine = parse(wire::TEXT.as_bytes()).unwrap();
     let previous = before_hook_fields();
-    let before_refusal = previous.replace(" refusal: bool = false", "");
+    let before_refusal = previous.replace(" refusal: bool = false droppable outdated: bool = false", "");
     let limits = fixtures::limits();
     let root = Nested::Carried(Carried::JobSpec);
     for (text, refused, kept, find) in [
@@ -195,6 +196,7 @@ fn an_older_worker_cannot_keep_a_jobs_refusal_or_find_ask() {
             command: b"tool".as_slice().into(),
             request: b"{}".as_slice().into(),
             refusal: true,
+            outdated: false,
             find,
             fallback: Box::new([]),
         };
@@ -214,6 +216,50 @@ fn an_older_worker_cannot_keep_a_jobs_refusal_or_find_ask() {
         assert_eq!(v1::JobSpec::decode(&limits, &mut reader).unwrap(), value);
         assert!(reader.is_empty());
     }
+}
+
+/// temper/docs/design/protocol/wires.md, 8: an older worker may drop the outdated ask, not refusal.
+#[test]
+fn an_older_worker_keeps_a_close_by_dropping_its_outdated_ask() {
+    use jig_protocol_worker_wire::layouts::Nested;
+    use skein_codec::{
+        layout::Mode,
+        schema::{FieldIx, Shape, parse},
+        value::Value,
+    };
+    let engine = parse(wire::TEXT.as_bytes()).unwrap();
+    let text = wire::TEXT.replace(" droppable outdated: bool = false", "");
+    let worker = parse(text.as_bytes()).unwrap();
+    let mut peer = peer(&worker);
+    assert!(!peer.same(), "the worker's layout must lack the outdated ask");
+
+    let limits = fixtures::limits();
+    let value = v1::JobSpec {
+        command: b"tool".as_slice().into(),
+        request: b"{}".as_slice().into(),
+        refusal: true,
+        outdated: true,
+        find: true,
+        fallback: b"app/close".as_slice().into(),
+    };
+    let bytes = value.encode(&limits).unwrap();
+    let mut out = skein_lib::Buffer::with_capacity(1024);
+    peer.down(Nested::Carried(Carried::JobSpec), &bytes, &mut out).expect("old workers keep the close");
+    let declaration = worker.find(b"JobSpec").unwrap();
+    let Shape::Record { first, count: 5, .. } = worker.declaration(declaration).shape else {
+        panic!("JobSpec without outdated");
+    };
+    let refusal = FieldIx::new(first.index().checked_add(2).unwrap());
+    assert_eq!(worker.spelled(worker.field(refusal).name), b"refusal");
+    let mut decoded = Value::with_room(6);
+    let record = decoded.decode(&worker, declaration, out.to_boxed()).expect("the old JobSpec decodes");
+    assert_eq!(decoded.boolean(decoded.field(record, refusal).unwrap()), Ok(true));
+
+    let current = transcode(Mode::Read, &worker, &engine, "JobSpec", decoded.bytes());
+    let mut reader = skein_lib::Reader::new(&current);
+    let kept = v1::JobSpec::decode(&limits, &mut reader).unwrap();
+    assert!(reader.is_empty());
+    assert_eq!(kept, v1::JobSpec { outdated: false, ..value });
 }
 
 #[test]

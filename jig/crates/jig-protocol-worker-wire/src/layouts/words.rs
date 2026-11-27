@@ -41,14 +41,32 @@ pub(super) fn hex(layout: &[u8; 32]) -> Box<[u8]> {
     out.finish()
 }
 
-pub(super) fn kept(wire: &str, declaration: &str, part: &str, cause: Cause) -> Box<[u8]> {
+pub(super) fn kept(wire: &str, declaration: &str, part: &str, cause: &Cause) -> Box<[u8]> {
     value(b"the worker's layout cannot keep ", wire, declaration, part, cause)
 }
 
-pub(super) fn value(prefix: &[u8], wire: &str, declaration: &str, part: &str, cause: Cause) -> Box<[u8]> {
+pub(super) fn value(prefix: &[u8], wire: &str, declaration: &str, part: &str, cause: &Cause) -> Box<[u8]> {
     let dot = if part.is_empty() { b"".as_slice() } else { b"." };
+    let (value, space) = if let Cause::Written { value, .. } = cause
+        && value.as_ref() != declaration
+    {
+        (value.as_bytes(), b" ".as_slice())
+    } else {
+        (b"".as_slice(), b"".as_slice())
+    };
     join(
-        &[prefix, wire.as_bytes(), b" ", declaration.as_bytes(), dot, part.as_bytes(), b": ", cause.words()],
+        &[
+            prefix,
+            wire.as_bytes(),
+            b" ",
+            value,
+            space,
+            declaration.as_bytes(),
+            dot,
+            part.as_bytes(),
+            b": ",
+            cause.words(),
+        ],
         usize::MAX,
     )
 }

@@ -3,10 +3,15 @@ use jig_ops_domain_observability as obs;
 use jig_ops_fake_production as production;
 use jig_ops_world::{InfrastructureWorld, World, infra_environment, infra_service, service};
 use skein_lib::Token;
+use skein_world::{sweep::cases, this_test};
+
+fn history_size(seed: u64) -> u32 {
+    u32::try_from((seed % 65) * 10).expect("history holds at most 640 rows")
+}
 
 fn observability(seed: u64) -> (Vec<obs::Request>, Vec<production::ObservedEffect>, u64) {
     let mut world = World::new(0);
-    world.production.preload_history(u32::try_from(seed * 10).expect("seed fits"));
+    world.production.preload_history(history_size(seed));
     world.event(obs::Event::Subscribe { task: 8, topic: obs::Topic::Alerts(service()), wake_at: 6, keep_at: 2 });
     world.event(obs::Event::Describe {
         token: Token::new(1),
@@ -50,7 +55,7 @@ fn observability(seed: u64) -> (Vec<obs::Request>, Vec<production::ObservedEffec
 fn infrastructure(seed: u64) -> (Vec<infra::Request>, Vec<production::ObservedEffect>, u64) {
     let backend = if seed.is_multiple_of(2) { infra::Backend::OperationIds } else { infra::Backend::NoOperationIds };
     let mut world = InfrastructureWorld::new(0, backend);
-    world.production.preload_history(u32::try_from(seed * 10).expect("seed fits"));
+    world.production.preload_history(history_size(seed));
     let effect = match seed % 4 {
         0 => infra::Effect::Restart { service: infra_service(), operation: seed },
         1 => infra::Effect::Scale { service: infra_service(), from: 3, to: 4 },
@@ -103,14 +108,18 @@ fn infrastructure(seed: u64) -> (Vec<infra::Request>, Vec<production::ObservedEf
 
 #[test]
 fn observability_replays_drawn_faults_and_restart_cuts() {
-    for seed in 1..=64 {
+    cases(this_test!("observability_replays_drawn_faults_and_restart_cuts"), 1..=64, |seed| -> Result<(), String> {
         assert_eq!(observability(seed), observability(seed), "seed {seed}");
-    }
+        Ok(())
+    })
+    .expect("observability connector sweep");
 }
 
 #[test]
 fn infrastructure_replays_drawn_faults_and_restart_cuts() {
-    for seed in 1..=64 {
+    cases(this_test!("infrastructure_replays_drawn_faults_and_restart_cuts"), 1..=64, |seed| -> Result<(), String> {
         assert_eq!(infrastructure(seed), infrastructure(seed), "seed {seed}");
-    }
+        Ok(())
+    })
+    .expect("infrastructure connector sweep");
 }

@@ -888,11 +888,12 @@ fn project_values_refuse_missing_unknown_and_wrong_members() {
     }
 }
 
+const MODEL_SETTING: &[u8] = br#"{"kind":"model","number":4}"#;
+const MODEL_VALUE: &[u8] = br#"{"number":4,"model":{"provider":2,"dialect":1,"endpoint":3,"program":null,"name":"gpt-6.1-terra","window":131072,"output":8192,"input_price":3,"cached_price":1,"cache_write_price":null,"output_price":12,"price_unit":1000000,"efforts":["high"],"effort":"high"},"shown":"GPT-6.1 Terra","description":"For careful work","picker":false,"withdrawn":false,"source":"stock","estimated":false}"#;
+
 #[test]
 fn the_settings_form_round_trips_a_model() {
-    const SETTING: &[u8] = br#"{"kind":"model","number":4}"#;
-    const MODEL: &[u8] = br#"{"number":4,"model":{"provider":2,"dialect":1,"endpoint":3,"program":null,"name":"gpt-6.1-terra","window":131072,"output":8192,"input_price":3,"cached_price":1,"cache_write_price":null,"output_price":12,"price_unit":1000000,"efforts":["high"],"effort":"high"},"shown":"GPT-6.1 Terra","description":"For careful work","picker":false,"withdrawn":false,"source":"stock","estimated":false}"#;
-    let bytes = kind_file(SETTING, MODEL);
+    let bytes = kind_file(MODEL_SETTING, MODEL_VALUE);
     let items = file::decode(&bytes, &Limits::standard()).expect("whole model file");
     let item = items.get(0).expect("model item");
     assert_eq!(item.setting, c::Setting::Model(c::SettingNumber { number: 4 }));
@@ -900,6 +901,8 @@ fn the_settings_form_round_trips_a_model() {
     let c::SettingValue::Model(model) = &set.value else { panic!("model value") };
     assert_eq!(model.shown.as_ref().expect("shown name").bytes(), b"GPT-6.1 Terra");
     assert_eq!(model.model.input_price, 3);
+    assert!(model.model.speeds.is_empty());
+    assert_eq!(model.model.speed, None);
     assert!(!model.picker);
     let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
         overlay: None,
@@ -909,14 +912,17 @@ fn the_settings_form_round_trips_a_model() {
         application: None,
         proposed: None,
     }));
-    assert_eq!(shown(&document), joined(&[br#"{"setting":"#, SETTING, br#","revision":2,"value":"#, MODEL, b"}"]));
+    assert_eq!(
+        shown(&document),
+        joined(&[br#"{"setting":"#, MODEL_SETTING, br#","revision":2,"value":"#, MODEL_VALUE, b"}"])
+    );
     assert_eq!(
         file::proposal_items(
             &joined(&[
                 br#"{"against":1,"reason":"New prices", "items":[{"setting":"#,
-                SETTING,
+                MODEL_SETTING,
                 br#","set":"#,
-                MODEL,
+                MODEL_VALUE,
                 b"}]}"
             ]),
             &Limits::standard()
@@ -924,6 +930,58 @@ fn the_settings_form_round_trips_a_model() {
         .expect("inline proposal"),
         items
     );
+}
+
+#[test]
+fn the_settings_form_round_trips_declared_speeds_and_the_default() {
+    const SPEEDS: &[u8] = br#""speeds":[{"name":"fast","also":["priority"],"input_price":4000,"cached_price":200,"cache_write_price":5000,"output_price":20000},{"name":"ultrafast","also":null,"input_price":12000,"cached_price":600,"cache_write_price":15000,"output_price":60000},{"name":"turbo","input_price":20000,"cached_price":900,"output_price":90000}],"speed":"ultrafast""#;
+    let after_model = br#"},"shown":"GPT-6.1 Terra","description":"For careful work","picker":false,"withdrawn":false,"source":"stock","estimated":false}"#;
+    let prefix = MODEL_VALUE.strip_suffix(after_model).unwrap();
+    let value = joined(&[prefix, b",", SPEEDS, after_model]);
+    let limits = Limits::standard();
+    let items = file::decode(&kind_file(MODEL_SETTING, &value), &limits).unwrap();
+    let item = items.get(0).unwrap();
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("model set") };
+    let c::SettingValue::Model(model) = &set.value else { panic!("model value") };
+    let [fast, ultrafast, turbo] = model.model.speeds.as_slice() else { panic!("three speeds") };
+    assert_eq!(fast.name.bytes(), b"fast");
+    assert_eq!(fast.also.get(0).unwrap().bytes(), b"priority");
+    assert_eq!(
+        (fast.input_price, fast.cached_price, fast.cache_write_price, fast.output_price),
+        (4000, 200, Some(5000), 20_000)
+    );
+    assert_eq!(ultrafast.name.bytes(), b"ultrafast");
+    assert!(ultrafast.also.is_empty());
+    assert_eq!(
+        (ultrafast.input_price, ultrafast.cached_price, ultrafast.cache_write_price, ultrafast.output_price),
+        (12_000, 600, Some(15_000), 60_000)
+    );
+    assert_eq!(turbo.name.bytes(), b"turbo");
+    assert!(turbo.also.is_empty());
+    assert_eq!(turbo.cache_write_price, None);
+    assert_eq!(model.model.speed.as_ref().unwrap().bytes(), b"ultrafast");
+    let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
+        setting: item.setting,
+        revision: 2,
+        value: Some(set.value.clone()),
+        application: None,
+        proposed: None,
+    }));
+    let printed = shown(&document);
+    let prefix = joined(&[br#"{"setting":"#, MODEL_SETTING, br#","revision":2,"value":"#]);
+    let value = printed.strip_prefix(prefix.as_ref()).unwrap().strip_suffix(b"}").unwrap();
+    assert_eq!(file::decode(&kind_file(MODEL_SETTING, value), &limits).unwrap(), items);
+    let proposal = joined(&[
+        br#"{"against":1,"reason":"New speeds","items":[{"setting":"#,
+        MODEL_SETTING,
+        br#","set":"#,
+        value,
+        b"}]}",
+    ]);
+    assert_eq!(file::proposal_items(&proposal, &limits).unwrap(), items);
+    let wire = crate::wire::settings_wire_setting_model(&model.model);
+    assert_eq!(crate::wire::settings_restore_setting_model(&wire).unwrap(), model.model);
 }
 
 #[test]

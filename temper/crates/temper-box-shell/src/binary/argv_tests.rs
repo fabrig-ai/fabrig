@@ -1,5 +1,7 @@
 use super::{Capture, Command, ExitCode, TABLE, dispatch_routed, dispatch_with, front_pipes};
 use skein_io::kernel::Fd;
+use std::path::Path;
+use temper_config_shell::{FILE, FORMER, File, Shape};
 
 const VERSION: &str = "0.0.0";
 const COMMIT: &str = "0123456789ab";
@@ -44,6 +46,7 @@ fn help(text: &str) -> bool {
             == [
                 "init",
                 "serve",
+                "config",
                 "program-login",
                 "help",
                 "versions",
@@ -139,6 +142,12 @@ const ROWS: &[Case] = &[
     (&["frobnicate"], 2, empty, "temper-box: no command frobnicate; temper-box --help lists them\n"),
     (&["init", "extra"], 2, empty, "temper-box init: invalid arguments\nusage: temper-box init [DIRECTORIES]\n"),
     (
+        &["config", "upgrade", "extra"],
+        2,
+        empty,
+        "temper-box config upgrade: invalid arguments\nusage: temper-box config upgrade [DIRECTORIES]\n",
+    ),
+    (
         &["upgrade", "--check"],
         2,
         empty,
@@ -172,6 +181,68 @@ fn reply(words: &[&str]) -> (ExitCode, String, String) {
         Err((code, stderr)) => (ExitCode::from(code), stderr),
     };
     (exit, stdout, stderr)
+}
+
+fn config_reply(root: &Path, words: &[&str]) -> (ExitCode, String, String) {
+    let mut words = words.to_vec();
+    words.extend(["--config", "config", "--data", "data", "--cache", "cache"]);
+    let capture = Capture { working: Ok(root.into()), ..captured(&words) };
+    let mut stdout = String::new();
+    let result = dispatch_with(
+        &capture,
+        VERSION,
+        COMMIT,
+        |text| panic!("unexpected help: {text}"),
+        |command, working| {
+            crate::run_with_stdout(command, &capture.environment, working, &capture.run_as, VERSION, COMMIT, |text| {
+                stdout.push_str(text);
+            })
+        },
+    );
+    match result {
+        Ok(exit) => (exit, stdout, String::new()),
+        Err((code, stderr)) => (ExitCode::from(code), stdout, stderr),
+    }
+}
+
+const CONFIG_SOURCE: &[u8] = b"# mine\nlisten = '127.0.0.1:7100'\n";
+
+#[test]
+fn config_upgrade_prints_render_without_writing() {
+    let scratch = skein_scratch::Scratch::new("box-config-upgrade");
+    let config = scratch.path().join("config");
+    std::fs::create_dir(&config).expect("config directory");
+    let path = config.join(FILE);
+    std::fs::write(&path, CONFIG_SOURCE).expect("input file");
+    let file = File { listen: Some("127.0.0.1:7100".parse().expect("listen address")), ..File::default() };
+
+    let (exit, stdout, stderr) = config_reply(scratch.path(), &["config", "upgrade"]);
+    assert_eq!(exit, ExitCode::SUCCESS, "{stderr}");
+    assert_eq!(stdout.as_bytes(), temper_config_shell::render(&file, Shape::Standalone).as_ref());
+    assert!(stderr.is_empty(), "{stderr}");
+    assert_eq!(std::fs::read(&path).expect("original file"), CONFIG_SOURCE);
+    assert_eq!(std::fs::read_dir(&config).expect("config entries").count(), 1, "only the original file remains");
+    assert_eq!(std::fs::read_dir(scratch.path()).expect("root entries").count(), 1, "only config exists");
+}
+
+#[test]
+fn config_upgrade_refusals_match_the_checkpoint_read() {
+    let cases: &[&[(&str, &[u8])]] =
+        &[&[(FILE, CONFIG_SOURCE), (FORMER, b"not read")], &[], &[(FILE, b"alpha = 1\nbeta = 2\n")]];
+    for files in cases {
+        let scratch = skein_scratch::Scratch::new("box-config-upgrade-refusal");
+        let config = scratch.path().join("config");
+        std::fs::create_dir(&config).expect("config directory");
+        for (name, source) in *files {
+            std::fs::write(config.join(name), source).expect("input file");
+        }
+        let (checkpoint, _, refusal) = config_reply(scratch.path(), &["checkpoint"]);
+        let (exit, stdout, stderr) = config_reply(scratch.path(), &["config", "upgrade"]);
+        assert_eq!(checkpoint, ExitCode::from(1), "{refusal}");
+        assert_eq!(exit, ExitCode::from(1), "{stderr}");
+        assert!(stdout.is_empty(), "{stdout}");
+        assert_eq!(stderr, refusal.replace("temper-box checkpoint:", "temper-box config upgrade:"));
+    }
 }
 
 #[test]

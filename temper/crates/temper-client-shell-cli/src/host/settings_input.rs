@@ -1,5 +1,5 @@
 //! External settings files and their directory sets (client/ctl/overlays.md, 2).
-use super::{OneShot, Parsed};
+use super::{OneShot, Parsed, root};
 use settings_form::overlay;
 use temper_client_tools::jig::{
     self,
@@ -11,7 +11,7 @@ pub(super) struct SettingsInput {
     file: SettingsFile,
 }
 pub(super) fn settings(call: &Call) -> bool {
-    matches!(call.tool, jig::rows::CHANGE_SETTINGS_AT | jig::rows::PROPOSE_SETTINGS_AT)
+    matches!(call.tool, jig::rows::CHANGE_SETTINGS_AT | jig::rows::PROPOSE_SETTINGS_AT | jig::rows::UPGRADE_SETTINGS_AT)
 }
 fn values(call: &Call) -> &[Value] {
     match call.values.first().and_then(Option::as_ref) {
@@ -35,7 +35,32 @@ impl OneShot {
                 self.read_input();
             }
             Some(_) => unreachable!("external input"),
+            None if call.tool == jig::rows::UPGRADE_SETTINGS_AT => {
+                let Some(Parsed::Call { call, json }) = self.call.take() else { unreachable!("settings upgrade") };
+                self.preparing = false;
+                root::step(
+                    &mut self.root,
+                    &self.root_env,
+                    root::Event::Call { number: 1, call, json, value: None },
+                    &mut self.requests,
+                );
+                self.root_requests();
+            }
             None => {
+                // `--call` can carry the file's bytes instead of its path.
+                for value in values(call) {
+                    if let Value::Text(bytes) = value {
+                        let input = match jig::settings_file::inspect(bytes, &self.root_env.limits.tools) {
+                            Ok(input) => input,
+                            Err(why) => {
+                                self.settings_fail(b"-", &why);
+                                return;
+                            }
+                        };
+                        append_notices(&mut self.settings_notices, b"-", values(call).len() > 1, &input.notices);
+                    }
+                }
+                self.output.push(true, core::mem::take(&mut self.settings_notices).into_boxed_slice());
                 self.directory.start(self.class);
                 self.preparing = false;
             }
@@ -46,11 +71,17 @@ impl OneShot {
     }
     pub(super) fn settings_input_bytes(&mut self, bytes: Box<[u8]>) {
         let Some(Parsed::Call { call, .. }) = &self.call else { unreachable!("settings call") };
+        if call.tool == jig::rows::UPGRADE_SETTINGS_AT {
+            let Some(Parsed::Call { call, .. }) = &mut self.call else { unreachable!("settings upgrade") };
+            *call.values.first_mut().expect("file slot") = Some(Values::One(Value::Text(bytes)));
+            self.start_settings_input();
+            return;
+        }
         let (position, source) = pending(call).expect("pending file");
         let stdin = *source == Value::Stdin;
         let name = if let Value::File(name) = source { name.clone() } else { b"-".as_slice().into() };
         let limits = &self.root_env.limits.tools;
-        let directories = match jig::settings_file::directories(&bytes, limits) {
+        let input = match jig::settings_file::inspect(&bytes, limits) {
             Ok(items) => items,
             Err(why) => {
                 self.settings_fail(&name, &why);
@@ -58,7 +89,7 @@ impl OneShot {
             }
         };
         if stdin {
-            for directory in &directories {
+            for directory in &input.directories {
                 if !directory.path.starts_with(b"/") {
                     let why = overlay::refusal(
                         directory,
@@ -71,11 +102,12 @@ impl OneShot {
         }
         let remaining =
             u32::try_from(limits.ask_bytes).expect("input bound") - u32::try_from(bytes.len()).expect("file bounded");
+        append_notices(&mut self.settings_notices, &name, values(call).len() > 1, &input.notices);
         self.settings_input = Some(SettingsInput {
             position,
             file: SettingsFile { name, bytes, directories: skein_lib::List::with_capacity(0) },
         });
-        self.directory.load_sets(directories, remaining, stdin);
+        self.directory.load_sets(input.directories, remaining, stdin);
     }
     pub(super) fn finish_settings_input(&mut self) -> bool {
         let Some(directories) = self.directory.loaded_sets.take() else { return false };
@@ -98,5 +130,16 @@ impl OneShot {
         } else {
             self.fail(why);
         }
+    }
+}
+
+fn append_notices(out: &mut Vec<u8>, name: &[u8], named: bool, notices: &skein_lib::List<Box<[u8]>>) {
+    for notice in notices {
+        if named {
+            out.extend_from_slice(&jig::settings_file::named_refusal(name, notice));
+        } else {
+            out.extend_from_slice(notice);
+        }
+        out.push(b'\n');
     }
 }

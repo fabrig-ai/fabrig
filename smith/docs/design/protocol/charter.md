@@ -130,6 +130,27 @@ A versioned record (skein's `data/codec/README.md`, section 3):
     for, any within its bound; without it, the provider's default. It is fixed for the
     conversation's life and may differ in the next activation
     (domain/session.md, section 3);
+  - **`speed`,** optional: the speed its completions ask the provider to
+    serve them at, where its writer gives one: its name, as the provider
+    takes it, 1 to 32 bytes of lower-case letters, digits, `-` and `_`;
+    at most two other such names (`also`) the provider may report it
+    served under, as OpenAI reports Fast as `priority`; and its prices,
+    of the same form as the LLM's below, which price a completion it
+    serves (domain/session.md, section 6). Without it, the provider's
+    default speed, at the LLM's prices: a charter that gives none is the
+    charter of before speeds. Every completion of the LLM, main's or a
+    sub-agent's, compaction included, asks for it, for the
+    conversation's life, as for `effort` (skein's `llm/wire.md`, 1.7
+    and 1.8). On Claude Code's program it is `fast` or none
+    (programs-claude-code.md, 1.1), and on another program none: any
+    other is an invalid start, naming the speed and the program in the
+    agent's refusal (the channel's `llm`, which carries no names, as for
+    an output above its declaration below). A rate
+    or unit of zero is refused at the entrance, as the LLM's are. An
+    agent whose layout has no `speed` is never sent one: the engine's
+    conversion refuses that charter for it, and the run waits for a
+    worker on a build that has it (jig's `protocol/channel/layouts.md`,
+    5.1);
   - **`window`:** its usable input tokens, the most one prompt may hold,
     with a completion's output beside it (limits.md, 2.1). The session
     compacts its conversation before a prompt would pass it

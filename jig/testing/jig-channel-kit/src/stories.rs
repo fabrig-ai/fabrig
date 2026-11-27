@@ -144,7 +144,6 @@ pub enum Opening {
     Figures,
     Secret,
     Family,
-    Version,
     Wires,
     Terms,
     Garbage,

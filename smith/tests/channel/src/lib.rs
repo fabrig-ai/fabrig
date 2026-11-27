@@ -7,7 +7,7 @@ use std::collections::VecDeque;
 
 pub mod fixture;
 
-use skein_channel::{Closed, Control, Lower, LowerEvent, StreamMode, control_frame};
+use skein_channel::{Closed, Lower, LowerEvent, StreamMode};
 use skein_lib::stream::{self, OutputOutcome};
 use skein_lib::{Queue, Token};
 use smith_host_protocol as host;
@@ -530,8 +530,7 @@ pub fn test_endpoints() -> smith_protocol_translate::Endpoints {
 
 fn channel_limits(bodies: smith_channel::Limits) -> skein_channel::Limits {
     let schema = smith_channel::schema(&bodies).expect("bounded bodies");
-    let version = schema.version(smith_channel::kind::VERSION).expect("v7");
-    let largest = version.kinds.iter().map(|kind| kind.largest).max().expect("kinds");
+    let largest = schema.kinds.iter().map(|kind| kind.largest).max().expect("kinds");
     skein_channel::Limits {
         chunk: 4096,
         credential: 0,
@@ -547,7 +546,6 @@ pub struct World {
     host: Peer,
     agent: Peer,
     observed: Vec<Observation>,
-    channel: skein_channel::Limits,
 }
 
 impl World {
@@ -603,7 +601,7 @@ impl World {
             },
             mode,
         );
-        World { host, agent, observed: Vec::new(), channel }
+        World { host, agent, observed: Vec::new() }
     }
 
     /// Open the two halves at the agent fixture's derived deployment bounds.
@@ -621,12 +619,7 @@ impl World {
             fixture_limits
         };
         host_limits.channel.output_bytes = host::output_bytes(&host_limits).expect("host directional frame");
-        World {
-            host: Peer::host(&host_limits, mode),
-            agent: Peer::agent(&limits, mode),
-            observed: Vec::new(),
-            channel: limits.channel,
-        }
+        World { host: Peer::host(&host_limits, mode), agent: Peer::agent(&limits, mode), observed: Vec::new() }
     }
 
     /// Hold future automatic reads without revoking an outstanding demand.
@@ -1278,22 +1271,6 @@ impl World {
         }
     }
 
-    /// Inject a version-one Open to exercise version refusal.
-    pub fn agent_hears_foreign_version(&mut self, version: u16) {
-        let frame = control_frame(
-            &Control::Open {
-                magic: *b"smth",
-                lowest: version,
-                highest: version,
-                features: 0,
-                credential: Box::default(),
-            },
-            &self.channel,
-        )
-        .expect("bounded foreign opening");
-        self.agent.incoming.extend(frame.bytes().iter().copied());
-    }
-
     /// Opening results in wire order.
     #[must_use]
     pub fn observations(&self) -> &[Observation] {
@@ -1372,6 +1349,7 @@ fn smallest_charter() -> Box<[u8]> {
         account: None,
         model: Box::default(),
         effort: None,
+        speed: None,
         window: 0,
         output: 0,
         prices,
@@ -1399,6 +1377,7 @@ mod parts_tests;
 #[cfg(test)]
 mod read_tests {
     use super::*;
+    use skein_channel::{Control, control_frame};
 
     #[test]
     fn channel_controls_continue_the_same_application_read() {
@@ -1407,8 +1386,9 @@ mod read_tests {
         world.settle();
         world.send_start(smallest_charter());
         world.settle();
+        let limits = channel_limits(smith_channel::CEILINGS);
         for control in [Control::Ping, Control::Unsupported { kind: 0x010f }] {
-            let frame = control_frame(&control, &world.channel).expect("bounded channel control");
+            let frame = control_frame(&control, &limits).expect("bounded channel control");
             world.host.incoming.extend(frame.bytes().iter().copied());
         }
         world.agent_admits();

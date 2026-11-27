@@ -358,8 +358,8 @@ pub struct World<B: Backend = Typed> {
     landed: Vec<u8>,
     prompts: Vec<provider::api::Query>,
     completions: Vec<CompletionObservation>,
-    model_prices: BTreeMap<Box<[u8]>, run::Prices>,
-    main_prices: run::Prices,
+    model_prices: BTreeMap<Box<[u8]>, ModelPrices>,
+    main_prices: ModelPrices,
     turns: Vec<agent::Turn>,
     parts: Vec<(Time, u32, u32, agent::session::record::Part)>,
     command_writes: BTreeMap<Vec<u8>, Vec<(Duration, Vec<u8>)>>,
@@ -531,11 +531,11 @@ impl<B: Backend> World<B> {
             );
         let within = charter.budget.time.saturating_add(Duration::from_secs(120));
         let config = configuration(settings.endpoint, settings.window, settings.output);
-        let main_prices = charter.llm.prices;
+        let main_prices = ModelPrices::of(&charter.llm);
         let mut model_prices = BTreeMap::new();
-        model_prices.insert(charter.llm.model.clone(), charter.llm.prices);
+        model_prices.insert(charter.llm.model.clone(), main_prices);
         for model in &charter.models {
-            model_prices.insert(model.model.clone(), model.prices);
+            model_prices.insert(model.model.clone(), ModelPrices::of(model));
         }
         let messages_seen = opening_observations(charter, messages);
         let host_run = *host_run;
@@ -1920,7 +1920,7 @@ impl<B: Backend> World<B> {
                 let index = flight.completion_index.expect("completion observation");
                 let prices = self.model_prices.get(&self.completions[index].model).copied().unwrap_or(self.main_prices);
                 let usage = completion.usage;
-                let units = observed_price(prices, usage).unwrap_or(0);
+                let units = observed_price(prices.for_speed(&completion.served), usage).unwrap_or(0);
                 self.observe(Seen::Completed {
                     owner,
                     spent: run::Spend {
@@ -2367,7 +2367,7 @@ pub fn charter(settings: &Settings) -> run::Charter {
 fn copy_answer(answer: &run::Answer) -> run::Answer {
     use run::outcome::Declared;
     match answer {
-        run::Answer::Refused(refusal) => run::Answer::Refused(*refusal),
+        run::Answer::Refused(refusal) => run::Answer::Refused(refusal.clone()),
         run::Answer::Parked { spent, turns } => run::Answer::Parked { spent: *spent, turns: *turns },
         run::Answer::Failed { failure, spent, turns } => {
             run::Answer::Failed { failure: failure.clone(), spent: *spent, turns: *turns }
@@ -2393,6 +2393,25 @@ impl<B: Backend> World<B> {
 }
 
 // Independent outside scalar oracle from caller data and provider counts.
+#[derive(Clone, Copy, Debug)]
+struct ModelPrices {
+    standard: run::Prices,
+    selected: Option<run::Prices>,
+}
+
+impl ModelPrices {
+    fn of(model: &run::charter::Llm) -> Self {
+        Self { standard: model.prices, selected: model.speed.as_ref().map(|speed| speed.prices) }
+    }
+
+    fn for_speed(self, served: &llm::ServedSpeed) -> run::Prices {
+        match served {
+            llm::ServedSpeed::Standard => self.standard,
+            llm::ServedSpeed::Named(_) | llm::ServedSpeed::Unreported => self.selected.unwrap_or(self.standard),
+        }
+    }
+}
+
 fn observed_price(prices: run::Prices, usage: llm::Usage) -> Option<u64> {
     let denominator = u128::from(prices.unit);
     let fresh = u128::from(usage.input_tokens.expect("scripted peer supplies count"));
@@ -2455,6 +2474,7 @@ fn main_model(endpoint: u32, window: u32) -> run::charter::Llm {
     use run::charter::{Endpoint, Llm};
     Llm {
         effort: None,
+        speed: None,
         prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
         account: Some(0),
         endpoint: Endpoint(endpoint),

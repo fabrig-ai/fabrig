@@ -135,6 +135,7 @@ fn charter(settings: &Settings, cue: &[u8], rates: &[Rate]) -> run::Charter {
 
     let model = |rate: Rate| Llm {
         effort: None,
+        speed: None,
         prices: run::Prices {
             input: rate.input,
             cached: rate.cached,

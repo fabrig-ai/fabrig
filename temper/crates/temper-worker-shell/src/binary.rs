@@ -15,11 +15,12 @@ pub const WORKER: Table = Table {
     // The identity is main's (temper/docs/design/cli/README.md, 3).
     version: "",
     commit: "",
-    commands: &[SERVE, PROGRAM_LOGIN, table::HELP],
+    commands: &[SERVE, temper_service_shell::config_upgrade::COMMAND, PROGRAM_LOGIN, table::HELP],
     settings: &[&directories::SETTINGS],
     variables: &[
         &environment::JOB,
         &environment::CLOSE_REFUSAL,
+        &environment::CLOSE_OUTDATED,
         &temper_service_shell::DISK_BUDGET,
         &INTERNAL_WORKSPACE_REUSE,
         &environment::INTERNAL_DUMP_LLM,
@@ -91,8 +92,17 @@ fn run(captured: &Capture, version: &'static str, commit: &'static str) -> Resul
         Reached::Version => Table { version, commit, ..WORKER }.version_line(),
         Reached::CommandHelp(command) => WORKER.command_help(command),
         Reached::Unknown(why) => return Err((2, why)),
-        Reached::Command(command, arguments) if command.reach == Reach::Words(&["help"]) => help(arguments)?,
-        Reached::Command(command, arguments) => return dispatch(command, arguments, captured).map(Reply::Exit),
+        Reached::Command(command, arguments) => match command.reach {
+            Reach::Words(["help"]) => help(arguments)?,
+            Reach::Words(["config", "upgrade"]) => temper_service_shell::config_upgrade::reply(
+                &WORKER,
+                arguments,
+                &captured.environment,
+                captured.working.as_deref().map_err(String::as_str),
+                Shape::WorkerAlone,
+            )?,
+            Reach::Words(_) | Reach::RunAs(_) => return dispatch(command, arguments, captured).map(Reply::Exit),
+        },
     };
     Ok(Reply::Print(text))
 }

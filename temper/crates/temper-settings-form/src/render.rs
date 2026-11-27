@@ -191,7 +191,7 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
     }
     out.object_end();
 }
-fn encode_named_value(setting: c::Setting, value: &c::SettingValue, out: &mut Encoder) {
+pub(crate) fn encode_named_value(setting: c::Setting, value: &c::SettingValue, out: &mut Encoder) {
     let c::Setting::Application { kind, .. } = setting else {
         encode_value(value, out);
         return;

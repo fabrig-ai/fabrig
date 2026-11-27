@@ -6,6 +6,7 @@ from pathlib import Path
 # Tests which read the repository's landed files. Other cases in each binary still run.
 LANDED_CASES = {
     'client_layouts': ('client_versions_are_frozen',),
+    'formats': ('released_format_fixtures_are_frozen',),
     'host_tools': ('host_tool_contract_history_is_kept',),
 }
 

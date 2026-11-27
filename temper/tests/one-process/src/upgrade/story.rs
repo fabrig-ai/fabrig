@@ -192,7 +192,7 @@ impl Observe for Observer {
                     let after = Maps::read(&mut state.disk.as_ref().expect("disk").borrow_mut());
                     let before = state.before.as_ref().expect("stop snapshot");
                     let source = Maps::generation(&mut state.disk.as_ref().expect("disk").borrow_mut(), before.active);
-                    assert_eq!(&source, before, "patching the copy leaves its source generation untouched");
+                    assert_eq!(&source, before, "upgrading the copy leaves its source generation untouched");
                     image::unchanged(
                         &state.before_files,
                         &mut state.disk.as_ref().expect("disk").borrow_mut(),

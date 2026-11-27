@@ -337,7 +337,7 @@ impl Link {
             return;
         };
         if let w::KeyedAnswer::NotServed(value) = &record {
-            self.not_served(value, out);
+            self.not_served(&value.owner, out);
             out.push(Request::Answer {
                 attempt: attempt.token,
                 envelope: RequestEnvelope::Again,
@@ -427,13 +427,10 @@ impl Link {
         }
         let result = match w::ReadAnswer::decode(self.limits.wire(), &mut Reader::new(body)) {
             Ok(w::ReadAnswer::NotServed(value)) => {
-                self.not_served(&value, out);
+                self.not_served(&value.owner, out);
                 out.push(Request::Read {
                     read: attempt.token,
-                    result: Readout::NotServed {
-                        family: translate::envelope::family(&value.owner),
-                        served: translate::envelope::versions(&value),
-                    },
+                    result: Readout::NotServed { family: translate::envelope::family(&value.owner) },
                 });
                 return;
             }
@@ -823,7 +820,7 @@ impl Link {
         match attempt.kind {
             ExchangeKind::WatchOpen { .. } => match w::OpenAnswer::decode(self.limits.wire(), &mut Reader::new(body)) {
                 Ok(w::OpenAnswer::NotServed(value)) => {
-                    self.not_served(&value, out);
+                    self.not_served(&value.owner, out);
                     self.watches.end(attempt.token, jig_client_domain::contract::WatchEnd::NotServed, out);
                 }
                 Ok(w::OpenAnswer::Admitted) => {
@@ -932,9 +929,10 @@ impl Link {
                 Ok(head) => head,
                 Err(problem) => return Err(stream_problem(problem)),
             };
-            let jig = hello::Judgement::at(&head.hello, Some(&head.layouts), None, w::VERSION, w::LAYOUT);
+            let layouts = head.layouts.as_slice();
+            let jig = hello::Judgement::at(layouts, None, w::LAYOUT);
             if !jig.served {
-                return self.hello(&head.hello, Some(&head.layouts), jig, out);
+                return self.hello(&head.hello, layouts, jig, out);
             }
             let document = match w::Owned::read(self.limits.receiving(), &mut reader) {
                 Ok(document) => document,
@@ -943,7 +941,7 @@ impl Link {
             if !reader.is_empty() {
                 return Err(StreamRefusal::Record(crate::Undecodable::Malformed));
             }
-            self.hello(&head.hello, Some(&head.layouts), jig, out)?;
+            self.hello(&head.hello, layouts, jig, out)?;
             if let Err(why) = self.watches.delivery(w::Delivery { watch: 0, document }, &self.limits, out) {
                 return Err(StreamRefusal::Record(why));
             }
@@ -967,11 +965,8 @@ impl Link {
                 if stream.name.is_some() {
                     return Err(StreamRefusal::Order);
                 }
-                let jig = hello::Judgement::at(&hello, None, None, w::VERSION, w::LAYOUT);
-                if jig.served {
-                    return Err(StreamRefusal::Order);
-                }
-                return self.hello(&hello, None, jig, out);
+                let jig = hello::Judgement::at(&[], None, w::LAYOUT);
+                return self.hello(&hello, &[], jig, out);
             }
             w::StreamEvent::Opened(_) => unreachable!("Opened is read head first"),
             w::StreamEvent::Delivery(value) => {
@@ -1001,7 +996,7 @@ impl Link {
                 if let Some(watch) = self.watches.named(value.watch) {
                     self.cancel_open(watch, value.watch);
                     if let w::WatchEnd::NotServed(value) = &value.why {
-                        self.not_served(value, out);
+                        self.not_served(&value.owner, out);
                     }
                     let end = translate::watches::ended(&value.why);
                     self.watches.end(watch, end, out);
@@ -1042,18 +1037,13 @@ impl Link {
     fn hello(
         &mut self,
         hello: &w::Hello,
-        layouts: Option<&List<w::Layout>>,
+        layouts: &[w::Layout],
         jig: hello::Judgement,
         out: &mut Queue<Request>,
     ) -> Result<(), StreamRefusal> {
         let stream = self.stream.as_mut().expect("active stream");
         if let Err(why) = stream.hello(hello) {
             return Err(StreamRefusal::Record(why));
-        }
-        for served in &hello.served {
-            if served.first > served.last {
-                return Err(StreamRefusal::Record(crate::Undecodable::Malformed));
-            }
         }
         self.predecessor = Some(hello.stream);
         if let Err(why) = self.save_stream(hello.stream, out) {
@@ -1062,7 +1052,7 @@ impl Link {
         self.judgements.clear();
         self.judged(jig, out);
         for owner in self.limits.client().owners {
-            self.judged(hello::Judgement::at(hello, layouts, Some(owner.family), owner.version, owner.layout), out);
+            self.judged(hello::Judgement::at(layouts, Some(owner.family), owner.layout), out);
         }
         let mut pending = List::with_capacity(self.limits.client().watches);
         for (watch, opening) in &self.watches.0 {
@@ -1096,8 +1086,8 @@ impl Link {
         self.judgements.push(judgement).expect("one judgement per declared owner");
         judgement.report(out);
     }
-    fn not_served(&mut self, value: &w::NotServed, out: &mut Queue<Request>) {
-        let family = translate::envelope::family(&value.owner);
+    fn not_served(&mut self, owner: &w::Owner, out: &mut Queue<Request>) {
+        let family = translate::envelope::family(owner);
         let declared = match family {
             None => true,
             Some(family) => {
@@ -1109,10 +1099,7 @@ impl Link {
             }
         };
         if declared {
-            self.judged(
-                hello::Judgement { family, versions: translate::envelope::versions(value), served: false },
-                out,
-            );
+            self.judged(hello::Judgement { family, served: false }, out);
         }
     }
     pub(super) fn judged_hello(&self) -> bool {
@@ -1125,7 +1112,7 @@ impl Link {
         let family = translate::envelope::family(owner);
         for judgement in &self.judgements {
             if !judgement.served && (judgement.family.is_none() || judgement.family == family) {
-                return Some(Readout::NotServed { family: judgement.family, served: judgement.versions });
+                return Some(Readout::NotServed { family: judgement.family });
             }
         }
         None

@@ -52,10 +52,7 @@ pub(super) fn change_model(conversation: &mut Conversation, llm: crate::record::
     {
         return Some(End::TranscriptRefused { reason: crate::record::Refusal::Malformed });
     }
-    let cost = skein_lib::len_u64(llm.model.len()).checked_add(match &llm.effort {
-        Some(effort) => skein_lib::len_u64(effort.len()),
-        None => 0,
-    });
+    let cost = model_bytes(&llm);
     if !super::charge(conversation, cost, limits) {
         return Some(End::TranscriptRefused { reason: crate::record::Refusal::TooLarge });
     }
@@ -65,6 +62,7 @@ pub(super) fn change_model(conversation: &mut Conversation, llm: crate::record::
         window: mem::replace(&mut conversation.model_window, llm.window),
         output: mem::replace(&mut conversation.output, llm.output),
         prices: mem::replace(&mut conversation.spending.prices, llm.prices),
+        speed: mem::replace(&mut conversation.spending.speed, llm.speed),
     };
     conversation.compaction = match mem::replace(&mut conversation.compaction, Compaction::Idle) {
         Compaction::Idle | Compaction::CarryOver { .. } => Compaction::CarryOver { next: Some(next) },
@@ -73,6 +71,18 @@ pub(super) fn change_model(conversation: &mut Conversation, llm: crate::record::
     conversation.window.stage = WindowState::Used;
     conversation.window.following = conversation.transcript.len().saturating_sub(1);
     None
+}
+
+fn model_bytes(llm: &crate::record::Llm) -> Option<u64> {
+    skein_lib::len_u64(llm.model.len())
+        .checked_add(match &llm.effort {
+            Some(effort) => skein_lib::len_u64(effort.len()),
+            None => 0,
+        })?
+        .checked_add(match &llm.speed {
+            Some(speed) => speed.owned_bytes()?,
+            None => 0,
+        })
 }
 
 pub(super) fn due(conversation: &mut Conversation, limits: &Limits) -> bool {
@@ -120,6 +130,9 @@ pub(super) fn prompt_prefix_bytes(conversation: &Conversation, messages: usize) 
         .checked_add(conversation.namespace.owned_bytes()?)?;
     if let Some(effort) = &conversation.effort {
         bytes = bytes.checked_add(skein_lib::len_u64(effort.len()))?;
+    }
+    if let Some(speed) = &conversation.spending.speed {
+        bytes = bytes.checked_add(skein_lib::len_u64(speed.name.len()))?;
     }
     for message in conversation.transcript.iter().take(messages) {
         for block in &message.content {
@@ -262,6 +275,7 @@ pub(super) fn open_window(
         conversation.model_window = llm.window;
         conversation.output = llm.output;
         conversation.spending.prices = llm.prices;
+        conversation.spending.speed = llm.speed;
     }
     let Some(bytes) = new_bytes(conversation, &content) else {
         return Some(super::history::limit(limits.history_bytes));
@@ -300,6 +314,10 @@ fn new_bytes(conversation: &Conversation, content: &[Block]) -> Option<u64> {
         .checked_add(skein_lib::len_u64(conversation.preamble.len()))?
         .checked_add(match &conversation.effort {
             Some(effort) => skein_lib::len_u64(effort.len()),
+            None => 0,
+        })?
+        .checked_add(match &conversation.spending.speed {
+            Some(speed) => speed.owned_bytes()?,
             None => 0,
         })
 }

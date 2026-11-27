@@ -2243,9 +2243,7 @@ pub fn domain(sample: &Sample) -> Domain {
         Then::SignedOut | Then::GoogleSignIn => step(&mut root, Event::SignedOut, &mut out),
         Then::OutOfDate => step(
             &mut root,
-            Event::Client {
-                event: jig_client::Event::Up { up: jig_client::Up::Served { served: false, versions: None } },
-            },
+            Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: false } } },
             &mut out,
         ),
         Then::Sheet(kind) => confirmation(&mut root, kind, &mut out),
@@ -2955,7 +2953,7 @@ fn home_domain(name: &str) -> Domain {
     for event in [
         jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
         jig_client::Event::SignIn { with: jig_client::With::Transport },
-        jig_client::Event::Up { up: Up::Served { served: true, versions: None } },
+        jig_client::Event::Up { up: Up::Served { served: true } },
     ] {
         step(&mut root, Event::Client { event }, &mut out);
     }

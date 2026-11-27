@@ -1,6 +1,6 @@
 //! Deployment generations and independent stores (protocol/store/README.md, 2, and protocol/store/opening.md, 1).
 use crate::generations::{self, Active, Manifesting, Map, PAGE, Progress, Removing};
-use crate::upgrade::phase::{self, Patching};
+use crate::upgrade::phase::{self, Upgrading};
 use crate::{Arrived, Below, Event, Generations, Io, Limits, Older, OpenRefusal, Phase, Root, Store, open, secrets};
 use alloc::boxed::Box;
 use skein_io::{
@@ -72,7 +72,7 @@ pub(crate) enum Opening {
     CheckpointSweep(crate::checkpoints::sweep::Sweep),
     TranscriptsMade,
     TranscriptsOpen,
-    Patching(Box<Patching>),
+    Upgrading(Box<Upgrading>),
     Pending(Box<crate::upgrade::switch::Pending>),
 }
 #[derive(Debug)]
@@ -94,7 +94,7 @@ pub(crate) struct Directory {
     pub admitted_schemas: Option<skein_lib::List<skein_codec::schema::Schema>>,
     pub disk: bool,
     pub purpose: crate::Purpose,
-    pub patch: Option<Box<crate::upgrade::admission::Levels>>,
+    pub upgrade_levels: Option<Box<crate::upgrade::admission::Levels>>,
     pub active: Option<Active>,
     pub transcripts: Option<Root>,
     pub root: Option<Root>,
@@ -116,7 +116,7 @@ impl Directory {
             admitted_schemas: None,
             disk: false,
             purpose: crate::Purpose::Serve,
-            patch: None,
+            upgrade_levels: None,
             active: None,
             transcripts: None,
             root: None,
@@ -541,7 +541,7 @@ fn directory(store: &mut Store, env: &Env<Limits>, arrived: Arrived, above: &mut
         Opening::TranscriptsMade => transcripts_made(store, env, arrived, above, below),
         Opening::TranscriptsOpen => transcripts_opened(store, env, arrived, above, below),
         Opening::Pending(_) => unreachable!("pending routed before taking opening"),
-        Opening::Idle | Opening::Stores | Opening::Patching(_) => refuse(store, above),
+        Opening::Idle | Opening::Stores | Opening::Upgrading(_) => refuse(store, above),
     }
 }
 fn locked(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, below: &mut Below) {
@@ -921,7 +921,7 @@ fn transcripts_made(
     if !made(arrived.event) {
         return refuse(store, above);
     }
-    if let Some(pending) = store.directory.patch.take() {
+    if let Some(pending) = store.directory.upgrade_levels.take() {
         phase::begin(store, env, pending, above, below);
         return;
     }
@@ -939,7 +939,7 @@ fn transcripts_opened(
         return refuse(store, above);
     };
     store.directory.transcripts = Some(opened);
-    if let Some(pending) = store.directory.patch.take() {
+    if let Some(pending) = store.directory.upgrade_levels.take() {
         phase::begin(store, env, pending, above, below);
         return;
     }
@@ -985,7 +985,7 @@ pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue
         crate::rehearsal::frames::file(store, arrived, above, below);
         return;
     }
-    if patching(store).is_some() {
+    if upgrading(store).is_some() {
         phase::up(store, env, io, above, below);
         return;
     }
@@ -1049,7 +1049,7 @@ pub(crate) fn events_up(
         let Some(event) = events.pop() else {
             break;
         };
-        if patching(store).is_some() {
+        if upgrading(store).is_some() {
             phase::event(store, secret, event, above, below);
             continue;
         }
@@ -1188,9 +1188,9 @@ pub(crate) fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event
 }
 
 /// The one fork shared by file and KV routing.
-pub(crate) fn patching(store: &Store) -> Option<&Patching> {
+pub(crate) fn upgrading(store: &Store) -> Option<&Upgrading> {
     match &store.directory.opening {
-        Opening::Patching(phase) => Some(phase),
+        Opening::Upgrading(phase) => Some(phase),
         Opening::Idle
         | Opening::Locking
         | Opening::Reading
@@ -1260,7 +1260,7 @@ pub(crate) fn pending(store: &Store) -> Option<&crate::upgrade::switch::Pending>
         | Opening::CheckpointSweep(_)
         | Opening::TranscriptsMade
         | Opening::TranscriptsOpen
-        | Opening::Patching(_) => None,
+        | Opening::Upgrading(_) => None,
     }
 }
 
@@ -1298,6 +1298,6 @@ pub(crate) fn pending_mut(store: &mut Store) -> Option<&mut crate::upgrade::swit
         | Opening::CheckpointSweep(_)
         | Opening::TranscriptsMade
         | Opening::TranscriptsOpen
-        | Opening::Patching(_) => None,
+        | Opening::Upgrading(_) => None,
     }
 }

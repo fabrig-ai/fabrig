@@ -238,6 +238,7 @@ pub fn charter() -> agent::Charter {
         reserve: Reserve { turns: 0, time: Duration::ZERO },
         llm: Llm {
             effort: None,
+            speed: None,
             prices: smith_domain_run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
             dialect: 0,
             account: Some(0),

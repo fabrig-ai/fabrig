@@ -117,22 +117,15 @@ fn prepared_spoken() -> &'static List<wire::Spoken> {
     SPOKEN.get_or_init(wire::spoken)
 }
 fn peer(schema: skein_channel::Schema) -> skein_fake_channel::ScriptedPeer {
-    skein_fake_channel::ScriptedPeer::new(
-        schema,
-        skein_channel::Role::Responder,
-        engine_channel_limits(),
-        wire::VERSION,
-        Box::new([]),
-    )
-    .expect("scripted engine")
+    skein_fake_channel::ScriptedPeer::new(schema, skein_channel::Role::Responder, engine_channel_limits(), Box::new([]))
+        .expect("scripted engine")
 }
 
 /// The engine's terms do not advertise this sending kind of the worker's.
 #[must_use]
 pub fn engine_without_term(kind: wire::Kind) -> skein_fake_channel::ScriptedPeer {
     let mut schema = schema();
-    let table = schema.versions.get_mut(0).expect("one version");
-    table.kinds = List::from_boxed(table.kinds.iter().copied().filter(|rule| rule.kind != kind.number()).collect());
+    schema.kinds = List::from_boxed(schema.kinds.iter().copied().filter(|rule| rule.kind != kind.number()).collect());
     peer(schema)
 }
 
@@ -152,13 +145,9 @@ pub fn engine_refusing(reason: u16) -> skein_fake_channel::ScriptedPeer {
 #[must_use]
 pub fn engine_with_terms(kind: u16, largest: u32) -> skein_fake_channel::ScriptedPeer {
     let mut schema = schema();
-    for index in 0..schema.versions.len() {
-        let version = schema.versions.get_mut(index).expect("version index");
-        for index in 0..version.kinds.len() {
-            let entry = version.kinds.get_mut(index).expect("kind index");
-            if entry.kind == kind {
-                entry.largest = largest;
-            }
+    for entry in schema.kinds.iter_mut() {
+        if entry.kind == kind {
+            entry.largest = largest;
         }
     }
     peer(schema)
@@ -441,7 +430,7 @@ pub fn engine_accepting_with(limits: &Limits) -> skein_fake_channel::ScriptedPee
         output_frames: cap.frames,
         ..jig_protocol_worker_link::channel_limits(limits).expect("channel limits")
     };
-    skein_fake_channel::ScriptedPeer::new(schema, skein_channel::Role::Responder, channel, wire::VERSION, Box::new([]))
+    skein_fake_channel::ScriptedPeer::new(schema, skein_channel::Role::Responder, channel, Box::new([]))
         .expect("engine")
 }
 

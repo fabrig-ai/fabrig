@@ -58,7 +58,7 @@ record BudgetChecks
 enum BudgetRefusal = r::BudgetRefusal { ceiling tuple, empty tuple, reserve tuple }
 record BudgetRefusalValue stands for value
 record WindowBound
-enum InvalidStart = r::Invalid { budget tuple, price tuple }
+enum InvalidStart by hand
 record InvalidStartValue stands for value
 enum StartRefusal = r::Refusal { invalid tuple }
 record Answer by hand

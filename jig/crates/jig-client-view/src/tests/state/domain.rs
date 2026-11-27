@@ -1,5 +1,5 @@
 //! Vocabulary invariants; behaviour step tests land with the spine.
-use jig_client::contract::{Text, VersionRange};
+use jig_client::contract::Text;
 use skein_lib::List;
 #[test]
 fn text_refuses_bytes_past_the_owner_bound() {
@@ -14,16 +14,6 @@ fn lists_refuse_past_their_capacity() {
     assert_eq!(rows.push(8_u64), Err(8));
     assert_eq!(rows.as_slice(), &[7]);
 }
-#[test]
-fn version_ranges_are_inclusive_and_invalid_ranges_match_nothing() {
-    let range = VersionRange { first: 2, last: 4 };
-    assert!(!range.contains(1));
-    assert!(range.contains(2));
-    assert!(range.contains(4));
-    assert!(!range.contains(5));
-    assert!(!VersionRange { first: 4, last: 2 }.contains(3));
-}
-
 pub(crate) mod spine;
 
 pub(crate) mod storage;

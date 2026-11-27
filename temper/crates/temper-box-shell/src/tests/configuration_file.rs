@@ -42,11 +42,10 @@ fn toml_box_problem_names_public_key_and_line_on_serve_output() {
     else {
         panic!("expected serve");
     };
-    let temper_config_shell::Read { file, document, keys } = temper_box_kit::configuration::parse(
+    let read = temper_service_shell::configuration::Read::from(temper_box_kit::configuration::parse(
         b"# configuration\n\nlisten = \"127.0.0.1:7100\"\npublic = \"http://example.com\"\n",
         temper_config_shell::Shape::Standalone,
-    );
-    let read = temper_service_shell::configuration::Read { file, document, keys };
+    ));
     let programs = read.programs().expect("no program paths");
     let Err(why) = read.prepare(|bytes| {
         crate::serve::prepare("temper-box", &[], b"/", &directories, bytes, &mut Vec::new(), &programs)

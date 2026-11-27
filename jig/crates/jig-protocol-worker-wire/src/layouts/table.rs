@@ -1,11 +1,11 @@
 //! Kind numbers and bounds from the worker's text (jig/docs/design/protocol/channel/wires.md, 4).
 use super::{plans::other_root, words};
-use crate::{VERSION, kinds, v22, wire};
+use crate::{kinds, v22, wire};
 use alloc::boxed::Box;
-use skein_channel::{Direction, Kind, Version};
+use skein_channel::{Direction, Kind};
 use skein_codec::{
     layout::{Mode, Plan, Why},
-    schema::{DeclIx, FieldIx, LimitLevel, Schema, Shape, Type, TypeIx, VariantIx, limit_child, limit_name},
+    schema::{DeclIx, FieldIx, LimitLevel, Named, Schema, Shape, Type, TypeIx, VariantIx, limit_child, limit_name},
 };
 use skein_lib::List;
 
@@ -27,7 +27,7 @@ pub(super) fn number(base: u16, tag: u8) -> u16 {
     base.checked_add(u16::from(tag)).expect("one byte after the frame kind base")
 }
 
-pub(super) fn current(limits: &v22::Limits) -> Result<Version, Box<[u8]>> {
+pub(super) fn current(limits: &v22::Limits) -> Result<List<Kind>, Box<[u8]>> {
     match kinds::current(limits) {
         Ok(table) => Ok(table),
         Err(crate::Overflow::Body) => Err(words::wire(wire::FAMILY, &[b": the engine's kind bounds do not fit"])),
@@ -39,6 +39,8 @@ pub(super) struct Frames {
     worker: Schema,
     from_worker: Variants,
     down_names: List<Box<str>>,
+    read_tags: List<Option<u8>>,
+    keep_tags: List<Option<u8>>,
     rules: List<Rule>,
 }
 
@@ -50,7 +52,12 @@ struct Rule {
 }
 
 impl Frames {
-    pub(super) fn new(engine: &Schema, worker: Schema, read: &Plan) -> Result<Self, Box<[u8]>> {
+    pub(super) fn new(
+        engine: &Schema,
+        worker: Schema,
+        read: Option<&Plan>,
+        keep_written: bool,
+    ) -> Result<Self, Box<[u8]>> {
         let from_worker = Variants::peer(engine, &worker, Mode::Read)?;
         let from_engine = Variants::peer(engine, &worker, Mode::Keep)?;
         let own_engine = Variants::own(engine, Mode::Keep)?;
@@ -59,6 +66,12 @@ impl Frames {
             let (name, _) = own_engine.at(engine, offset);
             down_names.push(Box::from(text(name))).expect("one name per engine tag");
         }
+        let read_tags = if read.is_none() {
+            from_worker.map(&worker, Variants::own(engine, Mode::Read)?, engine)
+        } else {
+            List::uncapped()
+        };
+        let keep_tags = if keep_written { own_engine.map(engine, from_engine, &worker) } else { List::uncapped() };
         let mut rules = List::uncapped();
         for (mode, variants, direction) in
             [(Mode::Read, from_worker, Direction::FromInitiator), (Mode::Keep, from_engine, Direction::FromResponder)]
@@ -66,8 +79,14 @@ impl Frames {
             let (base, declaration) = self::direction(mode);
             for offset in 0..variants.count {
                 let tag = u8::try_from(offset).expect("a codec tag fits u8");
-                if mode == Mode::Read && read.variant_tag(tag).is_err() {
-                    continue;
+                if mode == Mode::Read {
+                    let admitted = match read {
+                        Some(plan) => plan.variant_tag(tag).is_ok(),
+                        None => read_tags.get(offset).copied().flatten().is_some(),
+                    };
+                    if !admitted {
+                        continue;
+                    }
                 }
                 let (name, record) = variants.at(&worker, offset);
                 let Some(record) = record else {
@@ -98,10 +117,18 @@ impl Frames {
             }
         }
         check_limits(&worker)?;
-        Ok(Self { worker, from_worker, down_names, rules })
+        Ok(Self { worker, from_worker, down_names, read_tags, keep_tags, rules })
     }
 
-    pub(super) fn table(&self, limits: &v22::Limits) -> Version {
+    pub(super) fn mapped(&self, mode: Mode, source: u8) -> Option<u8> {
+        let tags = match mode {
+            Mode::Read => &self.read_tags,
+            Mode::Keep => &self.keep_tags,
+        };
+        tags.get(u32::from(source)).copied().flatten()
+    }
+
+    pub(super) fn table(&self, limits: &v22::Limits) -> List<Kind> {
         let values = limits.values();
         let bounds = self.worker.bounds_within(v22::LIMIT_NAMES, values.as_slice());
         let mut kinds = List::with_capacity(self.rules.len());
@@ -111,7 +138,7 @@ impl Frames {
                 .expect("the parser checks the u32 bound");
             kinds.push(Kind { kind: rule.kind, direction: rule.direction, largest }).expect("one row per rule");
         }
-        Version { version: VERSION, kinds }
+        kinds
     }
 
     pub(super) fn source(&self, mode: Mode, tag: u8) -> &str {
@@ -154,6 +181,57 @@ impl Variants {
             }
         }
         Err(words::no_plan(wire::FAMILY, name, mode, Why::Reshaped, name.as_bytes(), None))
+    }
+
+    // A written frame still uses the channel's kind names and bounds. Match
+    // names (including mutual `was` matches) without planning any payload.
+    fn map(self, source: &Schema, target: Self, text: &Schema) -> List<Option<u8>> {
+        let mut tags = List::with_capacity(self.count);
+        for offset in 0..self.count {
+            let mapped = if let Some(at) = target.preferred(text, self, source, offset)
+                && self.preferred(source, target, text, at) == Some(offset)
+            {
+                Some(u8::try_from(at).expect("a codec tag fits u8"))
+            } else {
+                None
+            };
+            tags.push(mapped).expect("a slot per source tag");
+        }
+        tags
+    }
+
+    fn preferred(self, text: &Schema, source: Self, other: &Schema, offset: u32) -> Option<u32> {
+        let (name, _) = source.at(other, offset);
+        if let Some(at) = self.named(text, name) {
+            return Some(at);
+        }
+        for &was in other.was(source.variant(offset)) {
+            if let Some(at) = self.named(text, other.spelled(was)) {
+                return Some(at);
+            }
+        }
+        for at in 0..self.count {
+            for &was in text.was(self.variant(at)) {
+                if text.spelled(was) == name {
+                    return Some(at);
+                }
+            }
+        }
+        None
+    }
+
+    #[expect(clippy::manual_find, reason = "step code uses no closures")]
+    fn named(self, text: &Schema, name: &[u8]) -> Option<u32> {
+        for at in 0..self.count {
+            if self.at(text, at).0 == name {
+                return Some(at);
+            }
+        }
+        None
+    }
+
+    fn variant(self, offset: u32) -> Named {
+        Named::Variant(VariantIx::new(add(self.first.index(), offset)))
     }
 
     fn at(self, schema: &Schema, tag: u32) -> (&[u8], Option<DeclIx>) {

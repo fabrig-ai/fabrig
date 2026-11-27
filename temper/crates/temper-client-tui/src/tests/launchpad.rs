@@ -191,7 +191,7 @@ fn home_team(
         &mut root,
         Event::Start { address, kept: List::with_capacity(0), with: Some(jig_client::With::Transport) },
     );
-    append(&mut out, f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true, versions: None } }));
+    append(&mut out, f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true } }));
     let me_opened = {
         let mut me = me();
         if across {
@@ -555,7 +555,7 @@ fn the_launchpad_says_each_state() {
     let (mut offline, watch) = f::live(Some(f::me(&[b"Hello"])));
     f::client(&mut offline, jig_client::Event::Up { up: Up::WatchEnded { watch, end: c::WatchEnd::Dropped } });
     let (mut stale, _) = f::live(Some(f::me(&[b"Hello"])));
-    f::client(&mut stale, jig_client::Event::Up { up: Up::Served { served: false, versions: None } });
+    f::client(&mut stale, jig_client::Event::Up { up: Up::Served { served: false } });
     let signed_out = f::signed_out();
     let mut unkept = Tui::new(f::ADDRESS);
     unkept.step(Told::Kept { written: false });

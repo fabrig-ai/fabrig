@@ -24,6 +24,8 @@ pub struct Spec {
     pub request: Box<[u8]>,
     /// Whether to ask the command for a typed refusal.
     pub refusal: bool,
+    /// Whether to ask the command for an outdated finding.
+    pub outdated: bool,
     pub hooks: Hooks,
 }
 

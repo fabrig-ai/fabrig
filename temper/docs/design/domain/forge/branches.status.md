@@ -4,6 +4,7 @@
 
 - **Not yet:** 2, step 1: the closer reads `.temper/hooks/` at the goal's branch's tip and skips its close step where it finds no close command [in flight: change 21664].
 
+- **Design departs:** 2, *A close found outdated*, *Kept*: the request of 2026-11-27 asks for the catch-up once per goal tip; the closer asks it once per close request, since its own catch-up moves the goal's branch's tip, so a rule by tip would catch up again after it. The intent, one catch-up for the goal's work and none in a loop, is kept. Decided by the goal's designer, 2026-11-27.
 
 
 

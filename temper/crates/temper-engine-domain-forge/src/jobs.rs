@@ -19,6 +19,7 @@ fn find_hook(
         command: bytes::concat(&[repository, b"/", hook]),
         request,
         refusal,
+        outdated: refusal,
         find: true,
         fallback: match fallback {
             Some(path) => bytes::concat(&[repository, b"/", path]),

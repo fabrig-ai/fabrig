@@ -466,7 +466,7 @@ impl World {
                 };
                 Done::Fetched { commit: Commit::new(commit) }
             }
-            Op::Brings { .. } | Op::Look { .. } | Op::DiffPaths { .. } | Op::IsAncestor { .. } => {
+            Op::Brings { .. } | Op::Look { .. } | Op::DiffPaths { .. } | Op::IsAncestor { .. } | Op::Message { .. } => {
                 panic!("this fixture has no producer retry")
             }
             Op::Merge { theirs, .. } => {

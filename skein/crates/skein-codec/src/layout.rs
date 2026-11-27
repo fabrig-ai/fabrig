@@ -21,6 +21,22 @@ pub enum Mode {
     Keep,
 }
 
+/// One layout of a value type (skein/docs/design/data/codec/layouts.md, 4).
+#[derive(Debug)]
+pub struct Side<'a> {
+    pub text: &'a Schema,
+    pub root: Root,
+    pub held: &'a [&'a Schema],
+}
+
+/// A written converter's refusal, by the source text's names (skein/docs/design/data/codec/layouts.md, 4).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Refusal {
+    pub declaration: Box<str>,
+    pub part: Box<str>,
+    pub why: Box<str>,
+}
+
 /// A refusal naming the new text, or the old text when `old` is true.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Underived {
@@ -71,7 +87,7 @@ pub enum Misconverted {
 pub struct Plan {
     nodes: List<Node>,
     reads: List<Read>,
-    refusals: List<Refusal>,
+    refusals: List<PlanRefusal>,
     root: u32,
     depth: u32,
     fields: u32,
@@ -148,7 +164,7 @@ enum Variant {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct Refusal {
+struct PlanRefusal {
     why: Refused,
     decl: Box<str>,
     part: Box<str>,

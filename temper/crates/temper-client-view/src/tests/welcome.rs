@@ -23,9 +23,7 @@ fn reading_welcome(step: Step) -> (d::Domain, skein_lib::Queue<d::Request>) {
             kept: skein_lib::List::with_capacity(0),
             with: Some(jig_client::With::Transport),
         },
-        d::Event::Client {
-            event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
-        },
+        d::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
     ] {
         d::step(&mut root, &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits }, event, &mut out);
     }
@@ -1006,9 +1004,7 @@ fn each_later_step_offers_the_playground_only_for_an_empty_store() {
 fn an_unavailable_welcome_keeps_the_signed_out_and_out_of_date_frame() {
     for event in [
         d::Event::SignedOut,
-        d::Event::Client {
-            event: jig_client::Event::Up { up: jig_client::Up::Served { served: false, versions: None } },
-        },
+        d::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: false } } },
     ] {
         let mut root = f::welcome_root(Step::Welcome, true);
         f::root_event(&mut root, event);

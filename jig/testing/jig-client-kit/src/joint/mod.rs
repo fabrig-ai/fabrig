@@ -34,20 +34,27 @@ fn take_signed_in(
 
 pub mod role_fixture;
 
-/// Application callbacks; the fixture consumes the stream's implicit me and negotiation.
+/// Application callbacks and changes of verdict, without the stream's implicit me or watch progress.
 #[cfg(test)]
 fn business_callbacks(
     callbacks: Vec<(crate::harness::ClientId, jig_client_test_domain::Event)>,
 ) -> Vec<(crate::harness::ClientId, jig_client_test_domain::Event)> {
+    let mut jig = std::collections::BTreeMap::new();
     callbacks
         .into_iter()
-        .filter(|(_, event)| {
+        .filter(|(client, event)| {
+            // The fixture's early verdict and the link's verdict can repeat in one poll.
+            if let jig_client_test_domain::Event::Client {
+                event: jig_client::Event::Up { up: jig_client::Up::Served { served } },
+            } = event
+            {
+                return jig.insert(*client, *served) != Some(*served);
+            }
             !matches!(
                 event,
                 jig_client_test_domain::Event::Client {
                     event: jig_client::Event::Up {
-                        up: jig_client::Up::Served { versions: Some(_), .. }
-                            | jig_client::Up::FamilyServed { .. }
+                        up: jig_client::Up::FamilyServed { .. }
                             | jig_client::Up::Watched {
                                 event: jig_client::contract::WatchEvent::Alive
                                     | jig_client::contract::WatchEvent::Opened,

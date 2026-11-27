@@ -528,3 +528,54 @@ fn explicit_call_reasoning_policy_never_drops_anthropic_thinking() {
         )));
     }
 }
+
+#[test]
+fn anthropic_prompt_speed_stays_in_the_body() {
+    assert_eq!(Provider::Anthropic.standard_speed(), b"standard");
+    for speed in [None, Some(b"fast".as_slice())] {
+        let mut input = anthropic_call(7);
+        input.prompt.speed = speed.map(Into::into);
+        let mut world = World::new(input, limits(), text_response(false), 2);
+        world.request(client::Request::Start);
+        world.run();
+        world.assert_once();
+        let sent = std::str::from_utf8(&world.sent).unwrap();
+        let (head, body) = sent.split_once("\r\n\r\n").unwrap();
+        assert!(!head.to_ascii_lowercase().contains("anthropic-beta:"), "{head}");
+        assert_eq!(body.contains(r#""speed":"fast""#), speed.is_some(), "{body}");
+        assert_eq!(body.contains(r#""speed":"#), speed.is_some(), "{body}");
+        let native = limits().native();
+        let json = skein_llm::Json::from_bytes(body.as_bytes(), &native.request_document()).unwrap();
+        let decoded = skein_llm::anthropic::decode_request(&json, &native).unwrap();
+        assert_eq!(decoded.prompt.speed.as_deref(), speed);
+    }
+}
+
+#[test]
+fn anthropic_served_speed_is_the_last_reported_value() {
+    for (start, delta, expected) in [
+        (Some("standard"), Some("fast"), Some(b"fast".as_slice())),
+        (Some("standard"), None, Some(b"standard".as_slice())),
+        (None, None, None),
+        (Some("standard"), Some("Fast"), None),
+    ] {
+        let start = match start {
+            Some(speed) => START.replace(r#""usage":{"#, &format!(r#""usage":{{"speed":"{speed}","#)),
+            None => START.to_owned(),
+        };
+        let update = delta.map(|speed| {
+            format!(r#"{{"type":"message_delta","delta":{{"stop_reason":null}},"usage":{{"speed":"{speed}"}}}}"#)
+        });
+        let mut documents = vec![start.as_str()];
+        documents.extend(update.as_deref());
+        documents.extend([END_TURN, STOP]);
+        let mut world = World::new(anthropic_call(8), limits(), stream(&documents, true), 2);
+        world.fragmentation(7, 1);
+        world.request(client::Request::Start);
+        world.run();
+        world.assert_once();
+        let answer = completion(&world);
+        assert_eq!(answer.served.as_deref(), expected, "{start}; {delta:?}");
+        assert_eq!(answer.usage.output, Some(9));
+    }
+}

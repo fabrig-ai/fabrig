@@ -1,9 +1,10 @@
-//! Seeded model checks for commit, get and ordered pages.
+//! Seeded model checks for commit, get and ordered pages (skein/docs/design/testing/sweeps.md, 4).
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, convert::Infallible};
 
 use skein_kv::{Event, Limits, Op, Page, Range, Request, Store};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+use skein_world::{sweep::cases, this_test};
 
 fn limits() -> Limits {
     Limits {
@@ -35,7 +36,8 @@ fn draw(seed: &mut u64) -> u64 {
 #[test]
 fn generated_commits_and_pages_match_the_model() {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
-    for initial in 1..=64_u64 {
+    let test = this_test!("generated_commits_and_pages_match_the_model");
+    cases::<_, Infallible, _>(test, 1..=64, |initial| {
         let mut seed = initial;
         let mut store = Store::memory(&env.limits);
         let mut model = BTreeMap::new();
@@ -103,5 +105,7 @@ fn generated_commits_and_pages_match_the_model() {
         }
         assert_eq!(found, model.into_iter().collect::<Vec<_>>(), "seed {initial}");
         assert!(below.is_empty());
-    }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }

@@ -39,7 +39,7 @@ fn owners(list: &str) -> BTreeMap<PathBuf, Vec<PathBuf>> {
             for file in [
                 Path::new(owner).join("src/lib.rs"),
                 Path::new(codec).join("src/lib.rs"),
-                Path::new(owner).join("src/patch_set.rs"),
+                Path::new(owner).join("src/owner_set.rs"),
             ] {
                 if !allowed.contains(&file) {
                     allowed.push(file);
@@ -69,7 +69,7 @@ impl Embeds<'_> {
         let schema = normalized(&self.file.parent().expect("source parent").join(literal.value()));
         let Some(owners) = self.owners.get(&schema) else { return };
         let allowed = self.constant.as_deref().is_some_and(|name| {
-            if self.file.ends_with("src/patch_set.rs") {
+            if self.file.ends_with("src/owner_set.rs") {
                 name == "STORE_FAMILIES" || name == "OWNER_SET"
             } else {
                 name == "SCHEMA" || name.ends_with("_SCHEMA")

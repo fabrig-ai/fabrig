@@ -28,7 +28,7 @@ pub(super) fn kept(store: &mut Store) -> Option<Box<[KeptWorker]>> {
                 slot @ None => slot.insert(Decoder::load(store).ok()?),
             };
             let (schema, decl, node) = decoder
-                .decoded("jig-store-settings", crate::patch_set::CHANGED_SETTINGS, &mut value, row.value)
+                .decoded("jig-store-settings", crate::owner_set::CHANGED_SETTINGS, &mut value, row.value)
                 .ok()?;
             workers.push(worker(number, &value, schema, decl, node)?).ok()?;
         }

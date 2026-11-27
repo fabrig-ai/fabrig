@@ -70,9 +70,7 @@ fn toml_engine_stopped_tools_read_the_file() {
 
 pub(super) fn read_scripted(bytes: &[u8], shape: temper_config_shell::Shape) -> Result<Read, String> {
     let facts = temper_config_shell::Facts { login: "sam".into(), hostname: "fixture".into(), provider_key: false };
-    let temper_config_shell::Read { file, document, keys } =
-        temper_config_shell::parse(bytes, shape, &facts).map_err(|why| why.to_string())?;
-    Ok(Read { file, document, keys })
+    temper_config_shell::parse(bytes, shape, &facts).map(Read::from).map_err(|why| why.to_string())
 }
 
 fn fake_setup(directories: &Directories) {

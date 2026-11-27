@@ -226,6 +226,7 @@ fn local_policy(lower: &agent::Config, change: bool, tools: bool) -> (local::Con
         brief: charter::Brief { sections: Box::new([]) },
         models: Box::new([charter::Llm {
             effort: None,
+            speed: None,
             prices: run::Prices {
                 input: 1_250_000,
                 cached: 125_000,
