@@ -9,6 +9,8 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use smith_domain_session::{self as session, llm, record};
 use smith_domain_tools::{Authority, Effect, Grants};
 
+use crate::shapes::{Reached, Tool, completion_tools};
+
 /// Integer prices used by the concrete transcript scenarios; pricing performs no live account lookup.
 pub const PRICES: record::Prices = record::Prices { input: 7, cached: 3, cache_write: None, output: 11, unit: 10 };
 
@@ -67,6 +69,7 @@ pub fn opening(transcript: Option<record::Transcript>, budget: u64) -> record::O
 
 /// Real domain plus scripted typed peers, pending terminals and external observations for this component story.
 pub struct Scripted {
+    shapes: Option<ShapeRecord>,
     /// Real session state under test, advanced only through its declared boundary.
     pub domain: session::Domain,
     /// Injected monotonic and wall times together with immutable session limits.
@@ -123,7 +126,25 @@ pub struct Scripted {
     pub trace: Vec<String>,
 }
 
+struct ShapeRecord {
+    reached: Reached,
+    // Kept until the turn settles, including calls not retained in a compaction's new window.
+    tools: Vec<(usize, Tool)>,
+}
+
 impl Scripted {
+    /// Like `new`, also reading settled completion shapes for a sweep.
+    #[must_use]
+    pub fn with_shapes(seed: u64) -> Scripted {
+        Scripted { shapes: Some(ShapeRecord { reached: Reached::new(), tools: Vec::new() }), ..Scripted::new(seed) }
+    }
+
+    /// The shapes of the turns settled in a world opened with `with_shapes`.
+    #[must_use]
+    pub fn reached(&self) -> &Reached {
+        &self.shapes.as_ref().expect("this scripted world was opened with shapes").reached
+    }
+
     /// Constructs empty bounded state under the supplied immutable limits; no IO or clocks are consulted.
     #[must_use]
     pub fn new(seed: u64) -> Scripted {
@@ -132,6 +153,7 @@ impl Scripted {
         limits.spend = u64::MAX;
         limits.history_messages = 32;
         Scripted {
+            shapes: None,
             domain: session::Domain::new(&limits, seed),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
@@ -164,6 +186,9 @@ impl Scripted {
 
     /// Delivers one typed terminal or entrance, drains the emitted requests and checks terminal ownership.
     pub fn step(&mut self, event: session::Event) {
+        if let (Some(shapes), session::Event::Completed { completion, .. }) = (&mut self.shapes, &event) {
+            shapes.tools = completion_tools(&completion.content).collect();
+        }
         match &event {
             session::Event::Completed { owner, .. }
             | session::Event::Overflowed { owner, .. }
@@ -292,6 +317,10 @@ impl Scripted {
                         | llm::Block::ToolCall(_)
                         | llm::Block::ToolResult { .. } => {}
                     }
+                }
+                if let Some(shapes) = &mut self.shapes {
+                    // This scripted record has no job classifications.
+                    shapes.reached.recorded(&turn, shapes.tools.drain(..), |_| [None; 3]);
                 }
                 self.turns.push(turn);
             }

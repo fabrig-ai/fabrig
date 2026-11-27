@@ -9,7 +9,10 @@ use crate::faults::{FaultLedger, Kind};
 use crate::test_env::{Mode, mode};
 
 pub(crate) mod cases;
+mod shapes;
+
 pub use cases::{Case, Test, cases, gate, input};
+pub use shapes::{SHAPES_KEPT, Shapes};
 
 /// Judge each seed in a range, then record the completed sweep.
 pub fn each_seed<F: FnMut(u64)>(seeds: core::ops::Range<u64>, mut check: F) {

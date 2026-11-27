@@ -7,37 +7,53 @@ use smith_session_world::bytes;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use skein_fake_llm_domain::api::{Line, Source};
 use smith_domain_session::End;
-use smith_domain_session::llm::{Failure, Problem, Returned};
-use smith_domain_tools::{JobEnd, Outcome};
-use smith_session_world::provider::UNISSUED_JOB;
-use smith_session_world::{Ended, JobClass, World, noisy, submit_noisily};
+use smith_domain_session::llm::Failure;
+use smith_session_world::provider::SLOT_NAMES;
+use smith_session_world::shapes::{Answer, Class, Reference, Sample, answer};
+use smith_session_world::translate::Decodings;
+use smith_session_world::{Ended, World, noisy, submit_noisily};
 
 const ITERATIONS: u32 = 100_000;
+// On the original 1,000 seeds, the old menu escaped twice after a tools
+// refusal and twice after a translator refusal.
+const ORIGINAL_ESCAPED: u32 = 4;
 
-const JOB_CLASSES: [JobClass; 7] = [
-    JobClass::Live,
-    JobClass::Held,
-    JobClass::Consumed,
-    JobClass::BeforeOpening,
-    JobClass::Foreign,
-    JobClass::Unissued,
-    JobClass::Unknown,
+const REFUSALS: [Answer; 21] = [
+    Answer::Outside,
+    Answer::TooLong,
+    Answer::Protected,
+    Answer::NulByte,
+    Answer::Malformed,
+    Answer::NotFound,
+    Answer::NotFile,
+    Answer::NotDirectory,
+    Answer::NotEmpty,
+    Answer::EditNoMatch,
+    Answer::EditAmbiguous,
+    Answer::EditUnchanged,
+    Answer::ExitNonzero,
+    Answer::UnknownTool,
+    Answer::UnknownJob,
+    Answer::NotRead,
+    Answer::Stale,
+    Answer::ReadOnly,
+    Answer::TooLarge,
+    Answer::TimedOut,
+    Answer::JobsFull,
 ];
 
-fn answer_kind(answer: Option<&Returned>) -> &'static str {
-    match answer {
-        Some(Returned::Owned { outcome: Outcome::Job { end: JobEnd::Running, .. } }) => "running",
-        Some(Returned::Owned { outcome: Outcome::Job { .. } }) => "end",
-        Some(Returned::Owned { .. }) => "other_owned",
-        Some(Returned::Invalid { problem: Problem::UnknownJob { .. } }) => "unknown_job",
-        Some(Returned::Invalid { .. }) => "invalid",
-        Some(Returned::NotRun { .. }) => "not_run",
-        Some(Returned::Withdrawn) => "withdrawn",
-        Some(Returned::Text { .. }) => "text",
-        None => "unanswered",
-    }
-}
+const WORKSPACE_CLASSES: [(Reference, Class); 5] = [
+    (Reference::Path, Class::Live),
+    (Reference::Path, Class::Foreign),
+    (Reference::Path, Class::Unissued),
+    (Reference::Offset, Class::Live),
+    (Reference::Offset, Class::Unissued),
+];
+
+const JOB_CLASSES: [Class; 7] =
+    [Class::Live, Class::Held, Class::Consumed, Class::BeforeOpening, Class::Foreign, Class::Unissued, Class::Unknown];
 
 /// Every original scheduled ending class remains mandatory across the full sweep.
 const EXPECTED_ENDS: [&str; 11] =
@@ -50,6 +66,8 @@ const EXPECTED_ENDS: [&str; 11] =
 #[test]
 #[expect(clippy::too_many_lines, reason = "the reach checks share one fixed seed sweep")]
 fn random_worlds_settle_with_every_session_ended() {
+    let mut sample = Sample::new("random_worlds_settle_with_every_session_ended");
+    let mut decodings = Decodings::default();
     let mut ends = BTreeSet::new();
     let mut stops = BTreeSet::new();
     let (mut stale, mut invalid, mut not_run, mut parallel, mut op_timeouts) = (0, 0, 0, 0, 0);
@@ -59,18 +77,24 @@ fn random_worlds_settle_with_every_session_ended() {
     let mut races = [0; 4];
     let mut served = [0; 6];
     let (mut refused_write_read, mut unknown_jobs, mut full_jobs) = (0, 0, 0);
-    let (mut shown_draws, mut unissued_draws) = (0, 0);
+    let mut job_draws = [0; 2];
+    let mut slot_cases = [[0; 2]; SLOT_NAMES.len()];
     let mut held_peaks = [0; 5];
     let mut drawn_job_bounds = [0; 4];
     let mut job_calls: BTreeMap<_, BTreeMap<_, u32>> =
         JOB_CLASSES.into_iter().map(|class| (class.word(), BTreeMap::new())).collect();
     for seed in 0..1000 {
-        let settings = noisy(seed);
+        let mut settings = noisy(seed);
+        settings.provider.capture_answers = 16;
+        settings.provider.capture_bytes = 32_768;
         let bound = usize::try_from(settings.agent.tools.jobs).expect("the drawn bound is at most four");
         drawn_job_bounds[bound - 1] += 1;
         let mut world = World::new(settings);
+        world.omit_trace();
         submit_noisily(&mut world, &settings, seed);
-        world.run(ITERATIONS);
+        world.run_with_decodings(ITERATIONS, &mut decodings);
+        count_slots(&world, &mut slot_cases, &mut job_draws);
+        sample.ran(&world.reached()).expect("the case holds only shapes in form");
         stale += world.stats().stale;
         parallel = parallel.max(world.stats().most_parallel);
         most_runs = most_runs.max(world.stats().most_runs);
@@ -105,17 +129,10 @@ fn random_worlds_settle_with_every_session_ended() {
         for (_, session) in world.sessions() {
             concrete_turns += session.records.len();
             for call in &session.job_calls {
-                if let Some(job) = call.job {
-                    if job.0 == UNISSUED_JOB {
-                        unissued_draws += 1;
-                    } else {
-                        shown_draws += 1;
-                    }
-                }
                 *job_calls
                     .get_mut(call.class.word())
                     .expect("all job classes are counted")
-                    .entry(answer_kind(call.answer.as_ref()))
+                    .entry(answer(call.answer.as_ref()).word())
                     .or_default() += 1;
             }
             if let Some(Ended { end: End::Failed { failure, .. }, .. }) = session.ended {
@@ -138,19 +155,34 @@ fn random_worlds_settle_with_every_session_ended() {
             ends.insert(kind);
         }
     }
+    sample.write();
+    println!("used slot cases (conversation, unissued): {slot_cases:?}");
     println!(
         "canonical scheduled hits: concrete_turns={concrete_turns}, stale={stale}, invalid={invalid}, not_run={not_run}, parallel={parallel}, most_runs={most_runs}, op_timeouts={op_timeouts}, delegated={served:?}, races={races:?}, ends={ends:?}, stops={stops:?}, refused_write_read={refused_write_read}, unknown_jobs={unknown_jobs}, full_jobs={full_jobs}, held_peaks={held_peaks:?}, drawn_job_bounds={drawn_job_bounds:?}"
     );
     for (class, answers) in &job_calls {
-        println!("job {}: {answers:?}", str::from_utf8(class).expect("class words are ASCII"));
+        println!("job {class}: {answers:?}");
     }
-    println!("job slot draws: conversation={shown_draws}, unissued={unissued_draws}; failures={failures:?}");
+    let [shown_draws, unissued_draws] = job_draws;
+    println!("job calls with slot draws: conversation={shown_draws}, unissued={unissued_draws}; failures={failures:?}");
+    for (slot, [shown, unissued]) in SLOT_NAMES.iter().zip(slot_cases) {
+        assert!(shown > 0 && unissued > 0, "slot {slot:?}: {shown} shown, {unissued} unissued cases");
+    }
+    for answer in REFUSALS {
+        assert!(sample.answered(answer) > 0, "the unchanged gate seeds reach {}", answer.word());
+    }
+    for (reference, class) in WORKSPACE_CLASSES {
+        assert!(sample.classed(reference, class) > 0, "the unchanged gate seeds reach {reference:?}={class:?}");
+    }
     assert_eq!(ends, EXPECTED_ENDS.into_iter().map(String::from).collect());
     assert!(concrete_turns > 0, "accepted provider completions emitted concrete checked Turns");
     assert!(shown_draws > 0, "some job calls drew a number from the conversation");
     assert!(unissued_draws > 0, "some job calls drew the never-issued number");
-    for class in [JobClass::Live, JobClass::Consumed, JobClass::Unissued] {
-        assert!(!job_calls[class.word()].is_empty(), "the gate's seeds reach {class:?} job calls");
+    for class in [Class::Live, Class::Consumed, Class::Unissued] {
+        assert!(
+            !job_calls[class.word()].is_empty() && sample.classed(Reference::Job, class) > 0,
+            "the gate's seeds reach {class:?} job calls"
+        );
     }
     assert_eq!(stops, ["Done", "Malformed", "Refused", "Truncated"].into_iter().map(String::from).collect());
     assert!(stale > 0, "some continues and closes reached sessions that had ended");
@@ -168,13 +200,45 @@ fn random_worlds_settle_with_every_session_ended() {
         assert!(failures.contains(failure), "some session failed as {failure}: {failures:?}");
     }
     assert!(op_timeouts > 0, "some operations of the tools ran out of time");
-    assert!(refused_write_read > 0, "an entrance refusal suppressed a write but not a later read");
-    assert!(unknown_jobs > 0, "some job calls named a job the session did not hold");
-    assert!(full_jobs > 0, "some yielding commands were refused because all the job cells were occupied");
+    assert!(
+        refused_write_read > ORIGINAL_ESCAPED,
+        "the new weights must improve on {ORIGINAL_ESCAPED} escapes: {refused_write_read}"
+    );
+    assert!(
+        unknown_jobs > 0 && sample.answered(Answer::UnknownJob) > 0,
+        "some job calls named a job the session did not hold"
+    );
+    assert!(
+        full_jobs > 0 && sample.answered(Answer::JobsFull) > 0,
+        "some yielding commands were refused because all the job cells were occupied"
+    );
     assert!(
         invalid > 0 && not_run > 0,
         "some calls were malformed, and some were cut short and not run: {invalid} {not_run}"
     );
+}
+
+fn count_slots(world: &World, total: &mut [[u32; 2]; SLOT_NAMES.len()], job_draws: &mut [u32; 2]) {
+    let mut case = [[false; 2]; SLOT_NAMES.len()];
+    for answer in world.capture().answers {
+        for draw in answer.slots {
+            let slot = usize::try_from(draw.slot).expect("bounded slot");
+            let source = usize::from(draw.source == Source::Unissued);
+            case[slot][source] = true;
+            if SLOT_NAMES[slot] == b"job"
+                && !draw.class.is_empty()
+                && matches!(&answer.answer.lines[usize::try_from(draw.call).expect("captured position")],
+                    Line::Call { name, .. } if name.as_ref() == b"job")
+            {
+                job_draws[source] += 1;
+            }
+        }
+    }
+    for (counts, seen) in total.iter_mut().zip(case) {
+        for (count, reached) in counts.iter_mut().zip(seen) {
+            *count += u32::from(reached);
+        }
+    }
 }
 
 #[test]
@@ -182,8 +246,9 @@ fn drawn_small_windows_compact_within_them() {
     use smith_domain_session::{Event, llm, record};
     use smith_session_world::recorded::{Scripted, opening};
     let mut rng = skein_lib::Rng::new(4712);
+    let mut sample = Sample::new("drawn_small_windows_compact_within_them");
     for seed in 0..100 {
-        let mut world = Scripted::new(seed);
+        let mut world = Scripted::with_shapes(seed);
         world.env.limits.spend = 10_000;
         let mut start = opening(None, world.env.limits.spend);
         start.spec.window = u32::try_from(rng.between(2_000, 3_000)).expect("small window");
@@ -204,7 +269,9 @@ fn drawn_small_windows_compact_within_them() {
             Ok(()),
         );
         world.close();
+        sample.ran(world.reached()).expect("the case holds only shapes in form");
     }
+    sample.write();
 }
 
 #[test]
@@ -212,8 +279,9 @@ fn no_drawn_session_ends_because_its_history_grew() {
     use smith_domain_session::{Event, llm, record};
     use smith_session_world::recorded::{Scripted, opening, written_calls};
     let mut rng = skein_lib::Rng::new(4717);
+    let mut sample = Sample::new("no_drawn_session_ends_because_its_history_grew");
     for seed in 0..100 {
-        let mut world = Scripted::new(seed);
+        let mut world = Scripted::with_shapes(seed);
         world.env.limits.history_bytes = rng.between(24_576, 32_768);
         world.open(opening(None, world.env.limits.spend));
         world.complete(written_calls(16), llm::Stop::ToolUse, llm::Usage::ZERO);
@@ -232,24 +300,34 @@ fn no_drawn_session_ends_because_its_history_grew() {
         world.complete(said(b"summary"), llm::Stop::EndTurn, llm::Usage::ZERO);
         assert!(matches!(world.turns.last().expect("window turn").kind, record::Kind::Window(_)));
         world.close();
+        sample.ran(world.reached()).expect("the case holds only shapes in form");
     }
+    sample.write();
 }
 
 /// Every native observation survives with no session fact allowance.
 #[test]
 fn observations_are_lossless_without_a_session_fact_allowance_over_many_seeds() {
+    let mut sample = Sample::new("observations_are_lossless_without_a_session_fact_allowance_over_many_seeds");
+    let mut decodings = Decodings::default();
     for seed in 0..100 {
-        let run = || {
+        let mut run = |fold_shapes| {
             let settings = noisy(seed);
             let mut world = World::new(settings);
             submit_noisily(&mut world, &settings, seed);
-            world.run(ITERATIONS);
+            if fold_shapes {
+                world.run_with_decodings(ITERATIONS, &mut decodings);
+                sample.ran(&world.reached()).expect("the case holds only shapes in form");
+            } else {
+                world.run(ITERATIONS);
+            }
             (world.stats(), world.told(), world.trace().to_vec())
         };
-        let normal = run();
+        let normal = run(true);
         assert!(normal.1.ended > 0 && normal.0.calls > 0, "seed {seed}: calls settled");
-        assert_eq!(normal, run(), "seed {seed}: complete observations and request order survive");
+        assert_eq!(normal, run(false), "seed {seed}: complete observations and request order survive");
     }
+    sample.write();
 }
 
 #[test]
@@ -263,6 +341,8 @@ fn drawn_ratios_and_rendered_sizes_send_nothing_past_the_line() {
     let mut ratios = BTreeSet::new();
     let (mut guarded, mut refused, mut expanded) = (0, 0, 0);
     let mut rng = Rng::new(4102);
+    let mut sample = Sample::new("drawn_ratios_and_rendered_sizes_send_nothing_past_the_line");
+    let mut decodings = Decodings::default();
     for seed in 0..SEEDS {
         let calm = Settings::calm(seed);
         let settings = Settings { nudges: Count { min: 0, max: 2 }, ..calm };
@@ -270,7 +350,8 @@ fn drawn_ratios_and_rendered_sizes_send_nothing_past_the_line() {
         let line = rng.between(LINE_MIN, LINE_MAX);
         let bytes = usize::try_from(rng.between(1, TASK_BYTES)).expect("small task");
         let opener = world.submit(Time::ZERO, smith_domain_session::Spec { line, ..spec(&vec![b'x'; bytes]) });
-        world.run(ITERATIONS);
+        world.run_with_decodings(ITERATIONS, &mut decodings);
+        sample.ran(&world.reached()).expect("the case holds only shapes in form");
         for prompt in &world.session(opener).measures {
             guarded += u32::from(prompt.guard.is_some());
             refused += u32::from(!prompt.sent);
@@ -284,6 +365,7 @@ fn drawn_ratios_and_rendered_sizes_send_nothing_past_the_line() {
             }
         }
     }
+    sample.write();
     assert_eq!(ratios, (1..=u64::from(skein_llm::TOKEN_BYTES)).collect());
     assert!(guarded > 0 && refused > 0 && expanded > 0, "the sweep exercised drawn additions and unsent guards");
 }
