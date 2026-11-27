@@ -17,3 +17,7 @@ detail for interpreting earlier receipts.
 - **Not yet:** 2, *Delivery and CI entry points*: `.temper/goal-pre-pr`
   writes no `temper/rerun` in a checkout without one [in flight: change
   18913].
+- **Not yet:** 4.1, *Every failure at once*: the close passes
+  `--fail-fast` to both runs, skips the fuzzy run after a failed focused
+  one, and stops every test at a format refusal or a failed helper
+  build, `cargo check` or listing. [in flight: change 21054]
