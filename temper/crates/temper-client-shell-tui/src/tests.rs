@@ -3547,14 +3547,14 @@ pub(crate) fn home_subject(duties: &Duties) -> w::Subject {
 }
 
 #[test]
-fn the_terminal_control_p_cycles_the_pane() {
+fn the_terminal_control_o_cycles_the_pane() {
     use root::pages::chat::document::Mode;
     use skein_ui_screen_terminal::Decoder;
 
     let mut decoder = Decoder::new(1);
     let mut keys = skein_lib::Queue::with_capacity(1);
-    decoder.read(b"\x10", &mut keys);
-    let key = keys.pop().expect("the terminal's Ctrl-P");
+    decoder.read(b"\x0f", &mut keys);
+    let key = keys.pop().expect("the terminal's Ctrl-o");
     let mut host = reply_host_draft(true);
     give(&mut host, Event::Act { act: Act::Mode { mode: Mode::Split } });
     for mode in [Mode::Draft, Mode::Chat, Mode::Split] {
@@ -3566,6 +3566,19 @@ fn the_terminal_control_p_cycles_the_pane() {
 }
 
 #[test]
+fn control_p_does_not_cycle_the_pane() {
+    use root::pages::chat::document::Mode;
+
+    let mut host = reply_host_draft(true);
+    give(&mut host, Event::Act { act: Act::Mode { mode: Mode::Split } });
+    host.frame();
+    let key = Key::Control(b'p');
+    assert!(!matches!(host.event_of(&key), Some(Event::Act { act: Act::Mode { .. } })));
+    host.report(Report::Key(key));
+    assert_eq!(host.root.pages().chat().expect("chat with a draft").mode, Mode::Split);
+}
+
+#[test]
 fn pane_keys_preserve_words_and_choose_the_visible_mode() {
     use root::pages::chat::document::Mode;
     for (name, draft, writing, columns, mode, words, next) in [
@@ -3574,7 +3587,8 @@ fn pane_keys_preserve_words_and_choose_the_visible_mode() {
         ("writing", true, true, 80, Mode::Split, "", Some(Mode::Draft)),
         ("typed words", true, false, 80, Mode::Split, "my words", Some(Mode::Draft)),
         ("list", true, false, 80, Mode::Draft, "/", Some(Mode::Chat)),
-        ("narrow", true, false, 79, Mode::Chat, "/", Some(Mode::Draft)),
+        ("narrow folded", true, false, 79, Mode::Chat, "/", Some(Mode::Draft)),
+        ("narrow split shown as all", true, false, 79, Mode::Split, "", Some(Mode::Chat)),
     ] {
         let mut host = reply_host_draft(draft && !writing);
         if writing {
@@ -3585,8 +3599,8 @@ fn pane_keys_preserve_words_and_choose_the_visible_mode() {
         typed(&mut host, words.as_bytes());
         host.frame();
         let want = next.map(|mode| Event::Act { act: Act::Mode { mode } });
-        assert_eq!(host.event_of(&Key::Control(b'p')), want, "{name}");
-        host.report(Report::Key(Key::Control(b'p')));
+        assert_eq!(host.event_of(&Key::Control(b'o')), want, "{name}");
+        host.report(Report::Key(Key::Control(b'o')));
         assert_eq!(host.root.pages().chat().unwrap().mode, next.unwrap_or(mode), "{name}");
         assert_eq!(host.words(), words.as_bytes(), "{name}: composer unchanged");
     }

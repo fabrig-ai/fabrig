@@ -201,13 +201,13 @@ tui key enter
 tui see "Tell it something else"
 tui see "checklist.md"
 tui mark
-tui key control "p"
+tui key control "o"
 tui see "The last checkpoint is visible here."
 tui mark
-tui key control "p"
+tui key control "o"
 tui see "Which approach should we take?"
 tui mark
-tui key control "p"
+tui key control "o"
 tui see "checklist.md"
 tui mark
 "#,
@@ -265,7 +265,7 @@ tui mark
     assert_eq!(half, half_again, "the pane returns to the same half frame");
     for (page, next) in [("01.html", "02.html"), ("02.html", "03.html"), ("03.html", "04.html")] {
         let html = String::from_utf8_lossy(&pages[Path::new(page)]);
-        assert!(html.contains(&format!("data-journey-key=\"control p\" data-journey-next=\"{next}\"")), "{html}");
+        assert!(html.contains(&format!("data-journey-key=\"control o\" data-journey-next=\"{next}\"")), "{html}");
     }
     assert!(!String::from_utf8_lossy(&pages[Path::new("04.html")]).contains("data-journey-key"));
 }
