@@ -2,8 +2,8 @@
 //! (jig/docs/design/domain/hosts/charters.md; domain/engine/executors.md, 1).
 
 use crate::{
-    Budget, ChangeRule, Charter, Contract, FieldRule, Items, Llm, Mode, Model, Prices, Reserve, Section, TextRule,
-    Tool, VerdictRule, WorkspaceTools,
+    Budget, ChangeRule, Charter, Contract, FieldRule, Items, Llm, Mode, Model, Prices, Reserve, Section, Speed,
+    TextRule, Tool, VerdictRule, WorkspaceTools,
 };
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary as core;
@@ -29,7 +29,7 @@ pub fn assignment(run: core::RunCharter, brief: Box<[Section]>, tools: Box<[Tool
     let policy = run.policy;
     let mut models = List::with_capacity(u32::try_from(policy.alternatives.len()).ok()?);
     for (index, candidate) in policy.alternatives.into_iter().enumerate() {
-        models.push(Llm { model: model(candidate), grant: *run.sources.get(index.checked_add(1)?)? }).ok()?;
+        models.push(model(candidate, *run.sources.get(index.checked_add(1)?)?)).ok()?;
     }
     let words = match &run.contract {
         tasks::Contract::Report { words } | tasks::Contract::Change { words, .. } => *words,
@@ -56,30 +56,55 @@ pub fn assignment(run: core::RunCharter, brief: Box<[Section]>, tools: Box<[Tool
             time: policy.time,
             reserve: Reserve { turns: policy.reserve_turns, time: policy.reserve_time },
         },
-        model: Llm { model: model(policy.model), grant: *run.sources.first()? },
+        model: model(policy.model, *run.sources.first()?),
         models: models.into_boxed(),
         waiting: policy.waiting,
         resumes: policy.resume && resumed,
     })
 }
 
-fn model(value: core::Model) -> Model {
-    Model {
-        prices: Prices {
-            input: value.input_price,
-            cached: value.cached_price,
-            cache_write: value.cache_write_price,
-            output: value.output_price,
-            unit: value.price_unit,
+fn model(value: core::Model, grant: Option<u32>) -> Llm {
+    let prices = Prices {
+        input: value.input_price,
+        cached: value.cached_price,
+        cache_write: value.cache_write_price,
+        output: value.output_price,
+        unit: value.price_unit,
+    };
+    let speed = serving_speed(&value, prices);
+    Llm {
+        model: Model {
+            prices,
+            dialect: value.dialect,
+            endpoint: value.endpoint,
+            name: value.name,
+            window: value.window,
+            output: value.output,
+            effort: value.effort,
         },
-        dialect: value.dialect,
-        endpoint: value.endpoint,
-        name: value.name,
-        window: value.window,
-        output: value.output,
-        effort: value.effort,
+        grant,
+        speed,
     }
 }
+
+fn serving_speed(model: &core::Model, prices: Prices) -> Option<Speed> {
+    if let Some(speed) = model.run_speed() {
+        return Some(Speed {
+            name: speed.name.clone(),
+            also: speed.also.clone(),
+            prices: Prices {
+                input: speed.input_price,
+                cached: speed.cached_price,
+                cache_write: speed.cache_write_price,
+                output: speed.output_price,
+                unit: prices.unit,
+            },
+        });
+    }
+    let name = model.standard_speed_override()?;
+    Some(Speed { name: name.into(), also: Box::new([]), prices })
+}
+
 fn contract(value: tasks::Contract) -> Option<Contract> {
     Some(match value {
         tasks::Contract::Approval { .. } | tasks::Contract::Job { .. } => return None,

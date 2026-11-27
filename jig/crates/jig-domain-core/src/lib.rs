@@ -100,7 +100,7 @@ pub use crate::{
         state::{
             EFFORT_BYTES, EFFORTS, GoalRoute, MODEL_DESCRIPTION_BYTES, MODEL_NAME_BYTES, Model, PendingRelay,
             PersonProposalRoute, PersonTaskRoute, RestoringProof, RoutedCall, RunAdmission, RunCharter, RunPolicy,
-            Transcript, most_costly, reserve_floor,
+            Speed, Transcript, most_costly, reserve_floor,
         },
         transcript_text::{CUT_TURN_TEXT, TranscriptRow, TranscriptText},
     },

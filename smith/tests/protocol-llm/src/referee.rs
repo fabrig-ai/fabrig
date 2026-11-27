@@ -139,7 +139,7 @@ impl NativeRequest {
 #[derive(Debug)]
 pub enum Seen {
     /// A native body associated with a logical completion owner.
-    Request { owner: Token, request: NativeRequest },
+    Request { owner: Token, request: NativeRequest, compaction: bool },
     /// The first finding while reading a native request from the byte peer.
     RequestFinding(String),
 }
@@ -157,17 +157,25 @@ impl Expectations for Meeting {
     fn observe(&mut self, seen: Seen, judge: &mut Judge<Self::Name, Self::Stimulus>) {
         match seen {
             Seen::RequestFinding(finding) => judge.fail(finding),
-            Seen::Request { owner, request } => {
+            Seen::Request { owner, request, compaction } => {
                 if let Some(previous) = self.requests.get(&owner) {
                     judge.check(previous.affinity == request.affinity, "native affinity stays fixed within a window");
                     judge.check(previous.system == request.system, "native system bytes stay fixed within a window");
                     judge.check(previous.tools == request.tools, "native tool bytes stay fixed within a window");
-                    judge.check(
-                        request.history.starts_with(&previous.history),
-                        "native history bytes extend within a window",
-                    );
+                    if !compaction {
+                        judge.check(
+                            request.history.starts_with(&previous.history),
+                            "native history bytes extend within a window",
+                        );
+                    }
                 }
-                self.requests.insert(owner, request);
+                if compaction {
+                    // A summary may cut owed results, and the next ordinary
+                    // request starts a new prefix for the same owner.
+                    self.requests.remove(&owner);
+                } else {
+                    self.requests.insert(owner, request);
+                }
             }
         }
     }

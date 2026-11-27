@@ -372,7 +372,9 @@ pub(crate) fn limits() -> Limits {
         },
         connectors: 2,
         resume_bytes: 256,
-        run_bytes: 512,
+        // The scripted charter needs 565 bytes with the speed fields. Its load-core
+        // variant needs 8 more for the longer model name, counted twice.
+        run_bytes: 573,
         policy_bytes: 8192,
         escalation_reason_bytes: 128,
         load_slots: STORE_WORK_SLOTS,
@@ -570,7 +572,36 @@ fn scripted_model() -> Model {
         price_unit: 1_000_000,
         efforts: Box::new([b"low".as_slice().into(), b"high".as_slice().into()]),
         effort: None,
+        speeds: Box::default(),
+        speed: None,
     }
+}
+
+/// Set the standard, Fast and Ultrafast prices of the catalogue example.
+pub(crate) fn speed_example(model: &mut Model) {
+    model.input_price = 2_000;
+    model.cached_price = 100;
+    model.cache_write_price = Some(2_500);
+    model.output_price = 10_000;
+    model.speeds = Box::new([
+        Speed {
+            name: b"fast".as_slice().into(),
+            also: Box::new([b"priority".as_slice().into()]),
+            input_price: 4_000,
+            cached_price: 200,
+            cache_write_price: Some(5_000),
+            output_price: 20_000,
+        },
+        Speed {
+            name: b"ultrafast".as_slice().into(),
+            also: Box::default(),
+            input_price: 12_000,
+            cached_price: 600,
+            cache_write_price: Some(15_000),
+            output_price: 60_000,
+        },
+    ]);
+    model.speed = Some(b"ultrafast".as_slice().into());
 }
 
 pub(crate) fn config(seed: u64) -> Config {

@@ -125,6 +125,7 @@ fn charters_beyond_the_limits_are_refused_as_invalid() {
     ]);
     let llm = Llm {
         effort: None,
+        speed: None,
         prices: crate::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
         account: Some(0),
         endpoint: Endpoint(2),
@@ -336,4 +337,60 @@ fn child_effort_names_obey_the_receiving_bound() {
         answered(Harness::new(Limits { effort_bytes: 3, ..LIMITS }).start(1, selected)),
         (1, Answer::Refused(Refusal::Invalid(Invalid::Llm)))
     );
+}
+
+#[test]
+fn zero_speed_rates_and_units_refuse_main_and_children_before_effects() {
+    let prices = charter().llm.prices;
+    for (prices, problem) in [
+        (crate::Prices { input: 0, ..prices }, Invalid::Price(crate::Rate::Input)),
+        (crate::Prices { cached: 0, ..prices }, Invalid::Price(crate::Rate::Cached)),
+        (crate::Prices { cache_write: Some(0), ..prices }, Invalid::Price(crate::Rate::CacheWrite)),
+        (crate::Prices { output: 0, ..prices }, Invalid::Price(crate::Rate::Output)),
+        (crate::Prices { unit: 0, ..prices }, Invalid::Llm),
+    ] {
+        for main in [true, false] {
+            let mut policy = agents();
+            let llm = if main { &mut policy.llm } else { &mut policy.models[0] };
+            llm.speed = Some(crate::charter::Speed { name: bytes(b"fast"), also: Box::default(), prices });
+            let mut harness = Harness::new(LIMITS);
+            assert_eq!(answered(harness.start(7, policy)), (7, Answer::Refused(Refusal::Invalid(problem.clone()))));
+            assert_eq!(harness.domain.runs(), 0);
+        }
+    }
+}
+
+#[test]
+fn unsupported_program_speeds_name_the_speed_and_program() {
+    let mut llm = charter().llm;
+    for program in [b"claude_code".as_slice(), b"other_program"] {
+        assert_eq!(llm.check_program_speed(program), Ok(()));
+    }
+    for speed in [b"fast".as_slice(), b"ultrafast"] {
+        llm.speed = Some(crate::charter::Speed { name: bytes(speed), also: Box::default(), prices: llm.prices });
+        for program in [b"claude_code".as_slice(), b"other_program"] {
+            let result = if speed == b"fast" && program == b"claude_code" {
+                Ok(())
+            } else {
+                Err(Invalid::ProgramSpeed { speed: bytes(speed), program: bytes(program) })
+            };
+            assert_eq!(llm.check_program_speed(program), result);
+        }
+    }
+}
+
+#[test]
+fn charter_owned_bytes_include_speed_names_and_alias_cells() {
+    let mut policy = agents();
+    let before = policy.owned_bytes().unwrap();
+    policy.llm.speed =
+        Some(crate::charter::Speed { name: bytes(b"ultrafast"), also: Box::default(), prices: policy.llm.prices });
+    policy.models[0].speed = Some(crate::charter::Speed {
+        name: bytes(b"fast"),
+        also: Box::new([bytes(b"priority"), bytes(b"turbo")]),
+        prices: policy.models[0].prices,
+    });
+    let names = b"ultrafastfastpriorityturbo".len();
+    let alias_cells = 2 * size_of::<Box<[u8]>>();
+    assert_eq!(policy.owned_bytes().unwrap() - before, u64::try_from(names + alias_cells).unwrap());
 }

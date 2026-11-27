@@ -91,6 +91,7 @@ fn resolved(prompt: session::llm::Prompt) -> llm::Prompt {
         affinity: prompt.affinity,
         model: prompt.model,
         effort: prompt.effort,
+        speed: None,
         system: prompt.system,
         tools: prompt.tools,
         namespace: prompt.namespace,

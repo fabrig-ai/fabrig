@@ -67,7 +67,7 @@ pub(super) fn decoded(answer: &api::Answer) -> (Vec<Block>, smith::Usage) {
                 assert!(!too_large && !cut, "whole scripted call");
                 blocks.push(Block::Call(smith::Call { id: call_id, name, input, replay: None }));
             }
-            Output::Completed { stop, usage } => {
+            Output::Completed { stop, usage, .. } => {
                 let expected = match answer.finish {
                     api::Finish::Stop => openai::Stop::EndTurn,
                     api::Finish::ToolCalls => openai::Stop::ToolUse,

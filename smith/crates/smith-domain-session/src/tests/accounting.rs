@@ -255,6 +255,80 @@ fn reservation_prices_input_bytes_allowance_and_maximum_output_once() {
     assert_eq!(crate::preview_reservation(&harness.domain, owner, 10, 5, 4), None);
 }
 
+fn open_priced(harness: &mut Harness, prices: crate::record::Prices, speed: Option<crate::record::Speed>) -> Token {
+    let mut opening = opening(spec());
+    opening.prices = prices;
+    opening.speed = speed;
+    step(&mut harness.domain, &harness.env, Event::Open { opener: Token::new(1), opening }, &mut harness.out);
+    let Some(Request::Opened { session, .. }) = harness.out.pop() else { panic!("priced opening") };
+    let (owner, _) = calling(harness.one());
+    assert_eq!(owner, session);
+    owner
+}
+
+#[test]
+fn the_reported_serving_speed_prices_each_completion() {
+    use crate::{
+        llm::ServedSpeed,
+        record::{Prices, Speed},
+    };
+
+    let prices = Prices { input: 1, cached: 2, cache_write: Some(3), output: 4, unit: 1 };
+    let fast = Speed {
+        name: bytes(b"fast"),
+        also: Box::new([bytes(b"priority")]),
+        prices: Prices { input: 2, cached: 4, cache_write: Some(6), output: 8, unit: 1 },
+    };
+    // USAGE carries 10 input, 3 cache reads, 2 cache writes and 5 output.
+    for (served, expected) in [
+        (ServedSpeed::Named(bytes(b"fast")), 84),
+        (ServedSpeed::Named(bytes(b"priority")), 84),
+        (ServedSpeed::Standard, 42),
+        (ServedSpeed::Named(bytes(b"flex")), 84),
+        (ServedSpeed::Unreported, 84),
+        (ServedSpeed::Named(bytes(b"ultrafast")), 84),
+    ] {
+        for (speed, expected) in [(Some(fast.clone()), expected), (None, 42)] {
+            let mut harness = Harness::new(&LIMITS);
+            let owner = open_priced(&mut harness, prices, speed);
+            assert_eq!(crate::preview_completion(&harness.domain, owner, USAGE, &served), Ok(expected), "{served:?}");
+            step(
+                &mut harness.domain,
+                &harness.env,
+                Event::Completed { owner, completion: Completion { served: served.clone(), ..done() } },
+                &mut harness.out,
+            );
+            let Request::Priced { spent, own_spent, .. } = harness.out.pop().expect("completion charge") else {
+                panic!("completion is priced before its usage is reported");
+            };
+            assert_eq!((spent, own_spent), (expected, expected), "{served:?}");
+        }
+    }
+}
+
+#[test]
+fn a_completion_reserves_at_its_selected_speed_even_if_usage_is_missing() {
+    use crate::{
+        llm::ServedSpeed,
+        record::{Prices, Speed},
+    };
+
+    let standard = Prices { input: 1, cached: 2, cache_write: Some(3), output: 4, unit: 10 };
+    let ultrafast = Speed {
+        name: bytes(b"ultrafast"),
+        also: Box::new([]),
+        prices: Prices { input: 6, cached: 12, cache_write: Some(18), output: 24, unit: 10 },
+    };
+    // (12 input at the highest rate + 6 output) / 10 is exactly 6 at standard.
+    for (speed, expected) in [(None, 6), (Some(ultrafast), 36)] {
+        let mut harness = Harness::new(&LIMITS);
+        let owner = open_priced(&mut harness, standard, speed);
+        assert_eq!(crate::reserve_completion(&mut harness.domain, owner, 7, 5, 6), Some(expected));
+        let usage = Usage { input_tokens: None, ..USAGE };
+        assert_eq!(crate::preview_completion(&harness.domain, owner, usage, &ServedSpeed::Standard), Ok(expected));
+    }
+}
+
 #[test]
 fn unsent_denial_releases_reserved_provider_credit_before_kit_settlement() {
     for (reason, dimension) in [

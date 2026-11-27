@@ -759,6 +759,7 @@ fn backlog_diagnostics() {
         let mut backend = active();
         for _ in 0..count {
             backend.turns.ready.push(llm::Completion {
+                served: llm::ServedSpeed::Unreported,
                 reasoning_dropped: Box::default(),
                 content: Box::default(),
                 stop: llm::Stop::EndTurn,

@@ -59,6 +59,7 @@ pub fn opening(transcript: Option<record::Transcript>, budget: u64) -> record::O
         },
         dialect: 23,
         prices: PRICES,
+        speed: None,
         budget,
         answered: Box::default(),
         cut: None,
@@ -383,7 +384,13 @@ impl Scripted {
     pub fn complete(&mut self, content: Box<[llm::Block]>, stop: llm::Stop, usage: llm::Usage) {
         self.step(session::Event::Completed {
             owner: self.completing.expect("a completion is in flight"),
-            completion: llm::Completion { reasoning_dropped: Box::default(), content, stop, usage },
+            completion: llm::Completion {
+                served: smith_domain::llm::ServedSpeed::Unreported,
+                reasoning_dropped: Box::default(),
+                content,
+                stop,
+                usage,
+            },
         });
     }
 

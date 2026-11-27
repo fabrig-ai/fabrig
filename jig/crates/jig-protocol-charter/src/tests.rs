@@ -48,7 +48,7 @@ fn source() -> Charter {
             time: Duration::from_secs(60),
             reserve: Reserve { turns: 1, time: Duration::from_secs(10) },
         },
-        model: crate::Llm { model, grant: Some(5) },
+        model: crate::Llm { model, grant: Some(5), speed: None },
         models: Box::new([]),
         waiting: Duration::ZERO,
         resumes: false,
@@ -352,6 +352,8 @@ fn assignment_fixture(
                 price_unit: 1000,
                 efforts: Box::new([]),
                 effort: None,
+                speeds: Box::default(),
+                speed: None,
             },
             alternatives: Box::new([]),
             inspect: false,
@@ -401,6 +403,7 @@ fn report_fixture_charter(instructions: &[u8], words: u32, spend: u64, turns: u3
         },
         model: crate::Llm {
             grant: Some(1),
+            speed: None,
             model: Model {
                 prices: Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
                 dialect: 3,
@@ -620,6 +623,164 @@ fn contract_text_is_bounded_and_change_checks_are_required() {
         assert_eq!(rule.fields[1].name.as_ref(), b"body");
         assert_eq!(rule.fields[0].max, words.min(crate::CONTRACT_TEXT_MAX));
         assert_eq!(rule.fields[1].max, words);
+    }
+}
+
+fn sol(model: jig_domain_core_vocabulary::Model) -> jig_domain_core_vocabulary::Model {
+    use jig_domain_core_vocabulary::{Model, Speed};
+    // Short-context prices per million tokens.
+    Model {
+        name: b"gpt-6.2-sol".as_slice().into(),
+        input_price: 2_000,
+        cached_price: 100,
+        cache_write_price: Some(2_500),
+        output_price: 10_000,
+        price_unit: 1_000_000,
+        speeds: Box::new([
+            Speed {
+                name: b"fast".as_slice().into(),
+                also: Box::new([b"priority".as_slice().into()]),
+                input_price: 4_000,
+                cached_price: 200,
+                cache_write_price: Some(5_000),
+                output_price: 20_000,
+            },
+            Speed {
+                name: b"ultrafast".as_slice().into(),
+                also: Box::new([]),
+                input_price: 12_000,
+                cached_price: 600,
+                cache_write_price: Some(15_000),
+                output_price: 60_000,
+            },
+        ]),
+        speed: Some(b"ultrafast".as_slice().into()),
+        ..model
+    }
+}
+
+fn serving_speed(
+    name: &[u8],
+    also: Box<[Box<[u8]>]>,
+    prices: smith_domain_run::Prices,
+) -> smith_domain_run::charter::Speed {
+    smith_domain_run::charter::Speed { name: name.into(), also, prices }
+}
+
+fn assert_encoded_speed(actual: Option<&wire::Speed>, expected: Option<&smith_domain_run::charter::Speed>) {
+    assert_eq!(actual.is_some(), expected.is_some());
+    if let Some(expected) = expected {
+        let actual = actual.expect("the wire keeps the domain speed");
+        assert_eq!(actual.name, expected.name);
+        assert_eq!(actual.also.as_slice(), expected.also.as_ref());
+        assert_eq!(
+            actual.prices,
+            wire::Prices {
+                input: expected.prices.input,
+                cached: expected.prices.cached,
+                cache_write: expected.prices.cache_write,
+                output: expected.prices.output,
+                unit: expected.prices.unit,
+            }
+        );
+    }
+}
+
+#[test]
+fn model_speeds_reach_main_and_alternative_domain_and_wire_llms() {
+    use jig_domain_core_vocabulary::{Model, Speed};
+    use smith_domain_run::Prices;
+    let mut value = assignment_fixture(b"Models", 64, 20, 4);
+    let base = value.policy.model.clone();
+    let sol = sol(base.clone());
+    let anthropic = Model {
+        dialect: 2,
+        endpoint: 2,
+        name: b"opus-fast".as_slice().into(),
+        speeds: Box::new([Speed {
+            name: b"fast".as_slice().into(),
+            also: Box::new([]),
+            input_price: 2,
+            cached_price: 3,
+            cache_write_price: None,
+            output_price: 4,
+        }]),
+        speed: Some(b"fast".as_slice().into()),
+        ..base.clone()
+    };
+    let alternatives = [
+        (
+            Model { name: b"sol-fast".as_slice().into(), speed: Some(b"fast".as_slice().into()), ..sol.clone() },
+            Some(serving_speed(
+                b"fast",
+                Box::new([b"priority".as_slice().into()]),
+                Prices { input: 4_000, cached: 200, cache_write: Some(5_000), output: 20_000, unit: 1_000_000 },
+            )),
+        ),
+        (
+            Model { name: b"sol-standard".as_slice().into(), speed: None, ..sol.clone() },
+            Some(serving_speed(
+                b"default",
+                Box::new([]),
+                Prices { input: 2_000, cached: 100, cache_write: Some(2_500), output: 10_000, unit: 1_000_000 },
+            )),
+        ),
+        (
+            anthropic.clone(),
+            Some(serving_speed(
+                b"fast",
+                Box::new([]),
+                Prices { input: 2, cached: 3, cache_write: None, output: 4, unit: 1000 },
+            )),
+        ),
+        (Model { name: b"opus-standard".as_slice().into(), speed: None, ..anthropic }, None),
+        (base, None),
+        (
+            Model {
+                name: b"sol-program".as_slice().into(),
+                program: Some(b"program".as_slice().into()),
+                speed: None,
+                ..sol.clone()
+            },
+            None,
+        ),
+    ];
+    let count = u32::try_from(alternatives.len()).expect("bounded alternatives");
+    let mut models = skein_lib::List::with_capacity(count);
+    let mut expected = skein_lib::List::with_capacity(count);
+    let mut sources = skein_lib::List::with_capacity(count + 1);
+    sources.push(Some(1)).expect("main source");
+    for (model, speed) in alternatives {
+        models.push(model).expect("one slot per alternative");
+        expected.push(speed).expect("one slot per alternative");
+        sources.push(Some(1)).expect("one source per alternative");
+    }
+    value.policy.model = sol;
+    value.sources = sources.into_boxed();
+    value.policy.alternatives = models.into_boxed();
+    let assembled = crate::assignment(value, Box::new([]), Box::new([]), false).expect("bound sources");
+    let domain = charter(assembled).expect("domain charter");
+    let main = Some(serving_speed(
+        b"ultrafast",
+        Box::new([]),
+        Prices { input: 12_000, cached: 600, cache_write: Some(15_000), output: 60_000, unit: 1_000_000 },
+    ));
+    assert_eq!(domain.llm.speed, main);
+    assert_eq!(domain.llm.prices.input, 2_000, "the LLM keeps standard prices separately");
+    assert_eq!(domain.models.len(), expected.as_slice().len());
+    for (llm, expected) in domain.models.iter().zip(&expected) {
+        assert_eq!(&llm.speed, expected, "model {:?}", llm.model);
+    }
+    let names = [
+        EndpointName { number: 1, dialect: 3, name: b"openai".as_slice().into() },
+        EndpointName { number: 2, dialect: 2, name: b"anthropic".as_slice().into() },
+    ];
+    let bytes = encode(domain, &names, &wire::CEILINGS).expect("bounded encoding");
+    let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).expect("Smith codec accepts it");
+    assert_encoded_speed(decoded.main.speed.as_ref(), main.as_ref());
+    assert_eq!(decoded.models.len(), expected.len());
+    for (llm, expected) in decoded.models.iter().zip(&expected) {
+        assert_encoded_speed(llm.speed.as_ref(), expected.as_ref());
     }
 }
 

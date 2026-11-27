@@ -336,6 +336,7 @@ pub(super) fn prompt_with(messages: Box<[llm::Message]>) -> llm::Prompt {
         affinity: llm::Affinity { key: [0; 16], thread: 0 },
         model: b"fake".as_slice().into(),
         effort: None,
+        speed: None,
         system: Box::default(),
         tools: smith_domain::tools::Grants { inspect: false, modify: false, shell: false },
         namespace: smith_domain::tools::Namespace::NoWorkspace,

@@ -291,6 +291,7 @@ fn valid_turn(turn: &Turn) -> bool {
             | Line::Take { .. }
             | Line::Fail { .. }
             | Line::Pieces { .. }
+            | Line::Served { .. }
             | Line::Opaque { .. } => false,
         };
         if !valid {
@@ -310,6 +311,7 @@ fn is_call(line: Option<&Line>) -> bool {
             | Line::Take { .. }
             | Line::Fail { .. }
             | Line::Pieces { .. }
+            | Line::Served { .. }
             | Line::Opaque { .. },
         )
         | None => false,
