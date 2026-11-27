@@ -125,15 +125,16 @@ pub fn translate_recovery(value: source::Recovery) -> values::Recovery {
 }
 
 #[must_use]
-pub fn translate_description(value: source::Description) -> values::Description {
+pub fn translate_description(value: source::ClientDescription) -> values::Description {
+    let source::ClientDescription { instance, form, recovery } = value;
     values::Description {
-        kind: value.kind,
-        resources: value.resources.into_vec().into_iter().map(translate_resource).collect::<Vec<_>>().into(),
-        condition: value.condition,
-        form: translate_form(value.form),
-        recovery: translate_recovery(value.recovery),
-        price: value.price,
-        state: value.state,
+        kind: instance.kind,
+        resources: instance.resources.into_vec().into_iter().map(translate_resource).collect::<Vec<_>>().into(),
+        condition: instance.condition,
+        form: translate_form(form),
+        recovery: translate_recovery(recovery),
+        price: instance.price,
+        state: instance.state,
     }
 }
 

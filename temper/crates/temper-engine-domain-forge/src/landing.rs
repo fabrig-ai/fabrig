@@ -6321,8 +6321,8 @@ impl Domain {
             | api::Write::Update { .. }
             | api::Write::CreateBranch { .. } => return None,
         };
-        let (form, recovery) = crate::effect_shape(kind)?;
-        Some((kept.repository, what, crate::AgentEffect { effect: kept.effect.clone(), kind, state, form, recovery }))
+        crate::effect_shape(kind)?;
+        Some((kept.repository, what, crate::AgentEffect { effect: kept.effect.clone(), kind, state }))
     }
 }
 /// Authority's wait is not a refused merge: it spent no send and keeps its turn
