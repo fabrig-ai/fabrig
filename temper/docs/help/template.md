@@ -17,6 +17,14 @@ Template 6 is a design session, run by charter 12, the drafter;
 Numbered: the stock's templates take 1 to 32, and your own 33 to 64; a
 template below 33 that the stock doesn't have is refused.
 
+A template can have a name beside its number: 1 to 32 lowercase ASCII
+letters, digits and `-`, with a letter first. A stock template's name is
+reserved to it, even if it is removed, and cannot be changed. Give your
+own template a name with `name` when you set it, or rename it by setting
+it again. Names are unique within their kind. `temper ctl` takes the
+name wherever it takes the template's number; references in settings
+files still use numbers.
+
 A template holds:
 
 - its name, as clients show it;

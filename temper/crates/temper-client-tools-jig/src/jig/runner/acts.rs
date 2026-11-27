@@ -9,6 +9,7 @@ use super::{Called, Out, Runner, finish};
 use crate::jig::{
     Limits,
     call::{Call, Value, Values, number, value},
+    names,
     render::{
         self,
         outcome::{ActRead, Operation},
@@ -46,7 +47,16 @@ pub fn me<'a>(runner: &Runner, client: &'a Client) -> Option<&'a c::Me> {
         Latest::Jig(_) | Latest::Family(_) => None,
     }
 }
-pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
+pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut called: Called, out: &mut Queue<Out>) {
+    if (called.call.tool == rows::GOAL_START_AT
+        || called.call.tool == rows::CHAT_CREATE_AT
+        || called.call.tool == rows::ROLE_START_AT)
+        && let Some(me) = me(runner, client)
+        && let Err(why) = creation_names(&mut called.call, me)
+    {
+        prepared(runner, client, env, called, Err(why), out);
+        return;
+    }
     if called.call.tool == rows::CHANGE_SETTINGS_AT || called.call.tool == rows::PROPOSE_SETTINGS_AT {
         let Some(me) = me(runner, client) else { return };
         let request = settings_request(&called.call, &env.limits, me);
@@ -214,6 +224,7 @@ pub enum Failed {
     RefusedDetail(Box<[u8]>),
     Fixed(&'static [u8]),
     Detail(Box<[u8]>),
+    MissingName(names::Missing),
 }
 pub type Prepared = Result<(Request, Option<c::Recipient>), Failed>;
 fn project_amend(call: &Call, me: &c::Me) -> Prepared {
@@ -238,6 +249,27 @@ fn project_fund(call: &Call, me: &c::Me) -> Prepared {
         }
         None => Err(Failed::Fixed(b"unknown project")),
     }
+}
+// Use me's names before preparing an ask (or reading a goal's milestone).
+fn creation_names(call: &mut Call, me: &c::Me) -> Result<(), Failed> {
+    if (call.tool == rows::CHAT_CREATE_AT || call.tool == rows::GOAL_START_AT)
+        && let Some(Value::Text(name)) = value(call, 1)
+    {
+        let project = super::reads::project(call, me).ok_or(Failed::Fixed(b"unknown project"))?;
+        let Some(number) = names::template(me, project, name) else {
+            return Err(Failed::MissingName(names::Missing::new(names::Kind::Template, name)));
+        };
+        names::resolved(call, 1, number);
+    }
+    if (call.tool == rows::GOAL_START_AT || call.tool == rows::ROLE_START_AT)
+        && let Some(Value::Text(name)) = value(call, 3)
+    {
+        let Some(number) = names::charter(me, name) else {
+            return Err(Failed::MissingName(names::Missing::new(names::Kind::Charter, name)));
+        };
+        names::resolved(call, 3, number);
+    }
+    Ok(())
 }
 fn creation(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     match call.tool {
@@ -802,6 +834,10 @@ pub fn prepared(
                 Failed::RefusedDetail(why) => render::failure(&why, called.json, 2),
                 Failed::Fixed(why) => render::failure(why, called.json, 1),
                 Failed::Detail(why) => render::failure(&why, called.json, 1),
+                Failed::MissingName(why) => {
+                    let words = why.words(runner.parts.expect("host vocabulary"));
+                    render::failure(&words, called.json, 1)
+                }
             };
             finish(called, printed, out);
             return;

@@ -32,6 +32,14 @@ setting. `temper-box init` seeds no project: each is made from policy 1
 when it is made. A project a configuration seeds names its policy by
 number; one written out in the configuration is refused.
 
+A policy can have a name beside its number: 1 to 32 lowercase ASCII
+letters, digits and `-`, with a letter first. A stock policy's name is
+reserved to it, even if it is removed, and cannot be changed. Give your
+own policy a name with `name` when you set it, or rename it by setting
+it again. Names are unique within their kind. `temper ctl` takes the
+name wherever it takes the policy's number; references in settings
+files still use numbers.
+
 A requirement is what one kind of effect needs on some resources,
 whatever any authority says: a connector's criterion, judged by that
 connector. The forge's criteria are CI passed at the head, the head up

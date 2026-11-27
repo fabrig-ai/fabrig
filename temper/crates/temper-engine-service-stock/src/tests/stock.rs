@@ -360,6 +360,7 @@ fn ask_temper_is_charter_11_and_template_5() {
     let charter = defaults.charters.iter().find(|charter| charter.number == 11).expect("Ask temper charter");
     let mut expected = defaults.charters.iter().find(|charter| charter.number == 1).unwrap().clone();
     expected.number = 11;
+    expected.name = Some(b"ask-temper".as_slice().into());
     expected.policy.instructions = include_bytes!("../stock/ask.txt").as_slice().into();
     expected.policy.inspect = false;
     expected.policy.modify = false;
@@ -386,7 +387,7 @@ fn ask_temper_is_charter_11_and_template_5() {
     }
     let (_, configuring) = words.split_once("## Configuring\n\n").expect("Configuring part");
     let (configuring, _) = configuring.split_once("## Showing").expect("Showing follows Configuring");
-    assert!(configuring.contains("A new template, charter or policy takes the lowest number from 33 that the settings don't hold; a model you add takes the highest free number."));
+    assert!(configuring.contains("A new template, charter or policy takes the lowest number from 33 that the settings don't hold and a name of its own that no item of its kind has, never a stock item's; a stock item keeps its name. A model you add takes the highest free number."));
     assert!(configuring.contains("With it, write in their terms what the pages show: charter-words for each charter, what it does; project-words for the project's own way, a headline and a short lede."));
     assert!(configuring.contains("Draw in it what it describes, as Showing says: the project's path from its view, never as a list of steps, and a proposal that waits from its own view until it is decided."));
     let (_, remembering) = words.split_once("## Remembering\n\n").expect("Remembering part");
@@ -422,6 +423,7 @@ A flow is one path: draw each path as a flow of its own, and set options side by
     }
     let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
     expected.number = 5;
+    expected.name = Some(b"ask-temper".as_slice().into());
     expected.shown = b"ask".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(11);
     assert_eq!(*defaults.templates.iter().find(|template| template.number == 5).unwrap(), expected);

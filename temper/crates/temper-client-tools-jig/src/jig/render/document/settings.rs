@@ -140,9 +140,13 @@ fn inventory_text(document: &c::SettingsDocument, vocabulary: &dyn Parts, out: &
     for line in &document.settings {
         out.put(b"  ");
         setting_text(line.setting, vocabulary, out);
-        if let Some(name) = &line.shown {
+        if let Some(name) = &line.name {
+            out.put(b" ");
+            out.put(name);
+        }
+        if let Some(shown) = &line.shown {
             out.put(b" \"");
-            out.words(name.bytes.bytes());
+            out.words(shown.bytes.bytes());
             out.put(b"\"");
         }
         out.put(b": ");
@@ -169,7 +173,6 @@ fn inventory_text(document: &c::SettingsDocument, vocabulary: &dyn Parts, out: &
         {
             out.put(b", removed");
         }
-        settings_form::render::inventory_name_text(line.name.as_deref(), out);
         out.put(b"\n");
     }
     out.put(b"held revisions:\n");

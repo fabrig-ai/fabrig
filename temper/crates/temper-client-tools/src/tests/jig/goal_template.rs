@@ -36,6 +36,7 @@ pub(super) fn goal_me() -> c::Me {
     goal.flags.listed = true;
     let mut draft = goal.clone();
     draft.number = 4;
+    draft.name = Some(b"draft-goal".as_slice().into());
     draft.executor = c::TemplateExecutor::Charter(5);
     let mut subagents = List::with_capacity(1);
     subagents.push(f::model_effort(b"gpt-6.1-sol", Some(b"medium"))).unwrap();
@@ -51,41 +52,48 @@ pub(super) fn goal_me() -> c::Me {
     templates.push(goal).unwrap();
     templates.push(draft).unwrap();
     project.templates = templates;
-    let mut charters = List::with_capacity(2);
-    charters.push(1).unwrap();
-    charters.push(5).unwrap();
-    project.creating.as_mut().unwrap().within.charters = charters;
+    project.creating.as_mut().unwrap().within.charters = List::from_boxed(Box::new([1, 2, 5]));
+    me.charters = List::from_boxed(Box::new([c::MeCharter { number: 2, name: b"implementer".as_slice().into() }]));
     me
 }
 
 #[test]
 fn goal_start_fills_the_named_template() {
-    let mut root = f::choice_root(goal_me());
-    let call = root.submit(START);
-    let c::Ask::Create { project, tasks } = f::act_ask(&root, call) else { panic!("create") };
-    assert_eq!(*project, f::PROJECT);
-    assert_eq!(tasks.len(), 1);
-    let task = tasks.get(0).unwrap();
-    assert_eq!(task.executor, c::Executor::Agent { charter: 5 });
-    assert_eq!(task.spec.words.bytes(), WORDS.as_bytes());
-    assert!(!task.spec.asks);
-    assert_eq!(task.contract, c::NewContract::Report { words: crate::limits::TEXT });
-    assert_eq!(task.tracked, Some(0));
-    assert_eq!(task.label, 2);
-    assert_eq!(
-        task.flags,
-        c::TaskFlags { ended_by: c::EndedBy::Result, conversation: false, listed: true, retention: c::Retention::Kept }
-    );
-    assert_eq!(task.budget, c::NewBudget::Named);
-    assert_eq!(task.authority.spend, 80);
-    assert_eq!(task.authority.deadline, Some(skein_lib::Wall::from_nanos(60_000_000_000)));
-    assert_eq!(task.deadline, c::NewDeadline::Named);
-    assert_eq!(task.symbols.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
-    let llm = task.llm.as_ref().unwrap();
-    assert_eq!(llm, goal_me().projects.get(0).unwrap().templates.get(1).unwrap().llm.as_ref().unwrap());
-    assert_eq!(llm.account, None);
-    assert_eq!(llm.main, f::model_effort(b"gpt-6.1-sol", Some(b"high")));
-    assert_eq!(llm.subagents.as_slice(), &[f::model_effort(b"gpt-6.1-sol", Some(b"medium"))]);
+    for template in ["4", "draft-goal"] {
+        let mut argv = f::extended(START, &[]);
+        *argv.get_mut(5).expect("template selector") = template;
+        let mut root = f::choice_root(goal_me());
+        let call = root.submit(argv.as_slice());
+        let c::Ask::Create { project, tasks } = f::act_ask(&root, call) else { panic!("create") };
+        assert_eq!(*project, f::PROJECT);
+        assert_eq!(tasks.len(), 1);
+        let task = tasks.get(0).unwrap();
+        assert_eq!(task.executor, c::Executor::Agent { charter: 5 });
+        assert_eq!(task.spec.words.bytes(), WORDS.as_bytes());
+        assert!(!task.spec.asks);
+        assert_eq!(task.contract, c::NewContract::Report { words: crate::limits::TEXT });
+        assert_eq!(task.tracked, Some(0));
+        assert_eq!(task.label, 2);
+        assert_eq!(
+            task.flags,
+            c::TaskFlags {
+                ended_by: c::EndedBy::Result,
+                conversation: false,
+                listed: true,
+                retention: c::Retention::Kept
+            }
+        );
+        assert_eq!(task.budget, c::NewBudget::Named);
+        assert_eq!(task.authority.spend, 80);
+        assert_eq!(task.authority.deadline, Some(skein_lib::Wall::from_nanos(60_000_000_000)));
+        assert_eq!(task.deadline, c::NewDeadline::Named);
+        assert_eq!(task.symbols.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
+        let llm = task.llm.as_ref().unwrap();
+        assert_eq!(llm, goal_me().projects.get(0).unwrap().templates.get(1).unwrap().llm.as_ref().unwrap());
+        assert_eq!(llm.account, None);
+        assert_eq!(llm.main, f::model_effort(b"gpt-6.1-sol", Some(b"high")));
+        assert_eq!(llm.subagents.as_slice(), &[f::model_effort(b"gpt-6.1-sol", Some(b"medium"))]);
+    }
 }
 
 const STOCK: &[&str] = &[
@@ -106,13 +114,17 @@ const STOCK: &[&str] = &[
 
 #[test]
 fn stock_goal_requires_and_fills_the_creators_charter() {
-    let mut root = f::choice_root(goal_me());
-    let call = root.submit(STOCK);
-    let task = f::chat_task(&root, call);
-    assert_eq!(task.executor, c::Executor::Agent { charter: 1 });
-    assert_eq!(task.label, 2);
-    assert_eq!(task.tracked, Some(0));
-    assert!(task.symbols.is_empty());
+    for (charter, number) in [("1", 1), ("2", 2), ("implementer", 2)] {
+        let mut argv = f::extended(STOCK, &[]);
+        *argv.get_mut(5).expect("charter selector") = charter;
+        let mut root = f::choice_root(goal_me());
+        let call = root.submit(argv.as_slice());
+        let task = f::chat_task(&root, call);
+        assert_eq!(task.executor, c::Executor::Agent { charter: number });
+        assert_eq!(task.label, 2);
+        assert_eq!(task.tracked, Some(0));
+        assert!(task.symbols.is_empty());
+    }
 }
 
 fn refused(me: c::Me, argv: &[&str], expected: &[u8]) {
@@ -121,6 +133,22 @@ fn refused(me: c::Me, argv: &[&str], expected: &[u8]) {
     assert!(root.sends.is_empty());
     let answer = root.answer(call).expect("usage refusal");
     assert_eq!((answer.status, answer.stderr.as_ref()), (1, expected));
+}
+
+#[test]
+fn unknown_goal_template_names_send_nothing() {
+    for extra in [&[][..], &["--milestone", "41"][..]] {
+        let mut argv = f::extended(START, extra);
+        *argv.get_mut(5).expect("template selector") = "lean-goal";
+        let mut root = f::choice_root(goal_me());
+        let call = root.submit(argv.as_slice());
+        assert!(root.sends.is_empty() && root.reads.is_empty());
+        let answer = root.answer(call).expect("unknown name is usage");
+        assert_eq!(
+            (answer.status, answer.stderr.as_ref()),
+            (1, b"temper ctl: no template is named lean-goal; temper ctl settings show lists them\n".as_slice())
+        );
+    }
 }
 
 #[test]

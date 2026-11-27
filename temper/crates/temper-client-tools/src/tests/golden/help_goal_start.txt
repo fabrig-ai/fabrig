@@ -1,8 +1,8 @@
 goal start --project PROJECT [--template TEMPLATE] TEXT [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT] [--as-allowed] [--deadline TIME] [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... [--milestone TASK] [--after TASK]... [--no-deadline] --key KEY
   --project PROJECT: a project's name or number; required. The project
-  --template TEMPLATE: a number from 1 to 4294967295; optional. An offered template; stock goal template 2 when absent
+  --template TEMPLATE: a name or number from 1 to 4294967295; optional. An offered template by name or number; stock goal template 2 when absent
   TEXT (text): text, at most 1048576 bytes, or - to read stdin; required. The goal's words; the first line, at most 60 characters, is its title
-  --charter CHARTER: a number from 1 to 4294967295; optional. Required when the template lets its creator choose; omit when it fixes a charter
+  --charter CHARTER: a name or number from 1 to 4294967295; optional. A charter by name or number, required when the template lets its creator choose; omit when it fixes a charter
   --priority PRIORITY: a number from 0 to 4294967295; optional. Override the template's tracked priority
   --budget AMOUNT: an amount with at most two decimals, as 130 or 1.25; optional. The spend, as task show prints budgets; required for a given budget unless --as-allowed
   --as-allowed: a switch. Take all you may give from your pool, or with --milestone all the milestone has left, instead of a named budget: none is left for the next start while this goal is live

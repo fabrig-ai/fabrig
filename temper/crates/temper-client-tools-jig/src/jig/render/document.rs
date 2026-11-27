@@ -202,6 +202,28 @@ fn me_text(me: &Me, book: &Phrasebook, limits: &Limits, out: &mut Text) {
         if let Some(creating) = &project.creating {
             creating_text(creating, me, book, out);
         }
+        if !project.templates.is_empty() {
+            out.put(b"    templates:\n");
+            for template in &project.templates {
+                out.put(b"      ");
+                out.number(u64::from(template.number));
+                if let Some(name) = &template.name {
+                    out.put(b" ");
+                    out.put(name);
+                }
+                out.put(b"\n");
+            }
+        }
+    }
+    if !me.charters.is_empty() {
+        out.put(b"charters:\n");
+        for charter in &me.charters {
+            out.put(b"  ");
+            out.number(u64::from(charter.number));
+            out.put(b" ");
+            out.put(&charter.name);
+            out.put(b"\n");
+        }
     }
     out.put(b"needs: ");
     out.number(u64::from(me.needs_total));

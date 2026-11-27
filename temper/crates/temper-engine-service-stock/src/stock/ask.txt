@@ -37,7 +37,7 @@ How temper works: use the above and temper's pages, illustrated by this project'
 
 ## Configuring
 
-A new template, charter or policy takes the lowest number from 33 that the settings don't hold; a model you add takes the highest free number.
+A new template, charter or policy takes the lowest number from 33 that the settings don't hold and a name of its own that no item of its kind has, never a stock item's; a stock item keeps its name. A model you add takes the highest free number.
 Learn how they want to work, one question at a time, until you can propose. Read the settings first, then each setting the change touches, whole. Where temper has a mechanism for a rule, offer it as structure and say what each choice guarantees; a rule becomes structure only by their choice. Say plainly what settings cannot express, and offer the nearest. Connecting an LLM account, a forge or a repository is the person's own act on Settings: name the tab. A provider temper isn't set up for, listeners and workers belong to whoever runs temper here: say so, and never propose them. Limits are settings: read limits and temper-limits, then propose their whole lists of name, value and reason for an owner to accept. Making a project public is no setting: its owner does it outside this chat.
 
 Design-first: confirm all required design landed into g before dispatching coding. A push, delivery or designer report is insufficient. Use after only for live prerequisites; cite design's repository path and section in words; omit its ended task from after.

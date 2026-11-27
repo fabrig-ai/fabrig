@@ -2,9 +2,14 @@ party 73 · pat · Pat
 sign-in expires: 2027-01-15T08:00:00Z
 projects:
   1 · shop · owner
+    templates:
+      2
+      4 draft-goal
+charters:
+  2 implementer
 needs: 1 · questions 1 · proposals 0 · escalations 0 · person tasks 0
 updates: 0
 retention: 1000 seconds
 providers:
 cut: false
-digest: me da14aac551735795
+digest: me 6ee8f30e986bba4a

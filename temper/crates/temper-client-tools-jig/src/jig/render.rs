@@ -281,6 +281,8 @@ pub trait Parts: core::fmt::Debug {
     fn prepare_setting(&self, call: &mut crate::jig::call::Call, me: Option<&contract::Me>) -> bool;
     /// Select a host setting; none leaves selection to the kit's forms.
     fn setting_selector(&self, call: &crate::jig::call::Call) -> Option<contract::Setting>;
+    /// The kind whose inventory name selects an application setting.
+    fn setting_name_kind(&self, call: &crate::jig::call::Call) -> Option<crate::jig::names::Kind>;
     /// Build the family record and scope for one application read.
     fn application_read(&self, query: crate::jig::runner::application::Query) -> jig_client::Readable;
     /// Decode a family answer into settings items and values.

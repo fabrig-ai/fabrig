@@ -617,6 +617,31 @@ fn serve_review(root: &mut fixtures::Harness, call: u32, value: c::ReadValue) {
         newest_for_setting(root, call);
     }
 }
+const STOCK_NAME_ROWS: [(&str, &str, &str, c::Setting); 5] = [
+    ("charter", "goal", "5", c::Setting::Charter(c::SettingNumber { number: 5 })),
+    ("charter", "implementer", "2", c::Setting::Charter(c::SettingNumber { number: 2 })),
+    ("template", "milestone", "8", c::Setting::Template(c::SettingNumber { number: 8 })),
+    ("template", "draft-goal", "4", c::Setting::Template(c::SettingNumber { number: 4 })),
+    ("policy", "stock", "1", c::Setting::Policy(c::SettingNumber { number: 1 })),
+];
+fn stock_name_line(setting: c::Setting, name: &str) -> c::SettingLine {
+    c::SettingLine {
+        name: Some(name.as_bytes().into()),
+        setting,
+        shown: None,
+        follows: c::SettingFollows::Default,
+        last: None,
+        application: None,
+    }
+}
+fn stock_name_inventory() -> c::ReadResult {
+    c::ReadResult::Value(c::ReadValue::Settings(Box::new(c::SettingsDocument {
+        newest: 5,
+        settings: list(STOCK_NAME_ROWS.map(|(_, name, _, setting)| stock_name_line(setting, name))),
+        held: list([]),
+        pending: list([]),
+    })))
+}
 fn newest_for_setting(root: &mut fixtures::Harness, call: u32) {
     if root.reads.get(&call).expect("setting read").1 == c::Read::Settings {
         root.serve(
@@ -800,6 +825,8 @@ fn whole_settings_document_renderings_are_stable() {
     let inventory = c::ReadValue::Settings(Box::new(c::SettingsDocument {
         newest: 5,
         settings: list([
+            stock_name_line(c::Setting::Charter(c::SettingNumber { number: 2 }), "implementer"),
+            stock_name_line(c::Setting::Policy(c::SettingNumber { number: 1 }), "stock"),
             c::SettingLine {
                 name: Some(b"lean-goal".as_slice().into()),
                 setting: c::Setting::Template(c::SettingNumber { number: 33 }),
@@ -1084,10 +1111,44 @@ fn an_unqualified_setting_reads_the_inventoried_revision_before_its_value() {
 }
 
 #[test]
+fn stock_setting_names_send_the_inventoried_numbers() {
+    for (kind, name, digits, setting) in STOCK_NAME_ROWS {
+        for selector in [name, digits] {
+            let (mut root, call) = fixtures::read_call(&["settings", "show", kind, selector]);
+            assert_eq!(root.reads.get(&call).expect("inventory read").1, c::Read::Settings);
+            root.serve(call, stock_name_inventory());
+            assert_eq!(
+                root.reads.get(&call).expect("value read").1,
+                c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+            );
+        }
+    }
+}
+
+#[test]
+fn a_setting_name_must_belong_to_its_kind() {
+    for (selector, item, name) in [
+        ("policy", "policy", "goal"),
+        ("charter", "charter", "milestone"),
+        ("template-goal", "template", "implementer"),
+        ("charter-words", "charter", "draft-goal"),
+    ] {
+        let (mut root, call) = fixtures::read_call(&["settings", "show", selector, name]);
+        root.serve(call, stock_name_inventory());
+        assert!(root.reads.is_empty() && root.family_reads.is_empty());
+        let answer = root.answer(call).expect("unknown name is usage");
+        let why = format!("temper ctl: no {item} is named {name}; temper ctl settings show lists them\n");
+        assert_eq!((answer.status, answer.stderr.as_ref()), (1, why.as_bytes()));
+    }
+}
+
+#[test]
 fn settings_reads_keep_their_neighbours_not_served_and_role_statuses() {
     for argv in [
         vec!["settings", "show"],
         vec!["settings", "show", "rules"],
+        vec!["settings", "show", "charter", "goal"],
+        vec!["settings", "show", "charter-words", "implementer"],
         vec!["revision", "show", "5"],
         vec!["revision", "list"],
     ] {
@@ -2297,6 +2358,27 @@ fn forge_inventory(setting: c::Setting, follows: c::ApplicationFollows) -> c::Re
         pending: list([]),
     })))
 }
+#[test]
+fn settings_words_and_work_names_select_the_numbered_values() {
+    use temper_client_protocol_wire::v1 as w;
+    for (selector, name, digits, kind, number, heading) in [
+        ("charter-words", "implementer", "2", 9, 2, "charter-words 2, revision 5\n"),
+        ("template-goal", "draft-goal", "4", 11, 4, "template-goal 4, revision 5\n"),
+    ] {
+        for reference in [name, digits] {
+            let (mut root, call) = fixtures::read_call(&["settings", "show", selector, reference]);
+            assert_eq!(root.reads.get(&call).expect("inventory read").1, c::Read::Settings);
+            root.serve(call, stock_name_inventory());
+            let w::Read::Setting(query) = forge_query(&root, call) else { panic!("setting value read") };
+            assert_eq!((query.kind, query.scope, query.number), (kind, 0, number));
+            root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
+            let answer = root.answer(call).expect("setting value");
+            assert_eq!(answer.status, 0);
+            assert!(answer.stdout.starts_with(heading.as_bytes()));
+        }
+    }
+}
+
 #[test]
 #[expect(
     clippy::too_many_lines,

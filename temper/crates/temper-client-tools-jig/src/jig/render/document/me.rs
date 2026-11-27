@@ -72,6 +72,17 @@ pub(super) fn encode_me(
         encode_me_project(item_1, out, budget);
     }
     out.array_end();
+    out.key(b"charters");
+    out.array_start();
+    for charter in &value.charters {
+        out.object_start();
+        out.key(b"number");
+        out.unsigned(u64::from(charter.number));
+        out.key(b"name");
+        out.string(&charter.name);
+        out.object_end();
+    }
+    out.array_end();
     out.key(b"needs");
     encode_needs(&value.needs, out, budget);
     out.key(b"needs_total");
