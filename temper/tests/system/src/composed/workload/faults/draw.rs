@@ -16,7 +16,12 @@ type Eligible = fn(&Goal) -> bool;
 
 // The injected catalogue kinds and their eligible targets. Observed kinds
 // take no coin (temper/docs/design/testing/composed-catalogue.md, 1).
-const INJECTED_CATALOGUE: &[(Kind, Eligible)] = &[(forge_faults::UNAVAILABLE, |_| true)];
+const INJECTED_CATALOGUE: &[(Kind, Eligible)] = &[
+    // busy
+    (forge_faults::UNAVAILABLE, |_| true),
+    // restarts
+    (restarts::ENGINE_RESTART_MID_TURN, |_| true),
+];
 
 /// The composed world's plans and acts for one seed and its configured kinds.
 pub struct FaultDraw {
@@ -181,8 +186,13 @@ fn catalogue_plan(
     let goals: Vec<_> = workload.goals.iter().filter(|goal| eligible(goal)).collect();
     let index = usize::try_from(rng.below(u64::try_from(goals.len()).expect("bounded goals"))).expect("goal index");
     let after = rng.below(16);
+    let query = if kind == restarts::ENGINE_RESTART_MID_TURN {
+        1 + usize::try_from(rng.below(2)).expect("two query points")
+    } else {
+        1
+    };
     if let Some(goal) = goals.get(index) {
-        Some(Plan { kind, goal: goal.name.clone(), after, fired: false, query: 1 })
+        Some(Plan { kind, goal: goal.name.clone(), after, fired: false, query })
     } else {
         ineligible.insert(kind);
         None

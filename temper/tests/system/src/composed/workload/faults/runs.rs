@@ -18,14 +18,9 @@ const SPELL: Duration = Duration::from_secs(1);
 
 impl World {
     pub(in crate::composed) fn workload_fault_assignment(&mut self, assignment: &engine::Assignment) {
-        let restart_point = self
-            .workload_faults
-            .as_ref()
-            .and_then(|f| f.plans.iter().find(|p| p.kind == temper_faults::restarts::ENGINE_CRASH_MID_TURN && !p.fired))
-            .and_then(|p| self.workload_names().task(&p.goal).map(|task| (task, p.query)));
-        if let Some((task, query)) = restart_point
-            && assignment.task == task
-        {
+        let restart_query =
+            self.workload_faults.as_ref().and_then(|f| self.workload_restart_query(f, assignment.task, 0));
+        if let Some(query) = restart_query {
             self.lanes[0].process.held_query = Some(query);
         }
         let Some(f) = &mut self.workload_faults else { return };

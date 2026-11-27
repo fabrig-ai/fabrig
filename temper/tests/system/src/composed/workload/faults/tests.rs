@@ -143,6 +143,60 @@ fn catalogue_kind_draws_its_own_coin_target_and_moment() {
 }
 
 #[test]
+fn settled_mid_turn_draws_its_own_coin_goal_and_held_query() {
+    use restarts::ENGINE_RESTART_MID_TURN as SETTLED;
+
+    assert!(!GATE_KINDS.contains(&SETTLED));
+    assert!(CAMPAIGN_KINDS.contains(&SETTLED));
+    let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+    let without: Vec<_> = kinds.iter().copied().filter(|&kind| kind != SETTLED).collect();
+    let mut goal_indices = BTreeSet::new();
+    let mut queries = BTreeSet::new();
+    let mut skipped = false;
+    for seed in (0..64).chain([u64::MAX]) {
+        let streams = Streams::new(seed);
+        let workload = Workload::draw(&streams, &COMPOSED);
+        let draw = FaultDraw::new(seed, &kinds);
+        let baseline = FaultDraw::new(seed, &without);
+        assert_eq!(
+            draw.plans.iter().filter(|p| p.kind != SETTLED).collect::<Vec<_>>(),
+            baseline.plans.iter().collect::<Vec<_>>(),
+            "seed {seed}: another kind's plan moved"
+        );
+        assert_eq!(
+            draw.planned().into_iter().filter(|(kind, _)| *kind != SETTLED).collect::<Vec<_>>(),
+            baseline.planned(),
+            "seed {seed}: another kind's target moved"
+        );
+        assert_eq!(draw.ineligible(), baseline.ineligible(), "seed {seed}");
+        assert_eq!(draw.acts(), baseline.acts(), "seed {seed}");
+
+        let plan = draw.plans.iter().find(|plan| plan.kind == SETTLED);
+        let mut rng = streams.rng(Stream::Faults, "restarts/engine restarted mid-turn");
+        if rng.below(2) == 0 {
+            assert!(plan.is_none(), "seed {seed}: the coin skips the kind");
+            skipped = true;
+        } else {
+            let index =
+                usize::try_from(rng.below(workload.goals.len().try_into().expect("goal count"))).expect("goal index");
+            let after = rng.below(16);
+            let query = usize::try_from(rng.between(1, 2)).expect("held query");
+            let plan = plan.unwrap_or_else(|| panic!("seed {seed}: the coin plans a restart"));
+            assert_eq!(
+                (plan.goal.as_str(), plan.after, plan.query),
+                (workload.goals[index].name.as_str(), after, query),
+                "seed {seed}"
+            );
+            goal_indices.insert(index);
+            queries.insert(query);
+        }
+    }
+    assert!(skipped);
+    assert_eq!(goal_indices, BTreeSet::from([0, 1, 2]));
+    assert_eq!(queries, BTreeSet::from([1, 2]));
+}
+
+#[test]
 fn unavailable_draws_its_own_coin_target_and_moment() {
     use forge_faults::UNAVAILABLE;
 

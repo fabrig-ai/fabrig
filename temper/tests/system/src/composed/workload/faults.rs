@@ -58,6 +58,7 @@ pub const CAMPAIGN_KINDS: &[Kind] = &[
     // runs that park, resume and move
     // the engine's own bounds
     // restarts
+    restarts::ENGINE_RESTART_MID_TURN,
 ];
 
 #[derive(Debug)]
@@ -82,6 +83,7 @@ pub(in crate::composed) struct Faults {
     closed: Option<(u64, Injection, Time)>,
     restored: Option<u64>,
     stale_release: Option<u64>,
+    settling: Option<String>,
     opening: Option<Injection>,
     rejoining: Option<usize>,
     provider: Option<(u32, Time)>,
@@ -136,6 +138,7 @@ impl Faults {
             closed: None,
             restored: None,
             stale_release: None,
+            settling: None,
             opening: None,
             rejoining: None,
             provider: None,
@@ -151,7 +154,7 @@ impl Faults {
     }
 
     pub(super) fn needs_small_steps(&self) -> bool {
-        self.provider.is_some() || self.opening.is_some() || self.rejoining.is_some()
+        self.provider.is_some() || self.settling.is_some() || self.opening.is_some() || self.rejoining.is_some()
     }
 
     fn due(&self, kind: Kind) -> bool {
@@ -194,6 +197,7 @@ impl World {
                 && (f.park.is_none() || f.parked)
                 && f.closed.is_none()
                 && f.provider.is_none()
+                && f.settling.is_none()
                 && f.opening.is_none()
                 && f.rejoining.is_none()
                 && f.lag_until.is_none()
@@ -303,45 +307,35 @@ impl World {
             self.workload_faults = Some(f);
             return Err(finding);
         }
-        let restart_task = f
-            .plans
+        self.workload_restart_tick(&mut f);
+        self.ends.faults_stop(f.last);
+        self.workload_faults = Some(f);
+        Ok(())
+    }
+
+    // Arm the first outstanding point for this goal; after rejoining, the
+    // same activation may continue to a later point.
+    fn workload_restart_query(&self, f: &Faults, task: u64, past: usize) -> Option<usize> {
+        f.plans
             .iter()
-            .find(|p| p.kind == restarts::ENGINE_CRASH_MID_TURN)
-            .and_then(|p| self.workload_names().task(&p.goal));
-        if f.due(restarts::ENGINE_CRASH_MID_TURN)
-            && self.lanes[0].assignment.as_ref().is_some_and(|a| Some(a.task) == restart_task)
-            && !self.lanes[0].process.prepared()
-            && self.lanes[0].process.held_query.is_some_and(|query| {
-                self.lanes[0].process.agent().prompts().len() == query
-                    && self.lanes[0].process.agent().turns().len() + 1 == query
+            .filter(|p| {
+                restarts::MID_TURN.contains(&p.kind)
+                    && !p.fired
+                    && p.query > past
+                    && self.workload_names().task(&p.goal) == Some(task)
             })
-            && self.lanes[0].worker.retained_turns() == 0
-            && self.store.idle()
-            && self.root_events.is_empty()
-            && self.lanes[0].worker_events.is_empty()
+            .map(|p| p.query)
+            .min()
+    }
+
+    fn workload_restart_tick(&mut self, f: &mut Faults) {
+        if f.settling.is_none() && f.opening.is_none() && f.rejoining.is_none() {
+            self.workload_restart_at_hold(f);
+        }
+        if self.absence.drained
+            && let Some(goal) = f.settling.take()
         {
-            let goal = f.fire(restarts::ENGINE_CRASH_MID_TURN);
-            eprintln!(
-                "crash at {:?}, iteration {}, assignment {:?}, queries {}",
-                self.env.now,
-                self.iteration,
-                self.lanes[0].assignment.as_ref().map(|a| (a.task, a.attempt)),
-                self.lanes[0].process.agent().prompts().len()
-            );
-            self.cut_link();
-            // These replies address the old forge client's tokens, not the
-            // reopened client's independently numbered calls.
-            f.read_replies.clear();
-            self.stop_engine();
-            let injection = f.ledger.inject(
-                restarts::ENGINE_CRASH_MID_TURN,
-                self.env.now,
-                Struck { request: Some(goal), ..Struck::default() },
-            );
-            // The composed settings and all durable rows survive the root, not its queues.
-            let config = temper_engine_domain_world::oracle::config::copy(&self.restart_config);
-            self.reopen_with_config(config);
-            f.opening = Some(injection);
+            self.reopen_after_workload_stop(f, restarts::ENGINE_RESTART_MID_TURN, goal);
         }
         if self.opened
             && let Some(injection) = f.opening.take()
@@ -354,11 +348,69 @@ impl World {
             self.lanes[0].worker_events.push_back(super::super::worker::Event::Ready);
         }
         if f.rejoining.is_some_and(|before| self.absence_admissions() > before) {
-            self.lanes[0].process.held_query = None;
+            self.lanes[0].process.held_query = self.lanes[0].process.held_query.and_then(|query| {
+                let task = self.lanes[0].assignment.as_ref()?.task;
+                self.workload_restart_query(f, task, query)
+            });
             f.rejoining = None;
         }
-        self.ends.faults_stop(f.last);
-        self.workload_faults = Some(f);
-        Ok(())
+    }
+
+    fn workload_restart_at_hold(&mut self, f: &mut Faults) {
+        let lane = &self.lanes[0];
+        let (Some(assignment), Some(query)) = (&lane.assignment, lane.process.held_query) else { return };
+        if !lane.process.model_held()
+            || lane.worker.retained_turns() != 0
+            || !self.store.idle()
+            || !self.root_events.is_empty()
+            || !lane.worker_events.is_empty()
+        {
+            return;
+        }
+        let Some(kind) = f.plans.iter().find_map(|p| {
+            (restarts::MID_TURN.contains(&p.kind)
+                && !p.fired
+                && p.query == query
+                && self.workload_names().task(&p.goal) == Some(assignment.task)
+                && f.due(p.kind))
+            .then_some(p.kind)
+        }) else {
+            return;
+        };
+        let goal = f.fire(kind);
+        // Once one restart strikes this held call, a second fault cannot
+        // use the same call, even if a new activation repeats the script.
+        for plan in &mut f.plans {
+            if !plan.fired && restarts::MID_TURN.contains(&plan.kind) && plan.goal == goal && plan.query == query {
+                plan.fired = true;
+                f.ledger.ineligible(plan.kind);
+            }
+        }
+        if kind == restarts::ENGINE_RESTART_MID_TURN {
+            f.settling = Some(goal);
+            self.begin_engine_settle();
+        } else {
+            eprintln!(
+                "crash at {:?}, iteration {}, assignment {:?}, queries {}",
+                self.env.now,
+                self.iteration,
+                self.lanes[0].assignment.as_ref().map(|a| (a.task, a.attempt)),
+                query
+            );
+            self.reopen_after_workload_stop(f, kind, goal);
+        }
+    }
+
+    fn reopen_after_workload_stop(&mut self, f: &mut Faults, kind: Kind, goal: String) {
+        self.cut_link();
+        // These replies address the old forge client's tokens, not the
+        // reopened client's independently numbered calls.
+        f.read_replies.clear();
+        self.stop_engine();
+        let injection = f.ledger.inject(kind, self.env.now, Struck { request: Some(goal), ..Struck::default() });
+        // The composed settings and all durable rows survive the root, not its queues.
+        let config = temper_engine_domain_world::oracle::config::copy(&self.restart_config);
+        self.reopen_with_config(config);
+        f.opening = Some(injection);
     }
 }
