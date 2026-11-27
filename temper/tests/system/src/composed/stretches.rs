@@ -18,10 +18,33 @@ pub const ROUNDS: u32 = 2;
 pub(super) const CALLS: u32 = 1;
 const UNISSUED: u64 = 999_999;
 const TOOLS: [&str; 3] = ["read_task", "message", "mark_read"];
+const ENDED_PROBE_WORDS: &str = "A message to the person task that already reported.";
 
 pub(super) fn turn() -> Turn {
     Turn {
         lines: Box::new([Line::Drawn { rounds: ROUNDS, tools: TOOLS.map(|name| name.as_bytes().into()).into() }]),
+        finish: Finish::ToolCalls,
+        tokens: 0,
+    }
+}
+
+pub(super) fn ended_recipient_probe() -> Turn {
+    Turn {
+        lines: Box::new([
+            Line::Take {
+                name: b"reported".as_slice().into(),
+                before: b"Result from task ".as_slice().into(),
+                after: b":\n".as_slice().into(),
+            },
+            Line::Call {
+                name: b"message".as_slice().into(),
+                arguments: serde_json::to_vec(
+                    &json!({"target":"{{#reported}}", "form":"words", "words":ENDED_PROBE_WORDS}),
+                )
+                .expect("ended recipient probe")
+                .into(),
+            },
+        ]),
         finish: Finish::ToolCalls,
         tokens: 0,
     }
@@ -152,7 +175,8 @@ pub enum Target {
     Conversation,
 }
 
-/// Rounds that reached the process boundary and the product's refusals within them.
+/// Rounds that reached the process boundary and the product's refusals.
+/// The mixed gate case also keeps one scripted witness for an ended recipient.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Audit {
     planned: BTreeMap<u64, Vec<Range<usize>>>,
@@ -160,12 +184,23 @@ pub struct Audit {
     calls: u64,
     refusals: BTreeMap<(Refusal, Target), u64>,
     shapes: Option<Reached>,
+    // Some when the gate asks for a witness independent of the model's draw.
+    ended_recipient_probe: Option<bool>,
 }
 
 impl Audit {
     /// Retains allowlisted completion shapes for a case of the composed sweep.
     pub fn count_shapes(&mut self) {
         self.shapes = Some(Reached::new());
+    }
+
+    /// Check one message to a reported person delegate even if no round draws it.
+    pub fn require_ended_recipient_probe(&mut self) {
+        self.ended_recipient_probe = Some(false);
+    }
+
+    pub(super) fn probes_ended_recipient(&self) -> bool {
+        self.ended_recipient_probe.is_some()
     }
 
     pub(super) fn counts_shapes(&self) -> bool {
@@ -195,6 +230,9 @@ impl Audit {
         let Some(index) = index.filter(|index| {
             self.planned.get(&task).is_some_and(|ranges| ranges.iter().any(|range| range.contains(index)))
         }) else {
+            if self.probes_ended_recipient() && self.observe_ended_recipient_probe(task, turn, store) {
+                return;
+            }
             if let Some(shapes) = &mut self.shapes {
                 shapes.turns(std::slice::from_ref(turn));
             }
@@ -230,10 +268,41 @@ impl Audit {
         }
     }
 
-    fn count(&mut self, task: u64, tool: &[u8], input: &[u8], result: &Returned, store: &Store) -> Option<Call> {
-        let Returned::Text { text, error, .. } = result else {
-            panic!("task {task}: drawn call got an unexpected terminal: {result:?}");
+    fn observe_ended_recipient_probe(&mut self, task: u64, turn: &record::Turn, store: &Store) -> bool {
+        let blocks = || turn.messages.iter().flat_map(|message| &message.content);
+        let Some((call, args)) = blocks().filter_map(Block::tool_call).find_map(|call| {
+            if call.name.as_ref() != b"message" {
+                return None;
+            }
+            let args: Value = serde_json::from_slice(&call.input).expect("producer message body");
+            (args["words"] == ENDED_PROBE_WORDS).then_some((call, args))
+        }) else {
+            return false;
         };
+        let mut answers = blocks().filter_map(|block| match block {
+            Block::ToolResult { id, result } if *id == call.id => Some(result),
+            _ => None,
+        });
+        let result = answers.next().expect("one answer to the ended recipient probe");
+        assert!(answers.next().is_none(), "task {task}: duplicate ended recipient probe answer");
+        let target = args["target"].as_u64().expect("reported task number");
+        assert_eq!(
+            self.answer(task, Tool::Message, target, result, store),
+            (Answer::RecipientEnded, Target::EndedPersonDelegate),
+            "task {task}: ended recipient probe for task {target} got {result:?}",
+        );
+        self.ended_recipient_probe = Some(true);
+        if let Some(shapes) = &mut self.shapes {
+            shapes.completion(&[Call {
+                tool: Tool::Message,
+                answer: Answer::RecipientEnded,
+                references: vec![(Reference::Task, Class::Ended)],
+            }]);
+        }
+        true
+    }
+
+    fn count(&mut self, task: u64, tool: &[u8], input: &[u8], result: &Returned, store: &Store) -> Option<Call> {
         let args: Value = serde_json::from_slice(input).expect("drawn body");
         let (tool, reference, target) = match tool {
             b"read_task" => (Tool::ReadTask, Reference::Task, &args["task"]),
@@ -242,20 +311,29 @@ impl Audit {
             _ => unreachable!("tool was checked"),
         };
         let target = target.as_u64().expect("numeric target");
-        let class = if target == UNISSUED {
-            Target::NeverIssued
-        } else if tool != Tool::MarkRead
-            && store.rows.get(&super::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(target)))).is_some_and(
-                |row| {
-                    matches!(row, super::engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))
-                if row.requester == tasks::Party::Task(task) && matches!(row.executor, tasks::Executor::Person(_)))
-                },
-            )
-        {
-            Target::EndedPersonDelegate
-        } else {
-            Target::Conversation
+        let (answer, class) = self.answer(task, tool, target, result, store);
+        self.shapes.as_ref()?;
+        // A non-sentinel mark_read number comes from the producer's own sent-message slot.
+        let owner = if reference == Reference::Message { task } else { target };
+        let class = match class {
+            Target::NeverIssued => Class::Unissued,
+            Target::EndedPersonDelegate => Class::Ended,
+            Target::Conversation if live_task(owner, store) => Class::Live,
+            Target::Conversation => Class::Unknown,
         };
+        let mut references = vec![(reference, class)];
+        if tool == Tool::Message && args["form"] == "answer" {
+            let class = if args["question"].as_u64() == Some(UNISSUED) { Class::Unissued } else { Class::Unknown };
+            references.push((Reference::Question, class));
+        }
+        Some(Call { tool, answer, references })
+    }
+
+    fn answer(&mut self, task: u64, tool: Tool, target: u64, result: &Returned, store: &Store) -> (Answer, Target) {
+        let Returned::Text { text, error, .. } = result else {
+            panic!("task {task}: stretch call got an unexpected terminal: {result:?}");
+        };
+        let class = target_class(task, tool, target, store);
         if tool == Tool::ReadTask && class == Target::NeverIssued {
             assert!(*error, "task {task}: read of never-issued task succeeded");
             assert_eq!(text.as_ref(), b"Task read refused: no reference", "task {task}: read of never-issued task");
@@ -274,27 +352,16 @@ impl Audit {
                 _ => Answer::Unknown,
             }
         };
-        self.shapes.as_ref()?;
-        // A non-sentinel mark_read number comes from the producer's own sent-message slot.
-        let owner = if reference == Reference::Message { task } else { target };
-        let class = match class {
-            Target::NeverIssued => Class::Unissued,
-            Target::EndedPersonDelegate => Class::Ended,
-            Target::Conversation if live_task(owner, store) => Class::Live,
-            Target::Conversation => Class::Unknown,
-        };
-        let mut references = vec![(reference, class)];
-        if tool == Tool::Message && args["form"] == "answer" {
-            let class = if args["question"].as_u64() == Some(UNISSUED) { Class::Unissued } else { Class::Unknown };
-            references.push((Reference::Question, class));
-        }
-        Some(Call { tool, answer, references })
+        (answer, class)
     }
 
-    /// Every registered stretch ran all its rounds, once each.
+    /// Every registered stretch ran all its rounds, once each, and any required probe ran.
     pub fn check(&self) -> Result<(), String> {
         if self.planned.is_empty() {
             return Err("no producer stretches planned".into());
+        }
+        if self.ended_recipient_probe == Some(false) {
+            return Err("no producer played the ended recipient probe".into());
         }
         for (task, ranges) in &self.planned {
             for round in ranges.iter().flat_map(Clone::clone) {
@@ -315,6 +382,21 @@ impl Audit {
     #[must_use]
     pub fn played(&self) -> (usize, u64) {
         (self.played.len(), self.calls)
+    }
+}
+
+fn target_class(task: u64, tool: Tool, target: u64, store: &Store) -> Target {
+    if target == UNISSUED {
+        return Target::NeverIssued;
+    }
+    if tool != Tool::MarkRead
+        && matches!(store.rows.get(&super::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(target)))),
+            Some(super::engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row))))
+            if row.requester == tasks::Party::Task(task) && matches!(row.executor, tasks::Executor::Person(_)))
+    {
+        Target::EndedPersonDelegate
+    } else {
+        Target::Conversation
     }
 }
 

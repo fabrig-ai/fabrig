@@ -68,12 +68,19 @@ pub(crate) struct Image {
 impl Image {
     pub(crate) fn open(self) -> Store {
         let mut store = Store::empty(self.shape, self.models);
-        store.inflight = None;
+        store.mirror = Mirror::Off;
         store.catalogue = self.catalogue;
         store.reopen(self.stores);
         store.page_delay = self.page_delay;
         store
     }
+}
+
+// The memory component settles each submitted transaction synchronously. Only
+// the live world's typed readback needs a copy until its terminal arrives.
+enum Mirror {
+    Off,
+    On(Option<(u64, Box<[Write]>)>),
 }
 
 /// Numbered root transactions and, in a live world, their durable typed mirror.
@@ -94,8 +101,7 @@ pub struct Store {
     shape: Shape,
     models: Box<[engine::Model]>,
     catalogue: Option<Box<[jig_domain_core::settings::ModelName]>>,
-    // Only the live world's typed readback needs a copy of its writes.
-    inflight: Option<BTreeMap<u64, Box<[Write]>>>,
+    mirror: Mirror,
     // The forge world submits these during a root pass and drives them on a later tick.
     engine_loads: VecDeque<engine_store::Out>,
     // A drive drains these in order; the next drive reuses their buffers.
@@ -245,7 +251,7 @@ impl Store {
             shape,
             models,
             catalogue: None,
-            inflight: Some(BTreeMap::new()),
+            mirror: Mirror::On(None),
             engine_loads: VecDeque::new(),
             requests: VecDeque::new(),
             above: Queue::uncapped(),
@@ -285,7 +291,9 @@ impl Store {
         let previous = self.pending.back().map_or(self.applied, |pending| pending.0);
         assert_eq!(number, previous.checked_add(1).expect("bounded commit"));
         self.pending.push_back((number, writes));
-        self.delays.insert(number, delay);
+        if delay != 0 {
+            self.delays.insert(number, delay);
+        }
     }
     pub fn apply(&mut self) -> u64 {
         let number = self.pending.front().expect("queued transaction").0;
@@ -318,8 +326,9 @@ impl Store {
         }
         self.holding = hold || self.hold_next != 0 || !self.held.is_empty();
         self.hold_next = self.hold_next.saturating_sub(1);
-        if let Some(inflight) = &mut self.inflight {
-            inflight.insert(number, writes.clone());
+        if let Mirror::On(inflight) = &mut self.mirror {
+            assert!(inflight.is_none(), "one synchronous memory store commit at a time");
+            *inflight = Some((number, writes.clone()));
         }
         self.request(engine::StoreRequest::Commit { number, writes });
         if self.failed {
@@ -338,8 +347,8 @@ impl Store {
         self.pending.clear();
         self.delays.clear();
         self.held.clear();
-        if let Some(inflight) = &mut self.inflight {
-            inflight.clear();
+        if let Mirror::On(inflight) = &mut self.mirror {
+            *inflight = None;
         }
         self.replies.clear();
         self.missing.clear();
@@ -718,8 +727,15 @@ impl Store {
             // This world does not consume the census (jig/docs/design/protocol/store/growth.md, 1.3).
             Event::Census { .. } => {}
             Event::Committed { number, .. } => {
-                let writes = self.inflight.as_mut().map(|inflight| inflight.remove(&number).expect("root commit"));
-                for write in writes.unwrap_or_default() {
+                let writes = match &mut self.mirror {
+                    Mirror::Off => Box::default(),
+                    Mirror::On(inflight) => {
+                        let (submitted, writes) = inflight.take().expect("root commit");
+                        assert_eq!(number, submitted, "mirrored commit number");
+                        writes
+                    }
+                };
+                for write in writes {
                     match write {
                         Write::DropTranscript { task } => {
                             self.rows.retain(|key, _| {

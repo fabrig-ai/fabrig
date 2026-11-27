@@ -77,7 +77,7 @@ pub(super) fn assigned(world: &mut World, assignment: &engine::Assignment) -> Sc
             let failed = format!("Failed test: {} ", change.name);
             if words.contains(&failed) {
                 // The separate landing-repair delegate is not the change's producer.
-                let mut script = change_run(change, None, true, false);
+                let mut script = change_run(change, None, true, false, false);
                 script.cue = failed.into_bytes().into();
                 return script;
             }
@@ -88,7 +88,13 @@ pub(super) fn assigned(world: &mut World, assignment: &engine::Assignment) -> Sc
                     super::Party::First => 1,
                     super::Party::Second => 2,
                 };
-                return change_run(change, Some(person), repair, world.workload_parks(assignment.task));
+                return change_run(
+                    change,
+                    Some(person),
+                    repair,
+                    world.workload_parks(assignment.task),
+                    world.observed.stretches.probes_ended_recipient(),
+                );
             }
         }
     }
@@ -106,7 +112,7 @@ fn person_task(person: u64, words: &str) -> skein_fake_llm_domain::api::Turn {
     )
 }
 
-fn change_run(change: &Change, person: Option<u64>, repair: bool, park: bool) -> Script {
+fn change_run(change: &Change, person: Option<u64>, repair: bool, park: bool, probe: bool) -> Script {
     let mut turns = Vec::new();
     if change.asks && !repair {
         turns.push(person_task(
@@ -137,6 +143,11 @@ fn change_run(change: &Change, person: Option<u64>, repair: bool, park: bool) ->
     }
     if park {
         turns.push(call(b"wait", b"{}"));
+    }
+    if probe && change.asks && !repair {
+        // Both stretches stay drawn. The person's report gives this one
+        // conversation a stable ended-recipient witness at the gate.
+        turns.push(super::super::stretches::ended_recipient_probe());
     }
     turns.push(turn(b"finish", &json!({"outcome":{"form":"change","fields":fields}})));
     Script { cue: change_cue(change).into_bytes().into(), turns: turns.into() }

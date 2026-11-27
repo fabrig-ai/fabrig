@@ -70,6 +70,9 @@ fn every_family_falls_in_the_composed_workload() -> Result<(), String> {
         eprintln!("mixed seed {seed}");
         let mut world = World::faulted_workload(seed, kinds);
         world.observed.stretches.count_shapes();
+        if gate() {
+            world.observed.stretches.require_ended_recipient_probe();
+        }
         world.exclude_workload_close(&sweep);
         if !gate() {
             world.exclude_workload_other_merge(&sweep);
