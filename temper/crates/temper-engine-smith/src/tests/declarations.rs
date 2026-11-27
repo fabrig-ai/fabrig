@@ -53,6 +53,7 @@ fn stock_roles_offers_are_exact_and_within_their_bounds() {
         "amend",
         "cancel",
         "release",
+        "measure",
         "subscribe",
         "unsubscribe",
         "subscribe_forge",

@@ -144,6 +144,29 @@ fn v10_note_contract_defaults_records_and_cannot_call_mark_read() {
 }
 
 #[test]
+fn v12_keeps_release_unchanged_without_admitting_measure() {
+    let input = br#"{"target":41,"revision":2}"#;
+    assert_eq!(wire::VERSION, 13);
+    assert_eq!(decode(&CONTRACT, 12, b"measure", input).unwrap_err(), Problem::UnknownTool);
+    let Decoded::Call(call) = decode(&CONTRACT, 12, b"release", input).unwrap() else {
+        panic!("v12 release reaches the current decoder")
+    };
+    assert_eq!(call.tool, engine::Tool::Release { target: 41, revision: 2, again: None });
+    let mut earlier = CONTRACT.text(12).lines();
+    let mut added = false;
+    for line in CONTRACT.text(13).lines() {
+        if line.starts_with(r#"{"name":"measure","#) {
+            assert!(!added);
+            added = true;
+        } else {
+            assert_eq!(earlier.next(), Some(line));
+        }
+    }
+    assert!(added);
+    assert_eq!(earlier.next(), None);
+}
+
+#[test]
 fn versions_outside_the_answered_range_are_error_answers() {
     for version in [0, 3] {
         let (body, error) = answered(decode(&TWO, version, b"release", b"{}").unwrap());

@@ -794,6 +794,7 @@ impl Harness {
                 | 6
                 | 9..=15
                 | crate::jig::rows::TASK_DECIDE_AT
+                | crate::jig::rows::MEASURE_AT
                 | crate::jig::rows::TAKE_AT
                 | crate::jig::rows::HAND_BACK_AT
                 | 31
