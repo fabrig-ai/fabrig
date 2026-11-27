@@ -1,5 +1,6 @@
 use super::{Capture, PROGRAM_LOGIN, Reached, Reply, SERVE, WORKER, login_command, run, serve_command};
-use temper_config_shell::{FILE, File, Shape};
+use std::path::Path;
+use temper_config_shell::{FILE, FORMER, File, Shape};
 use temper_service_shell::configuration::Read;
 
 const VERSION: &str = "0.0.0";
@@ -39,7 +40,7 @@ fn worker_table_prints_help_pages_and_the_captured_identity() {
         .filter(|line| !line.starts_with(' '))
         .filter_map(|line| line.split_whitespace().next())
         .collect();
-    assert_eq!(names, ["serve", "program-login", "help"]);
+    assert_eq!(names, ["serve", "config", "program-login", "help"]);
     let words = overview.split_whitespace().collect::<Vec<_>>().join(" ");
     for setting in ["--config CONFIG", "--data DATA", "--cache CACHE", "TEMPER_CONFIG", "TEMPER_DATA", "TEMPER_CACHE"] {
         assert!(words.contains(setting), "{setting}: {overview}");
@@ -73,12 +74,66 @@ fn worker_table_refuses_no_command_and_bad_forms() {
     );
     for (arguments, command, form) in [
         (&["serve", "extra"][..], "serve", "[DIRECTORIES]"),
+        (&["config", "upgrade", "extra"][..], "config upgrade", "[DIRECTORIES]"),
         (&["program-login", "--config", CONFIG], "program-login", "[DIRECTORIES] NAME"),
     ] {
         assert_eq!(
             run(&captured(arguments), VERSION, COMMIT),
             Err((2, format!("temper-worker {command}: invalid arguments\nusage: temper-worker {command} {form}\n"))),
             "{arguments:?}"
+        );
+    }
+}
+
+fn config_capture(root: &Path, words: &[&str]) -> Capture {
+    let mut words = words.to_vec();
+    words.extend(["--config", "config", "--data", "data", "--cache", "cache"]);
+    Capture { working: Ok(root.into()), ..captured(&words) }
+}
+
+#[test]
+fn config_upgrade_prints_render_without_writing() {
+    let scratch = skein_scratch::Scratch::new("worker-config-upgrade");
+    let config = scratch.path().join("config");
+    std::fs::create_dir(&config).expect("config directory");
+    let path = config.join(FILE);
+    // Keep the explicit name even though it is the default for this host.
+    let name = String::from_utf8(skein_shell::host_name().expect("host name").into_vec()).expect("host name UTF-8");
+    let quoted = serde_json::to_string(&name).expect("quoted name");
+    let source = format!("# mine\nname = {quoted}\nengine = '127.0.0.1:7200'\n");
+    std::fs::write(&path, &source).expect("input file");
+    let file =
+        File { name: Some(name), engine: Some("127.0.0.1:7200".parse().expect("engine address")), ..File::default() };
+
+    let capture = config_capture(scratch.path(), &["config", "upgrade"]);
+    let expected = temper_config_shell::render(&file, Shape::WorkerAlone);
+    assert_eq!(run(&capture, VERSION, COMMIT), Ok(Reply::Print(String::from_utf8_lossy(&expected).into_owned())));
+    assert_eq!(std::fs::read(&path).expect("original file"), source.as_bytes());
+    assert_eq!(std::fs::read_dir(&config).expect("config entries").count(), 1, "only the original file remains");
+    assert_eq!(std::fs::read_dir(scratch.path()).expect("root entries").count(), 1, "only config exists");
+}
+
+#[test]
+fn config_upgrade_refusals_match_the_serve_read() {
+    let cases: &[&[(&str, &[u8])]] = &[
+        &[(FILE, b"engine = '127.0.0.1:7200'\nname = 'fixture'\n"), (FORMER, b"not read")],
+        &[],
+        &[(FILE, b"engine = '127.0.0.1:7200'\nalpha = 1\nbeta = 2\n")],
+    ];
+    for files in cases {
+        let scratch = skein_scratch::Scratch::new("worker-config-upgrade-refusal");
+        let config = scratch.path().join("config");
+        std::fs::create_dir(&config).expect("config directory");
+        for (name, source) in *files {
+            std::fs::write(config.join(name), source).expect("input file");
+        }
+        let serve = config_capture(scratch.path(), &["serve"]);
+        let (code, refusal) = run(&serve, VERSION, COMMIT).expect_err("serve refuses unreadable config");
+        let upgrade = config_capture(scratch.path(), &["config", "upgrade"]);
+        assert_eq!(code, 1, "{refusal}");
+        assert_eq!(
+            run(&upgrade, VERSION, COMMIT),
+            Err((1, refusal.replace("temper-worker serve:", "temper-worker config upgrade:")))
         );
     }
 }
@@ -175,7 +230,6 @@ fn toml_worker_login_prints_each_refusal_on_its_own_line() {
 
 #[test]
 fn worker_commands_refuse_the_former_file_by_name() {
-    use temper_config_shell::{FILE, FORMER};
     let scratch = skein_scratch::Scratch::new("worker-former-file");
     let directories = crate::tests::configuration::directories(scratch.path());
     std::fs::create_dir(scratch.path().join(FORMER)).expect("former directory");

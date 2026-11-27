@@ -15,6 +15,7 @@ fn arguments_document_is_the_engine_table() {
         entries,
         [
             "serve",
+            "config",
             "versions",
             "upgrade",
             "upgrade",

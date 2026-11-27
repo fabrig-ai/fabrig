@@ -19,6 +19,7 @@ pub use temper_service_core::startup::Shape;
 pub use template::substitute;
 
 pub const FILE: &str = "temper.toml";
+pub const UPGRADE_LINE: &str = "print temper.toml at the newest format";
 pub const FORMER: &str = "temper.json";
 const FILE_BYTES: usize = 1 << 20;
 

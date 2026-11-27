@@ -58,6 +58,13 @@ fn run(captured: &Capture, version: &'static str, commit: &'static str) -> Resul
         Reached::Unknown(why) => return Err((2, why)),
         Reached::Command(command, arguments) => match command.reach {
             Reach::Words(["help"]) => help(arguments)?,
+            Reach::Words(["config", "upgrade"]) => temper_service_shell::config_upgrade::reply(
+                &ENGINE,
+                arguments,
+                &captured.environment,
+                captured.working.as_deref().map_err(String::as_str),
+                temper_config_shell::Shape::EngineAlone,
+            )?,
             Reach::Words(["versions"]) => {
                 if !arguments.is_empty() {
                     return Err((2, table::refused(&ENGINE, command, "invalid arguments")));

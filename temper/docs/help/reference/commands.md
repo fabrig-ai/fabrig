@@ -80,6 +80,16 @@ Run an engine alone's document until stopped; temper-worker serve runs a worker 
 
 Its stdout carries only sign-in links, one a line; its stderr, its startup notes and the reason of a failure. A first termination signal settles the engine's forge writes and drains it; a second aborts. Exit 0 after a drained stop, 1 on a refused start or any failure. Refuses a worker alone's document, naming temper-worker serve, or an engine and its worker in one process, naming temper-box serve.
 
+### temper-engine config upgrade
+
+`temper-engine config upgrade [DIRECTORIES]`
+
+print temper.toml at the newest format
+
+- `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+
+Prints the configuration on stdout and any notices on stderr. Writes no files and starts nothing.
+
 ### temper-engine versions
 
 `temper-engine versions`
@@ -242,6 +252,12 @@ Run a worker alone's document until stopped; temper-engine serve runs an engine 
 
 Its stderr carries its startup notes, its linked and lost lines and the reason of a failure. A first termination signal runs its worker's ending; a second aborts. Exit 0 after its ending, 1 on a refused start or any failure. Refuses an engine alone's document, naming temper-engine serve, or an engine and its worker in one process, naming the box's temper-box serve.
 
+### temper-worker config upgrade
+
+`temper-worker config upgrade [DIRECTORIES]`
+
+As temper-engine config upgrade, above.
+
 ### temper-worker program-login
 
 `temper-worker program-login [DIRECTORIES] NAME`
@@ -347,6 +363,12 @@ Run the engine and its worker in one process until stopped.
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 
 Its stdout carries only sign-in links, one a line; its stderr, its startup notes and the reason of a failure. A first termination signal settles the engine's forge writes and drains it; a second aborts. Exit 0 after a drained stop, 1 on a refused start or any failure.
+
+### temper-box config upgrade
+
+`temper-box config upgrade [DIRECTORIES]`
+
+As temper-engine config upgrade, above.
 
 ### temper-box program-login
 

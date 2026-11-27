@@ -10,6 +10,7 @@ pub const ENGINE: Table = Table {
     commit: "",
     commands: &[
         SERVE,
+        temper_service_shell::config_upgrade::COMMAND,
         VERSIONS,
         UPGRADE_CHECK,
         UPGRADE_WORKERS,
