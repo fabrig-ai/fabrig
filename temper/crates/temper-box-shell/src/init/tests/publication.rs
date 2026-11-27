@@ -1,8 +1,8 @@
 use super::{Done, Error, Fd, KernelScript, Op, OpenHow, Path, write_file};
 
-const DESTINATION: &str = "/fixture/config/temper.toml";
-const NAME: &[u8] = b"temper.toml";
-const PARTIAL: &[u8] = b"temper.toml.partial";
+const DESTINATION: &str = "/fixture/config/box.document";
+const NAME: &[u8] = b"box.document";
+const PARTIAL: &[u8] = b"box.document.partial";
 const MODE: u32 = 0o644;
 const ROOT: Fd = Fd::new(11);
 const FILE: Fd = Fd::new(12);
@@ -41,7 +41,7 @@ fn publication(rename: Result<Done, Error>) -> [Step; 5] {
 fn run(steps: impl IntoIterator<Item = Step>) -> Result<(), String> {
     let mut io = KernelScript::operations(steps.into_iter().chain([(Op::Close { fd: ROOT }, Ok(Done::Nothing))]));
     let result = write_file(&mut io, ROOT, Path::new(DESTINATION), DOCUMENT.into(), MODE, |partial| {
-        assert_eq!(partial, Path::new("/fixture/config/temper.toml.partial"));
+        assert_eq!(partial, Path::new("/fixture/config/box.document.partial"));
         Ok(())
     });
     io.finish();
@@ -56,13 +56,13 @@ fn publishes_the_complete_file_only_by_rename() {
 #[test]
 fn failed_write_removes_partial_and_names_destination() {
     let steps = [create(Ok(Done::Fd(FILE))), write(0, Err(Error::NoSpace)), close_file(), remove()];
-    assert_eq!(run(steps).expect_err("write must fail"), "/fixture/config/temper.toml: errno 28");
+    assert_eq!(run(steps).expect_err("write must fail"), "/fixture/config/box.document: errno 28");
 }
 
 #[test]
 fn racing_destination_is_not_replaced() {
     let steps = publication(Err(Error::Exists)).into_iter().chain([remove()]);
-    assert_eq!(run(steps).expect_err("rename must fail"), "/fixture/config/temper.toml: errno 17");
+    assert_eq!(run(steps).expect_err("rename must fail"), "/fixture/config/box.document: errno 17");
 }
 
 #[test]
