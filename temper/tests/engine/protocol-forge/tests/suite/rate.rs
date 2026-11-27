@@ -102,6 +102,7 @@ impl Scheduler {
                         | change::Decision::Effect(_)
                         | change::Decision::Ready
                         | change::Decision::QueueRepair
+                        | change::Decision::ReadMerge { .. }
                         | change::Decision::Finish { .. }
                         | change::Decision::Failed
                         | change::Decision::NoChange

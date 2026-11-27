@@ -473,6 +473,7 @@ fn read_answer(store: &mut Store, mut below: Below, disk: &[u8], chunk: u32) -> 
         | file::Request::Create { .. }
         | file::Request::CreateNoFollow { .. }
         | file::Request::OpenReadNoFollow { .. }
+        | file::Request::OpenSiblingFile { .. }
         | file::Request::OpenWrite { .. }
         | file::Request::OpenWriteNoFollow { .. }
         | file::Request::OpenDirectory { .. }

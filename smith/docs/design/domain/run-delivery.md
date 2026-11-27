@@ -4,11 +4,43 @@
 
 ### 1.1 Checks
 
-- **A directory says what its checks are,** by convention: an
-  executable at the path the conventions name, `.smith/check` unless the
-  charter says otherwise (temper says `.temper/pre-pr`), looked up in each
-  writable directory when the run starts. A directory without one has no
-  checks, and nothing above the agent needs to know either way.
+- **A directory says what its checks are,** by convention, looked up in
+  each writable directory when the run starts:
+  - **one check for every delivery:** an executable at the conventions'
+    checks path, `.smith/check` unless the charter says otherwise (temper
+    says `.temper/pre-pr`), run at a `deliver` and at a `finish` that
+    delivers alike;
+  - **or a check per moment,** where the conventions name a hooks
+    directory (temper names `.temper/hooks`) and the directory holds one
+    there: its `deliver`, run at a `deliver`, and its `finish`, run at a
+    `finish` that delivers, each named for the tool whose delivery it
+    checks, and the checks path is not run in that directory. A hooks
+    path that is missing, a file or a link leaves the directory to the
+    one check.
+
+  A directory without them has no checks, and nothing above the agent
+  needs to know either way.
+- **A hook is an executable regular file, or a link to one beside it:**
+  a symbolic link whose target is a bare name, with no `/`, naming an
+  executable regular file in the same directory; one link, never a
+  chain. Nothing at a hook's path is no check for that moment. Anything
+  else there (a file with no execute bit, another link, a directory or
+  any other kind, or a path that could not be read) is a broken hook:
+  its moment's delivery is refused as `checks-failed`, below, with no
+  process run, its exit `unstarted`, the time it was given 0, no bytes
+  cut, and its tail one line saying why, as ``the hook is a link to
+  `../x`, not to an executable file beside it``. The checks path keeps
+  its own lookup: an executable there, followed through a link within
+  the directory, or no check.
+- **Told in the prompt:** each writable directory's line names its
+  checks, ``with checks (`.temper/pre-pr`)`` for one, and for hooks each
+  found by its name, which is the tool that runs it, then the
+  directory, ``with checks (hooks `deliver` and `finish` in
+  `.temper/hooks`)``, or ``(hook `deliver` in `.temper/hooks`)`` for one,
+  a moment with none left out and a broken hook named as found. The
+  line is kept this short because it counts in the largest charter's
+  fixed host part, whose room the stock brief's bound leaves
+  (`temper/crates/temper-service/src/tests/stock_brief.rs`).
 - **Checked is delivered,** but for a save, which runs no check (1.5).
   The checks run as contained processes with
   deadlines, and the delivery that follows is made, under the lease over
@@ -79,7 +111,8 @@
   and `checks-not-judged` for one that didn't judge, so the run knows
   whether its tree was judged: one not judged may be delivered again as
   it is. It names its directory and the check it ran there (the
-  convention's path), how it ended, and the time it was given, for
+  convention's path: the checks path, or the hook's, as
+  `.temper/hooks/finish`), how it ended, and the time it was given, for
   every exit: the checks' bound, or what was left of the call's
   own deadline when that came first. A stopped check keeps its output's
   bounded tail through the last byte read before its pipes close,

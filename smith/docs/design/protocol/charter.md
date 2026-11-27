@@ -82,7 +82,14 @@ A versioned record (skein's `data/codec/README.md`, section 3):
     before it, reads as contract 1;
 - **the result contract** (2.1);
 - **conventions,** if any: the relative paths of the guide and the checks;
-  without them, smith's defaults apply (../domain/run-delivery.md, 1.1);
+  without them, smith's defaults apply (../domain/run-delivery.md, 1.1).
+  They name too, optionally, `hooks`: the relative path of a directory
+  whose `deliver` and `finish` are a writable directory's checks, each
+  for its moment, where the directory holds it (the same section).
+  Without it, the checks path serves both moments, smith's default.
+  It is marked `droppable` (skein's `data/codec/README.md`, 3), so a
+  charter sent to an agent whose layout lacks it loses it, and that
+  agent runs the checks path at both moments;
 - **the checks' bound,** optional, a duration from 1 second to 1 day:
   the wall bound each delivery check is given in place of the agent's
   `check_timeout`, cut at the run's end as every check is

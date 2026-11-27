@@ -135,6 +135,9 @@ pub struct ChangeRule {
 pub struct Conventions {
     pub guide: Box<[u8]>,
     pub checks: Box<[u8]>,
+
+    /// Relative hooks directory; absent selects the check path at both moments.
+    pub hooks: Option<Box<[u8]>>,
 }
 
 /// Workspace tool rights granted by the core's run policy (domain/hosts/charters.md).

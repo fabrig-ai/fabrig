@@ -6,8 +6,6 @@
         "project": 1
       },
       "set": {
-        "merge_job": ".temper/merge",
-        "close_job": ".temper/close",
         "flakes": "none",
         "landing_attempts": 3
       }

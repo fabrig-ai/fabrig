@@ -41,7 +41,9 @@ fn escape(errno: i32) -> i32 {
 /// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn open(root: Fd, path: &[u8], how: OpenHow) -> Result<i32, i32> {
     let (flags, mode) = match how {
-        OpenHow::PathNoFollow => (libc::O_SYMLINK | libc::O_EVTONLY | libc::O_NOFOLLOW_ANY, 0),
+        OpenHow::PathNoFollow | OpenHow::PathSiblingFile => {
+            (libc::O_SYMLINK | libc::O_EVTONLY | libc::O_NOFOLLOW_ANY, 0)
+        }
         OpenHow::Read => (libc::O_RDONLY, 0),
         OpenHow::ReadNoFollow => (libc::O_RDONLY | libc::O_NOFOLLOW_ANY, 0),
         OpenHow::Write => (libc::O_RDWR, 0),
@@ -57,7 +59,7 @@ pub(crate) fn open(root: Fd, path: &[u8], how: OpenHow) -> Result<i32, i32> {
     // O_RDONLY's, so without it XNU's fifo_open sleeps until a FIFO has a
     // writer, where Linux's O_PATH opens the entry without opening the FIFO.
     let flags = flags | O_RESOLVE_BENEATH | libc::O_CLOEXEC | libc::O_NONBLOCK;
-    let flags = if matches!(how, OpenHow::PathNoFollow) { flags } else { flags | libc::O_NOCTTY };
+    let flags = if how.path_only() { flags } else { flags | libc::O_NOCTTY };
     let opened = open_once(root, path, flags, mode);
     let opened = if flags & libc::O_NOFOLLOW_ANY != 0 && opened == Err(libc::ELOOP) {
         match pass_links(root.raw(), path, 0) {
