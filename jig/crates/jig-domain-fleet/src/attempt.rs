@@ -253,6 +253,38 @@ fn until(at: Where) -> Option<Time> {
     }
 }
 
+impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    /// Returns the next slot cursor, the run and attempt, and whether it is a placed claim.
+    #[must_use]
+    pub fn inspection_placement(&self, mut from: u32) -> Option<(u32, Token, Token, bool)> {
+        for _ in 0..self.attempts.len() {
+            let (next, _, attempt) = self.attempts.live_from(from)?;
+            from = next;
+            let placement = implied(&attempt.state);
+            if placement.on.is_none() || !placement.held {
+                continue;
+            }
+            // Strays and fenced attempts can still occupy a slot while the
+            // fleet waits for their terminal, without a live task's claim.
+            let claimed = match attempt.state {
+                State::Claimed { .. } | State::Cancelled { .. } => true,
+                State::Waiting { .. }
+                | State::Adopted { .. }
+                | State::Crossed { .. }
+                | State::Handed { .. }
+                | State::Acknowledged { .. }
+                | State::Stray { .. }
+                | State::Kept { .. }
+                | State::Fenced { .. }
+                | State::Closed => false,
+            };
+            return Some((next, attempt.run, attempt.token, claimed));
+        }
+        None
+    }
+}
+
 /// The observed lost channel whose slot a retained attempt still represents.
 pub(crate) fn lost_host(attempt: &Attempt) -> Option<Token> {
     match attempt.state {

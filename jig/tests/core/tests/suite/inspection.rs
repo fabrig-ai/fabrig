@@ -12,6 +12,8 @@ use skein_world::inspect::{Inspection, Moment, Release, Wait, Wake, check_tables
 use std::fmt::Write;
 
 mod records;
+mod relations;
+mod runs;
 
 fn inspect(world: &World, seed: u64) -> Inspection {
     let mut inspection = Inspection::new("jig", jig_inspect::KINDS);
@@ -663,6 +665,13 @@ fn a_parked_batch_waits_for_the_missing_connectors_report() {
     world.send_all(replies);
     assert_eq!(world.domain.core().awaiting_resources_flights(), 1);
     let inspection = inspect(&world, 11734);
+    let flights = runs::table(&inspection, "flights");
+    let pending = format!("awaiting resources task {}", parent.0);
+    let waiting_for_reports: Vec<_> = flights.entries.iter().filter(|entry| entry.key == pending).collect();
+    let [flight] = waiting_for_reports.as_slice() else { panic!("one flight waiting for those reports: {flights:?}") };
+    assert_eq!(flight.release, Release::Pending);
+    assert_eq!(flight.rule, "its reply");
+    runs::assert_call(&inspection, key(parent, 1), &["a call record"]);
     let wait = inspection
         .waits()
         .iter()

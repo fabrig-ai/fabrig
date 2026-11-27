@@ -1690,6 +1690,8 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-host",
  "jig-domain-link",
+ "jig-inspect",
+ "jig-protocol-charter",
  "skein-lib",
  "skein-world",
 ]
@@ -1699,8 +1701,10 @@ name = "jig-inspect"
 version = "0.0.0"
 dependencies = [
  "jig-domain-core",
+ "jig-domain-host",
  "jig-domain-people",
  "jig-domain-tasks",
+ "jig-protocol-charter",
  "jig-protocol-engine-clients",
  "skein-lib",
  "skein-world",

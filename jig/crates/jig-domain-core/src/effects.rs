@@ -62,6 +62,19 @@ pub(crate) struct Flight {
     given: List<authority::Given>,
 }
 
+impl Flight {
+    pub(crate) fn inspection_owner(&self) -> Option<u64> {
+        match self.origin {
+            // Final projection effects can outlive the goal they describe.
+            EffectOrigin::Projection { .. } => None,
+            EffectOrigin::Call { .. }
+            | EffectOrigin::Propose { .. }
+            | EffectOrigin::Accept { .. }
+            | EffectOrigin::Procedure { .. } => Some(self.origin.task()),
+        }
+    }
+}
+
 #[derive(Hash, Debug)]
 pub(crate) struct Waiting {
     to: ReplyTo,
@@ -1447,6 +1460,12 @@ fn projection_refused(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>
 }
 
 impl Core {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_effect_reply(&self, entry: u64) -> Option<CallKey> {
+        Some(self.effect_replies.get(&entry)?.key)
+    }
+
     /// Earliest absolute wall time among retained effect reply rights
     /// (`domain/engine/vocabulary.md`, 1.4). Stale rights remain visible until the
     /// existing effect-deadline event consumes them; this query changes nothing.
