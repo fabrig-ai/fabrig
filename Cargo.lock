@@ -2404,6 +2404,7 @@ dependencies = [
  "skein-kv",
  "skein-lib",
  "skein-sim",
+ "skein-world",
  "tempfile",
 ]
 
