@@ -48,6 +48,7 @@ budget = 1000
 landing = { approvals = [{ role = "owner", people = 1, freshness = "clean" }] }
 
 [tasks.lead.executor]
+settings = "goal"                    # runs by the deployment's goal charter's settings
 model = "claude-opus-5-5"
 effort = "xhigh"
 
