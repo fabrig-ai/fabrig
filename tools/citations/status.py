@@ -88,7 +88,7 @@ def read_status(text, *, draft=False):
     counts = dict.fromkeys(LABELS, 0)
     in_flight = 0
     if not labels:
-        return (date[0], counts, 0, True) if body in ("", "No gap.") else None
+        return (date[0], counts, 0, True) if body == "No gap." else None
     for index, label in enumerate(labels):
         end = labels[index + 1].start() if index + 1 < len(labels) else len(body)
         text = body[label.end():end]
