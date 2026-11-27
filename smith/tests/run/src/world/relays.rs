@@ -50,6 +50,9 @@ impl World {
         assert!(self.relays.active.insert((relay.owner, relay.attempt)), "one terminal per host relay");
         self.relays.owners.insert(relay.owner, run);
         self.relays.stages.insert(run, "relay sending");
+        if self.park_relay(run, relay, name.position) {
+            return;
+        }
         let key = (host_run, name.activation, name.completion, name.position);
         let reply = if let Some(answer) = self.relays.decisions.get(&key) {
             run::HostReply::Answered(answer.clone())
@@ -72,5 +75,6 @@ impl World {
         assert!(self.relays.active.contains(&(relay.owner, relay.attempt)), "withdraw only a live relay");
         let run = self.relays.owners[&relay.owner];
         self.relays.stages.insert(run, "relay withdrawing");
+        self.park_withdraw(run, relay);
     }
 }
