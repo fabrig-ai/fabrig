@@ -1,9 +1,10 @@
 # keeping-up: status
 
-2026-11-26. Where the tree's code lags or departs from [keeping-up.md](keeping-up.md).
+2026-11-27. Where the tree's code lags or departs from [keeping-up.md](keeping-up.md).
 
 
 - **Not yet:** 1: follows own watches too [in flight: change 105].
+- **Not yet:** 3, *A gather short of a fact reads again at the client's pace*: a partial gather, a catch-up's unknown ancestry, a failed read and an unrequested close each read again a second later, a figure written in the code, not the client's `backoff` (`temper-engine-domain-forge/src/domain.rs`, `wait_for_forge`; `src/domain/change_reads.rs`, `retry`; `src/domain/taking.rs`, `read_error`) [in flight: change 21239].
 
 - **Not yet:** 1, 2: a branch nothing has pushed: a change with no head reads its branch, its `PullFor` and its base's CI at every step; every commit's and item's hint concerns it; a hint matching no change wakes every change; its wait is `queue_window`; and a branch never there rests at `slow` (`temper-engine-domain-forge/src/domain/hints.rs`, `concerns`; `src/domain.rs`, `step_change`, `wait_change`; skein-forge-client's `keep/answer.rs`).
 - **Not yet:** 2, 3: a gather reads its pull request with its head's CI and the head's checks again, every pull read reads CI, and a commit's hint reads its pull request in the client beside the commit's news (`src/domain.rs`, `step_read`).
