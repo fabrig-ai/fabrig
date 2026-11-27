@@ -314,7 +314,7 @@ default-filter = """
 (
   package(/^smith(-|$)/)
   & (kind(test) & test(/^fuzzy::/)) & not binary(=live)
-) & (binary_id(=smith-tools-world::suite))
+) & (binary_id(=smith-run-world::suite) | binary_id(=smith-tools-world::suite))
 """
 
 # macOS doubles the inherited Linux slow periods.
