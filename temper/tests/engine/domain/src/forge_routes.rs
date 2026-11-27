@@ -3608,12 +3608,7 @@ impl World {
             && self.immediate.is_empty()
             && self.pending.is_empty()
             && self.store.idle()
-            && self.store.rows.values().any(|row| {
-                matches!(row,
-                Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
-                if matches!(task.executor, tasks::Executor::Procedure { code: 2, .. })
-                    && task.phase == tasks::Phase::Active(tasks::Active::Due))
-            });
+            && self.store.has_due_change();
         let retrying_change = retrying_change
             && self
                 .root
