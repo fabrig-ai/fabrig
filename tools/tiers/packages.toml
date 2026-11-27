@@ -16,6 +16,7 @@ browser-temper = [
 
 campaign-temper = [
     "temper-engine-domain-world",
+    "temper-engine-forge-world",
 ]
 
 conformance-hearth = [
