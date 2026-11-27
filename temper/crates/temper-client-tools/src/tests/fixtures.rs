@@ -194,6 +194,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     WITHDRAW_CALL,
     &["task", "decide", "41", "release", "--hold", "2"],
     &["task", "release", "41", "--hold", "2"],
+    &["task", "measure", "41", "--hold", "2"],
     STOP_CALL,
     &["task", "cancel", "41", "finished"],
     &["task", "tree", "41"],
