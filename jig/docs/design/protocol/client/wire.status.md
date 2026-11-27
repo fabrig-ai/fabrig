@@ -1,5 +1,5 @@
 # wire: status
 
-2026-11-24. Where the tree's code lags or departs from [wire.md](wire.md).
+2026-11-27. Where the tree's code lags or departs from [wire.md](wire.md).
 
-No gap.
+- **Not yet:** 1: `MeModel`'s `speeds` and `speed`, `ModelEffort`'s `speed` and `LlmWhy`'s `Speed` [in flight: change 21890].

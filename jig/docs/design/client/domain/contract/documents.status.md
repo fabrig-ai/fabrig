@@ -1,7 +1,8 @@
 # documents: status
 
-2026-11-26. Where the tree's code lags or departs from [documents.md](documents.md).
+2026-11-27. Where the tree's code lags or departs from [documents.md](documents.md).
 
+- **Not yet:** 1: the offer's models' `speeds` and `speed` [in flight: change 21890].
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings-catalogue.status.md`, 2.
 

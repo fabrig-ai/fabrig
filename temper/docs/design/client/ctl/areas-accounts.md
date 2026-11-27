@@ -153,7 +153,9 @@ This document holds LLM accounts through ctl, split from [`areas.md`](areas.md).
      needing `--model` as `--effort` does, and `--sub-agent-speed
      MODEL:SPEED`, repeatable, the speed of the sub-agent a
      `--sub-agent` names, split at the last colon, since a speed's name
-     holds none and a model's may, needing that `--sub-agent`.
+     holds none and a model's may, needing that `--sub-agent`; on `task
+     amend`, which takes no `--sub-agent` and keeps the task's
+     sub-agents, the speed of one of those, the rest keeping theirs.
      `--sub-agent MODEL[:EFFORT]` keeps its meaning. SPEED is a speed
      the model declares in the offer, or `standard`; left out, the
      choice names none, and each run takes the speed its charter's
@@ -194,6 +196,7 @@ This document holds LLM accounts through ctl, split from [`areas.md`](areas.md).
      | a `--sub-agent`'s model named again | `--sub-agent VALUE: MODEL is already a sub-agent` |
      | `--speed`, not the model's | `--speed SPEED: not a speed MODEL declares; it declares S1, S2` |
      | a `--sub-agent-speed`'s model, no `--sub-agent`'s | `--sub-agent-speed VALUE: MODEL is not a sub-agent --sub-agent names` |
+     | on `task amend`, not one of the task's sub-agents | `--sub-agent-speed VALUE: MODEL is not one of the task's sub-agents` |
      | a `--sub-agent-speed`'s speed, not its model's | `--sub-agent-speed VALUE: SPEED is not a speed MODEL declares; it declares S1, S2` |
      | a `--sub-agent-speed`'s model named again | `--sub-agent-speed VALUE: MODEL already has a speed` |
 

@@ -12,6 +12,8 @@
   change 7115].
 - **Not yet:** 1: parameter 18, the source landings a follow change
   follows, its route `up` and no early start [in flight: change 99].
+- **Not yet:** 1: parameter 11's `@` speed, read and spelled, and the
+  role choices' speeds kept [in flight: change 21893].
 - **Not yet:** 1, what every agent delegate is given: a producer's words
   carry no context, and the others' name no amendment [in flight: change
   6059].

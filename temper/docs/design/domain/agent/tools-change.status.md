@@ -2,6 +2,7 @@
 
 2026-11-27. Where the tree's code lags or departs from [tools-change.md](tools-change.md).
 
+- **Not yet:** 1: `llm`'s `speed` in `change`, `delegate` and `amend`, and a refused speed's words [in flight: change 21893].
 
 `tools-change.md`, section 1 has no known implementation gap in whole-goal child isolation:
 words-only calls and batch members use the nearest held goal branch,
