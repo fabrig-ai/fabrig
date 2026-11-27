@@ -5646,8 +5646,7 @@ fn step_read(
         StepStage::CatchUp => {
             pending.contains_catch_up = ancestry_status(result);
             if pending.contains_catch_up == change::Status::Unknown {
-                let retry = skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(1_000_000_000));
-                wait_for_forge(d, env, &pending, Some(retry), out);
+                wait_for_forge(d, env, &pending, Some(change_reads::retry_at(env)), out);
                 return;
             }
             if pending.branch.is_none() && !had_head {
@@ -6275,11 +6274,7 @@ fn wait_for_forge(
     }
     // An unrequested close needs both tips. Retry the whole pair even if a
     // base confirmation's wake was coalesced with this procedure step.
-    let retry = if close_unrequested(row) && retry.is_none() {
-        Some(skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(1_000_000_000)))
-    } else {
-        retry
-    };
+    let retry = if close_unrequested(row) && retry.is_none() { Some(change_reads::retry_at(env)) } else { retry };
     arm_gather(d, env, pending, out);
     let until = match read_session::until(d, pending.task) {
         Some(until) if env.wall >= until => {

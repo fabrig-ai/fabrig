@@ -5,6 +5,7 @@ mod empty_repair;
 mod execution;
 mod fence;
 mod flake;
+mod gather_retry;
 mod no_test;
 mod released_resolution;
 pub(super) mod waits;
@@ -1866,26 +1867,22 @@ fn a_producer_title_wait_past_the_stall_waits_for_dependencies() {
 }
 
 #[test]
-fn unknown_catch_up_containment_keeps_its_retry_while_dependencies_are_pending() {
+fn unknown_catch_up_retries_at_backoff_even_with_pending_dependencies() {
     use temper_engine_domain_forge_change as change;
+    let clock = fixtures::gather_clock();
+    let mut out = Queue::uncapped();
     let mut d = delegate_waiting(change::State::Producing { requested: false }, change::Delegate::Produce);
     d.changes.get_mut(&fixtures::CHANGE).expect("change").catch_up = Some(fixtures::HEAD);
     let since = d.change(fixtures::CHANGE).expect("change").change.since;
-    outputs(&mut d, dependency_step());
-    fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
-    fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commit(fixtures::BASE)));
-    let finished =
-        fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: true }));
-    let retry = Wall::from_nanos(env().wall.as_nanos() + 1_000_000_000);
-    assert!(
-        finished.contains(&Request::ChangeDecision {
-            task: fixtures::CHANGE,
-            decision: change::Decision::Wait { until: Some(retry) },
-            entry: None,
-            evidence: None,
-        }),
-        "{finished:?}"
+    step(&mut d, &clock, dependency_step(), &mut out);
+    fixtures::answer_next_at(&mut d, &clock, Err(skein_forge::api::Error::Missing));
+    fixtures::answer_next_at(&mut d, &clock, Ok(skein_forge::api::Answer::Commit(fixtures::BASE)));
+    let finished = fixtures::answer_next_at(
+        &mut d,
+        &clock,
+        Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: true }),
     );
+    fixtures::assert_gather_wait(&finished, fixtures::wall_after(&clock, fixtures::GATHER_BACKOFF));
     let row = d.change(fixtures::CHANGE).expect("change");
     assert_eq!(row.change.state, change::State::Producing { requested: false });
     assert_eq!(row.change.since, since, "an undecided gather cannot move the policy clock");
@@ -3494,7 +3491,7 @@ fn a_capacity_refusal_retries_only_the_unanswered_read_and_keeps_the_gather() {
     use skein_forge::api::{Answer, Op, Read};
     use temper_engine_domain_forge_change as change;
     let mut d = pull_refused_for_capacity();
-    let mut clock = env();
+    let mut clock = fixtures::gather_clock();
     assert!(fixtures::advance(&mut d, &mut clock, Duration::from_millis(999)).is_empty());
     fixtures::advance(&mut d, &mut clock, Duration::from_millis(1));
     let (pull, op) = fixtures::next_at(&mut d, &clock);
