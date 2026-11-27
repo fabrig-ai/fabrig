@@ -1,6 +1,6 @@
 //! Classify names against the workspace when an answer arrives, before its
 //! calls run. Record those classes beside the eventual results, as for jobs
-//! (smith/docs/design/drawn-agent.md, 5; smith/docs/design/contracts.md, 1).
+//! (smith/docs/design/drawn-agent.md, 5).
 
 use skein_lib::Token;
 use smith_domain_session::llm::{Block, Decoded, Problem, ToolCall};
