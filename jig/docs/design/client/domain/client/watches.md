@@ -81,9 +81,9 @@
   (`requests.md`). `me` ends only with the sign-in, or when jig's version
   is not served (below). Its watch refused or ended on the engine ends
   the stream, which the client takes as dropped and opens again after a
-  backoff, the link offline until the next hello. A hello alone whose
-  ranges serve jig's version is a record out of its order: it drops the
-  stream, to open again after its backoff.
+  backoff, the link offline until the next hello. A hello alone is a
+  record out of its order: it drops the stream, to open again after its
+  backoff.
 - **Its states,** told by `Link(state)` and read with `client.link()`:
   - *signed out:* no sign-in is live (`sign-in.md`, section 1);
   - *starting:* signed in, and no hello has come on the stream;
@@ -96,8 +96,8 @@
     jittered.
     The next hello, with `me`, brings the link back, and with it the
     confirmed party's parked requests;
-  - *out of date:* the engine serves no version of jig's that the client
-    speaks, or another layout of jig's wire than the client's
+  - *out of date:* the engine's `Opened` names another layout of jig's
+    wire than the client's, or none
     (below); or it sent a record of jig's this build can't read
     (`unreadable`, below). It sends nothing, and keeps every request.
 
@@ -134,7 +134,7 @@
   nothing again: no stream, no watch, `me`'s included, and no request
   sent, each kept. It holds for the client's life, since no later hello
   comes to lift it; a reload or a restart is a new client. A link out of
-  date by the hello's ranges or layouts has it false. So an application can say which it is: a client of another
+  date by the hello's layouts has it false. So an application can say which it is: a client of another
   version or layout, refused by name, or one that can't read what it was sent.
   Each tells its person to reload or update; neither leaves the person
   offline with no word.

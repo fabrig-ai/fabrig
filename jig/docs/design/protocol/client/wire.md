@@ -494,7 +494,7 @@ none.
   client holds, or none when the transport carries one the client never
   sees (`sign-in.md`).
 - **The stream:** opened naming jig's version, the link's own; its
-  hello judged against the client's versions
+  hello judged by the layouts its `Opened` names
   (`versions.md`, section 1), and its `me` handed on as the first value of
   the client's `me`, watch `0`'s deliveries its later ones (`wire.md`, section 2);
   each delivery and run's text routed to its watch by name;
