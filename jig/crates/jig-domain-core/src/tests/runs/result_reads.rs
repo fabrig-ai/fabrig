@@ -1,8 +1,12 @@
+use crate::engine::{self, Engine, In, Out, Peer};
 use crate::tests::*;
 
 const PREPARING: u64 = 1;
 const DEPENDENCY: u64 = 12;
 const INPUT: u64 = 13;
+const SECOND: u64 = 2;
+const PROJECT: u32 = 1;
+const WINDOW: (u64, u32) = (1, 1);
 const CHARTER: u32 = 1;
 const TEXT_BYTES: u32 = 256; // Both fixture results and their added line fit whole.
 const TEXT_LIMITS: BriefTextLimits = BriefTextLimits { parts: 1, read_bytes: TEXT_BYTES, brief_bytes: TEXT_BYTES };
@@ -49,28 +53,103 @@ fn answer(core: &mut Core, limits: &Limits, request: Token, row: Option<Box<task
     watch_store_outputs(core, limits, ended_answer(request, row, false))
 }
 
+fn shared_slot_fixture() -> (Core, Limits) {
+    let (mut core, mut limits) = tree_core();
+    limits.load_slots = 1;
+    core.opened = true;
+    let funder = tasks::Funder::Period { project: PROJECT, period: 1 };
+    let first = new_row(&core, PREPARING, funder, None);
+    let second = new_row(&core, SECOND, funder, None);
+    fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new([first, second]));
+    let mut first = core.tasks.task(PREPARING).unwrap().clone();
+    first.dependencies = Box::new([DEPENDENCY]);
+    first.attempt = WINDOW.0;
+    let mut second = core.tasks.task(SECOND).unwrap().clone();
+    second.spec.inputs = Box::new([INPUT]);
+    let ledger = *core.tasks.funding(funder).unwrap();
+    fixtures::restore(&mut core, &limits, Box::new([first, second]));
+    send_task(&mut core, &limits, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) });
+    send_task(&mut core, &limits, tasks::Event::Check);
+    send_task(&mut core, &limits, tasks::Event::Restored);
+    let mut proof = RunProof::claimed(PREPARING, WINDOW.0, 1, None, fleet::HostKind::Worker);
+    proof.window = Some(CurrentWindow { attempt: WINDOW.0, turn: WINDOW.1, closed: false });
+    core.proofs.insert(PREPARING, proof).unwrap();
+    runs::run_choice::host(&mut core, &limits, Token::new(7), &[b"scripted"]);
+    runs::run_choice::account(&mut core, &limits, accounts::Event::Want);
+    runs::run_choice::granted(&mut core, &limits, 1);
+    warm_shared_notes(&mut core, &limits);
+    (core, limits)
+}
+
+fn warm_shared_notes(core: &mut Core, limits: &Limits) {
+    // Keep the brief's later notes stage from competing for the ended-result slot.
+    const SCOPES: u32 = 2;
+    let mut scopes = List::with_capacity(SCOPES);
+    scopes.push(notes::Scope::Project { project: PROJECT }).unwrap();
+    scopes.push(notes::Scope::Deployment).unwrap();
+    let mut out = watch_outputs(
+        core,
+        limits,
+        Event::Notes(notes::Event::Index { owner: Token::new(700), scopes, most: limits.notes.lines }),
+    );
+    for _ in 0..SCOPES {
+        let [Request::Held(held)] = out.as_ref() else { panic!("one cold notes scope") };
+        let Held::Store(engine_store::Out::Load { load, range: engine_store::Range::Notes(_) }) = held.as_ref() else {
+            panic!("notes load")
+        };
+        out = watch_store_outputs(core, limits, point_answer(*load, None, false));
+    }
+    let [Request::Now(now)] = out.as_ref() else { panic!("notes index complete") };
+    let Now::NotesIndexed { .. } = now.as_ref() else { panic!("notes indexed") };
+}
+
+fn activate(engine: &mut Engine, env: &Env<Limits>, task: u64) -> Queue<Out> {
+    let context = engine.core().tasks.run_context(task).unwrap();
+    let mut outputs = Queue::uncapped();
+    engine::step(engine, env, In::Core(Event::Activate { context, ready: true }), &mut outputs);
+    let mut out = Queue::uncapped();
+    while let Some(output) = outputs.pop() {
+        if let Out::Core(Request::Write(_)) = output {
+            continue;
+        }
+        out.push(output);
+    }
+    out
+}
+
 #[test]
 fn two_preparations_share_one_load_slot_without_failing() {
-    use crate::engine::{self, Engine, In, Out, Peer};
-    const SECOND: u64 = 2;
-    let (mut core, mut limits) = preparing();
-    limits.load_slots = 1;
-    core.contexts.get_mut(&PREPARING).unwrap().spec.inputs = Box::new([]);
-    send_task(&mut core, &limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(SECOND)), task: SECOND });
-    let mut context = core.tasks.run_context(SECOND).unwrap();
-    context.dependencies = Box::new([INPUT]);
-    core.contexts.insert(SECOND, context).unwrap();
-    core.begin_transcript(SECOND, 0, None);
+    let (core, limits) = shared_slot_fixture();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut engine = Engine::from_core(core);
-    let mut out = Queue::uncapped();
-    let window = fixture_window(engine.core_mut(), PREPARING, (1, 1));
+    let mut out = activate(&mut engine, &env, PREPARING);
+    let Some(Out::Held(Peer::Store(engine_store::Out::Load {
+        load: window,
+        range: engine_store::Range::Window { task: PREPARING, from: WINDOW },
+    }))) = out.pop()
+    else {
+        panic!("first preparation's transcript window");
+    };
+    assert!(out.is_empty());
+    let turn = TurnRecord {
+        task: PREPARING,
+        attempt: WINDOW.0,
+        turn: WINDOW.1,
+        spent: 0,
+        read: None,
+        opens_window: true,
+        at: Wall::EPOCH,
+        transcript: Box::new([]),
+    };
     engine::step(
         &mut engine,
         &env,
         In::Store(engine_store::In::Loaded {
             load: window,
-            result: engine_store::Answer::Rows(engine_store::Rows::Turns { turns: Box::new([]), more: false }),
+            result: engine_store::Answer::Rows(engine_store::Rows::Turns {
+                turns: Box::new([(turn, None)]),
+                more: false,
+            }),
         }),
         &mut out,
     );
@@ -79,17 +158,10 @@ fn two_preparations_share_one_load_slot_without_failing() {
     };
     assert_eq!(range, engine_store::Range::Record(Key::Tasks(tasks::Key::Ended(DEPENDENCY))));
     assert!(out.is_empty());
-    let window = fixture_window(engine.core_mut(), SECOND, (1, 1));
-    engine::step(
-        &mut engine,
-        &env,
-        In::Store(engine_store::In::Loaded {
-            load: window,
-            result: engine_store::Answer::Rows(engine_store::Rows::Turns { turns: Box::new([]), more: false }),
-        }),
-        &mut out,
-    );
+    // A fresh run has no window to open, so its result can queue behind the first.
+    let mut out = activate(&mut engine, &env, SECOND);
     assert!(out.is_empty(), "no slot is free for a new load or failure");
+    assert_both_preparing(&engine);
     engine::step(&mut engine, &env, In::Store(ended_answer(first, Some(ended(DEPENDENCY)), false)), &mut out);
     let mut second = None;
     while let Some(output) = out.pop() {
@@ -113,6 +185,10 @@ fn two_preparations_share_one_load_slot_without_failing() {
             assert_no_failure(&now);
         }
     }
+    assert_both_preparing(&engine);
+}
+
+fn assert_both_preparing(engine: &Engine) {
     for task in [PREPARING, SECOND] {
         assert_eq!(engine.core().tasks.task(task).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
     }
