@@ -4,9 +4,10 @@
 
 use skein_lib::Token;
 use smith_domain_session::llm::{Block, Decoded, Problem, ToolCall};
-use smith_domain_tools::{Authority, Call, Part, Path};
+use smith_domain_tools::{Authority, Call, Outcome, Part, Path};
 
-use super::World;
+use super::{Session, World};
+use crate::fixture;
 use crate::provider::SLOT_NAMES;
 use crate::shapes::{Answer, Class};
 
@@ -96,6 +97,19 @@ impl World {
             None => Class::Unknown,
         });
         (Some(path_class), offset_class)
+    }
+}
+
+impl Session {
+    pub(super) fn check_result(&self, id: &[u8], call: &Call, outcome: &Outcome) {
+        let created_at_store = match (call, outcome) {
+            (Call::Write { path, .. }, Outcome::Written { .. }) => self.written.get(id).and_then(|store| {
+                let (root, path) = place(&self.authority, path)?;
+                (root == store.at.root && path.as_slice() == store.at.path.as_ref()).then_some(store.created)
+            }),
+            _ => None,
+        };
+        assert!(fixture::fits(call, outcome, created_at_store), "{outcome:?} is not what comes of {call:?}");
     }
 }
 
