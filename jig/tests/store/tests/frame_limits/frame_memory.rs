@@ -19,22 +19,17 @@ fn frame_plans_decode_with_both_families_or_only_the_turn() {
 
 #[test]
 fn a_warm_frame_conversion_reuses_its_buffer_and_does_not_index_nodes() {
-    use jig_protocol_store::{Frames, KeptFamily, OwnerSet};
+    use jig_protocol_store::{KeptFamily, OwnerSet};
     // Many nodes occupy only their four-byte list count. A generic value
     // index would be proportional to the count, not the bytes on the edge.
     const OLD: &str = "family fixture-turn 1\nrecord Empty {}\nversioned record Turn { nodes: list 512 Empty }\n";
     const NEW: &str =
         "family fixture-turn 2\nrecord Empty {}\nversioned record Turn { nodes: list 512 Empty added: u8 = 7 }\n";
-    const SMITH: OwnerSet = OwnerSet {
-        families: &[KeptFamily {
-            current: NEW,
-            frames: Some(Frames { root: "Turn", number: 0, texts: &[OLD, NEW] }),
-            ..SETS.sets[1].families[0]
-        }],
-        ..SETS.sets[1]
-    };
+    const SMITH: OwnerSet =
+        OwnerSet { families: &[KeptFamily { current: NEW, ..SETS.sets[1].families[0] }], ..SETS.sets[1] };
     const OWNERS: OwnerSets = OwnerSets { sets: &[SETS.sets[0], SMITH] };
-    let (mut component, env) = closed(OWNERS, &jig_store_world::upgrade_fixtures::limits());
+    let (mut component, env) =
+        frame_reads::closed_with_old_turn(OWNERS, &jig_store_world::upgrade_fixtures::limits(), OLD);
     open(&mut component, &env);
     let raw = frames::frame(5, &[0, 1, 0, 0, 2, 0]);
     let expected = [0, 2, 0, 0, 2, 0, 7];

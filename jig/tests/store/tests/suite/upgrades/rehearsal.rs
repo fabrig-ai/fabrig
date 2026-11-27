@@ -334,7 +334,7 @@ fn back_before_own_commit_reopens_previous_records_and_transcript_lengths() {
     assert!(matches!(events.as_slice(), [Event::Back { owner: OWNER, to: 1 }]), "{events:?}");
     assert_eq!(world.active(), b"1\n");
     world.crash(SEED);
-    world.owner_sets(upgrade_fixtures::FRAME_VERSION_HEADS_BASE);
+    world.owner_sets(upgrade_fixtures::EARLIER_FRAME_BASE);
     world.open().expect("previous generation opens");
     for (name, bytes) in before.iter().filter(|(path, _)| path.starts_with(b"generations/1/store/logs/")) {
         if name == path {
@@ -461,7 +461,7 @@ fn rehearsal_names_a_malformed_held_turn_at_its_stored_offset() {
             SEED,
             &upgrade_fixtures::limits(),
             tasks,
-            upgrade_fixtures::FRAME_VERSION_HEADS,
+            upgrade_fixtures::EARLIER_FRAMES,
         );
         let good = frame_reads::turn(1, b"said", b"replay", 0);
         let mut bad = good.to_vec();
@@ -473,7 +473,7 @@ fn rehearsal_names_a_malformed_held_turn_at_its_stored_offset() {
             super::frames::log_frame_bytes(&first)
         };
         world.commit(root::record_turn_commit(2, first)).expect("good turn");
-        world.commit(root::turn_commit(3, frames::TASK, 2, &bad)).expect("malformed opaque turn");
+        world.commit(root::turn_commit(3, frames::TASK, 2, &bad)).expect("malformed turn with a registered head");
         world.crash(SEED);
         world.owner_sets(frame_reads::SETS);
         let before = world.contents();

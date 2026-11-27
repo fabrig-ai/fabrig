@@ -259,14 +259,10 @@ pub(crate) fn records(store: &mut Store, owner: Token, above: &mut Queue<Event>)
         above.push(Event::Decoded { owner, records });
         return true;
     }
-    let Some(mut walk) = frames::Walk::new(store, decoder, records) else {
+    let Some(walk) = frames::Walk::new(store, decoder, records) else {
         above.push(Event::Decoded { owner, records });
         return true;
     };
-    if let Err(why) = walk.seed(store) {
-        open::refuse(store, owner, why, above);
-        return false;
-    }
     state(store).frames = Some(Box::new(walk));
     false
 }

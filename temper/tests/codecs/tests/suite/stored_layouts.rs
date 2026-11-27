@@ -525,14 +525,14 @@ fn frame_body_and_turn_must_each_derive_independently() {
         name: "fixture-body",
         current: BODY,
         types: &[],
-        frames: Some(store::Frames { root: "Frame", number: 0, texts: &[BODY] }),
+        frames: Some(store::Frames { root: "Frame", number: 0 }),
         ..FAMILY
     };
     const TURN_FAMILY: KeptFamily = KeptFamily {
         name: "fixture-turn",
         current: NEXT,
         types: &[],
-        frames: Some(store::Frames { root: "Turn", number: 0, texts: &[TURN] }),
+        frames: Some(store::Frames { root: "Turn", number: 0 }),
         ..FAMILY
     };
     let old = BTreeMap::from([("fixture-body".to_owned(), parsed(BODY)), ("fixture-turn".to_owned(), parsed(TURN))]);

@@ -154,7 +154,7 @@ fn a_done_unplanned_job_does_not_take_a_fallible_read_layout() {
 fn frame_set(current: &'static str) -> OwnerSet {
     let family = KeptFamily {
         current,
-        frames: Some(crate::Frames { root: "Growing", texts: &[], number: 0 }),
+        frames: Some(crate::Frames { root: "Growing", number: 0 }),
         keys: &[],
         types: &[],
         ..FAMILY

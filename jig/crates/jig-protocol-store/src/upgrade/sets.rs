@@ -42,12 +42,11 @@ pub struct KeptFamily {
     pub retired: &'static [Retired],
 }
 
-/// A frames' family's value type and pre-registry seed texts (protocol/store/transcripts.md, 6).
+/// A frames' family's value type (protocol/store/transcripts.md, 6).
 #[derive(Clone, Copy, Debug)]
 pub struct Frames {
     pub root: &'static str,
     pub number: u16,
-    pub texts: &'static [&'static str],
 }
 
 /// A value type whose ranges must hold nothing (protocol/store/layouts.md, 2).
@@ -92,11 +91,6 @@ impl OwnerSets {
         for set in self.sets {
             for family in set.families {
                 prepare_text(family.current, &mut seen, &mut prepared);
-                if let Some(frames) = &family.frames {
-                    for text in frames.texts {
-                        prepare_text(text, &mut seen, &mut prepared);
-                    }
-                }
             }
         }
         prepared.into_boxed()

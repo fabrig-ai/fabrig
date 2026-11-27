@@ -128,45 +128,9 @@ fn check_frames(sets: &OwnerSets, prepared: &[Schema], current: &[Schema]) -> Re
             }
             let root = binary.find(frames.root.as_bytes()).ok_or(refusal)?;
             check_frame_root(binary, root, set.owner, smith)?;
-            let mut previous = None;
-            for text in frames.texts {
-                let mut parsed = None;
-                let schema = schemas::frame(prepared, current, text.as_bytes(), &mut parsed).ok_or(refusal)?;
-                let version = schema.version();
-                if let Some(before) = previous
-                    && Some(version) != u16::checked_add(before, 1)
-                {
-                    return Err(refusal);
-                }
-                if schema.spelled(schema.family()) != family.name.as_bytes() {
-                    return Err(refusal);
-                }
-                let root = seed_root(schema, binary, frames.root).ok_or(refusal)?;
-                check_frame_root(schema, root, set.owner, smith)?;
-                previous = Some(version);
-            }
-            if let Some(last) = previous
-                && last != binary.version()
-            {
-                return Err(refusal);
-            }
         }
     }
     Ok(())
-}
-
-/// Find the seed's declaration, including a former spelling of the binary's root.
-pub(crate) fn seed_root(schema: &Schema, binary: &Schema, name: &str) -> Option<skein_codec::schema::DeclIx> {
-    if let Some(root) = schema.find(name.as_bytes()) {
-        return Some(root);
-    }
-    let current = binary.find(name.as_bytes())?;
-    for former in binary.was(skein_codec::schema::Named::Declaration(current)) {
-        if let Some(root) = schema.find(binary.spelled(*former)) {
-            return Some(root);
-        }
-    }
-    None
 }
 
 fn check_frame_root(
@@ -238,40 +202,31 @@ fn holds(sets: &OwnerSets, prepared: &[Schema], current: &[Schema]) -> Result<()
         let refusal = set.owner;
         for family in set.families {
             let own = 1_u64.checked_shl(index).expect("at most 64 families");
-            let mut texts = List::uncapped();
-            texts.push(family.current).expect("uncapped admission texts");
-            if let Some(frames) = &family.frames {
-                for text in frames.texts {
-                    texts.push(*text).expect("uncapped admission texts");
-                }
-            }
-            for text in &texts {
-                let mut parsed = None;
-                let Some(schema) = schemas::frame(prepared, current, text.as_bytes(), &mut parsed) else {
-                    return Err(refusal);
-                };
-                for decl in 0..schema.declarations() {
-                    match schema.declaration(DeclIx::new(decl)).shape {
-                        Shape::Enum { .. } => {}
-                        Shape::Record { first, count, .. } => {
-                            for offset in 0..count {
-                                let field = FieldIx::new(first.index().checked_add(offset).expect("schema field"));
-                                let Some(name) = held_family(schema, schema.field(field).ty) else { continue };
-                                for target in 0..families.len() {
-                                    if families.get(target).expect("family").name.as_bytes() != name {
-                                        continue;
-                                    }
-                                    let to = 1_u64.checked_shl(target).expect("at most 64 families");
-                                    let reached = *reach.get(target).expect("target row");
-                                    if index == target || reached & own != 0 {
-                                        return Err(refusal);
-                                    }
-                                    let added = to | reached;
-                                    for source in 0..families.len() {
-                                        let row = reach.get_mut(source).expect("source row");
-                                        if source == index || *row & own != 0 {
-                                            *row |= added;
-                                        }
+            let mut parsed = None;
+            let Some(schema) = schemas::frame(prepared, current, family.current.as_bytes(), &mut parsed) else {
+                return Err(refusal);
+            };
+            for decl in 0..schema.declarations() {
+                match schema.declaration(DeclIx::new(decl)).shape {
+                    Shape::Enum { .. } => {}
+                    Shape::Record { first, count, .. } => {
+                        for offset in 0..count {
+                            let field = FieldIx::new(first.index().checked_add(offset).expect("schema field"));
+                            let Some(name) = held_family(schema, schema.field(field).ty) else { continue };
+                            for target in 0..families.len() {
+                                if families.get(target).expect("family").name.as_bytes() != name {
+                                    continue;
+                                }
+                                let to = 1_u64.checked_shl(target).expect("at most 64 families");
+                                let reached = *reach.get(target).expect("target row");
+                                if index == target || reached & own != 0 {
+                                    return Err(refusal);
+                                }
+                                let added = to | reached;
+                                for source in 0..families.len() {
+                                    let row = reach.get_mut(source).expect("source row");
+                                    if source == index || *row & own != 0 {
+                                        *row |= added;
                                     }
                                 }
                             }

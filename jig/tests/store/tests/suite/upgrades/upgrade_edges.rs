@@ -128,10 +128,11 @@ fn mixed_frames() -> (World, u64) {
     let old = upgrade_fixtures::fixture_turn(1, SAID, REPLAY, 0);
     let current = upgrade_fixtures::fixture_turn(2, SAID, &[], 0);
     let charge = direct_frame_bytes(&current);
-    let mut world = committed(upgrade_fixtures::FRAME_VERSION_HEADS, &[&old, &current]);
+    let mut world = committed(upgrade_fixtures::EARLIER_FRAMES, &[&old]);
     world.crash(SEED);
     world.owner_sets(upgrade_fixtures::FRAME_SETS);
-    world.open_switched().expect("seed the frames registry");
+    let last = world.open_switched().expect("register the v2 turn layout");
+    assert_eq!(world.commit(root::turn_commit(last + 1, TASK, 2, &current)), Some(last + 1));
     (world, charge)
 }
 

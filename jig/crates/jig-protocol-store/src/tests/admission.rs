@@ -33,17 +33,15 @@ fn prepared_texts_match_self_parsing_admission_and_refusal() {
 }
 
 #[test]
-fn prepare_keeps_current_and_frame_texts_in_first_seen_order() {
+fn prepare_keeps_only_current_texts_in_first_seen_order() {
     const OWNERS: OwnerSets =
         OwnerSets { sets: &[SETS.sets[0], frame_layouts::SETS.sets[0], frame_layouts::SETS.sets[1]] };
-    const EXPECTED: [&str; 7] = [
+    const EXPECTED: [&str; 5] = [
         records::LABEL_CURRENT,
         records::SHELF_CURRENT,
         records::TOKEN_CURRENT,
         layouts::FRAME_BODY,
-        layouts::FRAME_BODY_KEPT,
         layouts::FRAME_TURN,
-        layouts::FRAME_TURN_KEPT,
     ];
     let prepared = OWNERS.prepare();
     assert_eq!(prepared.len(), EXPECTED.len());
@@ -80,14 +78,8 @@ fn prepare_binary_sets_keeps_each_text_once_including_core() {
     for set in BINARY.sets {
         for family in set.families {
             expected.insert(family.current.as_bytes());
-            if let Some(frames) = family.frames {
-                for text in frames.texts {
-                    expected.insert(text.as_bytes());
-                }
-                if set.owner == Owner::Jig {
-                    assert!(frames.texts.contains(&family.current));
-                    core_text = Some(family.current.as_bytes());
-                }
+            if set.owner == Owner::Jig && family.frames.is_some() {
+                core_text = Some(family.current.as_bytes());
             }
         }
     }

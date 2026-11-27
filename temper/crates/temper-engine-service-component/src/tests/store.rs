@@ -90,11 +90,9 @@ fn prepared_binary_texts_keep_the_open_verdict() {
 
     let mut prepared: Vec<skein_codec::schema::Schema> = Vec::new();
     for family in store::OWNER_SETS.sets.iter().flat_map(|set| set.families) {
-        let frames = family.frames.as_ref().map_or(&[][..], |frames| frames.texts);
-        for text in core::iter::once(family.current).chain(frames.iter().copied()) {
-            if !prepared.iter().any(|schema| schema.text() == text.as_bytes()) {
-                prepared.push(skein_codec::schema::parse(text.as_bytes()).expect("binary schema"));
-            }
+        let text = family.current.as_bytes();
+        if !prepared.iter().any(|schema| schema.text() == text) {
+            prepared.push(skein_codec::schema::parse(text).expect("binary schema"));
         }
     }
     let prepared = Box::leak(prepared.into_boxed_slice());
