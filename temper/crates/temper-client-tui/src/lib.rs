@@ -22,7 +22,7 @@ pub use approval::{approval_address, may_ask_again, may_type_instead};
 pub use box_line::BoxLine;
 pub use box_stage::{BoxEnd, BoxStage};
 pub use choices::{ReplyChoice, ReplyChoices, reply_choices};
-pub use event::{EXIT, Event, LOG_COMMAND, Own, QUIT, WalkStep, command_name};
+pub use event::{EXIT, Event, LOG_COMMAND, Own, QUIT, Row, WalkStep, command_name};
 pub use limits::limits;
 pub use marks::marked;
 pub use note::Note;
@@ -34,7 +34,7 @@ pub use state::{
 pub use theme::{Scheme, theme};
 pub use view::{
     Arrow, HALVES, View, arrow, back, build, chat_number, escape, event, focus, goal_offered, landing, offered,
-    offered_own, pane_key, refused, reply_number, sign_in_drawn, walk_key, work_runs,
+    offered_own, pane_key, refused, reply_number, sign_in_drawn, work_runs,
 };
 
 #[cfg(test)]

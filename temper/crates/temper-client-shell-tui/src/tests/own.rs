@@ -164,8 +164,8 @@ fn an_own_name_opens_its_empty_place() {
             let name = core::str::from_utf8(command.name()).expect("command name");
             key_words(&mut host, prefix.unwrap_or(name));
             host.frame();
-            host.tell(Told::LeftOff { task: Some(NEWEST) });
-            host.tell(Told::Walk { by_key: true });
+            host.tell(Told::Picked { row: Some(Row::Chat { task: NEWEST }), in_list: true });
+            host.tell(Told::Walk { first: None });
             let address = host.root.pages().address().clone();
             if sent {
                 give(&mut host, Event::Send);
@@ -178,7 +178,7 @@ fn an_own_name_opens_its_empty_place() {
             assert!(host.root.pages().start().is_none());
             assert!(host.root.pages().tell().is_none());
             assert_eq!(host.words(), []);
-            assert_eq!(host.state().left_off(), None);
+            assert_eq!(host.state().picked(), None);
             assert!(host.state().walk().is_none());
             assert!(text(&mut host).contains("or Esc to go back."));
             for character in "fix the README".chars() {
@@ -435,12 +435,12 @@ fn a_places_empty_box_has_no_launchpad_or_pane_keys() {
             host.frame();
             assert_eq!(host.event_of(&key), None, "{screen:?}, {key:?}");
             empty(&host.report(Report::Key(key)));
-            assert_eq!(host.state().left_off(), None);
+            assert_eq!(host.state().picked(), None);
         }
         key_words(&mut host, "n");
         assert_eq!(host.words(), b"n");
         assert!(host.state().walk().is_none());
-        assert!(!text(&mut host).contains("n to walk"));
+        assert!(!text(&mut host).contains("needs you · /needs"));
         assert!(!text(&mut host).contains("Ctrl-o"));
     }
 }

@@ -119,7 +119,8 @@ fn the_trees_fit_their_limits() {
         (Word::SigningInNotice, &[][..], b"Still signing in".as_slice()),
         (Word::KindChat, &[][..], ", a chat".as_bytes()),
         (Word::KindGoal, &[][..], ", a goal".as_bytes()),
-        (Word::WalksThem, &[][..], "n walks them".as_bytes()),
+        (Word::ListKeys, &[][..], "Enter opens · Tab sections · Esc back to the box".as_bytes()),
+        (Word::WalksThem, &[][..], "/needs walks them".as_bytes()),
         (Word::MoneyNeed, &[][..], "$".as_bytes()),
         (Word::SignOffNeed, &[][..], "✓".as_bytes()),
         (Word::StartHead, &[][..], "Start".as_bytes()),
@@ -129,7 +130,7 @@ fn the_trees_fit_their_limits() {
         (Word::OpenCommand, &[][..], "Open this on the web".as_bytes()),
         (Word::BriefMore, &[][..], " · /brief".as_bytes()),
         (Word::BoxStart, &[][..], "Ask for a change, or ask temper.  / for commands".as_bytes()),
-        (Word::ToWalk, &[][..], "n to walk".as_bytes()),
+        (Word::ToWalk, &[][..], "/needs".as_bytes()),
         (Word::Next, &[][..], "Next".as_bytes()),
         (Word::OpenOnWeb, &[][..], "Open it on the web".as_bytes()),
         (Word::WalkDone, &[][..], "Nothing else needs you.".as_bytes()),
@@ -146,7 +147,6 @@ fn the_trees_fit_their_limits() {
         (Word::ThemeNoticeAutoNone, &[][..], b"Theme: auto, dark: your terminal doesn't say.".as_slice()),
         (Word::ThemeNoticeLight, &[][..], b"Theme: light.".as_slice()),
         (Word::ThemeNoticeDark, &[][..], b"Theme: dark.".as_slice()),
-        (Word::ChatNumber, &[Hole::Number(u64::MAX)][..], "/chats 18446744073709551615".as_bytes()),
         (Word::ChangeStart, &[Hole::Name(title.as_bytes().into())][..], &change_start),
         (Word::OpenAt, &[Hole::Name(page_address)][..], &open_at),
         (Word::BoxPurpose, &[][..], "a whole deployment on this machine".as_bytes()),
@@ -318,7 +318,7 @@ fn the_trees_fit_their_limits() {
                     task,
                     project: name.into(),
                     title: title.as_bytes().into(),
-                    kind: launchpad::LeftKind::Chat { number: u32::try_from(task + 1).unwrap(), session: false },
+                    kind: launchpad::LeftKind::Chat { session: false },
                     at: b"Fri 18:40".as_slice().into(),
                     state: b"waiting on you".as_slice().into(),
                 })
@@ -328,6 +328,7 @@ fn the_trees_fit_their_limits() {
         for _row in 0_u32..5 {
             needs
                 .push(launchpad::NeedRow {
+                    object: jig_client::contract::ObjectKey::Task(9),
                     since: None,
                     mark: temper_client_view_parts::shared::NeedMark::SignOff,
                     project: name.into(),

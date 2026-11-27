@@ -22,7 +22,7 @@ fn role_chip() -> w::Chip {
     }
     records::chip_from_rows(&rows)
 }
-fn roles_host() -> Host {
+pub(super) fn roles_host() -> Host {
     roles_fixture().0
 }
 fn roles_fixture() -> (Host, Duties) {

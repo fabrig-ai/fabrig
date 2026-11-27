@@ -7,14 +7,14 @@
                                                                    written by the status agent 08:00 · /brief
 
  Where you left off
-   shop    Away mode, a chat · today 08:12 · waiting on you                                          /chats 1
+   shop    Away mode, a chat · today 08:12 · waiting on you
    shop    csv-export, a goal · today 07:42 · Working
 
  Needs you
    ? Hello   csv-export: comma or semicolon? · asked 20 min ago
    $ shop    Porter: raise its weekly budget? · asked 20 min ago
    ✓ Hello   Monthly totals: ready for review · asked 20 min ago
-   • shop    Proposal: review the new way · asked 20 min ago                                     n walks them
+   • shop    Proposal: review the new way · asked 20 min ago                                /needs walks them
 
  Start
    /draft    a design session that ends in a draft and a goal
@@ -29,7 +29,7 @@
 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / for commands
 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
- ● Live · Hello · Claude Opus 5.5 · high                                               4 need you · n to walk
+ ● Live · Hello · Claude Opus 5.5 · high                                                  4 need you · /needs
 --
 ..............................................................................................................
 ..abbb...cccccc...............................................................................................
@@ -40,14 +40,14 @@
 ...................................................................eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.
 ..............................................................................................................
 .cccccccccccccccccc...........................................................................................
-...cccccccc.........eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee..........................................eeeeeeee.
+...cccccccc.........eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee...................................................
 ...cccccccc..........eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.........................................................
 ..............................................................................................................
 .ccccccccc....................................................................................................
 ...f.cccccccc...............................eeeeeeeeeeeeeeeeeee...............................................
 ...f.cccccccc................................eeeeeeeeeeeeeeeeeee..............................................
 ...f.cccccccc................................eeeeeeeeeeeeeeeeeee..............................................
-...f.cccccccc............................eeeeeeeeeeeeeeeeeee.....................................eeeeeeeeeeee.
+...f.cccccccc............................eeeeeeeeeeeeeeeeeee................................eeeeeeeeeeeeeeeee.
 ..............................................................................................................
 .ccccc........................................................................................................
 ...cccccccccceeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.................................................
@@ -62,7 +62,7 @@
 gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 ffgggggggggggggggggggggggggggggggggggggggggggggggg............................................................
 gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
-.hhhhhhgggeeeeegggeeeeeeeeeeeeeeeeeeeeee...............................................ffffffffffgggeeeeeeeee.
+.hhhhhhgggeeeeegggeeeeeeeeeeeeeeeeeeeeee..................................................ffffffffffgggeeeeee.
 --
 a: fore #1B76FD
 b: fore #00C4FE

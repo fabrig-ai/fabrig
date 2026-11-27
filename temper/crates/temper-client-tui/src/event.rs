@@ -20,13 +20,24 @@ pub enum Event {
     Stop,
     Stay,
     Log,
-    LeftOff { task: Option<u64> },
+    Picked { row: Option<Row> },
+    WalkFrom { object: jig_client::contract::ObjectKey },
     Own { command: Own },
     Open { address: Box<[u8]> },
     Walk { object: jig_client::contract::ObjectKey, step: WalkStep },
     EndWalk,
     Theme { choice: Option<crate::theme::ThemeChoice> },
     Way { template: u32 },
+}
+
+/// A selectable row of the launchpad (temper/docs/design/client/tui/pages/launchpad.md, 7).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Row {
+    Chat { task: u64 },
+    Goal { task: u64 },
+    Need { object: jig_client::contract::ObjectKey },
+    Role { project: u32, task: u64 },
+    Start { command: Own },
 }
 
 /// The TUI's own command (temper/docs/design/client/tui/box.md).

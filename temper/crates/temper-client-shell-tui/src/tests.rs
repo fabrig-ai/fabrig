@@ -42,7 +42,7 @@ use temper_client_domain::{
         terminal::{self, Command, Font, Theme},
     },
 };
-use temper_client_tui::{BoxEnd, BoxStage, Event, Local, Note, Own, Scheme, Told, WalkStep};
+use temper_client_tui::{BoxEnd, BoxStage, Event, Local, Note, Own, Row, Scheme, Told, WalkStep};
 
 fn settings() -> Settings {
     let mut limits = limits::tui();
@@ -1457,7 +1457,7 @@ fn typing_open_opens_the_selected_launchpad_chat() {
             if selected {
                 host.report(Report::Key(Key::Up));
                 host.frame();
-                assert_eq!(host.state().left_off(), Some(NEWEST));
+                assert_eq!(host.state().picked().map(|(row, _)| row), Some(Row::Chat { task: NEWEST }));
             }
             let address = if selected {
                 b"http://127.0.0.1:8367/chats/9".as_slice()
@@ -1534,7 +1534,6 @@ fn goal_host() -> Host {
             break;
         }
     }
-    host.frame();
     host
 }
 
@@ -1546,7 +1545,7 @@ fn typing_open_opens_the_selected_launchpad_goal() {
         host.frame();
         host.report(Report::Key(Key::Up));
         host.frame();
-        assert_eq!(host.state().left_off(), Some(NEWEST));
+        assert_eq!(host.state().picked().map(|(row, _)| row), Some(Row::Goal { task: NEWEST }));
         check_typed_open(&mut host, size, b"http://127.0.0.1:8367/tasks/9");
     }
 }
@@ -1569,10 +1568,10 @@ fn launchpad_selection_clears_after_command_composition() {
         host.report(Report::Key(Key::Up));
         host.frame();
         key_words(&mut host, words);
-        assert_eq!(host.state().left_off(), Some(NEWEST), "{words}: composing");
+        assert_eq!(host.state().picked().map(|(row, _)| row), Some(Row::Chat { task: NEWEST }), "{words}: composing");
         host.report(Report::Key(key));
         host.frame();
-        assert_eq!(host.state().left_off(), None, "{words}: cleared");
+        assert_eq!(host.state().picked(), None, "{words}: cleared");
     }
 }
 
@@ -2493,7 +2492,7 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
 enum LaunchAt {
     Home,
     Aside,
-    AsideByKey,
+    AsideFromRow,
     Need,
     NewChat,
 }
@@ -2554,15 +2553,15 @@ fn the_launchpad_takes_its_own_words() {
         (b"/chats 2", LaunchAt::Home, LaunchWant::Unknown),
         (b"/br", LaunchAt::Home, LaunchWant::Brief),
         (b"Use a comma", LaunchAt::Aside, LaunchWant::Reply),
-        (b"Use a comma", LaunchAt::AsideByKey, LaunchWant::Reply),
+        (b"Use a comma", LaunchAt::AsideFromRow, LaunchWant::Reply),
         (
             b"Please help",
             LaunchAt::Home,
             LaunchWant::Started { label: 7, words: b"Please help", from: Address::Home { project: 3 } },
         ),
     ] {
-        let aside = matches!(at, LaunchAt::Aside | LaunchAt::AsideByKey);
-        let mut host = if matches!(at, LaunchAt::Aside | LaunchAt::AsideByKey | LaunchAt::Need) {
+        let aside = matches!(at, LaunchAt::Aside | LaunchAt::AsideFromRow);
+        let mut host = if matches!(at, LaunchAt::Aside | LaunchAt::AsideFromRow | LaunchAt::Need) {
             waiting_at(false)
         } else {
             one_chat_host(matches!(&want, LaunchWant::Brief))
@@ -2574,7 +2573,7 @@ fn the_launchpad_takes_its_own_words() {
         }
         let object = aside.then(|| shared_question(&host));
         if let Some(object) = object {
-            host.tell(Told::Walk { by_key: matches!(at, LaunchAt::AsideByKey) });
+            host.tell(Told::Walk { first: matches!(at, LaunchAt::AsideFromRow).then_some(object) });
             give(&mut host, Event::Aside { object });
         }
         typed(&mut host, words);
@@ -2616,7 +2615,7 @@ fn the_launchpad_takes_its_own_words() {
             ),
             LaunchWant::Brief => assert!(host.state().brief_shown(), "{words:?}"),
             LaunchWant::Walk => {
-                assert!(host.state().walk().is_some_and(|walk| !walk.by_key()), "{words:?}");
+                assert!(host.state().walk().is_some_and(|walk| walk.first().is_none()), "{words:?}");
                 assert_eq!((host.words()).len(), 0);
             }
             LaunchWant::Opened => {
@@ -3711,6 +3710,21 @@ fn start_gives_the_look_then_launchpad_once_but_a_theme_only_gives_the_look() {
 }
 
 #[test]
+fn chats_two_and_a_missing_chat_number_use_the_unnumbered_list() {
+    let mut host = left_off_host();
+    typed(&mut host, b"/chats 9");
+    give(&mut host, Event::Send);
+    assert_eq!(
+        host.state().notice(),
+        Some(&temper_client_tui::Notice::Unknown { words: b"/chats 9".as_slice().into() })
+    );
+    assert!(!text(&mut host).contains("/chats 2"));
+    typed(&mut host, b"/chats 2");
+    give(&mut host, Event::Send);
+    assert_eq!(host.root.pages().address(), &Address::Chat { task: OLDER });
+}
+
+#[test]
 fn chats_one_and_enter_open_the_newer_chat_of_shop() {
     let mut tasks = home_tasks(false);
     let mut reader = Reader::new(&tasks.rows);
@@ -3736,9 +3750,9 @@ fn chats_one_and_enter_open_the_newer_chat_of_shop() {
             typed(&mut host, b"/chats 1");
         } else {
             host.frame();
-            host.report(Report::Key(Key::Down));
+            host.report(Report::Key(Key::Up));
             host.frame();
-            assert_eq!(host.state().left_off(), Some(NEWEST));
+            assert_eq!(host.state().picked().map(|(row, _)| row), Some(Row::Chat { task: NEWEST }));
         }
         host.report(Report::Key(Key::Enter));
         assert_eq!(host.root.pages().address(), &Address::Chat { task: NEWEST });

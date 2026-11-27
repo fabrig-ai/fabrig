@@ -421,7 +421,7 @@ fn rule_part(b: &mut Builder, bytes: &[u8], paint: Style) {
     b.close();
 }
 #[expect(clippy::too_many_lines, reason = "the quiet line measures its ordered parts before dropping them by priority")]
-fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
+fn quiet(b: &mut Builder, part: &Foot, words: &Words, list_focused: bool) {
     let separator = words.say(Word::Separator, &[]);
     let needing = if part.needs.count > 0 {
         words.say(
@@ -466,7 +466,9 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
         if let Some(session) = &part.talk_session {
             right.push((copy_of(session), look::HINT)).expect("eight quiet line parts");
         }
-        if !needing.is_empty() {
+        if list_focused {
+            right.push((words.say(Word::ListKeys, &[]), look::HINT)).expect("eight quiet line parts");
+        } else if !needing.is_empty() {
             right.push((needing, look::SIGNAL)).expect("eight quiet line parts");
         }
     }
@@ -512,8 +514,11 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
         }
     }
     let narrow_notice = part.notice.is_some() && total > room;
-    let walking =
-        part.notice.is_none() && part.launchpad && part.needs.count > 0 && total.saturating_add(walk_width) <= room;
+    let walking = part.notice.is_none()
+        && !list_focused
+        && part.launchpad
+        && part.needs.count > 0
+        && total.saturating_add(walk_width) <= room;
     let closed = part.closed.is_some() && (total <= room || narrow_notice);
     b.open(Role::ContentInfo);
     b.region(look::BOTTOM);
@@ -571,7 +576,13 @@ pub(crate) fn bottom(b: &mut Builder, state: &[u8], style: Style, words: &Words)
     b.close();
 }
 
-pub(crate) fn draw(b: &mut Builder, part: &Foot, words: &Words, binds: &mut Binds) -> Option<Event> {
+pub(crate) fn draw(
+    b: &mut Builder,
+    part: &Foot,
+    words: &Words,
+    binds: &mut Binds,
+    list_focused: bool,
+) -> Option<Event> {
     let Some(composer) = &part.composer else {
         bottom(b, &part.state, part.style, words);
         return None;
@@ -589,11 +600,16 @@ pub(crate) fn draw(b: &mut Builder, part: &Foot, words: &Words, binds: &mut Bind
     b.region(look::BOX);
     rule(b, part, words);
     b.open(Role::TextArea);
+    if list_focused {
+        b.style(look::HINT);
+    }
     b.style(look::FIELD);
     b.name(&composer.name);
     b.state(State::SubmitsOnEnter);
     b.value(&composer.value, composer.written);
-    b.focus(composer.focus);
+    if !list_focused {
+        b.focus(composer.focus);
+    }
     b.bind(Binding { owner: look::OWNER, token: super::BOX });
     if part.list.is_none() {
         b.placeholder(&composer.placeholder);
@@ -607,7 +623,7 @@ pub(crate) fn draw(b: &mut Builder, part: &Foot, words: &Words, binds: &mut Bind
         lists::draw(b, list, binds);
         Some(list.escape.clone())
     } else {
-        quiet(b, part, words);
+        quiet(b, part, words, list_focused);
         None
     };
     b.close();

@@ -228,7 +228,7 @@ fn a_need_the_engine_asks_is_walked_from_the_launchpad_and_answered() {
         .position(|row| row.contains("? Project 2") && row.contains(QUESTION))
         .unwrap_or_else(|| panic!("the question's row: {}", tui.text()));
     assert!(needs < need, "the question stands under Needs you: {}", tui.text());
-    assert!(tui.text().contains("1 needs you · n to walk"), "{}", tui.text());
+    assert!(tui.text().contains("1 needs you · /needs"), "{}", tui.text());
 
     tui.walk_needs(&mut world);
     let rows = tui.rows();

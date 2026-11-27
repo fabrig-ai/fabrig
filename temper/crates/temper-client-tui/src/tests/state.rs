@@ -357,8 +357,16 @@ fn link_changes_keep_the_command_composers_words() {
     }
 }
 
-type Facts<'a> =
-    (u16, Option<jig_client::contract::ObjectKey>, Option<&'a crate::Notice>, u64, u64, u64, Option<u64>, bool);
+type Facts<'a> = (
+    u16,
+    Option<jig_client::contract::ObjectKey>,
+    Option<&'a crate::Notice>,
+    u64,
+    u64,
+    u64,
+    Option<(crate::Row, bool)>,
+    bool,
+);
 
 #[test]
 fn the_surface_state_changes_only_when_its_facts_change() {
@@ -369,7 +377,10 @@ fn the_surface_state_changes_only_when_its_facts_change() {
     let size = Told::Size { columns: 80 };
     let live = Told::Link { link: Link::Live };
     let out = Told::Link { link: Link::SignedOut };
-    // columns, aside, notice, focus, box writes, revision.
+    let row = crate::Row::Chat { task: 7 };
+    let picked = Told::Picked { row: Some(row), in_list: true };
+    let unpicked = Told::Picked { row: None, in_list: false };
+    // columns, aside, notice, focus, box writes, revision, pick, boxed.
     let rows: &[(&str, &[Told], Facts<'_>)] = &[
         ("initial", &[], (0, None, None, 1, 0, 0, None, false)),
         ("zero columns", &[Told::Size { columns: 0 }], (0, None, None, 1, 0, 0, None, false)),
@@ -414,19 +425,11 @@ fn the_surface_state_changes_only_when_its_facts_change() {
         ("sign in shown again", &[live.clone(), out.clone()], (0, None, None, 3, 0, 2, None, false)),
         ("same sign out", &[live.clone(), out.clone(), out.clone()], (0, None, None, 3, 0, 2, None, false)),
         ("sign in again", &[live.clone(), out.clone(), live.clone()], (0, None, None, 4, 0, 3, None, false)),
-        ("left off", &[Told::LeftOff { task: Some(7) }], (0, None, None, 1, 0, 1, Some(7), false)),
-        (
-            "same left off",
-            &[Told::LeftOff { task: Some(7) }, Told::LeftOff { task: Some(7) }],
-            (0, None, None, 1, 0, 1, Some(7), false),
-        ),
-        (
-            "clear left off",
-            &[Told::LeftOff { task: Some(7) }, Told::LeftOff { task: None }],
-            (0, None, None, 1, 0, 2, None, false),
-        ),
-        ("no left off", &[Told::LeftOff { task: None }], (0, None, None, 1, 0, 0, None, false)),
-        ("went clears left off", &[Told::LeftOff { task: Some(7) }, Told::Went], (0, None, None, 2, 1, 2, None, false)),
+        ("pick", core::slice::from_ref(&picked), (0, None, None, 1, 0, 1, Some((row, true)), false)),
+        ("same pick", &[picked.clone(), picked.clone()], (0, None, None, 1, 0, 1, Some((row, true)), false)),
+        ("clear pick", &[picked.clone(), unpicked.clone()], (0, None, None, 2, 0, 2, None, false)),
+        ("no pick", core::slice::from_ref(&unpicked), (0, None, None, 1, 0, 0, None, false)),
+        ("went clears pick", &[picked.clone(), Told::Went], (0, None, None, 2, 1, 2, None, false)),
         ("boxed", &[Told::Boxed], (0, None, None, 1, 0, 1, None, true)),
         ("same boxed", &[Told::Boxed, Told::Boxed], (0, None, None, 1, 0, 1, None, true)),
     ];
@@ -443,7 +446,7 @@ fn the_surface_state_changes_only_when_its_facts_change() {
             tui.focus(),
             tui.box_written(),
             tui.revision(),
-            tui.left_off(),
+            tui.picked(),
             tui.boxed(),
         );
         if found != *want {
@@ -696,7 +699,7 @@ fn starting_groups_yield_to_box_states_in_order() {
 }
 
 // Walk (by key, taken, shown object, shown other), brief, opener, revision.
-type WalkFacts<'a> = (Option<(bool, bool, bool, bool)>, bool, Option<&'a [u8]>, u64);
+type WalkFacts<'a> = (Option<(Option<jig_client::contract::ObjectKey>, bool, bool)>, bool, Option<&'a [u8]>, u64);
 
 fn walk_rows() {
     use jig_client::contract::ObjectKey;
@@ -704,25 +707,25 @@ fn walk_rows() {
     const HELD: u32 = 64;
     let object = ObjectKey::Question { task: 9, message: 1 };
     let other = ObjectKey::Question { task: 9, message: 2 };
-    let walk = Told::Walk { by_key: true };
+    let walk = Told::Walk { first: Some(other) };
     let walked = Told::Walked { object };
     let note = Told::NotOpened { address: Some(Box::from(*b"http://example.test/tasks/9")) };
     let rows: &[(&str, &[Told], WalkFacts<'_>)] = &[
         ("initial walk", &[], (None, false, None, 0)),
-        ("n", core::slice::from_ref(&walk), (Some((true, false, false, false)), false, None, 1)),
-        ("same walk", &[walk.clone(), walk.clone()], (Some((true, false, false, false)), false, None, 1)),
-        ("/needs", &[Told::Walk { by_key: false }], (Some((false, false, false, false)), false, None, 1)),
-        ("walked", &[walk.clone(), walked.clone()], (Some((true, true, true, false)), false, None, 2)),
+        ("from a need", core::slice::from_ref(&walk), (Some((Some(other), false, false)), false, None, 1)),
+        ("same walk", &[walk.clone(), walk.clone()], (Some((Some(other), false, false)), false, None, 1)),
+        ("/needs", &[Told::Walk { first: None }], (Some((None, false, false)), false, None, 1)),
+        ("walked", &[walk.clone(), walked.clone()], (Some((Some(other), true, false)), false, None, 2)),
         (
             "same walked",
             &[walk.clone(), walked.clone(), walked.clone()],
-            (Some((true, true, true, false)), false, None, 2),
+            (Some((Some(other), true, false)), false, None, 2),
         ),
         ("walked outside walk", core::slice::from_ref(&walked), (None, false, None, 0)),
         (
             "restart walk",
             &[walk.clone(), walked.clone(), walk.clone()],
-            (Some((true, false, false, false)), false, None, 3),
+            (Some((Some(other), false, false)), false, None, 3),
         ),
         ("end walk", &[walk.clone(), Told::EndWalk], (None, false, None, 2)),
         ("no walk to end", &[Told::EndWalk], (None, false, None, 0)),
@@ -732,7 +735,7 @@ fn walk_rows() {
         (
             "empty typing keeps walk",
             &[walk.clone(), Told::Typed { value: Box::default() }],
-            (Some((true, false, false, false)), false, None, 1),
+            (Some((Some(other), false, false)), false, None, 1),
         ),
         ("brief", &[Told::Brief], (None, true, None, 1)),
         ("same brief", &[Told::Brief, Told::Brief], (None, true, None, 1)),
@@ -760,7 +763,7 @@ fn walk_rows() {
         }
         let mut walk = None;
         if let Some(held) = tui.walk() {
-            walk = Some((held.by_key(), held.taken(), held.shown(&object), held.shown(&other)));
+            walk = Some((held.first(), held.shown(&object), held.shown(&other)));
         }
         if (walk, tui.brief_shown(), tui.not_opened(), tui.revision()) != *want {
             failures.push(*name).unwrap();
@@ -770,12 +773,11 @@ fn walk_rows() {
     assert_eq!(crate::limits::WALK, HELD);
     for count in [HELD, HELD + 1] {
         let mut tui = Tui::new(f::ADDRESS);
-        tui.step(Told::Walk { by_key: false });
+        tui.step(Told::Walk { first: None });
         for task in 0..count {
             tui.step(Told::Walked { object: ObjectKey::Task(u64::from(task)) });
         }
         let walk = tui.walk().unwrap();
-        assert!(walk.taken());
         for task in 0..HELD {
             assert!(walk.shown(&ObjectKey::Task(u64::from(task))), "{count}: {task}");
         }

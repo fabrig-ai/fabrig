@@ -1,5 +1,5 @@
 //! The TUI's own state beside the client root (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/box.md and temper/docs/design/client/sign-in.md, 1.1).
-use crate::{BoxEnd, BoxLine, BoxStage, Own, Scheme, limits, theme::ThemeChoice};
+use crate::{BoxEnd, BoxLine, BoxStage, Own, Row, Scheme, limits, theme::ThemeChoice};
 use alloc::boxed::Box;
 use jig_client::contract::{ObjectKey, TurnName};
 use skein_lib::{List, Lru, Queue, Secret, Set, bytes::copy_of};
@@ -39,7 +39,7 @@ pub struct Tui {
     tell_refusal: Option<Box<[u8]>>,
     focus: u64,
     box_written: u64,
-    left_off: Option<u64>,
+    picked: Option<(Row, bool)>,
     place: Option<Own>,
     boxed: bool,
     front: bool,
@@ -164,7 +164,7 @@ pub enum Told {
         refusal: Option<Box<[u8]>>,
     },
     Walk {
-        by_key: bool,
+        first: Option<ObjectKey>,
     },
     Walked {
         object: ObjectKey,
@@ -192,8 +192,9 @@ pub enum Told {
     Starting {
         chat: Option<u64>,
     },
-    LeftOff {
-        task: Option<u64>,
+    Picked {
+        row: Option<Row>,
+        in_list: bool,
     },
     Boxed,
     Cleared,
@@ -333,7 +334,7 @@ impl Tui {
             walk: None,
             brief_shown: false,
             not_opened: None,
-            left_off: None,
+            picked: None,
             place: None,
             boxed: false,
             theme_choice: ThemeChoice::Auto,
@@ -699,8 +700,25 @@ impl Tui {
         self.place
     }
     #[must_use]
-    pub const fn left_off(&self) -> Option<u64> {
-        self.left_off
+    pub const fn picked(&self) -> Option<(Row, bool)> {
+        self.picked
+    }
+    #[expect(clippy::manual_map, reason = "step code constructs the optional pick without a closure")]
+    fn set_pick(&mut self, row: Option<Row>, in_list: bool) -> bool {
+        let picked = match row {
+            Some(row) => Some((row, in_list)),
+            None => None,
+        };
+        let list_focused = match picked {
+            Some((_, held)) => held,
+            None => false,
+        };
+        if !list_focused && let Some((_, true)) = self.picked {
+            self.focus = self.focus.saturating_add(1);
+        }
+        let changed = self.picked != picked;
+        self.picked = picked;
+        changed
     }
     #[must_use]
     pub const fn boxed(&self) -> bool {
@@ -832,25 +850,20 @@ impl Tui {
                     true
                 }
             }
-            Told::Walk { by_key } => {
+            Told::Walk { first } => {
                 let changed = match &self.walk {
-                    Some(walk) => walk.by_key != by_key || walk.taken,
+                    Some(walk) => walk.first != first || !walk.shown.is_empty(),
                     None => true,
                 };
-                self.walk = Some(Walk { by_key, shown: List::with_capacity(limits::WALK), taken: false });
+                self.walk = Some(Walk { first, shown: List::with_capacity(limits::WALK) });
                 changed
             }
             Told::Walked { object } => match &mut self.walk {
-                Some(walk) => {
-                    let mut changed = !walk.taken;
-                    walk.taken = true;
-                    if !walk.shown(&object) && walk.shown.room() > 0 {
-                        walk.shown.push(object).expect("room for a shown object");
-                        changed = true;
-                    }
-                    changed
+                Some(walk) if !walk.shown(&object) && walk.shown.room() > 0 => {
+                    walk.shown.push(object).expect("room for a shown object");
+                    true
                 }
-                None => false,
+                Some(_) | None => false,
             },
             Told::EndWalk => self.walk.take().is_some(),
             Told::Brief => {
@@ -946,21 +959,17 @@ impl Tui {
                     || self.box_written != written
                     || self.log_shown
                     || self.link_not_opened
-                    || self.left_off.is_some();
+                    || self.picked.is_some();
                 let cleared = self.clear_launchpad();
                 self.log_shown = false;
                 self.link_not_opened = false;
-                self.left_off = None;
+                self.picked = None;
                 self.focus = focus;
                 self.command_words = Box::default();
                 self.box_written = written;
                 changed || cleared
             }
-            Told::LeftOff { task } => {
-                let changed = self.left_off != task;
-                self.left_off = task;
-                changed
-            }
+            Told::Picked { row, in_list } => self.set_pick(row, in_list),
             Told::Boxed => {
                 let changed = !self.boxed;
                 self.boxed = true;
@@ -972,7 +981,7 @@ impl Tui {
                 changed
             }
             Told::Cleared => {
-                let cleared = self.clear_launchpad();
+                let cleared = self.set_pick(None, false) | self.clear_launchpad();
                 self.command_words = Box::default();
                 let written = self.box_written.saturating_add(1);
                 let changed = self.box_written != written || self.log_shown || self.link_not_opened;
@@ -1081,8 +1090,7 @@ impl Tui {
 #[derive(Debug)]
 pub struct Walk {
     shown: List<ObjectKey>,
-    by_key: bool,
-    taken: bool,
+    first: Option<ObjectKey>,
 }
 impl Walk {
     #[must_use]
@@ -1090,11 +1098,7 @@ impl Walk {
         self.shown.as_slice().contains(object)
     }
     #[must_use]
-    pub const fn by_key(&self) -> bool {
-        self.by_key
-    }
-    #[must_use]
-    pub const fn taken(&self) -> bool {
-        self.taken
+    pub const fn first(&self) -> Option<ObjectKey> {
+        self.first
     }
 }

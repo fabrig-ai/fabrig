@@ -848,7 +848,7 @@ fn notice_states() {
         assert!(!has(tree, look::SIGNAL, b"forgejo-3 restarting"), "{name}");
         assert!(!has(tree, look::HINT, b"playground"), "{name}");
         assert!(!has(tree, look::HINT, b"paused \xc2\xb7 a message resumes it"), "{name}");
-        assert!(!has(tree, look::HINT, b"n to walk"), "{name}");
+        assert!(!has(tree, look::HINT, b"/needs"), "{name}");
         assert!(!has(tree, look::SIGNAL, b"1 needs you"), "{name}");
     }
     let root = super::launchpad::home(None, &[]);
@@ -916,7 +916,7 @@ fn quiet_states() {
             assert_eq!(f::text(view.tree(), signal).as_ref(), expected.as_bytes(), "{name}");
         }
         assert_eq!(has(view.tree(), look::HINT, line.as_bytes()), closed, "{name}");
-        assert_eq!(has(view.tree(), look::HINT, b"n to walk"), count > 0 && columns == 0, "{name}");
+        assert_eq!(has(view.tree(), look::HINT, b"/needs"), count > 0 && columns == 0, "{name}");
         let bottom = view.tree().nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
         let start = f::index(view.tree(), bottom.id);
         let mut next = start.checked_add(1).unwrap();
@@ -946,7 +946,7 @@ fn quiet_states() {
             TaskState::Idle,
             80,
             "● Live · Demo · Claude Opus 5.5 · high",
-            "1 needs you · n to walk",
+            "1 needs you · /needs",
         ),
         ("medium", true, true, false, TaskState::Idle, 60, "● Live · Demo · Claude Opus 5.5 · high", "1 needs you"),
         ("narrow", true, true, false, TaskState::Idle, 40, "● Live · Demo", "1 needs you"),
@@ -982,7 +982,7 @@ fn quiet_states() {
             "● Live · Demo · Claude Opus 5.5 · high",
             "paused · a message resumes it · 1 needs you",
         ),
-        ("no picker", true, false, false, TaskState::Idle, 80, "● Live · Demo", "1 needs you · n to walk"),
+        ("no picker", true, false, false, TaskState::Idle, 80, "● Live · Demo", "1 needs you · /needs"),
         ("no project", false, false, false, TaskState::Idle, 80, "● Live", ""),
     ] {
         let root = root_state(project, picker, chat, false, false, task);
@@ -1397,7 +1397,7 @@ fn reply_states() {
             assert!(root.pages().chat().unwrap().draft.is_some());
         }
         if case == "walk" {
-            tui.step(Told::Walk { by_key: false });
+            tui.step(Told::Walk { first: None });
         }
         act(&mut root, d::pages::Act::MessageWords { words: typed.into() });
         if case == "models" {
@@ -1889,10 +1889,10 @@ fn front_quiet(root: &Domain, words: &crate::words::Words) {
         ("restarting", Some(false), false, 0, 0, "forgejo-3 restarting", true),
         ("gave up", Some(true), false, 0, 0, "forgejo-3 gave up", true),
         ("playground", None, true, 0, 0, "playground", true),
-        ("restarting with needs", Some(false), false, 1, 0, "forgejo-3 restarting · 1 needs you · n to walk", true),
-        ("gave up with needs", Some(true), false, 1, 0, "forgejo-3 gave up · 1 needs you · n to walk", true),
-        ("playground with needs", None, true, 1, 0, "playground · 1 needs you · n to walk", true),
-        ("all in order", Some(false), true, 1, 0, "forgejo-3 restarting · playground · 1 needs you · n to walk", true),
+        ("restarting with needs", Some(false), false, 1, 0, "forgejo-3 restarting · 1 needs you · /needs", true),
+        ("gave up with needs", Some(true), false, 1, 0, "forgejo-3 gave up · 1 needs you · /needs", true),
+        ("playground with needs", None, true, 1, 0, "playground · 1 needs you · /needs", true),
+        ("all in order", Some(false), true, 1, 0, "forgejo-3 restarting · playground · 1 needs you · /needs", true),
         ("narrow with state", Some(false), false, 0, 60, "forgejo-3 restarting", false),
     ] {
         let root = super::launchpad::home_read(
@@ -2433,7 +2433,7 @@ fn walk_states() {
             act(&mut root, d::pages::Act::ChatWords { words: b"/".as_slice().into() });
         }
         let mut tui = Tui::new(f::ADDRESS);
-        tui.step(Told::Walk { by_key: true });
+        tui.step(Told::Walk { first: None });
         for object in shown {
             tui.step(Told::Walked { object: *object });
         }
@@ -2488,7 +2488,7 @@ fn walk_states() {
     // The walk owns the prompt even where the chat has its own question.
     let mut root = super::launchpad::question_root();
     let mut tui = Tui::new(f::ADDRESS);
-    tui.step(Told::Walk { by_key: false });
+    tui.step(Told::Walk { first: None });
     let list = foot::read(&root, &tui, &words, f::NOW).list.unwrap();
     assert_eq!(list.items[0].name.as_ref(), b"1. Tell it something else");
     assert_eq!(list.escape, TuiEvent::EndWalk);
@@ -2514,7 +2514,7 @@ fn walk_notes() {
         ("cleared", true, true, true),
     ] {
         let mut tui = Tui::new(f::ADDRESS);
-        tui.step(Told::Walk { by_key: false });
+        tui.step(Told::Walk { first: None });
         if done {
             for object in [WALK_QUESTION, WALK_HELD] {
                 tui.step(Told::Walked { object });
@@ -2578,24 +2578,28 @@ fn walk_golden(size: skein_ui_screen::Size) -> crate::View {
     body.needs = if size.columns == 110 {
         Box::new([
             NeedRow {
+                object: c::ObjectKey::Task(9),
                 since: Some(skein_lib::Wall::from_nanos(562 * MINUTE)),
                 mark: NeedMark::Question,
                 project: b"Hello".as_slice().into(),
                 words: b"csv-export: comma or semicolon?".as_slice().into(),
             },
             NeedRow {
+                object: c::ObjectKey::Task(9),
                 since: Some(skein_lib::Wall::from_nanos(562 * MINUTE)),
                 mark: NeedMark::Money,
                 project: b"Demo".as_slice().into(),
                 words: b"Porter: raise its weekly budget?".as_slice().into(),
             },
             NeedRow {
+                object: c::ObjectKey::Task(9),
                 since: Some(skein_lib::Wall::from_nanos(562 * MINUTE)),
                 mark: NeedMark::SignOff,
                 project: b"Hello".as_slice().into(),
                 words: b"Monthly totals: ready for review".as_slice().into(),
             },
             NeedRow {
+                object: c::ObjectKey::Task(9),
                 since: Some(skein_lib::Wall::from_nanos(562 * MINUTE)),
                 mark: NeedMark::Other,
                 project: b"Demo".as_slice().into(),
@@ -2604,6 +2608,7 @@ fn walk_golden(size: skein_ui_screen::Size) -> crate::View {
         ])
     } else {
         Box::new([NeedRow {
+            object: c::ObjectKey::Task(9),
             since: Some(skein_lib::Wall::from_nanos(562 * MINUTE)),
             mark: NeedMark::Question,
             project: b"Hello".as_slice().into(),
@@ -2619,7 +2624,7 @@ fn walk_golden(size: skein_ui_screen::Size) -> crate::View {
     body.lines.get_mut(0).unwrap().words = shared::all_home_headline(words.view(), &facts, now).0;
     let root = walk_root(true);
     let mut tui = Tui::new(f::ADDRESS);
-    tui.step(Told::Walk { by_key: true });
+    tui.step(Told::Walk { first: None });
     let mut foot = foot::read(&root, &tui, &words, now);
     foot.columns = size.columns;
     let mut view = f::view();
@@ -2700,7 +2705,7 @@ fn a_walks_reason_stands_between_the_head_and_choices_but_not_on_a_sign_off() {
     walk_review(&mut root);
     for review in [false, true] {
         let mut tui = Tui::new(f::ADDRESS);
-        tui.step(Told::Walk { by_key: true });
+        tui.step(Told::Walk { first: None });
         if review {
             tui.step(Told::Walked { object: WALK_QUESTION });
             tui.step(Told::Walked { object: WALK_HELD });
@@ -2833,7 +2838,6 @@ fn the_places_before_their_first_words_are_empty_chats() {
         assert_eq!(crate::back(&view, field.id, 0), Some(TuiEvent::Back));
         assert_eq!(crate::escape(&view), None);
         assert_eq!(crate::pane_key(&view), None);
-        assert_eq!(crate::walk_key(&view), None);
         let part = foot::read(&root, &tui, &f::words(), f::NOW);
         let rule = part.rule.unwrap();
         assert_eq!(rule.title.as_ref(), title.as_bytes());
@@ -2869,7 +2873,7 @@ fn a_named_chats_rule_and_walk_web_page_use_the_origin() {
     let view = draw(part);
     assert!(has(view.tree(), look::ADDRESS, b"dev.fabrig.ai"));
     let root = walk_root(true);
-    tui.step(Told::Walk { by_key: true });
+    tui.step(Told::Walk { first: None });
     tui.step(Told::Walked { object: WALK_QUESTION });
     let part = foot::read(&root, &tui, &f::words(), f::NOW);
     let list = part.list.expect("web need");
