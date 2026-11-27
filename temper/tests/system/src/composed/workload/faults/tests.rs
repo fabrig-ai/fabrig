@@ -143,6 +143,48 @@ fn catalogue_kind_draws_its_own_coin_target_and_moment() {
 }
 
 #[test]
+fn fetch_cut_draws_its_own_coin_goal_and_moment() {
+    assert!(CAMPAIGN_KINDS.contains(&FETCH_CUT));
+    let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+    let without_cut: Vec<_> = kinds.iter().copied().filter(|&kind| kind != FETCH_CUT).collect();
+    let mut struck_goals = BTreeSet::new();
+    let mut skipped = false;
+    for seed in (0..64).chain([u64::MAX]) {
+        let streams = Streams::new(seed);
+        let workload = Workload::draw(&streams, &COMPOSED);
+        let draw = FaultDraw::new(seed, &kinds);
+        let without = FaultDraw::new(seed, &without_cut);
+        let planned = draw.planned();
+        assert_eq!(
+            planned.iter().copied().filter(|&(kind, _)| kind != FETCH_CUT).collect::<Vec<_>>(),
+            without.planned(),
+            "seed {seed}: other targets"
+        );
+        assert!(draw.plans.iter().filter(|p| p.kind != FETCH_CUT).eq(&without.plans), "seed {seed}: other plans");
+        assert_eq!(draw.acts(), without.acts(), "seed {seed}: acts");
+        assert_eq!(draw.ineligible(), without.ineligible(), "seed {seed}: ineligible kinds");
+
+        let mut rng = streams.rng(Stream::Faults, "worker/a workspace fetch timing out partway");
+        let expected = if rng.below(2) == 0 {
+            skipped = true;
+            None
+        } else {
+            let goals = u64::try_from(workload.goals.len()).expect("bounded goals");
+            let index = usize::try_from(rng.below(goals)).expect("goal index");
+            struck_goals.insert(index);
+            Some((workload.goals[index].name.as_str(), rng.below(16)))
+        };
+        assert_eq!(
+            draw.plans.iter().filter(|p| p.kind == FETCH_CUT).map(|p| (p.goal.as_str(), p.after)).collect::<Vec<_>>(),
+            expected.into_iter().collect::<Vec<_>>(),
+            "seed {seed}: coin, then any goal, then moment"
+        );
+    }
+    assert!(skipped);
+    assert_eq!(struck_goals, BTreeSet::from([0, 1, 2]));
+}
+
+#[test]
 fn missing_report_draws_its_own_coin_target_and_moment() {
     use temper_blame::MISSING_REPORT;
     let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();

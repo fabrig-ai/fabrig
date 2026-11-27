@@ -29,6 +29,8 @@ const INJECTED_CATALOGUE: &[(Kind, Eligible)] = &[
     // provider
     (skein_llm_kit::faults::SPENT_CREDITS, |_| true),
     (skein_llm_kit::faults::EXPIRED_SIGN_IN, |_| true),
+    // worker
+    (super::FETCH_CUT, |_| true),
     // restarts
     (restarts::ENGINE_RESTART_MID_TURN, |_| true),
 ];

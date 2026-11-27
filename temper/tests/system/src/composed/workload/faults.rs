@@ -5,7 +5,7 @@ use skein_world::faults::{Counter, FaultLedger, Injection, Kind, Struck};
 use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain_world::acts::Watch;
 use temper_faults::{bounds, forge as forge_faults, parks, people, restarts, stale};
-use temper_worker_inspect::faults::DISK_FULL;
+use temper_worker_inspect::faults::{DISK_FULL, FETCH_CUT};
 use temper_workload::parties::{Act, Action};
 
 mod actions;
@@ -61,6 +61,7 @@ pub const CAMPAIGN_KINDS: &[Kind] = &[
     skein_llm_kit::faults::SPENT_CREDITS,
     skein_llm_kit::faults::EXPIRED_SIGN_IN,
     // worker
+    FETCH_CUT,
     // people and parties
     // runs that park, resume and move
     // the engine's own bounds
@@ -115,6 +116,7 @@ pub(in crate::composed) struct Faults {
     pub(super) released_member: Option<(u64, Time)>,
     watch: Watch,
     disk: worker::Disk,
+    fetch_cut: Option<worker::FetchCut>,
     park: Option<(String, u64, u64)>,
     parked: bool,
     read_latency: skein_lib::Duration,
@@ -148,6 +150,7 @@ impl Faults {
             released_member: None,
             actions,
             disk,
+            fetch_cut: None,
             park: None,
             parked: false,
             read_latency,
@@ -224,6 +227,7 @@ impl World {
                 && f.read_replies.is_empty()
                 && f.actions.is_empty()
                 && f.disk.stopped()
+                && f.fetch_cut.is_none()
                 && (f.park.is_none() || f.parked)
                 && f.closed.is_none()
                 && f.provider.is_none()

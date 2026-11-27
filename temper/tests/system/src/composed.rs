@@ -801,6 +801,7 @@ impl World {
     /// Visit retained bounds before a story's jump or the next grid tick.
     fn try_move_to(&mut self, at: Time) -> Result<(), String> {
         assert!(at >= self.env.now, "the story clock moves forward");
+        let at = self.workload_fetch_deadline().map_or(at, |deadline| at.min(deadline));
         if let Some(finding) = &self.finding {
             return Err(finding.clone());
         }
@@ -882,6 +883,7 @@ impl World {
     }
 
     fn worker_tick(&mut self, at: usize) {
+        self.workload_cut_fetch(at);
         let lane = &mut self.lanes[at];
         if let Some(event) = lane.worker_events.pop_front() {
             worker::step(&mut lane.worker, &lane.worker_env, event, &mut lane.worker_out);
@@ -1970,7 +1972,7 @@ impl World {
                 let activity = worker_protocol::activity(&body);
                 self.lanes[at].worker_events.push_back(worker::Event::Activity { owner, activity });
             }
-            worker::Request::Io { owner, op, .. } => {
+            worker::Request::Io { owner, op, deadline } => {
                 self.observed.checkouts += 1;
                 self.forge.at(self.env.now);
                 let op = forge_operation(op, &self.forge_binding.git);
@@ -1980,7 +1982,7 @@ impl World {
                     worker::checkout::git::Op::Push { commit, .. } => Some(*commit),
                     _ => None,
                 };
-                let done = self.workload_io(at, owner, op);
+                let done = self.workload_io(at, owner, op, deadline);
                 let moves = self.forge.moves();
                 if let Some(to) = pushed
                     && !moves.is_empty()
@@ -1988,16 +1990,18 @@ impl World {
                     let to = temper_worker_checkout_world::translate::fake(to);
                     self.workload_base_advance(&moves, temper_engine_forge_world::translate::commit(to));
                 }
-                self.lanes[at].worker_events.push_back(worker::Event::Done { owner, done });
+                if let Some(done) = done {
+                    self.lanes[at].worker_events.push_back(worker::Event::Done { owner, done });
+                }
             }
-            // Diagnostics do not affect the story. IO ends at once, winning the cancellation race.
+            worker::Request::CancelIo { owner } => self.workload_cancel_fetch(at, owner),
+            // Diagnostics do not affect the story.
             worker::Request::Paused { .. }
             | worker::Request::Git { .. }
             | worker::Request::AgentSignalled { .. }
             | worker::Request::AgentStopped { .. }
             | worker::Request::Unprepared { .. }
-            | worker::Request::ResultsIgnored { .. }
-            | worker::Request::CancelIo { .. } => {}
+            | worker::Request::ResultsIgnored { .. } => {}
         }
     }
 

@@ -40,7 +40,7 @@ fn hex(commit: u64) -> String {
 }
 
 impl World {
-    fn task_goal(&self, mut task: u64) -> Option<&str> {
+    pub(super) fn task_goal(&self, mut task: u64) -> Option<&str> {
         for _ in 0..32 {
             for goal in &self.workload().goals {
                 if self.workload_names().task(&goal.name) == Some(task)
