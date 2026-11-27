@@ -1,12 +1,12 @@
 # The gallery's files
 
-Draft, 2026-11-27, part of [ways.md](ways.md): each entry of the gallery ([ways-recipes.md](ways-recipes.md), section 5) as the whole files a project would hold, written by [ways-recipes.md](ways-recipes.md), sections 1 to 3, [ways.md](ways.md), 5.3, and [ways-temper-dir.md](ways-temper-dir.md), so that each is checked against the format before it is built, and built as a fixture and a world test (`ways.execution.md`, W9). Each way's charters are files of the project's in `.temper/charters/`, written whole from the stock's when the way is picked ([ways-charters.md](ways-charters.md), section 2): `implementer`, `reviewer`, `goal`, `pair` and the ones an entry names.
+Draft, 2026-11-27, part of [ways.md](ways.md): each entry of the gallery ([ways-recipes.md](ways-recipes.md), section 5) as the whole files a project would hold, written by [ways-recipes.md](ways-recipes.md), sections 1 to 3, [ways.md](ways.md), 5.3, and [ways-temper-dir.md](ways-temper-dir.md), so that each is checked against the format before it is built, and built as a fixture and a world test (`ways.execution.md`, W9). Each way's charters are files of the project's in `.temper/charters/`, written whole from the stock's when the way is picked ([ways-charters.md](ways-charters.md), section 2): `implementer`, `reviewer`, `goal`, `pair` and the ones an entry names. A model an entry names must be one the deployment's catalogue holds and the charter's `settings` charter offers, or it is ignored ([ways-recipes.md](ways-recipes.md), section 2); the fixtures set both. An entry's "no review" holds where the floor asks none: a project whose floor still has today's rule 1, with its gate, keeps that review whatever a way says ([ways.md](ways.md), 5.5).
 
 ## 1. The stock three
 
 ### 1.1 Pair
 
-You and one agent in a writable chat; "Land this" hands its edits over, and CI lands them. No review: you're there. Needs Pair's own draft, for `copy` and `handed`.
+You and one agent in a writable chat; "Land this" hands its edits over, and CI lands them. No review: you're there. Needs Pair's own draft, for the writable copy, the handover of its edits and the `pair` charter, and is held back from the gallery until that draft's goals land (`ways.execution.md`, W9).
 
 ```toml
 # .temper/ways/pair.toml
@@ -118,6 +118,11 @@ implementation = "ask"
 dependency = "ask"
 departure = "ask"
 findings = "ask"
+
+[[reaches.narrow]]
+kind = "findings"
+words = "a repair goal for a routine red after landing"
+class = "decide"
 ```
 
 ## 2. Ways of their own
@@ -146,12 +151,9 @@ landing = { ci = true, up_to_date = true, approvals = [{ role = "owner", people 
 delegates = { change = { at_most = 40 } }
 
 [tasks.goal.executor]
+agent = "goal"                      # the goal charter whole: designer on its first run, coordinator after
 model = "claude-opus-5-5"
 effort = "xhigh"
-
-[tasks.goal.executor.agent]
-instructions = ["common", "goal"]
-parts = [{ on = ["first"], file = "designer" }, { on = ["question", "result"], file = "coordinator" }]
 
 [tasks.change]
 executor = "change"
@@ -171,7 +173,15 @@ contract = "verdict"
 
 ### 2.2 Second opinion
 
-The stock review and a second one, by a lens of its own, with a charter of the project's, `data-safety-reviewer`, whose front matter is `settings = "reviewer"`.
+The stock review and a second one, by a lens of its own, with a charter of the project's, `.temper/charters/data-safety-reviewer.md`:
+
+```
++++
+format = 1
+settings = "reviewer"
++++
+You review a change for data safety alone: what it stores, migrates, deletes or exposes ...
+```
 
 ```toml
 # .temper/ways/second-opinion.toml
@@ -203,7 +213,7 @@ freshness = "exact"
 
 ### 2.3 Hotfix
 
-Straight into main, first in its queue, at Ultrafast, decided now and told after, with CI still required.
+Straight into main, first among the work waiting in its queue (a turn already running finishes first), at Ultrafast, decided now and told after, with CI still required. Needs gpt-6.2-sol with its Ultrafast speed in the catalogue (`model-speeds.md`).
 
 ```toml
 # .temper/ways/hotfix.toml
@@ -222,7 +232,6 @@ landing = { ci = true, up_to_date = true }
 [tasks.build]
 executor = { agent = "implementer", model = "gpt-6.2-sol", effort = "high", speed = "ultrafast" }
 contract = "change"
-budget = 200
 
 [reaches]
 wording = "decide"
@@ -236,12 +245,12 @@ findings = "decide"
 
 ### 2.4 Night batch
 
-Many small goals on a cheaper model, at low priority, their branches landing in turns of four, in a project that lands by turn.
+Many small goals on a cheaper model, at low priority, their branches landing in turns of up to four as they're ready, in a project that lands by turn with a `batch` of at least four; nothing schedules it by the clock.
 
 ```toml
 # .temper/ways/night-batch.toml
 format = 1
-headline = "A batch of small goals, landing together overnight"
+headline = "A batch of small goals, landing together in turns"
 start = "batch"
 
 [tasks.batch]
@@ -311,7 +320,7 @@ findings = "ask-away"
 
 ### 2.6 One-landing milestone
 
-A milestone on a branch of its own: each goal lands into it, the branch catches up with main after each, and the whole lands at once, on an owner's approval.
+A milestone on a branch of its own: each goal lands into it, the branch catches up with main whenever main moves, and the whole lands at once, on an owner's approval. Needs W13: a gathering holding a branch, with a closer of its own landing it into the gathering's `into`.
 
 ```toml
 # .temper/ways/one-landing-milestone.toml
@@ -359,7 +368,7 @@ contract = "verdict"
 
 ### 3.1 Docs fast lane, a default across ways
 
-A change touching only documentation skips CI; any other waits for it. It lives in `ways.toml`'s `[defaults]` ([ways.md](ways.md), 5.3), and every way inherits it.
+A change touching only documentation skips CI; any other waits for it. It lives in `ways.toml`'s `[defaults]` ([ways.md](ways.md), 5.3): its rule joins every change's criteria, and no way lifts it. Two things make it work: the floor mustn't ask CI itself, so the project's owners take CI out of its rule 1, a settings decision; and the offered ways leave `ci` out of their changes into the landing branch, inheriting the default's `false`, where the stock files above set it.
 
 ```toml
 # .temper/ways.toml
@@ -375,7 +384,7 @@ name = "docs"
 patterns = ["**/*.md", "docs/**"]
 
 [defaults.landing.base]
-ci = false
+ci = false                          # ways leave ci out, and inherit this
 up_to_date = true
 
 [[defaults.rules]]
@@ -403,4 +412,4 @@ sets = [2]
 
 ### 3.3 Standing triage, a grant
 
-A standing triager starts Hand it over for small findings, and milestones only through its person ([ways.md](ways.md), 7.3). Its grant is the store's, given at `temper ctl role start`, never a file: the ways it may start, `hand-it-over`; the way it may propose, `milestone`; and no value it may set.
+A standing triager starts Hand it over for small findings, and milestones only through its person ([ways.md](ways.md), 7.3). Its grant is the store's, given at `temper ctl role start`, never a file: the ways it may start, `hand-it-over`; the way it may propose to its person, `milestone`, made as theirs on acceptance; and no value it may set. "Small findings" is its charter's guidance, not a rule temper checks.
