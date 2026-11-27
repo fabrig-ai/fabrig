@@ -2,6 +2,9 @@
 
 2026-11-27. Where the tree's code lags or departs from [jobs.md](jobs.md).
 
+- **Not yet:** 2, *A hook is found and checked before it runs*: the worker reads no `find` or `fallback`, answers no none, reads no `config.toml` and runs a hook for its job's deadline [in flight: change 21665].
+- **Not yet:** 2, the merge and close kinds: each job's deadline is ten minutes, not its project's ceiling, and the kinds are declared at ten minutes [in flight: change 21666].
+
 
 
 `jobs.md`'s close kind is built: kind 4 is declared with its bounds,

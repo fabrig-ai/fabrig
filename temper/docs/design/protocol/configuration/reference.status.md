@@ -2,6 +2,8 @@
 
 2026-11-27. Where the tree's code lags or departs from [reference.md](reference.md).
 
+- **Not yet:** 4: fabrig has no `.temper/hooks/config.toml` giving its close 1,800 seconds [in flight: change 21657].
+
 
 
 - **Not yet:** the whole document: stage one's golden (`../../testing/README.md`, the

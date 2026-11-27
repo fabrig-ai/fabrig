@@ -2,6 +2,8 @@
 
 2026-11-27. Where the tree's code lags or departs from [branches.md](branches.md).
 
+- **Not yet:** 2, step 1: the closer reads `.temper/hooks/` at the goal's branch's tip and skips its close step where it finds no close command [in flight: change 21664].
+
 
 
 

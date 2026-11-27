@@ -2,6 +2,9 @@
 
 2026-11-27. Where temper's code lags or departs from [tooling.md](tooling.md).
 
+- **Not yet:** 2, 4.1, 4.2: a merge or close command runs for its job's deadline, not its hook's time; the worker answers no none, a command missing from the checkout failing the job [in flight: change 21665].
+- **Not yet:** 4.2: the engine takes `{"settled":[],"hook":"none"}` as the command's failure, not as settlement [in flight: change 21664].
+
 
 
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their

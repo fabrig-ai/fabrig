@@ -2,6 +2,8 @@
 
 2026-11-27. Where the tree's code lags or departs from [updates.md](updates.md).
 
+- **Not yet:** 1, *A conflict* and *A catch-up*: the change reads `.temper/hooks/` at the head first, and a catch-up whose tip has no merge command holds [in flight: change 21664].
+
 - **Not yet:**
   - 1: no supplied result shows the three-thread real-process trial
     passing after update recovery. Both styles' lost answers, retries,

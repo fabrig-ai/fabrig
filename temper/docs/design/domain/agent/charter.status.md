@@ -5,6 +5,7 @@
 
 - **Not yet:** 4, *How long a check may take*: no run's charter names a
   checks' bound (`temper-engine-smith/src/start.rs`, `charter_with_history`).
+- **Not yet:** 4, *How long a check may take*: the worker reads no `.temper/hooks/config.toml`, so every hook runs within the check's bound [in flight: change 21667].
 - **Not yet:** 4, *What a delivery checks*: a repair's and a resolution's
   checkout has no pin of the head their delivery replaces.
 - **Not yet:** 4, *Words a person reads first*: the stock's charters 1,

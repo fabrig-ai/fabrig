@@ -2,6 +2,8 @@
 
 2026-11-27. Where the tree's code lags or departs from [engine.md](engine.md).
 
+- **Not yet:** 2, *The hooks' ceiling*: no `hook_timeout_max_seconds`, and `temper ctl` takes none [in flight: change 21666].
+
 
 
 - **Not yet:** `landing`, a landing rule's `sets`: `LandingRule` has
