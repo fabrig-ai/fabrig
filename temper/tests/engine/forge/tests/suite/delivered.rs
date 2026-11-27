@@ -28,7 +28,7 @@ fn producer(kind: change::Delegate) -> World {
     row.change.task = TASK;
     row.branch = BRANCH.into();
     world.event(top::Event::Change { row });
-    world.event(top::Event::Delegated { task: TASK, child: CHILD, kind });
+    world.event(top::Event::Delegated { task: TASK, child: CHILD, kind, close_at: None });
     world.event(top::Event::Client(skein_forge_client::Event::Keep {
         owner: Token::new(444),
         watches: Box::new([skein_forge_client::Watch {
@@ -146,6 +146,7 @@ fn a_turned_member_starts_no_repair_interval() {
         task: landings::CHANGE,
         child: CHILD,
         kind: change::Delegate::Repair(change::Repair::Ci),
+        close_at: None,
     });
     assert_eq!(world.history(landings::CHANGE).len(), before);
 }

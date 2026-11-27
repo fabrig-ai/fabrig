@@ -1,6 +1,7 @@
 # answers: status
 
-2026-11-23. Where the tree's code lags or departs from [answers.md](answers.md).
+2026-11-27. Where the tree's code lags or departs from [answers.md](answers.md).
+
 
 Section 1 has no known gap in a program declaration's name-taken
 refusal: the accounts child and core carry it through the existing

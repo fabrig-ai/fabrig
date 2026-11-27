@@ -589,7 +589,10 @@ fn changes_marks_queue_entry_and_priority_moves() {
     let mut out = Queue::uncapped();
     d.priority(&env(), fixtures::CHANGE, -10, &mut out);
     assert!(queue_marked(&out));
-    outputs(&mut d, Event::Delegated { task: fixtures::CHANGE, child: 90, kind: change::Delegate::Produce });
+    outputs(
+        &mut d,
+        Event::Delegated { task: fixtures::CHANGE, child: 90, kind: change::Delegate::Produce, close_at: None },
+    );
     assert!(marked(&outputs(&mut d, Event::DelegateRefused { task: fixtures::CHANGE, child: 90 })));
 }
 #[test]

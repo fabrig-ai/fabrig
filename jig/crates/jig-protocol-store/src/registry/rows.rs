@@ -1,6 +1,6 @@
 //! Registry rows and their commit operations (protocol/store/layouts.md, 3 and 5).
 use super::{Digest, Frame, Layouts, Order, Range, Row, RowKey, Text, Type, texts};
-use crate::{Frames, KeptFamily, OpenRefusal, Store, ValueType, keys, registry_v1 as wire};
+use crate::{KeptFamily, OpenRefusal, Store, ValueType, keys, registry_v1 as wire};
 use alloc::boxed::Box;
 use skein_codec::Record as _;
 use skein_lib::{List, Map, Reader};
@@ -9,17 +9,15 @@ use skein_lib::{List, Map, Reader};
 pub(super) fn open(store: &mut Store, layouts: &mut Layouts, empty: bool) -> Result<bool, OpenRefusal> {
     load(store, layouts)?;
     let mut registered = false;
-    let mut frames = false;
     for set in store.owner_sets.sets {
         for family in set.families {
-            registered |= !family.types.is_empty() || !family.retired.is_empty();
-            frames |= family.frames.is_some();
+            registered |= !family.types.is_empty() || !family.retired.is_empty() || family.frames.is_some();
         }
     }
     if layouts.rows.is_empty() && !empty && registered {
         return Err(OpenRefusal::OlderBuild { why: crate::Older::Unregistered });
     }
-    Ok(registered || frames)
+    Ok(registered)
 }
 
 fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
@@ -56,7 +54,7 @@ fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
                         .ok_or(OpenRefusal::Failed)?;
                     layouts
                         .rows
-                        .insert((family, number, id), Row { value, stored: true, retire: false })
+                        .insert((family, number, id), Row { value, stored: true, retire: false, later: false })
                         .expect("uncapped registry");
                 }
                 Some(keys::Own::Text(digest)) => {
@@ -123,35 +121,6 @@ fn layout_row(
     Some(value)
 }
 
-/// Pre-registry frame heads spell their versions. Seed these ids even if
-/// two versions have the same fingerprint: both heads may occur on disk.
-pub(super) fn seed_frames(
-    layouts: &mut Layouts,
-    binary: &mut texts::Binary,
-    family: &KeptFamily,
-    frames: &Frames,
-) -> Option<bool> {
-    if in_type(layouts, family.name, frames.number).next().is_some() {
-        return Some(false);
-    }
-    let current = binary.text(family.name)?;
-    texts::parse(layouts, current)?;
-    let mut changed = false;
-    for &seed in frames.texts {
-        let text = texts::keep(layouts, seed.as_bytes(), false)?;
-        texts::parse(layouts, text)?;
-        let schema = layouts.texts.get(&text)?.schema()?;
-        let current = layouts.texts.get(&current)?.schema()?;
-        let root = crate::upgrade::admission::seed_root(schema, current, frames.root)?;
-        let value =
-            layout_row(layouts, binary, text, schema.spelled(schema.declaration(root).name), None, List::uncapped())?;
-        let version = schema.version();
-        insert(layouts, family.name, frames.number, version, value);
-        changed = true;
-    }
-    Some(changed)
-}
-
 pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts::Binary) -> Result<bool, OpenRefusal> {
     layouts.owners = store.owner_sets;
     let mut changed = false;
@@ -175,7 +144,6 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
             let Some(frames) = &family.frames else { continue };
             let refusal = OpenRefusal::Set { owner: set.owner };
             let slot = Frame::owner(set.owner).ok_or(refusal.clone())?;
-            changed |= seed_frames(layouts, binary, family, frames).ok_or(refusal.clone())?;
             let text = binary.text(family.name).ok_or(refusal.clone())?;
             texts::parse(layouts, text).ok_or(refusal.clone())?;
             // The turn is opaque to the body plan; it moves by its own id.
@@ -202,7 +170,7 @@ fn in_type<'a>(
 fn insert(layouts: &mut Layouts, family: &str, number: u16, id: u16, value: wire::Layout) {
     layouts
         .rows
-        .insert((Box::from(family), number, id), Row { value, stored: false, retire: false })
+        .insert((Box::from(family), number, id), Row { value, stored: false, retire: false, later: false })
         .expect("uncapped registration");
 }
 

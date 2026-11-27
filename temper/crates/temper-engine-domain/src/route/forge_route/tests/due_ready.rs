@@ -462,7 +462,13 @@ fn a_step_begun_before_readiness_does_not_hold_forming_once_ready() {
 
 fn ready_answer(domain: &mut Domain, task: u64) {
     let mut out = Queue::uncapped();
-    out.push(forge::Request::ChangeDecision { task, decision: change::Decision::Ready, entry: None, evidence: None });
+    out.push(forge::Request::ChangeDecision {
+        task,
+        decision: change::Decision::Ready,
+        entry: None,
+        evidence: None,
+        close_at: None,
+    });
     domain.work.push(Work::ForgeSettings(out));
 }
 

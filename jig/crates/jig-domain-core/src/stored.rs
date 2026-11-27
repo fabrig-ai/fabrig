@@ -2,7 +2,7 @@
 
 pub use jig_domain_core_vocabulary::stored::*;
 
-use crate::{Core, Counters, Family, Limits, PendingCall, fresh};
+use crate::{CallHolder, Core, Counters, Family, Limits, fresh};
 
 /// Result of restoring one core-owned row during the live-range startup.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -25,7 +25,7 @@ impl Core {
         self.start_input();
         // The application can also decide a synchronous call in its admission step.
         if !self.pending_calls.contains_key(&key)
-            && (!self.current_proof(key.task, key.attempt) || !self.reserve_call(key, PendingCall::Application))
+            && (!self.current_proof(key.task, key.attempt) || !self.reserve_call(key, CallHolder::Application))
         {
             return false;
         }

@@ -4,7 +4,7 @@ use super::compare::{
     width as integer_width,
 };
 use super::{
-    Absent, DropField, Field, Inner, Kind, Mode, Narrowed, Node, Plan, Read, ReadKind, Refusal, Refused, Source,
+    Absent, DropField, Field, Inner, Kind, Mode, Narrowed, Node, Plan, PlanRefusal, Read, ReadKind, Refused, Source,
     Underived, Variant, Why, add,
 };
 use crate::schema::{
@@ -419,7 +419,7 @@ impl Builder {
     #[expect(clippy::disallowed_methods, reason = "schema parser has validated these ASCII names")]
     fn refusal(&mut self, old: &Schema, decl: Span, part: Span, why: Refused) -> Result<u16, Underived> {
         let index = u16::try_from(self.plan.refusals.len()).expect("declaration bound fits u16");
-        let names = Refusal {
+        let names = PlanRefusal {
             why,
             decl: Box::from(core::str::from_utf8(old.spelled(decl)).expect("schema names are ASCII")),
             part: Box::from(core::str::from_utf8(old.spelled(part)).expect("schema names are ASCII")),

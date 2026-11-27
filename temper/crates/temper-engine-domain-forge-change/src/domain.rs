@@ -1234,10 +1234,18 @@ fn catch_up_due(mut change: Change, commit: [u8; 32], facts: &Facts, now: Wall, 
             change.state = State::NoChange { words: contained_words(b"commit ", commit) };
             Stepped { took: None, change, decision: Decision::NoChange }
         }
-        Status::Failed => {
-            change.state = State::Producing { requested: true };
-            Stepped { took: None, change, decision: Decision::Delegate(Delegate::Merge { base: commit, from: None }) }
-        }
+        Status::Failed => match facts.merge_job.available(facts.base_tip) {
+            None => Stepped { took: None, change, decision: Decision::ReadMerge { head: facts.base_tip } },
+            Some(false) => hold(change, Cause::Failed, now),
+            Some(true) => {
+                change.state = State::Producing { requested: true };
+                Stepped {
+                    took: None,
+                    change,
+                    decision: Decision::Delegate(Delegate::Merge { base: commit, from: None }),
+                }
+            }
+        },
         Status::Unknown | Status::Pending => waiting(change, facts, now, limits),
     }
 }
@@ -1801,7 +1809,7 @@ fn first(
                 decision: Decision::Effect(Effect::Merge { head, base: facts.expected_base }),
             }
         }
-        Status::Failed => conflict_due(change, facts.base_tip, Some(head), facts, standing, now, limits),
+        Status::Failed => conflict_due(change, facts.base_tip, head, facts, standing, now, limits),
         Status::Unknown | Status::Pending => settling(change, facts, now, limits),
     }
 }
@@ -1819,7 +1827,7 @@ fn updating(
 ) -> Stepped {
     match standing.effect {
         EffectResult::Stale => stale_update(change, facts, now, limits),
-        EffectResult::Conflict => conflict_due(change, base, Some(from), facts, standing, now, limits),
+        EffectResult::Conflict => conflict_due(change, base, from, facts, standing, now, limits),
         EffectResult::Failed => hold(change, Cause::Failed, now),
         EffectResult::Made => {
             let Some(head) = facts.branch else { return waiting(change, facts, now, limits) };
@@ -1984,15 +1992,21 @@ fn update_due(
 fn conflict_due(
     change: Change,
     base: [u8; 32],
-    from: Option<[u8; 32]>,
+    from: [u8; 32],
     facts: &Facts,
     standing: &Heard,
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
+    if standing.delegate_live || change.resolutions >= limits.resolutions {
+        return resolving_due(change, base, facts, standing, now, limits);
+    }
+    let Some(available) = facts.merge_job.available(from) else {
+        return Stepped { took: None, change, decision: Decision::ReadMerge { head: from } };
+    };
     let mut stepped = resolving_due(change, base, facts, standing, now, limits);
-    if facts.merge_job && stepped.decision == Decision::Delegate(Delegate::Resolve { base }) {
-        stepped.decision = Decision::Delegate(Delegate::Merge { base, from });
+    if available {
+        stepped.decision = Decision::Delegate(Delegate::Merge { base, from: Some(from) });
     }
     stepped
 }
@@ -2145,7 +2159,7 @@ fn waiting_producer(
                 resolving_due(change, facts.base_tip, facts, standing, now, limits)
             }
             Some(Delegate::Produce | Delegate::Close | Delegate::Repair(_) | Delegate::Gate { .. }) | None => {
-                conflict_due(change, base, Some(head), facts, standing, now, limits)
+                conflict_due(change, base, head, facts, standing, now, limits)
             }
         },
     }
@@ -2249,7 +2263,7 @@ fn landing(change: Change, head: [u8; 32], facts: &Facts, standing: &Heard, now:
         return stepped;
     }
     match standing.effect {
-        EffectResult::Conflict => conflict_due(change, facts.base_tip, Some(head), facts, standing, now, limits),
+        EffectResult::Conflict => conflict_due(change, facts.base_tip, head, facts, standing, now, limits),
         EffectResult::Failed => hold(change, Cause::Failed, now),
         EffectResult::None | EffectResult::Stale | EffectResult::Pending | EffectResult::Made => {
             waiting(change, facts, now, limits)
@@ -2505,7 +2519,7 @@ fn ready(
             limits,
         ),
         Ask::Resolve { base } => {
-            take_delegate(conflict_due(change, *base, Some(head), facts, standing, now, limits), handed.number)
+            take_delegate(conflict_due(change, *base, head, facts, standing, now, limits), handed.number)
         }
         Ask::Landed { .. } => unreachable!("landed ask returned before the phase"),
     }
@@ -2572,7 +2586,7 @@ fn preparing(
 ) -> Stepped {
     match standing.effect {
         EffectResult::Stale => stale_update(change, facts, now, limits),
-        EffectResult::Conflict => conflict_due(change, main, Some(from), facts, standing, now, limits),
+        EffectResult::Conflict => conflict_due(change, main, from, facts, standing, now, limits),
         EffectResult::Failed => hold(change, Cause::Failed, now),
         EffectResult::Made => prepared(change, from, main, ready_since, facts, now, limits),
         EffectResult::None => {
@@ -2667,7 +2681,7 @@ fn judging(mut change: Change, facts: &Facts, standing: &Heard, now: Wall, limit
         if standing.delegate_live {
             return waiting(change, facts, now, limits);
         }
-        return take_delegate(conflict_due(change, base, Some(head), facts, standing, now, limits), number);
+        return take_delegate(conflict_due(change, base, head, facts, standing, now, limits), number);
     }
     for failure in &change.gate_failures {
         if failure.count >= 2 {

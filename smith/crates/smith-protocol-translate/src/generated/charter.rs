@@ -279,19 +279,33 @@ pub fn contract_to_domain(record: smith_charter::v5::Contract) -> smith_domain::
 
 #[must_use]
 pub fn conventions_to_record(value: &smith_domain::run::Conventions) -> smith_charter::v5::Conventions {
-    let smith_domain::run::Conventions { guide: field_000000, checks: field_000001 } = value;
+    let smith_domain::run::Conventions { guide: field_000000, checks: field_000001, hooks: field_000002 } = value;
     smith_charter::v5::Conventions {
         guide: field_000000.clone(),
-        checks: field_000001.clone()
+        checks: field_000001.clone(),
+        hooks: match field_000002 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        }
     }
 }
 
 #[must_use]
 pub fn conventions_to_domain(record: smith_charter::v5::Conventions) -> smith_domain::run::Conventions {
-    let smith_charter::v5::Conventions { guide: field_000000, checks: field_000001 } = record;
+    let smith_charter::v5::Conventions { guide: field_000000, checks: field_000001, hooks: field_000002 } = record;
     smith_domain::run::Conventions {
         guide: field_000000,
-        checks: field_000001
+        checks: field_000001,
+        hooks: match field_000002 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        }
     }
 }
 
@@ -328,6 +342,43 @@ pub fn prices_to_domain(record: smith_charter::v5::Prices) -> smith_domain::run:
         },
         output: field_000003,
         unit: field_000004
+    }
+}
+
+pub fn speed_to_record(value: &smith_domain::run::charter::Speed) -> Result<smith_charter::v5::Speed, smith_charter::v5::Problem> {
+    let smith_domain::run::charter::Speed { name: field_000000, also: field_000001, prices: field_000002 } = value;
+    Ok(smith_charter::v5::Speed {
+        name: field_000000.clone(),
+        also: {
+            let source = field_000001;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(smith_charter::v5::paths::SPEED_ALSO.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = item.clone();
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        prices: prices_to_record(field_000002)
+    })
+}
+
+#[must_use]
+pub fn speed_to_domain(record: smith_charter::v5::Speed) -> smith_domain::run::charter::Speed {
+    let smith_charter::v5::Speed { name: field_000000, also: field_000001, prices: field_000002 } = record;
+    smith_domain::run::charter::Speed {
+        name: field_000000,
+        also: {
+            let source = field_000001;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = item;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        prices: prices_to_domain(field_000002)
     }
 }
 

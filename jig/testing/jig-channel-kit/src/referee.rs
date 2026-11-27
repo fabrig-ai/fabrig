@@ -849,7 +849,6 @@ impl Referee {
                 crate::stories::Opening::Figures => None,
                 crate::stories::Opening::Secret => Some(260),
                 crate::stories::Opening::Wires => Some(257),
-                crate::stories::Opening::Version => Some(1),
                 crate::stories::Opening::Terms => Some(2),
                 crate::stories::Opening::Family | crate::stories::Opening::Garbage => Some(3),
             };

@@ -735,6 +735,8 @@ fn setting_model(d: &Decoder<'_>, at: u32) -> Result<c::SettingModel, Error> {
             b"price_unit",
             b"efforts",
             b"effort",
+            b"speeds",
+            b"speed",
         ],
     )?;
     Ok(c::SettingModel {
@@ -790,6 +792,51 @@ fn setting_model(d: &Decoder<'_>, at: u32) -> Result<c::SettingModel, Error> {
                 b"setting_model_effort_some",
             )?)
         },
+        speeds: match optional(&fields, b"speeds") {
+            Some(at) => {
+                let positions = d.array(at, d.limits.setting_model_speeds, b"setting_model_speeds")?;
+                let mut speeds = List::with_capacity(positions.len());
+                for at in &positions {
+                    speeds.push(setting_speed(d, *at)?).expect("checked list length");
+                }
+                speeds
+            }
+            None => List::with_capacity(0),
+        },
+        speed: match optional(&fields, b"speed") {
+            Some(at) if d.kind(at)? != Kind::Null => {
+                Some(d.words(at, d.limits.setting_model_speed_some, b"setting_model_speed_some")?)
+            }
+            Some(_) | None => None,
+        },
+    })
+}
+fn setting_speed(d: &Decoder<'_>, at: u32) -> Result<c::SettingSpeed, Error> {
+    let fields =
+        d.object(at, &[b"name", b"also", b"input_price", b"cached_price", b"cache_write_price", b"output_price"])?;
+    let also = match optional(&fields, b"also") {
+        Some(at) if d.kind(at)? != Kind::Null => {
+            let positions = d.array(at, d.limits.setting_speed_also, b"setting_speed_also")?;
+            let mut names = List::with_capacity(positions.len());
+            for at in &positions {
+                names
+                    .push(d.words(*at, d.limits.setting_speed_also_item, b"setting_speed_also_item")?)
+                    .expect("checked list length");
+            }
+            names
+        }
+        Some(_) | None => List::with_capacity(0),
+    };
+    Ok(c::SettingSpeed {
+        name: d.words(field(&fields, b"name")?, d.limits.setting_speed_name, b"setting_speed_name")?,
+        also,
+        input_price: d.number(field(&fields, b"input_price")?)?,
+        cached_price: d.number(field(&fields, b"cached_price")?)?,
+        cache_write_price: match optional(&fields, b"cache_write_price") {
+            Some(at) if d.kind(at)? != Kind::Null => Some(d.number(at)?),
+            Some(_) | None => None,
+        },
+        output_price: d.number(field(&fields, b"output_price")?)?,
     })
 }
 fn setting_hosts(d: &Decoder<'_>, at: u32) -> Result<c::SettingHosts, Error> {

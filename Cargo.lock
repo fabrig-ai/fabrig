@@ -1767,6 +1767,7 @@ dependencies = [
  "smith-host-protocol",
  "smith-protocol-channel",
  "smith-protocol-llm",
+ "smith-shapes",
 ]
 
 [[package]]
@@ -2569,6 +2570,10 @@ dependencies = [
 [[package]]
 name = "jig-test-layouts"
 version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
+]
 
 [[package]]
 name = "jig-test-profile"
@@ -2725,13 +2730,17 @@ dependencies = [
 name = "jig-worker-link-world"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-core-vocabulary",
+ "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-hub-link",
  "jig-domain-link",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "jig-protocol-engine-workers",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
+ "jig-test-layouts",
  "jig-test-service",
  "skein-channel",
  "skein-codec",
@@ -5547,7 +5556,24 @@ dependencies = [
  "smith-domain-tools-fixtures",
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
+ "smith-shapes",
  "smith-tools-world",
+]
+
+[[package]]
+name = "smith-shapes"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-llm",
+ "skein-llm-kit",
+ "skein-world",
+ "smith-domain",
+ "smith-domain-session",
+ "smith-domain-tools",
+ "smith-domain-tools-fixtures",
+ "smith-protocol-llm",
+ "smith-protocol-llm-fixtures",
 ]
 
 [[package]]
@@ -7468,6 +7494,7 @@ dependencies = [
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-service",
+ "temper-engine-smith",
  "temper-fake",
  "temper-fetch-shell",
  "temper-fixtures",
@@ -8517,6 +8544,7 @@ dependencies = [
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
  "smith-protocol-llm-world",
+ "smith-shapes",
  "smith-transcript",
  "temper-agent-fixtures",
  "temper-blame",

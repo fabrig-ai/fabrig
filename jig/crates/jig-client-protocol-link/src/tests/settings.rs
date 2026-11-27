@@ -5,6 +5,37 @@ use crate::translate::settings as t;
 use jig_client_test_records::settings as values;
 use skein_lib::{List, Writer};
 #[test]
+fn a_model_setting_keeps_its_speeds_in_both_directions() {
+    let settings = values::settings_values();
+    let c::SettingValue::Charter(charter) = settings.get(0).unwrap() else { panic!("charter fixture") };
+    let mut model = charter.model.clone();
+    let name = |value: &[u8]| c::Text::new(value.into(), 32).unwrap();
+    model.speeds = List::from_boxed(Box::new([
+        c::SettingSpeed {
+            name: name(b"fast"),
+            also: List::from_boxed(Box::new([name(b"priority")])),
+            input_price: 4000,
+            cached_price: 200,
+            cache_write_price: Some(5000),
+            output_price: 20_000,
+        },
+        c::SettingSpeed {
+            name: name(b"ultrafast"),
+            also: List::with_capacity(0),
+            input_price: 12_000,
+            cached_price: 600,
+            cache_write_price: None,
+            output_price: 60_000,
+        },
+    ]));
+    model.speed = Some(name(b"ultrafast"));
+    let wire = t::wire_setting_model(&model);
+    assert_eq!(wire.speed.as_deref(), Some(b"ultrafast".as_slice()));
+    assert_eq!(wire.speeds.len(), 2);
+    assert_eq!(t::restore_setting_model(&wire), Ok(model));
+}
+
+#[test]
 #[expect(
     clippy::too_many_lines,
     reason = "one table checks every new record and enum arm against fixed-rule wire bytes"

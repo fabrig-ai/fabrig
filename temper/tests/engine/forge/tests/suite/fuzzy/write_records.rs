@@ -137,7 +137,12 @@ fn sent_push(world: &mut World, git: raw::Git) -> Commit {
 fn producer(world: &mut World, lane: &Lane, attempt: u64) -> Commit {
     let branch = name(lane.branch);
     let task = lane.task + 100;
-    world.event(top::Event::Delegated { task: lane.task, child: task, kind: change::Delegate::Produce });
+    world.event(top::Event::Delegated {
+        task: lane.task,
+        child: task,
+        kind: change::Delegate::Produce,
+        close_at: None,
+    });
     world.event(top::Event::Claim {
         task,
         attempt,

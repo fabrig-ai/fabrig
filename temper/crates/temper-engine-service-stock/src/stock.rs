@@ -343,6 +343,8 @@ pub fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
                                 None => None,
                             },
                             efforts: efforts.into_boxed(),
+                            speeds: Box::default(),
+                            speed: None,
                         },
                         shown: match row.shown {
                             Some(shown) => Some(bytes::copy_of(shown)),

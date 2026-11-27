@@ -3529,7 +3529,7 @@ fn view_answers_keep_drawings_until_a_new_revision_answers() {
             0,
         ),
         ("absent", jig_client::Readout::Family { family: wire::FORGE, record: None }, Shown::Failed, 0),
-        ("not served", jig_client::Readout::NotServed { family: Some(wire::FORGE), served: None }, Shown::Failed, 0),
+        ("not served", jig_client::Readout::NotServed { family: Some(wire::FORGE) }, Shown::Failed, 0),
     ] {
         let mut pages = crate::pages::Pages::new();
         let mut client = f::opened().client;

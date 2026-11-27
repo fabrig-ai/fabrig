@@ -320,6 +320,7 @@ impl OwnedKernel {
                 | Op::Truncate { .. }
                 | Op::Lock { .. }
                 | Op::Stat { .. }
+                | Op::ReadLink { .. }
                 | Op::HardLink { .. }
                 | Op::Rename { .. }
                 | Op::Remove { .. }

@@ -146,6 +146,7 @@ pub(super) fn next(
             parts: Box::new([api::Part::Text { text: Box::new([]) }]),
             finish: api::Finish::Stop,
             usage: server.pieces.usage,
+            served: None,
         };
         let event = documents::event_with_options(
             provider,

@@ -1,12 +1,15 @@
 //! Named chat deployments and provider replies shared by this world's stories.
 use crate::{Script, world::Settings};
 use jig_channel_kit::fixtures as channel;
+
+pub(crate) mod drawn;
 pub(crate) use jig_protocol_accounts_kit::fixtures::{ROOM, limits};
 
 pub const SEED: u64 = 7;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Chat {
     Finite,
+    Drawn,
     OpenText,
     FiniteText,
 }
@@ -23,10 +26,10 @@ pub fn one_person_chat(words: &[u8]) -> Box<[Script]> {
 }
 pub(crate) fn document(chat: Chat) -> Vec<u8> {
     let engine = engine_document();
-    let engine = if chat == Chat::OpenText {
-        engine.replace(r#""conversation": true"#, r#""conversation": true, "ended_by": "requester""#)
-    } else {
-        engine
+    let engine = match chat {
+        Chat::OpenText => engine.replace(r#""conversation": true"#, r#""conversation": true, "ended_by": "requester""#),
+        Chat::Drawn => drawn::document(&engine),
+        Chat::Finite | Chat::FiniteText => engine,
     };
     let worker = std::str::from_utf8(channel::WORKER_DOCUMENT).expect("worker JSON");
     let end = worker.find("],\"application\"").expect("worker array").checked_add(1).expect("array end");
@@ -88,7 +91,10 @@ pub(crate) fn files() -> jig_test_service::Files {
     engine.entries = entries;
     engine
 }
-pub(crate) fn provider(chat: Chat) -> skein_fake_peers::llm::Peer {
+pub(crate) fn provider(chat: Chat, seed: u64) -> skein_fake_peers::llm::Peer {
+    if chat == Chat::Drawn {
+        return drawn::provider(seed);
+    }
     let mut script = channel::one_chat(b"Hello");
     // Keep the worker alive beyond its first committed turn for the mid-run cuts.
     script.leading_turns = 1;

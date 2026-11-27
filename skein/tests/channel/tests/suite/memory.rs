@@ -1,7 +1,7 @@
 //! Heap ceilings while a largest input body and a full output byte queue coexist.
 use skein_channel::{
     Control, Direction, Event, Kind, Limits, Lower, LowerEvent, MAX_DOWN, MAX_UP, Machine, Request, Role, Schema, Term,
-    Version, control_frame, frame_writer,
+    control_frame, frame_writer,
 };
 use skein_heap::Meter;
 use skein_lib::{List, Queue, Token, stream};
@@ -10,9 +10,7 @@ fn schema() -> Schema {
     let mut kinds = List::with_capacity(2);
     kinds.push(Kind { kind: 0x0100, direction: Direction::FromInitiator, largest: 120 }).expect("kind");
     kinds.push(Kind { kind: 0x0101, direction: Direction::FromResponder, largest: 120 }).expect("kind");
-    let mut versions = List::with_capacity(1);
-    versions.push(Version { version: 1, kinds }).expect("version");
-    Schema { magic: *b"heap", versions }
+    Schema { magic: *b"heap", version: 1, kinds }
 }
 
 fn limits() -> Limits {
@@ -65,7 +63,7 @@ fn feed(
         }
         while let Some(event) = above.pop() {
             match event {
-                Event::Opening { .. } => machine.down(Request::Accept { version: 1 }, above, below),
+                Event::Opening { .. } => machine.down(Request::Accept, above, below),
                 Event::Ready { .. } => *ready = true,
                 Event::Body { kind, body } => {
                     assert_eq!(kind, expected.0);
@@ -179,7 +177,7 @@ fn large_receive_with_full_output_stays_under_heap_ceiling() {
             Role::Initiator => (0x0100, 0x0101),
             Role::Responder => (0x0101, 0x0100),
         };
-        source.versions.get_mut(0).unwrap().kinds.get_mut(u32::from(received - 0x0100)).unwrap().largest = 4096;
+        source.kinds.get_mut(u32::from(received - 0x0100)).unwrap().largest = 4096;
         let opening = match role {
             Role::Initiator => Control::Accept { version: 1, features: 0 },
             Role::Responder => {

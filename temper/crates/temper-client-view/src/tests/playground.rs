@@ -74,10 +74,9 @@ fn suggestion_buttons_wait_for_a_start_and_press_their_own_cue() {
 
 #[test]
 fn the_playground_banner_is_absent_when_the_link_is_unavailable() {
-    for (row, up) in [
-        ("signed out", jig_client::Up::SignedOut),
-        ("out of date", jig_client::Up::Served { served: false, versions: None }),
-    ] {
+    for (row, up) in
+        [("signed out", jig_client::Up::SignedOut), ("out of date", jig_client::Up::Served { served: false })]
+    {
         let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All }, f::PROJECT, true);
         f::root_event(&mut root, Event::Client { event: jig_client::Event::Up { up } });
         let view = f::page_view(&root);

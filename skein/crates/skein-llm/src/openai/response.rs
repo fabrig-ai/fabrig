@@ -76,6 +76,7 @@ pub enum Event {
     Completed {
         stop: Stop,
         usage: Usage,
+        served: Option<Box<[u8]>>,
     },
     Failed {
         error: ProviderError,
@@ -157,10 +158,11 @@ struct Prepared {
     refusal: bool,
     reasoning: bool,
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 struct Terminal {
     stop: Stop,
     usage: Usage,
+    served: Option<Box<[u8]>>,
 }
 impl StreamDecoder {
     #[must_use]
@@ -296,7 +298,7 @@ impl StreamDecoder {
                     }
                 }
             };
-            out.push(Output::Completed { stop, usage: terminal.usage });
+            out.push(Output::Completed { stop, usage: terminal.usage, served: terminal.served });
         }
     }
     pub fn end(&mut self, out: &mut Queue<Output>) {
@@ -385,7 +387,7 @@ impl StreamDecoder {
                 out.push(Output::ReasoningDelta { index, summary_index, text });
             }
             Event::Done { index, item } => self.done(index, item, long, limits, out)?,
-            Event::Completed { stop, usage } => self.complete(stop, usage, limits, out)?,
+            Event::Completed { stop, usage, served } => self.complete(Terminal { stop, usage, served }, limits, out)?,
             Event::Failed { error } => {
                 let failure = classify(self.provider, 0, Some(&error), RateLimit::NONE, wall);
                 self.fail(failure, common::clipped(&error.message, limits.detail_bytes), out);
@@ -495,13 +497,8 @@ impl StreamDecoder {
         self.ready(out);
         Ok(())
     }
-    fn complete(
-        &mut self,
-        stop: Stop,
-        usage: Usage,
-        limits: &Limits,
-        out: &mut Queue<Output>,
-    ) -> Result<(), DecodeError> {
+    fn complete(&mut self, terminal: Terminal, limits: &Limits, out: &mut Queue<Output>) -> Result<(), DecodeError> {
+        let stop = terminal.stop;
         if let Some(expected) = self.required_stop
             && stop != expected
         {
@@ -544,7 +541,7 @@ impl StreamDecoder {
             };
             self.opened.get_mut(index).expect("within the slots").1 = state;
         }
-        self.terminal = Some(Terminal { stop, usage });
+        self.terminal = Some(terminal);
         self.ready(out);
         Ok(())
     }
@@ -788,7 +785,11 @@ pub fn decode_event(value: &Json, limits: &Limits) -> Result<Event, DecodeError>
                 }
                 _ => return Err(DecodeError::Malformed),
             };
-            Ok(Event::Completed { stop, usage: read_usage(json::reported_field(response, b"usage")) })
+            let served = match json::reported_field(response, b"service_tier") {
+                Some(value) => crate::speed::reported(value),
+                None => None,
+            };
+            Ok(Event::Completed { stop, usage: read_usage(json::reported_field(response, b"usage")), served })
         }
         b"response.failed" => {
             let response = json::value_at(tokens, json::required(tokens, b"response")?)?;
@@ -1097,7 +1098,9 @@ fn write_event(out: &mut Encoder, event: &Event, completion_echo: Option<&Reques
             out.key(b"item");
             write_item(out, item);
         }
-        Event::Completed { stop, usage } => write_terminal(out, *stop, *usage, completion_echo, selection),
+        Event::Completed { stop, usage, served } => {
+            write_terminal(out, *stop, *usage, served.as_deref(), completion_echo, selection);
+        }
         Event::Failed { error } => {
             out.string(b"error");
             out.key(b"error");
@@ -1108,7 +1111,14 @@ fn write_event(out: &mut Encoder, event: &Event, completion_echo: Option<&Reques
     }
     out.object_end();
 }
-fn write_terminal(out: &mut Encoder, stop: Stop, usage: Usage, completion_echo: Option<&Request>, selection: Echo) {
+fn write_terminal(
+    out: &mut Encoder,
+    stop: Stop,
+    usage: Usage,
+    served: Option<&[u8]>,
+    completion_echo: Option<&Request>,
+    selection: Echo,
+) {
     out.string(match stop {
         Stop::MaxTokens | Stop::Refusal => b"response.incomplete",
         Stop::EndTurn | Stop::ToolUse => b"response.completed",
@@ -1136,6 +1146,10 @@ fn write_terminal(out: &mut Encoder, stop: Stop, usage: Usage, completion_echo: 
     }
     if let Some(request) = completion_echo {
         write_echo(out, request, selection);
+    }
+    if let Some(speed) = served {
+        out.key(b"service_tier");
+        out.string(speed);
     }
     out.key(b"usage");
     out.object_start();

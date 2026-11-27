@@ -453,11 +453,8 @@ fn admit(domain: &mut Domain, to: ReplyTo, key: CallKey, tool: &crate::Tool) -> 
     } else if crate::translate::is_core_read(tool) {
         None
     } else if !domain.engine.core().call_room(key) {
-        let reason = if domain.engine.core().pending_calls.contains_key(&key) {
-            "named call pending"
-        } else {
-            "call record room full"
-        };
+        let reason =
+            if domain.engine.core().call_pending(key) { "named call pending" } else { "call record room full" };
         Some(("core-call-room", reason, false))
     } else if super::call_needs_input(tool) && domain.archive_reads.len() >= domain.archive_reads.capacity() {
         Some(("archive-read-room", "archive read room full", false))

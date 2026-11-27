@@ -224,6 +224,7 @@ fn local_policy(lower: &agent::Config, change: bool, tools: bool) -> (local::Con
         brief: charter::Brief { sections: Box::new([]) },
         models: Box::new([charter::Llm {
             effort: None,
+            speed: None,
             prices: run::Prices {
                 input: 1_250_000,
                 cached: 125_000,
@@ -250,6 +251,7 @@ fn local_policy(lower: &agent::Config, change: bool, tools: bool) -> (local::Con
         conventions: tools.then(|| run::Conventions {
             guide: b".smith-test/guide".as_slice().into(),
             checks: b".smith-test/check".as_slice().into(),
+            hooks: None,
         }),
         contract: if change {
             local::Contract::Change(outcome::ChangeSpec {

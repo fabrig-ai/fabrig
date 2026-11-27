@@ -1,6 +1,7 @@
 # programs-claude-code: status
 
-2026-11-23. Where the tree's code lags or departs from [programs-claude-code.md](programs-claude-code.md).
+2026-11-27. Where the tree's code lags or departs from [programs-claude-code.md](programs-claude-code.md).
+
 
 Section 1.1 has no known gap in each program's file answers or in an
 answer not asked for. The agent service hands a file answer to main or

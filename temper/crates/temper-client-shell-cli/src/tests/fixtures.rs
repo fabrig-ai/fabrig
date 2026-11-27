@@ -486,6 +486,7 @@ impl Frame {
             let mode = match how {
                 OpenHow::Create { mode } | OpenHow::CreateNoFollow { mode } => mode.expect("private file mode"),
                 OpenHow::PathNoFollow
+                | OpenHow::PathSiblingFile
                 | OpenHow::Read
                 | OpenHow::ReadNoFollow
                 | OpenHow::Directory
@@ -641,6 +642,7 @@ impl Frame {
                 Ok(Done::Count(u32::try_from(count).expect("input count")))
             }
             Op::HardLink { .. }
+            | Op::ReadLink { .. }
             | Op::Bind { .. }
             | Op::Listen { .. }
             | Op::Accept { .. }

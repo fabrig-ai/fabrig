@@ -54,6 +54,7 @@ skein-fake-llm-domain.workspace = true
 skein-llm.workspace = true
 skein-shell.workspace = true
 smith-agent-process-world.workspace = true
+smith-shapes.workspace = true
 smith-agent-shell.workspace = true
 smith-agent-service.workspace = true
 smith-protocol-channel.workspace = true

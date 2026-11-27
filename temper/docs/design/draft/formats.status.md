@@ -4,7 +4,7 @@
 
 ## Design lags
 
-- 8: `.temper/`'s files: no design document gives them their format yet; ways' W2 designs them by `../protocol/configuration/file-formats.md` ([ways.execution.md](ways.execution.md)).
+- 8: [ways-temper-dir.md](ways-temper-dir.md), 8, gives `.temper/`'s files their formats in the draft. No design document gives them their format yet; ways' W2 designs them by `../protocol/configuration/file-formats.md` ([ways.execution.md](ways.execution.md)).
 
 ## Design departs
 

@@ -4,7 +4,7 @@ use smith_domain_tools::{
     BytesClamp, Exit, Fault, JobEnd, JobNumber, Mismatch, Outcome, Resolved, SizePart, TimeoutClamp,
 };
 use smith_session_world::bytes;
-use smith_session_world::shapes::{Answer, Call, Class, Reached, Reference, Sample, Tool, answer};
+use smith_session_world::shapes::{Answer, Call, Class, Reached, Reference, Sample, Tool, VOCABULARY, answer};
 
 const JOB: JobNumber = JobNumber(1);
 
@@ -92,6 +92,18 @@ fn completion_shapes_preserve_call_order_and_attach_references() {
     assert!(reached.contains(
         "job:unknown_job:job=consumed,write:not_run_after_failure,read:ok end=unknown begin=unknown wake=unknown"
     ));
+}
+
+#[test]
+fn a_message_to_an_unissued_task_has_a_reference_refusal_shape() {
+    assert_eq!(VOCABULARY, "smith/2");
+    let mut reached = Reached::new();
+    reached.completion(&[Call {
+        tool: Tool::Message,
+        answer: Answer::NoReference,
+        references: vec![(Reference::Task, Class::Unissued)],
+    }]);
+    assert!(reached.contains("message:no_reference:task=unissued end=unknown begin=unknown wake=unknown"));
 }
 
 #[test]

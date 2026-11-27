@@ -25,6 +25,7 @@ mod window_referee;
 
 pub use jobs::{JobCall, check_job_call};
 pub use paths::PathCall;
+pub use smith_shapes::workspace::TOOLS;
 pub use window_referee::{check_prompt_bound, check_prompt_boundary, check_prompt_extends};
 
 /// What the fake opener says when it nudges a session on.
@@ -38,29 +39,6 @@ pub const BUDGET: agent::Budget = agent::Budget {
     cache_read: 1 << 20,
     cache_write: 1 << 20,
     time: Duration::from_secs(1800),
-};
-
-/// The tools' limits in the calm world: a kit for each session, as many calls
-/// a kit as the session runs at once, and room for the fixture's files.
-pub const TOOLS: tools::Limits = tools::Limits {
-    shell_output: 512,
-    kits: 4,
-    repos: 1,
-    path_bytes: 256,
-    known_files: 16,
-    file_bytes: 1 << 16,
-    tool_payload: 1 << 16,
-    read_bytes: 4096,
-    list_entries: 64,
-    match_lines: 8,
-    file_timeout: Duration::from_secs(30),
-    shell_timeout: Duration::from_secs(30),
-    tool_deadline: Duration::from_secs(120),
-    shell_head: 256,
-    shell_tail: 256,
-    search_hits: 16,
-    search_bytes: 1024,
-    ..smith_domain_tools_fixtures::SMALL
 };
 
 /// Checked credit envelope around the original retained-payload pressure.
@@ -816,6 +794,7 @@ impl World {
             spec,
             dialect: 2,
             prices: agent::record::Prices { input: 0, cached: 0, cache_write: None, output: 0, unit: 1 },
+            speed: None,
             budget: 1,
             transcript,
             answered: Box::default(),

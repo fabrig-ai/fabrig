@@ -138,6 +138,7 @@ fn ready(domain: &mut Domain, env: &Env<Limits>, task: u64) {
         decision: change::Decision::Ready,
         entry: None,
         evidence: None,
+        close_at: None,
     });
     domain.work.push(Work::ForgeSettings(answered));
     super::judge_trains(domain, env);

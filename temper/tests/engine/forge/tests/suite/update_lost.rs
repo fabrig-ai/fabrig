@@ -509,7 +509,7 @@ fn a_preparations_real_conflict_reaches_the_merge_job_then_a_resolution() {
         change_step_merge_job(&mut world, 2, change::Status::Passed, Box::new([])),
         change::Decision::Delegate(kind)
     );
-    world.event(top::Event::Delegated { task: CHANGE, child: 52, kind });
+    world.event(top::Event::Delegated { task: CHANGE, child: 52, kind, close_at: None });
     let words = b"file: both modified; left for resolution";
     world.event(top::Event::DelegateResult {
         task: CHANGE,

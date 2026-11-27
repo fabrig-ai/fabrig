@@ -248,9 +248,8 @@ fn tls_limits() -> tls::client::Limits {
 
 fn channel_output(bodies: &smith_channel::Limits) -> Result<u32, Refusal> {
     let schema = smith_channel::schema(bodies).or(Err(derived(Layer::Channel, "output_bytes")))?;
-    let version = schema.version(smith_channel::kind::VERSION).ok_or(derived(Layer::Channel, "version"))?;
     let mut largest = 0;
-    for kind in &version.kinds {
+    for kind in &schema.kinds {
         match kind.direction {
             skein_channel::Direction::FromResponder => largest = largest.max(kind.largest),
             skein_channel::Direction::FromInitiator => {}

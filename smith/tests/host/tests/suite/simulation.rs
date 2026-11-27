@@ -257,7 +257,7 @@ fn admission_refusal_and_working_traffic_are_distinct() {
         world.spawn(start());
         world.spawned();
         world.sent();
-        last(&mut world, RunResult::Refused { refusal }, 0, 0);
+        last(&mut world, RunResult::Refused { refusal: refusal.clone() }, 0, 0);
         assert_eq!(
             world.seen.answer.as_ref().expect("refusal reaches the parent").result,
             RunResult::Refused { refusal }

@@ -430,7 +430,7 @@ fn merged_receipts_keep_both_heads_within_the_512_byte_bound() {
 fn version_refusals_cross_the_root_without_an_agent_or_a_kept_slot() {
     for items in [false, true] {
         let mut h = Harness::new();
-        let mismatch = host::Mismatch { wire: b"smith-charter".as_slice().into(), version: 5, lowest: 4, highest: 4 };
+        let mismatch = host::Mismatch { wire: b"smith-charter".as_slice().into(), version: 5, worker_version: 4 };
         let rows = if items {
             h.step(Event::Assign {
                 assignment: assignment(true, Box::new([])),

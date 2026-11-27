@@ -44,12 +44,24 @@ pub struct JobRow {
     pub key: Box<[u8]>,
     pub value: Box<[u8]>,
 }
+impl JobRow {
+    /// Give a written converter the source family's version instead of the stored layout id.
+    pub fn at_version(&self, version: u16) -> Result<Box<[u8]>, JobRefusal> {
+        if crate::registry::head(&self.value).is_none() {
+            return Err(JobRefusal { key: Some(self.key.clone()), why: Box::from("short written job row") });
+        }
+        let mut value = self.value.clone();
+        crate::registry::rehead(&mut value, version);
+        Ok(value)
+    }
+}
 #[derive(Clone, Debug)]
 pub struct JobLayout {
     pub root: Box<str>,
     pub variant: Option<Box<str>>,
     pub text: Box<[u8]>,
     pub held: Box<[Box<[u8]>]>,
+    pub mode: skein_codec::layout::Mode,
 }
 #[derive(Debug)]
 pub struct JobAnswer {

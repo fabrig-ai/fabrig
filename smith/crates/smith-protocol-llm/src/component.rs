@@ -53,6 +53,7 @@ pub enum ComponentError {
 
 struct Active {
     context: Context,
+    provider: skein_llm::Provider,
     observation: Option<crate::Observation>,
     deltas: crate::Deltas,
 }
@@ -478,7 +479,7 @@ impl Component {
                 return;
             }
         };
-        match self.active.insert(owner, Active { context, observation, deltas }) {
+        match self.active.insert(owner, Active { context, provider: options.provider, observation, deltas }) {
             Ok(None) => {}
             Ok(Some(_)) | Err(_) => {
                 Self::local_failure(owner, llm::Failure::ApplicationLimit, bounds.max_failure_bytes, to_domain);
@@ -582,7 +583,7 @@ impl Component {
                                 .expect("the observed client admitted its bounded blocks and replay");
                             self.measures.push(crate::Measure::Completion { at: now, owner: call, completion });
                         }
-                        match crate::completion(active.context, completion) {
+                        match crate::completion(active.context, active.provider, completion) {
                             Ok(event) => Self::domain_event(event, to_domain),
                             Err(error) => {
                                 Self::refusal(call, error, self.limits.translation.client.detail_bytes, to_domain);
@@ -678,6 +679,7 @@ impl Component {
                 | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
                 | smith_domain::Below::Probed { .. }
+                | smith_domain::Below::HooksProbed { .. }
                 | smith_domain::Below::Checked { .. }
                 | smith_domain::Below::BuiltinResult { .. }
                 | smith_domain::Below::ReadVersion { .. }

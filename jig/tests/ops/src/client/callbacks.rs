@@ -75,24 +75,13 @@ pub fn events(
     let mut out = Vec::new();
     for (client, event) in values {
         let up = match event {
-            Event::Client {
-                event: jig_client::Event::Up { up: jig_client::Up::Served { served, versions: None } },
-            } => {
-                out.push((
-                    client,
-                    Event::Client { event: jig_client::Event::Up { up: Up::Served { served, versions: None } } },
-                ));
+            Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served } } } => {
+                out.push((client, Event::Client { event: jig_client::Event::Up { up: Up::Served { served } } }));
                 for family in [1, 2] {
                     out.push((
                         client,
                         Event::Client {
-                            event: jig_client::Event::Up {
-                                up: Up::FamilyServed {
-                                    family,
-                                    served: true,
-                                    versions: Some(jig_client::contract::VersionRange { first: 1, last: 1 }),
-                                },
-                            },
+                            event: jig_client::Event::Up { up: Up::FamilyServed { family, served: true } },
                         },
                     ));
                 }

@@ -46,7 +46,6 @@ pub struct ScriptedPeer {
     schema: Schema,
     role: Role,
     limits: Limits,
-    chosen: u16,
     state: State,
     credential: Box<[u8]>,
     bytes: Vec<u8>,
@@ -61,12 +60,10 @@ impl ScriptedPeer {
     /// Builds a peer; the initiator's credential is sent in Open.
     ///
     /// # Errors
-    /// Returns `Limits` if the schema, selected version, or credential bound is invalid.
-    pub fn new(schema: Schema, role: Role, limits: Limits, chosen: u16, credential: Box<[u8]>) -> Result<Self, Error> {
+    /// Returns `Limits` if the schema or credential bound is invalid.
+    pub fn new(schema: Schema, role: Role, limits: Limits, credential: Box<[u8]>) -> Result<Self, Error> {
         schema.check(role, &limits).map_err(|_| Error::Limits)?;
-        if schema.version(chosen).is_none()
-            || credential.len() > usize::try_from(limits.credential).map_err(|_| Error::Limits)?
-        {
+        if credential.len() > usize::try_from(limits.credential).map_err(|_| Error::Limits)? {
             return Err(Error::Limits);
         }
         let state = match role {
@@ -77,7 +74,6 @@ impl ScriptedPeer {
             schema,
             role,
             limits,
-            chosen,
             state,
             credential,
             bytes: Vec::new(),
@@ -88,12 +84,11 @@ impl ScriptedPeer {
             observed: Vec::new(),
         };
         if role == Role::Initiator {
-            let (lowest, highest) = peer.schema.range().ok_or(Error::Limits)?;
             let frame = control_frame(
                 &Control::Open {
                     magic: peer.schema.magic,
-                    lowest,
-                    highest,
+                    lowest: peer.schema.version,
+                    highest: peer.schema.version,
                     features: 0,
                     credential: peer.credential.clone(),
                 },
@@ -192,12 +187,7 @@ impl ScriptedPeer {
             5 => Some(0),
             6 => Some(2),
             0 | 7..=255 => return Err(Error::Framing),
-            kind => Some(
-                self.schema
-                    .version(self.chosen)
-                    .and_then(|version| version.kind(kind))
-                    .map_or(self.limits.skip, |known| known.largest),
-            ),
+            kind => Some(self.schema.kind(kind).map_or(self.limits.skip, |known| known.largest)),
         }
         .ok_or(Error::Framing)?;
         if header.body_len > largest {
@@ -210,16 +200,16 @@ impl ScriptedPeer {
         if kind < 0x0100 {
             let control = decode_control(kind, &body, &self.limits).map_err(|_| Error::Framing)?;
             match (self.state, control) {
-                (State::WaitOpen, Control::Open { magic, lowest, highest, features: 0, credential }) => {
-                    if magic != self.schema.magic || lowest > self.chosen || highest < self.chosen {
+                (State::WaitOpen, Control::Open { magic, features: 0, credential, .. }) => {
+                    if magic != self.schema.magic {
                         return Err(Error::Mismatch);
                     }
                     self.credential = credential;
-                    self.queue_control(&Control::Accept { version: self.chosen, features: 0 })?;
+                    self.queue_control(&Control::Accept { version: self.schema.version, features: 0 })?;
                     self.send_terms()?;
                     self.state = State::WaitTerms;
                 }
-                (State::WaitAccept, Control::Accept { version, features: 0 }) if version == self.chosen => {
+                (State::WaitAccept, Control::Accept { features: 0, .. }) => {
                     self.state = State::WaitTerms;
                 }
                 (State::WaitAccept | State::WaitTerms, Control::Refuse { .. }) => {
@@ -253,9 +243,8 @@ impl ScriptedPeer {
     }
 
     fn send_terms(&mut self) -> Result<(), Error> {
-        let version = self.schema.version(self.chosen).ok_or(Error::Limits)?;
         let mut entries = List::with_capacity(self.limits.kinds);
-        for kind in &version.kinds {
+        for kind in &self.schema.kinds {
             let receives = matches!(
                 (self.role, kind.direction),
                 (Role::Initiator, Direction::FromResponder) | (Role::Responder, Direction::FromInitiator)
@@ -268,9 +257,8 @@ impl ScriptedPeer {
     }
 
     fn check_terms(&self, entries: &List<Term>) -> Result<(), Error> {
-        let version = self.schema.version(self.chosen).ok_or(Error::Limits)?;
         for (index, entry) in entries.iter().enumerate() {
-            let kind = version.kind(entry.kind).ok_or(Error::Mismatch)?;
+            let kind = self.schema.kind(entry.kind).ok_or(Error::Mismatch)?;
             let sends = matches!(
                 (self.role, kind.direction),
                 (Role::Initiator, Direction::FromInitiator) | (Role::Responder, Direction::FromResponder)

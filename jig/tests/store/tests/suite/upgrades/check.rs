@@ -2,7 +2,7 @@
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{Check, Event, KeptFamily, OpenRefusal, Owner, OwnerSet, OwnerSets, SecretOwner, Secrets};
-use jig_store_world::{World, patches, root};
+use jig_store_world::{World, root, upgrade_fixtures};
 use skein_fake_machine::Item;
 use skein_lib::Secret;
 
@@ -14,8 +14,8 @@ const FAMILY_BOUND: usize = 64;
 const NAME_BOUND: usize = 64;
 const CARRIED_FIRST: u64 = 1_u64 << 63;
 
-fn empty() -> patches::Records {
-    patches::Records { labels: vec![], shelves: vec![], notes: vec![], tokens: vec![] }
+fn empty() -> upgrade_fixtures::Records {
+    upgrade_fixtures::Records { labels: vec![], shelves: vec![], notes: vec![], tokens: vec![] }
 }
 
 fn manifest(world: &mut World, generation: u64) -> jig_protocol_store::codec::component::Manifest {
@@ -26,12 +26,12 @@ fn manifest(world: &mut World, generation: u64) -> jig_protocol_store::codec::co
 }
 
 fn load_key(record: &core::Record) -> Box<[u8]> {
-    jig_protocol_store::keys::encode(&record.key(), patches::limits().store.key).expect("fixture key fits")
+    jig_protocol_store::keys::encode(&record.key(), upgrade_fixtures::limits().store.key).expect("fixture key fits")
 }
 
 fn refuses_check(world: &mut World, expected: &Check) {
-    let before = patches::source(world);
-    world.owner_sets(patches::SETS);
+    let before = upgrade_fixtures::source(world);
+    world.owner_sets(upgrade_fixtures::SETS);
     for attempt in 0..2 {
         assert_eq!(world.open_switched(), None, "check attempt {attempt}");
         assert!(
@@ -40,7 +40,7 @@ fn refuses_check(world: &mut World, expected: &Check) {
             world.refusal()
         );
         assert_eq!(world.active(), b"1\n");
-        patches::kept(&before, &patches::source(world), &attempt);
+        upgrade_fixtures::kept(&before, &upgrade_fixtures::source(world), &attempt);
         assert!(world.paths().iter().any(|path| path == b"generations/2/store"));
         assert!(!world.paths().iter().any(|path| path == b"generations/2/manifest"));
         // A marker proves that the next start removes the refused copy.
@@ -48,33 +48,33 @@ fn refuses_check(world: &mut World, expected: &Check) {
         world.lay(&[Item::file(b"generations/2/refused-copy", b"stray")]);
         world.crash(SEED);
     }
-    world.owner_sets(patches::BASE);
+    world.owner_sets(upgrade_fixtures::BASE);
     assert_eq!(world.open_switched(), Some(1), "the build before opens its source");
     assert!(!world.paths().iter().any(|path| path.starts_with(b"generations/2")));
-    patches::kept(&before, &patches::source(world), &"build before");
+    upgrade_fixtures::kept(&before, &upgrade_fixtures::source(world), &"build before");
 }
 
 #[test]
 fn tokens_at_bounds_keep_numbers_across_many_pages() {
     // Two-row pages, seventeen tokens, including both ends of the drawn-number exclusion.
     const TOKENS: u64 = 17;
-    let mut records = patches::Records::story();
+    let mut records = upgrade_fixtures::Records::story();
     records.tokens = (0..TOKENS - 1).map(|n| (n, vec![b'x'; TOKEN_BOUND])).collect();
     records.tokens.push((CARRIED_FIRST - 1, vec![]));
-    let mut limits = patches::limits();
+    let mut limits = upgrade_fixtures::limits();
     // Only the secrets map has one operation and room for a single token per page.
     limits.secrets.ops = 1;
     limits.secrets.value = 128;
     limits.secrets.page.bytes = 128;
     limits.secrets.record = 1;
-    let mut world = records.committed_with(SEED, patches::BASE, limits, &[]);
-    let before = patches::source(&mut world);
-    world.owner_sets(patches::SETS);
+    let mut world = records.committed_with(SEED, upgrade_fixtures::BASE, limits, &[]);
+    let before = upgrade_fixtures::source(&mut world);
+    world.owner_sets(upgrade_fixtures::SETS);
     let last = world.open_switched().expect("tokens copy with their map's bounds");
-    patches::whole(&mut world);
-    patches::kept(&before, &patches::source(&mut world), &"tokens");
+    upgrade_fixtures::whole(&mut world);
+    upgrade_fixtures::kept(&before, &upgrade_fixtures::source(&mut world), &"tokens");
     assert_eq!(
-        patches::counts(&mut world),
+        upgrade_fixtures::counts(&mut world),
         vec![
             (b"fixture-label".to_vec(), 2, 2),
             (b"fixture-shelf".to_vec(), 3, 3),
@@ -100,12 +100,12 @@ fn tokens_at_bounds_keep_numbers_across_many_pages() {
 #[test]
 fn empty_families_have_zero_manifest_counts() {
     let records = empty();
-    let mut world = records.committed(SEED, patches::BASE);
-    world.owner_sets(patches::SETS);
+    let mut world = records.committed(SEED, upgrade_fixtures::BASE);
+    world.owner_sets(upgrade_fixtures::SETS);
     world.open_switched().expect("empty families upgrade");
     records.check(&mut world, &"no tokens or records");
     assert_eq!(
-        patches::counts(&mut world),
+        upgrade_fixtures::counts(&mut world),
         vec![
             (b"fixture-label".to_vec(), 0, 0),
             (b"fixture-shelf".to_vec(), 0, 0),
@@ -120,7 +120,7 @@ fn sparse_counts_exclude_unkept_opaque_application_rows() {
     let mut records = empty();
     records.labels.push((b"l/0".to_vec(), b"kept".to_vec()));
     records.tokens.push((9, b"credential".to_vec()));
-    let mut world = records.committed(SEED, patches::BASE);
+    let mut world = records.committed(SEED, upgrade_fixtures::BASE);
     assert_eq!(world.open_switched(), Some(1));
     let key: Box<[u8]> = Box::from(b"z/opaque".as_slice());
     let value: Box<[u8]> = Box::from(b"not a versioned record".as_slice());
@@ -130,13 +130,13 @@ fn sparse_counts_exclude_unkept_opaque_application_rows() {
     ]);
     assert_eq!(world.commit(writes), Some(2));
     world.crash(SEED);
-    world.owner_sets(patches::SETS);
+    world.owner_sets(upgrade_fixtures::SETS);
     world.open_switched().expect("unkept rows are copied as bytes");
     let mut expected = records.rows();
     expected.insert(key, value);
     assert_eq!(world.application(false), expected);
     assert_eq!(
-        patches::counts(&mut world),
+        upgrade_fixtures::counts(&mut world),
         vec![
             (b"fixture-label".to_vec(), 1, 1),
             (b"fixture-shelf".to_vec(), 0, 0),
@@ -148,8 +148,8 @@ fn sparse_counts_exclude_unkept_opaque_application_rows() {
 
 #[test]
 fn first_manifest_counts_each_empty_kept_family() {
-    let mut world = World::unopened_observed(SEED, patches::limits(), None);
-    world.owner_sets(patches::SETS);
+    let mut world = World::unopened_observed(SEED, upgrade_fixtures::limits(), None);
+    world.owner_sets(upgrade_fixtures::SETS);
     assert_eq!(world.open_switched(), Some(0));
     let first = manifest(&mut world, 1);
     let counts: Vec<_> = first.counts.iter().map(|row| (row.family.to_vec(), row.before, row.after)).collect();
@@ -168,7 +168,7 @@ fn first_manifest_counts_each_empty_kept_family() {
 
 #[test]
 fn first_manifest_without_sets_has_no_counts() {
-    let mut world = World::unopened_observed(SEED, patches::limits(), None);
+    let mut world = World::unopened_observed(SEED, upgrade_fixtures::limits(), None);
     assert_eq!(world.open_switched(), Some(0));
     assert!(manifest(&mut world, 1).counts.is_empty());
 }
@@ -176,7 +176,7 @@ fn first_manifest_without_sets_has_no_counts() {
 #[test]
 fn carried_counter_and_unwalked_values_survive_switch() {
     let records = empty();
-    let mut world = records.committed(SEED, patches::BASE);
+    let mut world = records.committed(SEED, upgrade_fixtures::BASE);
     assert_eq!(world.open_switched(), Some(1));
     world.mark_if_needed();
     let carried = world.secret(Secrets::Carry {
@@ -185,7 +185,7 @@ fn carried_counter_and_unwalked_values_survive_switch() {
     });
     assert!(matches!(carried.as_slice(), [Event::Carried { number, .. }] if *number == CARRIED_FIRST));
     world.crash(SEED);
-    world.owner_sets(patches::SETS);
+    world.owner_sets(upgrade_fixtures::SETS);
     world.open_switched().expect("job upgrade with carried row");
     world.mark_if_needed();
     let found = world.secret(Secrets::Get { owner: SecretOwner::Application, number: CARRIED_FIRST });
@@ -198,12 +198,12 @@ fn carried_counter_and_unwalked_values_survive_switch() {
         value: Secret::new(Box::from(b"next".as_slice())),
     });
     assert!(matches!(carried.as_slice(), [Event::Carried { number, .. }] if *number == CARRIED_FIRST + 1));
-    assert_eq!(patches::counts(&mut world)[2], (b"fixture-token".to_vec(), 0, 0));
+    assert_eq!(upgrade_fixtures::counts(&mut world)[2], (b"fixture-token".to_vec(), 0, 0));
 }
 
 #[test]
 fn erased_carried_number_is_never_drawn_after_switch() {
-    let mut world = empty().committed(SEED, patches::BASE);
+    let mut world = empty().committed(SEED, upgrade_fixtures::BASE);
     assert_eq!(world.open_switched(), Some(1));
     world.mark_if_needed();
     let carried = world.secret(Secrets::Carry {
@@ -214,7 +214,7 @@ fn erased_carried_number_is_never_drawn_after_switch() {
     let erased = world.secret(Secrets::Erase { owner: SecretOwner::Application, number: CARRIED_FIRST });
     assert!(matches!(erased.as_slice(), [Event::Erased { .. }]));
     world.crash(SEED);
-    world.owner_sets(patches::SETS);
+    world.owner_sets(upgrade_fixtures::SETS);
     world.open_switched().expect("job upgrade with an erased carried value");
     world.mark_if_needed();
     let carried = world.secret(Secrets::Carry {
@@ -226,16 +226,16 @@ fn erased_carried_number_is_never_drawn_after_switch() {
 
 #[test]
 fn stray_secrets_file_is_copied_before_privacy_check() {
-    let records = patches::Records::story();
-    let mut world = records.committed(SEED, patches::BASE);
+    let records = upgrade_fixtures::Records::story();
+    let mut world = records.committed(SEED, upgrade_fixtures::BASE);
     // The source file is public; the copy must make it private.
     let mut stray = Item::file(b"generations/1/secrets/stray", b"fixture stray");
     stray.mode = 0o644;
     world.lay(&[stray]);
-    let before = patches::source(&mut world);
-    world.owner_sets(patches::SETS);
+    let before = upgrade_fixtures::source(&mut world);
+    world.owner_sets(upgrade_fixtures::SETS);
     world.open_switched().expect("copy makes even a stray regular secrets file private");
-    patches::kept(&before, &patches::source(&mut world), &"secrets stray");
+    upgrade_fixtures::kept(&before, &upgrade_fixtures::source(&mut world), &"secrets stray");
     assert_eq!(world.contents().get(b"generations/2/secrets/stray".as_slice()), Some(&Some(b"fixture stray".to_vec())));
     records.check(&mut world, &"stray beside secrets map");
 }
@@ -253,8 +253,9 @@ fn task_with_words(number: u64, bytes: usize) -> core::Record {
 fn live_record_exactly_at_decode_bound_switches() {
     let bound = skein_lib::length::usize_of(root::TASKS_LIMITS.spec_bytes);
     let row = task_with_words(root::LIVE, bound);
-    let mut world = empty().committed_with(SEED, patches::BASE, patches::limits(), std::slice::from_ref(&row));
-    world.owner_sets(patches::SETS);
+    let mut world =
+        empty().committed_with(SEED, upgrade_fixtures::BASE, upgrade_fixtures::limits(), std::slice::from_ref(&row));
+    world.owner_sets(upgrade_fixtures::SETS);
     world.open_switched().expect("codec limit is inclusive");
     assert_eq!(world.get(row.key()), row);
 }
@@ -268,8 +269,9 @@ fn ended_position_with_its_task_passes_join() {
     let ended = core::Record::Tasks(tasks::Stored::Ended(task));
     let position =
         core::Record::People(jig_domain_people::Stored::EndedRead { task: root::LIVE, party: 1, through: 0 });
-    let mut world = empty().committed_with(SEED, patches::BASE, patches::limits(), &[ended, position]);
-    world.owner_sets(patches::SETS);
+    let mut world =
+        empty().committed_with(SEED, upgrade_fixtures::BASE, upgrade_fixtures::limits(), &[ended, position]);
+    world.owner_sets(upgrade_fixtures::SETS);
     world.open_switched().expect("ended read position's task is held");
     assert_eq!(world.active(), b"2\n");
 }
@@ -279,9 +281,9 @@ fn live_sets_past_arena_limits_switch_before_restart() {
     let records = empty();
     // The check decodes each row, but does not enforce the child's live-set bound (protocol/store/README.md 11).
     let rows = [root::live_task(root::LIVE), root::live_task(root::LIVE + 1), root::live_task(root::LIVE + 2)];
-    let mut world = records.committed_with(SEED, patches::BASE, patches::limits(), &rows);
-    let before = patches::source(&mut world);
-    world.owner_sets(patches::SETS);
+    let mut world = records.committed_with(SEED, upgrade_fixtures::BASE, upgrade_fixtures::limits(), &rows);
+    let before = upgrade_fixtures::source(&mut world);
+    world.owner_sets(upgrade_fixtures::SETS);
     world.open_switched().expect("live set's arena bound is outside the check");
     assert_eq!(world.active(), b"2\n");
     world.crash(SEED);
@@ -289,10 +291,10 @@ fn live_sets_past_arena_limits_switch_before_restart() {
     for row in &rows {
         assert_eq!(restored.rows.get(&row.key()), Some(row));
     }
-    patches::kept(&before, &patches::source(&mut world), &"set past child bound");
+    upgrade_fixtures::kept(&before, &upgrade_fixtures::source(&mut world), &"set past child bound");
     world.crash(SEED);
     world.rewrite(b"active", b"1\n");
-    world.owner_sets(patches::BASE);
+    world.owner_sets(upgrade_fixtures::BASE);
     assert_eq!(world.open_switched(), Some(1));
     assert!(!world.paths().iter().any(|path| path.starts_with(b"generations/2")));
 }
@@ -304,15 +306,15 @@ fn child_semantic_rule_is_outside_pre_switch_check() {
         panic!("task fixture");
     };
     task.number = 0;
-    let mut world = empty().committed_with(SEED, patches::BASE, patches::limits(), &[row]);
-    world.owner_sets(patches::SETS);
+    let mut world = empty().committed_with(SEED, upgrade_fixtures::BASE, upgrade_fixtures::limits(), &[row]);
+    world.owner_sets(upgrade_fixtures::SETS);
     world.open_switched().expect("codec-valid child rule is not checked before switch");
     assert_eq!(world.active(), b"2\n");
 }
 
 fn bounded_sets(families: usize, name_bytes: usize) -> OwnerSets {
-    let application = &patches::SETS.sets[0];
-    let upstream = &patches::SETS.sets[1];
+    let application = &upgrade_fixtures::SETS.sets[0];
+    let upstream = &upgrade_fixtures::SETS.sets[1];
     let mut kept = application.families.to_vec();
     // One family is in the upstream set; each additional family has an empty key range.
     for index in kept.len()..families - upstream.families.len() {
@@ -339,7 +341,7 @@ fn manifest_bounds_refuse_sets_before_any_first_start_write() {
     for (families, name_bytes, owner) in
         [(FAMILY_BOUND + 1, NAME_BOUND, Owner::Jig), (FAMILY_BOUND, NAME_BOUND + 1, Owner::Application)]
     {
-        let mut world = World::unopened_observed(SEED, patches::limits(), None);
+        let mut world = World::unopened_observed(SEED, upgrade_fixtures::limits(), None);
         world.owner_sets(bounded_sets(families, name_bytes));
         let before = world.contents();
         world.trace_writes();
@@ -359,7 +361,7 @@ fn manifest_bounds_refuse_job_upgrade_without_removing_strays() {
     for (families, name_bytes, owner) in
         [(FAMILY_BOUND + 1, NAME_BOUND, Owner::Jig), (FAMILY_BOUND, NAME_BOUND + 1, Owner::Application)]
     {
-        let mut world = empty().committed(SEED, patches::BASE);
+        let mut world = empty().committed(SEED, upgrade_fixtures::BASE);
         world.lay(&[Item::directory(b"generations/9"), Item::file(b"generations/9/stray", b"untouched")]);
         let before = world.contents();
         world.owner_sets(bounded_sets(families, name_bytes));
@@ -369,13 +371,13 @@ fn manifest_bounds_refuse_job_upgrade_without_removing_strays() {
             "{:?}",
             world.refusal()
         );
-        patches::kept(&before, &world.contents(), &"invalid manifest bounds");
+        upgrade_fixtures::kept(&before, &world.contents(), &"invalid manifest bounds");
         assert_eq!(world.active(), b"1\n");
     }
 }
 
 pub(crate) fn seal_and_switch(complete: &World) -> (u32, u32, u32) {
-    let cuts = patches::cuts(complete);
+    let cuts = upgrade_fixtures::cuts(complete);
     // The drop/copy sweep owns the copy's mutations. Start at the seal's sync, then cut
     // every operation through the read-only check and the final switch.
     let seal = complete
@@ -399,14 +401,14 @@ pub(crate) fn seal_and_switch(complete: &World) -> (u32, u32, u32) {
         .0;
     let after_switch = cuts.last().expect("switch has cut points") + 1;
 
-    let rename = patches::last_change(complete, jig_store_world::world::Change::Rename);
+    let rename = upgrade_fixtures::last_change(complete, jig_store_world::world::Change::Rename);
     (first, after_switch, rename)
 }
 
-pub(crate) fn check_cuts(records: &patches::Records, cuts: Vec<u32>) -> Vec<bool> {
-    let mut world = records.committed(SEED, patches::BASE);
-    let before = patches::source(&mut world);
-    world.owner_sets(patches::SETS);
+pub(crate) fn check_cuts(records: &upgrade_fixtures::Records, cuts: Vec<u32>) -> Vec<bool> {
+    let mut world = records.committed(SEED, upgrade_fixtures::BASE);
+    let before = upgrade_fixtures::source(&mut world);
+    world.owner_sets(upgrade_fixtures::SETS);
     world.trace_writes();
     let records = records.clone();
     let sweep = crate::sweep::Sweep::start(&mut world, cuts, move |world, cut| {
@@ -418,14 +420,14 @@ pub(crate) fn check_cuts(records: &patches::Records, cuts: Vec<u32>) -> Vec<bool
 
 fn a_check_cut_recovers(
     world: &mut World,
-    records: &patches::Records,
+    records: &upgrade_fixtures::Records,
     before: &std::collections::BTreeMap<Vec<u8>, Option<Vec<u8>>>,
     cut: u32,
 ) -> bool {
     assert_eq!(world.operation_count(), cut, "check/switch cut reached");
     world.crash(SEED);
     // The build without the job opens either whole generation at equal levels.
-    world.owner_sets(patches::BASE);
+    world.owner_sets(upgrade_fixtures::BASE);
     let source_active = world.active() == b"1\n";
     if source_active {
         assert_eq!(world.open_switched(), Some(1), "cut {cut}");
@@ -437,24 +439,24 @@ fn a_check_cut_recovers(
         assert!(!world.pending);
         records.check_public(world, &cut);
     }
-    patches::kept(before, &patches::source(world), &cut);
+    upgrade_fixtures::kept(before, &upgrade_fixtures::source(world), &cut);
     // Observe recovery before check commits the start's wires to serve secrets (protocol/store/records.md 3).
     if source_active {
         records.check(world, &cut);
     }
     world.crash(SEED);
-    world.owner_sets(patches::SETS);
+    world.owner_sets(upgrade_fixtures::SETS);
     world.open_switched().expect("retry after cut");
-    patches::whole(world);
+    upgrade_fixtures::whole(world);
     records.check(world, &cut);
     source_active
 }
 
 #[test]
 fn cuts_at_the_seal_the_check_and_the_switch_recover_whole_maps() {
-    let records = patches::Records::story();
-    let mut complete = records.committed(SEED, patches::BASE);
-    complete.owner_sets(patches::SETS);
+    let records = upgrade_fixtures::Records::story();
+    let mut complete = records.committed(SEED, upgrade_fixtures::BASE);
+    complete.owner_sets(upgrade_fixtures::SETS);
     complete.trace_writes();
     complete.open_switched().expect("complete job upgrade to enumerate its cuts");
     let (seal_sync, after_switch, rename) = seal_and_switch(&complete);
@@ -490,12 +492,12 @@ fn admitted_manifest_bounds_hold_at_first_start() {
     const SPARSE_FAMILIES: usize = 5;
     const LARGE_CHUNK: u32 = 8192;
     for (families, name_bytes, chunk) in [
-        (FAMILY_BOUND, NAME_BOUND, patches::limits().store.chunk),
-        (FAMILY_BOUND, SHORT_NAME, patches::limits().store.chunk),
-        (SPARSE_FAMILIES, NAME_BOUND, patches::limits().store.chunk),
+        (FAMILY_BOUND, NAME_BOUND, upgrade_fixtures::limits().store.chunk),
+        (FAMILY_BOUND, SHORT_NAME, upgrade_fixtures::limits().store.chunk),
+        (SPARSE_FAMILIES, NAME_BOUND, upgrade_fixtures::limits().store.chunk),
         (FAMILY_BOUND, NAME_BOUND, LARGE_CHUNK),
     ] {
-        let mut limits = patches::limits();
+        let mut limits = upgrade_fixtures::limits();
         limits.store.chunk = chunk;
         let mut world = World::unopened_observed(SEED, limits, None);
         world.owner_sets(bounded_sets(families, name_bytes));
@@ -514,14 +516,14 @@ fn admitted_manifest_bounds_hold_at_first_start() {
 #[test]
 fn admitted_manifest_bounds_hold_after_job() {
     const LARGE_CHUNK: u32 = 8192;
-    for chunk in [patches::limits().store.chunk, LARGE_CHUNK] {
-        let mut limits = patches::limits();
+    for chunk in [upgrade_fixtures::limits().store.chunk, LARGE_CHUNK] {
+        let mut limits = upgrade_fixtures::limits();
         limits.store.chunk = chunk;
-        let mut world = empty().committed(SEED, patches::BASE);
+        let mut world = empty().committed(SEED, upgrade_fixtures::BASE);
         world.restart_with_limits(SEED, limits);
         world.owner_sets(bounded_sets(FAMILY_BOUND, NAME_BOUND));
         assert!(world.open_switched().is_some(), "chunk={chunk}: {:?}", world.refusal());
-        let counts = patches::counts(&mut world);
+        let counts = upgrade_fixtures::counts(&mut world);
         assert_eq!(counts.len(), FAMILY_BOUND);
         assert!(counts.iter().all(|(_, before, after)| *before == 0 && *after == 0));
     }
@@ -529,7 +531,7 @@ fn admitted_manifest_bounds_hold_after_job() {
 
 #[test]
 fn invalid_live_rows_refuse_load_before_joins_in_key_order() {
-    let ordinary = patches::limits();
+    let ordinary = upgrade_fixtures::limits();
     let mut wider = ordinary;
     wider.core.tasks.spec_bytes += 1;
     let past_bound = task_with_words(root::LIVE, skein_lib::length::usize_of(wider.core.tasks.spec_bytes));
@@ -542,7 +544,7 @@ fn invalid_live_rows_refuse_load_before_joins_in_key_order() {
         ("key order", ordinary, 1, vec![root::live_task(root::LIVE + 1), row.clone()], load_key(&row)),
         ("load before join", ordinary, 1, vec![position, row.clone()], load_key(&row)),
     ] {
-        let mut world = empty().committed_with(SEED, patches::BASE, initial, &rows);
+        let mut world = empty().committed_with(SEED, upgrade_fixtures::BASE, initial, &rows);
         let mut limits = ordinary;
         limits.core.tasks.spec_bytes = bound;
         world.restart_with_limits(SEED, limits);

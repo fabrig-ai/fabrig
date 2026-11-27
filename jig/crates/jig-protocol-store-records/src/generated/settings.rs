@@ -38,8 +38,63 @@ pub fn model_name_to_domain(record: crate::settings_v3::ModelName) -> jig_domain
     }
 }
 
+pub fn speed_to_record(value: &jig_domain_core_vocabulary::Speed) -> Result<crate::settings_v3::Speed, crate::settings_v3::Problem> {
+    let jig_domain_core_vocabulary::Speed { name: field_000000, also: field_000001, input_price: field_000002, cached_price: field_000003, cache_write_price: field_000004, output_price: field_000005 } = value;
+    Ok(crate::settings_v3::Speed {
+        name: field_000000.clone(),
+        also: {
+            let source = field_000001;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::settings_v3::paths::SPEED_ALSO.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = item.clone();
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        input_price: *field_000002,
+        cached_price: *field_000003,
+        cache_write_price: match field_000004 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        output_price: *field_000005
+    })
+}
+
+#[must_use]
+pub fn speed_to_domain(record: crate::settings_v3::Speed) -> jig_domain_core_vocabulary::Speed {
+    let crate::settings_v3::Speed { name: field_000000, also: field_000001, input_price: field_000002, cached_price: field_000003, cache_write_price: field_000004, output_price: field_000005 } = record;
+    jig_domain_core_vocabulary::Speed {
+        name: field_000000,
+        also: {
+            let source = field_000001;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = item;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        input_price: field_000002,
+        cached_price: field_000003,
+        cache_write_price: match field_000004 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        output_price: field_000005
+    }
+}
+
 pub fn model_to_record(value: &jig_domain_core_vocabulary::Model) -> Result<crate::settings_v3::Model, crate::settings_v3::Problem> {
-    let jig_domain_core_vocabulary::Model { provider: field_000000, dialect: field_000001, endpoint: field_000002, program: field_000003, name: field_000004, window: field_000005, cache_life_ms: field_000006, output: field_000007, input_price: field_000008, cached_price: field_000009, cache_write_price: field_000010, output_price: field_000011, price_unit: field_000012, efforts: field_000013, effort: field_000014 } = value;
+    let jig_domain_core_vocabulary::Model { provider: field_000000, dialect: field_000001, endpoint: field_000002, program: field_000003, name: field_000004, window: field_000005, cache_life_ms: field_000006, output: field_000007, input_price: field_000008, cached_price: field_000009, cache_write_price: field_000010, output_price: field_000011, price_unit: field_000012, efforts: field_000013, effort: field_000014, speeds: field_000015, speed: field_000016 } = value;
     Ok(crate::settings_v3::Model {
         provider: *field_000000,
         dialect: *field_000001,
@@ -82,13 +137,30 @@ pub fn model_to_record(value: &jig_domain_core_vocabulary::Model) -> Result<crat
                 Some(converted)
             }
             None => None,
+        },
+        speeds: {
+            let source = field_000015;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::settings_v3::paths::MODEL_SPEEDS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = speed_to_record(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        speed: match field_000016 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
         }
     })
 }
 
 #[must_use]
 pub fn model_to_domain(record: crate::settings_v3::Model) -> jig_domain_core_vocabulary::Model {
-    let crate::settings_v3::Model { provider: field_000000, dialect: field_000001, endpoint: field_000002, program: field_000003, name: field_000004, window: field_000005, cache_life_ms: field_000006, output: field_000007, input_price: field_000008, cached_price: field_000009, cache_write_price: field_000010, output_price: field_000011, price_unit: field_000012, efforts: field_000013, effort: field_000014 } = record;
+    let crate::settings_v3::Model { provider: field_000000, dialect: field_000001, endpoint: field_000002, program: field_000003, name: field_000004, window: field_000005, cache_life_ms: field_000006, output: field_000007, input_price: field_000008, cached_price: field_000009, cache_write_price: field_000010, output_price: field_000011, price_unit: field_000012, efforts: field_000013, effort: field_000014, speeds: field_000015, speed: field_000016 } = record;
     jig_domain_core_vocabulary::Model {
         provider: field_000000,
         dialect: field_000001,
@@ -129,6 +201,23 @@ pub fn model_to_domain(record: crate::settings_v3::Model) -> jig_domain_core_voc
             Box::from(translated)
         },
         effort: match field_000014 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        speeds: {
+            let source = field_000015;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = speed_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        speed: match field_000016 {
             Some(item) => {
                 let converted = item;
                 Some(converted)

@@ -26,8 +26,7 @@ impl Stand {
         served
             .push(kit::Served {
                 family: None,
-                first: jig_client_protocol_wire::VERSION,
-                last: jig_client_protocol_wire::VERSION,
+                version: jig_client_protocol_wire::VERSION,
                 layout: jig_client_protocol_wire::LAYOUT,
             })
             .unwrap();
