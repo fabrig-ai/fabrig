@@ -31,3 +31,18 @@ fn reserve_floor_counts_the_reserve_and_one_completion_more() {
     policy.reserve_turns = 2;
     assert_eq!(reserve_floor(&policy), Some(3));
 }
+
+#[test]
+fn completion_and_reserve_use_the_default_speeds_prices() {
+    let mut policy = config(1).defaults.charters[0].policy.clone();
+    speed_example(&mut policy.model);
+    policy.model.window = 10;
+    policy.model.output = 2;
+    policy.model.price_unit = 1_000;
+    policy.reserve_turns = 2;
+    assert_eq!(most_costly(&policy.model), Some(270));
+    assert_eq!(reserve_floor(&policy), Some(810));
+    policy.model.speed = None;
+    assert_eq!(most_costly(&policy.model), Some(45));
+    assert_eq!(reserve_floor(&policy), Some(135));
+}

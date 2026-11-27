@@ -1063,7 +1063,8 @@ versioned record Kept { layout: fixed 32 record: bytes 1114368 }
 record TableEntry { asker: u32 number: u64 key: fixed 16 scope: u64 first_sent: option u64 owner: Owner version: u32 layout: fixed 32 request: bytes 1114240 }
 record Chips { rows: bytes 16777216 }
 record Inbox { party: u64 needs: bytes 16777216 updates: bytes 16777216 next: option InboxCursor cached_needs: u32 cached_updates: Count results_seen: u64 updates_time_complete: bool selection: option bytes 16777216 }
-record SettingModel { provider: u32 dialect: u32 endpoint: u32 program: option text 32 name: text 4096 window: u32 output: u32 input_price: u64 cached_price: u64 cache_write_price: option u64 output_price: u64 price_unit: u32 efforts: list 16 text 32 effort: option text 32 }
+record SettingSpeed { name: text 32 also: list 2 text 32 input_price: u64 cached_price: u64 cache_write_price: option u64 output_price: u64 }
+record SettingModel { provider: u32 dialect: u32 endpoint: u32 program: option text 32 name: text 4096 window: u32 output: u32 input_price: u64 cached_price: u64 cache_write_price: option u64 output_price: u64 price_unit: u32 efforts: list 16 text 32 effort: option text 32 speeds: list 4 SettingSpeed = [] speed: option text 32 = none }
 record CatalogueEntry { number: u32 model: SettingModel shown: option text 4096 description: option text 512 picker: bool withdrawn: bool source: ModelSource estimated: bool }
 enum SettingHosts { workers, engine, both }
 record CharterDocument { connector: u16 name: list 32 bytes 65536 path: bytes 256 heading: option bytes 80 }

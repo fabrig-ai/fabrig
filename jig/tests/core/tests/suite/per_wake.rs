@@ -4,12 +4,15 @@ use jig_core_world::{fixtures::live_row, stories::per_wake as story};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 
+// The landing charter owns 1085 bytes with both models and both parts.
+const LANDING_RUN_BYTES: u32 = 1104;
 const LANDING_BASE: &[u8] = b"BASE: complete the goal.";
 const LANDING_FIRST: &[u8] = b"FIRST: delegate the work and await its results.";
 const LANDING_RESULT: &[u8] = b"RESULT: when landed, create producer-7 close-out; pass all landed reports and Left lists; retire the draft and its ten citation allowances through main CI; name the close-out and main-CI selection in the final report.";
 
 fn landing_goal(seed: u64) -> (World, (u64, u64)) {
     let mut setup = story::setup(seed, true);
+    setup.limits.core.run_bytes = LANDING_RUN_BYTES;
     let charter = &mut setup.configuration.as_mut().expect("per-wake configuration").core.defaults.charters[1];
     charter.policy.instructions = LANDING_BASE.into();
     charter.parts = [(tasks::Reasons::FIRST, LANDING_FIRST), (tasks::Reasons::RESULT, LANDING_RESULT)]

@@ -8,6 +8,7 @@ use smith_session_world::check_prompt_extends;
 fn prompt() -> Prompt {
     Prompt {
         effort: None,
+        speed: None,
         purpose: smith_domain_session::llm::Purpose::Ordinary { guard: None },
         choice: smith_domain_session::llm::ToolChoice::Auto,
         protocol_allowance: 0,

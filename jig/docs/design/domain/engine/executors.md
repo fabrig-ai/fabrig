@@ -76,10 +76,18 @@ is due again once its dependencies are done.
      section 3): the main model with its effort, and those its
      sub-agents may use, each with its effort, its window (the input
      tokens a conversation's window may hold), its output (the most
-     output tokens a completion may have) and its prices (../authority-budgets.md,
-     section 1).
+     output tokens a completion may have), its prices (../authority-budgets.md,
+     section 1) and its speed: its model's default speed, or the
+     provider's standard speed where the model names none
+     (`settings-catalogue.md`, 1).
      The engine's protocol layer translates it into smith's (`protocol/charter.md`,
-     section 2);
+     section 2). A model at a speed gives its LLM that speed, with its
+     `also` names and its prices in the model's unit; one at the
+     standard speed gives none, except a model of OpenAI's dialect, on no
+     program, that declares speeds: its LLM is given the speed
+     `default`, at the model's own prices, so that the project's own
+     default can't serve it faster than it is charged (skein's
+     `llm/wire.md`, 1.8);
    - its transcript's current window, when it resumes, and the calls
      committed since its last turn;
    - its credential grants: for each account its check chose, its

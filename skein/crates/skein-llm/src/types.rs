@@ -15,6 +15,18 @@ pub enum Provider {
     /// Anthropic's Messages dialect, with a key.
     Anthropic,
 }
+
+impl Provider {
+    /// The provider name for its standard serving speed.
+    #[must_use]
+    pub const fn standard_speed(self) -> &'static [u8] {
+        match self {
+            Self::OpenAi => b"default",
+            Self::Anthropic => b"standard",
+        }
+    }
+}
+
 /// The conversation participant; instructions live separately in [`Prompt`].
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Role {
@@ -108,6 +120,8 @@ pub struct Prompt {
     pub messages: Box<[Message]>,
     /// An optional provider-supported reasoning effort value.
     pub reasoning_effort: Option<Box<[u8]>>,
+    /// The provider speed to request; absent uses the provider or project default.
+    pub speed: Option<Box<[u8]>>,
     /// Conversation routing identity; Anthropic accepts it without a wire field.
     pub affinity: Option<Affinity>,
     /// Anthropic's `max_tokens`; `None` uses the endpoint's declared output.
@@ -161,6 +175,8 @@ pub struct Completion {
     pub content: Box<[Block]>,
     pub stop: Stop,
     pub usage: Usage,
+    /// The serving speed reported by the provider, if usable.
+    pub served: Option<Box<[u8]>>,
 }
 /// Incremental UTF-8 fragments for display, not replacements for completed blocks.
 ///
@@ -291,6 +307,8 @@ pub enum Invalid {
     Outcome,
     /// Only must name distinct offered tools, at least one.
     Choice,
+    /// The requested speed is not a name of 1 to 32 lowercase ASCII letters, digits, `-` or `_`.
+    Speed,
     /// Text or a number cannot be written as JSON.
     Text,
     /// Native call arguments must be a JSON object.
@@ -327,6 +345,7 @@ impl Invalid {
             Self::Role => b"role",
             Self::Outcome => b"outcome",
             Self::Choice => b"choice",
+            Self::Speed => b"speed",
             Self::Text => b"text",
             Self::Arguments => b"arguments",
             Self::Replay => b"replay",
@@ -534,7 +553,7 @@ mod tests {
 
     #[test]
     fn admission_cause_names_are_fixed_bounded_ascii_and_unique() {
-        let names: [(&[u8], &[u8]); 24] = [
+        let names: [(&[u8], &[u8]); 25] = [
             (Invalid::Model.name(), b"model"),
             (Invalid::NoMessages.name(), b"no-messages"),
             (Invalid::EmptyMessage.name(), b"empty-message"),
@@ -544,6 +563,7 @@ mod tests {
             (Invalid::Role.name(), b"role"),
             (Invalid::Outcome.name(), b"outcome"),
             (Invalid::Choice.name(), b"choice"),
+            (Invalid::Speed.name(), b"speed"),
             (Invalid::Text.name(), b"text"),
             (Invalid::Arguments.name(), b"arguments"),
             (Invalid::Replay.name(), b"replay"),

@@ -844,6 +844,7 @@ record WorkerState = c::WorkerState { since via s::wall }
 record Deployment by hand
 record TableEntry by hand
 record Inbox by hand
+record SettingSpeed by hand
 record SettingModel by hand
 record CatalogueEntry by hand
 enum SettingHosts = c::SettingHosts both ways

@@ -84,6 +84,6 @@ Provisional, 2026-11-27, from `../draft/hooks.md`. Which file of a repository te
 ## 7. Later
 
 - **`prepare` and `key`,** a turn landing's commands (`tooling.md`, sections 4 and 5), become hooks of the same form when they are taken up.
-- **A `close` a goal can't loosen,** run from the landing branch rather than the goal's own, should a project need its refusal to hold (`../draft/ways.md`, 8.4's first pass).
+- **A `close` a goal can't loosen,** run from the landing branch rather than the goal's own, should a project need its refusal to hold (`../draft/hooks.md`, 7).
 - **A way's path** shows a goal's catch-up where the project names a `merge_job` alone (`../draft/ways.md`), and the goal's charter still calls a catch-up without a merge job refused at the call, where it now holds at its change (4.2): both follow when `ways.md`'s next pass takes hooks.
 - **A shared hook link check.** The worker reads the link target with skein-io's `Op::ReadLink` (4.3), while smith opens the sibling it names with skein-io's `OpenSiblingFile` (4.1). One skein mechanism could check the same link rule (2.2) for both.

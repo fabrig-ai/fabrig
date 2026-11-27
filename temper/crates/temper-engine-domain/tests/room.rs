@@ -19,6 +19,7 @@ const TABLE: HostPart = HostPart {
     shell: 30,
     agents: 40,
     floor: ZERO,
+    ..HostPart::EMPTY
 };
 
 #[test]

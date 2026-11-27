@@ -31,6 +31,8 @@ pub struct Request {
     pub input: Box<[Input]>,
     pub effort: Option<Box<[u8]>>,
     pub prompt_cache_key: Option<Box<[u8]>>,
+    /// Requested serving tier, in the provider's vocabulary.
+    pub service_tier: Option<Box<[u8]>>,
     pub choice: crate::ToolChoice,
 }
 pub fn encode_request(request: &Request, limits: &Limits) -> Result<Box<[u8]>, DecodeError> {
@@ -49,6 +51,11 @@ pub fn measure_request(request: &Request, limits: &Limits) -> Result<u32, Decode
     crate::openai::common::measured(measure, bounded, crate::Cap::Request)
 }
 fn validate(request: &Request, limits: &Limits) -> Result<(), DecodeError> {
+    if let Some(tier) = &request.service_tier
+        && !crate::speed::valid(tier)
+    {
+        return Err(DecodeError::Malformed);
+    }
     if request.tools.len() > usize_of(limits.tools) {
         return Err(DecodeError::limit(crate::Cap::Tools, limits.tools));
     }
@@ -136,6 +143,10 @@ fn write_request(out: &mut Encoder, request: &Request, limits: &Limits) {
     if let Some(key) = &request.prompt_cache_key {
         out.key(b"prompt_cache_key");
         out.string(key);
+    }
+    if let Some(tier) = &request.service_tier {
+        out.key(b"service_tier");
+        out.string(tier);
     }
     out.key(b"text");
     out.object_start();
@@ -280,6 +291,7 @@ pub fn decode_request(value: &Json, limits: &Limits) -> Result<Request, DecodeEr
         input: input.into_boxed(),
         effort,
         prompt_cache_key,
+        service_tier: optional_text(tokens, b"service_tier")?,
         choice,
     };
     validate(&request, limits)?;

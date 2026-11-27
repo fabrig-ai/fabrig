@@ -26,7 +26,7 @@ pub struct Member {
 }
 
 /// Every object shape the engine and worker decoders read.
-pub static SHAPES: [Shape; 64] = [
+pub static SHAPES: [Shape; 66] = [
     Shape { name: "engine", paths: &["engine"], line: "The engine's configuration, read before startup." },
     Shape {
         name: "limits",
@@ -65,6 +65,12 @@ pub static SHAPES: [Shape; 64] = [
         name: "model",
         paths: &["engine.llm.models[]"],
         line: "A document model default, numbered by position from 1, with its context bounds, efforts and prices.",
+    },
+    Shape { name: "speed", paths: &["engine.llm.models[].speeds[]"], line: "One faster speed the model serves." },
+    Shape {
+        name: "speed-prices",
+        paths: &["engine.llm.models[].speeds[].prices"],
+        line: "Prices in the model's token unit.",
     },
     Shape { name: "prices", paths: &["engine.llm.models[].prices"], line: "Model prices and their token unit." },
     Shape {
@@ -353,7 +359,7 @@ pub static SHAPES: [Shape; 64] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 277] = [
+pub static MEMBERS: [Member; 286] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -842,6 +848,51 @@ pub static MEMBERS: [Member; 277] = [
     },
     Member {
         shape: "model",
+        name: "speeds",
+        kind: "list of speed",
+        bound: "4 speeds",
+        required: false,
+        line: "Lists the model's faster speeds in order, with none when absent.",
+        gone: None,
+    },
+    Member {
+        shape: "model",
+        name: "speed",
+        kind: "text",
+        bound: "1 to 32 bytes",
+        required: false,
+        line: "Names the model's default speed, with standard speed when absent.",
+        gone: None,
+    },
+    Member {
+        shape: "speed",
+        name: "name",
+        kind: "text",
+        bound: "1 to 32 bytes",
+        required: true,
+        line: "Names the speed as the provider takes it.",
+        gone: None,
+    },
+    Member {
+        shape: "speed",
+        name: "also",
+        kind: "list of text",
+        bound: "2 names; 1 to 32 bytes each",
+        required: false,
+        line: "Lists other names the provider may report it served under.",
+        gone: None,
+    },
+    Member {
+        shape: "speed",
+        name: "prices",
+        kind: "speed-prices",
+        bound: "",
+        required: true,
+        line: "Gives the speed's prices, each at least the standard rate.",
+        gone: None,
+    },
+    Member {
+        shape: "model",
         name: "description",
         kind: "text",
         bound: "1 to 512 bytes",
@@ -905,6 +956,42 @@ pub static MEMBERS: [Member; 277] = [
     },
     Member {
         shape: "prices",
+        name: "cache_write",
+        kind: "integer",
+        bound: "1 to 18446744073709551615",
+        required: false,
+        line: "Prices cache writes separately when the provider charges for them.",
+        gone: None,
+    },
+    Member {
+        shape: "speed-prices",
+        name: "input",
+        kind: "integer",
+        bound: "1 to 18446744073709551615",
+        required: true,
+        line: "Prices input tokens per price unit.",
+        gone: None,
+    },
+    Member {
+        shape: "speed-prices",
+        name: "cached",
+        kind: "integer",
+        bound: "1 to 18446744073709551615",
+        required: true,
+        line: "Prices cached input tokens per price unit.",
+        gone: None,
+    },
+    Member {
+        shape: "speed-prices",
+        name: "output",
+        kind: "integer",
+        bound: "1 to 18446744073709551615",
+        required: true,
+        line: "Prices output tokens per price unit.",
+        gone: None,
+    },
+    Member {
+        shape: "speed-prices",
         name: "cache_write",
         kind: "integer",
         bound: "1 to 18446744073709551615",

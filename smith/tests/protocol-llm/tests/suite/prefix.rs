@@ -29,6 +29,7 @@ fn charter(settings: &Settings, instructions: &str) -> run::Charter {
     use run::outcome::{FieldRule, OutcomeSpec, TextSpec};
     let llm = Llm {
         effort: None,
+        speed: None,
         prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
         dialect: 3,
         account: Some(0),
@@ -487,3 +488,128 @@ fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
 }
 
 mod open;
+
+fn speed_world(dialect: smith_protocol_llm_world::fixture::Dialect, scripts: Box<[Script]>, main_fast: bool) -> World {
+    let mut bounds = smith_protocol_llm_fixtures::small(skein_llm_kit::limits(), codec::stated());
+    bounds.client.http.request = 16384;
+    bounds.client.request = 16384;
+    let mut settings = Settings {
+        job: Job::Reporting,
+        network: Span::millis(1, 1),
+        ..smith_protocol_llm_world::fixture::settings(1160)
+    };
+    settings.limits.session.completion_bytes =
+        codec::completion_bound(&bounds.client, settings.limits.decoded_call_bytes).expect("completion reservation");
+    settings.limits.session.completion_blocks = bounds.client.output_items;
+    settings.limits.session.failure_bytes = bounds.client.detail_bytes;
+    let mut policy = charter(&settings, "@speed");
+    if main_fast {
+        // There are room for exactly two messages beside the first tool result's turn
+        // before the session must summarize, then open a new window.
+        settings.limits.session.history_messages = 5;
+        // The fake counts turns from each window's history. Stop after the
+        // first ordinary request in the new window, before it repeats the read.
+        policy.budget.turns = 3;
+        policy.llm.speed = Some(run::charter::Speed {
+            name: b"ultrafast".as_slice().into(),
+            also: Box::default(),
+            prices: policy.llm.prices,
+        });
+    } else {
+        policy.models[0].speed = Some(run::charter::Speed {
+            name: b"fast".as_slice().into(),
+            also: Box::new([b"priority".as_slice().into()]),
+            prices: policy.models[0].prices,
+        });
+    }
+    let (disk, mounted) = workspace();
+    World::with_workspace_protocol_charter(
+        settings,
+        None,
+        Some(mounted),
+        disk,
+        (dialect.configuration(), bounds),
+        scripts,
+        policy,
+    )
+}
+
+fn request_body(request: &[u8]) -> serde_json::Value {
+    let request = skein_llm_kit::identity(request);
+    let head = skein_lib::bytes::find(&request, b"\r\n\r\n").expect("HTTP body");
+    serde_json::from_slice(&request[head + 4..]).expect("one native request")
+}
+
+#[test]
+fn responses_requests_ultrafast_on_both_sides_of_compaction() {
+    let mut world = speed_world(
+        smith_protocol_llm_world::fixture::Dialect::OpenAi,
+        Box::new([Script {
+            cue: b"@speed".as_slice().into(),
+            turns: Box::new([
+                calls(vec![call(b"read", br#"{"path":"data.txt"}"#)], 2),
+                says(b"The data was read; report the result.", 8),
+                calls(vec![call(b"finish", FINISH_INPUT)], 4),
+            ]),
+        }]),
+        true,
+    );
+    world.run(100_000);
+    assert!(
+        matches!(
+            world.answer(),
+            run::Answer::Failed {
+                turns: 3,
+                failure: run::RunFailure::Budget { exhausted: run::Exhausted::Turns, .. },
+                ..
+            }
+        ),
+        "{:?}",
+        world.answer()
+    );
+    assert!(world.turns().iter().any(|turn| matches!(turn.kind, smith_domain::session::record::Kind::Window(_))));
+    let [first, summary, next] = world.protocol_calls() else { panic!("ordinary, summary, then new window") };
+    for completion in [first, summary, next] {
+        let body = request_body(&completion.request);
+        assert_eq!(body["service_tier"], "ultrafast");
+        assert!(body.get("speed").is_none());
+    }
+    assert_eq!(request_body(&summary.request)["tool_choice"], "none");
+}
+
+#[test]
+fn anthropic_requests_the_childs_speed_and_omits_it_for_main() {
+    let mut world = speed_world(
+        smith_protocol_llm_world::fixture::Dialect::Anthropic,
+        Box::new([
+            Script {
+                cue: b"@speed".as_slice().into(),
+                turns: Box::new([
+                    calls(vec![call(b"sub_agent", br#"{"brief":"@named-child","tools":[],"llm":"fake-2"}"#)], 4),
+                    calls(vec![call(b"finish", FINISH_INPUT)], 4),
+                ]),
+            },
+            Script { cue: b"@named-child".as_slice().into(), turns: Box::new([says(b"Child answer.", 4)]) },
+        ]),
+        false,
+    );
+    world.run(100_000);
+    assert!(matches!(world.answer(), run::Answer::Accepted { .. }), "{:?}", world.answer());
+    let [main, child, next] = world.protocol_calls() else {
+        panic!(
+            "two main completions and one child, got {:?}",
+            world.prompts().iter().map(|query| &query.model).collect::<Vec<_>>()
+        )
+    };
+    assert_ne!(main.owner, child.owner);
+    assert_eq!(main.owner, next.owner);
+    let body = request_body(&child.request);
+    assert_eq!(body["model"], "fake-2");
+    assert_eq!(body["speed"], "fast");
+    assert!(body.get("service_tier").is_none());
+    for completion in [main, next] {
+        let body = request_body(&completion.request);
+        assert!(body.get("speed").is_none());
+        assert!(body.get("service_tier").is_none());
+    }
+}

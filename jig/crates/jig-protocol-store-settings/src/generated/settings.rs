@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 3;
 pub const LAYOUT: [u8; 32] = [
-    0x2b, 0x7c, 0x6f, 0x62, 0x43, 0xbf, 0xc0, 0xe4, 0x70, 0x6c, 0x86, 0x79, 0xc8, 0x49, 0xa9, 0x48, 0x92, 0xc2, 0xfa,
-    0xaa, 0xb5, 0x6c, 0x1e, 0x24, 0xc3, 0x02, 0xea, 0x98, 0xa1, 0xf5, 0x7b, 0x69,
+    0x49, 0xae, 0xde, 0xda, 0xf3, 0xdb, 0x76, 0x61, 0xf6, 0xd2, 0x8b, 0x21, 0xeb, 0xe5, 0xf8, 0xe1, 0xe4, 0x59, 0x47,
+    0x51, 0xf2, 0xb8, 0x62, 0xf0, 0x9e, 0x97, 0x5c, 0x1a, 0x68, 0x4c, 0x53, 0x18,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -21,10 +21,15 @@ pub struct Limits {
     pub model_name_name: u32,
     pub model_name_efforts: u32,
     pub model_name_efforts_item: u32,
+    pub speed_name: u32,
+    pub speed_also: u32,
+    pub speed_also_item: u32,
     pub model_program_some: u32,
     pub model_name: u32,
     pub model_efforts: u32,
     pub model_effort_some: u32,
+    pub model_speeds: u32,
+    pub model_speed_some: u32,
     pub run_policy_instructions: u32,
     pub run_policy_alternatives: u32,
     pub segment_bytes: u32,
@@ -111,10 +116,15 @@ pub const CEILINGS: Limits = Limits {
     model_name_name: 4_096,
     model_name_efforts: 16,
     model_name_efforts_item: 32,
+    speed_name: 32,
+    speed_also: 2,
+    speed_also_item: 32,
     model_program_some: 32,
     model_name: 4_096,
     model_efforts: 16,
     model_effort_some: 32,
+    model_speeds: 4,
+    model_speed_some: 32,
     run_policy_instructions: 65_536,
     run_policy_alternatives: 64,
     segment_bytes: 4_096,
@@ -201,10 +211,15 @@ pub const LIMIT_NAMES: &[&str] = &[
     "model_name_name",
     "model_name_efforts",
     "model_name_efforts_item",
+    "speed_name",
+    "speed_also",
+    "speed_also_item",
     "model_program_some",
     "model_name",
     "model_efforts",
     "model_effort_some",
+    "model_speeds",
+    "model_speed_some",
     "run_policy_instructions",
     "run_policy_alternatives",
     "segment_bytes",
@@ -294,10 +309,15 @@ impl Limits {
             self.model_name_name,
             self.model_name_efforts,
             self.model_name_efforts_item,
+            self.speed_name,
+            self.speed_also,
+            self.speed_also_item,
             self.model_program_some,
             self.model_name,
             self.model_efforts,
             self.model_effort_some,
+            self.model_speeds,
+            self.model_speed_some,
             self.run_policy_instructions,
             self.run_policy_alternatives,
             self.segment_bytes,
@@ -388,10 +408,15 @@ impl Limits {
             model_name_name: self.model_name_name.min(most),
             model_name_efforts: self.model_name_efforts.min(most),
             model_name_efforts_item: self.model_name_efforts_item.min(most),
+            speed_name: self.speed_name.min(most),
+            speed_also: self.speed_also.min(most),
+            speed_also_item: self.speed_also_item.min(most),
             model_program_some: self.model_program_some.min(most),
             model_name: self.model_name.min(most),
             model_efforts: self.model_efforts.min(most),
             model_effort_some: self.model_effort_some.min(most),
+            model_speeds: self.model_speeds.min(most),
+            model_speed_some: self.model_speed_some.min(most),
             run_policy_instructions: self.run_policy_instructions.min(most),
             run_policy_alternatives: self.run_policy_alternatives.min(most),
             segment_bytes: self.segment_bytes.min(most),
@@ -480,10 +505,15 @@ const LIMIT_PATHS: &[Path] = &[
     paths::MODEL_NAME_NAME,
     paths::MODEL_NAME_EFFORTS,
     paths::MODEL_NAME_EFFORTS,
+    paths::SPEED_NAME,
+    paths::SPEED_ALSO,
+    paths::SPEED_ALSO,
     paths::MODEL_PROGRAM,
     paths::MODEL_NAME,
     paths::MODEL_EFFORTS,
     paths::MODEL_EFFORT,
+    paths::MODEL_SPEEDS,
+    paths::MODEL_SPEED,
     paths::RUN_POLICY_INSTRUCTIONS,
     paths::RUN_POLICY_ALTERNATIVES,
     paths::SEGMENT_BYTES,
@@ -582,6 +612,13 @@ pub mod paths {
     pub const MODEL_NAME_NAME: Path = Path::new("ModelName.name");
     pub const MODEL_NAME_EFFORTS: Path = Path::new("ModelName.efforts");
     pub const MODEL_NAME_TAIL: Path = Path::new("ModelName (tail)");
+    pub const SPEED_NAME: Path = Path::new("Speed.name");
+    pub const SPEED_ALSO: Path = Path::new("Speed.also");
+    pub const SPEED_INPUT_PRICE: Path = Path::new("Speed.input_price");
+    pub const SPEED_CACHED_PRICE: Path = Path::new("Speed.cached_price");
+    pub const SPEED_CACHE_WRITE_PRICE: Path = Path::new("Speed.cache_write_price");
+    pub const SPEED_OUTPUT_PRICE: Path = Path::new("Speed.output_price");
+    pub const SPEED_TAIL: Path = Path::new("Speed (tail)");
     pub const MODEL_PROVIDER: Path = Path::new("Model.provider");
     pub const MODEL_DIALECT: Path = Path::new("Model.dialect");
     pub const MODEL_ENDPOINT: Path = Path::new("Model.endpoint");
@@ -597,6 +634,8 @@ pub mod paths {
     pub const MODEL_PRICE_UNIT: Path = Path::new("Model.price_unit");
     pub const MODEL_EFFORTS: Path = Path::new("Model.efforts");
     pub const MODEL_EFFORT: Path = Path::new("Model.effort");
+    pub const MODEL_SPEEDS: Path = Path::new("Model.speeds");
+    pub const MODEL_SPEED: Path = Path::new("Model.speed");
     pub const MODEL_TAIL: Path = Path::new("Model (tail)");
     pub const RUN_POLICY_INSTRUCTIONS: Path = Path::new("RunPolicy.instructions");
     pub const RUN_POLICY_WAITING: Path = Path::new("RunPolicy.waiting");
@@ -1138,6 +1177,78 @@ impl Record for ModelName {
     }
 }
 
+// Type: Speed.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Speed {
+    pub name: Box<[u8]>,
+    pub also: List<Box<[u8]>>,
+    pub input_price: u64,
+    pub cached_price: u64,
+    pub cache_write_price: Option<u64>,
+    pub output_price: u64,
+}
+
+// Record: Speed.
+impl Speed {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, speed_name) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, speed_also_item) },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, speed_also), item: 1, size: size_of::<Box<[u8]>>() },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 5 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3, 4, 6, 7] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 41;
+}
+
+impl Record for Speed {
+    type Limits = Limits;
+    const TAIL: Path = paths::SPEED_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Speed")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Speed")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Bytes { limit: limits.speed_name.min(CEILINGS.speed_name) }, &self.name, limits, out, paths::SPEED_NAME)?;
+        field::write(field::Sequence { limit: limits.speed_also.min(CEILINGS.speed_also), minimum: 4, item: field::Bytes { limit: limits.speed_also_item.min(CEILINGS.speed_also_item) } }, &self.also, limits, out, paths::SPEED_ALSO)?;
+        field::write(field::U64, &self.input_price, limits, out, paths::SPEED_INPUT_PRICE)?;
+        field::write(field::U64, &self.cached_price, limits, out, paths::SPEED_CACHED_PRICE)?;
+        field::write(field::Optional { item: field::U64 }, &self.cache_write_price, limits, out, paths::SPEED_CACHE_WRITE_PRICE)?;
+        field::write(field::U64, &self.output_price, limits, out, paths::SPEED_OUTPUT_PRICE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            name: field::read(field::Bytes { limit: limits.speed_name.min(CEILINGS.speed_name) }, limits, reader, paths::SPEED_NAME)?,
+            also: field::read(field::Sequence { limit: limits.speed_also.min(CEILINGS.speed_also), minimum: 4, item: field::Bytes { limit: limits.speed_also_item.min(CEILINGS.speed_also_item) } }, limits, reader, paths::SPEED_ALSO)?,
+            input_price: field::read(field::U64, limits, reader, paths::SPEED_INPUT_PRICE)?,
+            cached_price: field::read(field::U64, limits, reader, paths::SPEED_CACHED_PRICE)?,
+            cache_write_price: field::read(field::Optional { item: field::U64 }, limits, reader, paths::SPEED_CACHE_WRITE_PRICE)?,
+            output_price: field::read(field::U64, limits, reader, paths::SPEED_OUTPUT_PRICE)?,
+        })
+    }
+}
+
 // Type: Model.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Model {
@@ -1156,6 +1267,8 @@ pub struct Model {
     pub price_unit: u32,
     pub efforts: List<Text>,
     pub effort: Option<Box<[u8]>>,
+    pub speeds: List<Speed>,
+    pub speed: Option<Box<[u8]>>,
 }
 
 // Record: Model.
@@ -1180,11 +1293,15 @@ impl Model {
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, model_efforts), item: 15, size: size_of::<Text>() },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, model_effort_some) },
         skein_codec::bounds::Node::Option { item: 17 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 16, 18] },
+        skein_codec::bounds::Node::Named("Speed"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, model_speeds), item: 19, size: size_of::<Speed>() },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, model_speed_some) },
+        skein_codec::bounds::Node::Option { item: 21 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 16, 18, 20, 22] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 79;
+    pub const ENCODED_AT_ZERO: u64 = 88;
 }
 
 impl Record for Model {
@@ -1224,6 +1341,8 @@ impl Record for Model {
         field::write(field::U32, &self.price_unit, limits, out, paths::MODEL_PRICE_UNIT)?;
         field::write(field::Sequence { limit: limits.model_efforts.min(CEILINGS.model_efforts), minimum: 4, item: field::Nested }, &self.efforts, limits, out, paths::MODEL_EFFORTS)?;
         field::write(field::Optional { item: field::Bytes { limit: limits.model_effort_some.min(CEILINGS.model_effort_some) } }, &self.effort, limits, out, paths::MODEL_EFFORT)?;
+        field::write(field::Sequence { limit: limits.model_speeds.min(CEILINGS.model_speeds), minimum: 33, item: field::Nested }, &self.speeds, limits, out, paths::MODEL_SPEEDS)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.model_speed_some.min(CEILINGS.model_speed_some) } }, &self.speed, limits, out, paths::MODEL_SPEED)?;
         Ok(())
     }
 
@@ -1244,6 +1363,8 @@ impl Record for Model {
             price_unit: field::read(field::U32, limits, reader, paths::MODEL_PRICE_UNIT)?,
             efforts: field::read(field::Sequence { limit: limits.model_efforts.min(CEILINGS.model_efforts), minimum: 4, item: field::Nested }, limits, reader, paths::MODEL_EFFORTS)?,
             effort: field::read(field::Optional { item: field::Bytes { limit: limits.model_effort_some.min(CEILINGS.model_effort_some) } }, limits, reader, paths::MODEL_EFFORT)?,
+            speeds: field::read(field::Sequence { limit: limits.model_speeds.min(CEILINGS.model_speeds), minimum: 33, item: field::Nested }, limits, reader, paths::MODEL_SPEEDS)?,
+            speed: field::read(field::Optional { item: field::Bytes { limit: limits.model_speed_some.min(CEILINGS.model_speed_some) } }, limits, reader, paths::MODEL_SPEED)?,
         })
     }
 }
@@ -1292,7 +1413,7 @@ impl RunPolicy {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 140;
+    pub const ENCODED_AT_ZERO: u64 = 149;
 }
 
 impl Record for RunPolicy {
@@ -1325,7 +1446,7 @@ impl Record for RunPolicy {
         field::write(field::U32, &self.reserve_turns, limits, out, paths::RUN_POLICY_RESERVE_TURNS)?;
         field::write(field::Span, &self.reserve_time, limits, out, paths::RUN_POLICY_RESERVE_TIME)?;
         field::write(field::Nested, &self.model, limits, out, paths::RUN_POLICY_MODEL)?;
-        field::write(field::Sequence { limit: limits.run_policy_alternatives.min(CEILINGS.run_policy_alternatives), minimum: 63, item: field::Nested }, &self.alternatives, limits, out, paths::RUN_POLICY_ALTERNATIVES)?;
+        field::write(field::Sequence { limit: limits.run_policy_alternatives.min(CEILINGS.run_policy_alternatives), minimum: 68, item: field::Nested }, &self.alternatives, limits, out, paths::RUN_POLICY_ALTERNATIVES)?;
         field::write(field::Boolean, &self.inspect, limits, out, paths::RUN_POLICY_INSPECT)?;
         field::write(field::Boolean, &self.modify, limits, out, paths::RUN_POLICY_MODIFY)?;
         field::write(field::Boolean, &self.shell, limits, out, paths::RUN_POLICY_SHELL)?;
@@ -1345,7 +1466,7 @@ impl Record for RunPolicy {
             reserve_turns: field::read(field::U32, limits, reader, paths::RUN_POLICY_RESERVE_TURNS)?,
             reserve_time: field::read(field::Span, limits, reader, paths::RUN_POLICY_RESERVE_TIME)?,
             model: field::read(field::Nested, limits, reader, paths::RUN_POLICY_MODEL)?,
-            alternatives: field::read(field::Sequence { limit: limits.run_policy_alternatives.min(CEILINGS.run_policy_alternatives), minimum: 63, item: field::Nested }, limits, reader, paths::RUN_POLICY_ALTERNATIVES)?,
+            alternatives: field::read(field::Sequence { limit: limits.run_policy_alternatives.min(CEILINGS.run_policy_alternatives), minimum: 68, item: field::Nested }, limits, reader, paths::RUN_POLICY_ALTERNATIVES)?,
             inspect: field::read(field::Boolean, limits, reader, paths::RUN_POLICY_INSPECT)?,
             modify: field::read(field::Boolean, limits, reader, paths::RUN_POLICY_MODIFY)?,
             shell: field::read(field::Boolean, limits, reader, paths::RUN_POLICY_SHELL)?,
@@ -1919,7 +2040,7 @@ impl Charter {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 205;
+    pub const ENCODED_AT_ZERO: u64 = 214;
 }
 
 impl Record for Charter {
@@ -2042,7 +2163,7 @@ impl Overlay {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 176;
+    pub const ENCODED_AT_ZERO: u64 = 185;
 }
 
 impl Record for Overlay {
@@ -2069,7 +2190,7 @@ impl Record for Overlay {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Optional { item: field::Boolean }, &self.rest, limits, out, paths::OVERLAY_REST)?;
         field::write(field::Optional { item: field::Nested }, &self.model, limits, out, paths::OVERLAY_MODEL)?;
-        field::write(field::Optional { item: field::Sequence { limit: limits.overlay_alternatives_some.min(CEILINGS.overlay_alternatives_some), minimum: 63, item: field::Nested } }, &self.alternatives, limits, out, paths::OVERLAY_ALTERNATIVES)?;
+        field::write(field::Optional { item: field::Sequence { limit: limits.overlay_alternatives_some.min(CEILINGS.overlay_alternatives_some), minimum: 68, item: field::Nested } }, &self.alternatives, limits, out, paths::OVERLAY_ALTERNATIVES)?;
         field::write(field::Optional { item: field::Boolean }, &self.inspect, limits, out, paths::OVERLAY_INSPECT)?;
         field::write(field::Optional { item: field::Boolean }, &self.modify, limits, out, paths::OVERLAY_MODIFY)?;
         field::write(field::Optional { item: field::Boolean }, &self.shell, limits, out, paths::OVERLAY_SHELL)?;
@@ -2094,7 +2215,7 @@ impl Record for Overlay {
         Ok(Self {
             rest: field::read(field::Optional { item: field::Boolean }, limits, reader, paths::OVERLAY_REST)?,
             model: field::read(field::Optional { item: field::Nested }, limits, reader, paths::OVERLAY_MODEL)?,
-            alternatives: field::read(field::Optional { item: field::Sequence { limit: limits.overlay_alternatives_some.min(CEILINGS.overlay_alternatives_some), minimum: 63, item: field::Nested } }, limits, reader, paths::OVERLAY_ALTERNATIVES)?,
+            alternatives: field::read(field::Optional { item: field::Sequence { limit: limits.overlay_alternatives_some.min(CEILINGS.overlay_alternatives_some), minimum: 68, item: field::Nested } }, limits, reader, paths::OVERLAY_ALTERNATIVES)?,
             inspect: field::read(field::Optional { item: field::Boolean }, limits, reader, paths::OVERLAY_INSPECT)?,
             modify: field::read(field::Optional { item: field::Boolean }, limits, reader, paths::OVERLAY_MODIFY)?,
             shell: field::read(field::Optional { item: field::Boolean }, limits, reader, paths::OVERLAY_SHELL)?,
@@ -2210,7 +2331,7 @@ impl CatalogueModel {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 106;
+    pub const ENCODED_AT_ZERO: u64 = 115;
 }
 
 impl Record for CatalogueModel {
@@ -6981,7 +7102,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 206;
+    pub const ENCODED_AT_ZERO: u64 = 215;
 }
 
 impl Record for Value {
@@ -7397,7 +7518,7 @@ impl Set {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 206;
+    pub const ENCODED_AT_ZERO: u64 = 215;
 }
 
 impl Record for Set {
@@ -7451,7 +7572,7 @@ impl Edit {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 207;
+    pub const ENCODED_AT_ZERO: u64 = 216;
 }
 
 impl Record for Edit {
@@ -7510,7 +7631,7 @@ impl Item {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 220;
+    pub const ENCODED_AT_ZERO: u64 = 229;
 }
 
 impl Record for Item {
@@ -7568,7 +7689,7 @@ impl Replaced {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 207;
+    pub const ENCODED_AT_ZERO: u64 = 216;
 }
 
 impl Record for Replaced {
@@ -7631,7 +7752,7 @@ impl RevisionItem {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 427;
+    pub const ENCODED_AT_ZERO: u64 = 445;
 }
 
 impl Record for RevisionItem {
@@ -8166,7 +8287,7 @@ impl Default {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 216;
+    pub const ENCODED_AT_ZERO: u64 = 225;
 }
 
 impl Record for Default {
@@ -8228,7 +8349,7 @@ impl Changed {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 217;
+    pub const ENCODED_AT_ZERO: u64 = 226;
 }
 
 impl Record for Changed {
@@ -8410,7 +8531,7 @@ impl CharterVersion {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 385;
+    pub const ENCODED_AT_ZERO: u64 = 403;
 }
 
 impl Record for CharterVersion {
@@ -8628,6 +8749,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "SizedReplaced", nodes: SizedReplaced::SHAPE },
     skein_codec::bounds::Declaration { name: "SizedSet", nodes: SizedSet::SHAPE },
     skein_codec::bounds::Declaration { name: "Span", nodes: Span::SHAPE },
+    skein_codec::bounds::Declaration { name: "Speed", nodes: Speed::SHAPE },
     skein_codec::bounds::Declaration { name: "Symbol", nodes: Symbol::SHAPE },
     skein_codec::bounds::Declaration { name: "Template", nodes: Template::SHAPE },
     skein_codec::bounds::Declaration { name: "TemplateBudget", nodes: TemplateBudget::SHAPE },
@@ -8653,10 +8775,15 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.model_name_name,
     CEILINGS.model_name_efforts,
     CEILINGS.model_name_efforts_item,
+    CEILINGS.speed_name,
+    CEILINGS.speed_also,
+    CEILINGS.speed_also_item,
     CEILINGS.model_program_some,
     CEILINGS.model_name,
     CEILINGS.model_efforts,
     CEILINGS.model_effort_some,
+    CEILINGS.model_speeds,
+    CEILINGS.model_speed_some,
     CEILINGS.run_policy_instructions,
     CEILINGS.run_policy_alternatives,
     CEILINGS.segment_bytes,

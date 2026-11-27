@@ -454,6 +454,7 @@ fn an_admitted_opening_fits_the_derived_request_with_escaped_host_text() {
     let Some(run::Request::Open { opening, .. }) = out.pop() else { panic!("admitted opening") };
     let prompt = llm::Prompt {
         effort: None,
+        speed: None,
         purpose: llm::Purpose::Ordinary { guard: None },
         choice: llm::ToolChoice::Auto,
         namespace: smith_domain::tools::Namespace::One,
@@ -545,6 +546,7 @@ fn standard_profile_accepts_conversation_history_with_workspace_results() {
         input: input.into_boxed_slice(),
         effort: None,
         prompt_cache_key: None,
+        service_tier: None,
         choice: skein_llm::ToolChoice::Auto,
     };
     let encoded = openai::encode_request(&request, &limits).expect("workspace results fit the request");

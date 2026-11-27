@@ -258,7 +258,10 @@ pub enum MessageRefusal {
 
 /// run -> parent
 #[derive(PartialEq, Eq, Debug)]
-#[expect(clippy::large_enum_variant, reason = "bounded diagnostics move inline with their terminal")]
+#[cfg_attr(
+    target_arch = "wasm32",
+    expect(clippy::large_enum_variant, reason = "bounded diagnostics move inline with their terminal")
+)]
 pub enum Request {
     /// Internal notice after the last child settles; the root may release a held main completion.
     CompletionReady { conversation: Token },
@@ -1039,7 +1042,7 @@ pub enum Answer {
 }
 
 /// Why a run was refused.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
     /// No room for another run, or for its conversation.
     Busy,
@@ -1048,7 +1051,7 @@ pub enum Refusal {
 }
 
 /// What about a charter does not fit the limits.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Invalid {
     /// Rendered charter text, generated schemas and guides exceed this host part.
     HostPart { bound: u64 },
@@ -1093,6 +1096,8 @@ pub enum Invalid {
     /// A model is undeclared, its effective window/output are zero or above its
     /// declaration, its spare is negative, or the charter repeats a model or exceeds its model count.
     Llm,
+    /// The named program cannot run the LLM at the requested speed.
+    ProgramSpeed { speed: Box<[u8]>, program: Box<[u8]> },
     /// The requested effort is outside the model’s declared values.
     Effort,
     /// The main conversation was refused: its opening does not fit the

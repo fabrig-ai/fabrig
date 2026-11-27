@@ -1410,7 +1410,7 @@ fn the_stream_opened_by_a_piece_reports_the_replys_usage() {
     let events = skein_http_kit::reference::events(&response.body, &bounds.sse);
     let opening = events.events.iter().find(|event| event.name == b"message_start").expect("opening usage");
     let json = skein_llm::anthropic::Json::from_bytes(&opening.data, &bounds.native().document()).unwrap();
-    let skein_llm::anthropic::Event::Started { usage } =
+    let skein_llm::anthropic::Event::Started { usage, .. } =
         skein_llm::anthropic::decode_event(&json, &bounds.native()).unwrap()
     else {
         panic!("message start")
@@ -1438,4 +1438,30 @@ fn ordinary_responses_call_streams_identity_and_one_whole_arguments_delta() {
     let delta = wire.find("response.function_call_arguments.delta").unwrap();
     let done = wire.find("response.output_item.done").unwrap();
     assert!(added < delta && delta < done);
+}
+
+#[test]
+fn scripted_peer_reports_speed_without_emitting_an_extra_block() {
+    for (provider, speed) in
+        [(skein_llm::Provider::OpenAi, b"priority".as_slice()), (skein_llm::Provider::Anthropic, b"fast")]
+    {
+        let scripts = Box::new([Script {
+            cue: b"caller-script".as_slice().into(),
+            turns: Box::new([Turn {
+                lines: Box::new([
+                    Line::Text { text: b"answer".as_slice().into() },
+                    Line::Served { name: speed.into() },
+                ]),
+                finish: Finish::Stop,
+                tokens: 3,
+            }]),
+        }]);
+        let mut world = Exchange::new(input(provider, 1), limits(), scripts);
+        world.start();
+        world.run();
+        let answer = completion(&world);
+        assert_eq!(answer.served.as_deref(), Some(speed), "{provider:?}");
+        assert_eq!(answer.usage.output, Some(3));
+        assert!(matches!(answer.content.as_ref(), [Block::Text { text, .. }] if text.as_ref() == b"answer"));
+    }
 }

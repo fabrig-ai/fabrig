@@ -332,7 +332,7 @@ fn the_stock_has_room_for_its_landing_members() {
 #[test]
 fn the_standard_brief_and_its_carriers_share_their_bounds() {
     // The stock host room less titles, framing and margin (stock.md, 7).
-    const STANDARD_BRIEF_BYTES: u32 = 315_530;
+    const STANDARD_BRIEF_BYTES: u32 = 315_505;
     let own = limits::stock();
     let jig = jig_protocol_config_fixtures::small();
     let root = limits::engine(&jig, &own).expect("coherent brief carriers");
@@ -745,7 +745,7 @@ fn secrets_schema_fits_the_small_page_ceiling() {
     const KEY_BYTES: u64 = 10;
     let (_, _, profile) = fixtures::store_limits();
     assert_eq!(v1::Stored::encoded_bound(&v1::CEILINGS), Some(APPLICATION_BYTES));
-    assert_eq!(profile.store.page.bytes, 39_828_995);
+    assert_eq!(profile.store.page.bytes, 39_935_747);
     assert!(APPLICATION_BYTES + KEY_BYTES < u64::from(profile.store.page.bytes));
 }
 
