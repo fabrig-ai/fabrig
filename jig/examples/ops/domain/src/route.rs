@@ -275,13 +275,12 @@ pub(crate) fn core_out(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision<Write, Output>,
-    mut requests: Queue<core::Request>,
+    requests: Queue<core::Request>,
     work: &mut Queue<Work>,
 ) {
-    for _ in 0..requests.len() {
-        let request = requests.pop().expect("core request count");
-        core_request(domain, env, decision, request, work);
-    }
+    let mut out = Queue::with_capacity(requests.len());
+    engine::append(requests, &mut out);
+    engine_out(domain, env, decision, out, work);
 }
 
 pub(crate) fn core_request(
@@ -330,7 +329,9 @@ fn core_held(
     match value {
         core::Held::PublicRead { .. } => {}
         core::Held::PublicWait { read } => child(decision, Released::Core(core::Event::PublicDurable { read })),
-        core::Held::Store(load) => held(decision, Output::Store(load)),
+        core::Held::Store(_) => {
+            unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
+        }
 
         core::Held::ApplicationDelivery { .. } => unreachable!("document assembly owns this synchronous output"),
         core::Held::ApplicationWatchEnded { watcher, connector, subject, why } => {
@@ -1034,7 +1035,7 @@ pub(crate) fn connector_out(
         ConnectorRequest::Infrastructure(infrastructure::Request::System(request)) => {
             held(decision, Output::Infrastructure(request));
         }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Described { token, description, .. }) => {
+        ConnectorRequest::Infrastructure(infrastructure::Request::Described { token, description }) => {
             work.push(Work::Core(core::Event::EffectConnector(connector::Event::Described {
                 owner: token,
                 description: Box::new(translate::infrastructure_description(number, description)),
@@ -1212,7 +1213,7 @@ pub(crate) fn connector_out(
                 state,
             })));
         }
-        ConnectorRequest::Observability(observability::Request::Described { token, effect, .. }) => {
+        ConnectorRequest::Observability(observability::Request::Described { token, effect }) => {
             work.push(Work::Core(core::Event::EffectConnector(connector::Event::Described {
                 owner: token,
                 description: Box::new(translate::observability_description(

@@ -2,11 +2,7 @@
 
 2026-11-27. Where the design lags or departs from [whose-red.md](whose-red.md), once its milestone's five goals have landed (`whose-red.execution.md`, 1).
 
-- **Design lags:**
-  - 3.3: the after-landing tiers keep a flake of their own: a red tier runs its failed tests again and calls those that pass a flake, kept on the tier's record (`../domain/after-landing.md`, 5.2), whatever a project's `flakes` says (`../domain/forge/judgement.md`, 4).
-  - 4.1: `../protocol/wires.md`, 8 still says the checked close warns of main's counts missing and leaves them to the gate, where `tools/pre-pr/design.md`, 4.1 has the close break.
-  - 7.4 and 8: `../domain/forge/catching-up.md`, 4 and `../protocol/store.md`, 2 still describe the head beside as a held branch's, where the write record now keeps it as a compare entry (`../domain/forge/writes.md`, 7).
-  - 10: `../testing/engine-checks.md`, 5.1 still lists P37's scenario without saying it runs, beside P58's and P67's, which say so.
+- **Design lags:** none.
 - **Design departs:**
   - 3.3: a CI runner's checkout is the project's own: temper prepares none, so the project's command writes the rerun marker its setting states where it finds none (`../domain/forge/judgement.md`, 4), rather than temper giving it to every checkout it dispatches. Decided by the second goal's design, 2026-11-26.
   - 4.1: the engine checks a refusal against the head its job's checkout started at, not the tree it judged, which the engine never sees (`../domain/forge/change/repairs-releases.md`, 1, *A close job ends*). Decided by the first goal's design, 2026-11-25.

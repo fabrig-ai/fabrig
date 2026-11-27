@@ -1471,6 +1471,7 @@ dependencies = [
 name = "jig-domain-contract"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-link",
  "skein-lib",
 ]
 
@@ -5983,6 +5984,7 @@ dependencies = [
  "temper-box-kit",
  "temper-client-domain",
  "temper-client-journeys-tool",
+ "temper-client-tools",
  "temper-client-walk-lines",
  "temper-config-shell",
  "temper-engine-domain",
@@ -7011,6 +7013,7 @@ dependencies = [
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
+ "jig-domain-contract",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",

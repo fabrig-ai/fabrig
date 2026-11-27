@@ -143,7 +143,7 @@ fn completed(core: &mut Core, limits: &Limits, load: Token, result: engine_store
         core,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
         &mut Queue::uncapped(),
-        skein_lib::Id::from_token(load),
+        load,
         result,
     );
     let answer = match out.pop() {
@@ -265,7 +265,7 @@ fn retained_pages_prove_their_owner_even_when_empty() {
             &mut core,
             &env,
             &mut Queue::uncapped(),
-            skein_lib::Id::from_token(load),
+            load,
             engine_store::Answer::Rows(engine_store::Rows::Read { rows: Box::new([row]), next: None }),
         );
         let Some(Request::Held(held)) = next.pop() else { panic!("page load: {read:?}") };

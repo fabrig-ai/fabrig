@@ -82,24 +82,6 @@ pub fn left_words(asker: u64, number: u64, line: &[u8], answered: bool, bound: u
     forge::text::fit(words.as_slice(), usize::try_from(bound).expect("message bound"), "…".as_bytes())
 }
 
-pub fn hold_words(questions: &change::Questions, bound: u32) -> Box<[u8]> {
-    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
-    let bound = skein_lib::Decimal::of(u64::from(bound));
-    append(&mut words, b"its questions are spent: ");
-    append(&mut words, bound.as_bytes());
-    append(&mut words, b" of ");
-    append(&mut words, bound.as_bytes());
-    append(&mut words, b" taken");
-    if let Some(question) = questions.open.first() {
-        append(&mut words, b"; question ");
-        append(&mut words, skein_lib::Decimal::of(question.number).as_bytes());
-        append(&mut words, b" of task ");
-        append(&mut words, skein_lib::Decimal::of(question.asker).as_bytes());
-        append(&mut words, b" waits; release it to pass the question up");
-    }
-    words.into_boxed()
-}
-
 pub fn has_ask(acts: &[change::RelayAct]) -> bool {
     for act in acts {
         match act {

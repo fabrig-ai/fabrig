@@ -459,12 +459,10 @@ pub(crate) fn route_core_requests(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision,
-    mut requests: Queue<core::Request>,
+    requests: Queue<core::Request>,
 ) {
     let mut outputs = Queue::with_capacity(requests.len());
-    for _ in 0..requests.len() {
-        outputs.push(Out::Core(requests.pop().expect("core output count")));
-    }
+    core::engine::append(requests, &mut outputs);
     route_engine_requests(domain, env, decision, outputs);
 }
 

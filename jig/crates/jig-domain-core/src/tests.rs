@@ -36,7 +36,7 @@ use crate::{
     *,
 };
 use fixtures::CurrentFixtures;
-use jig_domain_link::{Form, Hello, Hosting, Phase, Scheme};
+use jig_domain_link::{Form, Hello, Hosting, Phase, Problem, Scheme};
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
 fn empty_declarations(config: &Config) -> Box<[Declaration]> {
@@ -47,7 +47,7 @@ fn empty_declarations(config: &Config) -> Box<[Declaration]> {
     declarations.into_boxed()
 }
 
-pub(crate) fn new_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
+pub(crate) fn new_core(config: Config, limits: &Limits) -> Result<Core, StartProblem> {
     let connectors = empty_declarations(&config);
     Core::new(config, &connectors, limits)
 }
@@ -363,7 +363,7 @@ pub(crate) fn limits() -> Limits {
         run_bytes: 512,
         policy_bytes: 8192,
         escalation_reason_bytes: 128,
-        load_slots: 2,
+        load_slots: STORE_WORK_SLOTS,
         load_bytes: 65_536,
         call_records: 2,
         call_answer_bytes: 256,
@@ -740,12 +740,16 @@ fn clear_projects(core: &mut Core, limits: &Limits) {
     core.template_overrides = Map::with_capacity(limits.authority.projects);
 }
 
-fn seeded_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
+fn seeded_core(config: Config, limits: &Limits) -> Result<Core, StartProblem> {
     let declarations = empty_declarations(&config);
     seeded_core_with_declarations(config, &declarations, limits)
 }
 
-fn seeded_core_with_declarations(config: Config, connectors: &[Declaration], limits: &Limits) -> Result<Core, Problem> {
+fn seeded_core_with_declarations(
+    config: Config,
+    connectors: &[Declaration],
+    limits: &Limits,
+) -> Result<Core, StartProblem> {
     let needs = fleet_needs::configured(&config, limits);
     let mut core = Core::new(config, connectors, limits)?;
     fixtures::restore_needs(&mut core.fleet, limits, needs);
@@ -3356,12 +3360,78 @@ fn stored_activity_pages_follow_committed_positions_with_exact_continuations() {
     );
 }
 
+// Two window loads and two ordinary reads; the core also holds two erasure read slots.
+const STORE_WORK_SLOTS: u32 = 2;
+const STORE_LOAD_CAPACITY: u64 = 6;
+const STORE_READ_CHARGES: u32 = 4;
+const STORE_SIGN_IN: u64 = 10;
+const STORED_TASK: u64 = 100;
+const WINDOWED_TASKS: [u64; 2] = [102, 103];
+const STORE_WINDOW: (u64, u32) = (1, 1);
+const PREPARING_FOR_RESULT: u64 = 1;
+
+fn stored_task_read(core: &mut Core, limits: &Limits) -> Held {
+    read_start(core, limits, STORE_SIGN_IN, crate::reads::Read::Task { task: STORED_TASK })
+}
+
+fn full_load_lanes() -> (Core, Env<Limits>, Token) {
+    use crate::routing::task::erase::{Select, scan};
+
+    let (mut core, limits) = watch_core();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let windows = WINDOWED_TASKS.map(|task| fixture_window(&mut core, task, STORE_WINDOW));
+    let Held::Store(engine_store::Out::Load { load: read, .. }) = stored_task_read(&mut core, &limits) else {
+        panic!("one retained read")
+    };
+    let Held::Store(_) = stored_task_read(&mut core, &limits) else { panic!("second retained read") };
+    let _answer = loaded_answer(&mut core, &limits, read, engine_store::Answer::Failed(engine_store::Failure::Gone));
+
+    let project = core.tasks.task(PREPARING_FOR_RESULT).unwrap().project;
+    let mut out = Queue::uncapped();
+    scan(&mut core, &env, &mut out, Select::Project(project));
+    let Some(Request::Held(held)) = out.pop() else { panic!("erasure's first page") };
+    let Held::Store(engine_store::Out::Load { load: erasure, .. }) = *held else { panic!("held erasure page") };
+    let out = watch_store_outputs(&mut core, &limits, point_answer(erasure, None, true));
+    let [Request::Held(held)] = out.as_ref() else { panic!("erasure's replacement page") };
+    let Held::Store(_) = held.as_ref() else { panic!("held erasure retry") };
+    let [first, _] = windows;
+    (core, env, first)
+}
+
+#[test]
+fn the_store_load_capacity_adds_both_lanes() {
+    let (core, _) = core();
+    assert_eq!(core.loads.capacity(), STORE_LOAD_CAPACITY);
+}
+
+#[test]
+fn a_full_read_lane_counts_terminals_until_reclaim() {
+    let (mut core, env, _) = full_load_lanes();
+    assert_eq!(core.loads.reads(), STORE_READ_CHARGES);
+    let Held::Read { answer, .. } = stored_task_read(&mut core, &env.limits) else { panic!("read refused") };
+    assert_eq!(answer, crate::reads::Answer::None(crate::reads::Why::Busy));
+}
+
+#[test]
+fn an_ended_result_waits_while_both_lanes_are_full() {
+    let (mut core, env, window) = full_load_lanes();
+    let context = core.tasks.run_context(PREPARING_FOR_RESULT).unwrap();
+    core.contexts.insert(PREPARING_FOR_RESULT, context).unwrap();
+    let mut work = Queue::uncapped();
+    let _out = crate::routing::run::results::begin(&mut core, &mut work, PREPARING_FOR_RESULT, Box::new([STORED_TASK]));
+    let mut out = Queue::uncapped();
+    loads::resume_waiting(&mut core, &env.limits, &mut out);
+    assert!(out.is_empty(), "no store request while both work slots are held");
+    let out = watch_store_outputs(&mut core, &env.limits, point_answer(window, None, true));
+    let _load = runs::result_reads::requested(&out, STORED_TASK);
+}
+
 #[test]
 fn store_load_admission_is_bounded_and_each_terminal_consumes_its_slot() {
     let (mut core, mut limits) = watch_core();
     limits.load_slots = 1;
     // Reconstruct with the chosen capacity; authentication is restored below.
-    core.loads = loads::Loads::new(1, core.flight_tasks_capacity);
+    core.loads = loads::Loads::new(1, 1, core.flight_tasks_capacity);
     fixture_window(&mut core, 102, (1, 1));
     assert!(!core.loads.room(&limits), "the full work lane does not take the read's room");
     let Held::Store(engine_store::Out::Load { load, .. }) =
@@ -3974,7 +4044,7 @@ fn startup_refuses_too_many_configured_workers() {
     let mut limits = limits();
     let config = config(41);
     limits.fleet.configured_workers = 1;
-    assert_eq!(new_core(config, &limits).err(), Some(Problem::Workers { limit: 1 }));
+    assert_eq!(new_core(config, &limits).err(), Some(StartProblem::Membership(Problem::Workers { limit: 1 })));
 }
 #[test]
 fn startup_refuses_an_oversized_worker_name() {
@@ -3989,7 +4059,7 @@ fn startup_refuses_an_oversized_worker_name() {
     }]);
     assert_eq!(
         new_core(config, &limits).err(),
-        Some(Problem::WorkerName { worker: 0, limit: limits.fleet.worker_name_bytes })
+        Some(StartProblem::Membership(Problem::WorkerName { worker: 0, limit: limits.fleet.worker_name_bytes }))
     );
 }
 

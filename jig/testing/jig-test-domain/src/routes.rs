@@ -19,13 +19,12 @@ pub(super) fn route_core(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision<Write, Delivery>,
-    mut requests: Queue<core::Request>,
+    requests: Queue<core::Request>,
     work: &mut Queue<Work>,
 ) {
-    for _ in 0..requests.len() {
-        let request = requests.pop().expect("core request count");
-        route_request(domain, env, decision, request, work);
-    }
+    let mut out = Queue::with_capacity(requests.len());
+    core::engine::append(requests, &mut out);
+    route_engine(domain, env, decision, out, work);
 }
 
 pub(super) fn route_engine(
@@ -105,7 +104,9 @@ pub(super) fn route_request(
                 decision,
                 jig_domain_hub_link::Event::Inbound { channel, run, attempt, message },
             ),
-            core::Held::Store(load) => hold(decision, Delivery::Store(load)),
+            core::Held::Store(_) => {
+                unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
+            }
             other @ (core::Held::Read { .. }
             | core::Held::Delivery { .. }
             | core::Held::WatchEnded { .. }

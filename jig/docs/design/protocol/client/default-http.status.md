@@ -1,6 +1,6 @@
 # default-http: status
 
-2026-11-24. Where the tree's code lags or departs from [default-http.md](default-http.md).
+2026-11-27. Where the tree's code lags or departs from [default-http.md](default-http.md).
 
 
 

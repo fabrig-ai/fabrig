@@ -580,6 +580,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::ChoosePlace { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::CloseDecision { .. }
+                | top::Request::ReplayJudgement { .. }
+                | top::Request::RelayRefusal { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
@@ -957,6 +959,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                         change::Decision::ReadMerge { head } => panic!("forge domain must handle hook reads: {head:?}"),
                         change::Decision::Wait { until: at } => until = at,
                         change::Decision::Hold(why) => hold_reason = Some(why),
+                        change::Decision::ReplayJudgement(replay) => hold_reason = Some(replay.cause()),
                         change::Decision::Finish { .. } => finished = true,
                         change::Decision::None
                         | change::Decision::CancelProducer

@@ -3576,19 +3576,13 @@ fn change_hold_step(
     task: u64,
     why: forge_change::Cause,
     evidence: Option<&forge::ChangeEvidence>,
-    replay: Option<forge_change::CloseAt>,
 ) -> ProcedureStep {
     let retained = retained_change_account(domain, task, why);
     // The hold keeps the delegate's account; its inbox notice has its own bound.
     if (why == forge_change::Cause::Failed || why == forge_change::Cause::CloseRefused)
         && let Some((category, words)) = producer_failure_words(domain, task)
     {
-        let words = match (retained, replay) {
-            (Some(account), _) => Box::from(account),
-            (None, Some(at)) => close::replay_words(at, words),
-            (None, None) => Box::from(words),
-        };
-        return holds::decision_as(domain, env, task, category, words);
+        return holds::decision_as(domain, env, task, category, Box::from(retained.unwrap_or(words)));
     }
     let check_hold = match domain.forge.change(task) {
         Some(forge::ChangeRow { follow_check: Some(check), .. }) => check.held.as_deref(),
@@ -3611,23 +3605,11 @@ fn change_hold_step(
     {
         Some(Box::from(words))
     } else if why == forge_change::Cause::Questions {
-        let bound = skein_lib::Decimal::of(u64::from(env.limits.forge.change_policy.questions));
-        let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
-        append(&mut words, b"its questions are spent: ");
-        append(&mut words, bound.as_bytes());
-        append(&mut words, b" of ");
-        append(&mut words, bound.as_bytes());
-        append(&mut words, b" taken");
-        if let Some(row) = domain.forge.change(task)
-            && let Some(question) = row.questions.open.first()
-        {
-            append(&mut words, b"; question ");
-            append(&mut words, skein_lib::Decimal::of(question.number).as_bytes());
-            append(&mut words, b" of task ");
-            append(&mut words, skein_lib::Decimal::of(question.asker).as_bytes());
-            append(&mut words, b" waits; release it to pass the question up");
-        }
-        Some(words.into_boxed())
+        let questions = match domain.forge.change(task) {
+            Some(row) => Some(&row.questions),
+            None => None,
+        };
+        Some(holds::questions_account(questions, env.limits.forge.change_policy.questions))
     } else if let forge_change::Cause::Authority(cause) = why {
         Some(forge_change::authority_account(cause))
     } else {
@@ -3681,19 +3663,17 @@ fn change_hold_step(
     decision
 }
 
-// The step keeps its ordinary account selection. Once held, its words no
-// longer depend on the read, delegate or effect that supplied them.
+// Recovery commands name the task's live hold revision, not the revision
+// current when the change's account was saved.
 fn hold_change_decision(
     domain: &Domain,
     env: &Env<Limits>,
     task: u64,
     cause: forge_change::Cause,
     evidence: Option<&forge::ChangeEvidence>,
-    replay: Option<forge_change::CloseAt>,
 ) -> ProcedureStep {
-    let mut decision = change_hold_step(domain, env, task, cause, evidence, replay);
-    let StepEnd::HoldFrom { source, .. } = &mut decision.end else { unreachable!("change hold has an account") };
-    let tasks::HoldSource::Account { words, .. } = source.as_mut() else { unreachable!("change hold has words") };
+    let mut decision = compose_hold_account(domain, env, task, cause, evidence, None, false);
+    let words = hold_account_words(&mut decision);
     *words = change_hold_recovery(domain, task, cause, words);
     decision
 }
@@ -3726,18 +3706,45 @@ fn change_hold_recovery(domain: &Domain, task: u64, cause: forge_change::Cause, 
     Box::from(account)
 }
 
-fn account_for_hold(
+// Choose and bound the account once at the root, including on the first
+// save of a replay. A retained account no longer depends on current facts.
+fn compose_hold_account(
     domain: &Domain,
     env: &Env<Limits>,
     task: u64,
     cause: forge_change::Cause,
     evidence: Option<&forge::ChangeEvidence>,
-    replay: Option<forge_change::CloseAt>,
-) -> Box<[u8]> {
-    let step = change_hold_step(domain, env, task, cause, evidence, replay);
+    replay: Option<(forge_change::Replay, &[u8])>,
+    relay_refused: bool,
+) -> ProcedureStep {
+    let mut step = if relay_refused
+        && let Some(row) = domain.forge.change(task)
+        && let Some(words) = &row.producer_failure
+    {
+        holds::decision_as(domain, env, task, tasks::Hold::EffectFailed, words.clone())
+    } else {
+        change_hold_step(domain, env, task, cause, evidence)
+    };
+    if retained_change_account(domain, task, cause).is_none() {
+        let words = hold_account_words(&mut step);
+        *words = match replay {
+            Some((replay, prior)) => holds::replay_judgement(replay, words, prior),
+            None => forge::text::fit(words, skein_lib::usize_of(tasks::HOLD_ACCOUNT_BYTES), b"..."),
+        };
+    }
+    step
+}
+
+fn into_hold_account_words(step: ProcedureStep) -> Box<[u8]> {
     let StepEnd::HoldFrom { source, .. } = step.end else { unreachable!("change hold has an account") };
     let tasks::HoldSource::Account { words, .. } = *source else { unreachable!("change hold has words") };
-    forge::text::fit(&words, skein_lib::usize_of(tasks::HOLD_ACCOUNT_BYTES), b"...")
+    words
+}
+
+fn hold_account_words(step: &mut ProcedureStep) -> &mut Box<[u8]> {
+    let StepEnd::HoldFrom { source, .. } = &mut step.end else { unreachable!("change hold has an account") };
+    let tasks::HoldSource::Account { words, .. } = source.as_mut() else { unreachable!("change hold has words") };
+    words
 }
 
 // A hold's save comes before its procedure decision; both reach the same root
@@ -3757,13 +3764,15 @@ fn fill_hold_account(
         && let forge_change::State::Held { hold: current, .. } = &row.change.state
         && current.cause == hold.cause
         && current.since == hold.since
+        && current.judged == hold.judged
         && !current.words.is_empty()
     {
         hold.words.clone_from(&current.words);
         return;
     }
     let mut read = None;
-    let mut close = None;
+    let mut replaying = None;
+    let mut relay_refused = false;
     for request in pending {
         if let forge::Request::ChangeDecision {
             task: owner,
@@ -3777,16 +3786,24 @@ fn fill_hold_account(
             read = evidence.as_ref();
             break;
         }
-        if let forge::Request::CloseDecision { task: owner, at, replay: true } = request
+        if let forge::Request::ReplayJudgement { task: owner, replay, prior_rejection } = request
             && *owner == task
-            && hold.cause == forge_change::Cause::CloseRefused
+            && hold.cause == replay.cause()
         {
-            close = Some(*at);
+            replaying = Some((*replay, prior_rejection.as_ref()));
+            break;
+        }
+        if let forge::Request::RelayRefusal { task: owner } = request
+            && *owner == task
+            && hold.cause == forge_change::Cause::Failed
+        {
+            relay_refused = true;
             break;
         }
     }
-    hold.words = account_for_hold(domain, env, task, hold.cause, read, close);
-    domain.forge.keep_hold_words(task, hold.cause, hold.since, hold.words.clone());
+    let step = compose_hold_account(domain, env, task, hold.cause, read, replaying, relay_refused);
+    hold.words = into_hold_account_words(step);
+    domain.forge.keep_accounted_hold(task, hold);
 }
 
 fn save_restored_hold(domain: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<forge::Request>) {
@@ -3794,9 +3811,10 @@ fn save_restored_hold(domain: &mut Domain, env: &Env<Limits>, task: u64, out: &m
     let Some(row) = domain.forge.change(task) else { return };
     let forge_change::State::Held { hold, .. } = &row.change.state else { return };
     if hold.words.is_empty() {
-        let since = hold.since;
-        let words = account_for_hold(domain, env, task, cause, None, None);
-        domain.forge.keep_hold_words(task, cause, since, words);
+        let mut hold = hold.clone();
+        let step = compose_hold_account(domain, env, task, cause, None, None, false);
+        hold.words = into_hold_account_words(step);
+        domain.forge.keep_accounted_hold(task, &hold);
         domain.forge.save_hold_words(task, out);
     }
 }
@@ -4177,7 +4195,7 @@ fn change_decision_from_read(
         Some(_) | None => {
             if let forge_change::Decision::Hold(why) = choice {
                 // The row's hold reaches its task even after another step has parked it.
-                let end = hold_change_decision(domain, env, task, why, evidence, close_at).end;
+                let end = hold_change_decision(domain, env, task, why, evidence).end;
                 domain.work.push(Work::Tasks(change_hold_event(task, &end)));
                 if let Some(cancel) = cancel_close {
                     close::cancel(domain, task, cancel);
@@ -4212,7 +4230,8 @@ fn change_decision_from_read(
             };
             ProcedureStep::new(StepEnd::Result(tasks::TaskResult::NoChange { words: words.clone() }))
         }
-        forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why, evidence, close_at),
+        forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why, evidence),
+        forge_change::Decision::ReplayJudgement(_) => unreachable!("the forge carries the account evidence separately"),
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),
         forge_change::Decision::CancelRepair { head } => cancel_change_repair(domain, task, head),
         forge_change::Decision::CancelMovedDelegate { head } => cancel_moved_change_delegate(domain, task, head),
@@ -4270,7 +4289,10 @@ pub(crate) fn outputs(
     out: &mut Queue<forge::Request>,
 ) {
     while let Some(request) = out.pop() {
-        if let forge::Request::ChangeDecision { task, .. } | forge::Request::CloseDecision { task, .. } = &request {
+        if let forge::Request::ChangeDecision { task, .. }
+        | forge::Request::CloseDecision { task, .. }
+        | forge::Request::ReplayJudgement { task, .. } = &request
+        {
             domain.forge.set_settling(*task, false, out);
         }
         match request {
@@ -5031,14 +5053,14 @@ pub(crate) fn outputs(
                     domain.work.push(Work::Forge(forge::Event::ReviewRequested { task, head }));
                 }
             }
-            forge::Request::CloseDecision { task, at, replay } => {
-                let choice = if replay {
-                    forge_change::Decision::Hold(forge_change::Cause::CloseRefused)
-                } else {
-                    forge_change::Decision::Delegate(forge_change::Delegate::Close)
-                };
+            forge::Request::CloseDecision { task, at } => {
+                let choice = forge_change::Decision::Delegate(forge_change::Delegate::Close);
                 change_decision_from_read(domain, env, task, choice, None, Some(at));
             }
+            forge::Request::ReplayJudgement { task, replay, .. } => {
+                change_decision(domain, env, task, forge_change::Decision::Hold(replay.cause()));
+            }
+            forge::Request::RelayRefusal { .. } => {}
             forge::Request::ChangeDecision { task, decision: choice, entry, evidence } => match choice {
                 forge_change::Decision::Effect(effect) => {
                     if let Some(entry) = entry
@@ -5142,6 +5164,9 @@ pub(crate) fn outputs(
                         save_restored_hold(domain, env, task, out);
                     }
                     change_decision_from_read(domain, env, task, choice, evidence.as_ref(), None);
+                }
+                forge_change::Decision::ReplayJudgement(_) => {
+                    unreachable!("the forge carries the account evidence separately")
                 }
                 forge_change::Decision::Cancel => cancel_change(domain, task),
                 forge_change::Decision::EndHold => end_change_hold(domain, task),

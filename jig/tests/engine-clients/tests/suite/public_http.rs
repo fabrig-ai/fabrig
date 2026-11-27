@@ -7,7 +7,6 @@ use skein_lib::{Time, Token};
 
 const LAYOUT: &str = "abababababababababababababababababababababababababababababababab";
 const PATH: &[u8] = b"/jig/v1/public/0/abababababababababababababababababababababababababababababababab/1";
-const DECIMAL_PATH: &[u8] = b"/jig/v1/public/0/1/1";
 const NO_STORE: &[(&str, &str)] = &[("cache-control", "no-store"), ("x-content-type-options", "nosniff")];
 const BUSY: &[(&str, &str)] =
     &[("cache-control", "no-store"), ("retry-after", "1"), ("x-content-type-options", "nosniff")];
@@ -25,21 +24,17 @@ fn headers(extra: &[(&[u8], &[u8])]) -> Box<[Header]> {
     }
     headers.into_boxed_slice()
 }
-fn admitted(messages: &[FromTransport], layout: Option<[u8; 32]>) -> Token {
+fn admitted(messages: &[FromTransport]) -> Token {
     assert_eq!(messages.len(), 1, "wire seeds 1,2: one public call");
     let Some(FromTransport::PublicRead { exchange, read }) = messages.first() else {
         panic!("wire seeds 1,2: public read: {messages:?}");
     };
-    assert_eq!(*read, PublicRead { owner: 0, layout, kind: 1, ids: Box::new([]) }, "wire seeds 1,2");
+    assert_eq!(*read, PublicRead { owner: 0, layout: [0xab; 32], kind: 1, ids: Box::new([]) }, "wire seeds 1,2");
     *exchange
 }
 fn answer(peer: &mut Peer, reply: PublicReply, now: Time) -> Token {
-    let (target, layout) = match reply {
-        PublicReply::NotServed { .. } => (DECIMAL_PATH, None),
-        _ => (PATH, Some([0xab; 32])),
-    };
-    let (socket, messages) = peer.public_http(Method::Get, target, headers(&[]));
-    let exchange = admitted(&messages, layout);
+    let (socket, messages) = peer.public_http(Method::Get, PATH, headers(&[]));
+    let exchange = admitted(&messages);
     peer.public_http_answer(now, ToTransport::Public { exchange, reply });
     socket
 }
@@ -85,7 +80,7 @@ fn public_reads_with_no_credential_and_with_a_signed_in_cookie_are_answered_alik
         vec![(b"cookie".as_slice(), cookie.as_slice()), (b"authorization".as_slice(), bearer.as_ref())],
     ] {
         let (socket, messages) = peer.public_http(Method::Get, PATH, headers(&extra));
-        let exchange = admitted(&messages, Some([0xab; 32]));
+        let exchange = admitted(&messages);
         peer.public_http_answer(Time::ZERO, ToTransport::Public { exchange, reply: PublicReply::Unknown });
         assert_eq!(peer.public_http_bytes(socket), plain, "wire seeds 1,2: credentials ignored");
     }
@@ -163,30 +158,31 @@ fn malformed_public_paths_are_404() {
     ];
     let malformed_targets = malformed_layouts.map(|(name, layout)| (name, format!("/jig/v1/public/0/{layout}/1")));
     for (name, path) in [
-        ("owner overflow", "/jig/v1/public/65536/1/1"),
-        ("version overflow", "/jig/v1/public/0/65536/1"),
-        ("kind overflow", "/jig/v1/public/0/1/65536"),
-        ("owner leading zero", "/jig/v1/public/00/1/1"),
-        ("kind leading zero", "/jig/v1/public/0/1/01"),
-        ("short project id", "/jig/v1/public/0/1/2/123456789abcdef"),
-        ("long project id", "/jig/v1/public/0/1/2/123456789abcdef01"),
-        ("uppercase project id", "/jig/v1/public/0/1/2/123456789ABCDEFA"),
-        ("encoded slash", "/jig/v1/public/0/1/2/%2F123456789abcde"),
-        ("encoded letter", "/jig/v1/public/0/1/2/%61123456789abcde"),
-        ("empty owner", "/jig/v1/public//1/1"),
-        ("empty version", "/jig/v1/public/0//1/1"),
-        ("dot version", "/jig/v1/public/0/./1/1"),
-        ("bare query", "/jig/v1/public/0/1/1?query"),
-        ("leading zero", "/jig/v1/public/0/01/1"),
-        ("uppercase id", "/jig/v1/public/0/1/1/0123456789abcdeF"),
-        ("short id", "/jig/v1/public/0/1/1/0"),
-        ("encoded", "/jig/v1/public/%30/1/1"),
-        ("dot", "/jig/v1/public/./1/1"),
-        ("dot-dot", "/jig/v1/public/0/../1"),
-        ("query", "/jig/v1/public/0/1/1?x=1"),
-        ("trailing slash", "/jig/v1/public/0/1/1/"),
-        ("empty segment", "/jig/v1/public/0//1"),
-        ("third id", "/jig/v1/public/0/1/1/0000000000000000/0000000000000000/0000000000000000"),
+        ("decimal layout", "/jig/v1/public/0/1/1"),
+        ("owner overflow", &format!("/jig/v1/public/65536/{LAYOUT}/1")),
+        ("decimal layout greater than u16::MAX", "/jig/v1/public/0/65536/1"),
+        ("kind overflow", &format!("/jig/v1/public/0/{LAYOUT}/65536")),
+        ("owner leading zero", &format!("/jig/v1/public/00/{LAYOUT}/1")),
+        ("kind leading zero", &format!("/jig/v1/public/0/{LAYOUT}/01")),
+        ("short project id", &format!("/jig/v1/public/0/{LAYOUT}/2/123456789abcdef")),
+        ("long project id", &format!("/jig/v1/public/0/{LAYOUT}/2/123456789abcdef01")),
+        ("uppercase project id", &format!("/jig/v1/public/0/{LAYOUT}/2/123456789ABCDEFA")),
+        ("encoded slash", &format!("/jig/v1/public/0/{LAYOUT}/2/%2F123456789abcde")),
+        ("encoded letter", &format!("/jig/v1/public/0/{LAYOUT}/2/%61123456789abcde")),
+        ("empty owner", &format!("/jig/v1/public//{LAYOUT}/1")),
+        ("empty layout", "/jig/v1/public/0//1/1"),
+        ("dot layout", "/jig/v1/public/0/./1/1"),
+        ("bare query", &format!("/jig/v1/public/0/{LAYOUT}/1?query")),
+        ("decimal layout with leading zero", "/jig/v1/public/0/01/1"),
+        ("uppercase id", &format!("/jig/v1/public/0/{LAYOUT}/1/0123456789abcdeF")),
+        ("short id", &format!("/jig/v1/public/0/{LAYOUT}/1/0")),
+        ("encoded owner", &format!("/jig/v1/public/%30/{LAYOUT}/1")),
+        ("dot owner", &format!("/jig/v1/public/./{LAYOUT}/1")),
+        ("dot-dot layout", "/jig/v1/public/0/../1"),
+        ("query", &format!("/jig/v1/public/0/{LAYOUT}/1?x=1")),
+        ("trailing slash", &format!("/jig/v1/public/0/{LAYOUT}/1/")),
+        ("empty kind", &format!("/jig/v1/public/0/{LAYOUT}/")),
+        ("third id", &format!("/jig/v1/public/0/{LAYOUT}/1/0000000000000000/0000000000000000/0000000000000000")),
     ]
     .into_iter()
     .chain(malformed_targets.iter().map(|(name, path)| (*name, path.as_str())))
@@ -212,7 +208,7 @@ fn options_head_and_post_are_404_with_no_access_control_header() {
 fn a_public_read_past_its_room_gets_the_fixed_busy_answer_and_a_bad_host_421() {
     let mut peer = peer();
     let (held, messages) = peer.public_http(Method::Get, PATH, headers(&[]));
-    let exchange = admitted(&messages, Some([0xab; 32]));
+    let exchange = admitted(&messages);
     let (busy, messages) = peer.public_http(Method::Get, PATH, headers(&[]));
     assert!(messages.is_empty(), "wire seeds 1,2: no call past the public room");
     assert_answer(&peer, busy, "HTTP/1.1 503 Service Unavailable", "", BUSY, true);
@@ -260,7 +256,7 @@ fn public_and_signed_in_calls_each_have_their_own_room() {
     );
     assert_eq!(peer.status(signed), Some(200), "wire seeds 1,2");
     let (_, messages) = peer.public_http(Method::Get, PATH, headers(&[]));
-    let public_exchange = admitted(&messages, Some([0xab; 32]));
+    let public_exchange = admitted(&messages);
     // Public room is full, yet the signed-in call reaches the component and completes.
     let (signed, messages) = peer.public_http(Method::Post, b"/jig/v1/read", signed_headers());
     let Some(FromTransport::Exchange { exchange, credential: Some(_), message: Message::Read(_), .. }) =
@@ -284,7 +280,7 @@ fn an_unknown_of_each_owner_is_the_same_404_byte_for_byte() {
         let [FromTransport::PublicRead { exchange, read }] = messages.as_slice() else {
             panic!("owner {owner}: public call: {messages:?}");
         };
-        assert_eq!(*read, PublicRead { owner, layout: Some([0xab; 32]), kind: 65535, ids: Box::new([]) });
+        assert_eq!(*read, PublicRead { owner, layout: [0xab; 32], kind: 65535, ids: Box::new([]) });
         peer.public_http_answer(Time::ZERO, ToTransport::Public { exchange: *exchange, reply: PublicReply::Unknown });
         assert_answer(
             &peer,

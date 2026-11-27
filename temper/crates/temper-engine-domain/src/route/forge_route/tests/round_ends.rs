@@ -1,6 +1,13 @@
 //! A round's follow-up is retried when its procedure step was taken (landing-waits.md, 3).
-use super::{reserved_turn_landing, reserved_turn_landing_with_limits, task_event};
+use super::{
+    form_turn_landing, procedure_root_with_grants, reserve_period, reserved_turn_landing,
+    reserved_turn_landing_with_limits, task_event,
+};
 use crate::{Domain, Limits, Work, route::forge_route as route};
+use jig_domain_authority as authority;
+use jig_domain_core as core;
+use jig_domain_core::effects::connector;
+use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_forge::api::{self, Answer, Error, Op, Read, Write};
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Token, Wall};
@@ -12,7 +19,7 @@ const HEAD: api::Commit = [3; 32];
 const GREEN: api::Commit = [11; 32];
 const RED: api::Commit = [12; 32];
 const TEST: &[u8] = b"test bin broken";
-const STALE_PULL: u64 = 99;
+const ROUND_PULL: u64 = 99;
 
 fn has_ready(out: &Queue<forge::Request>) -> bool {
     for r in out {
@@ -97,7 +104,7 @@ impl Round {
     fn restoring(domain: Domain, env: Env<Limits>, row: &forge::LandingRow) -> Self {
         let task = row.landing.task;
         let mut round =
-            Self { domain, env, task, entry: 100, prefixes: [None; 4], pull: None, main: BASE, refuse_deletion: false };
+            Self { domain, env, task, entry: 0, prefixes: [None; 4], pull: None, main: BASE, refuse_deletion: false };
         while round.domain.work.pop().is_some() {}
         round.domain.forge.restore_begin(round.env.wall);
         round
@@ -163,7 +170,7 @@ impl Round {
         row.landing.members = members.into_boxed();
         row.landing.preparation = number;
         row.landing.phase = policy::Phase::Proving;
-        row.landing.round.pull = Some(STALE_PULL);
+        row.landing.round.pull = Some(ROUND_PULL);
         row.landing.round.ending = Some(policy::RoundEnd::Cut);
         row.landing.round.changed = Some(if three {
             2
@@ -265,23 +272,10 @@ impl Round {
     fn stale() -> Self {
         let (domain, env, mut row) = reserved_turn_landing();
         let mut r = Self::restoring(domain, env, &row);
-        r.prefixes[0] = Some(GREEN);
         r.main = [19; 32];
-        row.landing.phase = policy::Phase::Turn { at: r.env.wall };
-        row.landing.preparation = 1;
         row.landing.branch = b"temper/1/g99".as_slice().into();
-        row.landing.round.pull = Some(STALE_PULL);
-        row.landing.round.upstream = Some(BASE);
-        let m = &mut row.landing.members[0];
-        m.pull = 1;
-        m.head = Some(HEAD);
-        m.base = Some(BASE);
-        m.candidate = Some(GREEN);
-        m.combined = Some(policy::Combine::Squash);
-        let mut change = r.ready_change(7, 1);
-        change.base = row.landing.branch.clone();
-        change.branch = b"temper/c0".as_slice().into();
-        r.send(forge::Event::Restore { record: forge::Stored::Change(Box::new(change)) });
+        row.landing.members[0].pull = 1;
+        r.prepare_turn(&mut row);
         r.send(forge::Event::Restore {
             record: forge::Stored::Hold(forge::Hold {
                 name: forge::Name {
@@ -304,6 +298,22 @@ impl Round {
         r.install(row);
         r
     }
+    fn prepare_turn(&mut self, row: &mut forge::LandingRow) {
+        self.prefixes[0] = Some(GREEN);
+        row.landing.phase = policy::Phase::Turn { at: self.env.wall };
+        row.landing.preparation = 1;
+        row.landing.round.pull = Some(ROUND_PULL);
+        row.landing.round.upstream = Some(BASE);
+        let m = &mut row.landing.members[0];
+        m.head = Some(HEAD);
+        m.base = Some(BASE);
+        m.candidate = Some(GREEN);
+        m.combined = Some(policy::Combine::Squash);
+        let mut change = self.ready_change(m.change, m.pull);
+        change.base = row.landing.branch.clone();
+        change.branch = b"temper/c0".as_slice().into();
+        self.send(forge::Event::Restore { record: forge::Stored::Change(Box::new(change)) });
+    }
     fn ready_change(&self, task: u64, pull: u64) -> forge::ChangeRow {
         let mut change = self.domain.forge.change(7).unwrap().clone();
         change.task = task;
@@ -322,7 +332,7 @@ impl Round {
             }
         }
         let top = top.unwrap();
-        self.pull = Some(open_pull(STALE_PULL, top.branch.clone(), row.landing.branch.clone(), top.candidate.unwrap()));
+        self.pull = Some(open_pull(ROUND_PULL, top.branch.clone(), row.landing.branch.clone(), top.candidate.unwrap()));
         self.send(forge::Event::Restore { record: forge::Stored::Landing(row) });
         self.send(forge::Event::Connection {
             forge: 1,
@@ -415,7 +425,8 @@ impl Round {
         self.env.now = self.env.now.saturating_add(Duration::from_secs(10));
         self.env.wall =
             Wall::from_nanos(self.env.wall.as_nanos().checked_add(Duration::from_secs(10).as_nanos()).unwrap());
-        self.entry = self.entry.checked_add(1).unwrap();
+        self.entry = crate::fresh(&mut self.domain.engine.core_mut().counters, crate::Family::ConnectorRow)
+            .expect("connector entry for the step");
         let context = self.domain.engine.core().tasks.run_context(self.task).expect("landing context");
         let preparation = route::landing_route::preparation(&self.domain, &context);
         let out = self.send(forge::Event::StepLanding {
@@ -468,8 +479,11 @@ impl Round {
         }
         panic!("round decision");
     }
-    fn step_core(&mut self, event: jig_domain_core::Event) {
-        drop(jig_domain_core::step(self.domain.engine.core_mut(), &crate::limits::environment_core(&self.env), event));
+    fn core_requests(&mut self, event: core::Event) -> Queue<core::Request> {
+        core::step(self.domain.engine.core_mut(), &crate::limits::environment_core(&self.env), event)
+    }
+    fn step_core(&mut self, event: core::Event) {
+        drop(self.core_requests(event));
     }
     fn take_step(&mut self) {
         let (_, _, step) = self.domain.engine.core().tasks.procedure_due(self.task).expect("due landing");
@@ -503,8 +517,7 @@ impl Round {
         )
         .unwrap();
     }
-    #[expect(clippy::wildcard_enum_match_arm, reason = "only the procedure handoff belongs to this fixture")]
-    fn forward(&mut self, expected: policy::Decision) {
+    fn forward_handoff(&mut self, expected: policy::Decision) -> Option<u64> {
         let mut out = self.decide();
         let mut entry = None;
         let mut handoff = Queue::uncapped();
@@ -517,6 +530,11 @@ impl Round {
         }
         assert_eq!(handoff.len(), 1);
         self.route(handoff);
+        entry
+    }
+    #[expect(clippy::wildcard_enum_match_arm, reason = "only the procedure handoff belongs to this fixture")]
+    fn forward(&mut self, expected: policy::Decision) {
+        let entry = self.forward_handoff(expected);
         let mut started = false;
         while let Some(work) = self.domain.work.pop() {
             match work {
@@ -612,8 +630,10 @@ impl Round {
                         Write::OpenPull { head, base, .. } => {
                             let row = self.domain.forge.landing(self.task).unwrap();
                             let i = member_at(row, &head);
-                            self.pull = Some(open_pull(entry, head, base, self.prefixes[i].unwrap()));
-                            Answer::Created(entry)
+                            // The forge's pull numbers are separate from connector entry numbers.
+                            let number = ROUND_PULL.checked_add(entry).unwrap();
+                            self.pull = Some(open_pull(number, head, base, self.prefixes[i].unwrap()));
+                            Answer::Created(number)
                         }
                         Write::Status { .. } => Answer::Done,
                         Write::Merge { head, how: api::MergeHow::FastForwardOnly, .. } => {
@@ -702,6 +722,144 @@ impl Round {
         assert!(woken, "a dropped decision must be woken");
         self.forward(expected);
     }
+}
+
+const PROJECT: u32 = 1;
+const OWNER: u64 = 1;
+const OWNER_SIGN_IN: u64 = 1;
+
+fn owner_records() -> [crate::Record; 3] {
+    const OWNER_SUBJECT: u64 = 7; // The project owner in jig_test_profile::start_values.
+    [
+        crate::Record::Core(core::Record::People(people::Stored::Person {
+            number: OWNER,
+            identity: people::Identity {
+                key: people::IdentityKey { provider: 0, subject: OWNER_SUBJECT.to_be_bytes().into() },
+                login: Box::new([]),
+                name: Box::new([]),
+            },
+        })),
+        crate::Record::Core(core::Record::People(people::Stored::Roles {
+            project: PROJECT,
+            holdings: Box::new([people::Holding { person: OWNER, role: people::Role::Owner }]),
+        })),
+        crate::Record::Core(core::Record::People(people::Stored::SignIn {
+            number: OWNER_SIGN_IN,
+            person: OWNER,
+            expires: Wall::from_nanos(Duration::from_secs(60).as_nanos()),
+        })),
+    ]
+}
+
+fn put_landing_after(r: &mut Round, dependency: u64) {
+    const AMEND: Token = Token::new(1);
+    let amendment = people::Amendment {
+        tracked: None,
+        addressed: None,
+        instructions: None,
+        spec: None,
+        wake: None,
+        dependencies: Some(Box::new([dependency])),
+        authority: None,
+        llm: None,
+        reason: b"Land after the other task finishes".as_slice().into(),
+    };
+    let result = r.core_requests(core::Event::People(people::Event::Ask {
+        reply_to: ReplyTo::new(AMEND),
+        sign_in: OWNER_SIGN_IN,
+        key: [1; 16],
+        models: Box::new([]),
+        ask: people::Ask::Amend { project: PROJECT, task: r.task, revision: 0, amendment, release: None },
+    }));
+    for request in &result {
+        if let core::Request::Held(held) = request
+            && let core::Held::PeopleReply {
+                reply: people::Reply::Outcome(people::Outcome::Amended { task, released: false }),
+                ..
+            } = held.as_ref()
+            && *task == r.task
+        {
+            return;
+        }
+    }
+    panic!("the amendment was not accepted: {result:?}");
+}
+
+#[test]
+fn a_landings_merge_is_refused_while_its_dependency_is_pending() {
+    const MERGE: u16 = 4;
+    const REFUSAL: &[u8] = b" was refused: its dependency is still pending";
+    let mut limits = crate::tests::resume_fixture::limits();
+    limits.authority.segments = 8;
+    let grants = Box::new([authority::Grant {
+        connector: 0,
+        kind: MERGE,
+        pattern: authority::Pattern {
+            segments: Box::new([b"forge".as_slice().into()]),
+            last: authority::Last::Open(Box::new([])),
+        },
+    }]);
+    let (mut domain, env) = procedure_root_with_grants(&mut limits, grants, &owner_records());
+    let dependency = reserve_period(&mut domain, &env);
+    let mut row = form_turn_landing(&mut domain, &env);
+    let mut r = Round::restoring(domain, env, &row);
+    r.prepare_turn(&mut row);
+    r.install(row);
+    // A landing starts without dependencies; an owner can add one after it forms.
+    put_landing_after(&mut r, dependency);
+    r.forward_handoff(policy::Decision::Merge { member: 0, candidate: GREEN });
+
+    let Some(Work::Core(start @ core::Event::EffectStart { owner, .. })) = r.domain.work.pop() else {
+        panic!("the landing asks to merge despite being kept: {:?}", r.domain.work)
+    };
+    let mut decision = crate::Decision::decide(&mut r.domain.journal, &r.env.limits.journal);
+    let describe = r.core_requests(start);
+    crate::route::route_core_requests(&mut r.domain, &r.env, &mut decision, describe);
+    let Some(Work::Core(described @ core::Event::EffectConnector(connector::Event::Described { .. }))) =
+        r.domain.work.pop()
+    else {
+        panic!("the landing describes its merge: {:?}", r.domain.work)
+    };
+    let judges = r.core_requests(described);
+    crate::route::route_core_requests(&mut r.domain, &r.env, &mut decision, judges);
+    let mut result = Queue::uncapped();
+    while let Some(work) = r.domain.work.pop() {
+        let Work::Core(verdict @ core::Event::EffectConnector(connector::Event::Verdict { .. })) = work else {
+            panic!("the landing's judges reply: {work:?}")
+        };
+        let mut requests = r.core_requests(verdict);
+        while let Some(request) = requests.pop() {
+            result.push(request);
+        }
+    }
+    let mut refused = false;
+    for request in &result {
+        if let core::Request::Ask {
+            ask:
+                core::Ask::Effect(connector::Ask::Drop {
+                    owner: dropped, why: connector::EffectRefusal::Dependencies, ..
+                }),
+            ..
+        } = request
+        {
+            refused |= *dropped == owner;
+        }
+    }
+    assert!(refused, "{result:?}");
+    crate::route::route_core_requests(&mut r.domain, &r.env, &mut decision, result);
+    crate::route::route_into(&mut r.domain, &r.env, &mut decision);
+
+    let row = r.domain.forge.landing(r.task).expect("landing remains");
+    assert!(row.entries.is_empty(), "the staged merge was withdrawn");
+    assert_eq!(row.landing.members[0].landed, None);
+    let task = r.domain.engine.core().tasks.task(r.task).expect("landing task");
+    let tasks::Phase::Held { why: tasks::Hold::Effects, source: Some(source), .. } = &task.phase else {
+        panic!("the refusal holds the landing: {:?}", task.phase)
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else {
+        panic!("the landing accounts for its refusal")
+    };
+    assert!(skein_lib::bytes::find(words, REFUSAL).is_some(), "{words:?}");
 }
 
 #[test]
@@ -872,7 +1030,7 @@ fn an_ended_prepare_with_no_kept_answer_is_asked_again_once_then_held() {
 fn a_refused_deletion_holds_once_and_one_release_retries_it() {
     use policy::Decision as D;
     let mut r = Round::stale();
-    let Ok(Answer::Pull(mut pull)) = r.answer(Read::Pull { number: STALE_PULL, ci: false }) else {
+    let Ok(Answer::Pull(mut pull)) = r.answer(Read::Pull { number: ROUND_PULL, ci: false }) else {
         panic!("round pull")
     };
     pull.state = api::State::Closed;

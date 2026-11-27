@@ -124,6 +124,17 @@ pub enum Repair {
     LandingAt { gate: u16, candidate: Commit, below: Option<Below> },
 }
 
+impl Repair {
+    /// Whether the repair was prompted by CI failing at the change's head.
+    #[must_use]
+    pub fn ci(self) -> bool {
+        match self {
+            Self::Ci | Self::Semantic => true,
+            Self::Gate(_) | Self::Review { .. } | Self::Landing { .. } | Self::LandingAt { .. } => false,
+        }
+    }
+}
+
 /// The green context of a blamed unit (domain/landing-search.md, 7; landing-search-by-test.md, 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Below {
@@ -504,8 +515,6 @@ pub struct Facts {
     pub regate: bool,
     /// The admitted task release asks to measure the held verdict again.
     pub measure: bool,
-    /// Limit on a hold account delivered to the task.
-    pub hold_account_bytes: u32,
     /// Preserve the repair reason while its CI check has only a head.
     pub semantic_recheck: bool,
     pub recheck: Recheck,
@@ -740,6 +749,26 @@ pub enum Decision {
     Cancel,
     /// Hold the task and tell its requester why.
     Hold(Cause),
+    /// The same judgement still holds; no fresh measurement was taken.
+    ReplayJudgement(Replay),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Replay {
+    RedStands { head: Commit },
+    Rejected { head: Commit },
+    CloseRefused { branch: Commit, landing: Commit },
+}
+
+impl Replay {
+    #[must_use]
+    pub const fn cause(self) -> Cause {
+        match self {
+            Self::RedStands { .. } => Cause::RedStands,
+            Self::Rejected { .. } => Cause::Rejected,
+            Self::CloseRefused { .. } => Cause::CloseRefused,
+        }
+    }
 }
 
 /// A next state and its decision from one coherent snapshot.

@@ -179,7 +179,8 @@ pub(crate) fn cap(
         | change::Decision::Cancel
         | change::Decision::Failed
         | change::Decision::NoChange
-        | change::Decision::Hold(_) => decision,
+        | change::Decision::Hold(_)
+        | change::Decision::ReplayJudgement(_) => decision,
     }
 }
 

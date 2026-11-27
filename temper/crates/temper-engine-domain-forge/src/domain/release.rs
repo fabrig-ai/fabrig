@@ -350,6 +350,8 @@ fn outputs(
             | Request::ProjectionFailed { .. }
             | Request::Reviewed { .. }
             | Request::CloseDecision { .. }
+            | Request::ReplayJudgement { .. }
+            | Request::RelayRefusal { .. }
             | Request::ChangeDecision { .. }
             | Request::News { .. }
             | Request::Drift { .. }

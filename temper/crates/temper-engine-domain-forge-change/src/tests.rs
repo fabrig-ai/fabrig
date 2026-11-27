@@ -74,7 +74,6 @@ pub(super) fn facts() -> Facts {
         rerun: false,
         regate: false,
         measure: false,
-        hold_account_bytes: 512,
         semantic_recheck: false,
         recheck: crate::Recheck::None,
         repair_head: None,
@@ -143,6 +142,16 @@ fn decide(change: &Change, facts: &Facts, heard: &Heard) -> crate::Stepped {
 
 fn reading(execution: Execution) -> Reading {
     Reading { execution, run: 7, attempt: 1 }
+}
+
+#[test]
+fn only_ci_failure_at_the_change_head_is_a_ci_repair() {
+    assert!(Repair::Ci.ci());
+    assert!(Repair::Semantic.ci());
+    assert!(!Repair::Gate(9).ci());
+    assert!(!Repair::Review { head: HEAD }.ci());
+    assert!(!Repair::Landing { gate: 3 }.ci());
+    assert!(!Repair::LandingAt { gate: 3, candidate: HEAD, below: None }.ci());
 }
 
 #[test]

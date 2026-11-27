@@ -108,9 +108,12 @@ fn a_persons_rejection_needs_a_new_answer_and_a_release() {
     for measure in [false, true] {
         read.measure = measure;
         let replay = decide(&released(&held, at(1)), &read, &heard());
-        assert_eq!(replay.decision, Decision::Hold(Cause::Rejected));
-        let State::Held { hold, .. } = replay.change.state else { panic!("replayed rejection") };
-        assert!(hold.words.starts_with(b"not measured again: its rejection at 010101010101 stands;"));
+        assert_eq!(replay.decision, Decision::ReplayJudgement(crate::Replay::Rejected { head: HEAD }));
+        let State::Held { was, hold } = replay.change.state else { panic!("replayed rejection") };
+        assert_eq!(hold.cause, Cause::Rejected);
+        assert_eq!(*was, State::Gating { head: HEAD, asked: Box::new([9]) });
+        assert!(hold.judged.is_none());
+        assert!(hold.words.is_empty());
     }
     read.gates[0].status = Status::Passed;
     let read_only = decide(&held, &read, &heard());
