@@ -640,6 +640,7 @@ pub(super) fn plan_played(scripts: skein_fake_llm_domain::api::Scripts) -> super
         .flat_map(|script| &script.turns)
         .flat_map(|turn| &turn.lines)
         .map(|line| match line {
+            Line::Served { name } => name.len(),
             Line::Cut { .. } => 0,
             Line::Take { name, before, after } => name.len().max(before.len()).max(after.len()),
             Line::Opaque { bytes } => bytes.len(),

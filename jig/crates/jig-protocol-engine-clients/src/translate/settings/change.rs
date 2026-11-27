@@ -43,6 +43,10 @@ fn map_problem(problem: w::Problem) -> Untranslatable {
 }
 pub(crate) fn model_from_record(value: w::SettingModel) -> c::Model {
     let v = value;
+    let mut speeds = List::with_capacity(v.speeds.len());
+    for speed in v.speeds.into_boxed() {
+        speeds.push(mapped::setting_speed_to_domain(speed)).expect("same count");
+    }
     c::Model {
         provider: v.provider,
         dialect: v.dialect,
@@ -59,8 +63,8 @@ pub(crate) fn model_from_record(value: w::SettingModel) -> c::Model {
         price_unit: v.price_unit,
         efforts: v.efforts.into_boxed(),
         effort: v.effort,
-        speeds: Box::default(),
-        speed: None,
+        speeds: speeds.into_boxed(),
+        speed: v.speed,
     }
 }
 fn wake_rule(value: w::WakeRule) -> t::WakeRule {

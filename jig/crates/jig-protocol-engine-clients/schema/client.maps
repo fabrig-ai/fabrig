@@ -713,6 +713,7 @@ record WorkerState = d::WorkerState { since via s::wall }
 record Deployment by hand
 record Chips by hand
 record Inbox by hand
+record SettingSpeed = c::Speed both ways { also slice }
 record SettingModel by hand
 record CatalogueEntry by hand
 enum SettingHosts = f::Kinds both ways
