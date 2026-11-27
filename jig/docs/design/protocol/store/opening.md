@@ -209,6 +209,13 @@ older than the build, and only there.
   started, then start this build." The shell names the family, the
   value type, the layout's id, how many of its values this build
   cannot keep, and the first one's declaration, part and why, after it.
+- `Layout { why: Unread }` (`layouts.md`, 5.6): "`<deployment>` holds
+  values at an older layout that this build cannot read, and this
+  start has changed nothing in it. Start the build before it again, or
+  a later build whose written job converts that layout." The shell
+  names the family, the value type, the layout's id, how many of its
+  values this build cannot read, and the first one's declaration, part
+  and why, after it.
 - `Job`: "A job this build runs at open refused a record while this
   start upgraded the store in `<deployment>`, and the generation it
   upgraded from stays active, unchanged. Every start of this build
@@ -232,8 +239,8 @@ pub enum OpenRefusal {
     Layout { family: Box<str>, value_type: u16, id: u16, values: Option<u64>, why: Unplanned }, // layouts.md, 5.3; the family as its row's key names it, which may be one the binary lacks
     Job { owner: Owner, job: Box<str>, key: Option<Box<[u8]>>, why: Box<str> },   // jobs.md, 3
 }
-pub enum Unplanned { Underived(skein_codec::layout::Underived), Text, Undeclared, Retired, Unkept(Unkept) } // no plan; a text missing or unparsed; a value type the binary lacks, in a family it declares or one it does not; a retired value type's keys holding a value (layouts.md, 2); a later layout's values its Keep plan refuses (layouts.md, 5.6)
-pub struct Unkept { pub refused: u64, pub why: skein_codec::layout::Refused, pub declaration: Box<str>, pub part: Box<str> } // how many it refused; the first refusal, by the later text's names
+pub enum Unplanned { Underived(skein_codec::layout::Underived), Text, Undeclared, Retired, Unkept(Refusals), Unread(Refusals) } // no plan; a text missing or unparsed; a value type the binary lacks, in a family it declares or one it does not; a retired value type's keys holding a value (layouts.md, 2); a later layout's values its Keep plan refuses, an older layout's values its Read plan refuses (layouts.md, 5.6)
+pub struct Refusals { pub refused: u64, pub why: skein_codec::layout::Refused, pub declaration: Box<str>, pub part: Box<str> } // how many it refused; the first refusal, by the stored text's names
 pub enum Older { Layout(Family), Directory, Unleveled, Floor, Behind, Unregistered }
 pub enum Generations { Busy, Unreadable, Unnamed, Checkpoints, Unmatched, Unfinished, Missing { generation: u64 } }
 pub enum Check { Load { key }, Private { name } }

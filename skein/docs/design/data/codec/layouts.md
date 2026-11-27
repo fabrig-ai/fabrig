@@ -29,8 +29,9 @@ written converter (jig's `protocol/channel/layouts.md`, 6).
 - **Two modes** (2): **Read**, where the target uses the value as its
   own and skips what it lacks; **Keep**, where the value must mean the
   same at the target, so what the target lacks is dropped only at its
-  default or where the source marks it `droppable`. The store's plans
-  are the Read mode's that refuse no value.
+  default or where the source marks it `droppable`. A store reads its
+  map's older layouts in Read, checking their values at open, and a
+  log's or its frames' by the Read mode refusing no value (`derive`).
 - **Refused per value** (3): which values a plan refuses is known only
   by running it. The pass refuses a value naming its declaration and
   part by the source text's names, as a decoder's refusal does.
@@ -167,9 +168,11 @@ holder that keeps plans for reuse keys them by the two texts.
   a variant of the reach the target drops is `VariantDropped`, a
   narrowed integer or bound and an `option` taken away are `Retyped`,
   each naming the part as before. Where it plans, its plan is the Read
-  mode's, equal to it, and refuses no value. A store reads with it
-  (jig's `protocol/store/layouts.md`), since a stored value no plan
-  can convert is its owner's written job.
+  mode's, equal to it, and refuses no value. A store reads a log's and
+  its frames' older layouts with it, which its open does not walk, and
+  its map's older layouts by `between` in Read, each value of a plan
+  that may refuse one checked at open (jig's
+  `protocol/store/layouts.md`, 5.3 and 5.6).
 - **A declaration's conversion keeps** where every source value of it
   is, byte for byte, a value of the target, with no head moved, nested
   heads included. A root that keeps converts by its caller's head alone
@@ -345,9 +348,3 @@ builds its deployed directories keep to the binary's.
   job at open (jig's `protocol/store/jobs.md`, 4), since step code calls
   no function an owner hands in; a later design may run a written site
   at read where its owner reads the value itself.
-- **A store reading by plans that refuse:** the store reads an older
-  layout by `derive`, so a value type whose Read plan would refuse a
-  value still needs its owner's written job; it plans a later layout
-  by `between` and checks every value at it at open (jig's
-  `protocol/store/layouts.md`, 5.6). Whether an upgrade could do the
-  same for an older layout, in place of a written job, is open.

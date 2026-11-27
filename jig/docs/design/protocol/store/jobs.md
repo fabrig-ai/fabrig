@@ -226,8 +226,9 @@ whose values are not all the root it names (`layouts.md`, 6; skein's
 - **`One`,** a layout by its fingerprint, where the change's author can
   name the one layout it converts.
 - **`Unplanned`,** each layout of its value type that the registry
-  holds, other than the binary's, whose plan to the binary's skein
-  refuses as `Underived` (`layouts.md`, 5.3): for a change that leaves
+  holds, other than the binary's, that no plan converts whole: its plan
+  to the binary's `Underived`, or one that may refuse a value
+  (`Plan::refuses`; `layouts.md`, 5.3): for a change that leaves
   every older layout of the value type unplanned, however many builds
   wrote them, so that the binary names none of their fingerprints.
   temper's `test-ids-*` jobs are the first (temper's
@@ -236,7 +237,8 @@ whose values are not all the root it names (`layouts.md`, 6; skein's
 What follows holds for both:
 
 - **Its layouts:** `One`'s, where the registry holds it; `Unplanned`'s,
-  the rows of its value type the open's check found `Underived`, in
+  the rows of its value type the open's check found `Underived` or
+  planned with a plan that may refuse a value, in
   their ids' order, while the job is pending. A layout whose text is
   missing or does not parse is no job's: the check refuses it as
   before. One the census finds no value at may be left out.
