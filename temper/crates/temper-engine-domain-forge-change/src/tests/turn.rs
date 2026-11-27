@@ -613,7 +613,11 @@ fn releasing_a_stale_update_counts_afresh_then_replans_without_another_count() {
 #[test]
 fn a_preparations_conflict_uses_the_merge_job_before_a_resolution() {
     for merge_job in [false, true] {
-        let f = Facts { merge_job, contains_base: Status::Failed, ..facts() };
+        let f = Facts {
+            merge_job: crate::MergeJob::Checked { head: HEAD, available: merge_job },
+            contains_base: Status::Failed,
+            ..facts()
+        };
         let next = decide(&preparing_change(), &f, &Heard { effect: EffectResult::Conflict, ..heard() });
         let delegate =
             if merge_job { Delegate::Merge { base: BASE, from: Some(HEAD) } } else { Delegate::Resolve { base: BASE } };

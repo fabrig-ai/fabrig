@@ -347,6 +347,68 @@ fn an_update_conflict_goes_to_the_merge_job_before_a_resolution() {
     world.close();
 }
 
+// temper/docs/design/protocol/hooks.md, 4.2.
+#[test]
+fn an_update_conflict_waits_for_its_head_then_runs_the_merge_hook() {
+    use skein_forge::api::{Answer, Entry, EntryKind, Error, Read};
+    use temper_protocol_worker_wire::v1::{self, Record};
+    let (mut world, task, head, base) = pushed_change_in(world(true, true, true), true, b"main");
+    let head_commit = translate::commit(head);
+    let path = b".temper/hooks".as_slice();
+    let read =
+        Read::File { head: head_commit, path: path.into(), max_bytes: world.env.limits.forge.client.answer_bytes };
+    world.scripted_forge_reads.push((read.clone(), Err(Error::Refused)));
+    world.scripted_forge_attempts = Some(Vec::new());
+    passed_ci(&mut world, head);
+    passed_ci(&mut world, base);
+    let deadline = world.env.now.saturating_add(Duration::from_secs(30));
+    while world.env.now <= deadline && world.scripted_forge_attempts.as_ref().unwrap().is_empty() {
+        world.tick();
+    }
+    world.advance_ticks(2);
+    assert_eq!(world.scripted_forge_attempts.as_ref().unwrap().len(), 1);
+    assert_eq!(world.jobs.len(), 0);
+    assert_eq!(world.assigned.len(), 2, "no resolution during a failed read");
+    assert_eq!(change_row(&world, task).change.resolutions, 0);
+    world.scripted_forge_reads[0].1 = Ok(Answer::Directory {
+        head: head_commit,
+        path: path.into(),
+        entries: Box::new([Entry { name: b"merge".as_slice().into(), kind: EntryKind::File }]),
+        truncated: false,
+    });
+    let job = next_job(&mut world, task, false);
+    let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("merge job spec");
+    assert_eq!(spec.command.as_ref(), b"repo/.temper/hooks/merge");
+    assert_eq!(world.scripted_forge_attempts.as_ref().unwrap().len(), 2);
+    assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Update { .. })));
+    world.close();
+}
+
+#[test]
+fn an_unmergeable_pull_uses_its_heads_hooks_instead_of_the_setting() {
+    use skein_forge::api::{Answer, Entry, EntryKind, Read};
+    let (mut world, task, head, _) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
+    let head = translate::commit(head);
+    let path = b".temper/hooks".as_slice();
+    let read = Read::File { head, path: path.into(), max_bytes: world.env.limits.forge.client.answer_bytes };
+    world.scripted_forge_reads.push((
+        read.clone(),
+        Ok(Answer::Directory {
+            head,
+            path: path.into(),
+            entries: Box::new([Entry { name: b"close".as_slice().into(), kind: EntryKind::File }]),
+            truncated: false,
+        }),
+    ));
+    world.scripted_forge_attempts = Some(Vec::new());
+    let resolution = next_resolution(&mut world, task);
+    assert_eq!(live_task(&world, resolution.task).requester, tasks::Party::Task(task));
+    assert_eq!(world.scripted_forge_attempts.as_ref().unwrap().len(), 1);
+    assert_eq!(world.jobs.len(), 0);
+    assert!(!world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Merge { .. })));
+    world.close();
+}
+
 /// temper/docs/design/domain/forge/change/repairs.md: a conflict without a project command goes straight to a resolution.
 #[test]
 fn without_a_merge_job_a_conflict_goes_to_a_resolution() {

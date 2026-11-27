@@ -383,6 +383,7 @@ pub(super) fn read_failed(
         | StepStage::BaseCi
         | StepStage::Compare
         | StepStage::CatchUp
+        | StepStage::MergeHooks(_)
         | StepStage::Reviews(_)
         | StepStage::FollowCheck(_)
         | StepStage::Paths => {

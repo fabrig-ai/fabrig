@@ -991,7 +991,20 @@ fn land_work_during_held_close(world: &mut World, goal: &engine::Assignment, bra
     let run = awakened(world, goal.task);
     let (work, producer) = make_change(world, &run, 93);
     park_goal(world, &run);
+    let assigned = world.assigned.len();
     produce(world, work, branch, &producer, b"Repair after close");
+    // The successful change can wake the goal while the closer reads for its replacement.
+    // Return the goal run's lent funds without releasing the obsolete close.
+    for _ in 0..STEPS {
+        if ended(world, first).is_some() {
+            break;
+        }
+        if let Some(next) = world.assigned[assigned..].iter().find(|next| next.task == goal.task).cloned() {
+            park_goal(world, &next);
+            break;
+        }
+        world.tick();
+    }
     wait_ended(world, first);
     (closer, first, work)
 }

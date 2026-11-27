@@ -1033,6 +1033,8 @@ impl World {
             tasks::EndedBy::Requester => people::EndedBy::Requester,
             tasks::EndedBy::Standing => people::EndedBy::Standing,
             tasks::EndedBy::Closer(closer) => {
+                batch[0].flags.conversation = false;
+                batch[0].label = 2;
                 people::EndedBy::Closer(people::Closer { connector: closer.connector, code: closer.code })
             }
         };

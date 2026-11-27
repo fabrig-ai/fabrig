@@ -111,6 +111,7 @@ enum StepStage {
     Compare,
     ContainsHead,
     CatchUp,
+    MergeHooks(skein_forge::api::Commit),
     Reviews(u32),
     FollowCheck(crate::follow_check::ReadKind),
     Paths,
@@ -353,6 +354,7 @@ pub struct Domain {
     merge_withheld: Set<u64>,
     pub(crate) stall_words: Map<u64, crate::stall::Report>,
     pub(crate) read_sessions: Map<u64, read_session::Session>,
+    merge_hooks: Map<u64, (skein_forge::api::Commit, crate::Hooks)>,
     // Volatile, bounded by changes (temper/docs/design/domain/forge/adoption-connection.md, 1).
     change_connections: Option<Box<Map<u64, skein_lib::Wall>>>,
     start_conflicts: Map<u64, skein_forge::api::Commit>,
@@ -1187,6 +1189,7 @@ impl Domain {
                     .expect("held task bounds"),
             ),
             read_sessions: Map::with_capacity(l.changes),
+            merge_hooks: Map::with_capacity(l.changes),
             change_connections: None,
             start_conflicts: Map::with_capacity(l.changes),
             review_requests: Map::with_capacity(l.changes),
@@ -1960,7 +1963,19 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::ParkCloser { task, wait } => crate::closer::park(d, task, wait, out),
         Event::ReadCloserSelection { task, repository } => crate::closer::read_selection(d, env, task, repository, out),
         Event::CheckCloser { task, step, repository, branch, base } => {
-            crate::closer::check(d, env, task, step, repository, branch, base, out);
+            crate::closer::check(d, env, task, step, repository, branch, crate::closer::Check::Landing(base), out);
+        }
+        Event::ReadCloserClose { task, step, dependencies, repository, branch } => {
+            crate::closer::check(
+                d,
+                env,
+                task,
+                step,
+                repository,
+                branch,
+                crate::closer::Check::Close(dependencies),
+                out,
+            );
             crate::waits::changed(d, task);
         }
         Event::ChangeEnding { task, ending } => {
@@ -5487,6 +5502,16 @@ fn step_read(
         connection_wait::wait(d, env, pending.task, out);
         return;
     }
+    if let StepStage::MergeHooks(head) = pending.stage {
+        if let Ok(hooks) = crate::hooks::answered(head, result) {
+            d.merge_hooks.insert(pending.task, (head, hooks)).expect("one hook answer per change");
+            finish_step(d, env, pending, out);
+        } else {
+            pending.retry_at = Some(env.now.saturating_add(env.limits.client.backoff));
+            d.steps.insert(owner, pending).expect("hook retry keeps its gather");
+        }
+        return;
+    }
     let closing = close_unrequested(row);
     let close_needs_tips = closing && (pending.branch.is_none() || row.delegate_status == change::Status::Failed);
     if pending.stage == StepStage::CloseLanding || (close_needs_tips && pending.stage == StepStage::Base) {
@@ -5521,7 +5546,11 @@ fn step_read(
         pull_ci = required.is_empty();
     }
     let next = match pending.stage {
-        StepStage::Taking | StepStage::StallChecks | StepStage::StallJobs | StepStage::FollowCheck(_) => {
+        StepStage::Taking
+        | StepStage::StallChecks
+        | StepStage::StallJobs
+        | StepStage::FollowCheck(_)
+        | StepStage::MergeHooks(_) => {
             unreachable!("special reads handled above")
         }
         StepStage::Branch => {
@@ -6576,6 +6605,16 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         }
         let effect_prior = row.change.clone();
         let mut stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
+        if let change::Decision::ReadMerge { head } = stepped.decision {
+            read_merge_hooks(d, env, pending, row.repository, head, out);
+            return;
+        }
+        if stepped.decision == change::Decision::Hold(change::Hold::Failed)
+            && row.catch_up.is_some()
+            && effect_prior.state == (change::State::Producing { requested: false })
+        {
+            row.producer_failure = Some(catch_up_command_failure(d, &row, base_tip));
+        }
         d.merge_withheld.remove(&row.task);
         if d.landing.held
             && let change::Decision::Effect(change::Effect::Merge { .. }) = stepped.decision
@@ -6669,6 +6708,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                 return;
             }
             change::Decision::None if advanced => {}
+            change::Decision::ReadMerge { .. } => unreachable!("hook reads are handled before saving the decision"),
             change::Decision::RepairEnded { head } => {
                 if row.ci_recheck.is_some() {
                     // An independently green head ends a CI repair, including one lifted from RedStands.
@@ -11679,17 +11719,75 @@ fn bind(d: &mut Domain, request: Token, mut address: Box<[u8]>, subject: Box<[u8
     out.push(Request::Bound { request, answer });
 }
 
-// The worker wire uses two four-byte lengths; the request is C2's compact JSON.
-// temper/docs/design/domain/worker/jobs.md; temper/docs/design/domain/forge/change/repairs.md.
-fn merge_available(d: &Domain, row: &ChangeRow, pending: &PendingStep, base_tip: [u8; 32]) -> bool {
-    if !pending.merge_job {
-        return false;
+fn read_merge_hooks(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    mut pending: PendingStep,
+    repository: skein_forge::api::Repository,
+    head: skein_forge::api::Commit,
+    out: &mut Queue<Request>,
+) {
+    pending.stage = StepStage::MergeHooks(head);
+    d.sequence = d.sequence.checked_add(1).expect("read sequence");
+    let owner = Token::new(d.sequence | (1_u64 << 62));
+    arm_gather(d, env, &pending, out);
+    d.steps.insert(owner, pending).expect("one gather per change");
+    gather_read(d, env, owner, repository, crate::hooks::read(head, env.limits.client.answer_bytes), out);
+}
+
+impl Domain {
+    /// The selected command at the merge's pinned head, if discovery has finished.
+    #[must_use]
+    pub fn merge_command(
+        &self,
+        task: u64,
+        from: Option<skein_forge::api::Commit>,
+    ) -> Option<(skein_forge::api::Commit, &[u8])> {
+        let &(head, hooks) = self.merge_hooks.get(&task)?;
+        if let Some(from) = from
+            && from != head
+        {
+            return None;
+        }
+        let row = self.changes.get(&task)?;
+        let repository = self.repositories.get(&row.repository)?;
+        let legacy = match hooks {
+            crate::Hooks::Legacy => self.merge_job(repository.project),
+            crate::Hooks::Directory { .. } => None,
+        };
+        Some((head, hooks.merge(legacy)?))
     }
+}
+
+fn catch_up_command_failure(d: &Domain, row: &ChangeRow, head: skein_forge::api::Commit) -> Box<[u8]> {
+    if let Some(&(at, hooks)) = d.merge_hooks.get(&row.task)
+        && at == head
+        && d.merge_command(row.task, Some(head)).is_none()
+    {
+        return hooks.missing_merge(head);
+    }
+    if d.merge_kind.is_none() {
+        Box::from(b"change's merge: job kind 3 is not declared.".as_slice())
+    } else {
+        Box::from(b"change's merge: the job cannot be described within its bounds or authority.".as_slice())
+    }
+}
+
+// The worker wire uses two four-byte lengths; the request is compact JSON.
+// temper/docs/design/domain/worker/jobs.md; temper/docs/design/domain/forge/change/repairs.md.
+fn merge_available(d: &Domain, row: &ChangeRow, pending: &PendingStep, base_tip: [u8; 32]) -> change::MergeJob {
+    if !pending.merge_job || (d.merge_kind.is_none() && row.catch_up.is_none()) {
+        return change::MergeJob::Disabled;
+    }
+    let Some(&(head, _)) = d.merge_hooks.get(&row.task) else { return change::MergeJob::Discover };
+    let available = merge_spec_fits(d, row, head, row.catch_up.unwrap_or(base_tip));
+    change::MergeJob::Checked { head, available }
+}
+
+fn merge_spec_fits(d: &Domain, row: &ChangeRow, head: [u8; 32], base: [u8; 32]) -> bool {
     let Some((bound, _)) = d.merge_kind else { return false };
     let Some(repository) = d.repositories.get(&row.repository) else { return false };
-    let Some(command) = d.merge_job(repository.project) else { return false };
-    let head = pending.branch.unwrap_or(base_tip);
-    let base = row.catch_up.unwrap_or(base_tip);
+    let Some((_, command)) = d.merge_command(row.task, Some(head)) else { return false };
     let mut length = 0_usize;
     for part in [
         repository.name.len(),

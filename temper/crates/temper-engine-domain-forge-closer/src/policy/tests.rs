@@ -4,7 +4,7 @@ fn facts() -> Facts {
     Facts {
         report: ReportRead::Read(None),
         goal_branch: true,
-        close_job: true,
+        close_job: Some(true),
         pending: false,
         landed: Box::new([9, 12]),
         base_holds: Some(false),
@@ -142,7 +142,7 @@ fn a_released_report_check_can_read_but_not_hold_again() {
     let released = step(&held.closer, &f);
     assert_eq!(released.decision, Decision::Make(Step::Close));
     f.released = false;
-    f.close_job = false;
+    f.close_job = Some(false);
     f.report = ReportRead::Unread;
     let read = step(&released.closer, &f);
     assert_eq!(read.decision, Decision::ReadReport);
@@ -160,9 +160,9 @@ fn close_first_where_the_project_names_a_close_job() {
 #[test]
 fn no_close_step_without_a_close_job_or_a_goal_branch() {
     let mut f = facts();
-    f.close_job = false;
+    f.close_job = Some(false);
     assert_eq!(step(&Closer::new(), &f).decision, Decision::Make(Step::Land));
-    f.close_job = true;
+    f.close_job = Some(true);
     f.goal_branch = false;
     assert_eq!(step(&Closer::new(), &f).decision, Decision::Report);
 }

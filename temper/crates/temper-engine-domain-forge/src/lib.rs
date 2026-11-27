@@ -56,6 +56,8 @@ pub use brief_words::{BriefFate, BriefUnread};
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 use temper_engine_domain_forge_vocabulary::brief_words;
 mod capabilities;
+mod hooks;
+pub use hooks::{CLOSE_HOOK, Hooks};
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod workflows;
 pub use workflows::{WORKFLOW_BYTES, WORKFLOWS};

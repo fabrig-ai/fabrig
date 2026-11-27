@@ -1845,7 +1845,7 @@ pub(super) fn start_recovered_change(
                 let Some(commit) = catch_up_commit(value) else { return false };
                 catch_up = Some(commit);
             }
-            tasks::Parameter::Bytes { name: 6 | 10, .. } => {}
+            tasks::Parameter::Bytes { name: 6 | 10 | 20, .. } => {}
             tasks::Parameter::Number { .. } | tasks::Parameter::Bytes { .. } | tasks::Parameter::Resource { .. } => {
                 return false;
             }
@@ -2535,15 +2535,12 @@ fn change_member(
         Err(why) => return Err(ChangeRefused::Refusal(why)),
     };
     let branch = change_branch(domain, env, task, &repository, change, earlier)?;
-    if change.merge.is_some() {
-        if domain.forge.merge_job(context.project).is_none() {
-            return Err(ChangeRefused::Words(Box::from(b"change's merge: the project names no merge_job.".as_slice())));
-        }
-        if !context.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Job(forge::MERGE_KIND)) {
-            return Err(ChangeRefused::Words(Box::from(
-                b"change's merge: its authority does not delegate to the merge job.".as_slice(),
-            )));
-        }
+    if change.merge.is_some()
+        && !context.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Job(forge::MERGE_KIND))
+    {
+        return Err(ChangeRefused::Words(Box::from(
+            b"change's merge: its authority does not delegate to the merge job.".as_slice(),
+        )));
     }
     let base = change_destination(domain, env, task, &repository, change)?;
     change_repairs(domain, env, change, &repository, &base)?;
@@ -3031,15 +3028,7 @@ fn change_delegate(
     if let forge_change::Delegate::Merge { base, from } = kind {
         let bound = domain.config.merge_kind?;
         let repository = domain.forge.repository(row.repository)?;
-        let command = domain.forge.merge_job(repository.project)?;
-        let head = match from {
-            Some(head) => head,
-            None => domain.forge.branch_head(&forge::Name {
-                forge: row.repository.forge,
-                repository: row.repository.repository,
-                what: forge::What::Branch(branch_parts(&row.base, env.limits.forge.name_bytes)?),
-            })?,
-        };
+        let (head, command) = domain.forge.merge_command(task, from)?;
         return Some(super::Delegate {
             executor: tasks::Executor::Job { kind: forge::MERGE_KIND },
             spec: tasks::Spec {
@@ -3068,7 +3057,8 @@ fn change_delegate(
     if kind == forge_change::Delegate::Close {
         let bound = domain.config.close_kind?;
         let repository = domain.forge.repository(row.repository)?;
-        let command = domain.forge.close_job(repository.project)?;
+        let task = domain.engine.core().tasks.task(task)?;
+        let command = close::command(domain, repository.project, close::hook(&task.spec.parameters))?;
         return Some(super::Delegate {
             executor: tasks::Executor::Job { kind: forge::CLOSE_KIND },
             spec: tasks::Spec {
@@ -4050,7 +4040,9 @@ fn change_decision_from_read(
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),
         forge_change::Decision::CancelRepair { head } => cancel_change_repair(domain, task, head),
         forge_change::Decision::CancelMovedDelegate { head } => cancel_moved_change_delegate(domain, task, head),
-        forge_change::Decision::RepairEnded { .. } => unreachable!("the forge top consumes a repair ended by green CI"),
+        forge_change::Decision::RepairEnded { .. } | forge_change::Decision::ReadMerge { .. } => {
+            unreachable!("the forge top consumes internal step progress")
+        }
         forge_change::Decision::Ready => {
             again = ready_change(domain, env, task);
             ProcedureStep::new(StepEnd::Wait)
@@ -4961,6 +4953,7 @@ pub(crate) fn outputs(
                 | forge_change::Decision::CancelRepair { .. }
                 | forge_change::Decision::CancelMovedDelegate { .. }
                 | forge_change::Decision::RepairEnded { .. }
+                | forge_change::Decision::ReadMerge { .. }
                 | forge_change::Decision::Ready
                 | forge_change::Decision::QueueRepair
                 | forge_change::Decision::NoChange
