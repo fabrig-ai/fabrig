@@ -14,8 +14,9 @@ use temper_workload::{
 
 type Eligible = fn(&Goal) -> bool;
 
-// The injected catalogue kinds and their eligible targets. Observed kinds
-// take no coin (temper/docs/design/testing/composed-catalogue.md, 1).
+// The injected catalogue kinds and their eligible targets. Bounds draw
+// their coins separately because they have no target; WRONG_TREE takes no
+// coin (temper/docs/design/testing/composed-catalogue.md, 1).
 const INJECTED_CATALOGUE: &[(Kind, Eligible)] = &[
     // busy
     (forge_faults::UNAVAILABLE, |_| true),
@@ -143,18 +144,31 @@ impl FaultDraw {
         } else {
             false
         };
+        let bounds = kinds
+            .iter()
+            .copied()
+            .filter(|kind| match *kind {
+                bounds::FORGE_READ_ADMISSIONS => true,
+                bounds::BRANCH_HOLDS => catalogue_rng(streams, *kind).below(2) != 0,
+                _ => false,
+            })
+            .collect();
         Self {
             plans,
             actions,
             people,
             ineligible,
-            bounds: kinds.iter().copied().filter(|kind| *kind == bounds::FORGE_READ_ADMISSIONS).collect(),
+            bounds,
             base_behind_configured: kinds.contains(&forge_faults::BASE_BEHIND),
             wrong_tree,
             disk,
             read_latency: Duration::from_millis(streams.rng(Stream::Scheduling, "system").between(1000, 1500)),
             release_configured: kinds.contains(&people::RELEASES_A_MEMBER),
         }
+    }
+
+    pub(in crate::composed::workload) fn bounds(&self) -> &[Kind] {
+        &self.bounds
     }
 
     /// Each planned kind and the logical goal it strikes, in plan order.
@@ -186,6 +200,10 @@ fn has_red_change(goal: &Goal) -> bool {
     goal.changes.iter().any(|change| change.red_once)
 }
 
+fn catalogue_rng(streams: Streams, kind: Kind) -> skein_lib::Rng {
+    streams.rng(Stream::Faults, &format!("{}/{}", kind.family, kind.name))
+}
+
 fn catalogue_plan(
     streams: Streams,
     workload: &Workload,
@@ -193,7 +211,7 @@ fn catalogue_plan(
     eligible: Eligible,
     ineligible: &mut BTreeSet<Kind>,
 ) -> Option<Plan> {
-    let mut rng = streams.rng(Stream::Faults, &format!("{}/{}", kind.family, kind.name));
+    let mut rng = catalogue_rng(streams, kind);
     if rng.below(2) == 0 {
         return None;
     }

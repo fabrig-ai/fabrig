@@ -10,6 +10,7 @@ use temper_workload::parties::{Act, Action};
 
 mod actions;
 mod blame;
+mod branch_holds;
 mod draw;
 pub use draw::FaultDraw;
 mod forge;
@@ -65,6 +66,7 @@ pub const CAMPAIGN_KINDS: &[Kind] = &[
     // people and parties
     // runs that park, resume and move
     // the engine's own bounds
+    bounds::BRANCH_HOLDS,
     // restarts
     restarts::ENGINE_RESTART_MID_TURN,
 ];
@@ -110,6 +112,7 @@ pub(in crate::composed) struct Faults {
     wrong: BTreeSet<u64>,
     missing_report: Option<blame::MissingReport>,
     bounds: Vec<Kind>,
+    branch_holds: Option<BTreeMap<u64, branch_holds::Load>>,
     actions: Vec<Action>,
     release_configured: bool,
     release_from: Option<(u64, u64)>,
@@ -141,9 +144,11 @@ impl Faults {
         for kind in ineligible {
             ledger.ineligible(kind);
         }
+        let branch_holds = bounds.contains(&bounds::BRANCH_HOLDS).then(BTreeMap::new);
         Self {
             merge_lag: plans.iter().any(|plan| plan.kind == forge_faults::MERGE_LATE).then(forge::MergeLag::default),
             bounds,
+            branch_holds,
             release_configured,
             watch: Watch::new(actions.iter().filter(|action| action.act == Act::HoldMember).cloned().collect()),
             release_from: None,

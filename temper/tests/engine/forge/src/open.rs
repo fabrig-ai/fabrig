@@ -8,6 +8,13 @@ use temper_faults::forge::MERGE_LATE;
 
 pub const A_PATH_DELETED_ON_THE_BASE: Kind = Kind { family: "stale", name: "a path deleted on the base" };
 
+pub const BRANCH_HOLDS_CAPACITY: Exclusion = Exclusion::new(
+    "a_prepare_is_admitted_when_branch_holds_are_released",
+    "failure worlds: repaired as a red",
+    temper_faults::bounds::BRANCH_HOLDS,
+    &["the holds and pending prepares, including the new change or train, exceed capacity"],
+);
+
 /// A late manual record of an already-landed squash can strand its train.
 pub const MERGE_LATE_RECORD: Exclusion = Exclusion::new(
     "a_late_manual_merge_record_finishes_the_landed_batch",
@@ -29,13 +36,8 @@ pub fn recording_landed_squash(row: &LandingRow, number: u64, commit: skein_forg
 
 /// Adds each engine exclusion whose fault `configured` holds, returning the first refusal.
 pub fn exclude(sweep: &mut Sweep, configured: &[Kind]) -> Result<(), String> {
-    if configured.contains(&temper_faults::bounds::BRANCH_HOLDS) {
-        sweep.exclude(Exclusion::new(
-            "a_prepare_is_admitted_when_branch_holds_are_released",
-            "failure worlds: repaired as a red",
-            temper_faults::bounds::BRANCH_HOLDS,
-            &["the holds and pending prepares, including the new change or train, exceed capacity"],
-        ))?;
+    if configured.contains(&BRANCH_HOLDS_CAPACITY.fault) {
+        sweep.exclude(BRANCH_HOLDS_CAPACITY)?;
     }
     if configured.contains(&A_PATH_DELETED_ON_THE_BASE) {
         sweep.exclude(Exclusion::new(

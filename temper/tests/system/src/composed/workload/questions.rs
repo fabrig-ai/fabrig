@@ -6,8 +6,8 @@ impl World {
         let mut amendments = Vec::new();
         let story = self.workload.as_ref().expect("workload");
         for goal in &story.workload.goals {
-            if goal.train
-                && let Some(task) = story.names.task(&goal.name)
+            if let Some(task) = story.names.task(&goal.name)
+                && (goal.train || self.waits_for_branch_room(task))
                 && let Some(row) = self.root.tasks().task(task)
                 && !story.widened.contains(&task)
             {

@@ -143,6 +143,37 @@ fn catalogue_kind_draws_its_own_coin_target_and_moment() {
 }
 
 #[test]
+fn branch_holds_draws_its_own_coin_without_a_goal() {
+    use bounds::BRANCH_HOLDS;
+    assert!(!GATE_KINDS.contains(&BRANCH_HOLDS));
+    assert!(CAMPAIGN_KINDS.contains(&BRANCH_HOLDS));
+    let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
+    let without: Vec<_> = kinds.iter().copied().filter(|kind| *kind != BRANCH_HOLDS).collect();
+    let (mut planned, mut skipped) = (false, false);
+    for seed in (0..64).chain([u64::MAX]) {
+        let gate = FaultDraw::new(seed, GATE_KINDS);
+        assert_eq!(gate.bounds(), &[bounds::FORGE_READ_ADMISSIONS], "seed {seed}");
+        let draw = FaultDraw::new(seed, &kinds);
+        let unchanged = FaultDraw::new(seed, &without);
+        let mut observed = draw.planned();
+        let coin = Streams::new(seed).rng(Stream::Faults, "the engine's own bounds/branch holds").below(2);
+        if coin == 0 {
+            assert!(!observed.iter().any(|(kind, _)| *kind == BRANCH_HOLDS), "seed {seed}");
+            skipped = true;
+        } else {
+            let index = observed.iter().position(|(kind, _)| *kind == BRANCH_HOLDS).expect("coin plans branch holds");
+            assert_eq!(observed.remove(index), (BRANCH_HOLDS, ""), "seed {seed}");
+            planned = true;
+        }
+        assert_eq!(observed, unchanged.planned(), "seed {seed}");
+        assert_eq!(draw.plans, unchanged.plans, "seed {seed}: injection moments");
+        assert_eq!(draw.acts(), unchanged.acts(), "seed {seed}");
+        assert_eq!(draw.ineligible(), unchanged.ineligible(), "seed {seed}");
+    }
+    assert!(planned && skipped);
+}
+
+#[test]
 fn fetch_cut_draws_its_own_coin_goal_and_moment() {
     assert!(CAMPAIGN_KINDS.contains(&FETCH_CUT));
     let kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();

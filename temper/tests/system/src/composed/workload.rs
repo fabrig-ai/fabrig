@@ -58,16 +58,11 @@ impl World {
         let workload = Workload::draw(&streams, &COMPOSED);
         let scheduling = streams.seed_of(Stream::Scheduling, "system");
         let config = setup::config(scheduling, &workload);
-        let mut limits: fn(&mut engine::Limits) = setup::limits;
-        if kinds.contains(&temper_faults::bounds::FORGE_READ_ADMISSIONS) {
-            limits = |limits| {
-                setup::limits(limits);
-                // Two admitted reads make COMPOSED reach this table while the
-                // other readers queue; the stock write table does not fill.
-                limits.forge.client.pending = 2;
-            };
-        }
-        let world = Self::configured_values(scheduling, scripts::idle(), true, config, limits);
+        let draw = (!kinds.is_empty()).then(|| faults::FaultDraw::for_workload(seed, &workload, kinds));
+        let planned_bounds = draw.as_ref().map_or(&[][..], faults::FaultDraw::bounds);
+        let world = Self::configured_values(scheduling, scripts::idle(), true, config, |limits| {
+            setup::limits(limits, planned_bounds);
+        });
         let mut world = Self::with_two_accounts(world);
         world.account_case.take().expect("two people");
         world.party = setup::party(1);
@@ -94,10 +89,7 @@ impl World {
         setup::forge(&mut world);
         // Both comparison sides use the same worker hello/admission path.
         world.absence.enabled = true;
-        if !kinds.is_empty() {
-            world.workload_faults =
-                Some(faults::Faults::new(seed, faults::FaultDraw::for_workload(seed, world.workload(), kinds)));
-        }
+        world.workload_faults = draw.map(|draw| faults::Faults::new(seed, draw));
         world.start_workload();
         world
     }
@@ -269,6 +261,7 @@ impl World {
         self.answer_workload_questions(&tasks);
         self.workload_answer_park(&tasks);
         self.latch_workload(&tasks);
+        self.release_branch_load(&tasks);
         self.workload_comparison_tick();
     }
 

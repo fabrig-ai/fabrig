@@ -105,7 +105,19 @@ pub(super) fn config(seed: u64, workload: &temper_workload::draw::Workload) -> e
     config
 }
 
-pub(super) fn limits(limits: &mut engine::Limits) {
+pub(super) fn limits(limits: &mut engine::Limits, planned: &[skein_world::faults::Kind]) {
+    use temper_faults::bounds;
+
+    if planned.contains(&bounds::FORGE_READ_ADMISSIONS) {
+        // Two admitted reads make COMPOSED reach this table while the
+        // other readers queue; the stock write table does not fill.
+        limits.forge.client.pending = 2;
+    }
+    if planned.contains(&bounds::BRANCH_HOLDS) {
+        // Six holds for a three-member train, two for a concurrent milestone
+        // change, and five for the goal branch and saved-work branches.
+        limits.forge.holds = 13;
+    }
     // Activations take turns on the composed world's single Smith process.
     limits.fleet.slots = 1;
     // COMPOSED has at most 2 + 2 + 3 named changes, each with a tree-cued gate.

@@ -571,7 +571,7 @@ impl World {
         script: Script,
         repository: bool,
         config: engine::Config,
-        limits: fn(&mut engine::Limits),
+        limits: impl FnOnce(&mut engine::Limits),
     ) -> Self {
         Self::configured_case(seed, script, repository, config, limits, (repository_forge(seed), link::default_forge()))
     }
@@ -581,7 +581,7 @@ impl World {
         script: Script,
         repository: bool,
         config: engine::Config,
-        limits: fn(&mut engine::Limits),
+        limits: impl FnOnce(&mut engine::Limits),
         (forge, forge_binding): (Forge, temper_engine_service_vocabulary::settings::Forge),
     ) -> Self {
         let (mut config, mut bounds) = configured_parts(config, repository);
