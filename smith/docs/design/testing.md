@@ -137,10 +137,27 @@ Every component's files and processes go through it:
   agent, host and local worlds share. The fake draws a tool and a body
   apart, so each body carries the fields of every tool: a path, a
   content, a command, a pattern and edits, and in some of them `job`'s
-  number, 1, and a shell's `yield_seconds`, 0. A drawn call reads its
+  number and a shell's `yield_seconds`, 0. A drawn call reads its
   own tool's fields, so a `job`, `shell`, `read` or `write` call takes
   its own from any body. Its invalid entries are an unknown tool's name,
   a cut object and an empty one.
+- **The `job` slot:** `job`'s number in a body is the menu's numeric
+  slot `job` (`skein/docs/design/testing/fakes/drawn-agent.md`, 2),
+  between `job ` and a space, as the product renders a job
+  (`domain/session.md`, 10), within a job number's bounds, 1 to the
+  largest `u32`. Its never-issued value, 999999, is past any number a
+  world's session issues, and its weight is a tenth. So a drawn `job`
+  call names a job its conversation was shown, stale or not, or one no
+  kit issued, and the session world records the class of each
+  (`domain/session.md`, 10) beside the slot's draw in the fake's
+  capture where it captures.
+- **The seeds it draws from:** smith's session world gives the fake
+  the parts of its seed's streams (`skein/docs/design/testing/sweeps.md`,
+  2): `agent/model`, and `Faults`' and `Scheduling`'s `llm`. The agent,
+  host and local worlds, not on streams, give their one seed, so their
+  scripted turns' failures and latencies draw as they did. A test that
+  shows what a seed drew names its seed for what it shows, so that a
+  change of the draws picks it again by that name, or scripts it.
 - **The OAuth issuer:** skein's fake issuer, with the same three faces
   (skein's `oauth/README.md`, section 5), reached through a `sign_in` account's
   moved addresses (shell/credentials.md, 1), so that smith's own registration is

@@ -38,7 +38,7 @@ impl Streams {
 
   Adding the golden ratio to a seed only shifts a SplitMix64 sequence by one draw, so a stream is never seeded by an offset of another's seed: every derived seed passes through `mix`.
 - **Independent by construction:** a stream's draws depend on the seed, the stream and the part alone, never on another stream's draws, so a run with restarts and one without draw the same goals, faults and parties' actions (the draft, 3.5).
-- **Parts:** each injector its own part of `Faults` (`forge`, `llm`, `restarts`), each party its own of `Parties`, so that a fault family added to a sweep, or a restart, leaves the others' draws as they were. A part's name is the world's.
+- **Parts:** each injector its own part of `Faults` (`forge`, `llm`, `restarts`), each party its own of `Parties`, so that a fault family added to a sweep, or a restart, leaves the others' draws as they were. A part's name is the world's. A model the fake LLM plays is a party, `agent/NAME`, whose part draws what its answers say, apart from the fake's failures (`Faults`' `llm`) and its latency and cache routing (`Scheduling`'s `llm`; `fakes/drawn-agent.md`, 3).
 - **Scheduling** is what the simulator and a world's own delivery order draw: a world seeds its simulated world, its latencies and its delivery order from `Scheduling`.
 - **Adoption is each world's,** as its goal moves it: today's worlds keep their seeding, and a world that moves to streams moves its pinned seeds with it.
 

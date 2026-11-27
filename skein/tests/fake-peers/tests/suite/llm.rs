@@ -299,9 +299,13 @@ fn played_anthropic_resets_are_refused_in_every_group() {
     ];
     for (label, scripts) in rows {
         let config = skein_llm_kit::fake::config();
-        let domain =
-            domain::Domain::played(&config, 23, scripts, api::Menu { arguments: Box::new([]), invalid: Box::new([]) })
-                .expect("played script domain");
+        let domain = domain::Domain::played(
+            &config,
+            23,
+            scripts,
+            api::Menu { arguments: Box::new([]), invalid: Box::new([]), slots: Box::new([]) },
+        )
+        .expect("played script domain");
         let result = make_domain_with_limits(
             Endpoint::anthropic(),
             key(),
@@ -685,7 +689,7 @@ fn responses_function_output_and_user_text_select_the_same_input_turn() {
         &config,
         23,
         scripts,
-        api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
+        api::Menu { arguments: Box::new([]), invalid: Box::new([]), slots: Box::new([]) },
         rules,
     )
     .expect("input-selected domain");
