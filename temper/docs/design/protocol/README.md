@@ -128,8 +128,6 @@ its tests, is `cluster.md`.
       `finish`, `merge` and `close`: how long each may run, how each is
       found, and the rule by repository while the older paths and
       settings stay.
-    - **hooks-contracts.md:** the shapes the changes timing hooks share
-      while that goal runs.
 17. **floor.md:** the oldest store this build opens: its families and
     versions, the owner sets temper hands jig's store, the golden
     deployment, named refusals and the policy on stored changes.
