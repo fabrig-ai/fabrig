@@ -81,7 +81,7 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
                 | ReadFor::Batch(_) => {}
                 ReadFor::Amendment(amendment) => match amendment.replay {
                     Replay::Agent { key, .. } => {
-                        let _pending = core.pending_calls.remove(&key);
+                        core.release_pending_call(key);
                     }
                     Replay::Person { .. } => {}
                 },
@@ -265,12 +265,7 @@ pub(crate) fn wait(
         amendment_reads::busy(core, work, out, amendment.replay);
         return;
     }
-    match &amendment.replay {
-        Replay::Agent { key, .. } => {
-            assert!(core.pending_calls.insert(*key, true).is_ok(), "waiting amendment call room");
-        }
-        Replay::Person { .. } => {}
-    }
+    // An agent amendment keeps the same place across each read and replay.
     let read = ResultRead {
         why: ReadFor::Amendment(Box::new(amendment)),
         ids: Box::new([next]),
@@ -390,12 +385,7 @@ fn closed_outcome(
 pub(crate) fn discard(core: &mut Core, request: Token) {
     let Some(read) = core.take_result_read(request) else { return };
     match read.why {
-        ReadFor::Amendment(read) => {
-            if let Replay::Agent { key, .. } = &read.replay {
-                let _pending = core.pending_calls.remove(key);
-            }
-            discard_party(core, read.replay);
-        }
+        ReadFor::Amendment(read) => discard_party(core, read.replay),
         ReadFor::Batch(read) => batch_reads::discard(core, read.request),
         ReadFor::Conclude { party, .. } | ReadFor::Delegate { party, .. } => {
             drop(core.land_kind(party.request, crate::routing::flight::Kind::Party));
@@ -412,7 +402,11 @@ fn discard_party(core: &mut Core, replay: Replay) {
         Replay::Person { request, .. } => {
             drop(core.land_kind(request, crate::routing::flight::Kind::Party));
         }
-        Replay::Agent { .. } => {}
+        Replay::Agent { key, .. } => {
+            if core.pending_calls.get(&key) == Some(&crate::CallHolder::Routed) {
+                core.release_pending_call(key);
+            }
+        }
     }
 }
 

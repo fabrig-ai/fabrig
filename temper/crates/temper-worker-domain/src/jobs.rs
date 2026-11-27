@@ -430,6 +430,7 @@ fn delivery_why(outcome: &crate::checkout::Outcome) -> Option<Box<[u8]>> {
             | Landing::DesignUnchecked
             | Landing::Refused => Box::from(b"push refused".as_slice()),
             Landing::Aborted => Box::from(b"push aborted".as_slice()),
+            Landing::Unadmitted { words } => words.clone(),
             Landing::Explained { fault, diagnostic } => {
                 let prefix = b"push: ".as_slice();
                 let size = prefix

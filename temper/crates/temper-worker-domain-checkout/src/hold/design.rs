@@ -303,6 +303,17 @@ fn run(
     let spec = super::nth(holding, delivery.repository);
     let at = super::place(holding.disk, spec);
     let head = super::tips(holding, delivery.repository).head;
+    if step == Step::Push && spec.admit {
+        return super::admission::request(
+            holding,
+            id,
+            push,
+            super::admission::Target::Design { delivery },
+            head,
+            delivery.tip,
+            out,
+        );
+    }
     let op = match step {
         Step::Fetch => Op::Fetch {
             store: super::borrowed(holding, delivery.repository).token,

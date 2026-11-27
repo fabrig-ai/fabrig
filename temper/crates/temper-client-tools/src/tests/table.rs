@@ -50,6 +50,7 @@ const UNKNOWN: &[(&[&str], Usage)] = &[
     (&["absent"], Usage::NoGroup { at: 0 }),
     (&["me", "--kind", "replies"], Usage::Unknown { at: 0 }),
     (&["me", "extra"], Usage::Extra { at: 0 }),
+    (&["task", "measure", "41", "--hold", "2", "--again"], Usage::Unknown { at: 3 }),
     (&["inbox", "--no-project"], Usage::Unknown { at: 0 }),
 ];
 #[test]
@@ -61,6 +62,7 @@ fn an_unknown_tool_or_argument_is_a_usage_error() {
 const MISSING: &[(&[&str], Usage)] = &[
     (&["task", "list"], Usage::Missing { tool: 2, form: 0, argument: 0 }),
     (&["task", "show"], Usage::Missing { tool: 3, form: 0, argument: 0 }),
+    (&["task", "measure", "41"], Usage::Missing { tool: crate::jig::rows::MEASURE_AT, form: 0, argument: 1 }),
     (&["task", "turn", "41"], Usage::Missing { tool: 6, form: 0, argument: 1 }),
     (&["inbox", "--root"], Usage::Missing { tool: 1, form: 0, argument: 2 }),
     (&["inbox", "--root", "41", "--root", "42"], Usage::Twice { tool: 1, form: 0, argument: 2 }),
@@ -162,6 +164,7 @@ const ACTS: &[&[&str]] = &[
     &["proposal", "decide", "p3/17", "reject"],
     &["task", "decide", "41", "leave", "later", "--hold", "2"],
     &["task", "release", "41", "--hold", "2", "--again"],
+    &["task", "measure", "41", "--hold", "2"],
     CANONICAL_STOP,
     &["task", "cancel", "41", "finished", "--grace", "60"],
 ];

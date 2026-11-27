@@ -119,6 +119,7 @@ pub(crate) fn landings(
             checkout::Landing::DesignUnchecked => {
                 Some(refused(directory, None, b"the goal branch takes checked deliveries alone; deliver instead"))
             }
+            checkout::Landing::Unadmitted { words } => Some(refused(directory, None, words)),
             checkout::Landing::Refused => {
                 Some(failed(directory, smith::DeliveryReason::RefusedByTarget, &smith::Diagnostic::empty()))
             }

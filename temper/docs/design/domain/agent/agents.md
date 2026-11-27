@@ -7,8 +7,8 @@
 | resolving a conflict (../forge/change/repairs.md) | as producing | the workspace's, from a merge in progress; `finish` with a change; `message`, as producing | the merge is resolved, checked and pushed |
 | a review (../forge/change/gates.md, 1), a triage | none | reads; `finish` with a verdict | its verdict meets its contract |
 | a chat | its person's words; its delegates' results and questions, and its person's answers to those questions (2) | most; `deliver` mid-run; `message`; `wait` | its person closes it |
-| a coordinator | questions, results, overlapping landings, the answers to its own questions (2); proposals and escalations to decide; while its run lives, its changes' results its wake policy wakes it for (below) | `delegate`, `change`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `deliver` mid-run, its design straight to its goal branch, where its charter sets `modify` (`tools.md`; ../forge/branches.md, 3); `wait` | its goal's report is written |
-| a standing role (`standing.md`) | its person's words; its own work's questions, results and the answers to its own questions; its timers; news its subscriptions class as waking, at a pace; proposals and escalations to decide | `goal`, `change`, `delegate`, `decided`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe`, `subscribe_forge`, `note`, its Now among its notes, `recall`, `message`, the forge's reads, `propose_settings` for its own rules; `wait` | only a cancel: a finish parks it (jig's `domain/tasks/standing.md`, section 2) |
+| a coordinator | questions, results, overlapping landings, the answers to its own questions (2); proposals and escalations to decide; while its run lives, its changes' results its wake policy wakes it for (below) | `delegate`, `change`, `amend`, `cancel`, `release`, `measure`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `deliver` mid-run, its design straight to its goal branch, where its charter sets `modify` (`tools.md`; ../forge/branches.md, 3); `wait` | its goal's report is written |
+| a standing role (`standing.md`) | its person's words; its own work's questions, results and the answers to its own questions; its timers; news its subscriptions class as waking, at a pace; proposals and escalations to decide | `goal`, `change`, `delegate`, `decided`, `amend`, `cancel`, `release`, `measure`, `decide`, `decide_escalation`, `propose`, `subscribe`, `subscribe_forge`, `note`, its Now among its notes, `recall`, `message`, the forge's reads, `propose_settings` for its own rules; `wait` | only a cancel: a finish parks it (jig's `domain/tasks/standing.md`, section 2) |
 | Ask temper (`ask-temper.md`) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale (1) | `see`, `document`, `remember`, `propose_settings` in its asking form; `wait` | its person closes it |
 
 **A coordinator hears its changes while it designs.** A coordinator's
@@ -536,10 +536,27 @@ and the goal's closer reads its `Left:` line.
   (`../forge/branches.md`, 2); `Risk:` what could go wrong; `Decided:` what it decided
   itself, each with its time. A message that changes the plan becomes an
   amendment the goal shows the person first.
+- **What its request asked for in its result:** where the goal's request
+  asks to have something in its result (the causes found, figures before
+  and after, counts by binary), the body answers it in one block, its
+  `Asked:` block: the first line whose start, past spaces, is `Asked: `,
+  saying what was asked, then each line after it up to a blank line, a
+  line whose start, past spaces, is `Left: `, `Risk: ` or `Decided: `, or
+  the body's end, a line for each thing asked: its answer, or plainly
+  that it couldn't be had, and why. The goal's closer carries the block
+  into the goal's end report (`../forge/branches.md`, 2, *The report*),
+  which is where its requester reads what it asked for; a body with no
+  `Asked: ` line has no block, and its end report has no part for one.
+  The client reads the block's lines as a paragraph's.
 - **Who is told:** the goal's part of charter 1's instructions and the
   reference's charter 5 (`../../protocol/configuration/stock.md` and `../../protocol/configuration/reference.md`). The
   stock's authority holds the goal's scope (13.4); a charter that does not ask
   for a report writes none, and no note yet is a normal state, never an error.
+  Charter 5's `goal` file asks for the `Asked:` block in a paragraph of
+  its own, after its report note's (`../../../charters/stock/goal.md`):
+  a coordinator is told to write it whenever its request asks for
+  anything in its result, and to say plainly what couldn't be had.
+  Charter 1's goal part, which has no coordinator, is unchanged.
 - **Its stories:** the joint world's
   `suite::task::a_chats_goal_shows_its_report_from_its_goals_row` (`../../testing/process-tier.md`
   ): a chat's goal writes its report, and the person reaches it from Home's

@@ -144,13 +144,12 @@ impl Domain {
         assert!(panel.within(), "admitted change fits the panel");
         Some(panel)
     }
-    fn panel_step(&self, row: &ChangeRow, now: Wall, limits: &Limits) -> (PanelStep, Option<change::Hold>) {
-        let mut state = &row.change.state;
-        let mut hold = None;
-        while let change::State::Held { was, why } = state {
-            hold = Some(*why);
-            state = was;
-        }
+    fn panel_step(&self, row: &ChangeRow, now: Wall, limits: &Limits) -> (PanelStep, Option<change::Cause>) {
+        let (state, hold) = if let change::State::Held { was, hold } = &row.change.state {
+            (was.as_ref(), Some(hold.cause))
+        } else {
+            (&row.change.state, None)
+        };
         let step = match state {
             change::State::NoChange { .. } | change::State::Ended => PanelStep::Ended,
             change::State::Taking { .. } => PanelStep::Taking,

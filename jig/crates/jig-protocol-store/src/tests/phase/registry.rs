@@ -113,10 +113,16 @@ fn a_new_value_type_registers_its_current_variant() {
     let mut disk = Disk::new(&base(true));
     let mut store = store(&disk, set);
     assert_opened(&disk.open(&mut store), 4); // five registry puts over two commits, then the seal
+    assert!(store.introduced_value_type(FAMILY.name, 2));
+    assert!(!store.introduced_value_type(FAMILY.name, 0), "a new layout is not a new value type");
     let layout = row(&mut store, 2, 2).unwrap();
     assert_eq!(layout.root.as_ref(), b"Row");
     assert_eq!(layout.variant.as_deref(), Some(b"later".as_slice()));
     assert_eq!(layout.text, hash(current));
+    switch(&mut disk, &mut store);
+    let mut again = self::store(&disk, set);
+    assert_opened(&disk.open(&mut again), 4);
+    assert!(!again.introduced_value_type(FAMILY.name, 2), "the active generation already registered the type");
 }
 
 #[test]

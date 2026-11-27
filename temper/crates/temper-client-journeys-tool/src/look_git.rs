@@ -10,8 +10,13 @@ use crate::{
 // Each step checks its own rows. The names test uses the same declarations.
 macro_rules! look_step_tests {
     ($(#[test] fn $name:ident() $body:block)*) => {
+        $crate::look_git::look_step_tests! { @check $crate::look_git::check_lists;
+            $(#[test] fn $name() $body)*
+        }
+    };
+    (@check $check:path; $(#[test] fn $name:ident() $body:block)*) => {
         $(#[test] fn $name() {
-            $crate::look_git::check_lists(stringify!($name), || $body);
+            $check(stringify!($name), || $body);
         })*
 
         pub(crate) const GIT_TEST_NAMES: &[&str] = &[$(stringify!($name)),*];

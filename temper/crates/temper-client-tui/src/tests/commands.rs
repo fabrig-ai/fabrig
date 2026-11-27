@@ -489,11 +489,7 @@ fn own_commands(words: &crate::words::Words) {
                 assert_eq!(*found, expected.as_bytes(), "help {name}");
             }
         }
-        assert_eq!(
-            notes.lines.iter().any(|line| line.as_ref() == b"n walks what needs you"),
-            needs && !chat,
-            "help {name}"
-        );
+        assert!(!notes.lines.iter().any(|line| line.as_ref() == b"n walks what needs you"), "help {name}");
         if name == "brief and need" {
             for line in [
                 b"/draft   A design session that ends in a draft and a goal".as_slice(),
@@ -506,8 +502,7 @@ fn own_commands(words: &crate::words::Words) {
             ] {
                 assert!(notes.lines.iter().any(|found| found.as_ref() == line), "help padding and words: {line:?}");
             }
-            let esc = notes.lines.iter().position(|line| line.as_ref() == b"Esc closes a list").unwrap();
-            assert_eq!(notes.lines[esc.checked_add(1).unwrap()].as_ref(), b"n walks what needs you");
+            assert!(notes.lines.iter().any(|line| line.as_ref() == "↑ reaches the list".as_bytes()));
         }
     }
     let mut root = root(true, true, false, false, false, true);

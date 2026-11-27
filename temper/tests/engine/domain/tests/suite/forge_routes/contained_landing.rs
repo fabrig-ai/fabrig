@@ -154,7 +154,7 @@ fn a_catch_up_whose_merge_is_retrying_lands_at_the_goal_branchs_pushed_tip() {
         .expect("main moved");
     let task = catch_up(&mut world, &goal, main);
     let job = next_job(&mut world, task);
-    let head = push_merge(&mut world, task, head, main);
+    let head = push_merge(&mut world, super::merge_job::Writer::Job(Token::new(7), &job), head, main);
     world.fake_env.limits.settle_min = CHECKING;
     world.fake_env.limits.settle_max = CHECKING;
     finish_job(&mut world, &job, b"{\"left\":[]}");
@@ -198,7 +198,7 @@ fn a_failed_merge_released_after_its_base_holds_its_head_lands_without_resending
     }
     assert!(
         matches!(&change_row(&world, task).change.state,
-        change::State::Held { was, why: change::Hold::Failed } if matches!(was.as_ref(), change::State::Landing { .. })),
+        change::State::Held { was, hold: change::Hold { cause: change::Cause::Failed, .. } } if matches!(was.as_ref(), change::State::Landing { .. })),
         "{:?}",
         change_row(&world, task)
     );

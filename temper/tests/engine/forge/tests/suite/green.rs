@@ -2,7 +2,9 @@
 use skein_fake_forge_domain::api as raw;
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
-use temper_engine_forge_world::changes::{change_row, change_step, change_step_task_running, change_step_with_release};
+use temper_engine_forge_world::changes::{
+    branch_name, change_row, change_step, change_step_task_running, change_step_with_release,
+};
 use temper_engine_forge_world::{World, translate};
 
 const TASK: u64 = 51;
@@ -13,10 +15,13 @@ fn repair(why: change::Repair, requested: bool, live: bool) -> (World, skein_for
     let mut world = World::new(219);
     world.adopt();
     world.landing_ci(b"main", true);
-    world.produce(BRANCH);
+    let name = branch_name(BRANCH);
+    world.event(top::Event::Hold { entry: 0, task: TASK, resource: name.clone(), from: None });
+    let head = world.push_new_attempt(&name, (50, 1), BRANCH);
+    world.event(top::Event::Finished { task: 50, attempt: 1, lost: false });
+    world.run_for(1);
     world.status(BRANCH, raw::Check::Passed);
     let pull = world.open_pull(BRANCH, b"main");
-    let head = translate::commit(world.branch(BRANCH));
     let mut row = change_row();
     row.pull = Some(pull);
     row.change.last_head = Some(head);
@@ -36,9 +41,10 @@ fn row(world: &World) -> &top::ChangeHot {
     row
 }
 
-fn released(world: &mut World, why: change::Hold) {
+fn released(world: &mut World, why: change::Cause) {
     let mut saved = world.change(TASK).clone();
-    saved.change.state = change::State::Held { was: Box::new(saved.change.state), why };
+    saved.change.state =
+        change::State::Held { was: Box::new(saved.change.state), hold: change::Hold::new(why, skein_lib::Wall::EPOCH) };
     saved.delegate = None;
     saved.delegate_status = change::Status::Failed;
     world.event(top::Event::Restore { record: top::Stored::Change(Box::new(saved)) });
@@ -87,8 +93,7 @@ fn a_run_in_progress_is_left_to_finish() {
     // The fixture's client poll is five seconds.
     assert!(until.as_nanos() <= world.wall().as_nanos().saturating_add(5_000_000_000));
     assert_eq!(row(&world).delegate, Some((REPAIR, change::Delegate::Repair(change::Repair::Ci))));
-    world.push(BRANCH, b"repair delivered");
-    let pushed = translate::commit(world.branch(BRANCH));
+    let pushed = world.push_attempt(&branch_name(BRANCH), (REPAIR, 1), BRANCH, b"file", b"repair delivered");
     assert_ne!(head, pushed);
     world.status(BRANCH, raw::Check::Passed);
     let decision = change_step(&mut world, 2, change::Status::Passed, Box::new([]));
@@ -101,12 +106,12 @@ fn a_run_in_progress_is_left_to_finish() {
 #[test]
 fn a_release_at_a_green_head_makes_no_fresh_repair() {
     let (mut world, _) = repair(change::Repair::Ci, true, false);
-    released(&mut world, change::Hold::Failed);
+    released(&mut world, change::Cause::Failed);
     assert_eq!(
         change_step_with_release(&mut world, 1, change::Status::Unknown, Box::new([]), true),
         change::Decision::Ready
     );
-    assert_eq!(row(&world).change.repairs, 0);
+    assert_eq!(row(&world).change.repairs, 1);
     assert!(row(&world).delegate.is_none());
 }
 
@@ -114,12 +119,12 @@ fn a_release_at_a_green_head_makes_no_fresh_repair() {
 fn a_release_at_a_failing_head_still_asks_a_fresh_repair() {
     let (mut world, _) = repair(change::Repair::Ci, true, false);
     world.status(BRANCH, raw::Check::Failed);
-    released(&mut world, change::Hold::Failed);
+    released(&mut world, change::Cause::Failed);
     assert_eq!(
         change_step_with_release(&mut world, 1, change::Status::Unknown, Box::new([]), true),
         change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci))
     );
-    assert_eq!(row(&world).change.repairs, 1);
+    assert_eq!(row(&world).change.repairs, 2);
 }
 
 #[test]
@@ -127,7 +132,7 @@ fn ci_passed_on_an_earlier_head_changes_nothing() {
     let (mut world, _) = repair(change::Repair::Ci, true, true);
 
     let earlier = translate::commit(world.branch(BRANCH));
-    world.push(BRANCH, b"new repair head");
+    world.push_attempt(&branch_name(BRANCH), (REPAIR, 1), BRANCH, b"file", b"new repair head");
     world.run_for(3);
     world.status(BRANCH, raw::Check::Failed);
     world.event(top::Event::Enqueue {
@@ -162,7 +167,7 @@ fn ci_passed_on_an_earlier_head_changes_nothing() {
 fn a_review_repair_is_untouched_at_a_green_head() {
     let (mut world, _) = repair(change::Repair::Gate(9), true, true);
     assert!(matches!(change_step(&mut world, 1, change::Status::Pending, Box::new([])), change::Decision::Wait { .. }));
-    released(&mut world, change::Hold::Failed);
+    released(&mut world, change::Cause::Failed);
     assert_eq!(
         change_step_with_release(&mut world, 2, change::Status::Unknown, Box::new([]), true),
         change::Decision::Delegate(change::Delegate::Repair(change::Repair::Gate(9)))

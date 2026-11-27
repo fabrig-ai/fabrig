@@ -36,8 +36,8 @@ pub use drift_accounts::{DriftAccount, DriftKind};
 mod client_documents;
 mod client_marks;
 pub use client_documents::{
-    ClientDocument, ClientEnvironment, ClientPool, ClientResource, ClientScope, ClientSubject, DocumentMissing,
-    ResourceFact, document_bound,
+    ClientDescription, ClientDocument, ClientEnvironment, ClientPool, ClientResource, ClientScope, ClientSubject,
+    DocumentMissing, ResourceFact, document_bound,
 };
 mod boundary;
 mod domain;
@@ -52,7 +52,7 @@ pub use boundary::{
 };
 pub use domain::{Domain, fire, next_deadline, procedure_outcome, split, step};
 pub use limits::{Limits, Vocabulary, valid};
-pub use spec::{Executor, Holding, Kind, Parameter, Spec, hold_kinds, holdings, procedure};
+pub use spec::{EffectKind, Executor, Holding, Kind, Parameter, Spec, effect_kinds, hold_kinds, holdings, procedure};
 
 #[cfg(test)]
 mod tests;

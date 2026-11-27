@@ -285,8 +285,8 @@ fn a_head_moved_at_the_turn_closes_the_round_and_returns_to_gating() {
         holders: Box::new([]),
     });
     world.run_for(1);
-    world.push_file(MEMBER, b"next", b"new delivery");
-    let head = translate::commit(world.branch(MEMBER));
+    let head = world.push_attempt(&name, (99, 1), MEMBER, b"next", b"new delivery");
+    world.event(top::Event::Finished { task: 99, attempt: 1, lost: false });
     world.event(top::Event::Answered { task: 99, attempt: 1, pushed: Box::new([(name, head, true)]) });
     world.run_for(1);
     landings::drive_landing(&mut world, LANDING);
@@ -339,7 +339,7 @@ fn a_conflict_closes_the_round_and_resolves_then_lands_in_a_later_landing() {
     assert!(world.landing(LANDING).landing.members[0].landed.is_none());
     let choice = changes::change_step_task(&mut world, CHANGE, 200, change::Status::Passed, Box::new([]), false, false);
     assert_eq!(choice, change::Decision::Delegate(change::Delegate::Resolve { base }));
-    world.resolve(MEMBER, b"resolved");
+    world.resolve_attempt(&changes::branch_name(MEMBER), (52, 1), MEMBER, b"resolved");
     for entry in 201..210 {
         changes::change_step_task(&mut world, CHANGE, entry, change::Status::Passed, Box::new([]), false, false);
         if matches!(world.change(CHANGE).change.state, change::State::Ready { .. }) {

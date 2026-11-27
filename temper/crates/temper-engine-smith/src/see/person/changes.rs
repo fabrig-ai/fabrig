@@ -174,24 +174,23 @@ fn step(value: &PanelStep) -> &'static [u8] {
         PanelStep::Cleared { .. } => b"cleared",
     }
 }
-fn hold(value: c::Hold) -> &'static [u8] {
+fn hold(value: c::Cause) -> &'static [u8] {
     match value {
-        c::Hold::Stalled => b"the forge stopped making progress",
-        c::Hold::Repairs => b"the repair allowance was exhausted",
-        c::Hold::Resolutions => b"the resolution allowance was exhausted",
-        c::Hold::Updates => b"the update allowance was exhausted",
-        c::Hold::BranchMoved => b"the branch moved outside its writer",
-        c::Hold::BranchMissing => b"the branch disappeared",
-        c::Hold::PullClosed => b"the pull request closed without a merge",
-        c::Hold::Retargeted => b"the pull request was retargeted",
-        c::Hold::Failed => b"a delegate or effect failed",
-        c::Hold::Runner => b"its CI runner ran out of re-runs; the change was not judged",
-        c::Hold::RedStands => b"its repair changed nothing and its red stands",
-        c::Hold::Flake => b"its repair found only flakes",
-        c::Hold::NoTest => b"its repair found no failed test",
-        c::Hold::Rejected => b"a required gate was rejected",
-        c::Hold::Authority(_) => b"the next delegate needs more authority",
-        c::Hold::Questions => b"the question allowance was exhausted",
+        c::Cause::Stalled => b"the forge stopped making progress",
+        c::Cause::Repairs => b"the repair allowance was exhausted",
+        c::Cause::Resolutions => b"the resolution allowance was exhausted",
+        c::Cause::Updates => b"the update allowance was exhausted",
+        c::Cause::BranchMoved => b"the branch moved outside its writer",
+        c::Cause::BranchMissing => b"the branch disappeared",
+        c::Cause::PullClosed => b"the pull request closed without a merge",
+        c::Cause::Retargeted => b"the pull request was retargeted",
+        c::Cause::Failed => b"a delegate or effect failed",
+        c::Cause::Runner => b"its CI runner ran out of re-runs; the change was not judged",
+        c::Cause::RedStands => b"its repair changed nothing and its red stands",
+        c::Cause::CloseRefused => b"its close check refused the goal's branch",
+        c::Cause::Rejected => b"a required gate was rejected",
+        c::Cause::Authority(_) => b"the next delegate needs more authority",
+        c::Cause::Questions => b"the question allowance was exhausted",
     }
 }
 

@@ -44,7 +44,9 @@ record CheckResults = w::CheckResults to record {
     flakes slice
 }
 record Head
+record Admit
 enum Ask = w::Ask to record { results tuple }
 record Red = w::Red { head via own::head }
 record Reds { reds slice }
+record Unadmitted
 enum Answer = w::Answer

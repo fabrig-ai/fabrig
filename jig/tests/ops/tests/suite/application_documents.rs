@@ -143,7 +143,7 @@ fn infrastructure_parts_retain_scope_prices_and_attributed_drift_without_making_
     };
     assert_eq!(entry.key, key);
     assert_eq!(entry.effect, effect);
-    assert_eq!(description.price, Some(40));
+    assert_eq!(description.instance.price, Some(40));
     assert_eq!(
         infrastructure_read(
             &mut world,
@@ -193,7 +193,7 @@ fn infrastructure_parts_retain_scope_prices_and_attributed_drift_without_making_
         panic!("effect part")
     };
     assert!(matches!(effect, infra::Effect::Restart { operation: 88, .. }));
-    assert_eq!(description.kind, 1);
+    assert_eq!(description.instance.kind, 1);
     assert_eq!(description.recovery, infra::Recovery::Keyed);
     world.event(infra::Event::Unnamed { task: 7 });
     assert_eq!(

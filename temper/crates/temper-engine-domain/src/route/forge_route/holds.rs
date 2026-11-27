@@ -9,7 +9,10 @@ use super::{
 use alloc::boxed::Box;
 
 mod change;
-pub(super) use change::{account as change_account, fallback as change_fallback};
+pub(super) use change::{
+    account as change_account, fallback as change_fallback, fallback_reason as change_fallback_reason,
+    questions_account, replay as replay_judgement,
+};
 
 pub(super) fn source(domain: &Domain, entry: Option<u64>, words: Box<[u8]>) -> tasks::HoldSource {
     tasks::HoldSource::Account { connector: domain.config.forge_connector, entry, words }
@@ -139,6 +142,11 @@ fn drift_words(domain: &Domain, resource: &forge::Name, recorded: Option<&forge:
         append(&mut words, &decimal(drift.at.as_nanos()));
         append(&mut words, b" ns since Unix epoch: ");
         drift_change(&mut words, &drift.change);
+        if let forge::DriftChange::Branch { .. } = drift.change
+            && let Some(entry) = domain.forge.nearest_write(resource)
+        {
+            change::last_write(&mut words, entry);
+        }
     }
     append(&mut words, b"; ");
     resource_words(domain, resource, &mut words);

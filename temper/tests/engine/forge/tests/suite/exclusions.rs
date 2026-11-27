@@ -20,6 +20,13 @@ const CASES: &[(Kind, &str, &str, &str, &str)] = &[
         "a resolution under way",
     ),
     (
+        temper_faults::forge::CLOSE_REFUSED,
+        "refusing/close_refused",
+        "a_failed_capability_refresh_reads_again",
+        "failure worlds: repaired as a red",
+        "the refused close occupies a slot in a full forge client call table",
+    ),
+    (
         temper_faults::people::CANCELS_A_GOAL,
         "people and parties/cancelling a goal",
         "a_goal_cancelled_while_its_branch_is_being_made_ends_cancelled",

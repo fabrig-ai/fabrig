@@ -22,7 +22,7 @@ fn role_chip() -> w::Chip {
     }
     records::chip_from_rows(&rows)
 }
-fn roles_host() -> Host {
+pub(super) fn roles_host() -> Host {
     roles_fixture().0
 }
 fn roles_fixture() -> (Host, Duties) {
@@ -211,6 +211,26 @@ fn talk_opens_by_prefix_and_its_list_lowers_on_escape_or_typing() {
     }
 }
 #[test]
+fn a_talk_restores_unsent_words_when_chosen_again() {
+    let mut host = talk_host(false, false);
+    no_box_writes(&give(&mut host, Event::Typed { value: b"x".as_slice().into() }));
+    let duties = give(&mut host, Event::Leave);
+    no_box_writes(&duties);
+    admit(&mut host, duties);
+    assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
+    assert_eq!(host.words(), b"");
+    no_box_writes(&give(&mut host, Event::Own { command: Own::Talk }));
+    host.frame();
+    assert_eq!(
+        host.event_of(&Key::Enter),
+        Some(Event::Act { act: Act::Go { address: Address::Talk { project: 3, task: ROLE } } })
+    );
+    no_box_writes(&host.report(Report::Key(Key::Enter)));
+    assert_eq!(host.root.pages().address(), &Address::Talk { project: 3, task: ROLE });
+    assert_eq!(host.words(), b"x");
+}
+
+#[test]
 fn leaving_a_talk_notices_its_minutes_and_known_cost_then_goes_home() {
     for (open, cost, exit, notice) in [
         (true, true, false, Some("Left Porter after 9 min · 42. It writes its Now.")),
@@ -221,10 +241,15 @@ fn leaving_a_talk_notices_its_minutes_and_known_cost_then_goes_home() {
         assert!(text(&mut host).contains("talking with Porter"));
         let duties = if exit {
             typed(&mut host, b"/exit");
-            give(&mut host, Event::Send)
+            host.frame();
+            assert_eq!(host.event_of(&Key::Enter), Some(Event::Send));
+            host.report(Report::Key(Key::Enter))
         } else {
-            assert_eq!(host.event_of(&Key::Escape), Some(Event::Leave));
-            host.report(Report::Key(Key::Escape))
+            assert_eq!(host.event_of(&Key::Escape), None);
+            empty(&host.report(Report::Key(Key::Escape)));
+            assert_eq!(host.root.pages().address(), &Address::Talk { project: 3, task: ROLE });
+            assert_eq!(host.event_of(&Key::Left), Some(Event::Leave));
+            host.report(Report::Key(Key::Left))
         };
         let duties = stored(&mut host, duties);
         assert!(!duties.close);
@@ -247,6 +272,21 @@ fn leaving_a_talk_notices_its_minutes_and_known_cost_then_goes_home() {
     give(&mut host, Event::Leave);
     assert!(text(&mut host).contains("after 1 min"), "the minimum length is one minute");
 }
+#[test]
+fn escape_sets_aside_a_talks_proposal_without_leaving() {
+    let mut host = talk_fixture(false, false, false, true);
+    let object = jig_client::contract::ObjectKey::Proposal(jig_client::contract::ProposalKey {
+        proposer: jig_client::contract::Proposer::Party(11),
+        number: 13,
+    });
+    assert!(has_option(&host, b"1. Accept it"));
+    assert_eq!(host.event_of(&Key::Escape), Some(Event::Aside { object }));
+    host.report(Report::Key(Key::Escape));
+    assert!(host.state().proposal_aside(&object));
+    assert_eq!(host.root.pages().address(), &Address::Talk { project: 3, task: ROLE });
+    assert!(!has_option(&host, b"1. Accept it"));
+}
+
 #[test]
 fn a_talk_keeps_tell_open_and_quit_but_exit_leaves() {
     let mut host = talk_host(true, true);

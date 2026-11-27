@@ -82,6 +82,7 @@ pub(crate) fn free(d: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>)
     }
     for name in names.into_boxed() {
         d.heads.remove(&name);
+        super::writes::remove(d, &name, out);
         super::emit(out, Request::Erase { key: Key::BranchHead(name) });
     }
 }
@@ -99,8 +100,12 @@ pub(crate) fn record(
     }
     let name = head.name.clone();
     let commit = head.commit;
+    let owned = head.owned;
     match d.heads.insert(name.clone(), head) {
         Ok(prior) => {
+            if owned {
+                super::writes::seed(d, &name, commit, out);
+            }
             let changed = match prior {
                 Some(prior) => prior.commit != commit,
                 None => true,

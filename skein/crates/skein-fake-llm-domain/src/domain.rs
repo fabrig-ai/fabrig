@@ -7,7 +7,8 @@ use core::mem;
 
 use skein_lib::{Deadlines, Duration, Env, Id, List, Queue, ReplyTo, Rng, Set, Slab, Time, Token};
 
-use crate::api::{Answer, Error, Failure, Query, Rule, Rules, Script, Scripts, Usage};
+use crate::api::{Answer, Capture, Error, Failure, Menu, Query, Rule, Rules, Script, Scripts, Seeds, Usage};
+use crate::draws::{self, Draws};
 use crate::{cache, limits, pieces, respond};
 
 /// How the fake behaves, handed to every step read-only.
@@ -112,6 +113,12 @@ pub struct Config {
     pub cache_entries: u32,
     /// Chance per mille that a request with no scope reads existing prefixes.
     pub unscoped_reads: u32,
+    /// Conversations whose attempts are counted at once; zero counts none.
+    pub conversations: u32,
+    /// Answers the capture keeps; zero keeps no capture.
+    pub capture_answers: u32,
+    /// Owned bytes the capture keeps: its answers, slot draws and classes, including wrappers.
+    pub capture_bytes: u32,
 }
 
 impl Config {
@@ -189,7 +196,7 @@ pub struct Domain {
     ///
     /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     timers: Deadlines<Id<Call>>,
-    rng: Rng,
+    draws: Draws,
     /// Tool call ids issued.
     ///
     /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
@@ -199,7 +206,7 @@ pub struct Domain {
     /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     played: Played,
     rules: Rules,
-    menu: crate::api::Menu,
+    menu: Menu,
     cache: cache::Cache,
 }
 
@@ -216,18 +223,18 @@ pub(crate) struct Played {
 
 impl Played {
     #[cfg(test)]
-    pub(crate) fn new(config: &Config, scripts: Scripts, menu: &crate::api::Menu) -> Result<Self, Error> {
+    pub(crate) fn new(config: &Config, scripts: Scripts, menu: &Menu) -> Result<Self, Error> {
         Self::by_input(config, scripts, menu, &Rules { cued: Box::new([]), asked: Box::new([]) })
     }
 
-    pub(crate) fn by_input(
-        config: &Config,
-        scripts: Scripts,
-        menu: &crate::api::Menu,
-        rules: &Rules,
-    ) -> Result<Self, Error> {
+    #[cfg(test)]
+    pub(crate) fn by_input(config: &Config, scripts: Scripts, menu: &Menu, rules: &Rules) -> Result<Self, Error> {
+        Self::admit(config, scripts, menu, rules, &Capture::none())
+    }
+
+    fn admit(config: &Config, scripts: Scripts, menu: &Menu, rules: &Rules, replay: &Capture) -> Result<Self, Error> {
         let Scripts { cued, asked, otherwise } = scripts;
-        if !valid_rules(&rules.cued, &cued) || !valid_rules(&rules.asked, &asked) {
+        if !valid_rules(&rules.cued, &cued) || !valid_rules(&rules.asked, &asked) || !crate::slots::valid(&menu.slots) {
             return Err(Error::InvalidRequest);
         }
         let otherwise = Script { cue: Box::new([]), turns: otherwise };
@@ -245,7 +252,7 @@ impl Played {
                 None => None,
             };
         }
-        held = match limits::menu(menu) {
+        held = match limits::menu_inputs(menu) {
             Some(bytes) => match held {
                 Some(total) => total.checked_add(bytes),
                 None => None,
@@ -259,8 +266,30 @@ impl Played {
             },
             None => None,
         };
+        let held = match held {
+            Some(bytes) => match Draws::attempt_bytes(config) {
+                Some(price) => bytes.checked_add(price),
+                None => None,
+            },
+            None => None,
+        };
         if !limits::fits(held, config.script_bytes) {
             return Err(Error::ContextTooLong);
+        }
+        let held = held.expect("admitted script and menu bytes");
+        let held = held.checked_add(limits::slots(&menu.slots).ok_or(Error::InvalidRequest)?);
+        if !limits::fits(held, config.script_bytes) || !crate::slots::valid_bodies(menu) {
+            return Err(Error::InvalidRequest);
+        }
+        let held = match held {
+            Some(bytes) => match limits::replay(replay) {
+                Some(price) => bytes.checked_add(price),
+                None => None,
+            },
+            None => None,
+        };
+        if !limits::fits(held, config.script_bytes) || !draws::valid(replay, &menu.slots) {
+            return Err(Error::InvalidRequest);
         }
         let cued_count = cued.len();
         let asked_count = asked.len();
@@ -296,7 +325,8 @@ fn valid_rules(group: &[Box<[Rule]>], scripts: &[Script]) -> bool {
             let Ok(turn) = usize::try_from(rule.turn) else {
                 return false;
             };
-            if default || turn >= script.turns.len() {
+            let Some(turn) = script.turns.get(turn) else { return false };
+            if default || crate::stretches::drawn(turn).is_some() {
                 return false;
             }
             default = rule.cue.is_empty();
@@ -355,17 +385,17 @@ impl Domain {
     ///
     /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub fn try_scripted(config: &Config, seed: u64, scripts: Box<[Script]>) -> Result<Domain, Error> {
-        Self::configured(config, seed, scripts, crate::api::Menu { arguments: Box::new([]), invalid: Box::new([]) })
+        Self::configured(
+            config,
+            seed,
+            scripts,
+            Menu { arguments: Box::new([]), invalid: Box::new([]), slots: Box::new([]) },
+        )
     }
 
     /// Admits caller-owned scripts and random input menus under one aggregate byte cap.
     /// No tool path, command, body or invalid name is supplied by this generic fake.
-    pub fn configured(
-        config: &Config,
-        seed: u64,
-        scripts: Box<[Script]>,
-        menu: crate::api::Menu,
-    ) -> Result<Domain, Error> {
+    pub fn configured(config: &Config, seed: u64, scripts: Box<[Script]>, menu: Menu) -> Result<Domain, Error> {
         Self::played(config, seed, Scripts { cued: scripts, asked: Box::new([]), otherwise: Box::new([]) }, menu)
     }
 
@@ -373,7 +403,7 @@ impl Domain {
     /// together with the random menu under one byte cap.
     ///
     /// Contract: docs/design/testing/fakes/llm.md, section 2.4.
-    pub fn played(config: &Config, seed: u64, scripts: Scripts, menu: crate::api::Menu) -> Result<Domain, Error> {
+    pub fn played(config: &Config, seed: u64, scripts: Scripts, menu: Menu) -> Result<Domain, Error> {
         Self::played_by_input(config, seed, scripts, menu, Rules { cued: Box::new([]), asked: Box::new([]) })
     }
 
@@ -385,21 +415,52 @@ impl Domain {
         config: &Config,
         seed: u64,
         scripts: Scripts,
-        menu: crate::api::Menu,
+        menu: Menu,
         rules: Rules,
     ) -> Result<Domain, Error> {
-        let played = Played::by_input(config, scripts, &menu, &rules)?;
+        Self::drawn(config, Seeds::One(seed), scripts, menu, rules, Capture::none())
+    }
+
+    /// Admits scripts, menu, rules and replay together, and chooses the fake's generators
+    /// (skein/docs/design/testing/fakes/drawn-agent.md, 3–4).
+    pub fn drawn(
+        config: &Config,
+        seeds: Seeds,
+        scripts: Scripts,
+        menu: Menu,
+        rules: Rules,
+        replay: Capture,
+    ) -> Result<Domain, Error> {
+        let played = Played::admit(config, scripts, &menu, &rules, &replay)?;
         Ok(Domain {
             calls: Slab::with_capacity(config.calls),
             held: Set::with_capacity(config.calls),
             timers: Deadlines::with_capacity(config.calls),
-            rng: Rng::new(seed),
+            draws: Draws::new(config, seeds, &menu, replay),
             minted: 0,
             played,
             rules,
             menu,
             cache: cache::Cache::new(config.cache_entries, config.cache_lifetime),
         })
+    }
+
+    /// A copy of the drawn and replayed answers retained so far.
+    #[must_use]
+    pub fn capture(&self) -> Capture {
+        self.draws.capture()
+    }
+
+    /// Gives the captured draw of `slot`, by name, for the call `id` its class.
+    /// Returns whether the draw was found and the class kept.
+    pub fn classify(&mut self, id: &[u8], slot: &[u8], class: &[u8]) -> bool {
+        for (index, declared) in self.menu.slots.iter().enumerate() {
+            if &*declared.name == slot {
+                let index = u32::try_from(index).expect("at most eight admitted slots");
+                return self.draws.classify(id, index, class);
+            }
+        }
+        false
     }
 
     /// Installs an account fault at injected time, refusing exhausted room.
@@ -498,7 +559,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Config>, out: &mut Queue<Request>) {
         State::Closed => unreachable!("a closed call has no timer"),
     };
     match &call.state {
-        State::Streaming(_) => arm(&mut domain.timers, &mut domain.rng, id, env),
+        State::Streaming(_) => arm(&mut domain.timers, domain.draws.scheduling(), id, env),
         State::Held(_) => {
             domain.held.insert(id).expect("at most one hold per call");
         }
@@ -526,8 +587,8 @@ fn call(
     let mut result = if !cache::valid(query) {
         Err(Error::InvalidRequest.into())
     } else if limits::fits(limits::query(query), config.query_bytes) {
-        match respond::by_input(
-            &mut domain.rng,
+        match respond::with_draws(
+            &mut domain.draws,
             &mut domain.minted,
             config,
             &mut domain.played,
@@ -551,7 +612,7 @@ fn call(
     };
     if let Ok(answer) = &mut result {
         let allowed = match query.caching {
-            crate::api::Caching::Unscoped => domain.rng.chance(config.unscoped_reads),
+            crate::api::Caching::Unscoped => domain.draws.scheduling().chance(config.unscoped_reads),
             crate::api::Caching::Scope(_) | crate::api::Caching::Marks(_) => true,
         };
         let read = if allowed { cache::read(&domain.cache, query, env.now) } else { 0 };
@@ -574,7 +635,7 @@ fn call(
     };
     let call = Call { state };
     let id = domain.calls.insert(call).expect("checked for room above");
-    arm(&mut domain.timers, &mut domain.rng, id, env);
+    arm(&mut domain.timers, domain.draws.scheduling(), id, env);
 }
 
 /// Thinking, timer: the answer goes out.
@@ -612,6 +673,6 @@ fn release(domain: &mut Domain, env: &Env<Config>, name: &[u8]) {
             }
             State::Streaming(_) | State::Thinking { .. } | State::Closed => unreachable!("found a held call"),
         };
-        arm(&mut domain.timers, &mut domain.rng, id, env);
+        arm(&mut domain.timers, domain.draws.scheduling(), id, env);
     }
 }

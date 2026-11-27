@@ -8,13 +8,19 @@
 //! Contract: smith/docs/design/domain/run-messages.md, section 1, smith/docs/design/domain/run.md, sections 9, 12; skein/docs/foundation/testing-strategy.md,
 //! sections 3, 6, 7 and 8; skein/docs/foundation/programming-model.md, section 10.2.
 
+use core::{cell::Cell, convert::Infallible};
+
 use skein_lib::{Duration, Rng, Time, Token};
-use skein_world::domain::{Referee, Span, assert_replays};
+use skein_world::{
+    domain::{Referee, Span, assert_replays},
+    sweep::{Case, cases, gate},
+};
 use smith_agent_world::{
     Job, Settings, World,
     messages_referee::{Meeting, Seen},
 };
 use smith_domain::run;
+use smith_session_world::shapes::{Reached, Sample};
 
 const SEEDS: [u64; 16] = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987];
 const CLASSES: [&str; 16] = [
@@ -265,7 +271,7 @@ fn observations(world: &World, seed: u64, idle: Duration) -> [u64; 16] {
     counts
 }
 
-fn run(seed: u64, fixture: Fixture) -> (Vec<String>, Outcome) {
+fn run(seed: u64, fixture: Fixture, reached: Option<&mut Reached>) -> (Vec<String>, Outcome) {
     let late = !matches!(fixture, Fixture::EarlyCancel);
     let cancel = cancellation_anchor(seed, fixture, late);
     let mut world = world(seed, fixture, cancel, late);
@@ -295,64 +301,110 @@ fn run(seed: u64, fixture: Fixture) -> (Vec<String>, Outcome) {
         fences: world.turn_metadata().iter().map(|(_, read, _)| *read).collect(),
         answered_at: world.answered_at(),
     };
+    if let Some(reached) = reached {
+        reached.turns(world.turns());
+    }
     (world.trace().into(), outcome)
 }
 
 #[test]
-fn bounded_message_schedules_replay_with_every_required_class() {
+fn bounded_message_schedules_replay_with_every_required_class() -> Result<(), Case<Infallible>> {
+    let collect_reach = gate();
+    // Keep the gate's comparison seeds. Otherwise flip parity so the
+    // comparison starts with a different message name even if delays coincide.
+    let comparison_mask = if collect_reach { 0x819a } else { 0x819b };
     let mut observed = [0_u64; 16];
-    for seed in SEEDS {
+    let mut shapes = Sample::new("bounded_message_schedules_replay_with_every_required_class");
+    cases(skein_world::this_test!("bounded_message_schedules_replay_with_every_required_class"), SEEDS, |seed| {
+        let mut reached = Reached::new();
         for fixture in [Fixture::Idle, Fixture::Wall, Fixture::WakeCancel, Fixture::EarlyCancel] {
             eprintln!("message sweep seed {seed}, fixture {fixture:?}");
-            let trace = assert_replays(seed, seed ^ 0x819a, |seed| run(seed, fixture));
+            let record = Cell::new(Some(&mut reached));
+            let trace = assert_replays(seed, seed ^ comparison_mask, |run_seed| {
+                run(run_seed, fixture, if run_seed == seed { record.take() } else { None })
+            });
             assert_ne!(trace.len(), 0);
-            let (_, outcome) = run(seed, fixture);
-            for (total, count) in observed.iter_mut().zip(outcome.counts) {
-                *total += count;
+            if collect_reach {
+                let (_, outcome) = run(seed, fixture, None);
+                for (total, count) in observed.iter_mut().zip(outcome.counts) {
+                    *total += count;
+                }
             }
         }
+        shapes.ran(&reached).expect("valid completion shapes");
+        Ok(())
+    })?;
+    shapes.write();
+    if collect_reach {
+        eprintln!("message classes {CLASSES:?}: {observed:?}");
+        for (name, count) in CLASSES.iter().zip(observed) {
+            assert!(count > 0, "required {name} class did not occur: {observed:?}");
+        }
     }
-    eprintln!("message classes {CLASSES:?}: {observed:?}");
-    for (name, count) in CLASSES.iter().zip(observed) {
-        assert!(count > 0, "required {name} class did not occur: {observed:?}");
-    }
+    Ok(())
 }
 
 #[test]
-fn empty_brief_jobs_replay_first_work_before_or_after_preparation_and_idle_or_wall_parking() {
-    for seed in SEEDS {
-        for work in [false, true] {
-            let trace: Vec<String> = assert_replays(seed, seed ^ 0x819b, |seed| {
-                let mut rng = Rng::new(seed ^ 0x729b);
-                let wall = seed.is_multiple_of(2);
-                let mut settings = settings(seed, Fixture::Idle);
-                settings.waiting = Duration::from_secs(if wall { 10 } else { 1 });
-                settings.budget.time = Duration::from_secs(if wall { 2 } else { 60 });
-                let mut world = World::with_empty_brief(settings);
-                if work {
-                    world.message_at(
-                        Time::ZERO.saturating_add(Duration::from_millis(rng.below(800))),
-                        Token::new(0),
-                        b"person".as_slice().into(),
-                        b"first".as_slice().into(),
-                    );
-                }
-                world.run(2000);
-                let mut referee = Referee::new(Meeting::new(0, settings.waiting));
-                for (at, seen) in world.messages_seen() {
-                    referee.observe(*at, seen.clone(), &mut Vec::new());
-                    referee.assert_holding(seed);
-                }
-                referee.assert_passed(seed);
-                if !work {
-                    assert_eq!((world.prompts()).len(), 0);
-                    assert!(
-                        matches!(world.answer(), run::Answer::Parked { turns: 0, spent } if *spent == run::Spend::ZERO)
-                    );
-                }
-                (world.trace().into(), format!("{:?}", world.answer()))
-            });
-            assert_ne!(trace.len(), 0);
-        }
+fn empty_brief_jobs_replay_first_work_before_or_after_preparation_and_idle_or_wall_parking()
+-> Result<(), Case<Infallible>> {
+    let mut shapes =
+        Sample::new("empty_brief_jobs_replay_first_work_before_or_after_preparation_and_idle_or_wall_parking");
+    cases(
+        skein_world::this_test!(
+            "empty_brief_jobs_replay_first_work_before_or_after_preparation_and_idle_or_wall_parking"
+        ),
+        SEEDS,
+        |seed| {
+            let mut reached = Reached::new();
+            empty_brief_case(seed, Some(&mut reached));
+            shapes.ran(&reached).expect("valid completion shapes");
+            Ok(())
+        },
+    )?;
+    shapes.write();
+    Ok(())
+}
+
+pub(super) fn empty_brief_case(seed: u64, mut reached: Option<&mut Reached>) {
+    for work in [false, true] {
+        let record = Cell::new(reached.as_deref_mut());
+        let trace: Vec<String> = assert_replays(seed, seed ^ 0x819b, |run_seed| {
+            let reached = if run_seed == seed { record.take() } else { None };
+            let seed = run_seed;
+            let mut rng = Rng::new(seed ^ 0x729b);
+            let wall = seed.is_multiple_of(2);
+            let mut settings = settings(seed, Fixture::Idle);
+            settings.waiting = Duration::from_secs(if wall { 10 } else { 1 });
+            settings.budget.time = Duration::from_secs(if wall { 2 } else { 60 });
+            let mut world = World::with_empty_brief(settings);
+            if work {
+                // The time-zero round admits the run before the parent can send work.
+                let delay = Duration::from_millis(rng.below(800)).max(Duration::from_nanos(1));
+                world.message_at(
+                    Time::ZERO.saturating_add(delay),
+                    Token::new(0),
+                    b"person".as_slice().into(),
+                    b"first".as_slice().into(),
+                );
+            }
+            world.run(2000);
+            let mut referee = Referee::new(Meeting::new(0, settings.waiting));
+            for (at, seen) in world.messages_seen() {
+                referee.observe(*at, seen.clone(), &mut Vec::new());
+                referee.assert_holding(seed);
+            }
+            referee.assert_passed(seed);
+            if !work {
+                assert_eq!((world.prompts()).len(), 0);
+                assert!(
+                    matches!(world.answer(), run::Answer::Parked { turns: 0, spent } if *spent == run::Spend::ZERO)
+                );
+            }
+            if let Some(reached) = reached {
+                reached.turns(world.turns());
+            }
+            (world.trace().into(), format!("{:?}", world.answer()))
+        });
+        assert_ne!(trace.len(), 0);
     }
 }

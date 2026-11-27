@@ -1,6 +1,6 @@
 # settings-catalogue: status
 
-2026-11-23. Where the tree's code lags or departs from [settings-catalogue.md](settings-catalogue.md).
+2026-11-27. Where the tree's code lags or departs from [settings-catalogue.md](settings-catalogue.md).
 
 - **Not yet:** 2: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read

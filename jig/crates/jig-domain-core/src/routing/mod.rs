@@ -23,7 +23,7 @@ pub(crate) mod view;
 
 pub use crate::vocabulary::{Event, Held, HoldingsNeed, Limits, Request, Timer, ToolKind};
 use crate::{
-    CallKey, CallPart, Core, RoutedCall,
+    CallHolder, CallKey, CallPart, Core, RoutedCall,
     routing::{
         children::{
             route_account, route_brief, route_fleet, route_projection_settled, tag_account, tag_brief, tag_fleet,
@@ -81,14 +81,14 @@ impl Core {
     #[must_use]
     pub fn reserve_connector_call(&mut self, key: CallKey) -> bool {
         self.start_runtime_input();
-        self.pending_calls.insert(key, true) == Ok(None)
+        self.reserve_call(key, CallHolder::Application)
     }
 
     /// Retain a connector subscription's task-hub continuation with its named call.
     #[must_use]
     pub fn reserve_connector_subscription(&mut self, token: Token, key: CallKey, subscription: u64) -> Option<Token> {
-        self.start_input();
-        if !self.reserve_connector_call(key) {
+        self.start_runtime_input();
+        if !self.reserve_call(key, CallHolder::Routed) {
             return None;
         }
         Some(self.fly_call(token, RoutedCall::Subscribe { key, subscription }))

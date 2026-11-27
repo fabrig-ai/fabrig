@@ -4,7 +4,7 @@ use super::early_start::{active_without_producer, goal_world, make, observe_push
 use super::questions::{next_producer, row};
 use super::*;
 use jig_domain_core::{documents, reads};
-use temper_engine_domain_forge_change::{Hold, State};
+use temper_engine_domain_forge_change::{Cause, State};
 
 const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 1000; // A stall's read, durable hold, escalation and worker delivery.
@@ -116,7 +116,10 @@ fn stall(world: &mut World, task: u64) {
 
 pub(super) fn assert_stalled(world: &World, task: u64) {
     assert!(
-        matches!(row(world, task).change.state, State::Held { why: Hold::Stalled, .. }),
+        matches!(
+            row(world, task).change.state,
+            State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::Stalled, .. }, .. }
+        ),
         "{:?}",
         row(world, task).change
     );
@@ -302,7 +305,10 @@ fn held_after_live_task() -> (World, engine::Assignment, u64, engine::Assignment
     }
     active_without_producer(&world, task);
     let mut held = row(&world, task).clone();
-    held.change.state = State::Held { why: Hold::Stalled, was: Box::new(State::Producing { requested: false }) };
+    held.change.state = State::Held {
+        hold: temper_engine_domain_forge_change::Hold::new(Cause::Stalled, skein_lib::Wall::EPOCH),
+        was: Box::new(State::Producing { requested: false }),
+    };
     world
         .store
         .seed(Box::new([Record::Forge { row: Box::new(forge_top::Stored::Change(Box::new(held))) }]), Box::new([]));
@@ -344,7 +350,10 @@ fn a_failed_dependency_does_not_release_a_producing_stall() {
     let (mut world, goal, task, dependency) = held_after_live_task();
     finish_dependency(&mut world, &dependency, true);
     world.until(Until::Ready);
-    assert!(matches!(row(&world, task).change.state, State::Held { why: Hold::Stalled, .. }));
+    assert!(matches!(
+        row(&world, task).change.state,
+        State::Held { hold: temper_engine_domain_forge_change::Hold { cause: Cause::Stalled, .. }, .. }
+    ));
     assert!(
         matches!(live_task(&world, task).phase, tasks::Phase::Held { why: tasks::Hold::Dependency(dep), .. } if dep == dependency.task)
     );

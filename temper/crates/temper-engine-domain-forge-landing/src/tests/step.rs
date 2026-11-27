@@ -473,6 +473,42 @@ fn a_cancelled_member_keeps_its_candidate_and_proofs_until_cleanup() {
 }
 
 #[test]
+fn a_cancel_routes_only_to_an_active_member_and_leaves_its_whole_unit() {
+    let (mut landing, _) = stacked(3);
+    landing.members[0].unit = landing.members[1].unit;
+    let cancelled = landing.members[1].change;
+    let unrelated = landing.members[2].clone();
+    assert_eq!(crate::leave(landing.clone(), u64::MAX), landing, "a foreign change has no member to cancel");
+    let next = crate::leave(landing.clone(), cancelled);
+    assert_eq!(next.members[0].left, Some(crate::Leave::Unit { change: cancelled }));
+    assert_eq!(next.members[1].left, Some(crate::Leave::Cancelled));
+    assert_eq!(next.members[2], unrelated);
+    assert_eq!(next.members[1].candidate, landing.members[1].candidate);
+    assert_eq!(crate::leave(next.clone(), cancelled), next, "a second cancel cannot mark a leave again");
+}
+
+#[test]
+fn single_landing_cancellation_preserves_recorded_members() {
+    let (mut landing, mut f) = stacked(2);
+    landing.round = crate::Round::new(Box::new([]));
+    landing.phase = Phase::Turn { at: at(4) };
+    landing.members[0].landed = landing.members[0].candidate;
+    let landed = landing.members[0].clone();
+    assert_eq!(crate::leave(landing.clone(), landed.change), landing);
+    let ordinary = decide(&landing, &f);
+    f.members[0].cancelled = true;
+    assert_eq!(decide(&landing, &f), ordinary, "cancellation is not a departure for a landed member");
+
+    f.members[1].cancelled = true;
+    let via_fact = decide(&landing, &f);
+    let via_cancel = crate::leave(landing.clone(), landing.members[1].change);
+    assert_eq!(via_fact.decision, Decision::None);
+    assert_eq!(via_fact.landing, via_cancel);
+    assert_eq!(via_cancel.members.as_ref(), &[landed]);
+    assert_eq!(via_cancel.phase, Phase::Preparing, "the other member leaves, not the landed one");
+}
+
+#[test]
 fn a_refused_merge_holds_without_discarding_its_candidate() {
     let mut f = facts();
     f.round_pull = crate::RoundPull::Open;

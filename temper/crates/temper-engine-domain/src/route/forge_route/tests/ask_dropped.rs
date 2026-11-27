@@ -1,7 +1,6 @@
 //! Dropped asks reach the change's own goal (temper/docs/design/domain/landing-members.md, 3.4).
 use super::super::{Domain, Work, forge, tasks};
 use super::{adopted, change_row, forge_request, procedure_root};
-use skein_lib::Queue;
 
 const CHANGE: u64 = 7;
 const GOAL: u64 = 9;
@@ -14,12 +13,7 @@ fn route_drop(goal: Option<u64>) -> Domain {
     let mut row = change_row(None);
     row.repository = adopted(1).provider;
     row.goal = goal;
-    forge::step(
-        &mut domain.forge,
-        &crate::translate::environment_forge(&env),
-        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-        &mut Queue::uncapped(),
-    );
+    super::restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Change(Box::new(row)));
     forge_request(&mut domain, &env, forge::Request::AskDropped { change: CHANGE, words: WORDS.into() });
     domain
 }

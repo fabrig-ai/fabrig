@@ -9,4 +9,4 @@ tui key paste "What can you tell me about Hello?"
 tui key enter
 tui see "Hello from the local fake model."
 web reload "/"
-tui see "/chats 1"
+tui see "Where you left off"

@@ -63,7 +63,7 @@ fn a_reported_build_refusal_draws_and_stops_every_host_send_until_close() {
             for key in [
                 Key::Enter,
                 Key::Escape,
-                Key::Control(b'p'),
+                Key::Control(b'o'),
                 Key::Char('n'),
                 Key::Char('1'),
                 Key::Paste(b"/quit".as_slice().into()),

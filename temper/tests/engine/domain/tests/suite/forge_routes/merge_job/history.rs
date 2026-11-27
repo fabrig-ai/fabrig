@@ -87,7 +87,7 @@ fn merge_job_attempt_history_names_worker_failures_before_the_retry_and_then_don
         }
         let retry = next_job(&mut world, task, false);
         assert_eq!(retry.run, first.run);
-        let merged = push_merge(&mut world, task, head, base);
+        let merged = push_merge(&mut world, Writer::Job(CHANNEL, &retry), head, base);
         finish_job(&mut world, &retry, RESULT);
         landed(&mut world, task, merged);
         let got = events(&world, task);
@@ -140,7 +140,7 @@ fn a_suspended_merge_job_records_no_failure_before_its_returned_attempt_succeeds
     let retry = next_job(&mut world, task, false);
     assert_eq!(retry.run, first.run);
     assert!(retry.attempt.raw() > first.attempt.raw());
-    let merged = push_merge(&mut world, task, head, base);
+    let merged = push_merge(&mut world, Writer::Job(returned, &retry), head, base);
     let event = world.protocol.answer_job(
         returned,
         retry.run.raw(),
@@ -189,7 +189,7 @@ fn losing_a_merge_jobs_worker_without_an_answer_names_lost_before_retry() {
     ended(&mut world, task, &first, h::JobOutcome::Lost);
     world.send(protocol::hello_slots(CHANNEL, 2, Box::new([])));
     let retry = next_job(&mut world, task, false);
-    let merged = push_merge(&mut world, task, head, base);
+    let merged = push_merge(&mut world, Writer::Job(CHANNEL, &retry), head, base);
     finish_job(&mut world, &retry, RESULT);
     landed(&mut world, task, merged);
     let got = events(&world, task);
@@ -248,7 +248,7 @@ fn a_merge_attempt_end_restarts_before_readback_and_is_written_once() {
         ask: people::Ask::Release { project: 1, task: first.run.raw(), revision, again: None },
     }));
     let retry = next_job(&mut world, task, false);
-    let merged = push_merge(&mut world, task, head, base);
+    let merged = push_merge(&mut world, Writer::Job(CHANNEL, &retry), head, base);
     finish_job(&mut world, &retry, RESULT);
     landed(&mut world, task, merged);
     let got = events(&world, task);

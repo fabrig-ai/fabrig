@@ -40,4 +40,5 @@ WaitKind: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 WaitPlace: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 WaitPosition: ceilings encoded=21 decoded=0; at_most(3) encoded=21 decoded=0
 WaitQuery: ceilings encoded=24 decoded=0; at_most(3) encoded=24 decoded=0
+Window: ceilings encoded=36 decoded=0; at_most(3) encoded=36 decoded=0
 family: ceilings encoded=1055879 decoded=1068032; at_most(3) encoded=207 decoded=66

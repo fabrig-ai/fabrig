@@ -991,9 +991,9 @@ pub fn produce_words(
 }
 
 /// What the producer is not to do: the change task does the rest of the landing.
-const PRODUCE_SCOPE: &[u8] = b"The host pushes what you deliver; the change task opens the pull request, \
-waits for CI and merges it. Finish with your change once it is checked. \
-Report the branch and head you produced; only the change task reports landing after merge.";
+const PRODUCE_SCOPE: &[u8] =
+    b"Finishing with your change checks it and the host pushes it; the change task opens the pull request, \
+waits for CI and merges it. Finish with your change once it is done; only the change task reports landing after merge.";
 
 pub const REPAIR_PRESERVATION: &[u8] = concat!(
     " Preserve the requested change, as its current spec and rulings state it, and unrelated base content, including both ",

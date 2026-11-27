@@ -185,13 +185,9 @@ fn a_small_fix_made_in_a_smith_chat_lands_through_the_fake_forge() {
     world.until(Until::SecondAssignment);
     let producer = world.assigned[1].clone();
     let branch = producer.workspace.repositories[0].push.clone().expect("writable change branch");
-    assert!(matches!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
-        raw::Answer::Branch(raw::Created::Created)
-    ));
+    world.run_create_branch(&producer, &branch, 1);
     let agent = smith_world::agent_for(&producer, None, Job::Coding);
-    let pushed = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fixed", 1)
-        .expect("worker pushed its branch");
+    let pushed = world.run_push_edit(&producer, &branch, b"fixed");
     assert!(pushed > 1);
     let producer_agent = run_smith(
         &mut world,
@@ -244,12 +240,8 @@ fn a_smith_change_with_failed_ci_is_repaired_reviewed_and_landed() {
             link: Box::new([]),
         }),
     );
-    assert!(matches!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
-        raw::Answer::Branch(raw::Created::Created)
-    ));
-    let failed_head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"first", 1)
-        .expect("producer pushed first head");
+    world.run_create_branch(&producer, &branch, 1);
+    let failed_head = world.run_push_edit(&producer, &branch, b"first");
     world.external(
         1,
         raw::Op::Write(raw::Write::Status {
@@ -290,8 +282,7 @@ fn a_smith_change_with_failed_ci_is_repaired_reviewed_and_landed() {
         "CI sections: {:?}",
         repair.sections
     );
-    let repaired_head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"repaired", 1)
-        .expect("repair pushed a new head");
+    let repaired_head = world.run_push_edit(&repair, &branch, b"repaired");
     for _ in 0..5 {
         world.tick();
     }

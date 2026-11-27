@@ -39,6 +39,10 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
     match event {
         Event::RedsAsk { owner, check, bytes } => crate::reds::encoded(domain, env, owner, check, bytes, out),
         Event::RedsAnswer { owner, check, answer } => crate::reds::decoded(domain, env, owner, check, answer, out),
+        Event::AdmitAsk { client, cookie, bytes } => crate::push_admission::encoded(domain, env, client, cookie, bytes),
+        Event::AdmitAnswer { client, cookie, answer } => {
+            crate::push_admission::decoded(domain, env, client, cookie, answer);
+        }
         Event::UsageRead { read, outcome } => host_step(domain, env, host::Event::UsageRead { read, outcome }),
         Event::ListRead { read, outcome } => host_step(domain, env, host::Event::ListRead { read, outcome }),
         Event::SourceAnswered { owner, answer } => {
@@ -247,6 +251,7 @@ pub(crate) fn agent_step(domain: &mut Domain, env: &Env<Limits>, event: agent::I
 }
 
 /// One of the host's requests: to the engine, or to a capability.
+#[expect(clippy::too_many_lines, reason = "route each host request without retaining it")]
 fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mut Queue<Request>) {
     match request {
         host::Request::Paused { state } => {
@@ -254,10 +259,14 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
             out.push(Request::Paused { state });
         }
         host::Request::Asked { run, attempt, number, answer } => {
-            crate::reds::asked(domain, env, run, attempt, number, answer, out);
+            if let Err(answer) = crate::push_admission::asked(domain, env, run, attempt, number, answer, out) {
+                crate::reds::asked(domain, env, run, attempt, number, answer, out);
+            }
         }
         host::Request::Up(up @ host::LinkUp::Ask { run, attempt, number, .. }) => {
-            crate::reds::numbered(domain, run, attempt, number);
+            if !crate::push_admission::numbered(domain, run, attempt, number) {
+                crate::reds::numbered(domain, run, attempt, number);
+            }
             out.push(Request::Link(up));
         }
         host::Request::ReadUsage { read, source } => out.push(Request::ReadUsage { read, source }),
@@ -422,6 +431,10 @@ fn note_git(domain: &Domain, hold: Token, op: &checkout::git::Op, out: &mut Queu
 /// One of the checkout's requests: out to io, or to the host.
 fn from_checkout(domain: &mut Domain, env: &Env<Limits>, request: checkout::Request, out: &mut Queue<Request>) {
     match request {
+        checkout::Request::AdmitPush { client, hold, repository, branch, expected, commit } => {
+            crate::push_admission::start(domain, env, client, hold, repository, branch, expected, commit, out);
+        }
+        checkout::Request::WithdrawAdmission { client } => crate::push_admission::withdraw(domain, client),
         checkout::Request::DependencyLanded { client, head } => {
             workspace::dependency_landed(domain, env, client, head, out);
         }

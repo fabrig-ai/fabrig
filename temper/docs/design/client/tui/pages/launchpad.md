@@ -26,12 +26,12 @@ Illustrative, a person in two projects, Hello and shop:
                                    written by the status agent 07:42 · /brief
 
  Where you left off
-   Hello   Away mode, a chat · today 08:12 · waiting on you            /chats 1
+   Hello   Away mode, a chat · today 08:12 · waiting on you
    shop    coupons, a goal · Fri 18:40 · Working
 
  Needs you
    ? Hello   csv-export: comma or semicolon? · asked 20 min ago
-   ✓ shop    Expired coupons say why · asked yesterday             n walks them
+   ✓ shop    Expired coupons say why · asked yesterday        /needs walks them
 
  Start
    /change   one change, run as Hello's way says
@@ -40,7 +40,7 @@ Illustrative, a person in two projects, Hello and shop:
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / for commands
 ────────────────────────────────────────────────────────────────────────────────
- ● Live · Hello · Claude Opus 5.5 · high                 2 need you · n to walk
+ ● Live · Hello · Claude Opus 5.5 · high                    2 need you · /needs
 ```
 
 - **Its parts, in order:** the header (`README.md`, 3); then the
@@ -58,10 +58,7 @@ Illustrative, a person in two projects, Hello and shop:
   the mark, the build and the place, and names no project (`README.md`,
   3), where the mockups frame the project and the deployment, the
   project named on the quiet line: the user's request `tui-14` of
-  2026-11-15; a chat's row ends with `/chats
-  N`, numbering the rows as the open question's default numbers
-  `/chats`' list (`../../../draft/surfaces.md`, 15), where the mockups draw
-  `/chats` once, on the first row (`../../../draft/surfaces.status.md`); what
+  2026-11-15; what
   is open in a row is its state as Home words it; a need's row says when
   it asked, "asked 20 min ago", and not who, since no read names the
   asker (8); the quiet line names the link's state, "● Live", as the
@@ -227,13 +224,11 @@ stand two columns in:
   18:40" in the week, the date before), then " · " and its state as
   Home's Chats row words it (the view's `shared::chat_state`), what is
   open in it, all but the title in `tui-hint`;
-- *its number,* on a chat's row alone: "/chats N" (`tui-hint`) at the
-  row's end, N the chat's place among the section's chats, 1 the
-  newest, which `/chats N` opens (`README.md`, *The TUI's own commands*).
-  The row's words are cut at a word with "…" where they and two spaces
-  would not leave it room; where that would leave the words fewer than
-  24 columns, the number is left out. A goal has no number: the TUI has
-  no goal's page.
+- *no number* (the user's word of 2026-11-27): no row draws its place
+  among the section's rows, and no command takes it, since it moves as
+  rows come and go: Up from the box reaches the rows and Enter opens one
+  (below; `README.md`, 2, *Words after a command that takes none*). The
+  row's words are cut at a word with "…" at the row's end.
 
 Left out with no such conversation, and while neither read has
 answered. A chat that writes a draft and is no design session says ", a
@@ -242,27 +237,8 @@ not listed: no read lists the talks a person has open (`../../pages/talk.md`,
 4), and `/talk NAME` opens a role, and its open talk with it
 (`README.md`, 2, *`/talk`*).
 
-- *Up and Down,* while the box is empty and no list stands under it,
-  move a selection through these rows, and the box keeps the focus:
-  with none selected, either selects the newest; then Up selects the one
-  above and Down the one below, staying at the first and the last. Each
-  makes the view's `LeftOff { task: Some(TASK) }` (`../host.md`, 1), and
-  the TUI's state keeps the task. With words in the box, or a list
-  under it, the arrows are the box's or the list's, as before.
-- *The selected chat* carries `tui-picked` too: the focus's mark `❯` in
-  its mark's place and its title in the accent, as a list's active item
-  is shown, across the band where the theme has one (`../theme.md`). A task
-  that is no longer among the lines is no selection.
-- *Enter,* on the empty box with a chat selected, opens it: the box's
-  Enter makes `Act { act: Go { address: Chat { task } } }`, followed as
-  a chat chosen from `/chats` is (`../host.md`, 1), whatever its project.
-  With the goal selected, Enter opens the goal's page on the web, as
-  `/open` does.
-- *Cleared:* Esc, while a chat is selected and no list stands, makes
-  `LeftOff { task: None }`; dismissing a command's list with Esc,
-  ordinary words typed in the box and leaving the launchpad clear it
-  too. While the box's words begin with "/", command composition keeps
-  the selection so `/open` can open that row's page.
+Its rows are the first of the launchpad's list: Up from the box reaches
+the newest, and Enter on a chat's row opens it (7, *The list*).
 
 ## 5. Needs you
 
@@ -284,15 +260,17 @@ each as the view's `shared::need_prompts` reads it:
   just now", "asked at 08:12", "asked yesterday", "asked Tue"; left out
   with no `since`. It is cut with the row's words, from their end.
 
-The section's last row ends with "n walks them" (`tui-hint`), placed and
-left out as a chat's number is (4). Left out while nothing needs the
+The section's last row ends with "/needs walks them" (`tui-hint`) at the
+row's end, the row's words cut at a word with "…" where they and two
+spaces would not leave it room, and left out where that would leave the
+words fewer than 24 columns. Left out while nothing needs the
 person, as the quiet line's count is, and while the needs' read has not
 answered. A row says no reason: its reason is the walk's (6).
 
 ## 6. Walking what needs you
 
-`n` on the launchpad's empty box while Needs you stands and no list
-does, or `/needs`: a prompt a need, under the box in the quiet line's
+`/needs`, or Enter on a need's row of the launchpad's list (7, *The
+list*), which shows that need first: a prompt a need, under the box in the quiet line's
 place (`tui-list`, an options menu after the box, its head a line of
 its own, `tui-list-head`), one after another in Needs you's order
 (`../../../draft/tui.md`, section 3, *Needs from elsewhere*), across the
@@ -320,10 +298,9 @@ with none left the walk ends and the TUI notes "Nothing else needs you."
 (`tui-note`) until the next send or screen. Esc ends the walk. "Tell it
 something else" sets the question aside: the box's next words answer it,
 as a chat's question's words do, and the walk goes on after the send.
-Words typed while a prompt stands end the walk; when `n` opened it and
-nothing was taken, the box holds "n" before them, so that a message
-beginning with n types as ever. On a chat `n` types: a chat's question
-is its own.
+Words typed while a prompt stands end the walk, the box keeping them.
+`n` types on every screen, the user's word of 2026-11-27: no bare
+letter starts the walk. On a chat a chat's question is its own.
 
 ## 7. Its other parts
 
@@ -374,11 +351,58 @@ is its own.
   standing role (`README.md`, 2, *`/talk`*); "/ask", "Ask temper"; and
   in front of a box, while `/web` is offered, "/web", "Open temper in
   your browser" (`../box.md`, *`/web`, temper in the browser*).
-- **The box keeps the keys:** the box is the only node of the launchpad
-  a person acts on, so the keys stay in it (`README.md`, *The box*), but
-  Up, Down, Enter and Esc on the left-off rows and `n` while it is empty
-  (4 and 6). `/chats` opens any live chat of the project; what needs the
+- **The list** (the user's word of 2026-11-27: the sections are a list
+  above the box): the rows of Where you left off (4), Needs you (5), Team
+  on PROJECT (a role's row: the person's "You" acts on nothing and is
+  none of it) and Start, in that order; the headline and the notes are
+  none of it. The box is the only node of the launchpad a person acts
+  on (`README.md`, *The box*); the list's keys are the host's, read
+  before skein's key reader (`../host.md`, 1, *A key*), Ctrl-p and
+  Ctrl-n as Up and Down (skein's `ui/screen.md`, 6.2, *Emacs's keys*).
+  `/chats` still opens any live chat of the project; what needs the
   person is walked, answered in its chat or on the web.
+  - *Into it:* Up on the box with its caret on the box's first line,
+    the box empty or not, while no list stands under the box, moves the
+    focus to the list's first row, the newest conversation, so that Up
+    then Enter reopens it. Skein moves no caret between a text area's
+    rows (skein's `ui/screen.md`, 10, *A text area's rows*), so until it
+    does, Up anywhere in the box is on its first line. With no row, Up
+    is as it was; Down on the box enters nothing.
+  - *Drawn:* the row with the focus carries `tui-picked`: the focus's
+    mark `❯` in its list mark's place, a need's own mark kept after it,
+    and its words in the accent, across the band where the theme has one
+    (`../theme.md`). The box keeps its words, never cleared, drawn
+    without the focus: no caret, its words dim (`tui-hint`). The quiet
+    line's right half says "Enter opens · Tab sections · Esc back to the
+    box" (`README.md`, 1, *The quiet line*).
+  - *Moving:* Up and Down move a row at a time, falling through from
+    one section to the next; Up at the first row stays, and Down past
+    the last row goes back to the box. Tab moves to the next section's
+    first row, staying in the last section; Shift-Tab to the section
+    before's first row, and in the first section to its first row.
+    PgUp and PgDn page the body, as anywhere.
+  - *Enter, or Right,* acts on the row, and the focus goes back to the
+    box: a chat's or a design session's opens it, `Act::Go` to its
+    `Chat { task }`, followed as a chat chosen from `/chats` is, whatever
+    its project; the goal's opens its page on the web, as `/open` does;
+    a need's starts the walk from it (6); a role's opens a talk with
+    it, `Act::Go` to its `Talk { project, task }`, as `/talk`'s choice
+    does (`README.md`, section 2, *`/talk`*); a Start row does what its
+    command pressed does: `/draft`, `/change` and `/ask` go to their
+    place not yet started, `/talk` opens its list, `/web` the browser.
+  - *Out of it:* Esc goes back to the box and its words; so does a key
+    that types (a character, a paste, Backspace or Delete), which then
+    acts in the box, typing adding to its words, the caret at their end.
+    Words that begin with "/", typed so, keep the row picked as the
+    object in focus, `tui-picked` still drawn, so that `/open` opens its
+    page (`README.md`, section 2, *`/open`*); other words, Esc on a
+    command's list and leaving the launchpad clear it. A row no longer
+    drawn, a chat ended or a need answered, returns the focus to the
+    box. Left and any other key do nothing in the list.
+  - *Its state,* `Tui`'s: the row picked, by what it is (a chat's, the
+    goal's or a role's task, a need's object, a Start row's command),
+    and whether the list holds the focus; the view's event `Picked {
+    row }` (`../host.md`, 1).
 - **`/brief`'s note:** the briefs whole, after the root's notes in the
   sections, until the next send or screen: for each joined brief, newest
   first, its project's name and ": " then its sentence, and its lede, a

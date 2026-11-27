@@ -12,9 +12,8 @@ fn push_for_delivery(world: &mut World, task: u64, producer: &engine::Assignment
     let branch = row(world, task).branch.clone();
     let base = row(world, task).base.clone();
     let tip = world.fake.branch(b"org/repo", &base).expect("base branch");
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: tip }));
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fixed", 1)
-        .expect("producer pushed");
+    let head = world.worker_commit(tip, b"file", b"fixed");
+    world.run_push(producer, &branch, head, 1);
     // These stories stall the change's gather, not the ending writer's read.
     // Reporting the push frees its writer in the terminal's own commit.
     engine::Parts {

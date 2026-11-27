@@ -456,6 +456,7 @@ impl World {
                             pull.number = entry;
                             pull.head = head.clone();
                             pull.base = row.landing.branch.clone();
+                            pull.base_commit = Some(self.main);
                             pull.commit = self.prefixes[i].unwrap();
                             self.pull = Some(pull);
                             Answer::Created(entry)

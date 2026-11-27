@@ -199,8 +199,8 @@ fn a_red_third_of_four_is_narrowed_across_restart_and_its_repair_lands_later() {
 
     // The worker delivers on the blamed change's own branch; its procedure, not
     // a replacement ChangeRow, brings that repaired head back to Ready.
-    world.push(b"temper/c53", b"fixed");
-    let repaired_head = translate::commit(world.branch(b"temper/c53"));
+    let branch = b"temper/c53";
+    let repaired_head = world.push_attempt(&changes::branch_name(branch), (55, 1), branch, b"file", b"fixed");
     assert_ne!(repaired_head, head);
     for entry in 3000..3010 {
         changes::change_step_task(&mut world, 53, entry, change::Status::Passed, Box::new([]), false, false);

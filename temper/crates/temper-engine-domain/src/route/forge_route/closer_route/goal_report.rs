@@ -26,7 +26,7 @@ pub(crate) struct Observation {
 #[derive(Hash, Debug)]
 enum Observed {
     Reading(Token),
-    Read(Option<Box<[u8]>>),
+    Read(c::ReportFields),
     Failed,
     Waiting(Wall),
 }
@@ -43,7 +43,7 @@ pub(crate) struct Flight {
 struct Newest {
     changed: Wall,
     name: u64,
-    left: Option<Box<[u8]>>,
+    fields: c::ReportFields,
 }
 
 #[derive(Hash, Debug)]
@@ -56,7 +56,7 @@ pub(super) fn observed(domain: &mut Domain, env: &Env<Limits>, task: u64, at: At
     let Some(observation) = domain.closer_reports.get_mut(&task) else { return Some(c::ReportRead::Unread) };
     match &observation.state {
         Observed::Reading(_) => None,
-        Observed::Read(left) if observation.at == at => Some(c::ReportRead::Read(left.clone())),
+        Observed::Read(fields) if observation.at == at => Some(c::ReportRead::Read(fields.clone())),
         Observed::Read(_) => Some(c::ReportRead::Unread),
         Observed::Failed => {
             let client = &env.limits.forge.client;
@@ -154,17 +154,17 @@ pub(crate) fn loaded(
             crate::restart::request_load(domain, waiter, range, None, out);
         }
         Ok(None) => {
-            let left = match flight.newest {
-                Some(newest) => newest.left,
-                None => None,
+            let fields = match flight.newest {
+                Some(newest) => newest.fields,
+                None => c::ReportFields::empty(),
             };
-            finish(domain, waiter, flight.task, Ok(left));
+            finish(domain, waiter, flight.task, Ok(fields));
         }
         Err(()) => finish(domain, waiter, flight.task, Err(())),
     }
 }
 
-fn finish(domain: &mut Domain, waiter: Token, task: u64, answer: Result<Option<Box<[u8]>>, ()>) {
+fn finish(domain: &mut Domain, waiter: Token, task: u64, answer: Result<c::ReportFields, ()>) {
     domain.archive_reads.retire(Id::from_token(waiter));
     let Some(observation) = domain.closer_reports.get_mut(&task) else { return };
     let Observed::Reading(owner) = observation.state else { return };
@@ -172,9 +172,9 @@ fn finish(domain: &mut Domain, waiter: Token, task: u64, answer: Result<Option<B
         return;
     }
     observation.state = match answer {
-        Ok(line) => {
+        Ok(fields) => {
             observation.delay = None;
-            Observed::Read(line)
+            Observed::Read(fields)
         }
         Err(()) => Observed::Failed,
     };
@@ -247,7 +247,11 @@ fn entry(
             Some(line) => Some(skein_lib::bytes::copy_of(line)),
             None => None,
         };
-        flight.newest = Some(Newest { changed: entry.changed, name, left });
+        let asked = match c::goal_asked(&entry.body) {
+            Some(block) => Some(skein_lib::bytes::copy_of(block)),
+            None => None,
+        };
+        flight.newest = Some(Newest { changed: entry.changed, name, fields: c::ReportFields { left, asked } });
     }
     *at = at.checked_add(1).expect("bounded candidate index");
     Ok(next_range(flight))

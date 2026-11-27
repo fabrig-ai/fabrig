@@ -1,13 +1,13 @@
 //! The check after a landing's decision (temper/docs/design/domain/landing-liveness.md, 2–3).
 use crate::{Awaited, Decision, Facts, Landing, Phase, Preparation, RoundPull, Status, Stepped, Stuck};
 
-pub(crate) fn members_and_train(landing: &Landing, facts: &Facts) -> Option<Stuck> {
+pub(crate) fn members_and_train(before: &Landing, landing: &Landing, facts: &Facts) -> Option<Stuck> {
     // The legacy single path can remove cancelled members. The remaining facts
     // are then a subsequence in the same order.
     let reduced = landing.members.len() < facts.members.len();
     let mut members = landing.members.iter();
-    for fresh in &facts.members {
-        if reduced && fresh.cancelled {
+    for (prior, fresh) in before.members.iter().zip(&facts.members) {
+        if reduced && fresh.cancelled && crate::domain::active(prior) {
             continue;
         }
         let member = members.next().expect("one fact per member");
@@ -23,7 +23,7 @@ pub(crate) fn members_and_train(landing: &Landing, facts: &Facts) -> Option<Stuc
     None
 }
 
-pub(crate) fn check(step: &Stepped, facts: &Facts) -> Option<Stuck> {
+pub(crate) fn check(before: &Landing, step: &Stepped, facts: &Facts) -> Option<Stuck> {
     let landing = &step.landing;
     match landing.phase {
         Phase::Held { .. } | Phase::Landed | Phase::Cancelled => return None,
@@ -32,7 +32,7 @@ pub(crate) fn check(step: &Stepped, facts: &Facts) -> Option<Stuck> {
     if step.decision == Decision::Finish {
         return None;
     }
-    if let Some(cause) = members_and_train(landing, facts) {
+    if let Some(cause) = members_and_train(before, landing, facts) {
         return Some(cause);
     }
     if let Decision::Wait { until: None, on } = step.decision

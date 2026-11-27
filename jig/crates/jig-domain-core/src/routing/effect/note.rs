@@ -250,8 +250,10 @@ pub(crate) fn tag_notes(
             notes::Request::Refused { owner, why } => match core.take_note(owner) {
                 Some(NoteRoute::Call { to, key, .. }) => match why {
                     notes::Refusal::Busy => {
-                        let _pending = core.pending_calls.remove(&key);
-                        out.push(Request::Now(Box::new(Now::NoteBusy { to, key })));
+                        core.release_pending_call(key);
+                        if core.current_proof(key.task, key.attempt) {
+                            out.push(Request::Now(Box::new(Now::NoteBusy { to, key })));
+                        }
                     }
                     notes::Refusal::Oversized
                     | notes::Refusal::Full

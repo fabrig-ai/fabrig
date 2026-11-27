@@ -285,8 +285,7 @@ fn a_landing_repair_asks_while_the_closer_settles_status() {
 }
 
 fn finish_repair(world: &mut World, branch: &[u8], repair: &engine::Assignment, check: raw::Check) {
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, b"repair", b"fixed", 1)
-        .expect("repair pushes");
+    let head = world.run_push_edit(repair, branch, b"repair", b"fixed", 1);
     status(world, head, check);
     finish_run(
         world,
@@ -382,13 +381,7 @@ fn a_landings_resolution_asks_the_goal_through_its_closer_and_goes_on() {
         b"Resolve conflict",
     )
     .expect("worker resolves");
-    assert_eq!(
-        world.external(
-            2,
-            raw::Op::Git(raw::Git::Push { branch: branch.clone(), commit: resolved, expected: Some(previous) })
-        ),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    world.run_push(&resolution, &branch, resolved, 2);
     status(&mut world, resolved, raw::Check::Passed);
     finish_run(
         &mut world,

@@ -318,6 +318,51 @@ pub(crate) fn release_request(
     }
 }
 
+pub(crate) fn measure_request(
+    core: &mut Core,
+    env: &Env<Limits>,
+    routed: &mut Routed,
+    party: Party,
+    task: u64,
+    revision: u64,
+) {
+    if let Err(why) = measure_admit(core, &env.limits, party, task, revision) {
+        return pool_refused(&mut routed.work, party.request, why);
+    }
+    let request = core.fly_person_task(party.request, PersonTaskRoute::Release(task));
+    routed.work.push(Work::Event(Event::Tasks(tasks::Event::Measure {
+        reply_to: ReplyTo::new(request),
+        by: tasks::Party::Person(party.person),
+        task,
+    })));
+}
+
+fn measure_admit(core: &Core, limits: &Limits, party: Party, task: u64, revision: u64) -> Result<(), people::Refusal> {
+    if let Err(why) = core.control_admit(
+        party.task(task),
+        Control::Measure,
+        &limits.tasks,
+        &tasks::CompoundAdmission::new(&core.tasks, 0),
+    ) {
+        // The escalation's current holder may decide even without a tree reference.
+        let Some(context) = core.tasks.escalation(task) else { return Err(why) };
+        if context.project != party.project || !Core::escalation_standing(&context, party.person, party.role) {
+            return Err(why);
+        }
+        crate::acts::escalation(core, limits, party.person, crate::acts::Act::Release, task)?;
+    }
+    let row = core.tasks.task(task).ok_or(people::Refusal::Unknown)?;
+    if !row.offers_measure() {
+        return Err(people::Refusal::NotOffered);
+    }
+    match &row.phase {
+        tasks::Phase::Held { .. } => core.hold_revision(task, revision),
+        tasks::Phase::Waiting | tasks::Phase::Active(_) => Err(people::Refusal::NotWaiting),
+        tasks::Phase::Closing(closing) => Err(crate::routing::refusals::ended(&closing.ending)),
+        tasks::Phase::Ended(ending) => Err(crate::routing::refusals::ended(ending)),
+    }
+}
+
 pub(crate) fn say_request(
     core: &mut Core,
     env: &Env<Limits>,

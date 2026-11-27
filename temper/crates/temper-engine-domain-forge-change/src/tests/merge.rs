@@ -83,8 +83,8 @@ fn a_failed_merge_effect_holds_until_released() {
     let f = Facts { merge_job: true, ..facts() };
     let h = Heard { effect: EffectResult::Failed, ..heard() };
     let next = decide(&c, &f, &h);
-    assert_eq!(next.change.state, State::Held { was: Box::new(c.state), why: Hold::Failed });
-    assert_eq!(next.decision, Decision::Hold(Hold::Failed));
+    assert_eq!(next.change.state, State::Held { was: Box::new(c.state), hold: crate::Hold::new(Cause::Failed, at(1)) });
+    assert_eq!(next.decision, Decision::Hold(Cause::Failed));
     assert_eq!(next.change.resolutions, 0);
     assert!(!next.change.owns_turn);
     assert_eq!(decide(&next.change, &f, &heard()).decision, Decision::None);
@@ -143,8 +143,8 @@ fn a_failed_merge_job_holds_the_resolution() {
     let f = Facts { delegate: Some(Delegate::Merge { base: BASE, from: Some(HEAD) }), ..facts() };
     let h = Heard { delegate: Status::Failed, ..heard() };
     let next = decide(&c, &f, &h);
-    assert_eq!(next.decision, Decision::Hold(Hold::Failed));
-    assert_eq!(next.change.state, State::Held { was: Box::new(c.state), why: Hold::Failed });
+    assert_eq!(next.decision, Decision::Hold(Cause::Failed));
+    assert_eq!(next.change.state, State::Held { was: Box::new(c.state), hold: crate::Hold::new(Cause::Failed, at(1)) });
     assert_eq!(next.change.resolutions, 1);
 }
 
@@ -177,7 +177,7 @@ fn a_merge_job_past_the_resolution_bound_holds() {
         let f = Facts { merge_job: true, mergeable: Status::Failed, ..facts() };
         let h = Heard { effect: EffectResult::Conflict, ..heard() };
         let next = decide(&c, &f, &h);
-        assert_eq!(next.decision, Decision::Hold(Hold::Resolutions));
+        assert_eq!(next.decision, Decision::Hold(Cause::Resolutions));
         assert_eq!(next.change.resolutions, LIMITS.resolutions);
     }
 }
@@ -240,8 +240,8 @@ fn a_pushed_head_already_contained_ends_with_no_change() {
             (State::Preparing { from: head, main: BASE, ready_since: at(0) }, f.clone(), heard(), false),
             (opening.clone(), f.clone(), Heard { delegate_live: true, ..heard() }, false),
             (opening.clone(), Facts { writer_taken: true, ..f.clone() }, heard(), false),
-            (opening.clone(), Facts { drift: Some(Hold::BranchMoved), ..f.clone() }, heard(), false),
-            (State::Held { was: Box::new(opening.clone()), why: Hold::Failed }, f.clone(), heard(), false),
+            (opening.clone(), Facts { drift: Some(Cause::BranchMoved), ..f.clone() }, heard(), false),
+            (State::Held { was: Box::new(opening.clone()), hold: crate::Hold::new(Cause::Failed, Wall::EPOCH) }, f.clone(), heard(), false),
             (opening.clone(), Facts { pull: Pull::Merged { commit: MERGE }, ..f.clone() }, heard(), false),
             (opening, f.clone(), Heard { cancelled: true, ..heard() }, false),
         ] {
@@ -291,7 +291,7 @@ fn a_contained_head_from_its_turn_has_landed() {
             for (branch, drift, writer) in [
                 (None, None, false),
                 (Some(NEW), None, false),
-                (Some(HEAD), Some(Hold::Retargeted), false),
+                (Some(HEAD), Some(Cause::Retargeted), false),
                 (Some(HEAD), None, true),
             ] {
                 let f = Facts { branch, drift, writer_taken: writer, ..f.clone() };
@@ -311,7 +311,10 @@ fn a_contained_head_from_its_turn_has_landed() {
 /// A release judges containment in its fresh step, not after retrying the merge (change/README.md, 2).
 #[test]
 fn a_released_failed_merge_lands_at_the_tip_holding_its_head() {
-    let c = change(State::Held { was: Box::new(State::Landing { head: HEAD }), why: Hold::Failed });
+    let c = change(State::Held {
+        was: Box::new(State::Landing { head: HEAD }),
+        hold: crate::Hold::new(Cause::Failed, Wall::EPOCH),
+    });
     let f = Facts { contains_head: Status::Passed, base_tip: MERGE, ..facts() };
     for (c, h) in
         [(c.clone(), Heard { released: true, effect: EffectResult::Failed, ..heard() }), (released(&c, at(1)), heard())]
@@ -399,8 +402,11 @@ fn a_catch_up_resolution_obeys_the_resolution_bound() {
     assert_eq!(admitted.change.resolutions, LIMITS.resolutions);
     c.resolutions = LIMITS.resolutions;
     let held = decide(&c, &f, &h);
-    assert_eq!(held.decision, Decision::Hold(Hold::Resolutions));
-    assert_eq!(held.change.state, State::Held { was: Box::new(c.state), why: Hold::Resolutions });
+    assert_eq!(held.decision, Decision::Hold(Cause::Resolutions));
+    assert_eq!(
+        held.change.state,
+        State::Held { was: Box::new(c.state), hold: crate::Hold::new(Cause::Resolutions, at(1)) }
+    );
 }
 
 /// A failed catch-up job holds as a failed producer does (temper/docs/design/domain/forge/change/repairs.md).
@@ -410,7 +416,7 @@ fn a_failed_catch_up_job_holds_the_producer() {
     f.delegate = Some(Delegate::Merge { base: BASE, from: None });
     let h = Heard { delegate: Status::Failed, ..heard() };
     let next = decide(&c, &f, &h);
-    assert_eq!(next.decision, Decision::Hold(Hold::Failed));
-    assert_eq!(next.change.state, State::Held { was: Box::new(c.state), why: Hold::Failed });
+    assert_eq!(next.decision, Decision::Hold(Cause::Failed));
+    assert_eq!(next.change.state, State::Held { was: Box::new(c.state), hold: crate::Hold::new(Cause::Failed, at(1)) });
     assert_eq!(next.change.resolutions, 0);
 }

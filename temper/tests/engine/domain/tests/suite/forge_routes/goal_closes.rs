@@ -439,6 +439,7 @@ fn assert_report(world: &World, goal: u64, closer: u64, landing: u64, changes: &
 
 const REPORT_DESCRIPTION: &[u8] = b"report: Two of three parts are in.";
 const REPORT_WITH_LEFT: &[u8] = b"I landed the parser.\n\nLeft: the switch, not yet cut.";
+const REPORT_WITH_ANSWERS: &[u8] = b"I landed it.\n\nAsked: the parser's figures.\nparse: 41 ms before, 12 ms after\nallocations: 310 before, 96 after\n\nRisk: none.";
 
 fn write_goal_report(
     world: &mut World,
@@ -503,6 +504,14 @@ fn restart_closing(world: &mut World) {
     panic!("closer did not reach a durable restart cut");
 }
 
+fn assert_report_hold_words(world: &World, closer: u64) {
+    let tasks::Phase::Held { source: Some(source), .. } = &live_task(world, closer).phase else {
+        panic!("closer's hold account")
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("closer's hold words") };
+    assert_eq!(words.as_ref(), b"the goal's report leaves work undone: the switch, not yet cut.");
+}
+
 #[test]
 fn a_closer_holds_before_stepping_on_work_left_uncut() {
     let ReportStory { mut world, goal, .. } = goal_with_report(REPORT_WITH_LEFT);
@@ -514,11 +523,7 @@ fn a_closer_holds_before_stepping_on_work_left_uncut() {
     let state = closer_row(&world, closer).expect("closer row");
     assert!(state.close_changes.is_empty(), "no close change while work is left: {:?}", state.close_changes);
     assert!(state.landing_changes.is_empty());
-    let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, closer).phase else {
-        panic!("closer's hold account")
-    };
-    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("closer's hold words") };
-    assert_eq!(words.as_ref(), b"the goal's report leaves work undone: the switch, not yet cut.");
+    assert_report_hold_words(&world, closer);
     assert_eq!(goal_runs(&world, goal), 2);
     assert!(ended(&world, goal).is_none());
     world.close();
@@ -526,8 +531,10 @@ fn a_closer_holds_before_stepping_on_work_left_uncut() {
 
 #[test]
 fn a_released_closer_lands_and_reports_the_work_left() {
-    let ReportStory { mut world, goal, branch, change, .. } = goal_with_report(REPORT_WITH_LEFT);
+    let ReportStory { mut world, goal, branch, change, .. } =
+        goal_with_report(b"I landed the parser.\n\nAsked: causes\nthe cache was cold\nLeft: the switch, not yet cut.");
     let closer = wait_report_held(&mut world, goal);
+    assert_report_hold_words(&world, closer);
     let run = awakened(&mut world, goal);
     release(&mut world, &run, closer, 95);
     park_goal(&mut world, &run);
@@ -535,10 +542,17 @@ fn a_released_closer_lands_and_reports_the_work_left() {
     assert_eq!(same, closer);
     assert!(ended(&world, goal).is_none(), "restart before the released closer reports");
     restart_closing(&mut world);
+    let row = closer_row(&world, closer).expect("closer row after restart");
+    assert_eq!(row.closer.goal_asked.as_deref(), Some(b"Asked: causes\nthe cache was cold".as_slice()));
     pass_landing(&mut world, goal, &branch);
     assert_report(&world, goal, closer, landing, &[(change, b"Parser")]);
     let words = core::str::from_utf8(result_words(&world, goal)).expect("goal report UTF-8");
-    assert!(words.contains("\nLeft by the goal: the switch, not yet cut.\nThe landing:"), "{words}");
+    assert!(
+        words.contains(
+            "\nAsked: causes\n  the cache was cold\nLeft by the goal: the switch, not yet cut.\nThe landing:"
+        ),
+        "{words}"
+    );
     settle(&mut world, goal);
     world.close();
 }
@@ -566,13 +580,30 @@ fn a_released_closer_waits_for_the_work_cut_instead() {
     world.close();
 }
 
-#[test]
-fn a_report_without_a_left_line_does_not_hold() {
-    let ReportStory { mut world, goal, branch, change, .. } = goal_with_report(b"I landed the parser.");
+fn unheld_report_words(body: &[u8]) -> String {
+    let ReportStory { mut world, goal, branch, change, .. } = goal_with_report(body);
     let (closer, landing) = finish_closing(&mut world, goal, &branch);
     assert_report(&world, goal, closer, landing, &[(change, b"Parser")]);
     assert_eq!(goal_runs(&world, goal), 1);
+    let words = core::str::from_utf8(result_words(&world, goal)).expect("goal report UTF-8").to_owned();
     world.close();
+    words
+}
+
+#[test]
+fn a_goal_whose_report_answers_its_request_ends_with_the_answers() {
+    let words = unheld_report_words(REPORT_WITH_ANSWERS);
+    assert!(
+        words.contains("\n  Left: none given\nAsked: the parser's figures.\n  parse: 41 ms before, 12 ms after\n  allocations: 310 before, 96 after\nThe landing:"),
+        "{words}"
+    );
+}
+
+#[test]
+fn a_goal_whose_report_answers_nothing_ends_as_before() {
+    let words = unheld_report_words(b"I landed the parser.");
+    assert!(!words.contains("Asked:"), "{words}");
+    assert!(words.contains("\n  Left: none given\nThe landing:"), "{words}");
 }
 
 #[test]
@@ -915,10 +946,10 @@ fn a_refused_close_holds_and_wakes_its_goal_once() {
     assert!(world.jobs.is_empty(), "a judgment spent no retry");
     assert_eq!(goal_runs(&world, run.task), 2);
     assert_eq!(row(&world, close).close_at, Some(at));
-    assert_eq!(
-        row(&world, close).change.state,
-        change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Failed }
-    );
+    let change::State::Held { was, hold } = &row(&world, close).change.state else { panic!("close held at producing") };
+    assert_eq!(**was, change::State::Producing { requested: true });
+    assert_eq!(hold.cause, change::Cause::CloseRefused);
+    assert_eq!(hold.words.as_ref(), refusal_words(at).as_bytes());
     super::goal_closer::assert_hold_words(&world, close, &refusal_words(at));
     world.close();
 }
@@ -958,10 +989,22 @@ fn a_restart_keeps_a_refused_closes_hold_and_inputs() {
 fn a_released_close_does_not_measure_unchanged_tips_again() {
     let RefusedClose { mut world, run, close, at, .. } = goal_with_refused_close();
     let words = replay_words(at);
-    release(&mut world, &run, close, 93);
-    world.advance_ticks(100);
-    assert!(world.jobs.is_empty(), "a fresh close job was assigned for unchanged tips");
-    super::goal_closer::assert_hold_words(&world, close, &words);
+    for call in [93, 94] {
+        let revision = live_task(&world, close).revisions.hold;
+        release(&mut world, &run, close, call);
+        if call == 94 {
+            park_goal(&mut world, &run);
+            restart_closing(&mut world);
+        }
+        wait_held(&mut world, close, run.task);
+        world.advance_ticks(100);
+        assert!(world.jobs.is_empty(), "a fresh close job was assigned for unchanged tips");
+        assert!(live_task(&world, close).revisions.hold > revision);
+        let change::State::Held { hold, .. } = &row(&world, close).change.state else { panic!("close re-held") };
+        assert_eq!(hold.cause, change::Cause::CloseRefused);
+        assert_eq!(hold.words.as_ref(), words.as_bytes());
+        super::goal_closer::assert_hold_words(&world, close, &words);
+    }
     world.close();
 }
 
@@ -1094,8 +1137,7 @@ fn held_landing_with_attempts(attempts: u8) -> (World, engine::Assignment, Box<[
     status(&mut world, head, raw::Check::Failed);
     let repair = reviews::next_assignment(&mut world, before);
     assert_eq!(live_task(&world, repair.task).requester, tasks::Party::Task(landing));
-    let next = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"repair", b"first repair", 1)
-        .expect("repair pushed");
+    let next = world.run_push_edit(&repair, &branch, b"repair", b"first repair", 1);
     status(&mut world, next, raw::Check::Pending);
     finish_run(
         &mut world,
@@ -1116,7 +1158,10 @@ fn held_landing_with_attempts(attempts: u8) -> (World, engine::Assignment, Box<[
     }
     status(&mut world, next, raw::Check::Failed);
     wait_held(&mut world, landing, goal.task);
-    assert!(matches!(row(&world, landing).change.state, change::State::Held { why: change::Hold::Repairs, .. }));
+    assert!(matches!(
+        row(&world, landing).change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::Repairs, .. }, .. }
+    ));
     let run = awakened(&mut world, goal.task);
     (world, run, branch, closer, close, landing)
 }
@@ -1220,10 +1265,13 @@ fn a_cancelled_stalled_landing_retries_without_holding_or_waking_its_goal() {
     super::stall_hold::execution_reads(&mut world, landing, skein_forge::api::RunState::Running);
     world.advance_to(world.env.now.saturating_add(world.env.limits.forge.change_policy.stall));
     wait_held(&mut world, landing, goal.task);
-    assert!(matches!(row(&world, landing).change.state, change::State::Held { why: change::Hold::Stalled, .. }));
+    assert!(matches!(
+        row(&world, landing).change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::Stalled, .. }, .. }
+    ));
     let run = awakened(&mut world, goal.task);
     cancel_step(&mut world, &run, landing, 93);
-    assert_eq!(row(&world, landing).change.ended_held, Some(change::Hold::Stalled));
+    assert_eq!(row(&world, landing).change.ended_held, Some(change::Cause::Stalled));
     world.advance_ticks(100);
     assert!(!matches!(live_task(&world, closer).phase, tasks::Phase::Held { .. }));
     park_goal(&mut world, &run);

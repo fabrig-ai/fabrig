@@ -28,7 +28,6 @@ pub(crate) fn call(
     let Some(moved) = moved(core, proposal) else {
         return false;
     };
-    assert!(core.pending_calls.insert(key, true).is_ok(), "stale acceptance call room");
     let token = core.fly_call(token, RoutedCall::Withdraw { key, proposal: proposal.number, moved: Some(moved) });
     work.push(Work::Event(Event::Tasks(tasks::Event::WithdrawProposal {
         reply_to: ReplyTo::new(token),

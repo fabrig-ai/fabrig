@@ -1,7 +1,7 @@
 //! Frozen inspection records and shared checks (skein/docs/design/testing/inspection.md, 3–6).
 //! The adapter belongs to its component, beside it under its tree's `testing/` (section 2).
 
-use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::collections::BTreeSet;
 use alloc::string::String;
 use alloc::vec::Vec;
 use skein_lib::Time;
@@ -157,42 +157,24 @@ pub struct Refused {
 
 /// Every wait has a declared kind, a live wake and an unexpired bound (section 4.1).
 pub fn check_waits(inspections: &[&Inspection], moment: Moment) -> Result<(), String> {
-    let mut waits: BTreeMap<&str, Vec<&Wait>> = BTreeMap::new();
-    for inspection in inspections {
-        for wait in inspection.waits() {
-            waits.entry(&wait.waiter).or_default().push(wait);
-        }
-    }
-
-    let mut live = BTreeSet::new();
-    // A changing pass adds at least one waiter; none can become live twice.
-    for _ in 0..waits.len() {
-        let mut changed = false;
-        for (waiter, own_waits) in &waits {
-            if !live.contains(waiter)
-                && own_waits.iter().any(|wait| wait.wakes.iter().any(|wake| wake_is_live(wake, &waits, &live)))
-            {
-                live.insert(*waiter);
-                changed = true;
-            }
-        }
-        if !changed {
-            break;
-        }
-    }
-
+    // A timer or an outside party is live without consulting another
+    // waiter. Build the graph only when a wait lacks such a wake.
+    let mut graph = None;
     for inspection in inspections {
         for wait in inspection.waits() {
             if !inspection.kinds.contains(&wait.kind.as_str()) {
                 return Err(inspection.finding(moment, &wait.waiter, &format!("undeclared wait kind: {}", wait.kind)));
             }
-            if !wait.wakes.iter().any(|wake| wake_is_live(wake, &waits, &live)) {
-                let wakes: Vec<String> = wait.wakes.iter().map(|wake| describe_wake(wake, &waits)).collect();
-                return Err(inspection.finding(
-                    moment,
-                    &wait.waiter,
-                    &format!("waits on {} with no live wake: [{}]", wait.kind, wakes.join("; ")),
-                ));
+            if !wait.wakes.iter().any(|wake| matches!(wake, Wake::Timer(_) | Wake::Party(_))) {
+                let (waits, live) = graph.get_or_insert_with(|| wake_graph(inspections));
+                if !wait.wakes.iter().any(|wake| wake_is_live(wake, waits, live)) {
+                    let wakes: Vec<String> = wait.wakes.iter().map(|wake| describe_wake(wake, inspections)).collect();
+                    return Err(inspection.finding(
+                        moment,
+                        &wait.waiter,
+                        &format!("waits on {} with no live wake: [{}]", wait.kind, wakes.join("; ")),
+                    ));
+                }
             }
             if let Some(bound) = wait.bound
                 && bound < moment.at
@@ -208,22 +190,48 @@ pub fn check_waits(inspections: &[&Inspection], moment: Moment) -> Result<(), St
     Ok(())
 }
 
-fn wake_is_live(wake: &Wake, waits: &BTreeMap<&str, Vec<&Wait>>, live: &BTreeSet<&str>) -> bool {
+type WakeGraph<'a> = (BTreeSet<&'a str>, BTreeSet<&'a str>);
+
+fn wake_graph<'a>(inspections: &[&'a Inspection]) -> WakeGraph<'a> {
+    let all = || inspections.iter().flat_map(|inspection| inspection.waits());
+    let waits: BTreeSet<_> = all().map(|wait| wait.waiter.as_str()).collect();
+    let mut live = BTreeSet::new();
+    // A changing pass adds at least one waiter; none can become live twice.
+    for _ in 0..waits.len() {
+        let mut changed = false;
+        for wait in all() {
+            if !live.contains(wait.waiter.as_str()) && wait.wakes.iter().any(|wake| wake_is_live(wake, &waits, &live)) {
+                live.insert(wait.waiter.as_str());
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    (waits, live)
+}
+
+fn wake_is_live(wake: &Wake, waits: &BTreeSet<&str>, live: &BTreeSet<&str>) -> bool {
     match wake {
         Wake::Timer(_) | Wake::Party(_) => true,
-        Wake::Waiter(waiter) => !waits.contains_key(waiter.as_str()) || live.contains(waiter.as_str()),
+        Wake::Waiter(waiter) => !waits.contains(waiter.as_str()) || live.contains(waiter.as_str()),
         Wake::Ended(_) => false,
     }
 }
 
-fn describe_wake(wake: &Wake, waits: &BTreeMap<&str, Vec<&Wait>>) -> String {
+fn describe_wake(wake: &Wake, inspections: &[&Inspection]) -> String {
     match wake {
         Wake::Timer(at) => format!("timer at {} ns", at.as_nanos()),
         Wake::Party(party) => format!("party {party}"),
         Wake::Ended(source) => format!("ended {source}"),
         Wake::Waiter(waiter) => {
-            let kinds: Vec<&str> =
-                waits.get(waiter.as_str()).into_iter().flatten().map(|wait| wait.kind.as_str()).collect();
+            let kinds: Vec<&str> = inspections
+                .iter()
+                .flat_map(|inspection| inspection.waits())
+                .filter(|wait| wait.waiter == *waiter)
+                .map(|wait| wait.kind.as_str())
+                .collect();
             format!("waiter {waiter} (waits: {})", kinds.join(", "))
         }
     }
@@ -246,18 +254,21 @@ pub fn check_tables(inspections: &[&Inspection], moment: Moment) -> Result<(), S
                 }
             }
             for refused in &table.refused {
-                let object = format!("{} {}", table.name, refused.key);
                 if let Some(bound) = refused.bound
                     && bound < moment.at
                 {
                     return Err(inspection.finding(
                         moment,
-                        &object,
+                        &format!("{} {}", table.name, refused.key),
                         &format!("refused admission past bound {} ns", bound.as_nanos()),
                     ));
                 }
                 if u64::try_from(table.entries.len()).is_ok_and(|held| held < table.capacity) {
-                    return Err(inspection.finding(moment, &object, "refused admission while the table has room"));
+                    return Err(inspection.finding(
+                        moment,
+                        &format!("{} {}", table.name, refused.key),
+                        "refused admission while the table has room",
+                    ));
                 }
             }
         }

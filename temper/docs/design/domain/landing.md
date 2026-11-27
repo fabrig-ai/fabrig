@@ -321,7 +321,8 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
     and its change waits;
   - its head moved, its goal having delivered or another hand having
     pushed: `head moved to HEAD`;
-  - it is cancelled, `cancelled`, or held, `held`;
+  - it is cancelled, `cancelled`, at the turn too (below), or held,
+    `held`;
   - a judgement gate at its prefix says no (section 3): `gate NAME
     refused`, and its change repairs;
   - a test gate fails at the candidate in a round of one unit (`landing-proof.md`, 2.3):
@@ -331,6 +332,15 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   - another change of its unit left: `change C of its unit left`; or
     its dependency, another member, left: `its dependency, change C,
     left`.
+- **A cancel takes its unit in the same decision:** a member cancelled
+  in any phase before its landing has landed or ended, the turn and a
+  hold included, leaves with every other active member of its unit at
+  once, `cancelled` for it and `change C of its unit left` for each of
+  the rest. A member already recorded
+  landed stays, and stays in its landing's index entry until the
+  landing ends (`landing-members.md`, 2.1). An upgraded single landing
+  (section 12) drops the cancelled member alone, prepares again with
+  the rest, and ends cancelled when none is left.
 - **It keeps its place:** its first ready time is unchanged, so once
   ready again it is first in line by that time. Leaving is never a
   repair by itself.

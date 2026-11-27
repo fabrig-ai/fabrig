@@ -139,27 +139,29 @@ fn a_nonparticipating_pull_rests_its_full_quiet_backoff_without_inbox_repairs() 
 }
 
 #[test]
-fn own_pushes_and_held_writer_hints_are_not_drift_but_a_later_external_tip_is() {
+fn the_expected_tip_reports_nothing_but_an_external_tip_reports_its_actor() {
     let mut h = Harness::new();
     h.keep(Box::new([watch(branch(), false)]));
-    let read = h.one();
-    h.answer(read, Answer::Commit([1; 32]));
-    h.event(Event::Writer { resource: branch(), taken: true });
-    h.event(Event::Hint {
-        hint: api::Hint { repository: REPO, change: Change::Branch(Box::from(&b"topic"[..])), key: None },
-    });
     h.event(Event::Pushed { resource: branch(), commit: [2; 32] });
-    h.event(Event::Writer { resource: branch(), taken: false });
     let read = h.one();
     h.answer(read, Answer::Commit([2; 32]));
-    assert_eq!(h.drift, 0);
-    h.event(Event::Hint {
-        hint: api::Hint { repository: REPO, change: Change::Branch(Box::from(&b"topic"[..])), key: None },
-    });
+    assert!(h.moves.is_empty());
+    assert!(h.news.is_empty());
+    branch_hint(&mut h, [3; 32], 2);
     h.fire(101);
     let read = h.one();
     h.answer(read, Answer::Commit([3; 32]));
-    assert_eq!(h.drift, 1);
+    assert_eq!(h.moves.as_slice(), &[(branch(), [2; 32], Some([3; 32]), Some(2))]);
+}
+
+fn branch_hint(h: &mut Harness, head: [u8; 32], actor: u64) {
+    h.event(Event::Hint {
+        hint: api::Hint {
+            repository: REPO,
+            change: Change::BranchMoved { branch: Box::from(&b"topic"[..]), head, actor },
+            key: None,
+        },
+    });
 }
 #[test]
 fn own_comment_echo_never_skips_an_intervening_unread_human_comment() {
@@ -836,45 +838,26 @@ fn a_first_inbox_read_never_hides_an_edited_or_unknown_completed_own_echo() {
 }
 
 #[test]
-fn writer_moves_require_forward_ancestry_and_authenticated_identity() {
-    let contained = Ok(Answer::Commits { commits: Box::new([]), more: false });
-    let listed = api::CommitMessage { id: [1; 32], parents: Box::new([]), message: Box::new([]) };
-    for (actor, result, hint_head, expected_drift, failure) in [
-        (1, contained.clone(), [2; 32], 0, None),
-        (2, contained.clone(), [2; 32], 1, None),
-        (2, contained, [3; 32], 0, None),
-        (1, Ok(Answer::Commits { commits: Box::new([listed.clone()]), more: false }), [2; 32], 1, None),
-        (1, Ok(Answer::Commits { commits: Box::new([listed]), more: true }), [2; 32], 1, None),
-        (1, Err(Error::TooLarge(api::Excess::unnamed())), [2; 32], 0, Some(Error::TooLarge(api::Excess::unnamed()))),
-        (1, Ok(Answer::Commits { commits: Box::new([]), more: true }), [2; 32], 0, Some(Error::InvalidAnswer)),
-        (1, Err(Error::Unavailable), [2; 32], 0, Some(Error::Unavailable)),
-        (1, Err(Error::Forbidden), [2; 32], 0, Some(Error::Forbidden)),
-        (1, Err(Error::Missing), [2; 32], 0, Some(Error::Missing)),
-    ] {
+fn moves_are_reported_without_comparing_or_judging_the_actor() {
+    for (hint_head, actor, reported) in [([2; 32], 1, Some(1)), ([2; 32], 2, Some(2)), ([3; 32], 2, None)] {
         let mut h = Harness::new();
-        h.env.limits.read_attempts = 1;
         h.keep(Box::new([watch(branch(), false)]));
-        let read = h.one();
-        h.answer(read, Answer::Commit([1; 32]));
-        h.event(Event::Writer { resource: branch(), taken: true });
-        h.event(Event::Hint {
-            hint: api::Hint {
-                repository: REPO,
-                change: Change::BranchMoved { branch: Box::from(&b"topic"[..]), head: hint_head, actor },
-                key: None,
-            },
-        });
-        h.fire(101);
+        h.event(Event::Pushed { resource: branch(), commit: [1; 32] });
+        branch_hint(&mut h, hint_head, actor);
         let read = h.one();
         assert_eq!(read.op, Op::Read(Read::Branch { branch: Box::from(&b"topic"[..]) }));
         h.answer(read, Answer::Commit([2; 32]));
-        let compare = h.one();
-        assert_eq!(compare.op, Op::Read(Read::Commits { before: [2; 32], after: [1; 32], page: 1 }));
-        h.event(Event::Answered { call: compare.call, cost: 1, free: 0, rate: None, result });
-        assert_eq!(h.failures.as_slice(), failure.as_slice());
-        assert_eq!(h.record(&branch()).cached.tip, Some(if failure.is_some() { [1; 32] } else { [2; 32] }));
-        assert_eq!(h.drift, expected_drift);
-        assert_eq!(h.news.as_slice(), &[Answer::Commit([1; 32])]);
+        assert!(h.send().is_none(), "the owner alone may ask a comparison");
+        assert_eq!(h.moves.as_slice(), &[(branch(), [1; 32], Some([2; 32]), reported)]);
+        assert_eq!(h.news.as_slice(), &[Answer::Commit([2; 32])]);
+        h.fire(160);
+        let read = h.one();
+        h.answer(read, Answer::Commit([2; 32]));
+        assert_eq!(
+            h.moves.as_slice(),
+            &[(branch(), [1; 32], Some([2; 32]), reported), (branch(), [1; 32], Some([2; 32]), None)]
+        );
+        assert_eq!(h.news.as_slice(), &[Answer::Commit([2; 32])]);
     }
 }
 
@@ -884,36 +867,31 @@ fn missing(h: &mut Harness, sent: super::Sent) {
 
 #[test]
 fn a_branch_read_from_before_our_push_is_read_again() {
-    for writer in [false, true] {
-        let mut h = Harness::new();
-        h.keep(Box::new([watch(branch(), false)]));
-        let read = h.one();
-        if writer {
-            h.event(Event::Writer { resource: branch(), taken: true });
-        }
-        h.event(Event::Pushed { resource: branch(), commit: [1; 32] });
-        missing(&mut h, read);
-        assert_eq!(h.drift, 0, "an absence read before our push cannot judge it");
-        assert!(h.failures.is_empty());
-        assert_eq!(h.record(&branch()).cached.tip, Some([1; 32]));
-        let read = h.one();
-        assert_eq!(read.op, Op::Read(Read::Branch { branch: Box::from(&b"topic"[..]) }));
-        h.answer(read, Answer::Commit([1; 32]));
-        assert_eq!(h.drift, 0);
-        assert_eq!(h.record(&branch()).cached.tip, Some([1; 32]));
-    }
-}
-#[test]
-fn a_branch_still_missing_on_its_read_after_our_push_drifts() {
     let mut h = Harness::new();
     h.keep(Box::new([watch(branch(), false)]));
     let read = h.one();
     h.event(Event::Pushed { resource: branch(), commit: [1; 32] });
     missing(&mut h, read);
-    assert_eq!(h.drift, 0);
+    assert_eq!(h.moves.len(), 0, "an absence read before our push cannot judge it");
+    assert!(h.failures.is_empty());
+    assert_eq!(h.record(&branch()).cached.tip, Some([1; 32]));
+    let read = h.one();
+    assert_eq!(read.op, Op::Read(Read::Branch { branch: Box::from(&b"topic"[..]) }));
+    h.answer(read, Answer::Commit([1; 32]));
+    assert_eq!(h.moves.len(), 0);
+    assert_eq!(h.record(&branch()).cached.tip, Some([1; 32]));
+}
+#[test]
+fn a_branch_still_missing_on_its_read_after_our_push_reports_a_move() {
+    let mut h = Harness::new();
+    h.keep(Box::new([watch(branch(), false)]));
+    let read = h.one();
+    h.event(Event::Pushed { resource: branch(), commit: [1; 32] });
+    missing(&mut h, read);
+    assert_eq!(h.moves.len(), 0);
     let read = h.one();
     missing(&mut h, read);
-    assert_eq!(h.drift, 1, "a branch deleted after our push still drifts");
+    assert_eq!(h.moves.as_slice(), &[(branch(), [1; 32], None, None)]);
     assert_eq!(h.failures.as_slice(), &[Error::Missing]);
     assert_eq!(h.record(&branch()).cached.tip, None);
 }
@@ -926,6 +904,7 @@ fn missing_branch_rests_at_slow_and_reports_each_absence_once() {
         h.env.limits.poll_max = h.env.limits.poll;
         h.keep(Box::new([watch(branch(), false)]));
         let start = if seen {
+            h.event(Event::Pushed { resource: branch(), commit: [1; 32] });
             let read = h.one();
             h.answer(read, Answer::Commit([1; 32]));
             h.fire(160);
@@ -936,7 +915,7 @@ fn missing_branch_rests_at_slow_and_reports_each_absence_once() {
         let read = h.one();
         missing(&mut h, read);
         assert_eq!(h.failures.as_slice(), &[Error::Missing]);
-        assert_eq!(h.drift, u32::from(seen));
+        assert_eq!(h.moves.len(), u32::from(seen));
         assert_eq!(h.record(&branch()).cached.tip, None);
         let interval = if seen { 60 } else { 60.max(fallback) };
         for now in [start + interval, start + interval * 2, start + interval * 3] {
@@ -947,24 +926,25 @@ fn missing_branch_rests_at_slow_and_reports_each_absence_once() {
             assert_eq!(read.op, Op::Read(Read::Branch { branch: Box::from(&b"topic"[..]) }));
             missing(&mut h, read);
             assert_eq!(h.failures.as_slice(), &[Error::Missing]);
-            assert_eq!(h.drift, u32::from(seen));
+            assert_eq!(h.moves.len(), u32::from(seen));
         }
         let present = start + interval * 4;
         h.fire(present);
         let read = h.one();
         h.answer(read, Answer::Commit([2; 32]));
         assert_eq!(h.news.as_slice().last(), Some(&Answer::Commit([2; 32])));
-        let drift = h.drift;
+        let moves = h.moves.len();
+        h.event(Event::Pushed { resource: branch(), commit: [2; 32] });
         h.fire(present + 60);
         let read = h.one();
         missing(&mut h, read);
         assert_eq!(h.failures.as_slice(), &[Error::Missing, Error::Missing]);
-        assert_eq!(h.drift, drift + 1);
+        assert_eq!(h.moves.len(), moves + 1);
         h.restart();
         let read = h.one();
         missing(&mut h, read);
         assert_eq!(h.failures.as_slice(), &[Error::Missing, Error::Missing, Error::Missing]);
-        assert_eq!(h.drift, drift + 1, "cleared stored tip prevents deletion drift after restart");
+        assert_eq!(h.moves.len(), moves + 1, "cleared stored tip prevents a repeated deletion move after restart");
         assert_eq!(h.record(&branch()).cached.tip, None);
     }
 }

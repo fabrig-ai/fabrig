@@ -184,3 +184,38 @@ fn job_refusals_follow_worker_settings_before_the_engine_not_channel_tokens() {
     h.step(Event::Draining { channel: C1 });
     assert_eq!(h.domain.job_refusal(R1, JOB), Some(JobRefusal { worker: None, short: missing }));
 }
+
+#[test]
+fn a_live_job_can_ask_but_cannot_call() {
+    use jig_domain_link::AskAnswer;
+    let mut h = Harness::new(LIMITS);
+    worker(&mut h, C1, Box::new([JOB]));
+    worker(&mut h, C2, Box::new([JOB]));
+    h.step(job(R1, A1, JOB, false));
+    assert!(h.settle().contains(&Request::AssignJob { channel: C1, run: R1, attempt: A1 }));
+    for (channel, attempt) in [(C2, A1), (C1, A2)] {
+        assert_eq!(
+            &*h.step(Event::Ask { channel, run: R1, attempt, number: 1, bytes: b"x".as_slice().into() }),
+            &[Request::Asked { channel, run: R1, attempt, number: 1, answer: AskAnswer::Refused }],
+        );
+        assert!(h.step(Event::Asked { channel, run: R1, attempt, number: 1, answer: AskAnswer::Refused }).is_empty());
+    }
+    assert_eq!(
+        &*h.step(Event::Ask { channel: C1, run: R1, attempt: A1, number: 1, bytes: b"x".as_slice().into() }),
+        &[Request::Ask { channel: C1, run: R1, attempt: A1, number: 1, bytes: b"x".as_slice().into() }],
+    );
+    let answer = AskAnswer::Bytes(b"y".as_slice().into());
+    assert_eq!(
+        &*h.step(Event::Asked { channel: C1, run: R1, attempt: A1, number: 1, answer: answer.clone() }),
+        &[Request::Asked { channel: C1, run: R1, attempt: A1, number: 1, answer }],
+    );
+    assert_eq!(
+        &*h.step(Event::Relay { channel: C1, run: R1, attempt: A1, call: host_call(Token::new(1), payload(1)) }),
+        &[Request::DropCall { call: host_call(Token::new(1), payload(1)) }],
+    );
+    h.step(Event::Cancel { run: R1, attempt: A1 });
+    assert_eq!(
+        &*h.step(Event::Ask { channel: C1, run: R1, attempt: A1, number: 2, bytes: b"x".as_slice().into() }),
+        &[Request::Asked { channel: C1, run: R1, attempt: A1, number: 2, answer: AskAnswer::Refused }],
+    );
+}

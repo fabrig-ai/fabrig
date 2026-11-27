@@ -296,3 +296,13 @@ fn a_dependency_wait_aborts_releases_or_cuts_without_io_and_drops_late_answers()
 fn an_in_progress_starting_head_catches_up_with_both_work_parents_kept() {
     temper_worker_checkout_world::merges::dependency_in_progress();
 }
+
+#[test]
+fn a_design_delivery_asks_again_after_losing_its_first_lease() {
+    temper_worker_checkout_world::merges::design_admits_each_leased_attempt();
+}
+
+#[test]
+fn a_prepare_stops_at_the_first_unadmitted_prefix() {
+    temper_worker_checkout_world::merges::a_refused_prefix_keeps_the_prefix_before_it();
+}

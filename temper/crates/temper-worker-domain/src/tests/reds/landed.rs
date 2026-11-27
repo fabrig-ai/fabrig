@@ -20,7 +20,7 @@ fn prepared() -> Harness {
     h.env.limits.checkout.path_bytes = 32;
     prepared_with(h, items)
 }
-fn delivering(h: &mut Harness) -> Token {
+pub(super) fn delivering(h: &mut Harness) -> Token {
     let rows = h.step(Event::Process(Box::new(agent::process::Event::Received {
         owner: h.agent.unwrap(),
         message: agent::Up::Call {
@@ -79,7 +79,7 @@ fn sent(h: &mut Harness, owner: Token, cookie: u64) -> u64 {
     assert_eq!(bytes.as_ref(), b"land");
     *number
 }
-fn reply(h: &mut Harness, number: u64, answer: host::AskAnswer) -> Box<[Request]> {
+pub(super) fn reply(h: &mut Harness, number: u64, answer: host::AskAnswer) -> Box<[Request]> {
     h.step(Event::Link(host::LinkDown::Asked { run: fixtures::RUN, attempt: fixtures::ATTEMPT, number, answer }))
 }
 fn decode(h: &mut Harness, number: u64) -> (Token, u64) {
@@ -114,7 +114,7 @@ fn refused(rows: &[Request]) {
     assert_eq!(*call, Token::new(1));
     assert_eq!(failure.reason, agent::DeliveryReason::RefusedByTarget);
 }
-fn expired(h: &mut Harness) -> Box<[Request]> {
+pub(super) fn expired(h: &mut Harness) -> Box<[Request]> {
     assert!(h.domain.is_due(h.env.now), "the dependency ask arms the root's timer");
     crate::fire(&mut h.domain, &h.env, &mut h.out);
     let mut rows = List::uncapped();

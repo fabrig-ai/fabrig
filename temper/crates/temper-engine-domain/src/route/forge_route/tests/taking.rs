@@ -94,19 +94,16 @@ fn taking_accounts_reach_the_task_under_the_existing_stalled_and_effect_failed_h
     let (_, env, _) = super::change_start_fixture();
     let words = b"taking docs/x: forge unavailable";
     for (cause, expected) in
-        [(change::Hold::Stalled, tasks::Hold::Stalled), (change::Hold::Failed, tasks::Hold::EffectFailed)]
+        [(change::Cause::Stalled, tasks::Hold::Stalled), (change::Cause::Failed, tasks::Hold::EffectFailed)]
     {
         let mut row = domain.forge.change(task).unwrap().clone();
-        row.change.state =
-            change::State::Held { was: Box::new(change::State::Taking { requested: false }), why: cause };
+        row.change.state = change::State::Held {
+            was: Box::new(change::State::Taking { requested: false }),
+            hold: change::Hold::new(cause, skein_lib::Wall::EPOCH),
+        };
         row.effect_account = Some(forge::EffectAccount { entry: 0, words: words.as_slice().into() });
-        forge::step(
-            &mut domain.forge,
-            &env.with(env.limits.forge),
-            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
-            &mut skein_lib::Queue::uncapped(),
-        );
-        let decision = route::hold_change_decision(&domain, &env, task, cause, None, None);
+        super::restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
+        let decision = route::hold_change_decision(&domain, &env, task, cause, None);
         let route::StepEnd::HoldFrom { why, source } = decision.end else { panic!("taking hold has an account") };
         assert_eq!(why, expected);
         let tasks::HoldSource::Account { words: held, .. } = source.as_ref() else { panic!("taking keeps its words") };

@@ -30,6 +30,7 @@ pub fn repository(tag: u64, remote: Box<[u8]>) -> v1::Repository {
         pin: None,
     };
     v1::Repository {
+        admit: false,
         save: None,
         tag,
         name: Box::from(&b"shop"[..]),

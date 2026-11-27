@@ -22,17 +22,19 @@ pub use approval::{approval_address, may_ask_again, may_type_instead};
 pub use box_line::BoxLine;
 pub use box_stage::{BoxEnd, BoxStage};
 pub use choices::{ReplyChoice, ReplyChoices, reply_choices};
-pub use event::{EXIT, Event, LOG_COMMAND, Own, QUIT, WalkStep, command_name};
+pub use event::{EXIT, Event, LOG_COMMAND, Own, QUIT, Row, WalkStep, command_name};
 pub use limits::limits;
 pub use marks::marked;
 pub use note::Note;
 pub use origin::{Origin, Unaddressed};
 pub use place::place;
-pub use state::{BoxState, Browser, Closing, Handshake, Lending, Local, Notice, Refusal, Signing, Told, Tui, Walk};
+pub use state::{
+    BoxKey, BoxState, Browser, Closing, Handshake, Lending, Local, Notice, Refusal, Signing, Told, Tui, Walk,
+};
 pub use theme::{Scheme, theme};
 pub use view::{
-    Arrow, HALVES, View, arrow, build, chat_number, escape, event, focus, goal_offered, landing, offered, offered_own,
-    pane_key, refused, reply_number, sign_in_drawn, walk_key, work_runs,
+    Arrow, HALVES, View, arrow, back, build, escape, event, focus, goal_offered, landing, offered, offered_own,
+    pane_key, refused, reply_number, sign_in_drawn, work_runs,
 };
 
 #[cfg(test)]

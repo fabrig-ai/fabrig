@@ -3,6 +3,8 @@ use super::super::landing_batches::{heard, workflow};
 use skein_fake_forge_domain::{Observation, api as raw};
 use skein_forge::api;
 use skein_lib::Rng;
+use skein_world::sweep::{cases, gate};
+use std::convert::Infallible;
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as landing;
@@ -149,6 +151,7 @@ impl Oracle {
 #[derive(Debug, PartialEq)]
 pub(crate) struct Replay {
     exercised: u16,
+    pub(super) skipped_pushes: u32,
     landing: landing::Landing,
     main: u64,
     calls: Vec<api::Op>,
@@ -162,7 +165,7 @@ fn run(seed: u64) -> Replay {
 }
 /// Run the same workload and checks, retaining the world for a sweep's ledger.
 pub(crate) fn run_in(world: World, seed: u64, horizon: u64) -> (World, Replay) {
-    run_with(world, seed, horizon, |_, _| {})
+    run_with(world, seed, horizon, 0, |_, _| {})
 }
 
 #[derive(Clone, Copy)]
@@ -173,12 +176,43 @@ pub(super) enum Moment {
     Landing,
 }
 
+struct CommitRoom {
+    reserved: u32,
+    skipped: u32,
+}
+impl CommitRoom {
+    fn required(&mut self, world: &mut World, write: impl FnOnce(&mut World)) {
+        let before = world.forge_mut().room().commits;
+        write(world);
+        self.reserved -= before - world.forge_mut().room().commits;
+    }
+
+    fn source_push(&mut self, world: &mut World, branch: &[u8], path: &[u8], content: &[u8]) -> bool {
+        if world.forge_mut().room().commits <= self.reserved {
+            self.skipped += 1;
+            return false;
+        }
+        world.push_as(branch, path, content, 2);
+        true
+    }
+}
+
+pub(super) fn check_skipped_pushes(skipped: u32) {
+    if gate() {
+        assert_eq!(skipped, 0, "gate seeds have room for every drawn push");
+    } else {
+        eprintln!("{skipped} source push draws ineligible for lack of commit room");
+    }
+}
+
 /// Interleave a sweep's legitimate events at the workload's commit boundaries.
+/// `outside_commits` reserves room for the interleaving's writes before it spends them.
 #[expect(clippy::too_many_lines, reason = "one replay generates taking boundaries, then proves and cleans its batch")]
 pub(super) fn run_with(
     world: World,
     seed: u64,
     horizon: u64,
+    outside_commits: u32,
     mut act: impl FnMut(&mut World, Moment),
 ) -> (World, Replay) {
     let mut rng = Rng::new(seed);
@@ -186,18 +220,22 @@ pub(super) fn run_with(
     let squash = rng.below(2) == 0;
     let mut exercised = if squash { 1 } else { 2 };
     let mut world = landings::turn_in(world);
-    world.batch(u16::try_from(count).expect("small batch"));
+    let count = u16::try_from(count).expect("small batch");
+    world.batch(count);
+    // Each member needs a first source commit and, unless cancelled, one
+    // prepared prefix. Taking, recording and fast-forwarding use existing commits.
+    let mut room = CommitRoom { reserved: 2 * u32::from(count) + outside_commits, skipped: 0 };
     let mut oracle = Oracle::default();
     for index in 0..count {
-        let task = 51 + index;
+        let task = 51 + u64::from(index);
         let source = if index == 0 { "docs/x".to_owned() } else { format!("docs/x{index}") };
         let path = format!("member{index}");
         world.external(
             raw::Op::Git(raw::Git::Create { branch: source.as_bytes().into(), commit: world.branch(b"main") }),
             2,
         );
-        world.push_as(source.as_bytes(), path.as_bytes(), b"first", 2);
-        act(&mut world, Moment::Sourced(task));
+        room.required(&mut world, |world| world.push_as(source.as_bytes(), path.as_bytes(), b"first", 2));
+        room.required(&mut world, |world| act(world, Moment::Sourced(task)));
         let at = (rng.below(2) == 0).then(|| translate::commit(world.branch(source.as_bytes())));
         exercised |= if at.is_some() { 4 } else { 8 };
         changes::open_change(&mut world, task, source.as_bytes(), at);
@@ -215,6 +253,7 @@ pub(super) fn run_with(
         let cancel = if index == 0 { 4 } else { rng.below(5) };
         if cancel < 4 {
             exercised |= 16 << cancel;
+            room.reserved -= 1;
         }
         if rng.below(2) == 0 {
             restart(&mut world);
@@ -224,10 +263,11 @@ pub(super) fn run_with(
             ask(&mut world, task, task * 100);
             let kept = world.change(task).kept.expect("read kept its head before make");
             oracle.members.last_mut().expect("member").kept = Some(kept);
-            act(&mut world, Moment::Kept(task));
+            room.required(&mut world, |world| act(world, Moment::Kept(task)));
             assert!(!world.has_branch(&world.change(task).branch), "seed {seed}, task {task}: make waits for commit");
-            if rng.below(2) == 0 {
-                world.push_as(source.as_bytes(), path.as_bytes(), b"newer after read", 2);
+            if rng.below(2) == 0
+                && room.source_push(&mut world, source.as_bytes(), path.as_bytes(), b"newer after read")
+            {
                 exercised |= 1024;
             }
             if rng.below(2) == 0 {
@@ -244,7 +284,7 @@ pub(super) fn run_with(
                     assert_eq!(step(&mut world, task, task * 100 + 1), change::Decision::Effect(change::Effect::Open));
                     assert_eq!(step(&mut world, task, task * 100 + 2), change::Decision::Ready);
                     if cancel == 4 {
-                        act(&mut world, Moment::Ready(task));
+                        room.required(&mut world, |world| act(world, Moment::Ready(task)));
                     }
                 }
             }
@@ -256,7 +296,7 @@ pub(super) fn run_with(
             assert!(oracle.members.last().expect("member").first_push.is_some());
         }
         for _ in 0..rng.below(3) {
-            world.push_as(source.as_bytes(), path.as_bytes(), b"later source", 2);
+            room.source_push(&mut world, source.as_bytes(), path.as_bytes(), b"later source");
             if rng.below(2) == 0 {
                 restart(&mut world);
             }
@@ -279,16 +319,24 @@ pub(super) fn run_with(
             }
         }
         if rng.below(3) == 0 {
-            let member = &oracle.members[usize::try_from(rng.below(count)).expect("member")];
+            let member = &oracle.members[usize::try_from(rng.below(u64::from(count))).expect("member")];
             let index = member.task - 51;
-            world.push_as(&member.source, format!("member{index}").as_bytes(), b"source during landing", 2);
-            exercised |= 2048;
+            if room.source_push(
+                &mut world,
+                &member.source,
+                format!("member{index}").as_bytes(),
+                b"source during landing",
+            ) {
+                exercised |= 2048;
+            }
         }
-        act(&mut world, Moment::Landing);
+        room.required(&mut world, |world| act(world, Moment::Landing));
         let before = world.branch(b"main");
         let decision = landings::step_landing_heard(&mut world, LANDING, entry, heard(landing::Preparation::Idle, b""));
         if matches!(decision, landing::Decision::Prepare { .. }) {
-            world.prepare_landing(LANDING, squash);
+            room.required(&mut world, |world| {
+                world.prepare_landing(LANDING, squash);
+            });
         }
         if world.branch(b"main") != before {
             let landing::Decision::Merge { member, candidate } = decision else { panic!("only the turn moves main") };
@@ -352,19 +400,54 @@ pub(super) fn run_with(
         histories.push(events);
         oracle.check(&mut world);
     }
-    let replay = Replay { exercised, landing: row, main, calls: oracle.calls, members: oracle.members, histories };
+    let replay = Replay {
+        exercised,
+        skipped_pushes: room.skipped,
+        landing: row,
+        main,
+        calls: oracle.calls,
+        members: oracle.members,
+        histories,
+    };
     (world, replay)
 }
 #[test]
 fn seeded_opens_keep_sources_untouched_and_land_only_proved_prefixes() {
+    let test = skein_world::this_test!("seeded_opens_keep_sources_untouched_and_land_only_proved_prefixes");
+    let at_gate = gate();
     let mut exercised = 0;
-    for seed in 1..33 {
+    let mut skipped = 0;
+    cases(test, 1..33, |seed| {
         let first = run(seed);
-        exercised |= first.exercised;
+        if at_gate {
+            exercised |= first.exercised;
+        }
+        skipped += first.skipped_pushes;
         assert_eq!(first, run(seed), "seed {seed} replays");
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    check_skipped_pushes(skipped);
+    if at_gate {
+        assert_eq!(
+            exercised, 4095,
+            "both combines, both at forms, each cancellation boundary, restarts before and after the read, and source pushes before and during landing"
+        );
     }
-    assert_eq!(
-        exercised, 4095,
-        "both combines, both at forms, each cancellation boundary, restarts before and after the read, and source pushes before and during landing"
-    );
+}
+
+#[test]
+fn source_pushes_leave_commit_room_for_the_first_revisions_and_prefixes() {
+    // Three ready members, with optional pushes before all first revisions
+    // exist and before preparation. Leave room only for the required commits.
+    let seed = u64::MAX - 130;
+    let mut world = World::batch_turn(seed, Some(workflow(false)));
+    let config = temper_engine_forge_world::fake_config();
+    for _ in 0..world.forge_mut().room().commits - 6 {
+        skein_fake_forge_domain::root_commit(world.forge_mut(), &config, Box::new([])).expect("unused commit fits");
+    }
+    let (mut world, replay) = run_in(world, seed, 120);
+    assert_eq!(replay.landing.members.len(), 3);
+    assert_eq!(world.forge_mut().room().commits, 0);
+    assert!(replay.skipped_pushes > 0, "optional source pushes were drawn and skipped");
 }

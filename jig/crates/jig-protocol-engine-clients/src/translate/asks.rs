@@ -108,6 +108,7 @@ fn decode(
             let v = value;
             p::Ask::Release { project: v.project, task: v.task, revision: v.revision.value, again: v.again }
         }
+        w::Ask::Measure(v) => p::Ask::Measure { project: v.project, task: v.task, revision: v.revision.value },
         w::Ask::Amend(value) => {
             let v = value;
             p::Ask::Amend {

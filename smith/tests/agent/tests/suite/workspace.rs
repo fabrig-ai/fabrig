@@ -5,8 +5,9 @@ use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain::api::{Line, Part, Query, Script, Turn};
 use skein_io::kernel;
 use skein_lib::{Duration, Time, Token};
-use smith_agent_world::{Boundary, Job, Settings, World};
-use smith_domain::run;
+use smith_agent_world::backend::{Backend, Typed};
+use smith_agent_world::{Boundary, Job, Settings, World, translate};
+use smith_domain::{Below, Event, Lower, Request, llm, run, tools};
 use smith_protocol_machine::{FromDomain, ToDomain};
 use smith_protocol_machine_fixtures::{CheckProcess, STDERR, STDOUT};
 
@@ -24,6 +25,120 @@ fn says(text: &[u8], tokens: u64) -> Turn {
 
 fn contains(bytes: &[u8], part: &[u8]) -> bool {
     skein_lib::bytes::find(bytes, part).is_some()
+}
+
+#[test]
+fn workspace_offers_share_session_schemas_without_changing_served_tools() {
+    let names = [b"read".as_slice(), b"list", b"search", b"write", b"edit", b"remove", b"shell", b"job"];
+    let mut served = Vec::new();
+    for (writable, count) in [(true, names.len()), (false, 3)] {
+        let settings = Settings { job: Job::HostTools, writable, ..Settings::calm(0) };
+        let mut world = World::new(settings);
+        world.run(10_000);
+        let query = &world.prompts()[0];
+        let grants = tools::Grants { inspect: true, modify: writable, shell: writable };
+        let (workspace, host) = query.tools.split_at(count);
+        assert_eq!(workspace.iter().map(|tool| tool.name.as_ref()).collect::<Vec<_>>(), names[..count]);
+        assert_eq!(workspace, &*smith_session_world::translate::offer(grants));
+        let custom = host.iter().find(|tool| tool.name.as_ref() == b"host_action").expect("host tool still offered");
+        assert_eq!(custom.description.as_ref(), b"Opaque host write");
+        assert_eq!(custom.parameters.as_ref(), br#"{"type":"object"}"#);
+        assert!(host.iter().any(|tool| tool.name.as_ref() == b"wait" && tool.parameters.as_ref() == b"{}"));
+        if writable {
+            served = host.to_vec();
+        } else {
+            assert_eq!(host, served);
+        }
+    }
+}
+
+#[test]
+fn remove_and_offset_read_decode_like_the_session_on_both_paths() {
+    const INPUT_BYTES: usize = 128;
+    let grants = tools::Grants { inspect: true, modify: true, shell: true };
+    let calls = [(b"remove".as_slice(), br#"{"path":"old"}"#.as_slice()), (b"read", br#"{"path":"notes","offset":3}"#)];
+    let expected: Vec<_> = calls
+        .iter()
+        .map(|(name, input)| {
+            let smith_domain::session::llm::Decoded::Owned { call } =
+                smith_session_world::translate::decode(name, input)
+            else {
+                panic!("session decodes the fixture's call")
+            };
+            assert_eq!(
+                translate::decode(name, input, grants, &[], llm::Asker::Main),
+                llm::Decoded::Owned { call: call.clone() }
+            );
+            call
+        })
+        .collect();
+    assert!(matches!(&*expected, [tools::Call::Remove { .. }, tools::Call::Read { offset: 3, .. }]));
+
+    let mut settings = Settings::calm(0);
+    settings.limits.session.answer_bytes = u64::try_from(INPUT_BYTES).expect("call input bound");
+    let mut oversized = calls[0].1.to_vec();
+    oversized.resize(INPUT_BYTES + 1, b' ');
+    assert!(matches!(
+        translate::decode(b"remove", &oversized, grants, &[], llm::Asker::Main),
+        llm::Decoded::Owned { .. }
+    ));
+    let lines = calls.into_iter().map(|(name, input)| call(name, input)).chain([call(b"remove", &oversized)]).collect();
+    let scripts =
+        Box::new([Script { cue: Box::from(b"@decode".as_slice()), turns: Box::new([self::calls(lines, 1)]) }]);
+    let mut typed = Typed::scripted(&settings, scripts);
+    let owner = Token::new(1);
+    let request = Request::Lower(Lower::Complete {
+        owner,
+        name: llm::CompletionName { sequence: 1, retry: 0 },
+        grant: None,
+        prompt: llm::Prompt {
+            purpose: llm::Purpose::Ordinary { guard: None },
+            asker: llm::Asker::Main,
+            endpoint: llm::Endpoint(0),
+            affinity: llm::Affinity { key: [0; 16], thread: 0 },
+            model: Box::from(b"fake-1".as_slice()),
+            effort: None,
+            system: Box::from(b"@decode".as_slice()),
+            tools: grants,
+            namespace: tools::Namespace::One,
+            served: Box::default(),
+            choice: llm::ToolChoice::Auto,
+            messages: Box::new([llm::Message { role: llm::Role::User, content: Box::default() }]),
+            max_tokens: 100,
+        },
+        deadlines: smith_domain::session::Deadlines {
+            head: Duration::from_secs(1),
+            idle: Duration::from_secs(1),
+            whole: Time::from_nanos(1_000_000_000),
+        },
+        max_completion_bytes: 4096,
+        max_completion_blocks: 3,
+        max_failure_bytes: 128,
+        decoded_call_bytes: 4096,
+    });
+    let wall = skein_lib::Wall::from_nanos(0);
+    typed.start(request, Time::ZERO, wall);
+    let mut progress = typed.advance(Time::ZERO, wall, false);
+    if let Some(due) = typed.next_deadline() {
+        progress.terminals.extend(typed.advance(due, wall, false).terminals);
+    }
+    typed.assert_settled();
+    let [(reply, Event::Below(Below::Completed { owner: completion_owner, completion }))] = &*progress.terminals else {
+        panic!("one typed completion: {progress:?}");
+    };
+    assert_eq!((*reply, *completion_owner), (owner, owner));
+    let [
+        llm::Said::ToolCall { call: remove, .. },
+        llm::Said::ToolCall { call: read, .. },
+        llm::Said::ToolCall { call: too_large, .. },
+    ] = &*completion.content
+    else {
+        panic!("three tool calls");
+    };
+    for (decoded, call) in [remove, read].into_iter().zip(expected) {
+        assert_eq!(*decoded, llm::Decoded::Owned { call });
+    }
+    assert_eq!(*too_large, llm::Decoded::Invalid { problem: llm::Problem::TooLarge });
 }
 
 fn mixed_disk() -> (Checkout, run::Workspace) {

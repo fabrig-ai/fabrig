@@ -4,7 +4,7 @@ use super::{Domain, List, branch_what, forge, tasks};
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Env, Queue};
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RunRed {
     pub key: Box<[u8]>,
     pub head: Box<[u8]>,

@@ -240,26 +240,23 @@ The client holds the resources the owner names, and nothing else.
     which keep its repository hearing (4.1). The client reads on every
     hint it holds a resource for and drops the news its owner's writes
     cause by its echo ledger and keys (`client-effects.md`, 1.6); it uses a hint's pusher (its
-    actor) for drift alone.
+    actor) for a move's `actor` alone.
   - **No pace depends on a hint:** one lost, refused or never sent costs
     latency, never liveness.
-- **Drift.** The owner says which branches a writer holds (`Writer`) and
-  which commit its run pushed (`Pushed`). The client reports
-  `Drift { resource, expected, observed }` when a branch's tip differs
-  from the pushed head with no writer holding the branch, moves backwards
-  under a writer (a `Fresh` ancestry range, `Commits { before: new, after:
-  old, page: 1 }`, lists a commit: the new tip
-  lacks the old; a refused ancestry read is remembered and skipped until its inputs change, as in 4.2), is moved by a hint's actor who is not a configured writer, or
-  is gone (`observed` none). A forward move by a writer is its own and
-  reports no news. An absent branch clears its cached tip in the stored
-  live record and reports deletion drift only when that tip was present;
-  a restart therefore repeats no deletion drift. A branch that reappears
-  is observed under the same drift rules. Releasing a branch (`taken`
-  false) reads it afresh.
+- **Moved.** The owner says which commit it expects of a branch
+  (`Pushed`). The client reports `Moved { resource, expected, observed,
+  actor }` when a branch's tip differs from it, or is gone (`observed`
+  none): `actor` is the pusher of a hint whose head is the observed
+  commit, else none. It judges nothing of who moved it, forward or not:
+  that is its owner's (temper's `domain/forge/writes.md`, 4). An absent
+  branch clears its cached tip in the stored live record and reports
+  its absence only when that tip was present; a restart therefore
+  repeats none. A branch that reappears is observed under the same
+  rule.
 - **A fence.** The owner may fence a resource it watches (`Fence {
   resource }`): the answer of a keep read of that resource sent before
   the fence reports nothing when it comes, neither `Changed` nor
-  `Drift`, and its kept state is not moved by it; the resource is read
+  `Moved`, and its kept state is not moved by it; the resource is read
   afresh, at `hinted`. An owner fences what a decision of its must not
   see from before it, such as a release of a held task's work. A fence
   lives in memory alone: a restart sends no read from before it.
@@ -328,20 +325,17 @@ A keeping read that fails is refused for its inputs, or may pass when
 asked again.
 
 - **Refused for its inputs.** `TooLarge` answers a live resource's
-  same inputs the same way: a comparison of two commits (the drift
-  check's, section 4), a scan past `inbox` stamps or pages, and an
+  same inputs the same way: a scan past `inbox` stamps or pages, and an
   answer past `answer_bytes` or `rows` (2.3). The live row keeps each refusal in
-  memory: its phase, and for a comparison its two commits; a pull may hold
+  memory: its phase; a pull may hold
   one for each of its phases. It reports
   `Changed { result: Err(TooLarge) }` once and rests as after a read.
   While its inputs stand, a timed read skips the refused phase and goes
   on to the next one: a pull's object phase to its pull, its pull to its
-  reviews when they are owed. A branch refused its comparison keeps its
-  cached tip and claims neither drift nor news; a resource left with
+  reviews when they are owed. A resource left with
   nothing to read rests.
 - **Its inputs change** when a hint affects the resource or the listing
-  reports it changed, and, for a comparison, when the branch's next read
-  answers another tip, which is another pair. The next read of that
+  reports it changed. The next read of that
   phase then tries again. A restart forgets the refusal and tries once
   more. A read whose inputs changed while it was out keeps no refusal:
   its `TooLarge` is reported, and the next read tries again.
@@ -462,8 +456,7 @@ like any, in the owner's own order, and holds no read of the step open.
 2. **The recovery clock** (`clock`): `Monotonic` while the saved origin
    survives, else `Wall`, when a find's remaining lifetime is the saved
    `expires` less the wall clock.
-3. **Prepare.** The owner tells `Writer` for the branches its writers
-   hold, and hands every stored entry not held for a person to `Make`,
+3. **Prepare.** The owner hands every stored entry not held for a person to `Make`,
    in number order and before any entry made since the restart, as it
    begins catching up; until then it hands none, so nothing is sent.
    An entry with an attempt starts at its find. There is no pause: an
@@ -520,7 +513,8 @@ steps' waits (`client-effects.md`, 1.8): what they still owed is the next start'
 
 - **Step tests,** in the crate, hold each rule above: the budget's
   order, reserve, refunds and rate refusal; the listing's ties and
-  overlap; drift against the owner's pushes; the start and attempt saved
+  overlap; a move reported against the owner's expected head, with a
+  hint's actor or none; the start and attempt saved
   before the first write; original deadlines across a restart and a
   changed clock; copied, revised and unknown rows never settling; golden
   bytes for keys; the refusals' order, a pair each for `Keep`, `Make`
@@ -537,7 +531,7 @@ steps' waits (`client-effects.md`, 1.8): what they still owed is the next start'
   again with none; rests, repairs and a queued merge's looks stretched
   while a repository hears and at section 4's paces once `fallback`
   passes with no hint, a hint still read at `hinted`, and `poll_at`
-  answering both; a refused comparison and an inbox scan past its cap
+  answering both; an inbox scan past its cap
   reported once and read again only when their inputs change; a
   failure's wait doubling to `slow` and set back by an answer.
 - **The client world** (../../foundation/testing-strategy.md, section 2.2) runs the client

@@ -37,6 +37,7 @@ use crate::workspace::{Items, Workspace};
 pub struct Domain {
     pub(crate) host: host::Hub,
     pub(crate) checkout: checkout::Domain,
+    pub(crate) push_admits: crate::push_admission::Admits,
     pub(crate) agent: agent::Domain,
     pub(crate) tooling: tooling::Domain,
     /// Decoded job specs by the engine's run and attempt, until answered.
@@ -206,6 +207,7 @@ impl Domain {
         Domain {
             host: host::Hub::new(&limits.host),
             checkout: checkout::Domain::new(&limits.checkout),
+            push_admits: crate::push_admission::Admits::new(slots),
             agent: agent::Domain::new(&limits.agent),
             tooling: tooling::Domain::new(&limits.tooling, kinds).expect("the root's job kinds fit its limits"),
             job_specs: Map::with_capacity(slots.saturating_add(1)),
@@ -303,10 +305,16 @@ impl Domain {
     /// When the earliest agent, source-check or root stop alarm falls due.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        [self.agent.next_deadline(), self.host.next_deadline(), crate::stopping::next(self), crate::reds::next(self)]
-            .into_iter()
-            .flatten()
-            .min()
+        [
+            self.agent.next_deadline(),
+            self.host.next_deadline(),
+            crate::stopping::next(self),
+            crate::reds::next(self),
+            self.push_admits.next(),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
     }
 
     /// Whether an alarm is due at `now`. The loop calls [`fire`] while one is.
@@ -316,6 +324,7 @@ impl Domain {
             || host::sources_due(&self.host, now)
             || crate::stopping::due(self, now)
             || crate::reds::due(self, now)
+            || crate::push_admission::is_due(self, now)
     }
 
     /// Whether the domain has work of its own: the host has runs to cancel,
@@ -414,6 +423,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         agent::fire(&mut domain.agent, &route::agent_env(env), &mut domain.agent_out);
     }
     crate::reds::fire(domain, env);
+    crate::push_admission::fire(domain, env);
     host::fire_sources(&mut domain.host, &route::host_env(env), &mut domain.host_out);
     settle(domain, env, out);
     crate::stopping::fire(domain, env, out);

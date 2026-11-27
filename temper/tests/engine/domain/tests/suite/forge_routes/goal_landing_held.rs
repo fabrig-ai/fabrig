@@ -6,7 +6,7 @@ use super::goal_landing::{
     assert_goal_holds, ended, finish_run, land_into_goal, mine, producing_into_goal, row, status,
 };
 use super::*;
-use temper_engine_domain_forge_change::{Delegate, Hold, Repair, State};
+use temper_engine_domain_forge_change::{Cause, Delegate, Repair, State};
 
 const STEPS: u32 = 1000; // The forge world's bound for a full landing and release.
 const REPAIRS: u32 = 3;
@@ -97,9 +97,7 @@ fn repair(world: &mut World, goal: u64, branch: &[u8], landing: u64, head: u64, 
     assert_eq!(writer(world, branch), Some(tasks::Writer::Run { task: repair.task, attempt: repair.attempt }));
     assert_goal_holds(world, goal, branch);
     assert_eq!(branch_tip(world, branch), head, "the repair starts at g's current head");
-    let next =
-        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, b"repair", &number.to_be_bytes(), 1)
-            .expect("L's repair pushes g under G's hold");
+    let next = world.run_push_edit(&repair, branch, b"repair", &number.to_be_bytes(), 1);
     assert_ne!(next, head);
     assert_goal_holds(world, goal, branch);
     assert_eq!(writer(world, branch), Some(tasks::Writer::Run { task: repair.task, attempt: repair.attempt }));
@@ -123,6 +121,7 @@ fn repair(world: &mut World, goal: u64, branch: &[u8], landing: u64, head: u64, 
 
 fn exhausted(world: &mut World, goal: &engine::Assignment, landing: u64, head: u64) {
     let assigned = world.assigned.len();
+    let before_failure = world.env.wall;
     status(world, head, raw::Check::Failed);
     for _ in 0..STEPS {
         world.tick();
@@ -133,10 +132,12 @@ fn exhausted(world: &mut World, goal: &engine::Assignment, landing: u64, head: u
         }
     }
     world.until(Until::Ready);
-    assert_eq!(
-        row(world, landing).change.state,
-        State::Held { was: Box::new(State::Checking { head: translate::commit(head) }), why: Hold::Repairs }
-    );
+    let State::Held { was, hold } = &row(world, landing).change.state else { panic!("landing not held for repairs") };
+    assert_eq!(**was, State::Checking { head: translate::commit(head) });
+    assert_eq!(hold.cause, Cause::Repairs);
+    assert!((before_failure..=world.env.wall).contains(&hold.since));
+    assert_eq!(hold.words.as_ref(), format!("its repairs are spent: {REPAIRS} of {REPAIRS} taken").as_bytes());
+    assert_eq!(hold.judged, None);
     assert_eq!(row(world, landing).change.repairs, REPAIRS);
     assert!(matches!(live_task(world, landing).phase, tasks::Phase::Held { why: tasks::Hold::Procedure, .. }));
     assert_eq!(world.assigned.len(), assigned, "the fourth CI failure makes no fourth repair");
@@ -279,10 +280,7 @@ fn saving_repair_rebriefs(reported: bool) {
     )
     .expect("the worker commits its unchecked repair")
     .expect("the repair changed the tree");
-    assert_eq!(
-        world.external(2, raw::Op::Git(raw::Git::Push { branch: branch.clone(), commit: saved, expected: Some(head) })),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
+    world.run_push(&repair, &branch, saved, 2);
     let question = questions::ask(&mut world, &repair, landing);
     let pull_number = row(&world, landing).pull;
     let writes = world.writes.len();

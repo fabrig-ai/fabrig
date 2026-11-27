@@ -170,6 +170,9 @@ pub(crate) fn decided_proposal(
     row: Option<tasks::Proposal>,
     busy: bool,
 ) -> Queue<Request> {
+    if core.pending_calls.get(&key) != Some(&crate::CallHolder::DecidedProposal(proposal)) {
+        return Queue::uncapped();
+    }
     let part = if busy {
         crate::CallPart::Unavailable
     } else if let Some(row) = row
@@ -188,5 +191,5 @@ pub(crate) fn decided_proposal(
     } else {
         return crate::routing::run::calls::proposal_refused(core, to, key, tasks::Refusal::Unknown);
     };
-    crate::routing::run::calls::route_named_answer(core, to, key, part)
+    crate::routing::run::calls::route_pending_answer(core, to, key, part)
 }

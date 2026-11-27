@@ -12,6 +12,7 @@ use temper_engine_protocol_forge_world::{fixtures, protocol::Protocol};
 fn change_row() -> top::ChangeRow {
     top::ChangeRow {
         settling: false,
+        behind_wait: None,
         room: None,
         source: None,
         kept: None,
@@ -309,6 +310,12 @@ fn a_merge_with_its_answer_lost_is_found_after_restart_without_merging_twice() {
     world.produce(b"temper/51");
     let pull = world.open_pull(b"temper/51", b"main");
     let head = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
+    // The merge admission uses the owning change to name the pull's head branch.
+    let mut row = change_row();
+    row.pull = Some(pull);
+    row.change.last_head = Some(head);
+    row.change.state = change::State::Checking { head };
+    world.event(top::Event::Change { row });
     world.slow_calls(skein_lib::Duration::from_secs(3));
     enqueue_merge(&mut world, pull, head);
     world.event(top::Event::Committed { entry: 1 });
@@ -348,7 +355,8 @@ fn a_failed_ci_head_is_repaired_then_checked_again() {
         change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci))
     );
     let before = world.writes();
-    world.push(b"temper/51", b"repaired");
+    let repairer = (52, 1);
+    world.push_attempt(repairer, b"temper/51", b"file", b"repaired");
     world.status(b"temper/51", skein_fake_forge_domain::api::Check::Passed);
     let mut finished = false;
     for entry in 4..20 {
@@ -388,7 +396,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     world.run_for(1);
     assert!(world.seen().iter().any(|event| matches!(
         event,
-        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Hold::BranchMoved), .. }
+        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Cause::BranchMoved), .. }
     )));
     world.event(top::Event::ReleaseChange { task: 51, release: None });
     world.take_seen();
@@ -396,7 +404,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     world.run_for(1);
     assert!(!world.seen().iter().any(|event| matches!(
         event,
-        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Hold::BranchMoved), .. }
+        top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Cause::BranchMoved), .. }
     )));
 }
 
@@ -571,7 +579,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::SetUp { .. }
                 | top::Request::ChoosePlace { .. }
                 | top::Request::ChangeDecision { .. }
-                | top::Request::CloseDecision { .. }
+                | top::Request::ReplayJudgement { .. }
+                | top::Request::RelayRefusal { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
@@ -724,9 +733,11 @@ fn held_branch(world: &mut Protocol) -> (top::Name, skein_forge::api::Commit) {
         writes: Box::new([name.clone()]),
         holders: Box::new([]),
     });
-    world.produce(b"temper/51");
+    world.push_new_attempt((51, 1), b"temper/51");
     let pushed = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
     world.event(top::Event::Answered { task: 51, attempt: 1, pushed: Box::new([(name.clone(), pushed, true)]) });
+    // Settle the producer's push before letting the outside writer move the branch.
+    world.event(top::Event::Finished { task: 51, attempt: 1, lost: false });
     world.run_for(1);
     world.take_seen();
 
@@ -946,6 +957,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                         change::Decision::Failed => panic!("unexpected source failure"),
                         change::Decision::Wait { until: at } => until = at,
                         change::Decision::Hold(why) => hold_reason = Some(why),
+                        change::Decision::ReplayJudgement(replay) => hold_reason = Some(replay.cause()),
                         change::Decision::Finish { .. } => finished = true,
                         change::Decision::None
                         | change::Decision::CancelProducer
@@ -1265,7 +1277,7 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
                                 }
                                 other => panic!("unexpected delegate: {other:?}"),
                             };
-                            world.event(top::Event::Delegated { task: 51, child, kind });
+                            world.event(top::Event::Delegated { task: 51, child, kind, close_at: None });
                             world.event(top::Event::DelegateResult {
                                 ended_at: None,
                                 task: 51,

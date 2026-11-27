@@ -1446,6 +1446,10 @@ pub fn stacked(b: &mut Builder, w: &Words, line: &[u8], forge: &[u8], details: &
             b.style(look::FLOW_FAILED);
             false
         }
+        Mark::StoppedQuiet => {
+            b.style(look::TRIAL_LIMIT_PASSED);
+            false
+        }
         Mark::UnderWay | Mark::ToCome => false,
     };
     match w.shell {

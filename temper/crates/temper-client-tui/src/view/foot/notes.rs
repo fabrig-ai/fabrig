@@ -2,13 +2,16 @@
 use super::{Words, look, text};
 use crate::{
     Tui, limits,
-    view::front::{self, LogNote, StoppingNote},
+    view::{
+        front::{self, LogNote, StoppingNote},
+        pane, starting, welcome,
+    },
     words::Word,
 };
 use alloc::boxed::Box;
 use skein_lib::{List, Writer};
 use skein_ui::{Builder, Role, phrases::Hole};
-use temper_client_domain::{Domain, pages::terminal::Note};
+use temper_client_domain::{Address, Domain, pages::terminal::Note};
 use temper_client_view_parts::shared;
 
 #[derive(Debug)]
@@ -53,25 +56,51 @@ fn help(root: &Domain, tui: &Tui, words: &Words, lines: &mut List<Box<[u8]>>) {
     for command in commands {
         help_line(&command.name, &command.words, longest, lines);
     }
+    let address = root.pages().address();
+    let navigation = if let Address::Chat { .. } | Address::Talk { .. } = address {
+        Some(Word::KeyBack)
+    } else if tui.place().is_some() {
+        Some(Word::KeyBack)
+    } else if root.pages().project().is_some() && !starting::shown(root, tui) && !welcome::shown(root, tui) {
+        Some(Word::KeyList)
+    } else {
+        None
+    };
+    let (esc, pane) = if let Address::Chat { .. } = address
+        && tui.place().is_none()
+    {
+        let pane = if let Some(chat) = root.pages().chat()
+            && pane::shown(chat, tui.columns()).is_some()
+        {
+            Some(Word::KeyPane)
+        } else {
+            None
+        };
+        (Word::KeyStop, pane)
+    } else {
+        (Word::KeyEsc, None)
+    };
     for key in [
-        Word::KeyEnter,
-        Word::KeyTab,
-        Word::KeyPage,
-        Word::KeyEsc,
-        if tui.front() { Word::KeyCloseFront } else { Word::KeyClose },
-    ] {
+        Some(Word::KeyEnter),
+        Some(Word::KeyTab),
+        navigation,
+        Some(Word::KeyPage),
+        Some(esc),
+        pane,
+        Some(if tui.front() { Word::KeyCloseFront } else { Word::KeyClose }),
+    ]
+    .into_iter()
+    .flatten()
+    {
         lines.push(words.say(key, &[])).expect("help keys counted");
-        if key == Word::KeyEsc && crate::offered_own(root, tui).contains(&crate::Own::Needs) {
-            lines.push(words.say(Word::KeyWalk, &[])).expect("walk key counted");
-        }
     }
 }
 #[expect(clippy::manual_map, reason = "step code reads the optional printed link without a closure")]
 pub(crate) fn read_notes(root: &Domain, tui: &Tui, words: &Words) -> Notes {
     let mut lines = List::with_capacity(
         8_u32
-            .checked_mul(25)
-            .expect("eight notes, nineteen commands and six keys")
+            .checked_mul(limits::HELP_LINES)
+            .expect("eight help notes fit")
             .checked_add(2)
             .expect("walk and opener notes fit")
             .checked_add(limits::BOX_LOG)

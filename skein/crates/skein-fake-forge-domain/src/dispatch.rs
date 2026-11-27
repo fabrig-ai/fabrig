@@ -325,7 +325,7 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
         }
     }
     actions::complete(kept);
-    if crate::reports::reportable(kept) {
+    if !omit_report(&mut domain.omit_report, &kept.run) && crate::reports::reportable(kept) {
         kept.artifact = artifact;
     }
     let attempt = attempt.expect("timer's retained job");
@@ -341,6 +341,14 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
     domain.tally.verdicts = domain.tally.verdicts.saturating_add(1);
     domain.runners.forget(job);
     wake(domain, env);
+}
+
+fn omit_report(pending: &mut Option<u64>, run: &Run) -> bool {
+    if *pending != Some(run.id) || run.state != RunState::Completed {
+        return false;
+    }
+    *pending = None;
+    run.conclusion == Some(Conclusion::Failure)
 }
 
 /// A freed runner starts the oldest ready job at this same instant.
@@ -422,6 +430,9 @@ pub(crate) fn cancel(
     kept.run.cancelled_by = Some(user);
     actions::complete(kept);
     kept.artifact = None;
+    if domain.omit_report == Some(run) {
+        domain.omit_report = None;
+    }
     for wait in &waits {
         crate::runners::end_wait(domain, *wait, env.now, None);
     }
