@@ -4,6 +4,7 @@
 use alloc::collections::BTreeSet;
 use alloc::string::String;
 use alloc::vec::Vec;
+use core::fmt;
 use skein_lib::Time;
 
 /// When an invariant ran: the run's seed, the world's time, and its iteration.
@@ -19,8 +20,8 @@ pub struct Moment {
 pub struct Inspection {
     component: &'static str,
     kinds: &'static [&'static str],
-    waits: Vec<Wait>,
-    tables: Vec<Table>,
+    waits: Records<Wait>,
+    tables: Records<Table>,
     relateds: Vec<Related>,
     violation: Option<(String, String)>,
 }
@@ -29,7 +30,14 @@ impl Inspection {
     /// `kinds`: the waits its design documents, each in the design's words.
     #[must_use]
     pub fn new(component: &'static str, kinds: &'static [&'static str]) -> Inspection {
-        Inspection { component, kinds, waits: Vec::new(), tables: Vec::new(), relateds: Vec::new(), violation: None }
+        Inspection {
+            component,
+            kinds,
+            waits: Records::new(),
+            tables: Records::new(),
+            relateds: Vec::new(),
+            violation: None,
+        }
     }
 
     #[must_use]
@@ -37,12 +45,37 @@ impl Inspection {
         self.component
     }
 
+    /// Start a fresh observation of the same component, keeping buffers for its adapter.
+    pub fn reset(&mut self) {
+        self.waits.used = 0;
+        self.tables.used = 0;
+        self.relateds.clear();
+        self.violation = None;
+    }
+
     pub fn wait(&mut self, wait: Wait) {
         self.waits.push(wait);
     }
 
+    /// Append a wait, letting `fill` reuse its strings and wakes from the last snapshot.
+    /// `fill` overwrites the whole record, including any wakes that no longer apply.
+    pub fn fill_wait<F: FnOnce(&mut Wait)>(&mut self, fill: F) {
+        fill(self.waits.next(|| Wait { waiter: String::new(), kind: String::new(), wakes: Vec::new(), bound: None }));
+    }
+
     pub fn table(&mut self, table: Table) {
         self.tables.push(table);
+    }
+
+    /// Append a table; overwrite its entries with `fill`, reusing their buffers.
+    pub fn fill_table<F: FnOnce(&mut Entries<'_>)>(&mut self, name: &'static str, capacity: u64, fill: F) {
+        let table = self.tables.next(|| Table { name, capacity, entries: Vec::new(), refused: Vec::new() });
+        table.name = name;
+        table.capacity = capacity;
+        table.refused.clear();
+        let mut entries = Entries { entries: &mut table.entries, used: 0 };
+        fill(&mut entries);
+        entries.entries.truncate(entries.used);
     }
 
     pub fn related(&mut self, related: Related) {
@@ -51,12 +84,12 @@ impl Inspection {
 
     #[must_use]
     pub fn waits(&self) -> &[Wait] {
-        &self.waits
+        self.waits.active()
     }
 
     #[must_use]
     pub fn tables(&self) -> &[Table] {
-        &self.tables
+        self.tables.active()
     }
 
     #[must_use]
@@ -66,12 +99,12 @@ impl Inspection {
 
     /// Let a harness attach its own wakes to the adapter's observations.
     pub fn waits_mut(&mut self) -> &mut [Wait] {
-        &mut self.waits
+        self.waits.active_mut()
     }
 
     /// Let a harness mark its fixture's entries without copying the table.
     pub fn tables_mut(&mut self) -> &mut [Table] {
-        &mut self.tables
+        self.tables.active_mut()
     }
 
     /// Record the first violation of a component's own invariant, not a wait or table rule.
@@ -99,6 +132,83 @@ impl Inspection {
             moment.iteration,
             self.component,
         )
+    }
+}
+
+/// Only the prefix filled for this observation is visible. Rows outside it
+/// retain allocations, never evidence of this snapshot.
+#[derive(Clone)]
+struct Records<T> {
+    rows: Vec<T>,
+    used: usize,
+}
+
+impl<T> Records<T> {
+    const fn new() -> Self {
+        Self { rows: Vec::new(), used: 0 }
+    }
+
+    fn active(&self) -> &[T] {
+        self.rows.get(..self.used).expect("active records are an initialized prefix")
+    }
+
+    fn active_mut(&mut self) -> &mut [T] {
+        self.rows.get_mut(..self.used).expect("active records are an initialized prefix")
+    }
+
+    fn push(&mut self, record: T) {
+        if let Some(row) = self.rows.get_mut(self.used) {
+            *row = record;
+        } else {
+            self.rows.push(record);
+        }
+        self.used = self.used.saturating_add(1);
+    }
+
+    fn next<F: FnOnce() -> T>(&mut self, vacant: F) -> &mut T {
+        let index = self.used;
+        if index == self.rows.len() {
+            self.rows.push(vacant());
+        }
+        self.used = index.saturating_add(1);
+        self.rows.get_mut(index).expect("the next active record is initialized")
+    }
+}
+
+impl<T: PartialEq> PartialEq for Records<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.active() == other.active()
+    }
+}
+
+impl<T: Eq> Eq for Records<T> {}
+
+impl<T: fmt::Debug> fmt::Debug for Records<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.active().fmt(f)
+    }
+}
+
+/// Rows of one table being filled, without exposing the previous snapshot.
+#[derive(Debug)]
+pub struct Entries<'a> {
+    entries: &'a mut Vec<Entry>,
+    used: usize,
+}
+
+impl Entries<'_> {
+    /// Append an entry, letting `key` write into its cleared identity buffer.
+    pub fn entry<F: FnOnce(&mut String)>(&mut self, rule: &'static str, release: Release, key: F) {
+        let index = self.used;
+        if index == self.entries.len() {
+            self.entries.push(Entry { key: String::new(), rule, release: Release::Pending });
+        }
+        let entry = self.entries.get_mut(index).expect("the next active entry is initialized");
+        entry.key.clear();
+        key(&mut entry.key);
+        entry.rule = rule;
+        entry.release = release;
+        self.used = index.saturating_add(1);
     }
 }
 

@@ -679,6 +679,12 @@ impl<B: Backend> World<B> {
         self.parent_host_calls = true;
     }
 
+    /// The frozen domain at the caller's observation point.
+    #[must_use]
+    pub fn domain(&self) -> &agent::Domain {
+        &self.agent
+    }
+
     /// Host calls awaiting a caller terminal, in submission order. Each record
     /// contains the complete emitted call, including relay, input and deadline.
     #[must_use]

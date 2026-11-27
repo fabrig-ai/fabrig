@@ -128,6 +128,7 @@ members = [
     "smith/testing/smith-bench-fixtures",
     "smith/testing/smith-end-to-end-kit",
     "smith/testing/smith-faults",
+    "smith/testing/smith-inspect",
     "smith/testing/smith-shapes",
     "smith/testing/smith-domain-tools-fixtures",
     "smith/testing/smith-domain-run-fixtures",
@@ -587,6 +588,7 @@ smith-machine-world = { path = "smith/tests/machine" }
 smith-domain = { path = "smith/crates/smith-domain" }
 smith-domain-run = { path = "smith/crates/smith-domain-run" }
 smith-faults = { path = "smith/testing/smith-faults" }
+smith-inspect = { path = "smith/testing/smith-inspect" }
 smith-domain-session = { path = "smith/crates/smith-domain-session" }
 smith-domain-tools = { path = "smith/crates/smith-domain-tools" }
 smith-protocol-llm = { path = "smith/crates/smith-protocol-llm" }

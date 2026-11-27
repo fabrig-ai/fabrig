@@ -296,3 +296,36 @@ fn undeclared_relation_findings_follow_declared_relations() {
     smith.related(Related { relation: HOST_CALLS.name, key: CALL_KEY.into(), holds: OPEN_CALL.holds });
     assert_eq!(check_relations(&[&smith], &[&HOST_CALLS], MOMENT), Err(ORPHAN.into()));
 }
+
+#[test]
+fn resetting_inspection_hides_previous_records_before_refilling() {
+    let mut inspection = cycle(Vec::new());
+    inspection.table(Table { name: TABLE, capacity: CAPACITY, entries: entries(Release::Due), refused: refused(None) });
+    inspection.reset();
+    assert_eq!(inspection, engine());
+
+    inspection.fill_wait(|wait| {
+        wait.waiter.clear();
+        wait.waiter.push_str(TASK_FOUR);
+        wait.kind.clear();
+        wait.kind.push_str(ANSWER);
+        wait.wakes.clear();
+        wait.wakes.push(Wake::Timer(AFTER));
+        wait.bound = Some(AFTER);
+    });
+    inspection.fill_table(TABLE, CAPACITY, |rows| {
+        rows.entry(RULE, Release::Pending, |key| key.push_str(NEWCOMER));
+    });
+    assert_eq!(inspection.waits(), &[wait(TASK_FOUR, ANSWER, vec![Wake::Timer(AFTER)], Some(AFTER))]);
+    assert_eq!(
+        inspection.tables(),
+        &[Table {
+            name: TABLE,
+            capacity: CAPACITY,
+            entries: vec![Entry { key: NEWCOMER.into(), rule: RULE, release: Release::Pending }],
+            refused: Vec::new(),
+        }]
+    );
+    check_waits(&[&inspection], MOMENT).expect("no stale cycle");
+    check_tables(&[&inspection], MOMENT).expect("no stale release or refusal");
+}

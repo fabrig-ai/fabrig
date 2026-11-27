@@ -110,7 +110,7 @@ pub(crate) struct TurnHandoff {
 
 /// Issued provider identity survives session closing and is consumed by its terminal.
 #[derive(Debug)]
-pub(crate) struct IssuedCompletion {
+pub struct IssuedCompletion {
     pub(crate) renewable: bool,
     pub(crate) grant: Option<GrantName>,
     pub(crate) name: crate::llm::CompletionName,
@@ -127,13 +127,24 @@ pub(crate) struct Credential {
 /// A delegated call in flight: the run serves it, and the peer's session
 /// waits for its answer.
 #[derive(Debug)]
-pub(crate) struct Flight {
+pub struct Flight {
     pub(crate) peer: Id<Peer>,
     /// The session withdrew it.
     pub(crate) withdrawn: bool,
     /// Host calls, saves and children have no result when cut.
     pub(crate) omit_on_cut: bool,
     pub(crate) answer: Due,
+}
+
+impl Flight {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_answered(&self) -> bool {
+        match self.answer {
+            Due::Waiting => false,
+            Due::Answered { .. } | Due::Yielding { .. } | Due::Withheld | Due::Cancelled { .. } => true,
+        }
+    }
 }
 
 /// What a delegated call's session is answered.
@@ -211,6 +222,30 @@ impl Ready {
 }
 
 impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_run(&self) -> &run::Domain {
+        &self.run
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_session(&self) -> &session::Domain {
+        &self.session
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_completions(&self) -> &Map<Token, IssuedCompletion> {
+        &self.completions
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_flights(&self) -> &Map<Token, Flight> {
+        &self.flights
+    }
+
     /// A domain with room for `limits`, which [`crate::valid`] accepts,
     /// drawing randomness from `seed`: each child domain's seed is drawn from
     /// it.

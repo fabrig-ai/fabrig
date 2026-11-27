@@ -848,22 +848,39 @@ impl World {
 
     /// Runs the same loop with a scenario observing both sides of each reclaim point.
     pub fn run_observed(&mut self, iterations: u32, mut observe: impl FnMut(&mut Self, Reclaim)) {
-        for _ in 0..iterations {
-            self.iterate(&mut observe);
+        if let Err(finding) = self.drive(iterations, &mut observe) {
+            panic!("{finding}");
+        }
+    }
+
+    fn drive(&mut self, iterations: u32, observe: &mut impl FnMut(&mut Self, Reclaim)) -> Result<(), String> {
+        let mut inspection = skein_world::inspect::Inspection::new("smith", smith_inspect::KINDS);
+        for iteration in 1..=iterations {
+            self.iterate(observe);
             if let Some(why) = &self.finding {
-                panic!("{why}");
+                return Err(why.clone());
             }
             if self.has_work_now() {
                 continue;
             }
+            let moment = skein_world::inspect::Moment {
+                seed: self.settings.seed,
+                at: self.now,
+                iteration: u64::from(iteration),
+            };
+            inspection.reset();
+            smith_inspect::session(&self.agent, &mut inspection);
+            skein_world::inspect::check_waits(&[&inspection], moment)?;
+            skein_world::inspect::check_tables(&[&inspection], moment)?;
+            smith_inspect::room(&self.agent, moment)?;
             let Some(next) = self.next_time() else {
                 self.assert_settled();
-                return;
+                return Ok(());
             };
             assert!(next > self.now, "time moves forward");
             self.now = next;
         }
-        panic!("the world did not settle in {iterations} iterations");
+        Err(format!("the world did not settle in {iterations} iterations"))
     }
 
     /// One iteration of the loop, as the shell would run it.

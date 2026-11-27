@@ -4672,6 +4672,7 @@ dependencies = [
  "smith-faults",
  "smith-host-domain",
  "smith-host-world",
+ "smith-inspect",
  "smith-protocol-events",
  "smith-protocol-events-fixtures",
  "smith-protocol-llm",
@@ -5065,6 +5066,17 @@ dependencies = [
  "skein-lib",
  "smith-domain",
  "smith-inline-agent",
+]
+
+[[package]]
+name = "smith-inspect"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-world",
+ "smith-domain",
+ "smith-domain-session",
+ "smith-domain-tools",
 ]
 
 [[package]]
@@ -5553,6 +5565,7 @@ dependencies = [
  "smith-domain-session-fixtures",
  "smith-domain-tools",
  "smith-domain-tools-fixtures",
+ "smith-inspect",
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
  "smith-shapes",

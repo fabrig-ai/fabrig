@@ -7,6 +7,7 @@ mod budget;
 mod child_final;
 mod compaction;
 mod empty_turn;
+mod inspection;
 mod jobs;
 mod memory;
 mod orders;

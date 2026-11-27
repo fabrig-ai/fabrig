@@ -451,3 +451,36 @@ fn job_calls_alone_wait_as_each_asks() {
     end_job(&mut world, owner, JobEnd::Ended(tools::Exit::Code { code: 0 }));
     finish(&mut world);
 }
+
+#[test]
+fn inspection_reads_four_job_cells_until_the_session_closes() {
+    use skein_world::inspect::{Inspection, Moment, Release, check_tables};
+    use smith_inspect::KINDS;
+
+    let mut world = world();
+    let owners = [start_job(&mut world), start_job(&mut world), start_job(&mut world), start_job(&mut world)];
+    world.domain.reclaim();
+    let mut reading = Inspection::new("smith", KINDS);
+    smith_inspect::session(&world.domain, &mut reading);
+    let cells: Vec<_> = reading.tables().iter().filter(|table| table.name == "job cells").collect();
+    let [cells] = cells.as_slice() else { panic!("one kit's cells") };
+    assert_eq!(cells.capacity, 4);
+    assert_eq!(cells.entries.len(), 4);
+    assert!(cells.entries.iter().all(|cell| cell.release == Release::Pending));
+    let moment = Moment { seed: 1, at: world.env.now, iteration: 1 };
+    check_tables(&[&reading], moment).expect("all four jobs still hold their cells");
+    smith_inspect::room(&world.domain, moment).expect("four independently owned cells");
+
+    world.step(session::Event::Close { session: world.session.expect("opened") });
+    for owner in owners {
+        end_job(&mut world, owner, JobEnd::Cancelled);
+    }
+    if let Some(owner) = world.completing {
+        world.step(session::Event::Cancelled { owner });
+    }
+    assert!(world.end.is_some());
+    world.domain.reclaim();
+    let mut reading = Inspection::new("smith", KINDS);
+    smith_inspect::session(&world.domain, &mut reading);
+    assert!(reading.tables().iter().filter(|table| table.name == "job cells").all(|table| table.entries.is_empty()));
+}
