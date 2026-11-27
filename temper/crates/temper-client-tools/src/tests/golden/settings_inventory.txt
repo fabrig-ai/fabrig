@@ -1,6 +1,6 @@
 newest revision 5
 settings:
-  charter 3 "worker": changed in revision 5
+  template 33 "goal for a lean design": changed in revision 5, name "lean-goal"
   rules: default
 held revisions:
   revision 5, against revision 4, at 00:00 UTC, by party 2, from p2/7, running work stays

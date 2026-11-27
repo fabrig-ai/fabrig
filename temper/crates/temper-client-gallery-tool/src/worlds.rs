@@ -4248,6 +4248,7 @@ fn base_frame(person: &str, project: &str) -> c::Me {
     let mut templates = List::with_capacity(1);
     templates
         .push(c::Template {
+            name: None,
             resources: List::with_capacity(0),
             number: 1,
             shown: doc("chat"),
@@ -4279,6 +4280,7 @@ fn base_frame(person: &str, project: &str) -> c::Me {
         })
         .expect("one project");
     c::Me {
+        charters: List::with_capacity(0),
         party: c::MeParty { number: 73, kind: c::PartyKind::Person, login: doc(person), name: doc(person) },
         projects,
         needs: c::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },

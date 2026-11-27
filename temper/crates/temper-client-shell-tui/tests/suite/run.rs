@@ -1050,6 +1050,7 @@ impl CommittedChat {
     fn projects(&self) -> Box<[u8]> {
         use jig_client_protocol_wire as w;
         let template = |number, label, name: &[u8]| w::Template {
+            name: None,
             number,
             shown: jig_client_test_records::wire_text(name),
             executor: w::TemplateExecutor::Charter(w::TemplateCharter { value: 7 }),
@@ -2147,6 +2148,7 @@ fn me_event(watch: u64, projects: Box<[u8]>) -> Box<[u8]> {
     use jig_client_protocol_wire as w;
     let text = |bytes: &[u8]| w::DocumentText { bytes: bytes.into(), cut: false };
     let me = w::Me {
+        charters: skein_lib::List::with_capacity(0),
         party: w::MeParty { number: 7, kind: w::PartyKind::Person, login: text(b"owner"), name: text(b"Owner") },
         projects,
         needs: w::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },

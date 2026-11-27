@@ -28,6 +28,7 @@ pub(super) fn model() -> c::MeModel {
 }
 fn template(number: u32) -> c::Template {
     c::Template {
+        name: None,
         number,
         shown: c::DocumentText::complete(text(b"Chat")),
         executor: c::TemplateExecutor::Charter(1),

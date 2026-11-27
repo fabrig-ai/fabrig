@@ -1170,6 +1170,7 @@ pub(crate) fn me_bytes(_duties: &Duties) -> Box<[u8]> {
     let watch = 0;
     let text = |bytes: &[u8]| w::DocumentText { bytes: bytes.into(), cut: false };
     let me = w::Me {
+        charters: List::with_capacity(0),
         party: w::MeParty { number: 7, kind: w::PartyKind::Person, login: text(b"owner"), name: text(b"Owner") },
         projects: Box::new([]),
         needs: w::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
@@ -1217,6 +1218,7 @@ pub(crate) fn launchpad_me(projects: bool) -> w::Me {
     me.retention = Duration::from_secs(1000);
     if projects {
         let template = w::Template {
+            name: None,
             number: 5,
             shown: records::wire_text(b"Ask temper"),
             executor: w::TemplateExecutor::Charter(w::TemplateCharter { value: 5 }),

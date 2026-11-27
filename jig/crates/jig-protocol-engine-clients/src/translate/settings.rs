@@ -107,6 +107,7 @@ pub(crate) fn charter(value: &core::Charter) -> Result<w::Charter, w::Problem> {
         parts.push(mapped::charter_part_to_record(item)).expect("part count");
     }
     Ok(w::Charter {
+        name: value.name.clone(),
         parts,
         documents,
         rest: value.rest,
@@ -204,6 +205,7 @@ pub(super) fn policy(
         overrides.push(v.clone()).expect("template override count");
     }
     Ok(w::SettingPolicy {
+        name: value.name.clone(),
         escalation_role: p.escalation_role,
         ceiling: authority(&p.ceiling, models, limits)?,
         projections,

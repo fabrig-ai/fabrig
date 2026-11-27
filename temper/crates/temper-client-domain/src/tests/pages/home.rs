@@ -122,7 +122,7 @@ fn settings(fixture: &mut Fixture, follows: c::SettingFollows) -> Queue<Request>
 }
 fn setting(fixture: &mut Fixture, setting: c::Setting, follows: c::SettingFollows) -> Queue<Request> {
     let mut lines = List::with_capacity(ONE);
-    lines.push(c::SettingLine { setting, shown: None, follows, last: None, application: None }).unwrap();
+    lines.push(c::SettingLine { name: None, setting, shown: None, follows, last: None, application: None }).unwrap();
     deliver(
         &mut fixture.root,
         fixture.settings,

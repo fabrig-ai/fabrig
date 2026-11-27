@@ -500,6 +500,7 @@ pub(crate) fn me(party: u64) -> c::Me {
         })
         .expect("one project");
     c::Me {
+        charters: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,

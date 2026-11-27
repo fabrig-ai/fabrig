@@ -154,6 +154,7 @@ fn settings_document(f: &mut Ways, configured: bool) {
     if configured {
         settings
             .push(c::SettingLine {
+                name: None,
                 setting: c::Setting::Application { kind: 2, scope: f::PROJECT, number: 1 },
                 shown: None,
                 last: Some(NEWEST),

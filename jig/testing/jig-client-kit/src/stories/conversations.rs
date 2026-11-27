@@ -6,6 +6,7 @@ use skein_lib::{List, Wall};
 #[must_use]
 pub fn templates() -> List<Template> {
     let chat = Template {
+        name: None,
         resources: List::with_capacity(0),
         llm: None,
         number: jig_client::shapes::CHAT,

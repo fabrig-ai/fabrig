@@ -111,7 +111,7 @@ pub(crate) fn charter_from_record(value: w::Charter) -> c::Charter {
         parts.push(mapped::charter_part_to_domain(item)).expect("same count");
     }
     c::Charter {
-        name: None,
+        name: v.name,
         parts: parts.into_boxed(),
         rest,
         documents: documents.into_boxed(),
@@ -210,7 +210,7 @@ pub(crate) fn policy_from_record(
     }
     let overrides = operations::overrides(v.templates);
     Ok(c::ConfiguredPolicy {
-        name: None,
+        name: v.name,
         policy: a::Policy {
             escalation_role: v.escalation_role,
             ceiling: authority(v.ceiling, models, limits)?,
@@ -280,7 +280,7 @@ pub(crate) fn template_from_record(
             .expect("same capacity");
     }
     Ok(c::Template {
-        name: None,
+        name: v.name,
         resources: resources.into_boxed(),
         number: v.number,
         shown: v.shown.bytes,

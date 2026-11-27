@@ -400,6 +400,7 @@ pub(super) fn press(root: &mut Domain, name: &str, settings: Token, out: &mut Qu
         let mut settings_rows = List::with_capacity(1);
         settings_rows
             .push(c::SettingLine {
+                name: None,
                 setting: c::Setting::Application { kind: 2, scope: PROJECT, number: 1 },
                 shown: Some(doc("Landing rule")),
                 follows: c::SettingFollows::Change,

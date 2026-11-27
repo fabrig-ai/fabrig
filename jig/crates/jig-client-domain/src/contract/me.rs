@@ -10,6 +10,8 @@ use skein_lib::{Duration, List, Wall};
 pub struct Me {
     pub party: MeParty,
     pub projects: List<MeProject>,
+    /// Offered charters with names, in number order.
+    pub charters: List<MeCharter>,
     pub needs: Needs,
     pub needs_total: u32,
     pub updates: Count,
@@ -38,6 +40,13 @@ pub struct MeParty {
     pub kind: PartyKind,
     pub login: DocumentText,
     pub name: DocumentText,
+}
+
+/// A named charter offered by the settings.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MeCharter {
+    pub number: u32,
+    pub name: Box<[u8]>,
 }
 
 /// Project membership, retained pool and public identifier (jig/docs/design/client/domain/contract/documents.md, 1; jig/docs/design/domain/people/public-reading.md, 8).
@@ -86,6 +95,7 @@ pub struct Creating {
 /// A configured template merged with its project's overrides (protocol/configuration-templates.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Template {
+    pub name: Option<Box<[u8]>>,
     pub resources: List<super::Symbol>,
     pub number: u32,
     pub shown: DocumentText,

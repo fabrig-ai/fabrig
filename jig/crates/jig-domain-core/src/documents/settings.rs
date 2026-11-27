@@ -45,15 +45,26 @@ pub(crate) fn build(core: &Core) -> Settings {
             }
             None => (Follows::Default, current.defaults.get(&setting).expect("named default").revision),
         };
-        let shown = match current.value(setting) {
-            Some(value) => match value.as_template() {
-                Some(template) => Some(Text { bytes: template.shown.clone(), cut: false }),
-                None => None,
-            },
-            None => None,
+        let (name, shown) = match current.value(setting) {
+            Some(value) => {
+                let name = match current.default_value(setting) {
+                    Some(default) => default.name(),
+                    None => value.name(),
+                };
+                let shown = match value.as_template() {
+                    Some(template) => Some(Text { bytes: template.shown.clone(), cut: false }),
+                    None => None,
+                };
+                let name = match name {
+                    Some(name) => Some(skein_lib::bytes::copy_of(name)),
+                    None => None,
+                };
+                (name, shown)
+            }
+            None => (None, None),
         };
         settings
-            .push(SettingLine { setting, shown, follows, last: Some(last), application: None })
+            .push(SettingLine { setting, name, shown, follows, last: Some(last), application: None })
             .expect("one line per setting");
     }
     for (&setting, state) in &current.applications {
@@ -63,7 +74,7 @@ pub(crate) fn build(core: &Core) -> Settings {
             | crate::settings::application::Follows::Removed { revision } => (Follows::Change, Some(revision)),
         };
         settings
-            .push(SettingLine { setting, shown: None, follows, last, application: Some(state.clone()) })
+            .push(SettingLine { setting, name: None, shown: None, follows, last, application: Some(state.clone()) })
             .expect("one line per application setting");
     }
     let mut held = List::with_capacity(core.held.heads.capacity().checked_add(1).expect("held inventory bound"));
@@ -165,6 +176,7 @@ mod tests {
             line(&current),
             SettingLine {
                 setting: Setting::Template(1),
+                name: None,
                 shown: Some(Text { bytes: Box::from(b"chat".as_slice()), cut: false }),
                 follows: Follows::Default,
                 application: None,
@@ -178,6 +190,7 @@ mod tests {
             line(&current),
             SettingLine {
                 setting: Setting::Template(1),
+                name: None,
                 shown: None,
                 follows: Follows::Change,
                 last: Some(3),
@@ -215,6 +228,56 @@ mod tests {
         assert_eq!(document.held.get(0).unwrap().holders, 0);
         assert!(document.pending.is_empty());
     }
+    #[test]
+    fn inventory_uses_stock_and_own_names_separately_from_shown() {
+        use crate::settings::{Default, Value};
+        let mut current = current();
+        let policy = crate::tests::config(1).seed_projects[0].policy.clone();
+        current
+            .defaults
+            .insert(Setting::Policy(1), Default { revision: 1, value: Value::Policy(Box::new(policy)) })
+            .unwrap();
+        for (stock, own, stock_name, own_name) in [
+            (Setting::Charter(1), Setting::Charter(33), b"implementer".as_slice(), Some(b"designer".as_slice())),
+            (Setting::Template(1), Setting::Template(33), b"chat".as_slice(), Some(b"lean-goal".as_slice())),
+            (Setting::Policy(1), Setting::Policy(33), b"standard".as_slice(), Some(b"lean-policy".as_slice())),
+            (Setting::Template(1), Setting::Template(34), b"chat".as_slice(), None),
+        ] {
+            let default = &mut current.defaults.get_mut(&stock).unwrap().value;
+            default.set_name(Some(stock_name));
+            let mut earlier = default.clone();
+            earlier.set_name(None);
+            current.changes.insert(stock, Changed { value: Some(earlier.clone()), revision: 2 }).unwrap();
+            earlier.set_name(own_name);
+            current.changes.insert(own, Changed { value: Some(earlier), revision: 2 }).unwrap();
+        }
+        let document = document(current);
+        for (setting, name) in [
+            (Setting::Charter(1), Some(b"implementer".as_slice())),
+            (Setting::Charter(33), Some(b"designer".as_slice())),
+            (Setting::Template(1), Some(b"chat".as_slice())),
+            (Setting::Template(33), Some(b"lean-goal".as_slice())),
+            (Setting::Template(34), None),
+            (Setting::Policy(1), Some(b"standard".as_slice())),
+            (Setting::Policy(33), Some(b"lean-policy".as_slice())),
+        ] {
+            let mut found = None;
+            for row in &document.settings {
+                if row.setting == setting {
+                    found = Some(row);
+                    break;
+                }
+            }
+            let row = found.expect("inventory row");
+            assert_eq!(row.name.as_deref(), name, "{setting:?}");
+            if let Setting::Template(_) = setting {
+                assert_eq!(row.shown.as_ref().unwrap().bytes.as_ref(), b"chat");
+            } else {
+                assert!(row.shown.is_none());
+            }
+        }
+    }
+
     #[test]
     fn application_inventory_keeps_changed_default_and_removed_states_without_values() {
         use crate::settings::application::{Follows as AppFollows, State};

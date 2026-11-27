@@ -160,8 +160,12 @@ pub fn list_bound(limits: &crate::Limits) -> Option<u64> {
     let models = u64::from(jig_domain_tasks::MODELS)
         .checked_mul(u64::try_from(size_of::<jig_domain_tasks::ModelEffort>()).ok()?)?;
     skein_lib::List::<Template>::price(limits.templates)?.checked_add(
-        u64::from(limits.templates)
-            .checked_mul(u64::from(limits.documents.text_bytes).checked_add(choices)?.checked_add(models)?)?,
+        u64::from(limits.templates).checked_mul(
+            u64::from(limits.documents.text_bytes)
+                .checked_add(choices)?
+                .checked_add(models)?
+                .checked_add(u64::from(jig_domain_people::settings::NAME_BYTES))?,
+        )?,
     )
 }
 

@@ -106,6 +106,7 @@ fn document(f: &mut Fixture, newest: u32, lines: &[(u32, u32, Option<u32>, c::Se
     for (kind, project, last, follows) in lines {
         settings
             .push(c::SettingLine {
+                name: None,
                 setting: c::Setting::Application { kind: *kind, scope: *project, number: 1 },
                 shown: None,
                 last: *last,

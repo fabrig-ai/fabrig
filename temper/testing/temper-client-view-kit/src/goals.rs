@@ -25,6 +25,7 @@ pub fn line() -> c::TaskLine {
 #[must_use]
 pub fn template(number: u32, name: &[u8], tracked: bool) -> c::Template {
     c::Template {
+        name: None,
         resources: List::uncapped(),
         number,
         shown: c::DocumentText::complete(c::Text::new(name.into(), TEXT_BYTES).unwrap()),

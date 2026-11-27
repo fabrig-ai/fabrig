@@ -96,13 +96,22 @@ fn zero_wake_counts_and_durations_are_sent_for_deployment_validation() {
 }
 #[test]
 fn a_shown_charter_with_a_wake_policy_applies_unchanged() {
-    let value = charter(&charter_file(COORDINATOR));
-    let bounds = JsonLimits { depth: 32, length: 8192 };
-    let mut measure = Encoder::measure(&bounds);
-    encode_file(&value, &mut measure);
-    let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
-    encode_file(&value, &mut out);
-    assert_eq!(charter(&out.finish()), value);
+    for name in [None, Some(b"coordinator".as_slice())] {
+        let members = match name {
+            Some(_) => joined(&[COORDINATOR, br#", "name":"coordinator""#]),
+            None => COORDINATOR.into(),
+        };
+        let value = charter(&charter_file(&members));
+        assert_eq!(value.name.as_deref(), name);
+        let bounds = JsonLimits { depth: 32, length: 8192 };
+        let mut measure = Encoder::measure(&bounds);
+        encode_file(&value, &mut measure);
+        let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+        encode_file(&value, &mut out);
+        let printed = out.finish();
+        assert_eq!(skein_lib::bytes::find(&printed, br#""name":"coordinator""#).is_some(), name.is_some());
+        assert_eq!(charter(&printed), value);
+    }
 }
 fn encode_file(value: &c::Charter, out: &mut Encoder) {
     out.object_start();
@@ -572,6 +581,28 @@ fn a_project_policy_item_decodes_to_its_setting_and_a_policy_value() {
     assert_eq!(crate::wire::settings_restore_setting(&wire), item.setting);
 }
 #[test]
+fn numbered_policies_read_and_print_optional_names() {
+    let limits = Limits::standard();
+    let setting = br#"{"kind":"policy","number":33}"#;
+    let named = joined(&[br#"{"name":"lean-policy","#, &POLICY[1..]]);
+    for (body, name) in [(POLICY, None), (named.as_ref(), Some(b"lean-policy".as_slice()))] {
+        let items = file::decode(&kind_file(setting, body), &limits).unwrap();
+        let item = items.get(0).unwrap();
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set policy") };
+        let c::SettingValue::Policy(value) = &set.value else { panic!("policy") };
+        assert_eq!(value.name.as_deref(), name);
+        let bounds = JsonLimits { depth: 32, length: 8192 };
+        let mut measure = Encoder::measure(&bounds);
+        encode_policy_file(item.setting, &set.value, &mut measure);
+        let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+        encode_policy_file(item.setting, &set.value, &mut out);
+        let printed = out.finish();
+        assert_eq!(skein_lib::bytes::find(&printed, br#""name":"lean-policy""#).is_some(), name.is_some());
+        assert_eq!(file::decode(&printed, &limits).unwrap(), items);
+    }
+}
+
+#[test]
 fn a_project_policy_edit_a_second_one_or_a_bad_project_is_refused_naming_the_item() {
     for (bytes, expected) in [
         (
@@ -669,6 +700,7 @@ fn templates_read_both_display_forms_and_print_shown() {
         let file = kind_file(TEMPLATE_SETTING, &joined(&[TEMPLATE_VALUE, member]));
         let value = template(&file, &limits);
         assert_eq!(value.shown.bytes(), b"goal for a lean design");
+        assert_eq!(value.name, None);
         let mut measure = Encoder::measure(&bounds);
         values::encode_template(&value, &mut measure);
         let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
@@ -681,11 +713,29 @@ fn templates_read_both_display_forms_and_print_shown() {
 }
 
 #[test]
-fn a_template_with_shown_refuses_name() {
-    let file = kind_file(TEMPLATE_SETTING, &joined(&[TEMPLATE_VALUE, br#""name":"old","shown":"new"}"#]));
+fn a_template_with_shown_reads_and_prints_its_separate_name() {
+    let limits = Limits::standard();
+    let named = br#""name":"lean-goal","shown":"goal for a lean design"}"#;
+    let file = kind_file(TEMPLATE_SETTING, &joined(&[TEMPLATE_VALUE, named]));
+    let value = template(&file, &limits);
+    assert_eq!(value.name.as_deref(), Some(b"lean-goal".as_slice()));
+    assert_eq!(value.shown.bytes(), b"goal for a lean design");
+    let bounds = JsonLimits { depth: 32, length: 8192 };
+    let mut measure = Encoder::measure(&bounds);
+    values::encode_template(&value, &mut measure);
+    let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+    values::encode_template(&value, &mut out);
+    let printed = out.finish();
+    assert!(skein_lib::bytes::find(&printed, br#""name":"lean-goal","shown":"goal for a lean design""#).is_some());
+    assert_eq!(template(&kind_file(TEMPLATE_SETTING, &printed), &limits), value);
+}
+
+#[test]
+fn a_charter_overlay_refuses_a_name_member() {
+    let file = br#"{"items":[{"setting":{"kind":"charter","number":1},"overlay":{"name":"a-name"}}]}"#;
     assert_eq!(
-        file::decode(&file, &Limits::standard()).unwrap_err().as_ref(),
-        b"settings file item 1: name: not allowed with shown"
+        file::decode(file, &Limits::standard()).unwrap_err().as_ref(),
+        b"settings file item 1: name: unknown member"
     );
 }
 

@@ -154,6 +154,7 @@ pub fn wire_charter(value: &c::Charter) -> w::Charter {
             .expect("same capacity");
     }
     w::Charter {
+        name: value.name.clone(),
         parts,
         documents,
         rest: value.rest,
@@ -197,6 +198,7 @@ pub fn restore_charter(value: &w::Charter) -> Result<c::Charter, w::Problem> {
             .expect("same capacity");
     }
     Ok(c::Charter {
+        name: value.name.clone(),
         parts,
         rest: value.rest,
         documents,
@@ -243,6 +245,7 @@ pub fn wire_setting_policy(value: &c::SettingPolicy, limits: &w::Limits) -> Resu
         templates.push(wire_template_override(item)).expect("same capacity");
     }
     Ok(w::SettingPolicy {
+        name: value.name.clone(),
         escalation_role: match &value.escalation_role {
             Some(item) => Some(*item),
             None => None,
@@ -278,6 +281,7 @@ pub fn restore_setting_policy(value: &w::SettingPolicy, limits: &Limits) -> Resu
         templates.push(restore_template_override(item)).expect("same capacity");
     }
     Ok(c::SettingPolicy {
+        name: value.name.clone(),
         escalation_role: match &value.escalation_role {
             Some(item) => Some(*item),
             None => None,
@@ -584,6 +588,7 @@ fn restore_template_override(value: &w::TemplateOverride) -> c::TemplateOverride
 }
 fn wire_template(value: &c::Template, limits: &w::Limits) -> Result<w::Template, w::Problem> {
     Ok(w::Template {
+        name: value.name.clone(),
         resources: super::documents::me::wire_symbols(&value.resources),
         number: value.number,
         shown: wire_document_text(&value.shown),

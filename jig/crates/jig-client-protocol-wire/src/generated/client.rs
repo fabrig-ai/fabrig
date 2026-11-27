@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 44;
 pub const LAYOUT: [u8; 32] = [
-    0x55, 0xfa, 0xe8, 0x77, 0x9b, 0x61, 0x53, 0x21, 0xc0, 0x30, 0x52, 0xad, 0x1b, 0xed, 0xec, 0xf4, 0xb9, 0x9b, 0x31,
-    0x87, 0xc9, 0x37, 0x3c, 0x31, 0x2d, 0x37, 0xa2, 0xbe, 0xea, 0x77, 0x69, 0x60,
+    0x4c, 0x7f, 0x57, 0xfa, 0x81, 0x52, 0xb2, 0x11, 0xa8, 0x3c, 0x47, 0xa1, 0x55, 0x45, 0x93, 0x6c, 0xde, 0x6a, 0x8f,
+    0x53, 0xef, 0x6b, 0x6f, 0xeb, 0x9f, 0xc1, 0x75, 0x66, 0x3e, 0x3d, 0xc7, 0xcb,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -187,6 +187,7 @@ pub struct Limits {
     pub inbox_page_selection_some: u32,
     pub inbox_page_rows: u32,
     pub template_resources: u32,
+    pub template_name_some: u32,
     pub me_model_name: u32,
     pub me_model_efforts: u32,
     pub me_model_efforts_item: u32,
@@ -197,8 +198,10 @@ pub struct Limits {
     pub provider_offer_programs: u32,
     pub provider_offer_programs_item: u32,
     pub provider_offer_manage_usage_some: u32,
+    pub me_charter_name: u32,
     pub me_projects: u32,
     pub me_providers: u32,
+    pub me_charters: u32,
     pub task_context_parts: u32,
     pub task_context_spend: u32,
     pub task_context_writer_slots: u32,
@@ -381,6 +384,7 @@ pub struct Limits {
     pub charter_alternatives: u32,
     pub charter_documents: u32,
     pub charter_parts: u32,
+    pub charter_name_some: u32,
     pub overlay_alternatives_some: u32,
     pub overlay_documents_some: u32,
     pub overlay_instructions: u32,
@@ -390,6 +394,7 @@ pub struct Limits {
     pub setting_policy_requirements: u32,
     pub setting_policy_permissions: u32,
     pub setting_policy_templates: u32,
+    pub setting_policy_name_some: u32,
     pub rules_implies: u32,
     pub rules_requirements: u32,
     pub application_value_bytes: u32,
@@ -400,6 +405,7 @@ pub struct Limits {
     pub change_settings_items: u32,
     pub refusal_full_tasks: u32,
     pub application_state_charters: u32,
+    pub setting_line_name_some: u32,
     pub settings_document_settings: u32,
     pub settings_document_held: u32,
     pub settings_document_pending: u32,
@@ -586,6 +592,7 @@ pub const CEILINGS: Limits = Limits {
     inbox_page_selection_some: 16_777_216,
     inbox_page_rows: 16_777_216,
     template_resources: 32,
+    template_name_some: 32,
     me_model_name: 4_096,
     me_model_efforts: 16,
     me_model_efforts_item: 32,
@@ -596,8 +603,10 @@ pub const CEILINGS: Limits = Limits {
     provider_offer_programs: 32,
     provider_offer_programs_item: 32,
     provider_offer_manage_usage_some: 2_048,
+    me_charter_name: 32,
     me_projects: 16_777_216,
     me_providers: 16_777_216,
+    me_charters: 64,
     task_context_parts: 16_777_216,
     task_context_spend: 32,
     task_context_writer_slots: 16_777_216,
@@ -780,6 +789,7 @@ pub const CEILINGS: Limits = Limits {
     charter_alternatives: 63,
     charter_documents: 8,
     charter_parts: 8,
+    charter_name_some: 32,
     overlay_alternatives_some: 63,
     overlay_documents_some: 8,
     overlay_instructions: 1_114_240,
@@ -789,6 +799,7 @@ pub const CEILINGS: Limits = Limits {
     setting_policy_requirements: 32,
     setting_policy_permissions: 32,
     setting_policy_templates: 16,
+    setting_policy_name_some: 32,
     rules_implies: 32,
     rules_requirements: 32,
     application_value_bytes: 1_114_240,
@@ -799,6 +810,7 @@ pub const CEILINGS: Limits = Limits {
     change_settings_items: 1_114_240,
     refusal_full_tasks: 32,
     application_state_charters: 255,
+    setting_line_name_some: 32,
     settings_document_settings: 512,
     settings_document_held: 32,
     settings_document_pending: 32,
@@ -985,6 +997,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "inbox_page_selection_some",
     "inbox_page_rows",
     "template_resources",
+    "template_name_some",
     "me_model_name",
     "me_model_efforts",
     "me_model_efforts_item",
@@ -995,8 +1008,10 @@ pub const LIMIT_NAMES: &[&str] = &[
     "provider_offer_programs",
     "provider_offer_programs_item",
     "provider_offer_manage_usage_some",
+    "me_charter_name",
     "me_projects",
     "me_providers",
+    "me_charters",
     "task_context_parts",
     "task_context_spend",
     "task_context_writer_slots",
@@ -1179,6 +1194,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "charter_alternatives",
     "charter_documents",
     "charter_parts",
+    "charter_name_some",
     "overlay_alternatives_some",
     "overlay_documents_some",
     "overlay_instructions",
@@ -1188,6 +1204,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "setting_policy_requirements",
     "setting_policy_permissions",
     "setting_policy_templates",
+    "setting_policy_name_some",
     "rules_implies",
     "rules_requirements",
     "application_value_bytes",
@@ -1198,6 +1215,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "change_settings_items",
     "refusal_full_tasks",
     "application_state_charters",
+    "setting_line_name_some",
     "settings_document_settings",
     "settings_document_held",
     "settings_document_pending",
@@ -1388,6 +1406,7 @@ impl Limits {
             self.inbox_page_selection_some,
             self.inbox_page_rows,
             self.template_resources,
+            self.template_name_some,
             self.me_model_name,
             self.me_model_efforts,
             self.me_model_efforts_item,
@@ -1398,8 +1417,10 @@ impl Limits {
             self.provider_offer_programs,
             self.provider_offer_programs_item,
             self.provider_offer_manage_usage_some,
+            self.me_charter_name,
             self.me_projects,
             self.me_providers,
+            self.me_charters,
             self.task_context_parts,
             self.task_context_spend,
             self.task_context_writer_slots,
@@ -1582,6 +1603,7 @@ impl Limits {
             self.charter_alternatives,
             self.charter_documents,
             self.charter_parts,
+            self.charter_name_some,
             self.overlay_alternatives_some,
             self.overlay_documents_some,
             self.overlay_instructions,
@@ -1591,6 +1613,7 @@ impl Limits {
             self.setting_policy_requirements,
             self.setting_policy_permissions,
             self.setting_policy_templates,
+            self.setting_policy_name_some,
             self.rules_implies,
             self.rules_requirements,
             self.application_value_bytes,
@@ -1601,6 +1624,7 @@ impl Limits {
             self.change_settings_items,
             self.refusal_full_tasks,
             self.application_state_charters,
+            self.setting_line_name_some,
             self.settings_document_settings,
             self.settings_document_held,
             self.settings_document_pending,
@@ -1792,6 +1816,7 @@ impl Limits {
             inbox_page_selection_some: self.inbox_page_selection_some.min(most),
             inbox_page_rows: self.inbox_page_rows.min(most),
             template_resources: self.template_resources.min(most),
+            template_name_some: self.template_name_some.min(most),
             me_model_name: self.me_model_name.min(most),
             me_model_efforts: self.me_model_efforts.min(most),
             me_model_efforts_item: self.me_model_efforts_item.min(most),
@@ -1802,8 +1827,10 @@ impl Limits {
             provider_offer_programs: self.provider_offer_programs.min(most),
             provider_offer_programs_item: self.provider_offer_programs_item.min(most),
             provider_offer_manage_usage_some: self.provider_offer_manage_usage_some.min(most),
+            me_charter_name: self.me_charter_name.min(most),
             me_projects: self.me_projects.min(most),
             me_providers: self.me_providers.min(most),
+            me_charters: self.me_charters.min(most),
             task_context_parts: self.task_context_parts.min(most),
             task_context_spend: self.task_context_spend.min(most),
             task_context_writer_slots: self.task_context_writer_slots.min(most),
@@ -1986,6 +2013,7 @@ impl Limits {
             charter_alternatives: self.charter_alternatives.min(most),
             charter_documents: self.charter_documents.min(most),
             charter_parts: self.charter_parts.min(most),
+            charter_name_some: self.charter_name_some.min(most),
             overlay_alternatives_some: self.overlay_alternatives_some.min(most),
             overlay_documents_some: self.overlay_documents_some.min(most),
             overlay_instructions: self.overlay_instructions.min(most),
@@ -1995,6 +2023,7 @@ impl Limits {
             setting_policy_requirements: self.setting_policy_requirements.min(most),
             setting_policy_permissions: self.setting_policy_permissions.min(most),
             setting_policy_templates: self.setting_policy_templates.min(most),
+            setting_policy_name_some: self.setting_policy_name_some.min(most),
             rules_implies: self.rules_implies.min(most),
             rules_requirements: self.rules_requirements.min(most),
             application_value_bytes: self.application_value_bytes.min(most),
@@ -2005,6 +2034,7 @@ impl Limits {
             change_settings_items: self.change_settings_items.min(most),
             refusal_full_tasks: self.refusal_full_tasks.min(most),
             application_state_charters: self.application_state_charters.min(most),
+            setting_line_name_some: self.setting_line_name_some.min(most),
             settings_document_settings: self.settings_document_settings.min(most),
             settings_document_held: self.settings_document_held.min(most),
             settings_document_pending: self.settings_document_pending.min(most),
@@ -2193,6 +2223,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::INBOX_PAGE_SELECTION,
     paths::INBOX_PAGE_ROWS,
     paths::TEMPLATE_RESOURCES,
+    paths::TEMPLATE_NAME,
     paths::ME_MODEL_NAME,
     paths::ME_MODEL_EFFORTS,
     paths::ME_MODEL_EFFORTS,
@@ -2203,8 +2234,10 @@ const LIMIT_PATHS: &[Path] = &[
     paths::PROVIDER_OFFER_PROGRAMS,
     paths::PROVIDER_OFFER_PROGRAMS,
     paths::PROVIDER_OFFER_MANAGE_USAGE,
+    paths::ME_CHARTER_NAME,
     paths::ME_PROJECTS,
     paths::ME_PROVIDERS,
+    paths::ME_CHARTERS,
     paths::TASK_CONTEXT_PARTS,
     paths::TASK_CONTEXT_SPEND,
     paths::TASK_CONTEXT_WRITER_SLOTS,
@@ -2387,6 +2420,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CHARTER_ALTERNATIVES,
     paths::CHARTER_DOCUMENTS,
     paths::CHARTER_PARTS,
+    paths::CHARTER_NAME,
     paths::OVERLAY_ALTERNATIVES,
     paths::OVERLAY_DOCUMENTS,
     paths::OVERLAY_INSTRUCTIONS,
@@ -2396,6 +2430,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::SETTING_POLICY_REQUIREMENTS,
     paths::SETTING_POLICY_PERMISSIONS,
     paths::SETTING_POLICY_TEMPLATES,
+    paths::SETTING_POLICY_NAME,
     paths::RULES_IMPLIES,
     paths::RULES_REQUIREMENTS,
     paths::APPLICATION_VALUE_BYTES,
@@ -2406,6 +2441,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CHANGE_SETTINGS_ITEMS,
     paths::REFUSAL_FULL_TASKS,
     paths::APPLICATION_STATE_CHARTERS,
+    paths::SETTING_LINE_NAME,
     paths::SETTINGS_DOCUMENT_SETTINGS,
     paths::SETTINGS_DOCUMENT_HELD,
     paths::SETTINGS_DOCUMENT_PENDING,
@@ -4445,6 +4481,7 @@ pub mod paths {
     pub const TEMPLATE_GRACE: Path = Path::new("Template.grace");
     pub const TEMPLATE_LLM: Path = Path::new("Template.llm");
     pub const TEMPLATE_RESOURCES: Path = Path::new("Template.resources");
+    pub const TEMPLATE_NAME: Path = Path::new("Template.name");
     pub const TEMPLATE_TAIL: Path = Path::new("Template (tail)");
     pub const ME_PRICES_INPUT: Path = Path::new("MePrices.input");
     pub const ME_PRICES_CACHED: Path = Path::new("MePrices.cached");
@@ -4484,6 +4521,9 @@ pub mod paths {
     pub const PROVIDER_OFFER_KEY_BYTES: Path = Path::new("ProviderOffer.key_bytes");
     pub const PROVIDER_OFFER_TAIL: Path = Path::new("ProviderOffer (tail)");
     pub const READINESS_TAG: Path = Path::new("Readiness (tag)");
+    pub const ME_CHARTER_NUMBER: Path = Path::new("MeCharter.number");
+    pub const ME_CHARTER_NAME: Path = Path::new("MeCharter.name");
+    pub const ME_CHARTER_TAIL: Path = Path::new("MeCharter (tail)");
     pub const ME_PARTY: Path = Path::new("Me.party");
     pub const ME_PROJECTS: Path = Path::new("Me.projects");
     pub const ME_NEEDS: Path = Path::new("Me.needs");
@@ -4499,6 +4539,7 @@ pub mod paths {
     pub const ME_REDIRECT_BYTES: Path = Path::new("Me.redirect_bytes");
     pub const ME_WORDS_BYTES: Path = Path::new("Me.words_bytes");
     pub const ME_SIGN_IN_EXPIRES: Path = Path::new("Me.sign_in_expires");
+    pub const ME_CHARTERS: Path = Path::new("Me.charters");
     pub const ME_TAIL: Path = Path::new("Me (tail)");
     pub const LIVE_DELEGATE_CHIP: Path = Path::new("LiveDelegate.chip");
     pub const LIVE_DELEGATE_TAKEOVER_BUDGET: Path = Path::new("LiveDelegate.takeover_budget");
@@ -5665,6 +5706,7 @@ pub mod paths {
     pub const CHARTER_WAKE: Path = Path::new("Charter.wake");
     pub const CHARTER_DOCUMENTS: Path = Path::new("Charter.documents");
     pub const CHARTER_PARTS: Path = Path::new("Charter.parts");
+    pub const CHARTER_NAME: Path = Path::new("Charter.name");
     pub const CHARTER_TAIL: Path = Path::new("Charter (tail)");
     pub const OVERLAY_REST: Path = Path::new("Overlay.rest");
     pub const OVERLAY_MODEL: Path = Path::new("Overlay.model");
@@ -5695,6 +5737,7 @@ pub mod paths {
     pub const SETTING_POLICY_REQUIREMENTS: Path = Path::new("SettingPolicy.requirements");
     pub const SETTING_POLICY_PERMISSIONS: Path = Path::new("SettingPolicy.permissions");
     pub const SETTING_POLICY_TEMPLATES: Path = Path::new("SettingPolicy.templates");
+    pub const SETTING_POLICY_NAME: Path = Path::new("SettingPolicy.name");
     pub const SETTING_POLICY_TAIL: Path = Path::new("SettingPolicy (tail)");
     pub const RULES_CEILING: Path = Path::new("Rules.ceiling");
     pub const RULES_PERIOD_SPEND: Path = Path::new("Rules.period_spend");
@@ -5774,6 +5817,7 @@ pub mod paths {
     pub const SETTING_LINE_FOLLOWS: Path = Path::new("SettingLine.follows");
     pub const SETTING_LINE_LAST: Path = Path::new("SettingLine.last");
     pub const SETTING_LINE_APPLICATION: Path = Path::new("SettingLine.application");
+    pub const SETTING_LINE_NAME: Path = Path::new("SettingLine.name");
     pub const SETTING_LINE_TAIL: Path = Path::new("SettingLine (tail)");
     pub const REVISION_PARTY_NUMBER: Path = Path::new("RevisionParty.number");
     pub const REVISION_PARTY_TAIL: Path = Path::new("RevisionParty (tail)");
@@ -47850,6 +47894,7 @@ pub struct Template {
     pub grace: Option<skein_lib::Duration>,
     pub llm: Option<LlmChoice>,
     pub resources: List<Symbol>,
+    pub name: Option<Box<[u8]>>,
 }
 
 // Record: Template.
@@ -47872,11 +47917,13 @@ impl Template {
         skein_codec::bounds::Node::Option { item: 13 },
         skein_codec::bounds::Node::Named("Symbol"),
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, template_resources), item: 15, size: size_of::<Symbol>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 14, 16] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, template_name_some) },
+        skein_codec::bounds::Node::Option { item: 17 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 14, 16, 18] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 119;
+    pub const ENCODED_AT_ZERO: u64 = 124;
 }
 
 impl Record for Template {
@@ -47914,6 +47961,7 @@ impl Record for Template {
         field::write(field::Optional { item: field::Span }, &self.grace, limits, out, paths::TEMPLATE_GRACE)?;
         field::write(field::Optional { item: field::Nested }, &self.llm, limits, out, paths::TEMPLATE_LLM)?;
         field::write(field::Sequence { limit: limits.template_resources.min(CEILINGS.template_resources), minimum: 4, item: field::Nested }, &self.resources, limits, out, paths::TEMPLATE_RESOURCES)?;
+        field::write(field::Optional { item: field::Text { limit: limits.template_name_some.min(CEILINGS.template_name_some) } }, &self.name, limits, out, paths::TEMPLATE_NAME)?;
         Ok(())
     }
 
@@ -47932,6 +47980,7 @@ impl Record for Template {
             grace: field::read(field::Optional { item: field::Span }, limits, reader, paths::TEMPLATE_GRACE)?,
             llm: field::read(field::Optional { item: field::Nested }, limits, reader, paths::TEMPLATE_LLM)?,
             resources: field::read(field::Sequence { limit: limits.template_resources.min(CEILINGS.template_resources), minimum: 4, item: field::Nested }, limits, reader, paths::TEMPLATE_RESOURCES)?,
+            name: field::read(field::Optional { item: field::Text { limit: limits.template_name_some.min(CEILINGS.template_name_some) } }, limits, reader, paths::TEMPLATE_NAME)?,
         })
     }
 }
@@ -48381,6 +48430,60 @@ impl Record for Readiness {
     }
 }
 
+// Type: MeCharter.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MeCharter {
+    pub number: u32,
+    pub name: Box<[u8]>,
+}
+
+// Record: MeCharter.
+impl MeCharter {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, me_charter_name) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
+impl Record for MeCharter {
+    type Limits = Limits;
+    const TAIL: Path = paths::ME_CHARTER_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "MeCharter")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "MeCharter")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.number, limits, out, paths::ME_CHARTER_NUMBER)?;
+        field::write(field::Text { limit: limits.me_charter_name.min(CEILINGS.me_charter_name) }, &self.name, limits, out, paths::ME_CHARTER_NAME)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            number: field::read(field::U32, limits, reader, paths::ME_CHARTER_NUMBER)?,
+            name: field::read(field::Text { limit: limits.me_charter_name.min(CEILINGS.me_charter_name) }, limits, reader, paths::ME_CHARTER_NAME)?,
+        })
+    }
+}
+
 // Type: Me.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Me {
@@ -48399,6 +48502,7 @@ pub struct Me {
     pub redirect_bytes: u32,
     pub words_bytes: u32,
     pub sign_in_expires: u64,
+    pub charters: List<MeCharter>,
 }
 
 // Record: Me.
@@ -48420,11 +48524,13 @@ impl Me {
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15] },
+        skein_codec::bounds::Node::Named("MeCharter"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, me_charters), item: 16, size: size_of::<MeCharter>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 17] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 96;
+    pub const ENCODED_AT_ZERO: u64 = 100;
 }
 
 impl Record for Me {
@@ -48464,6 +48570,7 @@ impl Record for Me {
         field::write(field::U32, &self.redirect_bytes, limits, out, paths::ME_REDIRECT_BYTES)?;
         field::write(field::U32, &self.words_bytes, limits, out, paths::ME_WORDS_BYTES)?;
         field::write(field::U64, &self.sign_in_expires, limits, out, paths::ME_SIGN_IN_EXPIRES)?;
+        field::write(field::Sequence { limit: limits.me_charters.min(CEILINGS.me_charters), minimum: 8, item: field::Nested }, &self.charters, limits, out, paths::ME_CHARTERS)?;
         Ok(())
     }
 
@@ -48484,6 +48591,7 @@ impl Record for Me {
             redirect_bytes: field::read(field::U32, limits, reader, paths::ME_REDIRECT_BYTES)?,
             words_bytes: field::read(field::U32, limits, reader, paths::ME_WORDS_BYTES)?,
             sign_in_expires: field::read(field::U64, limits, reader, paths::ME_SIGN_IN_EXPIRES)?,
+            charters: field::read(field::Sequence { limit: limits.me_charters.min(CEILINGS.me_charters), minimum: 8, item: field::Nested }, limits, reader, paths::ME_CHARTERS)?,
         })
     }
 }
@@ -67560,6 +67668,7 @@ pub struct Charter {
     pub wake: WakePolicy,
     pub documents: List<CharterDocument>,
     pub parts: List<CharterPart>,
+    pub name: Option<Box<[u8]>>,
 }
 
 // Record: Charter.
@@ -67590,11 +67699,13 @@ impl Charter {
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, charter_documents), item: 21, size: size_of::<CharterDocument>() },
         skein_codec::bounds::Node::Named("CharterPart"),
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, charter_parts), item: 23, size: size_of::<CharterPart>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, charter_name_some) },
+        skein_codec::bounds::Node::Option { item: 25 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 210;
+    pub const ENCODED_AT_ZERO: u64 = 215;
 }
 
 impl Record for Charter {
@@ -67641,6 +67752,7 @@ impl Record for Charter {
         field::write(field::Nested, &self.wake, limits, out, paths::CHARTER_WAKE)?;
         field::write(field::Sequence { limit: limits.charter_documents.min(CEILINGS.charter_documents), minimum: 11, item: field::Nested }, &self.documents, limits, out, paths::CHARTER_DOCUMENTS)?;
         field::write(field::Sequence { limit: limits.charter_parts.min(CEILINGS.charter_parts), minimum: 8, item: field::Nested }, &self.parts, limits, out, paths::CHARTER_PARTS)?;
+        field::write(field::Optional { item: field::Text { limit: limits.charter_name_some.min(CEILINGS.charter_name_some) } }, &self.name, limits, out, paths::CHARTER_NAME)?;
         Ok(())
     }
 
@@ -67668,6 +67780,7 @@ impl Record for Charter {
             wake: field::read(field::Nested, limits, reader, paths::CHARTER_WAKE)?,
             documents: field::read(field::Sequence { limit: limits.charter_documents.min(CEILINGS.charter_documents), minimum: 11, item: field::Nested }, limits, reader, paths::CHARTER_DOCUMENTS)?,
             parts: field::read(field::Sequence { limit: limits.charter_parts.min(CEILINGS.charter_parts), minimum: 8, item: field::Nested }, limits, reader, paths::CHARTER_PARTS)?,
+            name: field::read(field::Optional { item: field::Text { limit: limits.charter_name_some.min(CEILINGS.charter_name_some) } }, limits, reader, paths::CHARTER_NAME)?,
         })
     }
 }
@@ -67830,6 +67943,7 @@ pub struct SettingPolicy {
     pub requirements: List<PolicyRequirement>,
     pub permissions: List<PolicyPermission>,
     pub templates: List<TemplateOverride>,
+    pub name: Option<Box<[u8]>>,
 }
 
 // Record: SettingPolicy.
@@ -67849,11 +67963,13 @@ impl SettingPolicy {
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, setting_policy_permissions), item: 10, size: size_of::<PolicyPermission>() },
         skein_codec::bounds::Node::Named("TemplateOverride"),
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, setting_policy_templates), item: 12, size: size_of::<TemplateOverride>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 4, 5, 7, 9, 11, 13] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, setting_policy_name_some) },
+        skein_codec::bounds::Node::Option { item: 14 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 4, 5, 7, 9, 11, 13, 15] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 85;
+    pub const ENCODED_AT_ZERO: u64 = 90;
 }
 
 impl Record for SettingPolicy {
@@ -67886,6 +68002,7 @@ impl Record for SettingPolicy {
         field::write(field::Sequence { limit: limits.setting_policy_requirements.min(CEILINGS.setting_policy_requirements), minimum: 23, item: field::Nested }, &self.requirements, limits, out, paths::SETTING_POLICY_REQUIREMENTS)?;
         field::write(field::Sequence { limit: limits.setting_policy_permissions.min(CEILINGS.setting_policy_permissions), minimum: 8, item: field::Nested }, &self.permissions, limits, out, paths::SETTING_POLICY_PERMISSIONS)?;
         field::write(field::Sequence { limit: limits.setting_policy_templates.min(CEILINGS.setting_policy_templates), minimum: 8, item: field::Nested }, &self.templates, limits, out, paths::SETTING_POLICY_TEMPLATES)?;
+        field::write(field::Optional { item: field::Text { limit: limits.setting_policy_name_some.min(CEILINGS.setting_policy_name_some) } }, &self.name, limits, out, paths::SETTING_POLICY_NAME)?;
         Ok(())
     }
 
@@ -67899,6 +68016,7 @@ impl Record for SettingPolicy {
             requirements: field::read(field::Sequence { limit: limits.setting_policy_requirements.min(CEILINGS.setting_policy_requirements), minimum: 23, item: field::Nested }, limits, reader, paths::SETTING_POLICY_REQUIREMENTS)?,
             permissions: field::read(field::Sequence { limit: limits.setting_policy_permissions.min(CEILINGS.setting_policy_permissions), minimum: 8, item: field::Nested }, limits, reader, paths::SETTING_POLICY_PERMISSIONS)?,
             templates: field::read(field::Sequence { limit: limits.setting_policy_templates.min(CEILINGS.setting_policy_templates), minimum: 8, item: field::Nested }, limits, reader, paths::SETTING_POLICY_TEMPLATES)?,
+            name: field::read(field::Optional { item: field::Text { limit: limits.setting_policy_name_some.min(CEILINGS.setting_policy_name_some) } }, limits, reader, paths::SETTING_POLICY_NAME)?,
         })
     }
 }
@@ -68174,7 +68292,7 @@ impl SettingValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 211;
+    pub const ENCODED_AT_ZERO: u64 = 216;
 }
 
 impl Record for SettingValue {
@@ -68245,7 +68363,7 @@ impl SettingSet {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 211;
+    pub const ENCODED_AT_ZERO: u64 = 216;
 }
 
 impl Record for SettingSet {
@@ -68299,7 +68417,7 @@ impl SettingEdit {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 212;
+    pub const ENCODED_AT_ZERO: u64 = 217;
 }
 
 impl Record for SettingEdit {
@@ -68358,7 +68476,7 @@ impl SettingItem {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 225;
+    pub const ENCODED_AT_ZERO: u64 = 230;
 }
 
 impl Record for SettingItem {
@@ -69591,6 +69709,7 @@ pub struct SettingLine {
     pub follows: SettingFollows,
     pub last: Option<u32>,
     pub application: Option<ApplicationState>,
+    pub name: Option<Box<[u8]>>,
 }
 
 // Record: SettingLine.
@@ -69604,11 +69723,13 @@ impl SettingLine {
         skein_codec::bounds::Node::Option { item: 4 },
         skein_codec::bounds::Node::Named("ApplicationState"),
         skein_codec::bounds::Node::Option { item: 6 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3, 5, 7] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, setting_line_name_some) },
+        skein_codec::bounds::Node::Option { item: 8 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3, 5, 7, 9] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 39;
+    pub const ENCODED_AT_ZERO: u64 = 44;
 }
 
 impl Record for SettingLine {
@@ -69638,6 +69759,7 @@ impl Record for SettingLine {
         field::write(field::Nested, &self.follows, limits, out, paths::SETTING_LINE_FOLLOWS)?;
         field::write(field::Optional { item: field::U32 }, &self.last, limits, out, paths::SETTING_LINE_LAST)?;
         field::write(field::Optional { item: field::Nested }, &self.application, limits, out, paths::SETTING_LINE_APPLICATION)?;
+        field::write(field::Optional { item: field::Text { limit: limits.setting_line_name_some.min(CEILINGS.setting_line_name_some) } }, &self.name, limits, out, paths::SETTING_LINE_NAME)?;
         Ok(())
     }
 
@@ -69648,6 +69770,7 @@ impl Record for SettingLine {
             follows: field::read(field::Nested, limits, reader, paths::SETTING_LINE_FOLLOWS)?,
             last: field::read(field::Optional { item: field::U32 }, limits, reader, paths::SETTING_LINE_LAST)?,
             application: field::read(field::Optional { item: field::Nested }, limits, reader, paths::SETTING_LINE_APPLICATION)?,
+            name: field::read(field::Optional { item: field::Text { limit: limits.setting_line_name_some.min(CEILINGS.setting_line_name_some) } }, limits, reader, paths::SETTING_LINE_NAME)?,
         })
     }
 }
@@ -70045,7 +70168,7 @@ impl Record for SettingsDocument {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::U32, &self.newest, limits, out, paths::SETTINGS_DOCUMENT_NEWEST)?;
-        field::write(field::Sequence { limit: limits.settings_document_settings.min(CEILINGS.settings_document_settings), minimum: 5, item: field::Nested }, &self.settings, limits, out, paths::SETTINGS_DOCUMENT_SETTINGS)?;
+        field::write(field::Sequence { limit: limits.settings_document_settings.min(CEILINGS.settings_document_settings), minimum: 6, item: field::Nested }, &self.settings, limits, out, paths::SETTINGS_DOCUMENT_SETTINGS)?;
         field::write(field::Sequence { limit: limits.settings_document_held.min(CEILINGS.settings_document_held), minimum: 23, item: field::Nested }, &self.held, limits, out, paths::SETTINGS_DOCUMENT_HELD)?;
         field::write(field::Sequence { limit: limits.settings_document_pending.min(CEILINGS.settings_document_pending), minimum: 13, item: field::Nested }, &self.pending, limits, out, paths::SETTINGS_DOCUMENT_PENDING)?;
         Ok(())
@@ -70054,7 +70177,7 @@ impl Record for SettingsDocument {
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             newest: field::read(field::U32, limits, reader, paths::SETTINGS_DOCUMENT_NEWEST)?,
-            settings: field::read(field::Sequence { limit: limits.settings_document_settings.min(CEILINGS.settings_document_settings), minimum: 5, item: field::Nested }, limits, reader, paths::SETTINGS_DOCUMENT_SETTINGS)?,
+            settings: field::read(field::Sequence { limit: limits.settings_document_settings.min(CEILINGS.settings_document_settings), minimum: 6, item: field::Nested }, limits, reader, paths::SETTINGS_DOCUMENT_SETTINGS)?,
             held: field::read(field::Sequence { limit: limits.settings_document_held.min(CEILINGS.settings_document_held), minimum: 23, item: field::Nested }, limits, reader, paths::SETTINGS_DOCUMENT_HELD)?,
             pending: field::read(field::Sequence { limit: limits.settings_document_pending.min(CEILINGS.settings_document_pending), minimum: 13, item: field::Nested }, limits, reader, paths::SETTINGS_DOCUMENT_PENDING)?,
         })
@@ -70200,7 +70323,7 @@ impl SettingDocument {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 431;
+    pub const ENCODED_AT_ZERO: u64 = 436;
 }
 
 impl Record for SettingDocument {
@@ -70368,7 +70491,7 @@ impl RevisionEdit {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 212;
+    pub const ENCODED_AT_ZERO: u64 = 217;
 }
 
 impl Record for RevisionEdit {
@@ -70439,7 +70562,7 @@ impl RevisionReplaced {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 212;
+    pub const ENCODED_AT_ZERO: u64 = 217;
 }
 
 impl Record for RevisionReplaced {
@@ -70506,7 +70629,7 @@ impl RevisionItem {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 437;
+    pub const ENCODED_AT_ZERO: u64 = 447;
 }
 
 impl Record for RevisionItem {
@@ -73775,7 +73898,7 @@ impl ReviewValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 212;
+    pub const ENCODED_AT_ZERO: u64 = 217;
 }
 
 impl Record for ReviewValue {
@@ -73898,7 +74021,7 @@ impl ReviewItem {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 463;
+    pub const ENCODED_AT_ZERO: u64 = 473;
 }
 
 impl Record for ReviewItem {
@@ -74412,6 +74535,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "MalformedName", nodes: MalformedName::SHAPE },
     skein_codec::bounds::Declaration { name: "MalformedSettings", nodes: MalformedSettings::SHAPE },
     skein_codec::bounds::Declaration { name: "Me", nodes: Me::SHAPE },
+    skein_codec::bounds::Declaration { name: "MeCharter", nodes: MeCharter::SHAPE },
     skein_codec::bounds::Declaration { name: "MeDefault", nodes: MeDefault::SHAPE },
     skein_codec::bounds::Declaration { name: "MeModel", nodes: MeModel::SHAPE },
     skein_codec::bounds::Declaration { name: "MeParty", nodes: MeParty::SHAPE },
@@ -75240,6 +75364,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.inbox_page_selection_some,
     CEILINGS.inbox_page_rows,
     CEILINGS.template_resources,
+    CEILINGS.template_name_some,
     CEILINGS.me_model_name,
     CEILINGS.me_model_efforts,
     CEILINGS.me_model_efforts_item,
@@ -75250,8 +75375,10 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.provider_offer_programs,
     CEILINGS.provider_offer_programs_item,
     CEILINGS.provider_offer_manage_usage_some,
+    CEILINGS.me_charter_name,
     CEILINGS.me_projects,
     CEILINGS.me_providers,
+    CEILINGS.me_charters,
     CEILINGS.task_context_parts,
     CEILINGS.task_context_spend,
     CEILINGS.task_context_writer_slots,
@@ -75434,6 +75561,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.charter_alternatives,
     CEILINGS.charter_documents,
     CEILINGS.charter_parts,
+    CEILINGS.charter_name_some,
     CEILINGS.overlay_alternatives_some,
     CEILINGS.overlay_documents_some,
     CEILINGS.overlay_instructions,
@@ -75443,6 +75571,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.setting_policy_requirements,
     CEILINGS.setting_policy_permissions,
     CEILINGS.setting_policy_templates,
+    CEILINGS.setting_policy_name_some,
     CEILINGS.rules_implies,
     CEILINGS.rules_requirements,
     CEILINGS.application_value_bytes,
@@ -75453,6 +75582,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.change_settings_items,
     CEILINGS.refusal_full_tasks,
     CEILINGS.application_state_charters,
+    CEILINGS.setting_line_name_some,
     CEILINGS.settings_document_settings,
     CEILINGS.settings_document_held,
     CEILINGS.settings_document_pending,

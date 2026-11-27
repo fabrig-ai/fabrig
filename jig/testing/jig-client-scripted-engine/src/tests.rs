@@ -25,6 +25,7 @@ fn list<T>(items: Vec<T>) -> List<T> {
 }
 fn frame(number: u64) -> Me {
     Me {
+        charters: List::with_capacity(0),
         providers: skein_lib::List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,

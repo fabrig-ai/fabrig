@@ -5,6 +5,7 @@ use crate::{
     Limits,
     settings::{Head, Setting},
 };
+use alloc::boxed::Box;
 use jig_domain_people as people;
 use skein_lib::List;
 
@@ -16,6 +17,7 @@ pub enum Follows {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SettingLine {
+    pub name: Option<Box<[u8]>>,
     pub setting: Setting,
     pub shown: Option<Text>,
     pub follows: Follows,
@@ -53,6 +55,7 @@ pub fn document_bound(limits: &Limits, kinds: &[crate::settings::Kind]) -> Optio
     }
     List::<SettingLine>::price(count)?
         .checked_add(charters)?
+        .checked_add(u64::from(people::NUMBERS).checked_mul(3)?.checked_mul(u64::from(people::settings::NAME_BYTES))?)?
         .checked_add(u64::from(limits.templates).checked_mul(2)?.checked_mul(u64::from(limits.documents.text_bytes))?)?
         .checked_add(List::<HeldRevision>::price(limits.settings.revisions.checked_add(1)?)?)?
         .checked_add(List::<SettingsProposal>::price(limits.settings.proposals)?)?

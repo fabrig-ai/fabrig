@@ -246,6 +246,7 @@ fn shown_overlay_marks_and_literal_json_apply_back_and_inventory_origin() {
     let inventory = c::ReadValue::Settings(Box::new(c::SettingsDocument {
         newest: 5,
         settings: list([c::SettingLine {
+            name: None,
             setting,
             shown: None,
             follows: c::SettingFollows::Overlay,

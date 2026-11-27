@@ -246,6 +246,7 @@ pub fn wire_setting_follows(value: &c::SettingFollows) -> w::SettingFollows {
 #[must_use]
 pub fn wire_setting_line(value: &c::SettingLine) -> w::SettingLine {
     w::SettingLine {
+        name: None,
         setting: wire_setting(&value.setting),
         shown: match &value.shown {
             Some(item) => Some(wire_document_text(item)),

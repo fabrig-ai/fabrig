@@ -183,6 +183,7 @@ pub fn me(names: &[&[u8]]) -> c::Me {
             .expect("project room");
     }
     Me {
+        charters: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,

@@ -14,6 +14,7 @@ fn settings() -> d::Settings {
     let mut settings = List::with_capacity(1);
     settings
         .push(d::SettingLine {
+            name: None,
             setting: s::Setting::Template(1),
             shown: Some(d::Text { bytes: Box::from(b"chat".as_slice()), cut: false }),
             follows: d::Follows::Default,
@@ -100,6 +101,7 @@ fn the_inventory_at_profile_bounds_fits_one_wire_document() {
         document
             .settings
             .push(d::SettingLine {
+                name: None,
                 setting: s::Setting::Template(number),
                 shown: if number < NAMED {
                     Some(d::Text { bytes: Box::from([b'x'; NAME_BYTES].as_slice()), cut: false })
@@ -549,6 +551,7 @@ fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
     for (number, follows, last) in [(1, Follows::Default, None), (2, Follows::Changed { revision: 5 }, Some(5))] {
         settings
             .push(d::SettingLine {
+                name: None,
                 setting: s::Setting::Application { kind: 7, scope: 0, number },
                 shown: None,
                 follows: if last.is_some() { d::Follows::Change } else { d::Follows::Default },

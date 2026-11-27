@@ -236,6 +236,7 @@ pub(crate) fn chat_templates() -> skein_lib::List<jig_client::contract::Template
     let mut values = crate::tests::kit::list_in(
         2,
         [c::Template {
+            name: None,
             resources: skein_lib::List::with_capacity(0),
             llm: None,
             number: jig_client::shapes::CHAT,

@@ -29,6 +29,7 @@ Kind and number, or project for project settings.
 Task-creation revision's run policy.
 - rest:bool;Offer remaining catalogue models after named choices; default false.
 - number:u32;Same as `setting.number`.
+- name:t[32];? lowercase letters, digits and -, a letter first; a stock item keeps the stock's
 - instructions:t[1048576];Agent's first read, before task brief.
 - waiting:ns;Idle wait for words/news before parking.
 - resume:bool;Resume any task transcript instead of starting afresh.
@@ -207,6 +208,7 @@ Message batch waking a task once.
 Executor and defaults for new tasks.
 - resources:[32] symbol;Optional, default []: distinct resource-symbol pairs resolved for new task. Forge connector 1, symbol 1: its own goal branch.
 - number:u32;Template number matching `setting.number`; chat: 1, goal: 2.
+- name:t[32];? lowercase letters, digits and -, a letter first; a stock item keeps the stock's
 - shown:t[65536];name, as clients show it.
 - executor:executor;Who runs the task.
 - contract:contract;result the task must give.
@@ -338,6 +340,7 @@ model, by name, and its effort.
 
 ## policy
 Project policy copied at creation; changes affect later projects.
+- name:t[32];? lowercase letters, digits and -, a letter first; a stock item keeps the stock's
 - escalation_role:u32|null;Final escalation role or null; must accept proposals and decide escalations.
 - ceiling:authority;Project task ceiling; within rules, else `rules` refusal.
 - projections:[32] grant;Goal projection writes to project homes; each grant within `ceiling`.

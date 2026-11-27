@@ -169,6 +169,7 @@ fn inventory_text(document: &c::SettingsDocument, vocabulary: &dyn Parts, out: &
         {
             out.put(b", removed");
         }
+        settings_form::render::inventory_name_text(line.name.as_deref(), out);
         out.put(b"\n");
     }
     out.put(b"held revisions:\n");

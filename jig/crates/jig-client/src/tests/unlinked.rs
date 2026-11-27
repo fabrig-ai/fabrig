@@ -57,6 +57,7 @@ fn live() -> Client {
         up: Up::Watched {
             watch: ME_WATCH,
             event: contract::WatchEvent::Delivered(contract::Delivery::Me(Box::new(contract::Me {
+                charters: List::with_capacity(0),
                 providers: List::with_capacity(0),
                 providers_cut: false,
                 key_bytes: 256,

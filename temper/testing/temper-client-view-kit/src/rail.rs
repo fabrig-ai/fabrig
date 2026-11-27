@@ -15,6 +15,7 @@ pub fn with_goal_fact(root: &mut d::Domain, me_watch: Token, delivered: Option<b
     flags.conversation = false;
     flags.listed = true;
     let goal = c::Template {
+        name: None,
         resources: List::uncapped(),
         number: jig_client::shapes::GOAL,
         shown: f::task::document_words(b"goal"),

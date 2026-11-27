@@ -470,6 +470,7 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
         (
             c::Setting::Charter(c::SettingNumber { number: 3 }),
             c::SettingValue::Charter(Box::new(c::Charter {
+                name: None,
                 parts: List::with_capacity(0),
                 rest: false,
                 documents: documents(),
@@ -505,6 +506,7 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
         (
             c::Setting::Template(c::SettingNumber { number: 4 }),
             c::SettingValue::Template(Box::new(c::Template {
+                name: None,
                 resources: List::with_capacity(0),
                 number: 4,
                 shown: c::DocumentText::complete(words("work")),
@@ -533,6 +535,7 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
         (
             c::Setting::Policy(c::SettingNumber { number: 5 }),
             c::SettingValue::Policy(Box::new(c::SettingPolicy {
+                name: None,
                 escalation_role: Some(1),
                 ceiling: authority(),
                 projections: list([authority().grants.get(0).expect("grant").clone()]),
@@ -798,13 +801,15 @@ fn whole_settings_document_renderings_are_stable() {
         newest: 5,
         settings: list([
             c::SettingLine {
-                setting: c::Setting::Charter(c::SettingNumber { number: 3 }),
-                shown: Some(c::DocumentText::complete(words("worker"))),
+                name: Some(b"lean-goal".as_slice().into()),
+                setting: c::Setting::Template(c::SettingNumber { number: 33 }),
+                shown: Some(c::DocumentText::complete(words("goal for a lean design"))),
                 follows: c::SettingFollows::Change,
                 last: Some(5),
                 application: None,
             },
             c::SettingLine {
+                name: None,
                 setting: c::Setting::Rules,
                 shown: None,
                 follows: c::SettingFollows::Default,
@@ -2277,6 +2282,7 @@ fn forge_inventory(setting: c::Setting, follows: c::ApplicationFollows) -> c::Re
     c::ReadResult::Value(c::ReadValue::Settings(Box::new(c::SettingsDocument {
         newest: 5,
         settings: list([c::SettingLine {
+            name: None,
             setting,
             shown: None,
             follows: if follows == c::ApplicationFollows::Default {
@@ -3151,6 +3157,77 @@ fn revision_show_prints_what_each_item_replaced() {
 }
 
 #[test]
+fn settings_apply_and_show_keep_names_separate_from_shown() {
+    let file = br#"{"items":[{"setting":{"kind":"template","number":33},"set":{"number":33,"name":"lean-goal","shown":"goal for a lean design","executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null}}]}"#;
+    let (mut root, call) = changed(file, true);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    let item = change.items.get(0).unwrap();
+    let setting = c::Setting::Template(c::SettingNumber { number: 33 });
+    assert_eq!(item.setting, setting);
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let c::SettingValue::Template(template) = &set.value else { panic!("template") };
+    assert_eq!(template.name.as_deref(), Some(b"lean-goal".as_slice()));
+    assert_eq!(template.shown.bytes(), b"goal for a lean design");
+    let value = set.value.clone();
+    let line = c::SettingLine {
+        setting,
+        name: template.name.clone(),
+        shown: Some(template.shown.clone()),
+        follows: c::SettingFollows::Change,
+        last: Some(6),
+        application: None,
+    };
+    root.done(call, c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: 6 }));
+    assert_eq!(root.answer(call).expect("applied").stdout.as_ref(), br#"{"revision":6}"#);
+    let inventory = c::ReadValue::Settings(Box::new(c::SettingsDocument {
+        newest: 6,
+        settings: list([line]),
+        held: list([]),
+        pending: list([]),
+    }));
+    let shown = read(&["settings", "show"], inventory);
+    assert_eq!(shown.status, 0);
+    assert!(core::str::from_utf8(&shown.stdout).unwrap().contains("name \"lean-goal\""));
+    let shown = read(&["settings", "show", "template", "33", "--json"], setting_read(setting, value));
+    assert_eq!(shown.status, 0);
+    assert!(
+        core::str::from_utf8(&shown.stdout).unwrap().contains(r#""name":"lean-goal","shown":"goal for a lean design""#)
+    );
+}
+
+#[test]
+fn settings_apply_reports_an_own_charters_taken_name() {
+    let file = String::from_utf8(charter_file("[]"))
+        .unwrap()
+        .replace(r#""number":3"#, r#""number":34"#)
+        .replace(r#""instructions":"#, r#""name":"implementer","instructions":"#);
+    let (mut root, call) = changed(file.as_bytes(), false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    let item = change.items.get(0).unwrap();
+    let setting = c::Setting::Charter(c::SettingNumber { number: 34 });
+    assert_eq!(item.setting, setting);
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let c::SettingValue::Charter(value) = &set.value else { panic!("charter") };
+    assert_eq!(value.name.as_deref(), Some(b"implementer".as_slice()));
+    root.answered(
+        call,
+        c::Answer::Refused {
+            refusal: c::Refusal::Malformed { at: 0, why: super::malformed_setting(setting, c::SettingFault::Name) },
+            at: None,
+        },
+    );
+    let answer = root.answer(call).expect("refused");
+    assert_eq!(answer.status, 2);
+    assert!(
+        core::str::from_utf8(&answer.stderr)
+            .unwrap()
+            .contains("charter 34's name is taken, by a stock charter or another of your own")
+    );
+}
+
+#[test]
 fn a_settings_file_template_sends_its_resources_to_jig() {
     let file = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"name":{"bytes":"draft","cut":false},"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null,"resources":[{"connector":1,"symbol":1}]}}]}"#;
     let (root, call) = changed(file, false);
@@ -3177,6 +3254,7 @@ fn a_settings_file_template_sends_its_resources_to_jig() {
 #[test]
 fn settings_show_template_resources_apply_again_unchanged() {
     let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
+    template.name = Some(b"draft".as_slice().into());
     template.resources = list([c::Symbol { connector: 1, symbol: 1 }, c::Symbol { connector: 1, symbol: 2 }]);
     let value = c::SettingValue::Template(template);
     let json = setting_json(setting, value.clone());
@@ -3859,6 +3937,7 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
     let inventory = c::ReadValue::Settings(Box::new(c::SettingsDocument {
         newest: 5,
         settings: list([c::SettingLine {
+            name: None,
             setting,
             shown: Some(c::DocumentText::complete(words("GPT-6.1 Terra"))),
             follows: c::SettingFollows::Change,

@@ -151,6 +151,7 @@ pub fn client_overlay(v: &n::Overlay) -> c::Overlay {
 }
 pub fn form_charter(v: &c::Charter) -> n::Charter {
     n::Charter {
+        name: v.name.clone(),
         parts: {
             let mut out = List::with_capacity(v.parts.len());
             for item in &v.parts {
@@ -198,6 +199,7 @@ pub fn form_charter(v: &c::Charter) -> n::Charter {
 }
 pub fn client_charter(v: &n::Charter) -> c::Charter {
     c::Charter {
+        name: v.name.clone(),
         parts: {
             let mut out = List::with_capacity(v.parts.len());
             for item in &v.parts {
@@ -874,6 +876,7 @@ pub fn client_setting_item(v: &n::SettingItem) -> c::SettingItem {
 }
 pub fn form_setting_line(v: &c::SettingLine) -> n::SettingLine {
     n::SettingLine {
+        name: v.name.clone(),
         setting: form_setting(v.setting),
         shown: form_optional_document_text(v.shown.as_ref()),
         follows: form_setting_follows(&v.follows),
@@ -981,6 +984,7 @@ pub fn client_setting_number(v: n::SettingNumber) -> c::SettingNumber {
 }
 pub fn form_setting_policy(v: &c::SettingPolicy) -> n::SettingPolicy {
     n::SettingPolicy {
+        name: v.name.clone(),
         escalation_role: form_optional_u32(v.escalation_role.as_ref()),
         ceiling: form_owner_authority(&v.ceiling),
         projections: {
@@ -1023,6 +1027,7 @@ pub fn form_setting_policy(v: &c::SettingPolicy) -> n::SettingPolicy {
 }
 pub fn client_setting_policy(v: &n::SettingPolicy) -> c::SettingPolicy {
     c::SettingPolicy {
+        name: v.name.clone(),
         escalation_role: client_optional_u32(v.escalation_role.as_ref()),
         ceiling: client_owner_authority(&v.ceiling),
         projections: {
@@ -1220,6 +1225,7 @@ pub fn client_task_flags(v: n::TaskFlags) -> c::TaskFlags {
 }
 pub fn form_template(v: &c::Template) -> n::Template {
     n::Template {
+        name: v.name.clone(),
         resources: {
             let mut out = List::with_capacity(v.resources.len());
             for item in &v.resources {
@@ -1243,6 +1249,7 @@ pub fn form_template(v: &c::Template) -> n::Template {
 }
 pub fn client_template(v: &n::Template) -> c::Template {
     c::Template {
+        name: v.name.clone(),
         resources: {
             let mut out = List::with_capacity(v.resources.len());
             for item in &v.resources {

@@ -136,7 +136,7 @@ pub static FORMS: [Form; 102] = [
     Form { shape: Shape::TemperLimits, name: b"temper-limits", choice: Choice::List { item: Shape::LimitOverride, bound: Bound::Most(256) }, line: b"Application kind 22; as limits." },
     Form { shape: Shape::LimitOverride, name: b"limit-override", choice: Choice::Every, line: b"Reasoned override." },
 ];
-pub static FIELDS: [Field; 381] = [
+pub static FIELDS: [Field; 384] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -217,6 +217,14 @@ pub static FIELDS: [Field; 381] = [
         list: None,
         null: false,
         line: b"Same as `setting.number`.",
+    },
+    Field {
+        shape: Shape::Charter,
+        name: b"name",
+        value: Value::Text(Bound::Most(crate::SETTING_NAME_BYTES)),
+        list: None,
+        null: false,
+        line: b"? lowercase letters, digits and -, a letter first; a stock item keeps the stock's",
     },
     Field {
         shape: Shape::Charter,
@@ -519,6 +527,14 @@ pub static FIELDS: [Field; 381] = [
         list: None,
         null: false,
         line: b"Template number matching `setting.number`; chat: 1, goal: 2.",
+    },
+    Field {
+        shape: Shape::Template,
+        name: b"name",
+        value: Value::Text(Bound::Most(crate::SETTING_NAME_BYTES)),
+        list: None,
+        null: false,
+        line: b"? lowercase letters, digits and -, a letter first; a stock item keeps the stock's",
     },
     Field {
         shape: Shape::Template,
@@ -865,6 +881,14 @@ pub static FIELDS: [Field; 381] = [
         list: None,
         null: true,
         line: b"Model's effort; null if it takes none.",
+    },
+    Field {
+        shape: Shape::Policy,
+        name: b"name",
+        value: Value::Text(Bound::Most(crate::SETTING_NAME_BYTES)),
+        list: None,
+        null: false,
+        line: b"? lowercase letters, digits and -, a letter first; a stock item keeps the stock's",
     },
     Field {
         shape: Shape::Policy,

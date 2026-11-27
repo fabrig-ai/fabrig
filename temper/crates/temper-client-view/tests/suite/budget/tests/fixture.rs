@@ -45,6 +45,7 @@ fn text(value: &str) -> w::DocumentText {
 fn template(number: u32, name: &str, label: u32, tracked: bool) -> w::Template {
     let task = records::task_record();
     w::Template {
+        name: None,
         number,
         shown: text(name),
         label,

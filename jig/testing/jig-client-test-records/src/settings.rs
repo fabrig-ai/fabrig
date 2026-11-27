@@ -72,6 +72,7 @@ pub fn settings_values() -> List<SettingValue> {
     alternatives.push(other).expect("one alternative");
     values
         .push(SettingValue::Charter(Box::new(Charter {
+            name: None,
             parts: List::from_boxed(Box::new([
                 CharterPart { on: 1, instructions: text(b"first part") },
                 CharterPart { on: 2050, instructions: text("later part λ".as_bytes()) },
@@ -120,6 +121,7 @@ pub fn settings_values() -> List<SettingValue> {
         .expect("charter");
     values
         .push(SettingValue::Template(Box::new(Template {
+            name: None,
             resources: List::with_capacity(0),
             number: 1,
             shown: DocumentText::complete(text(b"chat")),
@@ -179,6 +181,7 @@ pub fn settings_values() -> List<SettingValue> {
         .expect("override");
     values
         .push(SettingValue::Policy(Box::new(SettingPolicy {
+            name: None,
             escalation_role: Some(1),
             ceiling: settings_authority(),
             projections,
@@ -237,6 +240,7 @@ pub fn settings_document() -> SettingsDocument {
     for setting in settings_names() {
         settings
             .push(SettingLine {
+                name: None,
                 setting,
                 shown: if setting == Setting::Rules { None } else { Some(DocumentText::complete(text(b"name"))) },
                 follows: SettingFollows::Change,

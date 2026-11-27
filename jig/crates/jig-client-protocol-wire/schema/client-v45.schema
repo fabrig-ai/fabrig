@@ -746,14 +746,15 @@ record InboxPage { selection: option bytes 16777216 cut: bool rows: bytes 167772
 record PoolLedger { source: Funder parent: option Funder numbers: Numbers left: u64 closed: bool began: option u64 next: option u64 }
 record MeParty { number: u64 kind: PartyKind login: DocumentText name: DocumentText }
 record Needs { questions: u32 proposals: u32 escalations: u32 person_tasks: u32 }
-record Template { number: u32 shown was name: DocumentText executor: TemplateExecutor contract: TaskContractDocument shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: TaskFlags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol }
+record Template { number: u32 shown: DocumentText executor: TemplateExecutor contract: TaskContractDocument shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: TaskFlags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol name: option text 32 = none }
 record MePrices { input: u64 cached: u64 cache_write: option u64 output: u64 unit: u32 }
 enum ModelSource { stock, list, person }
 record MeModel { new_until: option u64 number: u32 source: ModelSource estimated: bool name: text 4096 provider: option u32 window: u32 output: u32 efforts: list 16 text 32 effort: option text 32 prices: MePrices description: option text 512 shown: option text 256 accounts: list 256 u32 picker: bool }
 record MeDefault { template: u32 choice: LlmChoice }
 record ProviderOffer { provider: u32 name: DocumentText sign_in: bool key: bool programs: list 32 text 32 programs_cut: bool none: bool signed_in_plan: bool manage_usage: option bytes 2048 key_bytes: u32 }
 enum Readiness { usable, unavailable, unknown }
-record Me { party: MeParty projects: bytes 16777216 needs: Needs needs_total: u32 updates: Count results_seen: u64 cut: bool retention: duration deployment_role: option HeldRole providers: bytes 16777216 providers_cut: bool key_bytes: u32 redirect_bytes: u32 words_bytes: u32 sign_in_expires: u64 }
+record MeCharter { number: u32 name: text 32 }
+record Me { party: MeParty projects: bytes 16777216 needs: Needs needs_total: u32 updates: Count results_seen: u64 cut: bool retention: duration deployment_role: option HeldRole providers: bytes 16777216 providers_cut: bool key_bytes: u32 redirect_bytes: u32 words_bytes: u32 sign_in_expires: u64 charters: list 64 MeCharter = [] }
 record LiveDelegate { chip: Chip takeover_budget: u64 }
 record TaskContext { parts: bytes 16777216 closing: option Closing spend: list 32 SpendLine runtime: Runtime impact: Impact writer_slots: bytes 16777216 }
 record TaskResultDocument { value: ResultDocument }
@@ -1069,9 +1070,9 @@ record CatalogueEntry { number: u32 model: SettingModel shown: option text 4096 
 enum SettingHosts { workers, engine, both }
 record CharterDocument { connector: u16 name: list 32 bytes 65536 path: bytes 256 heading: option bytes 80 }
 record CharterPart { on: u32 instructions: text 1114240 }
-record Charter { rest: bool number: u32 instructions: text 1114240 waiting: duration resume: bool turns: u32 time: duration reserve_turns: u32 reserve_time: duration model: SettingModel alternatives: list 63 SettingModel inspect: bool modify: bool shell: bool agents: bool call_timeout: duration tools: u64 hosts: SettingHosts spend: u64 wake: WakePolicy documents: list 8 CharterDocument parts: list 8 CharterPart }
+record Charter { rest: bool number: u32 instructions: text 1114240 waiting: duration resume: bool turns: u32 time: duration reserve_turns: u32 reserve_time: duration model: SettingModel alternatives: list 63 SettingModel inspect: bool modify: bool shell: bool agents: bool call_timeout: duration tools: u64 hosts: SettingHosts spend: u64 wake: WakePolicy documents: list 8 CharterDocument parts: list 8 CharterPart name: option text 32 = none }
 record Overlay { rest: option bool model: option SettingModel alternatives: option list 63 SettingModel inspect: option bool modify: option bool shell: option bool agents: option bool tools: option u64 hosts: option SettingHosts waiting: option duration resume: option bool turns: option u32 time: option duration reserve_turns: option u32 reserve_time: option duration call_timeout: option duration spend: option u64 documents: option list 8 CharterDocument instructions: text 1114240 parts: list 8 CharterPart }
-record SettingPolicy { escalation_role: option u32 ceiling: Authority projections: list 32 Grant period_spend: u64 roles: list 32 PolicyEditRole requirements: list 32 PolicyRequirement permissions: list 32 PolicyPermission templates: list 16 TemplateOverride }
+record SettingPolicy { escalation_role: option u32 ceiling: Authority projections: list 32 Grant period_spend: u64 roles: list 32 PolicyEditRole requirements: list 32 PolicyRequirement permissions: list 32 PolicyPermission templates: list 16 TemplateOverride name: option text 32 = none }
 record Rules { ceiling: Authority period_spend: u64 minimum_run_spend: u64 maximum_run_spend: u64 implies: list 32 KindImplication requirements: list 32 PolicyRequirement }
 record ApplicationValue { bytes: bytes 1114240 }
 record Override { name: bytes 64 value: u64 reason: bytes 120 }
@@ -1100,7 +1101,7 @@ enum SettingFollows { default, change, overlay }
 record ApplicationRevision { revision: u32 }
 enum ApplicationFollows { default, changed: ApplicationRevision, removed: ApplicationRevision }
 record ApplicationState { follows: ApplicationFollows size: u32 charters: list 255 u32 }
-record SettingLine { setting: Setting shown was name: option DocumentText follows: SettingFollows last: option u32 application: option ApplicationState }
+record SettingLine { setting: Setting shown: option DocumentText follows: SettingFollows last: option u32 application: option ApplicationState name: option text 32 = none }
 record RevisionParty { number: u64 }
 record RevisionList { provider: u32 }
 enum RevisionDecider { first_start, release, party: RevisionParty, list: RevisionList }

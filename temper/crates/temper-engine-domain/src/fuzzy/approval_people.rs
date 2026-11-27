@@ -284,6 +284,7 @@ fn client_fixture(me: u64, env: &Env<client::Limits>) -> client::Domain {
 
 fn frame(me: u64) -> c::Me {
     c::Me {
+        charters: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,

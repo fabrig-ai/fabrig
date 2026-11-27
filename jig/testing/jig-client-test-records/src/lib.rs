@@ -105,6 +105,7 @@ pub fn chip_pieces(count: u32) -> Box<[u8]> {
 #[must_use]
 pub fn frame_record() -> w::Me {
     w::Me {
+        charters: List::with_capacity(0),
         providers: Box::new([]),
         providers_cut: false,
         key_bytes: 256,

@@ -411,7 +411,8 @@ pub fn members(shape: Shape) -> &'static [Field] {
 }
 // client/ctl/overlays.md, 1: replaced members share the charter's rows.
 fn overlay_replaces(field: &Field) -> bool {
-    field.shape == Shape::Charter && ![b"number".as_slice(), b"instructions", b"parts", b"wake"].contains(&field.name)
+    field.shape == Shape::Charter
+        && ![b"number".as_slice(), b"name", b"instructions", b"parts", b"wake"].contains(&field.name)
 }
 
 /// `charter.model.name`, or from any shape, `model.name`: each word after

@@ -195,6 +195,7 @@ fn inventory(count: u32) -> SettingsAnswer {
     for number in 1..=count {
         settings
             .push(d::SettingLine {
+                name: None,
                 setting: s::Setting::Charter(number),
                 shown: None,
                 follows: d::Follows::Change,
@@ -261,6 +262,7 @@ fn engine_and_ctl_render_the_same_settings_inventory() {
     let mut rows = List::with_capacity(2);
     for number in 1..=2 {
         rows.push(c::SettingLine {
+            name: None,
             setting: c::Setting::Charter(c::SettingNumber { number }),
             shown: None,
             follows: c::SettingFollows::Change,

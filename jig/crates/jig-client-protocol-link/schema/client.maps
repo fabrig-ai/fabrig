@@ -590,6 +590,7 @@ record MeModel by hand
 record MeDefault = c::MeDefault
 record ProviderOffer by hand
 enum Readiness = c::Readiness
+record MeCharter = c::MeCharter
 record Me by hand
 record LiveDelegate = c::LiveDelegate
 record TaskContext by hand

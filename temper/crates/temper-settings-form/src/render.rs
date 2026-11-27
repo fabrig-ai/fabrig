@@ -636,6 +636,15 @@ pub const fn fault_word(fault: c::SettingFault) -> &'static [u8] {
     }
 }
 
+/// Render an inventory row's item name separately from its key and shown title.
+pub fn inventory_name_text(name: Option<&[u8]>, out: &mut Text) {
+    if let Some(name) = name {
+        out.put(b", name \"");
+        out.words(name);
+        out.put(b"\"");
+    }
+}
+
 fn inventory_text(document: &c::SettingsDocument, out: &mut Text) {
     out.put(b"newest revision ");
     out.number(u64::from(document.newest));
@@ -643,9 +652,9 @@ fn inventory_text(document: &c::SettingsDocument, out: &mut Text) {
     for line in &document.settings {
         out.put(b"  ");
         setting_text(line.setting, out);
-        if let Some(name) = &line.shown {
+        if let Some(shown) = &line.shown {
             out.put(b" \"");
-            out.words(name.bytes());
+            out.words(shown.bytes());
             out.put(b"\"");
         }
         out.put(b": ");
@@ -667,6 +676,7 @@ fn inventory_text(document: &c::SettingsDocument, out: &mut Text) {
                 }
             }
         }
+        inventory_name_text(line.name.as_deref(), out);
         out.put(b"\n");
     }
     out.put(b"held revisions:\n");
@@ -802,9 +812,10 @@ fn encode_inventory(document: &c::SettingsDocument, out: &mut Encoder) {
         out.object_start();
         out.key(b"setting");
         encode_setting(line.setting, out);
-        out.key(b"name");
+        values::encode_setting_name(line.name.as_deref(), out);
+        out.key(b"shown");
         match &line.shown {
-            Some(name) => values::encode_document_text(name, out),
+            Some(shown) => values::encode_document_text(shown, out),
             None => out.null(),
         }
         out.key(b"follows");

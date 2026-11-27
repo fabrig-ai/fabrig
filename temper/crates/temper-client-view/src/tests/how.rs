@@ -157,6 +157,7 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
     if case.configured {
         lines
             .push(c::SettingLine {
+                name: None,
                 setting: c::Setting::Application { kind: 2, scope: f::PROJECT, number: 1 },
                 shown: None,
                 last: Some(8),

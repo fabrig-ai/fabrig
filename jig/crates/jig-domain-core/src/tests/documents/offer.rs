@@ -371,6 +371,39 @@ fn a_project_key_serves_the_party_only_in_that_project() {
 }
 
 #[test]
+fn me_carries_template_names_and_only_offered_named_charters() {
+    use crate::settings::{Changed, Setting, Value};
+    let (mut core, limits) = fixture();
+    let mut lean = template(33, people::TemplateExecutor::Chosen, None);
+    lean.name = Some(b"lean-goal".as_slice().into());
+    core.current.test_templates(Box::new([template(1, people::TemplateExecutor::Chosen, None), lean]));
+
+    let mut stock = core.charter(CHARTER).unwrap().clone();
+    stock.name = Some(b"implementer".as_slice().into());
+    core.current.resolved.insert(CHARTER, stock.clone()).unwrap();
+    for (number, name) in [(33, Some(b"designer".as_slice())), (34, None)] {
+        let mut charter = stock.clone();
+        charter.number = number;
+        charter.name = name.map(Box::from);
+        core.current
+            .changes
+            .insert(Setting::Charter(number), Changed { revision: 2, value: Some(Value::Charter(Box::new(charter))) })
+            .unwrap();
+    }
+    core.current.changes.insert(Setting::Charter(35), Changed { revision: 2, value: None }).unwrap();
+    let doc = frame(&core, &limits);
+    let templates = &doc.projects.get(0).unwrap().templates;
+    assert_eq!(
+        templates.iter().map(|item| (item.number, item.name.as_deref())).collect::<Vec<_>>(),
+        [(1, None), (33, Some(b"lean-goal".as_slice()))]
+    );
+    assert_eq!(
+        doc.charters.iter().map(|item| (item.number, item.name.as_ref())).collect::<Vec<_>>(),
+        [(CHARTER, b"implementer".as_slice()), (33, b"designer".as_slice())]
+    );
+}
+
+#[test]
 fn previews_follow_charter_order_and_preserve_explicit_template_intent() {
     let (mut core, limits) = fixture();
     restore_key_account(&mut core, &limits, SECOND, SECOND_SOURCE, OTHER_PROVIDER);
