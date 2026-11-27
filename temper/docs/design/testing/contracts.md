@@ -20,7 +20,7 @@ impl FaultDraw {
 }
 ```
 
-- **At `temper_system_world::composed::FaultDraw`.** `World::faulted_workload(seed, kinds)` plans from it, so the step tests' draw is the world's. A bounds kind, observed rather than struck, is planned with no goal: `planned` gives it with the empty name.
+- **At `temper_system_world::composed::FaultDraw`.** `World::faulted_workload(seed, kinds)` plans from it, so the step tests' draw is the world's. An observed kind, a bounds kind or `WRONG_TREE` (`composed-catalogue.md`, 1), is planned with no goal: `planned` gives it with the empty name, `WRONG_TREE` only where a goal is eligible for it and ineligible otherwise.
 - **Its digest:** the step tests pin seed 6's draw for 8.2's kinds by a digest of `planned` and `acts`, so that a change that moves it fails there first.
 
 ## 2. The kinds a sweep configures
