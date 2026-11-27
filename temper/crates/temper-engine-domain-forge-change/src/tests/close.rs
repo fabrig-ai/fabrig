@@ -1,7 +1,7 @@
 //! Close producers (temper/docs/design/domain/forge/change/README.md, 1, temper/docs/design/domain/forge/change/repairs.md).
 use super::*;
 
-const TIPS: crate::CloseAt = crate::CloseAt { branch: HEAD, landing: BASE, asked: true, refused: None };
+const TIPS: crate::CloseAt = crate::CloseAt { branch: HEAD, landing: BASE, asked: true, refused: None, outdated: None };
 const REFUSAL: crate::CloseAt = crate::CloseAt { refused: Some(crate::CloseRefused { counts: None }), ..TIPS };
 
 fn close(requested: bool) -> (Change, Facts) {
@@ -86,6 +86,24 @@ fn a_close_job_that_pushed_nothing_ends_with_no_change() {
     let next = decide(&c, &f, &h);
     assert_eq!(next.decision, Decision::NoChange);
     assert_eq!(next.change.state, State::NoChange { words: b"Nothing to settle.".as_slice().into() });
+}
+
+#[test]
+fn an_outdated_close_job_ends_without_a_hold() {
+    use crate::CloseOutdated;
+    const BRANCH: [u8; 32] =
+        [0xc0, 0xff, 0xee, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+    for (finding, words) in [
+        (CloseOutdated::Window, b"The close check didn't judge the goal's branch at c0ffee000001: it holds none of the commits main's published counts cover; it asks for the goal's catch-up from main.".as_slice()),
+        (CloseOutdated::Ancestry, b"The close check didn't judge the goal's branch at c0ffee000001: its ancestry was incomplete; it asks for the goal's catch-up from main.".as_slice()),
+    ] {
+        let (c, mut f) = close(true);
+        f.close_at = Some(crate::CloseAt { branch: BRANCH, outdated: Some(finding), ..TIPS });
+        let h = Heard { delegate: Status::Passed, ..heard() };
+        let next = decide(&c, &f, &h);
+        assert_eq!(next.decision, Decision::NoChange);
+        assert_eq!(next.change, Change { state: State::NoChange { words: words.into() }, ..c });
+    }
 }
 
 #[test]

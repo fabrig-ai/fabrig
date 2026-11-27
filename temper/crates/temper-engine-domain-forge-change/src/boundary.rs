@@ -17,6 +17,7 @@ pub struct CloseAt {
     pub landing: Commit,
     pub asked: bool,
     pub refused: Option<CloseRefused>,
+    pub outdated: Option<CloseOutdated>,
 }
 
 impl CloseAt {
@@ -32,6 +33,12 @@ impl CloseAt {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct CloseRefused {
     pub counts: Option<Commit>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum CloseOutdated {
+    Window,
+    Ancestry,
 }
 
 /// The status of a fact or requirement at the named head.

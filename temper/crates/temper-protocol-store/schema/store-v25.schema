@@ -586,7 +586,8 @@ record ChangeSource { branch: bytes 4096 at: option fixed 32 }
 record ChangeCold { person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none milestone: option u64 = none source: option ChangeSource = none goal: option u64 task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 base_repair: bool producing_charter: u32 review_charter: u32 producing_llm: option LlmChoice review_llm: option LlmChoice report: bytes 1048576 repairs: option fixed 32 follows: option ChangeFollows catch_up: option fixed 32 close: option bytes 16384 }
 record Regate { receipt: ReceiptKey run: u64 taken: option u64 = none }
 record CloseRefused { counts: option fixed 32 }
-record CloseAt { branch: fixed 32 landing: fixed 32 asked: bool = false refused: option CloseRefused = none }
+enum CloseOutdated { window ancestry }
+record CloseAt { branch: fixed 32 landing: fixed 32 asked: bool = false refused: option CloseRefused = none outdated: option CloseOutdated = none }
 enum BehindRead { branch, base, pull_head, pull_base, pull_state }
 record ReadBehind { read: BehindRead expected: option fixed 32 found: option fixed 32 }
 record BehindWait { since: u64 until: u64 evidence: ReadBehind }

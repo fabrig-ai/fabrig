@@ -8,9 +8,9 @@ use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall, bytes::copy_of};
 
 use crate::{
-    Ask, AuthorityHold, AuthorityLack, Cause, Change, Decision, Delegate, Early, Effect, EffectResult, Facts,
-    Freshness, Gate, GateFailure, GateKind, Handed, Heard, Hold, Judged, Limits, PendingKind, Pull, Recheck, Repair,
-    StartedFrom, State, Status, Stepped, Took, Verification, Wait, Way,
+    Ask, AuthorityHold, AuthorityLack, Cause, Change, CloseOutdated, Decision, Delegate, Early, Effect, EffectResult,
+    Facts, Freshness, Gate, GateFailure, GateKind, Handed, Heard, Hold, Judged, Limits, PendingKind, Pull, Recheck,
+    Repair, StartedFrom, State, Status, Stepped, Took, Verification, Wait, Way,
 };
 
 /// Decide one change from current forge and task facts, independent of its wake.
@@ -1226,7 +1226,11 @@ fn producing_close(
     }
     if requested {
         if facts.delegate == Some(Delegate::Close) {
-            change.state = State::NoChange { words: copy_of(b"Nothing to settle.") };
+            let words = match facts.close_at {
+                Some(crate::CloseAt { branch, outdated: Some(finding), .. }) => outdated_close_words(branch, finding),
+                Some(_) | None => copy_of(b"Nothing to settle."),
+            };
+            change.state = State::NoChange { words };
             return Stepped { took: None, change, decision: Decision::NoChange };
         }
         return waiting(change, facts, now, limits);
@@ -1240,6 +1244,23 @@ fn producing_close(
     }
     change.since = now;
     Stepped { took: None, change, decision: Decision::Delegate(Delegate::Close) }
+}
+
+fn outdated_close_words(branch: [u8; 32], finding: CloseOutdated) -> Box<[u8]> {
+    let reason: &[u8] = match finding {
+        CloseOutdated::Window => b"it holds none of the commits main's published counts cover",
+        CloseOutdated::Ancestry => b"its ancestry was incomplete",
+    };
+    let mut words = List::uncapped();
+    put(&mut words, b"The close check didn't judge the goal's branch at ");
+    for byte in branch.get(..6).expect("the first twelve hex digits of a commit") {
+        let digits = [skein_lib::bytes::hex_digit(*byte >> 4), skein_lib::bytes::hex_digit(*byte)];
+        put(&mut words, &digits);
+    }
+    put(&mut words, b": ");
+    put(&mut words, reason);
+    put(&mut words, b"; it asks for the goal's catch-up from main.");
+    words.into_boxed()
 }
 
 fn close_refusal_stands(facts: &Facts) -> bool {

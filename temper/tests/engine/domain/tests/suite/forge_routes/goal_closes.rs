@@ -871,7 +871,7 @@ fn goal_at_close() -> (World, u64, u64, u64, host::JobAssignment, change::CloseA
     let closer = closer_of(&mut world, goal.task);
     let job = close_job(&mut world);
     let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
-    let at = change::CloseAt { branch: head, landing: main, asked: true, refused: None };
+    let at = change::CloseAt { branch: head, landing: main, asked: true, refused: None, outdated: None };
     (world, goal.task, closer, close, job, at)
 }
 

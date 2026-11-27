@@ -877,6 +877,7 @@ fn previous_hold_arms_read_without_releasing_the_change() {
         landing: [2; 32],
         asked: true,
         refused: Some(temper_engine_domain_forge_change::CloseRefused { counts: Some([3; 32]) }),
+        outdated: None,
     };
     for (arm, cause, at, flake, no_test) in [
         (v25::ChangeHold::Stalled, Cause::Stalled, None, false, false),
@@ -4418,22 +4419,41 @@ fn a_flake_terminal_and_hold_round_trip_in_the_hot_part() {
     }
 }
 
-#[test]
-fn a_close_refusal_round_trips_in_the_hot_part() {
-    use temper_engine_domain_forge_change::{CloseAt, CloseRefused, State};
+fn close_attempt_round_trips(
+    state: temper_engine_domain_forge_change::State,
+    at: temper_engine_domain_forge_change::CloseAt,
+) {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
-    let mut row = fixtures::change_row(State::Producing { requested: true });
-    row.close_at = Some(CloseAt {
-        branch: [3; 32],
-        landing: [4; 32],
-        asked: true,
-        refused: Some(CloseRefused { counts: Some([5; 32]) }),
-    });
+    let mut row = fixtures::change_row(state);
+    row.close_at = Some(at);
     let (cold, hot) = row.clone().split();
     let stored = forge::Stored::ChangeHot(Box::new(hot));
     let decoded = records::decode(&records::encode(&stored), &bounds).expect("current change record");
     let forge::Stored::ChangeHot(decoded) = decoded else { panic!("change hot part") };
     assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
+}
+
+#[test]
+fn a_close_refusal_round_trips_in_the_hot_part() {
+    use temper_engine_domain_forge_change::{CloseAt, CloseRefused, State};
+    let at = CloseAt {
+        branch: [3; 32],
+        landing: [4; 32],
+        asked: true,
+        refused: Some(CloseRefused { counts: Some([5; 32]) }),
+        outdated: None,
+    };
+    close_attempt_round_trips(State::Producing { requested: true }, at);
+}
+
+#[test]
+fn an_outdated_close_round_trips_in_the_hot_part() {
+    use temper_engine_domain_forge_change::{CloseAt, CloseOutdated, State};
+    for finding in [CloseOutdated::Window, CloseOutdated::Ancestry] {
+        let at = CloseAt { branch: [3; 32], landing: [4; 32], asked: true, refused: None, outdated: Some(finding) };
+        let state = State::NoChange { words: b"Catch up from main.".as_slice().into() };
+        close_attempt_round_trips(state, at);
+    }
 }
 
 #[test]
