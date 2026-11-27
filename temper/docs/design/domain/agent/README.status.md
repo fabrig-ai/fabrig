@@ -3,10 +3,6 @@
 2026-11-27. Where temper's code lags or departs from [README.md](README.md).
 
 
-- **Not yet:** 5: the stock charter has a change `deliver`, then `finish`,
-  running the same checks twice, and its report name the branch and commit
-  `deliver` named, where `finish` as a change checks and pushes alone
-  (`temper/docs/charters/stock/implementer.md`) [in flight: change 20288].
 - **Not yet:** 5: a producer, a repair or a resolution that delivered,
   asked and parked is answered nothing to a change finish with nothing
   new in its next run, so it can't finish as a change [in flight:
