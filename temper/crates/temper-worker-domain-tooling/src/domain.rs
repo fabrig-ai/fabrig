@@ -82,7 +82,7 @@ struct Job {
 #[derive(Debug)]
 enum State {
     Preparing,
-    Writing { program: Box<[u8]>, deadline: Duration, refusal: bool },
+    Writing { program: Box<[u8]>, deadline: Duration, refusal_result: Option<u32> },
     Spawning,
     Running,
     Reading { deliver: bool, most: u32, code: u8 },
@@ -206,7 +206,11 @@ fn start(domain: &mut Domain, env: &Env<Limits>, run: Run, out: &mut Queue<Reque
     let job = Job {
         kind: kind.clone(),
         directory: run.directory,
-        state: State::Writing { program, deadline: run.deadline, refusal: run.spec.refusal },
+        state: State::Writing {
+            program,
+            deadline: run.deadline,
+            refusal_result: if run.spec.refusal { Some(run.spec.result.min(kind.bound.result)) } else { None },
+        },
         tail: Box::new([]),
         process_gone: false,
     };
@@ -308,7 +312,7 @@ fn advance(job: &mut Job, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
 
 fn written_job(job: &mut Job, env: &Env<Limits>, owner: Token, written: bool, out: &mut Queue<Request>) {
     match &job.state {
-        State::Writing { program, deadline, refusal } => {
+        State::Writing { program, deadline, refusal_result } => {
             if !written {
                 job.state = State::Ending;
                 job.process_gone = true;
@@ -318,7 +322,7 @@ fn written_job(job: &mut Job, env: &Env<Limits>, owner: Token, written: bool, ou
             }
             let request_path = path(&job.directory, b"/request.json", b"", env.limits.path_bytes)
                 .expect("admission checked the request path");
-            let mut environment = List::with_capacity(if *refusal { 5 } else { 4 });
+            let mut environment = List::with_capacity(if refusal_result.is_some() { 6 } else { 4 });
             for entry in [
                 (copy_of(b"PATH"), env.limits.path.clone()),
                 (copy_of(b"HOME"), job.directory.clone()),
@@ -327,8 +331,12 @@ fn written_job(job: &mut Job, env: &Env<Limits>, owner: Token, written: bool, ou
             ] {
                 environment.push(entry).expect("room for the command environment");
             }
-            if *refusal {
+            if let Some(result) = refusal_result {
                 environment.push((copy_of(b"TEMPER_CLOSE_REFUSAL"), copy_of(b"3"))).expect("room for the refusal ask");
+                let number = skein_lib::Decimal::of(u64::from(*result));
+                environment
+                    .push((copy_of(b"TEMPER_CLOSE_RESULT_BYTES"), copy_of(number.as_bytes())))
+                    .expect("room for the refusal result bound");
             }
             let request = Request::Spawn {
                 owner,

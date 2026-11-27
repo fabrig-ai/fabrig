@@ -6555,7 +6555,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
     if crate::follow_check::asked(&row).is_some() {
         row.change.since = env.wall;
     }
-    crate::close::judged(&mut row, pending.branch.is_some());
+    let close_refusal = crate::close::judged(&mut row, pending.branch.is_some());
     if let Some(recheck) = &mut row.ci_recheck {
         if pending.branch.is_some() && pending.branch != Some(recheck.job.head) {
             row.ci_recheck = None;
@@ -6799,12 +6799,25 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                 save_queue_change(d, env, before, row.clone(), out);
                 topics::refresh(d, env, row.task, out);
                 crate::waits::change_policy(d, &row, decision, facts.execution.is_some());
+                if decision == change::Decision::Hold(change::Cause::CloseRefused)
+                    && let Some(words) = close_refusal
+                {
+                    emit(out, Request::CloseDecision { task: row.task, step: crate::CloseStep::Refused(words) });
+                    return;
+                }
                 if let Some(at) = facts.close_tips {
                     let replay = decision == change::Decision::Hold(change::Cause::CloseRefused)
                         && (effect_prior.released == Some(change::Cause::CloseRefused)
                             || effect_prior.state == (change::State::Producing { requested: false }));
-                    if replay || decision == change::Decision::Delegate(change::Delegate::Close) {
-                        emit(out, Request::CloseDecision { task: row.task, at, replay });
+                    let step = if replay {
+                        Some(crate::CloseStep::Replay(at))
+                    } else if decision == change::Decision::Delegate(change::Delegate::Close) {
+                        Some(crate::CloseStep::Delegate(at))
+                    } else {
+                        None
+                    };
+                    if let Some(step) = step {
+                        emit(out, Request::CloseDecision { task: row.task, step });
                         return;
                     }
                 }

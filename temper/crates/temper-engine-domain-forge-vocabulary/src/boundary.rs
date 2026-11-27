@@ -3077,6 +3077,14 @@ pub fn is_root_read(owner: Token) -> bool {
     owner.raw().checked_shr(59).expect("read range shift fits u64") == 0b0_0100
 }
 
+/// A close job offer or its refusal, fresh or replayed (domain/forge/change/repairs-releases.md, 1).
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum CloseStep {
+    Delegate(change::CloseAt),
+    Replay(change::CloseAt),
+    Refused(Box<[u8]>),
+}
+
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
@@ -3482,11 +3490,10 @@ pub enum Request {
         entry: Option<u64>,
         evidence: Option<ChangeEvidence>,
     },
-    /// A close job offer or the replay of its failure, with the tips just read.
+    /// A close decision, with the tips or the fresh refusal's names.
     CloseDecision {
         task: u64,
-        at: change::CloseAt,
-        replay: bool,
+        step: CloseStep,
     },
     /// Task-specific news with a connector classification.
     News {

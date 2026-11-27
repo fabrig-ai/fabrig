@@ -697,11 +697,13 @@ class Delivery(unittest.TestCase):
         first = 'test A::rules rule_é'
         encoded = b'"test A::rules rule_\\u00e9"'
         suffix = b']}}\n'
-        size = 512 - len(stem + encoded + b',""' + suffix)
-        names = [first, 'x' * size]
-        exact = stem + encoded + b',"' + b'x' * size + b'"' + suffix
-        self.assertEqual(len(exact), 512)
-        self.assertEqual(PRE.refusal_bytes(head, tree, base, counts, names), exact)
+        for bound in (512, 8192):
+            with self.subTest(bound=bound):
+                size = bound - len(stem + encoded + b',""' + suffix)
+                names = [first, 'x' * size]
+                exact = stem + encoded + b',"' + b'x' * size + b'"' + suffix
+                self.assertEqual(len(exact), bound)
+                self.assertEqual(PRE.refusal_bytes(head, tree, base, counts, names, bound), exact)
         errors = [PRE.failure(first, 'test failed'), PRE.failure('format', 'diff'),
                   PRE.failure('flakes are omitted', 'flake', ('A::rules', 'flake')),
                   PRE.failure('inherited are omitted', 'known'), PRE.broken('helper', 'also broke')]
@@ -1544,24 +1546,27 @@ class CloseBudgets(unittest.TestCase):
             self.assertEqual(commands, [])
         return errors
 
-    def failed_profiles(self, focused, fuzzy):
+    def failed_profiles(self, focused, fuzzy, *, result_bound=None, expected_bound=512):
         def fake(command, *_args, **_kwargs):
             cases = focused if 'default' in command else fuzzy
             tests = [dict(binary_id=binary, test_name=name, outcome='failed') for binary, name in cases]
             self.result(tests=tests, directory=Path(command[2]))
             return 100, 'test failure\n'
 
+        packages = tuple(dict.fromkeys(binary.split('::')[0] for binary, _ in focused + fuzzy))
         with mock.patch.object(PRE, 'close_budgets') as budgets:
-            errors, commands = self.run_close(fake, dependencies={'leaf': (), 'other': ()}, selected=('leaf', 'other'))
+            errors, commands = self.run_close(fake, dependencies=dict.fromkeys(packages, ()), selected=packages)
         self.assertEqual([[arg for arg in command if arg in ('default', 'fuzzy')] for command in commands],
                          [['default'], ['fuzzy']])
         for command in commands:
             self.assertNotIn('--fail-fast', command)
-            self.assertEqual(self.selected_packages(command), ['leaf', 'other'])
+            self.assertEqual(self.selected_packages(command), list(packages))
         budgets.assert_not_called()
         wanted = [f'test {binary} {name}' for binary, name in focused + fuzzy]
         self.assertEqual([error['name'] for error in errors], wanted)
         env = {'TEMPER_CLOSE_REFUSAL': '3', 'TEMPER_JOB': str(self.root)}
+        if result_bound is not None:
+            env['TEMPER_CLOSE_RESULT_BYTES'] = result_bound
         with redirect_stderr(io.StringIO()):
             self.assertEqual(PRE.finish('b' * 40, 'c' * 40, errors, self.root, env, 'close', (), ['a' * 40]), 3)
         record = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_bytes())
@@ -1569,8 +1574,25 @@ class CloseBudgets(unittest.TestCase):
                                               'key': {'kind': 'test', 'binary': binary, 'test': name}}
                                              for label, (binary, name) in zip(wanted, focused + fuzzy)])
         refusal = (self.root / 'result.json').read_bytes()
-        self.assertLessEqual(len(refusal), 512)
+        self.assertLessEqual(len(refusal), expected_bound)
+        if expected_bound > 512:
+            self.assertGreater(len(refusal), 512)
         return wanted, json.loads(refusal)['refused']
+
+    def test_close_fits_nine_failing_tests_to_the_negotiated_bound(self):
+        packages = ('temper-engine-domain-world', 'temper-worker-domain-world')
+        cases = [(f'{packages[i % 2]}::suite', f'forge_routes::goal_closes::rule_{i:02d}') for i in range(9)]
+        for limit in ('8192', None, 'abc', '100', '1_000', ' 8192'):
+            with self.subTest(limit=limit):
+                large = limit == '8192'
+                wanted, refusal = self.failed_profiles(cases[:5], cases[5:], result_bound=limit,
+                                                       expected_bound=8192 if large else 512)
+                if large:
+                    self.assertEqual(refusal['failures'], wanted)
+                    self.assertNotIn('more', refusal)
+                else:
+                    self.assertEqual(refusal['failures'], wanted[:4])
+                    self.assertEqual(refusal['more'], 5)
 
     def test_close_refuses_with_both_packages_and_the_fuzzy_failure(self):
         wanted, refusal = self.failed_profiles([('leaf::suite', 'a'), ('other::suite', 'b')], [('leaf::suite', 'fuzzy::c')])

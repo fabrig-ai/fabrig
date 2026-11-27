@@ -1079,17 +1079,22 @@ fn follow_limits_have_their_profile_values_and_dotted_overrides() {
 fn the_engine_declares_the_close_kind_where_its_tasks_child_holds_it() {
     let mut jig = jig_protocol_config_fixtures::small();
     let bound = limits::close_bound();
+    assert_eq!(bound.result, 512, "placement still accepts older workers");
+    let result = 8_192;
+    let prepare = limits::prepare_bound();
     let merge = limits::merge_bound();
     jig.core.tasks.spec_bytes = bound.spec;
-    jig.core.tasks.result_bytes = bound.result;
-    assert_eq!(limits::jobs(&jig).as_ref(), [merge, bound]);
+    jig.core.tasks.result_bytes = result;
+    assert_eq!(limits::jobs(&jig).as_ref(), [prepare, merge, bound]);
     jig.core.tasks.spec_bytes = bound.spec - 1;
     assert_eq!(limits::jobs(&jig).as_ref(), [merge]);
     jig.core.tasks.spec_bytes = bound.spec;
-    jig.core.tasks.result_bytes = bound.result - 1;
-    assert!(limits::jobs(&jig).is_empty());
+    jig.core.tasks.result_bytes = result - 1;
+    assert_eq!(limits::jobs(&jig).as_ref(), [prepare, merge]);
     jig.core.tasks.result_bytes = bound.result;
-    assert_eq!(limits::jobs(&jig).as_ref(), [merge, bound]);
+    assert_eq!(limits::jobs(&jig).as_ref(), [merge]);
+    jig.core.tasks.result_bytes = result;
+    assert_eq!(limits::jobs(&jig).as_ref(), [prepare, merge, bound]);
 }
 
 /// temper/docs/design/domain/worker/jobs.md.

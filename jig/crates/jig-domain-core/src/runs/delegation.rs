@@ -290,7 +290,8 @@ pub fn resolved_delegate_authority(
 /// One delegation waiting for the task child's durable creation reply.
 pub type Delegating = (CallKey, Box<[tasks::Stub]>, Option<jig_domain_people::Given>);
 
-/// A procedure's job takes its application's bounds (jig/docs/design/domain/engine/executors.md, 5).
+/// A procedure's job takes its application's placement bounds and the connector's result contract
+/// (jig/docs/design/domain/engine/executors.md, 5).
 pub(crate) fn job_member(jobs: &[jig_domain_link::JobBound], member: &mut Delegate) -> Result<(), tasks::Refusal> {
     let tasks::Executor::Job { kind } = member.executor else { return Ok(()) };
     let mut declared = None;
@@ -307,6 +308,10 @@ pub(crate) fn job_member(jobs: &[jig_domain_link::JobBound], member: &mut Delega
     }
     if member.llm.is_some() {
         return Err(tasks::Refusal::Executor);
+    }
+    // Placement keeps the kind's declaration. The tasks child checks the separate result contract.
+    if let tasks::Contract::Job { .. } = member.contract {
+        return Ok(());
     }
     member.contract = tasks::Contract::Job { bytes: bound.result };
     Ok(())

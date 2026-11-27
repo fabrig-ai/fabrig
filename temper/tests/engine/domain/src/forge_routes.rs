@@ -375,12 +375,15 @@ fn configure_close_job(
     command: Option<&[u8]>,
     authority: bool,
 ) {
-    // Retain the close request and both whole change word fields in the fixture carrier.
+    // Make room for the contract and the inbox's reserved delegate results,
+    // without changing what the workers advertise for placement.
     limits.tasks.spec_bytes = 16_384;
-    limits.journal.transcript_bytes = limits.journal.transcript_bytes.max(65_536);
-    limits.loads.transcript_bytes = limits.loads.transcript_bytes.max(65_536);
-    limits.loads.bytes = limits.loads.bytes.max(65_536);
-    limits.loads.reply_bytes = limits.loads.reply_bytes.max(limits.loads.bytes);
+    let result = limits.tasks.result_bytes.max(temper_engine_service_vocabulary::limits::CLOSE_RESULT_BYTES);
+    let growth = result - limits.tasks.result_bytes;
+    limits.tasks.result_bytes = result;
+    limits.tasks.inbox_bytes += growth * limits.tasks.inbox_messages;
+    limits.forge.client.op_bytes = limits.forge.client.op_bytes.max(result);
+    limits.journal.result_bytes = limits.journal.result_bytes.max(result);
     config.core.jobs = Box::new([temper_engine_service_vocabulary::limits::close_bound()]);
     if authority {
         let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
@@ -399,6 +402,16 @@ fn configure_close_job(
     }
     crate::oracle::config::landing(config, 1).close_job = command.map(Into::into);
     limits.documents = paths::document_limits(limits.documents, limits);
+}
+
+fn fit_close_carriers(limits: &mut engine::Limits) {
+    let carrier = u32::try_from(engine::row_bound(limits).expect("close task row bound"))
+        .expect("close task row fits a fixture carrier")
+        .max(65_536);
+    limits.journal.transcript_bytes = limits.journal.transcript_bytes.max(carrier);
+    limits.loads.transcript_bytes = limits.loads.transcript_bytes.max(carrier);
+    limits.loads.bytes = limits.loads.bytes.max(carrier);
+    limits.loads.reply_bytes = limits.loads.reply_bytes.max(limits.loads.bytes);
 }
 
 fn configure_goal_closer(config: &mut engine::Config, limits: &mut engine::Limits) {
@@ -1540,6 +1553,9 @@ impl World {
         if let Some(rules) = &timing.landing_deployment {
             configure_landing_deployment(&mut runtime, rules);
         }
+        if timing.close_job.is_some() {
+            fit_close_carriers(&mut limits);
+        }
         [(bootstrap, limits), (runtime, limits)]
     }
 
@@ -2368,6 +2384,7 @@ impl World {
     pub fn with_close_job(mut self, command: Option<&[u8]>, authority: bool) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "close configuration precedes startup");
         configure_close_job(&mut self.restart_config, &mut self.env.limits, command, authority);
+        fit_close_carriers(&mut self.env.limits);
         self.creating =
             jig_test_profile::fixtures::Creating::new(&self.restart_config.core, self.env.limits.tasks.tree_tasks);
         let mut codec = self.env.limits;

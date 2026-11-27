@@ -572,7 +572,10 @@ impl Domain {
                 prepare_kind = Some(*bound);
             }
             if bound.kind.0 == forge::CLOSE_KIND {
-                close_kind = Some(*bound);
+                close_kind = Some(jig_domain_link::JobBound {
+                    result: temper_protocol_worker_wire::CLOSE_RESULT_BYTES,
+                    ..*bound
+                });
             }
             if bound.kind.0 == forge::MERGE_KIND {
                 merge_kind = Some(*bound);

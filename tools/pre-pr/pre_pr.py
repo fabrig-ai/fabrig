@@ -1415,7 +1415,18 @@ def typed_close(scope, env):
     return scope == 'close' and env.get('TEMPER_CLOSE_REFUSAL') == '3'
 
 
-def refusal_bytes(head, tree, base, counts, failures):
+def close_result_bound(env):
+    value = env.get('TEMPER_CLOSE_RESULT_BYTES', '')
+    if not (value.isascii() and value.isdecimal()):
+        return 512
+    digits = value.lstrip('0')
+    if len(digits) > len(str(sys.maxsize)):
+        # No result that fits in memory can reach this bound.
+        return sys.maxsize
+    return max(512, int(digits or '0'))
+
+
+def refusal_bytes(head, tree, base, counts, failures, bound):
     """Bound the close result in whole names (temper/docs/design/protocol/tooling.md, 4.2)."""
     refused = dict(head=head, tree=tree, base=base, counts=counts, failures=failures)
 
@@ -1423,7 +1434,7 @@ def refusal_bytes(head, tree, base, counts, failures):
         return (json.dumps({'refused': refused}, ensure_ascii=True, separators=(',', ':')) + '\n').encode('ascii')
 
     full = encode()
-    if len(full) <= 512:
+    if len(full) <= bound:
         return full
     refused['failures'] = []
     for index, name in enumerate(failures):
@@ -1433,7 +1444,7 @@ def refusal_bytes(head, tree, base, counts, failures):
             refused['more'] = remaining
         else:
             refused.pop('more', None)
-        if len(encode()) > 512:
+        if len(encode()) > bound:
             refused['failures'].pop()
             refused['more'] = remaining + 1
             break
@@ -1460,7 +1471,8 @@ def finish(tree_id, base_id, errors, root, env, scope, commits, heads, lints=(),
         if not head or not tree_id:
             raise ValueError('the close did not identify its head and tree')
         names = [error['name'] for error in groups['new']]
-        replace_file(Path(job) / 'result.json', refusal_bytes(head, tree_id, base_id, counts_ref, names))
+        result = refusal_bytes(head, tree_id, base_id, counts_ref, names, close_result_bound(env))
+        replace_file(Path(job) / 'result.json', result)
     except (OSError, ValueError) as error:
         print_broke(f'cannot write close refusal: {error}')
         return 2

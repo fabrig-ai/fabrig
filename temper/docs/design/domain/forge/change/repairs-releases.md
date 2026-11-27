@@ -196,6 +196,17 @@ since 2026-11-25:
   name as the refusal lists it, `and N more` present where the refusal
   or the bytes left some out (N the refusal's `more` and those cut).
   The change keeps the refusal's counts beside the tips it read (below).
+  On the fresh refusal it also sends the goal one `Words` message, via
+  its closer's relay where the closer requested the change: `the close
+  check refused the goal's branch at G; every failure its result names,
+  in the check's order: F1, F2, …, F9.` The names are joined by `, `,
+  and ` and N more` comes before the period if the result says `more: N`.
+  The message fits `tasks.message_bytes`, ending in `...` if cut. The
+  hold account remains 512 bytes. Neither a restart nor a release on
+  unchanged tips resends the list. The requester decided on 2026-11-27
+  that the goal should hear all the failures a result can carry for one
+  repair, keeping 512-byte workers eligible and taking up to 8,192 bytes
+  from newer ones.
 - **Broke:** the close check didn't judge the goal. A job that fails for
   good, its command having exited otherwise, past its deadline, or
   with a result missing or past its bound, has been tried within the

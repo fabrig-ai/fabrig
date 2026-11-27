@@ -36,9 +36,14 @@ fn payloads() -> [(Carried, &'static str, Box<[u8]>); 8] {
         (
             Carried::JobSpec,
             "JobSpec",
-            v1::JobSpec { command: b"tool".as_slice().into(), request: b"{}".as_slice().into(), refusal: false }
-                .encode(&limits)
-                .unwrap(),
+            v1::JobSpec {
+                command: b"tool".as_slice().into(),
+                request: b"{}".as_slice().into(),
+                refusal: false,
+                result: 512,
+            }
+            .encode(&limits)
+            .unwrap(),
         ),
         (Carried::Grant, "Identity", identity.expose().into()),
         (Carried::Ask, "Ask", crate::ask(&v1::Ask::Landed(v1::Head { head: [11; 32] }))),
@@ -119,7 +124,7 @@ fn temper_roots_round_trip_in_their_carried_directions() {
         "landed: list 64 Landed }",
         "repositories: list 64 SavedRepository }",
         "record Tag { tag: u64 }",
-        "refusal: bool = false }",
+        "droppable result: u32 = 512 }",
         "email: text 256 }",
         "record Head { head: fixed 32 }",
         "reds: list 256 Red }",
@@ -151,6 +156,34 @@ fn temper_roots_round_trip_in_their_carried_directions() {
     }
 }
 
+/// temper/docs/design/protocol/wires.md, 8: the result limit is an optional hint across layouts.
+#[test]
+fn close_job_specs_cross_the_previous_layout_in_both_directions() {
+    use jig_protocol_worker_wire::layouts::Nested;
+    use skein_codec::{layout::Mode, schema::parse};
+    let current = parse(wire::TEXT.as_bytes()).unwrap();
+    let (before, field) = wire::TEXT.split_once(" droppable result:").expect("the appended result field");
+    let (_, after) = field.split_once(" }").expect("the end of JobSpec");
+    let deployed_text = skein_lib::bytes::concat(&[before.as_bytes(), b" }", after.as_bytes()]);
+    let deployed = parse(&deployed_text).unwrap();
+    let deployed_bytes = b"\0\0\0\x04tool\0\0\0\x02{}\x01";
+    let limits = fixtures::limits();
+    let decode = |bytes| v1::JobSpec::decode(&limits, &mut skein_lib::Reader::new(bytes)).unwrap();
+    let from_old = transcode(Mode::Keep, &deployed, &current, "JobSpec", deployed_bytes);
+    let mut spec = decode(&from_old);
+    assert_eq!(spec.command.as_ref(), b"tool");
+    assert_eq!(spec.request.as_ref(), b"{}");
+    assert!(spec.refusal);
+    assert_eq!(spec.result, 512);
+
+    spec.result = 8192;
+    let bytes = spec.encode(&limits).unwrap();
+    assert_eq!(decode(&bytes), spec);
+    let mut out = skein_lib::Buffer::with_capacity(1024);
+    peer(&deployed).down(Nested::Carried(Carried::JobSpec), &bytes, &mut out).expect("old worker keeps the ask");
+    assert_eq!(out.as_slice(), deployed_bytes);
+}
+
 /// temper/docs/design/protocol/wires.md, 8: an older worker can only keep a job that doesn't ask.
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the fixture derives an older schema text")]
@@ -163,7 +196,12 @@ fn an_older_worker_cannot_keep_a_jobs_refusal_ask() {
     let text = format!("{before} }}{after}");
     let worker = parse(text.as_bytes()).unwrap();
     let mut peer = peer(&worker);
-    let mut value = v1::JobSpec { command: b"tool".as_slice().into(), request: b"{}".as_slice().into(), refusal: true };
+    let mut value = v1::JobSpec {
+        command: b"tool".as_slice().into(),
+        request: b"{}".as_slice().into(),
+        refusal: true,
+        result: 512,
+    };
     let limits = fixtures::limits();
     let root = Nested::Carried(Carried::JobSpec);
     let mut out = skein_lib::Buffer::with_capacity(1024);

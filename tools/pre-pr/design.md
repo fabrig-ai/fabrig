@@ -775,8 +775,9 @@ comes after it:
   the order the checks found it: the checks before the runs, then the
   focused run's, then the fuzzy run's. The typed refusal names the new
   ones in that order, those that fit and a count of the rest (below), and
-  so do the close change's hold words within their bytes
-  (`temper/docs/design/domain/forge/change/repairs-releases.md`, 1).
+  so do the close change's hold words within their bytes. The goal is
+  sent every name the refusal carries, in that order, within its message
+  bound (`temper/docs/design/domain/forge/change/repairs-releases.md`, 1).
 - **Delivery and CI keep theirs.** Only close mode changes: a delivery's
   and the full diagnostic's runs, and the passed-tree cache, which a close
   never reads (section 7), are as sections 4 to 7 say.
@@ -859,9 +860,12 @@ where it read main's counts there, else `null` (fetched from the public
 repository, or none); each NAME a new failure's `name` as the record
 lists it, in its order, flakes and inherited ones left out. It is compact
 JSON, `,` and `:` with no spaces and ASCII escapes, members in that
-order, ending in a newline, at most 512 bytes: the names that fit are
-kept whole, in order, the first that doesn't and every one after it
-omitted and counted in `more`, which is absent when none is.
+order, ending in a newline, at most the bytes `TEMPER_CLOSE_RESULT_BYTES`
+names, or 512 where it is absent or not a whole decimal number of at
+least 512. The names that fit are kept whole, in order, the first that
+doesn't and every one after it omitted and counted in `more`, which is
+absent when none is. The requester decided on 2026-11-27 to let the goal
+hear more failures at once without losing workers that still take 512.
 
 **Nothing is replayed.** A refusal finishes the close job with its
 verdict and holds the close at once, spending no try, and a released

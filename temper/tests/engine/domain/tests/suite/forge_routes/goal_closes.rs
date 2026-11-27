@@ -61,7 +61,7 @@ fn goal_world_on_landing(
         CHANNEL,
         WORKER_POSITION,
         defaults.rules.maximum_run_spend,
-        Box::new([close_bound()]),
+        Box::new([JobBound { result: 8192, ..close_bound() }]),
     );
     start_goal(world, template, branch, spend, room, landing)
 }
@@ -959,6 +959,84 @@ fn a_close_refusal_counts_failures_that_do_not_fit() {
     let words = refusal_words(refusal.at, kept, omitted.len() + ALREADY_OMITTED);
     assert!(words.len() <= bound);
     assert_refused_close(refusal, &words);
+}
+
+fn nine_failures() -> [String; 9] {
+    core::array::from_fn(|index| {
+        let package = if index % 2 == 0 { "temper-engine-domain-world" } else { "temper-worker-domain-world" };
+        format!("test {package}::suite forge_routes::goal_closes::rule_{index:02}")
+    })
+}
+
+fn assert_goal_failure_list(refusal: &RefusedClose, failures: &[&str], more: usize) {
+    let head = short(refusal.at.branch);
+    let names = failures.join(", ");
+    let tail = if more == 0 { String::new() } else { format!(" and {more} more") };
+    let prefix = "the close check refused the goal's branch at ";
+    let words = format!("{prefix}{head}; every failure its result names, in the check's order: {names}{tail}.");
+    let messages = &refusal.run.messages;
+    assert!(
+        messages
+            .iter()
+            .any(|word| matches!(word.kind, tasks::MessageKind::Escalation { task, .. } if task == refusal.close))
+    );
+    let lists: Vec<_> = messages
+        .iter()
+        .filter(|word| {
+            word.kind == tasks::MessageKind::Words
+                && word.words.starts_with(prefix.as_bytes())
+                && word.words.windows(b"; every failure".len()).any(|part| part == b"; every failure")
+        })
+        .map(|word| word.words.as_ref())
+        .collect();
+    assert_eq!(lists, [words.as_bytes()], "the escalation wake offers one complete failure list");
+}
+
+#[test]
+fn a_close_refusal_lists_nine_failures_at_the_goals_escalation_wake() {
+    let failures = nine_failures();
+    let failures = failures.each_ref().map(String::as_str);
+    let sample = refusal_with([1; 32], Some(([2; 32], CLOSE_COUNTS)), &failures, 0);
+    assert!((513..=8192).contains(&sample.len()));
+    let refusal = goal_with_refused_close(&failures, 0, Some(CLOSE_COUNTS));
+    assert_eq!(
+        ended(&refusal.world, refusal.job).expect("finished close job").contract,
+        tasks::Contract::Job { bytes: 8192 }
+    );
+    assert_goal_failure_list(&refusal, &failures, 0);
+    let words = refusal_words(refusal.at, &failures[..4], 5);
+    assert!(words.len() <= usize::try_from(tasks::HOLD_ACCOUNT_BYTES).expect("hold bound"));
+    assert_refused_close(refusal, &words);
+}
+
+#[test]
+fn a_close_refusal_lists_the_results_own_more_count_at_the_goal() {
+    let failures = [CLOSE_FAILURE];
+    let refusal = goal_with_refused_close(&failures, 3, Some(CLOSE_COUNTS));
+    assert_goal_failure_list(&refusal, &failures, 3);
+    let words = refusal_words(refusal.at, &failures, 3);
+    assert_refused_close(refusal, &words);
+}
+
+#[test]
+fn a_close_result_past_eight_kib_is_broke() {
+    let (mut world, goal, _, close, mut job, at) = goal_at_close();
+    let counts = Some((at.landing, CLOSE_COUNTS));
+    let framing = refusal_with(at.branch, counts, &["test "], 0).len();
+    let oversized = format!("test {}", "x".repeat(8193 - framing));
+    let result = refusal_with(at.branch, counts, &[&oversized], 0);
+    assert_eq!(result.len(), 8193);
+    finish_with(&mut world, &job, &result);
+    for _ in 0..world.env.limits.tasks.retries.invalid.retries {
+        job = close_job(&mut world);
+        finish_with(&mut world, &job, &result);
+    }
+    wait_held(&mut world, close, goal);
+    let change::State::Held { hold, .. } = &row(&world, close).change.state else { panic!("close holds") };
+    assert_eq!(hold.cause, change::Cause::Failed);
+    assert!(hold.words.starts_with(b"the close check broke and didn't judge the goal: "));
+    assert_eq!(row(&world, close).close_at, Some(at));
+    world.close();
 }
 
 #[test]

@@ -101,9 +101,11 @@ smith's agent processes, and declares in its hello the kinds it runs:
   repository's name, `/`, then that path, and its request the close
   request's bytes, which the engine writes whole. Its spec asks for a
   typed refusal, `JobSpec`'s `refusal` true (`../../protocol/wires.md`,
-  8), and the worker then sets `TEMPER_CLOSE_REFUSAL=3` in the command's
-  environment beside the others (`../../protocol/tooling.md`, 2); a spec
-  that doesn't ask sets nothing. On exit 3 it delivers nothing and
+  8), and the worker then sets `TEMPER_CLOSE_REFUSAL=3` and
+  `TEMPER_CLOSE_RESULT_BYTES` in the command's environment
+  (`../../protocol/tooling.md`, 2). The latter is the lesser of the
+  spec's result limit (512 when absent) and the worker's declared close
+  result bound. A spec that doesn't ask sets neither variable. On exit 3 it delivers nothing and
   finishes the job with the result, as for a merge, and the engine reads
   it. On exit 0 the delivery
   commits the tree as the command left it, one parent, the tip, its message
@@ -111,10 +113,13 @@ smith's agent processes, and declares in its hello the kinds it runs:
   fast-forward onto the branch the item names as writable, a producer's
   push; with nothing staged it commits and pushes nothing, and the job
   is done. The engine learns which from the branch, as for a merge: its
-  head moved, or not. Its bounds, the engine's declaration and the
-  worker's alike: a spec of 16,384 bytes, a result of 512 and a deadline
-  of 10 minutes, the small profile's constants; the engine declares it
-  only where its tasks limits hold those bounds, as kind 3's.
+  head moved, or not. Both declare a spec of 16,384 bytes and a deadline
+  of 10 minutes. The engine declares 512 result bytes for placement, the
+  least a worker must take, and contracts the close job at 8,192. The
+  worker declares 8,192 result bytes. The engine declares close only when
+  its tasks limits hold the spec and the 8,192-byte contract. The
+  requester decided on 2026-11-27 to give the goal more of the failures
+  at once and keep workers that declare 512 eligible.
 - **The prepare kind,** kind 1, verb `prepare`, delivering, built as
   temper's own merge train for a round's stack (`../landing-prepare.md`, 1.2),
   the project's prepare command not yet. Its spec's

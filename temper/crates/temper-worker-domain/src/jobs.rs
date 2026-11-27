@@ -153,7 +153,12 @@ pub(crate) fn run(
         tooling::Event::Run {
             owner,
             kind,
-            spec: tooling::Spec { command: spec.command, request: spec.request, refusal: spec.refusal },
+            spec: tooling::Spec {
+                command: spec.command,
+                request: spec.request,
+                refusal: spec.refusal,
+                result: spec.result,
+            },
             deadline,
             directory: path.finish(),
         },

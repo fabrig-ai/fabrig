@@ -250,6 +250,7 @@ impl World {
                 command: b"home/tools/check".as_slice().into(),
                 request: b"request".as_slice().into(),
                 refusal: false,
+                result: 512,
             })
         } else {
             Err(wire::Undecodable)

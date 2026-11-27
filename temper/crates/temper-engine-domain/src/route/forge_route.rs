@@ -3787,7 +3787,7 @@ fn fill_hold_account(
             read = evidence.as_ref();
             break;
         }
-        if let forge::Request::CloseDecision { task: owner, at, replay: true } = request
+        if let forge::Request::CloseDecision { task: owner, step: forge::CloseStep::Replay(at) } = request
             && *owner == task
             && hold.cause == forge_change::Cause::CloseRefused
         {
@@ -4160,7 +4160,7 @@ fn change_rehold(domain: &Domain, task: u64) -> Option<forge_change::Cause> {
 }
 
 fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
-    change_decision_from_read(domain, env, task, choice, None, None);
+    change_decision_from_read(domain, env, task, choice, None, None, None);
 }
 
 fn change_decision_from_read(
@@ -4170,6 +4170,7 @@ fn change_decision_from_read(
     mut choice: forge_change::Decision,
     evidence: Option<&forge::ChangeEvidence>,
     close_at: Option<forge_change::CloseAt>,
+    close_refusal: Option<&[u8]>,
 ) {
     if choice == forge_change::Decision::None
         && let Some(why) = change_rehold(domain, task)
@@ -4251,6 +4252,12 @@ fn change_decision_from_read(
     };
     let hold =
         if let forge_change::Decision::Hold(_) = choice { Some(change_hold_event(task, &decision.end)) } else { None };
+    let mut decision = decision;
+    if let Some(words) = close_refusal
+        && let Some(message) = decision.messages.first_mut()
+    {
+        message.words = forge::text::fit(words, skein_lib::usize_of(env.limits.tasks.message_bytes), b"...");
+    }
     let mut decision = append_change_replies(domain, env, task, decision);
     if let Some(cancel) = cancel_close {
         decision.cancels = Box::new([cancel]);
@@ -5039,13 +5046,19 @@ pub(crate) fn outputs(
                     domain.work.push(Work::Forge(forge::Event::ReviewRequested { task, head }));
                 }
             }
-            forge::Request::CloseDecision { task, at, replay } => {
-                let choice = if replay {
-                    forge_change::Decision::Hold(forge_change::Cause::CloseRefused)
-                } else {
-                    forge_change::Decision::Delegate(forge_change::Delegate::Close)
+            forge::Request::CloseDecision { task, step } => {
+                let (choice, at, refusal) = match &step {
+                    forge::CloseStep::Delegate(at) => {
+                        (forge_change::Decision::Delegate(forge_change::Delegate::Close), Some(*at), None)
+                    }
+                    forge::CloseStep::Replay(at) => {
+                        (forge_change::Decision::Hold(forge_change::Cause::CloseRefused), Some(*at), None)
+                    }
+                    forge::CloseStep::Refused(words) => {
+                        (forge_change::Decision::Hold(forge_change::Cause::CloseRefused), None, Some(words.as_ref()))
+                    }
                 };
-                change_decision_from_read(domain, env, task, choice, None, Some(at));
+                change_decision_from_read(domain, env, task, choice, None, at, refusal);
             }
             forge::Request::ChangeDecision { task, decision: choice, entry, evidence } => match choice {
                 forge_change::Decision::Effect(effect) => {
@@ -5148,7 +5161,7 @@ pub(crate) fn outputs(
                     if choice == forge_change::Decision::None {
                         save_restored_hold(domain, env, task, out);
                     }
-                    change_decision_from_read(domain, env, task, choice, evidence.as_ref(), None);
+                    change_decision_from_read(domain, env, task, choice, evidence.as_ref(), None, None);
                 }
                 forge_change::Decision::Cancel => cancel_change(domain, task),
                 forge_change::Decision::EndHold => end_change_hold(domain, task),

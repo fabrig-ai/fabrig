@@ -36,7 +36,12 @@ pub fn spec(request: &PrepareRequest, bound: u32) -> Option<Box<[u8]>> {
     let length = measure.measured().ok()?;
     let mut json = Encoder::write(length, &limits);
     encode(&mut json, request);
-    let spec = v1::JobSpec { command: Box::new([]), request: json.finish(), refusal: false };
+    let spec = v1::JobSpec {
+        command: Box::new([]),
+        request: json.finish(),
+        refusal: false,
+        result: temper_protocol_worker_wire::DEFAULT_JOB_RESULT_BYTES,
+    };
     if spec.measure(&v1::CEILINGS).ok()? > bound {
         return None;
     }

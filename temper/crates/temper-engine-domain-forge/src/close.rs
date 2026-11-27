@@ -6,9 +6,9 @@ use skein_forge::api::Commit;
 use skein_json::{Kind, document::Document};
 use skein_lib::{Decimal, List, bytes};
 use temper_engine_domain_forge_change as change;
+use temper_engine_domain_forge_closer::relay::{CLOSE_FAILURES, CLOSE_REFUSED_AT as PREFIX};
 use temper_engine_domain_forge_landing::{Fault, Judgement, Shown, judge};
 
-const PREFIX: &[u8] = b"the close check refused the goal's branch at ";
 const BASE: &[u8] = b", against main at ";
 const MOVES: &[u8] = b"; it checks again once the goal's branch or main moves.";
 const BROKE: &[u8] = b"the close check broke and didn't judge the goal: ";
@@ -18,24 +18,25 @@ const FINISHED: &[u8] = b"it finished with ";
 const RESULT_PREFIX_BYTES: usize = 64;
 const HOLD_BYTES: u32 = jig_domain_tasks::HOLD_ACCOUNT_BYTES;
 
-pub(crate) fn judged(row: &mut ChangeRow, pushed: bool) {
-    let Some((_, kind)) = row.delegate else { return };
+pub(crate) fn judged(row: &mut ChangeRow, pushed: bool) -> Option<Box<[u8]>> {
+    let (_, kind) = row.delegate?;
     if row.delegate_status != change::Status::Passed
         || kind != change::Delegate::Close
         || row.change.state != (change::State::Producing { requested: true })
     {
-        return;
+        return None;
     }
     let verdict = result(&row.report, row.close_at, pushed);
     match classify(verdict.as_ref(), false) {
         Judgement::Passed => {}
         Judgement::Refused => {
-            let Some(Verdict::Refused { counts, words }) = verdict else { unreachable!("a shown refusal") };
+            let Some(Verdict::Refused { counts, words, goal_words }) = verdict else { unreachable!("a shown refusal") };
             // The refusal was validated against this attempt above.
             row.close_at.as_mut().expect("a refusal names its attempt").refused = Some(change::CloseRefused { counts });
             row.delegate_status = change::Status::Failed;
             row.producer_failure = Some(words);
             row.report = Box::new([]);
+            return Some(goal_words);
         }
         Judgement::Broke => {
             let words = finished_words(&row.report);
@@ -46,6 +47,7 @@ pub(crate) fn judged(row: &mut ChangeRow, pushed: bool) {
         }
         Judgement::Runner(_) => unreachable!("a finished job was not lost"),
     }
+    None
 }
 
 fn classify(verdict: Option<&Verdict>, lost: bool) -> Judgement {
@@ -105,7 +107,7 @@ fn finished_words(result: &[u8]) -> Box<[u8]> {
 
 enum Verdict {
     Settled,
-    Refused { counts: Option<Commit>, words: Box<[u8]> },
+    Refused { counts: Option<Commit>, words: Box<[u8]>, goal_words: Box<[u8]> },
 }
 
 fn result(raw: &[u8], at: Option<change::CloseAt>, pushed: bool) -> Option<Verdict> {
@@ -151,8 +153,9 @@ fn refusal(document: &Document, object: u32, start: Commit) -> Option<Verdict> {
     if members != expected || (names.is_empty() && more == 0) {
         return None;
     }
-    let words = refusal_words(document, names, more, head, base, counts);
-    Some(Verdict::Refused { counts, words })
+    let words = refusal_words(document, names.clone(), more, head, base, counts);
+    let goal_words = goal_refusal_words(document, names, more, head);
+    Some(Verdict::Refused { counts, words, goal_words })
 }
 
 fn strings(document: &Document, array: u32) -> Option<core::ops::Range<u32>> {
@@ -201,6 +204,35 @@ fn commit(document: &Document, index: u32) -> Option<Commit> {
         *byte = high.checked_mul(16)?.checked_add(low)?;
     }
     Some(commit)
+}
+
+fn goal_refusal_words(document: &Document, names: core::ops::Range<u32>, more: u64, head: Commit) -> Box<[u8]> {
+    let suffix = Decimal::of(more);
+    let mut size = PREFIX.len().saturating_add(12).saturating_add(CLOSE_FAILURES.len()).saturating_add(1);
+    for index in names.clone() {
+        let separator = if index == names.start { 0 } else { 2 };
+        size = size.saturating_add(separator).saturating_add(name(document, index).len());
+    }
+    if more != 0 {
+        size = size.saturating_add(b" and  more".len()).saturating_add(suffix.as_bytes().len());
+    }
+    let mut words = List::with_capacity(u32::try_from(size).expect("bounded close result and framing"));
+    append(&mut words, PREFIX);
+    short_commit(&mut words, &head);
+    append(&mut words, CLOSE_FAILURES);
+    for index in names.clone() {
+        if index != names.start {
+            append(&mut words, b", ");
+        }
+        append(&mut words, name(document, index));
+    }
+    if more != 0 {
+        append(&mut words, b" and ");
+        append(&mut words, suffix.as_bytes());
+        append(&mut words, b" more");
+    }
+    append(&mut words, b".");
+    words.into_boxed()
 }
 
 fn refusal_words(
@@ -307,7 +339,7 @@ mod tests {
             row.delegate_status = change::Status::Passed;
             row.report = Box::from(result);
             row.close_at = Some(AT);
-            judged(&mut row, false);
+            assert_eq!(judged(&mut row, false).is_some(), cause == change::Cause::CloseRefused);
             assert_eq!(row.delegate_status, change::Status::Failed);
             assert_eq!(row.close_at.unwrap().failed_cause(), cause);
         }

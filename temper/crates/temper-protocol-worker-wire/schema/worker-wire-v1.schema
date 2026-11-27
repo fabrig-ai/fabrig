@@ -15,7 +15,7 @@ record Repository { tag: u64 name: bytes 1024 remote: bytes 1024 git: option byt
 versioned record Items { repositories: list 64 Repository rerun: option u32 = none }
 
 # A job's command path and bounded request file (temper/docs/design/protocol/tooling.md, 2 and 6).
-record JobSpec { command: bytes 4096 request: bytes 1048576 refusal: bool = false }
+record JobSpec { command: bytes 4096 request: bytes 1048576 refusal: bool = false droppable result: u32 = 512 }
 
 # Up: what a run left and saved, a failed preparation (protocol/channel.md, 5).
 # Lists of repositories take Bounds.repositories; Files Bounds.conflicts

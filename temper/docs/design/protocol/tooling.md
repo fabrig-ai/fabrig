@@ -41,9 +41,11 @@ what they write, and how they end. temper runs them as jobs on a worker
   `close`.
 - **Its environment** is `PATH` from the worker's configuration,
   `HOME` the job's directory, `LANG=C.UTF-8`, `TEMPER_JOB` the job's
-  directory, `TEMPER_CLOSE_REFUSAL=3` for a close whose job asks for a
-  typed refusal (4.2), and nothing else: no credential, no token, no
-  variable of the worker's.
+  directory, and, only for a close whose job asks for a typed refusal
+  (4.2), `TEMPER_CLOSE_REFUSAL=3` and `TEMPER_CLOSE_RESULT_BYTES`, the
+  lesser of the spec's result limit and the worker's declared result
+  limit, in decimal. Nothing else: no credential, no token, no variable
+  of the worker's.
 - **Its time** is the project's `prepare_timeout`, or for `merge` and
   `close` its kind's deadline (4.1, 4.2), after which it and its
   children are killed and the job fails.
@@ -388,9 +390,13 @@ keeps of a goal's work in its own files.
   counts it judged against, `null` where it read none there; each NAME a
   failure of the goal's own, as the check names it, in the check's order.
   It is compact JSON with ASCII escapes, members in that order, within
-  the kind's result bound with its newline, the names that fit kept whole
-  and the rest counted in `more`, absent when none is omitted, as
-  `merge`'s are (4.1, *Bounded whole*). Nothing is committed or pushed.
+  the bound `TEMPER_CLOSE_RESULT_BYTES` names, including its newline.
+  The names that fit are kept whole and the rest counted in `more`,
+  absent when none is omitted, as `merge`'s are (4.1, *Bounded whole*).
+  Without a whole decimal bound of at least 512 the close check uses 512.
+  The requester decided on 2026-11-27 to carry more names where both ends
+  hold them and still place closes on workers declaring 512. The worker
+  reads within its declared bound. Nothing is committed or pushed.
   The job finishes, spending no try, and the close change holds at once
   on the refusal (`../domain/forge/change/repairs-releases.md`, 1).
 - **Any other exit,** a signal, the job's deadline, or a result missing
@@ -403,8 +409,9 @@ keeps of a goal's work in its own files.
   command of an earlier build refuses any other. The engine asks for the
   refusal in the close job's spec, which only a worker whose layout keeps
   the ask is sent (`wires.md`, 8; `../domain/worker/jobs.md`, 2), and
-  that worker sets `TEMPER_CLOSE_REFUSAL=3` (2). A command that doesn't
-  see it exits as before, so a refusal never reaches a build that would
+  that worker sets `TEMPER_CLOSE_REFUSAL=3` (2). Workers whose layouts lack
+  the result limit still take the ask and use the 512-byte fallback. A
+  command that doesn't see the refusal ask exits as before, so a refusal never reaches a build that would
   read a finished close with nothing pushed as one with nothing to
   settle.
 - **Checked against its attempt.** The engine takes a finished close as a
