@@ -126,6 +126,22 @@ time.
 - **A claim that finds the slot taken waits,** which is no failure.
 - **A connector's own effects** on a held resource take the slot too,
   while they are in flight, and wait for it like a claim.
+- **Each use checks its writer** (skein/docs/foundation/programming-model.md,
+  10.4). A slot is taken only where its claim's or its effect's admission,
+  in the same step, found it free and the room for it; a slot taken and
+  room full are answered as the waits and refusals above, as values.
+  Taking it asserts that no writer holds the resource, naming the
+  resource and its new writer; an effect whose own entry already holds
+  it is answered as done before anything is taken. Each release names
+  the writer it expects (the run's task and attempt at its committed
+  answer, the lost attempt's at the connector's fresh read, the effect's
+  entry as it settles) and asserts that the slot is that writer's,
+  naming the resource and both writers, and frees it once. A loss marks
+  only the slots its attempt holds, each asserted as its. A trigger
+  that may find no slot of its writer (an effect that took none, a fresh
+  read of a resource no lost writer holds, an answer of a run that
+  wrote nothing) finds that from its writer's own slots, as a value,
+  before anything is freed.
 
 ## 4. Handing down
 
