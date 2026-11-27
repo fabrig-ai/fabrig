@@ -952,3 +952,55 @@ fn declarations_follow_the_connectors_vocabulary_and_backend() {
         }
     }
 }
+
+#[test]
+fn declarations_preserve_effect_policy_for_each_backend() {
+    use jig_domain_contract::effects::{EffectForm, EffectKind, Recovery};
+    let (_, env) = fixture();
+    for (backend, restart_recovery) in [
+        (infrastructure::Backend::OperationIds, Recovery::Keyed),
+        (infrastructure::Backend::NoOperationIds, Recovery::Unrecoverable),
+    ] {
+        let [observability, infrastructure] = crate::translate::declarations(backend, &env.limits);
+        assert_eq!(
+            observability.effects.as_ref(),
+            &[EffectKind { kind: 1, form: EffectForm::Set, recovery: Recovery::Keyed, waits_for_dependencies: false }],
+        );
+        assert_eq!(
+            infrastructure.effects.as_ref(),
+            &[
+                EffectKind {
+                    kind: 1,
+                    form: EffectForm::Transition,
+                    recovery: restart_recovery,
+                    waits_for_dependencies: true
+                },
+                EffectKind {
+                    kind: 2,
+                    form: EffectForm::Set,
+                    recovery: Recovery::Conditional,
+                    waits_for_dependencies: true
+                },
+                EffectKind {
+                    kind: 3,
+                    form: EffectForm::Transition,
+                    recovery: Recovery::Conditional,
+                    waits_for_dependencies: true
+                },
+                EffectKind {
+                    kind: 4,
+                    form: EffectForm::Creation,
+                    recovery: Recovery::Keyed,
+                    waits_for_dependencies: true
+                },
+                EffectKind {
+                    kind: 5,
+                    form: EffectForm::Transition,
+                    recovery: Recovery::Conditional,
+                    waits_for_dependencies: true
+                },
+            ],
+            "{backend:?}",
+        );
+    }
+}

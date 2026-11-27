@@ -1,5 +1,5 @@
 //! Infrastructure owns procedure parameters and resource holdings (examples.md, 3.2).
-use crate::Vocabulary;
+use crate::{Backend, Effect, Form, Recovery, Vocabulary};
 use alloc::boxed::Box;
 
 /// Ops's procedure parameters are typed spec carriers, never root policy.
@@ -135,6 +135,75 @@ pub fn hold_kinds(vocabulary: &Vocabulary) -> Box<[Kind]> {
         Kind { kind: vocabulary.environment_hold, hold: crate::Hold::ExclusiveWait },
         Kind { kind: vocabulary.pool_slot_hold, hold: crate::Hold::PooledWait },
     ])
+}
+
+/// The policy shared by every effect of a connector-local kind (`jig/docs/design/domain/connectors.md`, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct EffectKind {
+    pub kind: u16,
+    pub form: Form,
+    pub recovery: Recovery,
+    pub waits_for_dependencies: bool,
+}
+
+/// The effect kinds both the connector and the engine use.
+#[must_use]
+pub fn effect_kinds(vocabulary: &Vocabulary, backend: Backend) -> Box<[EffectKind]> {
+    let restart_recovery = match backend {
+        Backend::OperationIds => Recovery::Keyed,
+        Backend::NoOperationIds => Recovery::Unrecoverable,
+    };
+    Box::new([
+        EffectKind {
+            kind: vocabulary.restart_effect,
+            form: Form::Transition,
+            recovery: restart_recovery,
+            waits_for_dependencies: true,
+        },
+        EffectKind {
+            kind: vocabulary.scale_effect,
+            form: Form::Set,
+            recovery: Recovery::Conditional,
+            waits_for_dependencies: true,
+        },
+        EffectKind {
+            kind: vocabulary.rollback_effect,
+            form: Form::Transition,
+            recovery: Recovery::Conditional,
+            waits_for_dependencies: true,
+        },
+        EffectKind {
+            kind: vocabulary.create_environment_effect,
+            form: Form::Creation,
+            recovery: Recovery::Keyed,
+            waits_for_dependencies: true,
+        },
+        EffectKind {
+            kind: vocabulary.tear_down_effect,
+            form: Form::Transition,
+            recovery: Recovery::Conditional,
+            waits_for_dependencies: true,
+        },
+    ])
+}
+
+pub(crate) const fn effect_kind_number(effect: &Effect, vocabulary: &Vocabulary) -> u16 {
+    match effect {
+        Effect::Restart { .. } => vocabulary.restart_effect,
+        Effect::Scale { .. } => vocabulary.scale_effect,
+        Effect::Rollback { .. } => vocabulary.rollback_effect,
+        Effect::CreateEnvironment { .. } => vocabulary.create_environment_effect,
+        Effect::TearDown { .. } => vocabulary.tear_down_effect,
+    }
+}
+
+pub(crate) fn effect_kind(kinds: &[EffectKind], kind: u16) -> EffectKind {
+    for row in kinds {
+        if row.kind == kind {
+            return *row;
+        }
+    }
+    unreachable!("every effect names a kind from the connector's vocabulary")
 }
 
 /// The infrastructure connector's spec carrier (examples.md, 3.2).

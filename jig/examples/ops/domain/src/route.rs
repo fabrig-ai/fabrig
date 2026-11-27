@@ -1034,7 +1034,7 @@ pub(crate) fn connector_out(
         ConnectorRequest::Infrastructure(infrastructure::Request::System(request)) => {
             held(decision, Output::Infrastructure(request));
         }
-        ConnectorRequest::Infrastructure(infrastructure::Request::Described { token, description, .. }) => {
+        ConnectorRequest::Infrastructure(infrastructure::Request::Described { token, description }) => {
             work.push(Work::Core(core::Event::EffectConnector(connector::Event::Described {
                 owner: token,
                 description: Box::new(translate::infrastructure_description(number, description)),
@@ -1212,7 +1212,7 @@ pub(crate) fn connector_out(
                 state,
             })));
         }
-        ConnectorRequest::Observability(observability::Request::Described { token, effect, .. }) => {
+        ConnectorRequest::Observability(observability::Request::Described { token, effect }) => {
             work.push(Work::Core(core::Event::EffectConnector(connector::Event::Described {
                 owner: token,
                 description: Box::new(translate::observability_description(
