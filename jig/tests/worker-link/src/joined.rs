@@ -258,6 +258,10 @@ impl Joined {
             fixtures::schema_for_sizes(&engine_limits.sizes)
         };
         let (worker_wires, application, shim) = match profile {
+            Some(layouts::Profile::Written) => {
+                credential.application = layouts::written_application(false);
+                (fixtures::spoken(), layouts::written_application(true), None)
+            }
             Some(profile) => {
                 credential.application = layouts::application(Some(profile));
                 let codec = jig_protocol_worker_wire::sizes::limits(&limits.sizes).expect("worker fixture sizes");
@@ -417,6 +421,24 @@ impl Joined {
     }
     fn route_engine(&mut self, request: engine::Request) {
         match request {
+            engine::Request::Convert => {
+                let answer = match self.engine.converting() {
+                    Some(waiting) => {
+                        let mut out = skein_lib::Buffer::with_capacity(waiting.bound);
+                        assert_eq!(waiting.wire, layouts::WRITTEN_WIRE);
+                        jig_test_layouts::written::convert(
+                            waiting.mode,
+                            &waiting.from,
+                            &waiting.to,
+                            waiting.value,
+                            &mut out,
+                        )
+                        .map(|()| out.to_boxed())
+                    }
+                    None => Ok(Box::default()),
+                };
+                self.engine.converted(self.now, answer, &mut self.engine_out);
+            }
             engine::Request::Take { connection } => assert_eq!(connection, self.connection),
             engine::Request::Lower { connection, lower } => self.lower(1, connection, lower),
             engine::Request::Close { connection }
@@ -557,7 +579,8 @@ impl Joined {
             .iter()
             .filter_map(|request| match request {
                 engine::Request::Hello { channel, .. } => Some(*channel),
-                engine::Request::Take { .. }
+                engine::Request::Convert
+                | engine::Request::Take { .. }
                 | engine::Request::TurnAway { .. }
                 | engine::Request::Lower { .. }
                 | engine::Request::Close { .. }

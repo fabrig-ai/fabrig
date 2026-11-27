@@ -114,7 +114,7 @@ declared in `temper-engine-service-vocabulary`, upstream first:
   (`binaries.md`, 2).
 - **Admission checks the sets at open** (jig's
   `protocol/store/opening-owners.md`, 1). The one-process test
-  `every_golden_key_has_exactly_one_patch_family_or_a_reserved_component_row`
+  `every_golden_key_has_exactly_one_owner_family_or_a_reserved_component_row`
   additionally reads both maps of the golden deployment (5): each
   non-reserved key lies in exactly one family's range. It checks the
   reserved format, layouts, wires, floor, installation and log rows

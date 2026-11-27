@@ -1077,7 +1077,7 @@ fn settings_reads_keep_their_neighbours_not_served_and_role_statuses() {
         vec!["revision", "list"],
     ] {
         for (page, status) in [
-            (jig_client::Readout::NotServed { family: None, served: None }, 1),
+            (jig_client::Readout::NotServed { family: None }, 1),
             (jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)), 2),
         ] {
             let (mut root, call) = fixtures::read_call(&argv);
@@ -1582,7 +1582,7 @@ fn proposal_reads_use_one_exact_read_and_keep_not_served_and_role_statuses() {
     );
     assert_eq!(root.watches.len(), 0);
     for (page, status) in [
-        (jig_client::Readout::NotServed { family: None, served: None }, 1),
+        (jig_client::Readout::NotServed { family: None }, 1),
         (jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)), 2),
     ] {
         let (mut root, call) = fixtures::read_call(&["proposal", "show", "p73/7"]);
@@ -2541,7 +2541,7 @@ fn forge_setting_commands_print_removed_and_unset_values_and_preserve_refusals()
         }
         for page in [
             jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)),
-            jig_client::Readout::NotServed { family: Some(1), served: None },
+            jig_client::Readout::NotServed { family: Some(1) },
             jig_client::Readout::Family { family: 1, record: Some(Box::new([0])) },
         ] {
             let mut root = fixtures::signed_in(fixtures::PARTY);

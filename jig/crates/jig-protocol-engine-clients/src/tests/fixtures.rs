@@ -35,12 +35,11 @@ pub fn settings() -> Settings {
     served
         .push(crate::Served {
             family: None,
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION,
+            version: jig_client_protocol_wire::VERSION,
             layout: jig_client_protocol_wire::LAYOUT,
         })
         .expect("one jig range");
-    served.push(crate::Served { family: Some(9), first: 2, last: 2, layout: [1; 32] }).expect("one family range");
+    served.push(crate::Served { family: Some(9), version: 2, layout: [1; 32] }).expect("one family range");
     Settings {
         private: crate::Private::none(),
         provider: None,

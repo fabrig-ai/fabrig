@@ -20,16 +20,16 @@ fn the_workers_credential_uses_the_engines_table_entry() {
         assert_eq!(worker.declaration, engine.declaration);
     }
     let wires = temper_engine_service::wires();
-    let mut found = false;
+    let mut entry = None;
     for wire in &wires {
         if wire.name == temper_protocol_worker_wire::wire::FAMILY {
-            let [spoken] = credential.application.spoken.as_slice() else { panic!("one application wire") };
-            assert_eq!((wire.name, wire.lowest, wire.highest()), (spoken.name, spoken.version, spoken.version));
-            assert_eq!(wire.layouts.as_slice(), &[spoken.layout]);
-            found = true;
+            entry = Some(wire);
+            break;
         }
     }
-    assert!(found, "temper's worker wire is in the table");
+    let wire = entry.expect("temper's worker wire is in the table");
+    let [spoken] = credential.application.spoken.as_slice() else { panic!("one application wire") };
+    assert_eq!((wire.name, wire.layout), (spoken.name, spoken.layout));
 }
 
 #[test]

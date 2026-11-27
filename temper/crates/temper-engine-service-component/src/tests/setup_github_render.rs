@@ -43,7 +43,7 @@ fn render(words: &[&[u8]], json: bool, record: &Record) -> tools::jig::Printed {
     for event in [
         client::Event::StartUnlinked { kept: List::with_capacity(0) },
         client::Event::SignIn { with: client::With::Transport },
-        client::Event::Up { up: client::Up::Served { served: true, versions: None } },
+        client::Event::Up { up: client::Up::Served { served: true } },
         client::Event::Up { up: client::Up::Watched { watch: Token::new(0), event: c::WatchEvent::Delivered(me()) } },
     ] {
         cli::step(&mut root, &env, cli::Event::Client { event }, &mut out);

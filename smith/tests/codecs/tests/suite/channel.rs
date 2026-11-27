@@ -77,12 +77,11 @@ fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
     let table = schema(&CEILINGS).expect("schema bounds fit");
     assert_eq!(table.magic, *b"smth");
     assert_eq!(smith_channel::KindRule::FORMAT_VERSION, u64::from(smith_channel::wire::VERSION));
-    assert_eq!(table.versions.len(), 1);
-    let version = table.version(smith_channel::wire::VERSION).expect("current version");
-    assert_eq!(version.kinds.len(), 26);
+    assert_eq!(table.version, smith_channel::wire::VERSION);
+    assert_eq!(table.kinds.len(), 26);
     for (index, rule) in V14.iter().enumerate() {
         assert!(rule.required, "all initial kinds are required");
-        let kind = version.kind(rule.kind).expect("required kind is listed");
+        let kind = table.kind(rule.kind).expect("required kind is listed");
         assert_eq!(kind.direction, rule.direction);
         if [0x0105, 0x0106, 0x010c].contains(&rule.kind) {
             assert_eq!(kind.largest, 0);

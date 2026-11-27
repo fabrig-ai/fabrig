@@ -816,7 +816,7 @@ impl Drivers {
     }
 }
 pub(crate) fn handles(limits: &crate::Limits) -> Option<u32> {
-    // A rehearsal's patch also holds the source deployment and transcript roots.
+    // An upgrade rehearsal also holds the source deployment and transcript roots.
     limits
         .files
         .checked_add(4)?

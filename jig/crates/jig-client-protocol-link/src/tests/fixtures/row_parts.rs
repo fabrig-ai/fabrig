@@ -39,10 +39,7 @@ pub fn expected_row_parts() -> List<c::RowPart> {
         c::RowPart::Value(Family { family: 19, version: 23, bytes: Box::from([255, 0, 1]) }),
         c::RowPart::Unknown,
         c::RowPart::Failed(c::PartFailure::Unreadable),
-        c::RowPart::NotServed(c::NotServed {
-            owner: c::Owner::Family(19),
-            served: List::from_boxed(Box::new([c::Served { owner: c::Owner::Family(19), first: 24, last: 25 }])),
-        }),
+        c::RowPart::NotServed(c::NotServed { owner: c::Owner::Family(19) }),
     ]))
 }
 

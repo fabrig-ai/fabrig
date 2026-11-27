@@ -71,23 +71,13 @@ fn render(lines: &mut Lines, why: &OpenRefusal, deployment: &[u8]) {
                 layout(lines, family, *value_type, *id);
                 lines.put(b": the value type is retired, and its keys hold a value\n");
             }
-            Unplanned::Unkept(unkept) => {
+            Unplanned::Unkept(refusals) => {
                 layout(lines, family, *value_type, *id);
-                lines.put(b": cannot keep ");
-                lines.number(unkept.refused);
-                lines.put(b" values; first refusal: ");
-                lines.put(unkept.declaration.as_bytes());
-                lines.put(b".");
-                lines.put(unkept.part.as_bytes());
-                lines.put(b": ");
-                let reason = match unkept.why {
-                    Refused::Field => "the field would be lost",
-                    Refused::Variant => "this build does not have that variant",
-                    Refused::Narrowed => "the value does not fit this build's bounds",
-                    Refused::Absent => "this build requires a value here",
-                };
-                lines.put(reason.as_bytes());
-                lines.put(b"\n");
+                layout_refusals(lines, b": cannot keep ", refusals);
+            }
+            Unplanned::Unread(refusals) => {
+                layout(lines, family, *value_type, *id);
+                layout_refusals(lines, b": cannot read ", refusals);
             }
             Unplanned::Underived(_) | Unplanned::Text | Unplanned::Undeclared => {}
         }
@@ -121,6 +111,23 @@ fn layout(lines: &mut Lines, family: &str, value_type: u16, id: u16) {
     lines.number(u64::from(value_type));
     lines.put(b" layout ");
     lines.number(u64::from(id));
+}
+fn layout_refusals(lines: &mut Lines, prefix: &[u8], refusals: &jig_protocol_store::Refusals) {
+    lines.put(prefix);
+    lines.number(refusals.refused);
+    lines.put(b" values; first refusal: ");
+    lines.put(refusals.declaration.as_bytes());
+    lines.put(b".");
+    lines.put(refusals.part.as_bytes());
+    lines.put(b": ");
+    let reason = match refusals.why {
+        Refused::Field => "the field would be lost",
+        Refused::Variant => "this build does not have that variant",
+        Refused::Narrowed => "the value does not fit this build's bounds",
+        Refused::Absent => "this build requires a value here",
+    };
+    lines.put(reason.as_bytes());
+    lines.put(b"\n");
 }
 fn hex(nibble: u8) -> u8 {
     *b"0123456789abcdef".get(usize::from(nibble)).expect("masked nibble")

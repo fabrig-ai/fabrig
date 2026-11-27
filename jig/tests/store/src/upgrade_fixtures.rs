@@ -386,11 +386,7 @@ pub const FRAME_SETS: OwnerSets = OwnerSets {
                 name: "fixture-frame",
                 map: KeptMap::Store,
                 keys: &[],
-                frames: Some(jig_protocol_store::Frames {
-                    root: frames::BODY_ROOT,
-                    texts: &[layouts::FRAME_BODY_KEPT, layouts::FRAME_BODY],
-                    number: 0,
-                }),
+                frames: Some(jig_protocol_store::Frames { root: frames::BODY_ROOT, number: 0 }),
             }],
         },
         OwnerSet {
@@ -405,24 +401,30 @@ pub const FRAME_SETS: OwnerSets = OwnerSets {
                 name: "fixture-turn",
                 map: KeptMap::Store,
                 keys: &[],
-                frames: Some(jig_protocol_store::Frames {
-                    root: frames::TURN_ROOT,
-                    texts: &[layouts::FRAME_TURN_KEPT, layouts::FRAME_TURN],
-                    number: 0,
-                }),
+                frames: Some(jig_protocol_store::Frames { root: frames::TURN_ROOT, number: 0 }),
             }],
         },
     ],
 };
-/// Same levels, but frames' heads are still written as versions.
-pub const FRAME_VERSION_HEADS: OwnerSets = OwnerSets {
+/// Same levels, but turns are opaque.
+pub const OPAQUE_FRAMES: OwnerSets = OwnerSets {
     sets: &[
         OwnerSet { families: &[KeptFamily { frames: None, ..FRAME_SETS.sets[0].families[0] }], ..FRAME_SETS.sets[0] },
         OwnerSet { families: &[KeptFamily { frames: None, ..FRAME_SETS.sets[1].families[0] }], ..FRAME_SETS.sets[1] },
     ],
 };
-pub const FRAME_VERSION_HEADS_BASE: OwnerSets =
-    OwnerSets { sets: &[FRAME_VERSION_HEADS.sets[0], FRAME_VERSION_HEADS.sets[1], APPLICATION] };
+/// The earlier writer keeps the same body layout but writes v1 turns.
+pub const EARLIER_FRAMES: OwnerSets = OwnerSets {
+    sets: &[
+        FRAME_SETS.sets[0],
+        OwnerSet {
+            families: &[KeptFamily { current: layouts::FRAME_TURN_KEPT, ..FRAME_SETS.sets[1].families[0] }],
+            ..FRAME_SETS.sets[1]
+        },
+    ],
+};
+pub const EARLIER_FRAME_BASE: OwnerSets =
+    OwnerSets { sets: &[EARLIER_FRAMES.sets[0], EARLIER_FRAMES.sets[1], APPLICATION] };
 /// The frame fixture declares its job only on the upgrading open.
 pub const FRAME_BASE: OwnerSets = OwnerSets { sets: &[FRAME_SETS.sets[0], FRAME_SETS.sets[1], APPLICATION] };
 pub const FRAME_JOBS: OwnerSets = OwnerSets { sets: &[FRAME_SETS.sets[0], FRAME_SETS.sets[1], SETS.sets[0]] };
@@ -467,7 +469,7 @@ pub fn fixture_turn(version: u16, said: &[u8], replay: &[u8], tokens: u32) -> Bo
 #[must_use]
 pub fn frame_committed(seed: u64, windows: &[bool], crossed: bool) -> World {
     let mut world = World::unopened_observed(seed, frame_limits(), None);
-    world.owner_sets(FRAME_VERSION_HEADS_BASE);
+    world.owner_sets(EARLIER_FRAME_BASE);
     world.open_switched().expect("frame fixture open");
     let bytes = fixture_turn(1, FRAME_SAID, FRAME_REPLAY, 0);
     let mut number = 0;
@@ -492,7 +494,7 @@ pub fn frame_committed(seed: u64, windows: &[bool], crossed: bool) -> World {
 }
 
 /// Current real owner sets for the registry and opening-metadata suites. No
-/// eager map patch is part of these binaries; frame fixtures use `FRAME_SETS`.
+/// eager map rewrite is part of these binaries; frame fixtures use `FRAME_SETS`.
 #[must_use]
 pub const fn current(sets: OwnerSets) -> OwnerSets {
     sets

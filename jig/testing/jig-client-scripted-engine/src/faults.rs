@@ -2,7 +2,7 @@
 //! Busy/not-ready arm one unmade attempt; loss preserves the key; restart drops
 //! undurable snapshots and provisional text, retaining durable answers by key.
 use crate::{Application, Engine, Envelope, Up};
-use jig_client_domain::contract::{ReadNone, ReadResult, VersionRange, WatchEnd, WatchEvent};
+use jig_client_domain::contract::{ReadNone, ReadResult, WatchEnd, WatchEvent};
 use skein_lib::{Duration, Time, Token};
 
 /// Transport and engine faults chosen by a scenario or seeded world.
@@ -26,8 +26,8 @@ pub enum Fault {
     SignOut {
         sign_in: u64,
     },
-    /// Replace the protocol's served range; the next stream hello supplies it.
-    Versions(VersionRange),
+    /// Replace the Jig layout verdict; the next stream hello supplies it.
+    Served(bool),
 }
 impl<A: Application> Engine<A> {
     /// Applies the fault at this instant; `poll` supplies its envelopes and terminals.
@@ -105,7 +105,7 @@ impl<A: Application> Engine<A> {
             }
             Fault::Restart { offline } => self.restart(now, offline),
             Fault::SignOut { sign_in } => self.sign_out(now, sign_in),
-            Fault::Versions(range) => self.versions = range,
+            Fault::Served(served) => self.served = served,
         }
     }
     fn restart(&mut self, now: Time, offline: Duration) {

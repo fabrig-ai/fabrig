@@ -32,8 +32,7 @@ fn judge_checks_wires_before_output_before_terms() {
         Err(Unfit::Limits(Box::from(b"384".as_slice())))
     );
     let schema = wire::schema(limits).expect("valid table");
-    let table = schema.version(wire::VERSION).expect("current table");
-    for rule in &table.kinds {
+    for rule in &schema.kinds {
         if rule.direction == Direction::FromResponder {
             statement.terms.push(Term { kind: rule.kind, largest: rule.largest }).expect("term slot");
         }
