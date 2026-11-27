@@ -5474,6 +5474,10 @@ fn step_read(
     if let StepStage::FollowCheck(kind) = pending.stage {
         let mut row = row.clone();
         let action = crate::follow_check::answered(d, env, &mut row, kind, result, &mut pending.follow_tree, out);
+        if let Some(crate::follow_check::Action::Done) = action {
+            // An obsolete check ends this step even if a hint arrived during its read.
+            pending.woken = false;
+        }
         if pending.woken {
             // A hint during the workflow read asks for fresh branch and CI facts before another dispatch.
             d.changes.insert(row.task, row.clone()).expect("known change");
@@ -8435,6 +8439,12 @@ fn withdraw_unsent(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
                 skein_forge_client::Outcome::Withdrawn,
             );
             writes::outbox::outcome(d, task, number, skein_forge_client::Outcome::Withdrawn, out);
+            // This withdrawal has no client outcome to clear an obsolete check's flight.
+            if let Some(change) = d.changes.get(&task)
+                && crate::follow_check::obsolete(d, change)
+            {
+                crate::follow_check::outcome(d, number, skein_forge_client::Outcome::Withdrawn, out);
+            }
             crate::landing::outcome(d, env, number, skein_forge_client::Outcome::Withdrawn, None, out);
             take_entry(d, number, task);
             emit(out, Request::Erase { key: Key::Entry(number) });
