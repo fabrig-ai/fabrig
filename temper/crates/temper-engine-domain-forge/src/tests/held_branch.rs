@@ -607,11 +607,9 @@ fn only_prepares_pending_rebase_can_explain_a_rewrite() {
             if !pending {
                 rebase_outcome(&mut d, skein_forge_client::Outcome::Failed(skein_forge::api::Error::Timeout));
             }
-            if pending {
-                observed_rebase(&mut d, Some(actor));
-            } else {
-                observed_rebase_tip(&mut d, Some(actor));
-            }
+            // The timeout ends the pending prepare but leaves its sent write uncertain.
+            // It still needs ancestry readback before the rewrite can be judged.
+            observed_rebase(&mut d, Some(actor));
             assert_eq!(
                 d.hold(&resource).unwrap().drift.as_ref().unwrap().change,
                 DriftChange::Branch { expected: fixtures::HEAD, observed: Some(fixtures::BASE) }
