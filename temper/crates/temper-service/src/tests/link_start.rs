@@ -144,6 +144,7 @@ impl Joint {
                     | kit::Request::Unpaused { .. }
                     | kit::Request::Told { .. }
                     | kit::Request::Unread { .. }
+                    | kit::Request::Convert
                     | kit::Request::Opened { .. }
                     | kit::Request::Refused { .. }
                     | kit::Request::Ended { .. }

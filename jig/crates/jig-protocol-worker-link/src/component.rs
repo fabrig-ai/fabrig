@@ -88,7 +88,9 @@ impl Component {
         for wire in credential.application.spoken.into_boxed() {
             spoken.push(wire).or(Err(Unusable::Credential))?;
         }
-        if !crate::wires::roots_present(&spoken, &credential.application.roots) {
+        if !crate::wires::roots_present(&spoken, &credential.application.roots)
+            || !wire::written_present(&spoken, &credential.application.written)
+        {
             return Err(Unusable::Application);
         }
         let mut wires = List::with_capacity(bodies.credential_wires);

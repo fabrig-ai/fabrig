@@ -1,4 +1,6 @@
 //! Routing (protocol/channel/README.md, section 4, and protocol/channel/worker-link.md, section 1.2); Debug (jig/docs/design/protocol/service-parts.md, 1.3).
+pub(crate) mod conversion;
+
 use crate::{
     Bound, Event, Limits, Loss, Request, Unsent, Worker,
     connection::{Connection, Ending, Phase},
@@ -6,6 +8,7 @@ use crate::{
     statement::{self, Fitted},
 };
 use alloc::boxed::Box;
+use conversion::Route;
 use jig_protocol_worker_wire::Record;
 use jig_protocol_worker_wire::{self as wire, Reason, convert};
 use skein_channel::{Closed, Event as ChannelEvent, Frame, Request as ChannelRequest};
@@ -31,7 +34,8 @@ impl PreparedWires {
         for wire in application.spoken.into_boxed() {
             wires.push(wire).expect("uncapped wire list");
         }
-        let plans = statement::plans(&wires, &application.roots).or(Err(Unusable::Application))?;
+        let plans =
+            statement::plans(&wires, &application.roots, &application.written).or(Err(Unusable::Application))?;
         Ok(Self { wires, plans })
     }
 
@@ -84,6 +88,7 @@ pub struct Component {
     life: Life,
     dropped_down: u64,
     sending: Option<Sending>,
+    conversions: Queue<Token>,
     pub(crate) plans: wire::layouts::Plans,
 }
 impl core::fmt::Debug for Component {
@@ -176,6 +181,7 @@ impl Component {
             life: Life::Running,
             dropped_down: 0,
             sending: None,
+            conversions: Queue::uncapped(),
             plans,
         })
     }
@@ -248,6 +254,9 @@ impl Component {
                 if let Some(mut state) = self.connections.remove(&connection) {
                     ended(connection, &mut state, Loss::Stream, out);
                     lost(&mut state, out);
+                    if state.conversion.waiting() {
+                        self.forget_conversion(connection);
+                    }
                 }
             }
             Event::Restarting { wait } => self.restarting(now, wait, out),
@@ -333,6 +342,14 @@ impl Component {
                 skein_channel::LowerEvent::Read(_)
                 | skein_channel::LowerEvent::Write(_)
                 | skein_channel::LowerEvent::WriteFailed(_) => {}
+            }
+            if state.conversion.waiting()
+                && let skein_channel::LowerEvent::Read(event @ skein_lib::stream::Up::Bytes(_)) = event
+            {
+                assert!(state.conversion.read.is_none(), "one outstanding lower read");
+                state.conversion.read = Some(event);
+                self.keep(connection, state);
+                return;
             }
             state.up(event, connection, out);
             self.progress(now, connection, &mut state, out);
@@ -485,26 +502,6 @@ impl Component {
         }
         state.ping = Some(now.saturating_add(self.limits.ping));
     }
-    /// Fit the frame to the peer's layout before measuring what the channel will send.
-    fn converted_frame(
-        &mut self,
-        now: Time,
-        state: &mut Connection,
-        frame: Frame,
-        kind: wire::Kind,
-        reply: Reply,
-        out: &mut Queue<Request>,
-    ) -> Option<Frame> {
-        let Some(peer) = &mut state.peer else { return Some(frame) };
-        let bytes = frame.wire_len();
-        match convert::send(peer, frame, &self.codec) {
-            Ok(frame) => Some(frame),
-            Err(problem) => {
-                self.unsent(now, state, Sending { kind, bytes, reply }, Bound::Translation(problem), out);
-                None
-            }
-        }
-    }
     fn send(
         &mut self,
         now: Time,
@@ -564,36 +561,16 @@ impl Component {
         };
         let kind = record.kind();
         let mut state = self.connections.remove(&connection).expect("heard channel exists");
-        let frame = if past.is_none() {
-            let frame = match record.frame(&self.codec) {
-                Ok(frame) => frame,
-                Err(reason) => {
-                    self.encoding_refused(state.channel, reply, reason, out);
-                    self.keep(connection, state);
-                    return;
+        if let Some(bytes) = past {
+            self.unsent(now, &mut state, Sending { kind, bytes, reply }, Bound::Room(self.limits.room), out);
+        } else {
+            match record.frame(&self.codec) {
+                Ok(frame) => {
+                    let sending = Sending { kind, bytes: frame.wire_len(), reply };
+                    self.offer(now, connection, &mut state, frame, Route::Send(sending), out);
                 }
-            };
-            let Some(frame) = self.converted_frame(now, &mut state, frame, kind, reply, out) else {
-                self.keep(connection, state);
-                return;
-            };
-            Some(frame)
-        } else {
-            None
-        };
-        let bytes = match past {
-            Some(bytes) => bytes,
-            None => frame.as_ref().expect("a fitting record encoded").wire_len(),
-        };
-        let sending = Sending { kind, bytes, reply };
-        if sending.bytes > self.limits.room {
-            self.unsent(now, &mut state, sending, Bound::Room(self.limits.room), out);
-        } else {
-            self.sending = Some(sending);
-            let frame = frame.expect("a fitting record encoded");
-            state.down(ChannelRequest::Send { token: state.channel, frame }, connection, out);
-            self.progress(now, connection, &mut state, out);
-            assert!(self.sending.is_none(), "send answered within its entrance");
+                Err(reason) => self.encoding_refused(state.channel, reply, reason, out),
+            }
         }
         self.keep(connection, state);
     }
@@ -613,11 +590,15 @@ impl Component {
             self.keep(*connection, state);
         }
     }
-    fn send_figures(&mut self, now: Time, connection: Token, state: &mut Connection, out: &mut Queue<Request>) -> bool {
+    fn send_figures(&mut self, now: Time, connection: Token, state: &mut Connection, out: &mut Queue<Request>) {
         if state.omits(wire::Kind::Figures) {
-            return true;
+            self.after_figures(now, connection, state, out);
+            return;
         }
-        let Some(figures) = &self.figures else { return true };
+        let Some(figures) = &self.figures else {
+            self.after_figures(now, connection, state, out);
+            return;
+        };
         let mut parts = figures.clone();
         let mut admitted = None;
         for worker in &self.workers {
@@ -628,7 +609,7 @@ impl Component {
         }
         let Some(worker) = admitted else {
             self.refuse(now, connection, state, Reason::NotAdmitted.code(), Box::new([]), out);
-            return false;
+            return;
         };
         parts.places = worker.places;
         let figures = parts;
@@ -638,22 +619,44 @@ impl Component {
         let mut frame = skein_channel::frame_writer(wire::Kind::Figures.number(), length).expect("bounded figures");
         frame.put(&body.finish()).expect("measured figures");
         let frame = frame.finish().expect("measured figures");
-        let Some(frame) = self.converted_frame(now, state, frame, wire::Kind::Figures, Reply::Drop, out) else {
-            if state.phase == Phase::Terms {
-                self.refuse(now, connection, state, 3, Box::new([]), out);
-                return false;
-            }
-            return true;
-        };
+        let route = Route::Figures { bytes: frame.wire_len() };
+        self.offer(now, connection, state, frame, route, out);
+    }
+
+    fn figures_frame(
+        &mut self,
+        now: Time,
+        connection: Token,
+        state: &mut Connection,
+        frame: Frame,
+        out: &mut Queue<Request>,
+    ) {
         if frame.wire_len() > self.limits.room {
             let sending = Sending { kind: wire::Kind::Figures, bytes: frame.wire_len(), reply: Reply::Drop };
             self.unsent(now, state, sending, Bound::Room(self.limits.room), out);
             self.loss(now, connection, state, Loss::Full, out);
-            return false;
+            return;
         }
         self.send_opening(now, connection, state, wire::Kind::Figures, frame, out);
-        state.phase != Phase::Closing
+        self.after_figures(now, connection, state, out);
     }
+    fn after_figures(&mut self, now: Time, connection: Token, state: &mut Connection, out: &mut Queue<Request>) {
+        if state.phase != Phase::Terms {
+            return;
+        }
+        if state.opening == wire::Opening::Figures {
+            out.push(Request::FiguresTaken { worker: state.worker.expect("authenticated worker") });
+            state.phase = Phase::Closing;
+            state.ending = Ending::Graceful;
+            state.deadline = Some(now.saturating_add(self.limits.stall));
+            state.down(ChannelRequest::Finish, connection, out);
+        } else {
+            state.phase = Phase::Hello;
+            state.deadline = state.hello_deadline;
+            state.down(ChannelRequest::Read, connection, out);
+        }
+    }
+
     fn send_opening(
         &mut self,
         now: Time,
@@ -689,7 +692,10 @@ impl Component {
         self.progress(now, connection, &mut state, out);
         self.keep(connection, state);
     }
-    fn keep(&mut self, connection: Token, state: Connection) {
+    fn keep(&mut self, connection: Token, mut state: Connection) {
+        if (state.terminal || state.phase == Phase::Closing) && state.conversion.clear() {
+            self.forget_conversion(connection);
+        }
         let replaced = self.connections.insert(connection, state).expect("an accepted connection has a slot");
         assert!(replaced.is_none(), "one state per connection");
     }
@@ -822,21 +828,8 @@ impl Component {
                 if let Err(text) = check {
                     self.refuse(now, connection, state, 2, text, out);
                 } else {
-                    if !self.send_figures(now, connection, state, out) {
-                        return;
-                    }
-                    if state.opening == wire::Opening::Figures {
-                        out.push(Request::FiguresTaken { worker: state.worker.expect("authenticated worker") });
-                        state.phase = Phase::Closing;
-                        state.ending = Ending::Graceful;
-                        state.deadline = Some(now.saturating_add(self.limits.stall));
-                        state.down(ChannelRequest::Finish, connection, out);
-                        return;
-                    }
                     state.statement.as_mut().expect("authenticated statement").terms = terms;
-                    state.phase = Phase::Hello;
-                    state.deadline = state.hello_deadline;
-                    state.down(ChannelRequest::Read, connection, out);
+                    self.send_figures(now, connection, state, out);
                 }
             }
             ChannelEvent::Closed { why, text } => closed(connection, state, why, text, self.life, out),
@@ -890,17 +883,8 @@ impl Component {
             && !peer.same()
             && (state.phase == Phase::Hello || state.phase == Phase::Open)
         {
-            let frame = match convert::receive(peer, kind, body, &self.codec) {
-                Ok(frame) => frame,
-                Err(problem) => {
-                    let worker = state.worker.expect("a body from an authenticated channel");
-                    let kind = convert::received_kind(peer, kind).expect("the admitted table maps this worker kind");
-                    out.push(Request::Unread { worker, kind, problem });
-                    self.refuse(now, connection, state, 3, Box::new([]), out);
-                    return;
-                }
-            };
-            self.decoded_body(now, connection, state, frame.kind(), frame.bytes().get(8..).expect("frame header"), out);
+            let result = convert::start_receive(peer, kind, body, &self.codec);
+            self.advance(now, connection, state, result, Route::Read(kind), out);
         } else {
             self.decoded_body(now, connection, state, kind, body, out);
         }

@@ -611,3 +611,154 @@ fn optional_kinds_absent_from_the_worker_layout_are_not_sent() {
     assert!(world.engine_root.iter().all(|r| matches!(r, engine::Request::Hello { .. })));
     world.finish();
 }
+
+fn retyped_text(n: &[u8]) -> Box<[u8]> {
+    let mut bytes = vec![0, 1]; // frozen record version
+    bytes.extend(u32::try_from(n.len()).expect("fixture text length").to_be_bytes());
+    bytes.extend(n);
+    bytes.extend([0, 0, 0, 1, b'l']);
+    bytes.into_boxed_slice()
+}
+
+fn retyped_number() -> Box<[u8]> {
+    Box::new([0, 1, 0, 0, 0, 7, 0, 0, 0, 1, b'l'])
+}
+
+#[test]
+fn written_items_and_job_results_cross_both_components() {
+    let mut world = start(Profile::Written);
+    let sample = Sample(7);
+    let items = Part { token: Token::new(10), bytes: retyped_text(b"7") };
+    world.engine_down(sample.job(0), Box::new([items]), sample.grant());
+    world.run();
+    let down = handed(&world);
+    let [(host::LinkDown::AssignJob { job }, [items])] = down.as_slice() else {
+        panic!("one job with translated items: {down:?}");
+    };
+    assert_eq!(job.workspace.as_ref().expect("job workspace").items, items.token);
+    assert_eq!(items.bytes, retyped_number());
+    world.worker_up(
+        host::LinkUp::JobAnswer {
+            run: RUN,
+            attempt: ATTEMPT,
+            answer: host::JobEnding::Finished {
+                result: retyped_number(),
+                work: host::Work { left: None, saved: None },
+            },
+        },
+        Box::new([]),
+    );
+    world.run();
+    let up = heard(&world);
+    let [(host::LinkUp::JobAnswer { run, attempt, answer: host::JobEnding::Finished { result, .. } }, [])] =
+        up.as_slice()
+    else {
+        panic!("one converted result: {up:?}");
+    };
+    assert_eq!((*run, *attempt), (RUN, ATTEMPT));
+    assert_eq!(*result, retyped_text(b"7"));
+    world.finish();
+}
+
+#[test]
+fn written_items_refusal_sends_no_frame_and_answers_untranslated() {
+    let mut world = start(Profile::Written);
+    let sample = Sample(7);
+    let items = Part { token: Token::new(10), bytes: retyped_text(b"x") };
+    world.engine_down(sample.job(0), Box::new([items]), sample.grant());
+    world.run();
+    assert_eq!(world.engine_records(), []);
+    assert_eq!(handed(&world), []);
+    assert!(world.values.is_empty());
+    let up = heard(&world);
+    let [(host::LinkUp::JobAnswer { run, attempt, answer }, [])] = up.as_slice() else {
+        panic!("one local refusal: {up:?}");
+    };
+    assert_eq!((*run, *attempt), (RUN, ATTEMPT));
+    let words = b"the worker's layout cannot keep fixture-written Retyped.n: expected decimal digits";
+    assert_eq!(*answer, host::JobEnding::Refused(host::JobRefusal::Untranslated(words.as_slice().into())));
+    for request in &world.engine_root {
+        if let engine::Request::Unsent { unsent, .. } = request {
+            assert!(!unsent.mismatches(), "the refusal excludes only this task from this channel");
+        }
+    }
+    let request = world
+        .engine_root
+        .iter()
+        .position(|request| matches!(request, engine::Request::Up { .. }))
+        .expect("refusal request");
+    let engine::Request::Up { channel, up, .. } = world.engine_root.remove(request) else { panic!("refusal request") };
+    retry_on_another_channel(channel, up, hello(&world).expect("worker hello"));
+    world.finish();
+}
+
+fn retry_on_another_channel(channel: Token, up: host::LinkUp, hello: &link::Hello) {
+    use jig_domain_core_vocabulary as core;
+    use jig_domain_fleet as fleet;
+    use jig_domain_hub_link as hub_link;
+    use skein_lib::{Env, Queue, ReplyTo, Time, Wall};
+
+    let limits = jig_protocol_config_fixtures::small().core.fleet;
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let needs =
+        fleet::Needs { charters: Box::new([]), spend: 0, message_bytes: 0, start_messages: 0, unacknowledged: 0 };
+    let mut fleet = fleet::Domain::new(&limits, 0, needs.clone());
+    let names = [
+        link::Member { number: 1, name: b"first".as_slice().into(), places: 1, withdrawn: false },
+        link::Member { number: 2, name: b"second".as_slice().into(), places: 1, withdrawn: false },
+    ];
+    fleet.configure_workers(
+        link::Membership::new(Box::new(names), limits.configured_workers, limits.worker_name_bytes)
+            .expect("worker membership"),
+    );
+    let job = link::JobBound { kind: link::JobKind(7), spec: 16, result: 16, deadline: Duration::from_secs(3) };
+    let announce = || link::Hello {
+        jobs: Box::new([job]),
+        hosting: Box::new([]),
+        workstreams: Box::new([]),
+        reads_usage: hello.reads_usage,
+        bounds: hello.bounds.clone(),
+        stop_bound: Duration::ZERO,
+        slots: 1,
+        fresh: hello.fresh,
+    };
+    let mut out = Queue::uncapped();
+    fleet::step(&mut fleet, &env, fleet::Event::Needs(needs), &mut out);
+    fleet::step(&mut fleet, &env, fleet::Event::Hello { worker: 0, channel, hello: announce() }, &mut out);
+    let start = |attempt| fleet::Event::StartJob {
+        reply_to: ReplyTo::new(attempt),
+        run: RUN,
+        attempt,
+        workstream: 3,
+        job,
+        adopt: false,
+    };
+    let place = |fleet: &mut fleet::Domain, attempt, out: &mut Queue<fleet::Request>| {
+        out.clear();
+        fleet::step(fleet, &env, start(attempt), out);
+        for _ in 0..8 {
+            if !fleet.is_ready() {
+                break;
+            }
+            fleet::resume(fleet, &env, true, out);
+        }
+        assert!(!fleet.is_ready(), "placement settles");
+        out.iter().find_map(|request| match request {
+            fleet::Request::AssignJob { channel, run, attempt: placed } if (*run, *placed) == (RUN, attempt) => {
+                Some(*channel)
+            }
+            _ => None,
+        })
+    };
+    assert_eq!(place(&mut fleet, ATTEMPT, &mut out), Some(channel));
+    let mut hub =
+        hub_link::Link::new(hub_link::Limits { assignments: 2, payloads: 2, turns: 2 }, Rng::new(fixtures::SEED_ONE));
+    hub.connect(channel);
+    let Some(core::Event::Fleet(answer)) = hub_link::up(&mut hub, channel, up) else { panic!("fleet answer") };
+    fleet::step(&mut fleet, &env, answer, &mut out);
+    fleet::step(&mut fleet, &env, fleet::Event::Acknowledge { run: RUN, attempt: ATTEMPT }, &mut out);
+    let other = Token::new(2);
+    fleet::step(&mut fleet, &env, fleet::Event::Hello { worker: 1, channel: other, hello: announce() }, &mut out);
+    assert_eq!(fleet.worker_channel(1), Some(other), "second channel admitted: {out:?}");
+    assert_eq!(place(&mut fleet, Token::new(99), &mut out), Some(other), "retry answered: {out:?}");
+}

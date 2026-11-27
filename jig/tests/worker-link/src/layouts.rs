@@ -22,6 +22,7 @@ const APP_TEXT: &str = "family test-worker-wire 3
 pub enum Profile {
     Derived,
     MissingKinds,
+    Written,
 }
 
 struct Texts {
@@ -42,6 +43,7 @@ fn derived(profile: Profile) -> &'static Texts {
     let cell = match profile {
         Profile::Derived => &COMMON,
         Profile::MissingKinds => &MISSING,
+        Profile::Written => unreachable!("written profiles use both real codecs"),
     };
     cell.get_or_init(|| {
         let frames = edit(
@@ -60,6 +62,7 @@ fn derived(profile: Profile) -> &'static Texts {
         let frames = match profile {
             Profile::Derived => frames,
             Profile::MissingKinds => edit(&edit(&frames, ", part: Part", ""), ", part_busy: PartBusy", ""),
+            Profile::Written => unreachable!("written profiles use both real codecs"),
         };
         let charter = edit(
             smith_charter::SCHEMA,
@@ -127,6 +130,24 @@ pub fn application(profile: Option<Profile>) -> Application {
         Carried::Answer,
     ] {
         app.roots.push(Root { carried, wire: APP, declaration: "Test" }).expect("one root per carried part");
+    }
+    app
+}
+
+pub const WRITTEN_WIRE: &str = "fixture-written";
+
+pub fn written_application(engine: bool) -> Application {
+    use jig_test_layouts::layouts::{WRITTEN_NUMBER, WRITTEN_TEXT};
+    let text = if engine { WRITTEN_TEXT } else { WRITTEN_NUMBER };
+    let mut app = Application::opaque(List::from_boxed(Box::new([spoken(text)])));
+    for carried in [Carried::Items, Carried::JobResult] {
+        app.roots.push(Root { carried, wire: WRITTEN_WIRE, declaration: "Retyped" }).expect("one root per part");
+    }
+    if engine {
+        let worker = parse(WRITTEN_NUMBER.as_bytes()).expect("worker text");
+        let root = worker.root(b"Retyped", None).expect("worker root");
+        let layout = worker.layout(root, &[]).expect("worker value layout").digest();
+        app.written.push(wire::Written { wire: WRITTEN_WIRE, declaration: "Retyped", layout }).expect("one entry");
     }
     app
 }

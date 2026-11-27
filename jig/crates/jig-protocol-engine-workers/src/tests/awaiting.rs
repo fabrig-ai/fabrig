@@ -111,6 +111,7 @@ impl Opening {
                     | Request::Up { .. }
                     | Request::Unsent { .. }
                     | Request::Unread { .. }
+                    | Request::Convert
                     | Request::Closed
                     | Request::Lower { .. } => {}
                 }

@@ -1,6 +1,6 @@
 //! Per-wire opening checks and text cache (jig/docs/design/protocol/channel/layouts.md, 3).
-use super::{MAX_TEXTS, Nested, Pass, Peer, Theirs, Value, table, words};
-use crate::{Root, v22, wire};
+use super::{MAX_TEXTS, Nested, Pass, Passing, Peer, Texts, Theirs, Value, table, words};
+use crate::{Root, Written, v22, wire};
 use alloc::boxed::Box;
 use skein_channel::Kind;
 use skein_codec::{
@@ -31,6 +31,7 @@ struct EngineWire {
     layout: [u8; 32],
     schema: Schema,
     needs: List<Need>,
+    written: List<Written>,
     known: Queue<Cached>,
     #[cfg(test)]
     derivations: u32,
@@ -47,6 +48,7 @@ struct Need {
 struct Derived {
     frames: Option<table::Frames>,
     passes: List<Pass>,
+    written: Option<Box<Texts>>,
 }
 
 #[derive(Debug)]
@@ -59,6 +61,15 @@ struct Cached {
 impl Plans {
     /// Parses the engine's texts in order and checks its application's roots.
     pub fn new(texts: &[&'static str], roots: &List<Root>) -> Result<Plans, Box<[u8]>> {
+        Self::with_written(texts, roots, &List::uncapped())
+    }
+
+    /// Parses engine texts and checks the roots and written entries against them.
+    pub fn with_written(
+        texts: &[&'static str],
+        roots: &List<Root>,
+        written: &List<Written>,
+    ) -> Result<Self, Box<[u8]>> {
         let mut wires = List::uncapped();
         for text in texts {
             let schema = match schema::parse(text.as_bytes()) {
@@ -105,6 +116,7 @@ impl Plans {
                     layout,
                     schema,
                     needs,
+                    written: List::uncapped(),
                     known: Queue::with_capacity(MAX_TEXTS),
                     #[cfg(test)]
                     derivations: 0,
@@ -131,6 +143,26 @@ impl Plans {
                 return Err(words::wire(root.wire, &[b": the engine's root names an unspoken wire"]));
             }
         }
+        for entry in written {
+            let Some(wire) = engine_wire(&mut wires, entry.wire) else {
+                return Err(words::wire(entry.wire, &[b": the engine's written entry names an unspoken wire"]));
+            };
+            if wire.schema.find(entry.declaration.as_bytes()).is_none() {
+                return Err(words::wire(
+                    entry.wire,
+                    &[b": no declaration ", entry.declaration.as_bytes(), b" for the written entry"],
+                ));
+            }
+            for earlier in &wire.written {
+                if earlier == entry {
+                    return Err(words::wire(
+                        entry.wire,
+                        &[b": written entry stated twice for ", entry.declaration.as_bytes()],
+                    ));
+                }
+            }
+            wire.written.push(*entry).expect("one slot per written entry");
+        }
         Ok(Plans { wires, current: None })
     }
 
@@ -145,6 +177,7 @@ impl Plans {
                     layout: wire.layout,
                     schema: wire.schema.clone(),
                     needs: wire.needs.clone(),
+                    written: wire.written.clone(),
                     known: Queue::with_capacity(MAX_TEXTS),
                     #[cfg(test)]
                     derivations: 0,
@@ -180,8 +213,14 @@ impl Plans {
                 }
             }
         }
-        let mut peer =
-            Peer { same: true, frames: None, send_bounds: None, plans: List::uncapped(), work: Workspace::new() };
+        let mut peer = Peer {
+            same: true,
+            frames: None,
+            send_bounds: None,
+            plans: List::uncapped(),
+            written: List::uncapped(),
+            work: Workspace::new(),
+        };
         for wire in self.wires.iter_mut() {
             let Some(stated) = stated(&wire.name, theirs) else {
                 return Err(words::wire(&wire.name, &[b": the worker states none"]));
@@ -194,7 +233,7 @@ impl Plans {
                             mode: need.mode,
                             wire: wire.name.clone(),
                             source: Box::from(need.declaration),
-                            plan: None,
+                            passing: Passing::Same,
                         })
                         .expect("one pass per root and direction");
                 }
@@ -217,6 +256,9 @@ impl Plans {
             if let Some(frames) = derived.frames {
                 peer.frames = Some(frames);
             }
+            if let Some(texts) = derived.written {
+                peer.written.push(*texts).expect("one pair of texts per written wire");
+            }
             for pass in derived.passes.into_boxed() {
                 peer.plans.push(pass).expect("one pass per root and direction");
             }
@@ -233,6 +275,16 @@ impl Plans {
         }
         unreachable!("test wire is spoken")
     }
+}
+
+#[expect(clippy::manual_find, reason = "step code uses no closures")]
+fn engine_wire<'a>(wires: &'a mut List<EngineWire>, name: &str) -> Option<&'a mut EngineWire> {
+    for wire in wires.iter_mut() {
+        if wire.name.as_ref() == name {
+            return Some(wire);
+        }
+    }
+    None
 }
 
 fn add_need(name: &str, schema: &Schema, needs: &mut List<Need>, need: Need) -> Result<(), Box<[u8]>> {
@@ -336,20 +388,37 @@ impl EngineWire {
 
     fn derive(&mut self, worker: Schema) -> Result<Derived, Box<[u8]>> {
         let mut passes = List::with_capacity(self.needs.len());
+        let mut has_written = false;
         for need in &self.needs {
             #[cfg(test)]
             {
                 self.derivations = self.derivations.checked_add(1).expect("test derivations fit");
             }
-            passes.push(self.between(&worker, *need)?).expect("one pass per need");
+            let pass = self.between(&worker, *need)?;
+            if let Passing::Written { .. } = pass.passing {
+                has_written = true;
+            }
+            passes.push(pass).expect("one pass per need");
         }
+        let mut written = None;
         let frames = if self.name.as_ref() == wire::FAMILY {
             let read = Peer::find(&passes, Value::Frame, Mode::Read).expect("jig receives frames");
-            Some(table::Frames::new(&self.schema, worker, read.plan.as_ref().expect("worker from another layout"))?)
+            let keep = Peer::find(&passes, Value::Frame, Mode::Keep).expect("jig sends frames");
+            if has_written {
+                written = Some(Box::new(Texts {
+                    wire: self.name.clone(),
+                    engine: self.schema.clone(),
+                    worker: worker.clone(),
+                }));
+            }
+            Some(table::Frames::new(&self.schema, worker, read.passing.plan(), keep.passing.plan().is_none())?)
         } else {
+            if has_written {
+                written = Some(Box::new(Texts { wire: self.name.clone(), engine: self.schema.clone(), worker }));
+            }
             None
         };
-        Ok(Derived { frames, passes })
+        Ok(Derived { frames, passes, written })
     }
 
     fn between(&self, worker: &Schema, need: Need) -> Result<Pass, Box<[u8]>> {
@@ -370,8 +439,11 @@ impl EngineWire {
             Mode::Read => (worker, worker_root, &self.schema, engine),
             Mode::Keep => (&self.schema, engine, worker, worker_root),
         };
-        let plan = match Plan::between(need.mode, source, old, &[], target, new, &[]) {
-            Ok(plan) => plan,
+        let pass = match Plan::between(need.mode, source, old, &[], target, new, &[]) {
+            Ok(plan) => Passing::Plan(plan),
+            Err(_) if self.has_written(worker, worker_root, need.declaration) => {
+                Passing::Written { from: old, to: new }
+            }
             Err(error) => {
                 let text = if error.old { source } else { target };
                 #[expect(clippy::manual_map, reason = "step code uses no closures")]
@@ -391,13 +463,32 @@ impl EngineWire {
             mode: need.mode,
             wire: self.name.clone(),
             source: Box::from(table::text(source.spelled(source.declaration(old.decl).name))),
-            plan: Some(plan),
+            passing: pass,
         })
+    }
+
+    fn has_written(&self, worker: &Schema, root: schema::Root, declaration: &str) -> bool {
+        let mut layout = None;
+        for entry in &self.written {
+            if entry.declaration != declaration {
+                continue;
+            }
+            if layout.is_none() {
+                let Ok(found) = worker.layout(root, &[]) else { return false };
+                layout = Some(found.digest());
+            }
+            if layout == Some(entry.layout) {
+                return true;
+            }
+        }
+        false
     }
 
     fn fit(&self, converted: &Derived, work: &mut Workspace) -> Result<(), Box<[u8]>> {
         for (need, pass) in self.needs.iter().zip(&converted.passes) {
-            if !work.fit(pass.plan.as_ref().expect("worker from another layout")) {
+            if let Some(plan) = pass.passing.plan()
+                && !work.fit(plan)
+            {
                 return Err(words::no_plan(
                     &self.name,
                     need.declaration,

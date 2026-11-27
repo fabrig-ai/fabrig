@@ -2728,13 +2728,17 @@ dependencies = [
 name = "jig-worker-link-world"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-core-vocabulary",
+ "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-hub-link",
  "jig-domain-link",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "jig-protocol-engine-workers",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
+ "jig-test-layouts",
  "jig-test-service",
  "skein-channel",
  "skein-codec",

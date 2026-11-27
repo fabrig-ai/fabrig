@@ -42,7 +42,7 @@ pub fn judge(
     limits: &wire::v22::Limits,
     statement: &Statement,
 ) -> Result<List<Box<str>>, Unfit> {
-    let mut plans = match plans(spoken, roots) {
+    let mut plans = match plans(spoken, roots, &List::uncapped()) {
         Ok(plans) => plans,
         Err(text) => return Err(Unfit::Wires(text)),
     };
@@ -66,7 +66,7 @@ pub fn gaps(
     limits: &wire::v22::Limits,
     stated: &List<Stated>,
 ) -> Result<List<Gap>, Unfit> {
-    let mut plans = match plans(spoken, roots) {
+    let mut plans = match plans(spoken, roots, &List::uncapped()) {
         Ok(plans) => plans,
         Err(text) => return Err(Unfit::Wires(text)),
     };
@@ -76,12 +76,20 @@ pub fn gaps(
     }
 }
 
-pub(crate) fn plans(spoken: &List<Spoken>, roots: &List<Root>) -> Result<Plans, Box<[u8]>> {
+pub(crate) fn plans(
+    spoken: &List<Spoken>,
+    roots: &List<Root>,
+    application: &List<wire::Written>,
+) -> Result<Plans, Box<[u8]>> {
     let mut texts = List::with_capacity(spoken.len());
     for wire in spoken {
         texts.push(wire.text).expect("one text per wire");
     }
-    Plans::new(texts.as_slice(), roots)
+    let mut written = wire::written();
+    for entry in application {
+        written.push(*entry).expect("uncapped written entries");
+    }
+    Plans::with_written(texts.as_slice(), roots, &written)
 }
 
 pub(crate) struct Fitted {

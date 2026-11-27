@@ -1,5 +1,5 @@
 //! One accepted stream and its opening (protocol/channel/worker-link.md, 1.3).
-use crate::{Loss, Statement};
+use crate::{Loss, Statement, component::conversion::Conversion};
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::{Kind, layouts::Peer};
 use skein_channel::{
@@ -31,6 +31,7 @@ pub(crate) struct Connection {
     pub worker: Option<u32>,
     pub channel: Token,
     pub peer: Option<Box<Peer>>,
+    pub conversion: Conversion,
     pub table: Option<List<ChannelKind>>,
     pub converted: List<Box<str>>,
     pub statement: Option<Statement>,
@@ -66,6 +67,7 @@ impl Connection {
             worker: None,
             channel: Token::new(0),
             peer: None,
+            conversion: Conversion::new(channel.output_frames),
             table: None,
             converted: List::uncapped(),
             statement: None,

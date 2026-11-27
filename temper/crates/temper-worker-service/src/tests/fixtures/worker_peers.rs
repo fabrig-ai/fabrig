@@ -211,6 +211,7 @@ impl LinkPeer {
                 | engine_link::Request::Take { .. }
                 | engine_link::Request::Close { .. }
                 | engine_link::Request::Abort { .. } => {}
+                engine_link::Request::Convert => panic!("the peer declares no written converters"),
                 request @ (engine_link::Request::Unsent { .. } | engine_link::Request::Unread { .. }) => {
                     return Some(request);
                 }

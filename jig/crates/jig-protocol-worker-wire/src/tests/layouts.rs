@@ -487,3 +487,69 @@ fn per_wire_cache_is_keyed_by_text_and_evicts_the_least_recently_seen() {
     plans.judge(&[second]).expect("evicted entry is derived again");
     assert_eq!(plans.derivations("jig-test-app"), MAX_TEXTS.checked_add(2).expect("two new plans"));
 }
+
+#[test]
+fn written_passes_use_the_value_layout_and_cache_both_sides_by_text() {
+    const NAME: &str = "written-layout-test";
+    const ENGINE: &str = "family written-layout-test 1\nrecord Value { n: text 10 }\n";
+    const WORKER: &str = "family written-layout-test 1\nrecord Value { n: u32 }\n";
+    let worker = parse(WORKER);
+    let layout = worker.layout(worker.root(b"Value", None).expect("root"), &[]).expect("value layout").digest();
+    let roots = List::from_boxed(Box::new([
+        Root { carried: Carried::Items, wire: NAME, declaration: "Value" },
+        Root { carried: Carried::Left, wire: NAME, declaration: "Value" },
+    ]));
+    let entry = crate::Written { wire: NAME, declaration: "Value", layout };
+    let theirs = stated(&worker);
+    assert_ne!(theirs.layout, layout);
+    for entries in [List::uncapped(), List::from_boxed(Box::new([crate::Written { layout: theirs.layout, ..entry }]))] {
+        let bad = Plans::with_written(&[ENGINE], &roots, &entries).expect("engine text").judge(&[theirs]);
+        assert_eq!(
+            &*bad.expect_err("no entry of the value layout"),
+            b"wire written-layout-test Value: no plan to the worker: retyped at Value.n"
+        );
+    }
+    let mut plans = Plans::with_written(&[ENGINE], &roots, &List::from_boxed(Box::new([entry]))).expect("engine text");
+    for _ in 0_u32..2 {
+        let peer = plans.judge(&[theirs]).expect("written pass admits the worker");
+        assert!(peer.gaps().is_empty());
+        for (mode, carried, from, to) in
+            [(Mode::Keep, Carried::Items, ENGINE, WORKER), (Mode::Read, Carried::Left, WORKER, ENGINE)]
+        {
+            let pass = peer.written_part(mode, Nested::Carried(carried)).expect("written pass");
+            assert_eq!(pass.wire, NAME);
+            assert_eq!(pass.from.text.text(), from.as_bytes());
+            assert_eq!(pass.to.text.text(), to.as_bytes());
+            assert_eq!(pass.from.text.root(b"Value", None), Some(pass.from.root));
+            assert_eq!(pass.to.text.root(b"Value", None), Some(pass.to.root));
+        }
+        assert_eq!(plans.derivations(NAME), 2);
+    }
+    let commented = parse("family written-layout-test 1\nrecord Value { n: u32 }\n# another text\n");
+    assert_eq!(stated(&commented).layout, theirs.layout);
+    let peer = plans.judge(&[stated(&commented)]).expect("new text at the same layout");
+    assert_eq!(plans.derivations(NAME), 4);
+    let pass = peer.written_part(Mode::Read, Nested::Carried(Carried::Left)).expect("written pass");
+    assert_eq!(pass.from.text.text(), commented.text());
+}
+
+#[test]
+fn written_entries_require_spoken_text_with_a_unique_declaration_and_layout() {
+    let entry = crate::Written { wire: "jig-test-app", declaration: "Down", layout: [3; 32] };
+    let known = parse(APP);
+    let spoken = List::from_boxed(Box::new([crate::Spoken {
+        name: entry.wire,
+        version: 1,
+        text: APP,
+        layout: known.fingerprints().family().digest(),
+    }]));
+    for (entries, valid) in [
+        (List::from_boxed(Box::new([crate::Written { wire: "unspoken", ..entry }])), false),
+        (List::from_boxed(Box::new([crate::Written { declaration: "Missing", ..entry }])), false),
+        (List::from_boxed(Box::new([entry, entry])), false),
+        (List::from_boxed(Box::new([entry, crate::Written { layout: [4; 32], ..entry }])), true),
+    ] {
+        assert_eq!(crate::written_present(&spoken, &entries), valid);
+        assert_eq!(Plans::with_written(&[APP], &List::uncapped(), &entries).is_ok(), valid);
+    }
+}
