@@ -451,8 +451,8 @@ hands it its macOS tiers' runs. Linux's own tests are listed by name.
 - **The budgets raised for now** (`README.md`, 1, `process-tier.md`): the process
   tier's 540 CPU s is the tier's 6-minute aim raised by half by the user's
   word of 11-08, for now.
-  Revisiting them, and to what, is the user's, as it is for the browser
-  tier's 127.5 (`../client/web/README.md`, 3).
+  Revisiting them, and to what, is the user's, as it was for the browser
+  tier's 140, the user's word of 11-27 (`../client/web/README.md`, 3).
 
 - **The second printed link's cause** (`process-tier.md`): a serve restart draws a new
   link; a retry whose earlier sign-in spent its secret can also ask for
