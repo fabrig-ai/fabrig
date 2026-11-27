@@ -41,6 +41,7 @@ mod faults_tests;
 mod limits;
 mod pieces;
 mod respond;
+mod slots;
 mod take;
 #[cfg(test)]
 mod tests;

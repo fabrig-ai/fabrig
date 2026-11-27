@@ -95,14 +95,37 @@ pub struct InvalidInput {
     pub arguments: Box<[u8]>,
 }
 
+/// A placeholder a menu body holds (skein/docs/design/testing/fakes/drawn-agent.md, 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Slot {
+    pub name: Box<[u8]>,
+    pub before: Box<[u8]>,
+    pub after: Box<[u8]>,
+    /// The value the world never issues.
+    pub unissued: Box<[u8]>,
+    /// Per mille: the never-issued value though candidates exist.
+    pub weight: u32,
+    /// `Some` for a numeric slot.
+    pub numeric: Option<Bounds>,
+}
+
+/// A numeric slot's inclusive bounds.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Bounds {
+    pub low: u64,
+    pub high: u64,
+}
+
 /// Application-owned inputs for random tool stories. Empty menus generate no random tool calls.
 /// Menu storage and scripts jointly fit `Config::script_bytes` before admission.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Menu {
-    /// Whole argument bodies copied for randomly selected offered tools.
+    /// Whole argument bodies, with slot uses filled, for randomly selected offered tools.
     pub arguments: Box<[Box<[u8]>]>,
     /// Whole deliberate invalid inputs selected when the malformed roll wins.
     pub invalid: Box<[InvalidInput]>,
+    /// At most 8, declared in the order overlap is settled by.
+    pub slots: Box<[Slot]>,
 }
 
 /// One bounded block accepted from the provider stream or neutral fake API.

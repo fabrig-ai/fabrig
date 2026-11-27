@@ -214,7 +214,7 @@ fn list_body(models: &[Model], out: &mut skein_json::writer::Encoder) {
     out.object_end();
 }
 fn empty_menu() -> api::Menu {
-    api::Menu { arguments: Box::new([]), invalid: Box::new([]) }
+    api::Menu { arguments: Box::new([]), invalid: Box::new([]), slots: Box::new([]) }
 }
 fn added_keys(d: &Json, at: u32, key: &[u8], p: &Path) -> Result<Box<[Box<[u8]>]>, Refusal> {
     let items = match jig_protocol_config::read::list(d, at, credential::ADDED_KEYS) {

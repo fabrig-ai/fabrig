@@ -28,8 +28,10 @@
 
 use alloc::boxed::Box;
 
+#[cfg(test)]
+use skein_lib::Rng;
 use skein_lib::bytes::{self, copy_of};
-use skein_lib::{Duration, List, Rng, Time, usize_of};
+use skein_lib::{Duration, List, Time, usize_of};
 
 use crate::api::{
     Answer, Error, Failure, Finish, Key, Line, Message, Part, Query, Role, Rule, Rules, Script, Turn, Usage,
@@ -37,6 +39,8 @@ use crate::api::{
 use crate::domain::{Config, Played};
 use crate::draws::Draws;
 use crate::{limits, pieces};
+
+mod random;
 
 /// Calls reaching one cut, shared across credentials.
 #[derive(Debug)]
@@ -320,17 +324,10 @@ fn random(
         && !menu.arguments.is_empty()
     {
         let count = u32::try_from(rng.between(1, config.calls_per_answer.max(1).into())).expect("drawn below a u32");
-        if !limits::fits(limits::random_answer(query, menu, count), config.answer_bytes) {
-            return Err((Error::ContextTooLong.into(), None));
-        }
-        let mut calls = List::with_capacity(count);
-        for _ in 0..count {
-            let part = match call(rng, minted, config, menu, query, outside) {
-                Ok(part) => part,
-                Err(error) => return Err((error.into(), None)),
-            };
-            calls.push(part).expect("room for every call");
-        }
+        let calls = match random::batch(rng, minted, config, menu, query, outside, count) {
+            Ok(calls) => calls,
+            Err(error) => return Err((error.into(), None)),
+        };
         let tokens = u64::from(count).saturating_mul(8);
         return Ok((drawn_answer(draws, key, query, calls.into_boxed(), Finish::ToolCalls, tokens), None));
     }
@@ -489,45 +486,6 @@ fn tool_count(query: &Query, outside: bool) -> u64 {
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 fn cut_text() -> Box<[Part]> {
     Box::new([Part::Text { text: copy_of(b"do") }])
-}
-
-/// Copies a bounded caller input for a randomly selected offered tool; no application vocabulary is known.
-fn call(
-    rng: &mut Rng,
-    minted: &mut u64,
-    config: &Config,
-    menu: &crate::api::Menu,
-    query: &Query,
-    outside: bool,
-) -> Result<Part, Error> {
-    let mut pick = rng.below(tool_count(query, outside));
-    let mut selected = None;
-    for tool in &query.tools {
-        if allowed(&query.choice, &tool.name) != outside {
-            if pick == 0 {
-                selected = Some(tool);
-                break;
-            }
-            pick = pick.checked_sub(1).expect("a nonzero remaining tool index");
-        }
-    }
-    let tool = selected.expect("picked below the eligible tool count");
-    *minted = minted.checked_add(1).ok_or(Error::InvalidRequest)?;
-    let id = call_id(*minted);
-    if rng.chance(config.malformed) && !menu.invalid.is_empty() {
-        let count = skein_lib::len_u64(menu.invalid.len());
-        let pick = usize::try_from(rng.below(count)).expect("bounded menu index");
-        let input = menu.invalid.get(pick).expect("picked below menu count");
-        let name = match &input.name {
-            Some(name) => name.clone(),
-            None => tool.name.clone(),
-        };
-        return Ok(Part::ToolCall { id, name, arguments: input.arguments.clone() });
-    }
-    let count = skein_lib::len_u64(menu.arguments.len());
-    let pick = usize::try_from(rng.below(count)).expect("bounded menu index");
-    let arguments = menu.arguments.get(pick).expect("picked below menu count").clone();
-    Ok(Part::ToolCall { id, name: tool.name.clone(), arguments })
 }
 
 /// A literal prefix of caller bytes when its requested output token allowance cuts a call.
@@ -984,6 +942,7 @@ mod tests {
                 crate::api::InvalidInput { name: Some(copy_of(b"unknown")), arguments: copy_of(b"{}") },
                 crate::api::InvalidInput { name: None, arguments: copy_of(b"{") },
             ]),
+            slots: Box::new([]),
         }
     }
 

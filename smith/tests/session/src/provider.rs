@@ -31,5 +31,6 @@ pub fn menu() -> Menu {
             InvalidInput { name: None, arguments: br#"{"path":"#.as_slice().into() },
             InvalidInput { name: None, arguments: b"{}".as_slice().into() },
         ]),
+        slots: Box::new([]),
     }
 }

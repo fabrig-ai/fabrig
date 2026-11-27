@@ -218,8 +218,8 @@ pub(crate) fn replay(capture: &Capture) -> Option<u64> {
     Some(total)
 }
 
-/// Measures all caller menu wrappers and bytes before retaining or copying any input.
-pub(crate) fn menu(menu: &crate::api::Menu) -> Option<u64> {
+/// Measures regular and invalid inputs before retaining them. Slot declarations have their own refusal.
+pub(crate) fn menu_inputs(menu: &crate::api::Menu) -> Option<u64> {
     let mut total = array(menu.arguments.len(), size_of::<Box<[u8]>>())?
         .checked_add(array(menu.invalid.len(), size_of::<crate::api::InvalidInput>())?)?;
     for arguments in &menu.arguments {
@@ -234,15 +234,33 @@ pub(crate) fn menu(menu: &crate::api::Menu) -> Option<u64> {
     Some(total)
 }
 
-/// Bounds a random batch from the largest offered name and caller-supplied input, before copying.
+pub(crate) fn slots(slots: &[crate::api::Slot]) -> Option<u64> {
+    let mut total = array(slots.len(), size_of::<crate::api::Slot>())?;
+    for slot in slots {
+        total = total
+            .checked_add(bytes(&slot.name)?)?
+            .checked_add(bytes(&slot.before)?)?
+            .checked_add(bytes(&slot.after)?)?
+            .checked_add(bytes(&slot.unissued)?)?;
+    }
+    Some(total)
+}
+
+/// Bounds a random batch from the largest name and input, with slots at their never-issued values.
 pub(crate) fn random_answer(query: &Query, menu: &crate::api::Menu, count: u32) -> Option<u64> {
     let mut name = 0;
     let mut arguments = 0;
     for tool in &query.tools {
         name = name.max(bytes(&tool.name)?);
     }
+    let unissued = crate::slots::unissued(&menu.slots);
     for input in &menu.arguments {
-        arguments = arguments.max(bytes(input)?);
+        let size = if menu.slots.is_empty() {
+            bytes(input)?
+        } else {
+            crate::slots::measure_bytes(input, &menu.slots, &unissued)?
+        };
+        arguments = arguments.max(size);
     }
     for input in &menu.invalid {
         arguments = arguments.max(bytes(&input.arguments)?);
@@ -250,6 +268,10 @@ pub(crate) fn random_answer(query: &Query, menu: &crate::api::Menu, count: u32) 
             name = name.max(bytes(replacement)?);
         }
     }
-    let one = u64::try_from(size_of::<Part>()).ok()?.checked_add(name)?.checked_add(arguments)?.checked_add(21)?;
-    u64::from(count).checked_mul(one)
+    u64::from(count).checked_mul(random_call(name, arguments)?)
+}
+
+pub(crate) fn random_call(name: u64, arguments: u64) -> Option<u64> {
+    // Every minted call ID has the same 21-byte spelling.
+    u64::try_from(size_of::<Part>()).ok()?.checked_add(name)?.checked_add(arguments)?.checked_add(21)
 }

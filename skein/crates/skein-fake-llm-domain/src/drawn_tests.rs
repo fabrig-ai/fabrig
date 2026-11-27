@@ -30,7 +30,11 @@ fn next_turn(query: &Query) -> Query {
 }
 
 fn menu() -> crate::api::Menu {
-    crate::api::Menu { arguments: Box::new([copy_of(b"{\"n\":1}"), copy_of(b"{\"n\":2}")]), invalid: Box::new([]) }
+    crate::api::Menu {
+        arguments: Box::new([copy_of(b"{\"n\":1}"), copy_of(b"{\"n\":2}")]),
+        invalid: Box::new([]),
+        slots: Box::new([]),
+    }
 }
 
 fn observe(domain: &mut Domain, config: &Config, query: &Query, now: u64) -> (Time, Result<Answer, Failure>) {
@@ -471,7 +475,7 @@ fn malformed_or_oversized_replays_are_refused_at_configuration() {
     let scripts = Scripts { cued: Box::new([script(b"cued", Box::new([says(b"script")]))]), ..scripts() };
     let base = crate::limits::scripts(&scripts.cued)
         .expect("script price")
-        .checked_add(crate::limits::menu(&menu()).expect("menu price"))
+        .checked_add(crate::limits::menu_inputs(&menu()).expect("menu price"))
         .expect("script and menu price")
         .checked_add(crate::draws::Draws::attempt_bytes(&config).expect("attempt table price"))
         .expect("shared script bytes");

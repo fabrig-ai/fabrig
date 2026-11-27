@@ -234,7 +234,7 @@ impl Played {
 
     fn admit(config: &Config, scripts: Scripts, menu: &Menu, rules: &Rules, replay: &Capture) -> Result<Self, Error> {
         let Scripts { cued, asked, otherwise } = scripts;
-        if !valid_rules(&rules.cued, &cued) || !valid_rules(&rules.asked, &asked) {
+        if !valid_rules(&rules.cued, &cued) || !valid_rules(&rules.asked, &asked) || !crate::slots::valid(&menu.slots) {
             return Err(Error::InvalidRequest);
         }
         let otherwise = Script { cue: Box::new([]), turns: otherwise };
@@ -252,7 +252,7 @@ impl Played {
                 None => None,
             };
         }
-        held = match limits::menu(menu) {
+        held = match limits::menu_inputs(menu) {
             Some(bytes) => match held {
                 Some(total) => total.checked_add(bytes),
                 None => None,
@@ -275,6 +275,11 @@ impl Played {
         };
         if !limits::fits(held, config.script_bytes) {
             return Err(Error::ContextTooLong);
+        }
+        let held = held.expect("admitted script and menu bytes");
+        let held = held.checked_add(limits::slots(&menu.slots).ok_or(Error::InvalidRequest)?);
+        if !limits::fits(held, config.script_bytes) || !crate::slots::valid_bodies(menu) {
+            return Err(Error::InvalidRequest);
         }
         let held = match held {
             Some(bytes) => match limits::replay(replay) {
@@ -379,7 +384,12 @@ impl Domain {
     ///
     /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub fn try_scripted(config: &Config, seed: u64, scripts: Box<[Script]>) -> Result<Domain, Error> {
-        Self::configured(config, seed, scripts, Menu { arguments: Box::new([]), invalid: Box::new([]) })
+        Self::configured(
+            config,
+            seed,
+            scripts,
+            Menu { arguments: Box::new([]), invalid: Box::new([]), slots: Box::new([]) },
+        )
     }
 
     /// Admits caller-owned scripts and random input menus under one aggregate byte cap.
