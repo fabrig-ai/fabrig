@@ -5,9 +5,6 @@
 
 - **Not yet:** 2, 5, 6: `smith-inline-agent` composed in the engine's
   root.
-- **Not yet:** 3, 6, 11: each root builds its connectors' declarations for
-  `Engine::new`, where `ops`'s, temper's and the test root install hold
-  kinds by stepping the tasks child [in flight: change 19755].
 - **Departs:** 3, 5, 8, 11: the test root is not in `ops`'s shape: its
   `Domain` keeps `now`, `store_answers`, `busy` and `public_reads` beside
   the journal between steps, its `release` steps released callbacks

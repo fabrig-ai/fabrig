@@ -18,9 +18,3 @@ the test connector no longer reports one as a default of size 0
 - **Not yet:** 3.4: `Unname` at retention's erasure at the deployment's
   horizon, which is not built (`../protocol/store/growth.md`, 1.1).
   13: request budgets. 17: the deleted-project restore story remains `engine/settings.status.md`, 10.
-- **Not yet:** 2, 3.3: connectors' declarations given to the engine at
-  construction and checked there, the engine installing the resource
-  kinds' rules, where each root installs hold kinds by stepping the tasks
-  child [in flight: change 19755].
-- **Not yet:** 2: descriptions judged by their declared kind, where each
-  description carries its form, recovery and waiting [in flight: change 19759].

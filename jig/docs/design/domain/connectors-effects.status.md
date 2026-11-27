@@ -4,7 +4,3 @@
 
 - **Not yet:** 1.2: a projection's or a release's failure for good, kept
   durably as news.
-- **Not yet:** 1.1: a description without its kind's form, recovery and
-  waiting, an undeclared kind refused `Description`, and waiting read from
-  the declared kind, temper's landing merge among those that wait
-  [in flight: change 19759].
