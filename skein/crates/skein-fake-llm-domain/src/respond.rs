@@ -37,7 +37,7 @@ use crate::api::{
     Answer, Error, Failure, Finish, Key, Line, Message, Part, Query, Role, Rule, Rules, Script, Turn, Usage,
 };
 use crate::domain::{Config, Played};
-use crate::draws::Draws;
+use crate::draws::{Draws, SlotCapture};
 use crate::{limits, pieces};
 
 mod random;
@@ -277,7 +277,8 @@ fn unstruck(
         missing_script = Some(script);
     }
     let key = draws.key(query);
-    if let Some(turn) = draws.replay(key) {
+    if let Some(replay) = draws.replay(key) {
+        let turn = &replay.answer;
         if !limits::fits(limits::scripted_answer(turn), config.answer_bytes) {
             return Err((Error::ContextTooLong.into(), None));
         }
@@ -287,7 +288,9 @@ fn unstruck(
         };
         let finish = turn.finish;
         let tokens = turn.tokens;
-        return Ok((drawn_answer(draws, key, query, parts, finish, tokens), None));
+        let mut slots = draws.slot_capture();
+        slots.replay(&replay.slots, &parts);
+        return Ok((drawn_answer(draws, key, query, parts, finish, tokens, slots), None));
     }
     if config.strict {
         return Err((no_script(played, missing_script, query), None));
@@ -313,6 +316,7 @@ fn random(
     menu: &crate::api::Menu,
     query: &Query,
 ) -> Response {
+    let mut slots = draws.slot_capture();
     let mut named = draws.agent(key);
     let rng = match &mut named {
         Some(rng) => rng,
@@ -323,17 +327,16 @@ fn random(
         && tool_count(query, outside) != 0
         && !menu.arguments.is_empty()
     {
-        let count = u32::try_from(rng.between(1, config.calls_per_answer.max(1).into())).expect("drawn below a u32");
-        let calls = match random::batch(rng, minted, config, menu, query, outside, count) {
+        let calls = match random::batch(rng, minted, config, menu, query, outside, &mut slots) {
             Ok(calls) => calls,
             Err(error) => return Err((error.into(), None)),
         };
-        let tokens = u64::from(count).saturating_mul(8);
-        return Ok((drawn_answer(draws, key, query, calls.into_boxed(), Finish::ToolCalls, tokens), None));
+        let tokens = u64::from(calls.len()).saturating_mul(8);
+        return Ok((drawn_answer(draws, key, query, calls.into_boxed(), Finish::ToolCalls, tokens, slots), None));
     }
     let tokens = rng.between(1, config.answer_tokens.max(1).into());
     let parts = Box::new([Part::Text { text: copy_of(b"done") }]);
-    Ok((drawn_answer(draws, key, query, parts, Finish::Stop, tokens), None))
+    Ok((drawn_answer(draws, key, query, parts, Finish::Stop, tokens, slots), None))
 }
 
 /// Replay uses literal lines, not script interpolation, and mints new ids.
@@ -355,8 +358,16 @@ fn replay_parts(minted: &mut u64, turn: &Turn) -> Result<Box<[Part]>, Error> {
     Ok(parts.into_boxed())
 }
 
-fn drawn_answer(draws: &mut Draws, key: Key, query: &Query, parts: Box<[Part]>, finish: Finish, tokens: u64) -> Answer {
-    draws.answered(key, &parts, finish, tokens);
+fn drawn_answer(
+    draws: &mut Draws,
+    key: Key,
+    query: &Query,
+    parts: Box<[Part]>,
+    finish: Finish,
+    tokens: u64,
+    slots: SlotCapture,
+) -> Answer {
+    draws.answered(key, &parts, finish, tokens, slots);
     // The query's token cap cuts a batch partway into its first call.
     let cut = match parts.first() {
         Some(Part::ToolCall { id, name, arguments }) => {

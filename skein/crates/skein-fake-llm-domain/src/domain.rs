@@ -117,7 +117,7 @@ pub struct Config {
     pub conversations: u32,
     /// Answers the capture keeps; zero keeps no capture.
     pub capture_answers: u32,
-    /// Owned bytes the capture keeps, including its answers' wrappers.
+    /// Owned bytes the capture keeps: its answers, slot draws and classes, including wrappers.
     pub capture_bytes: u32,
 }
 
@@ -288,7 +288,7 @@ impl Played {
             },
             None => None,
         };
-        if !limits::fits(held, config.script_bytes) || !draws::valid(replay) {
+        if !limits::fits(held, config.script_bytes) || !draws::valid(replay, &menu.slots) {
             return Err(Error::InvalidRequest);
         }
         let cued_count = cued.len();
@@ -448,6 +448,18 @@ impl Domain {
     #[must_use]
     pub fn capture(&self) -> Capture {
         self.draws.capture()
+    }
+
+    /// Gives the captured draw of `slot`, by name, for the call `id` its class.
+    /// Returns whether the draw was found and the class kept.
+    pub fn classify(&mut self, id: &[u8], slot: &[u8], class: &[u8]) -> bool {
+        for (index, declared) in self.menu.slots.iter().enumerate() {
+            if &*declared.name == slot {
+                let index = u32::try_from(index).expect("at most eight admitted slots");
+                return self.draws.classify(id, index, class);
+            }
+        }
+        false
     }
 
     /// Installs an account fault at injected time, refusing exhausted room.

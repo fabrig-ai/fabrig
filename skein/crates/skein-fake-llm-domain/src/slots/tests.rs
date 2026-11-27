@@ -10,6 +10,8 @@ use crate::api::{Answer, Bounds, Error, Failure, InvalidInput, Menu, Message, Pa
 use crate::tests::{CONFIG, query, says, script, user};
 use crate::{Config, Domain, Event, Request, fire, limits, step};
 
+mod capture;
+
 fn slot(name: &[u8], before: &[u8], after: &[u8], unissued: &[u8]) -> Slot {
     Slot {
         name: copy_of(name),
@@ -59,11 +61,15 @@ fn assistant(parts: Box<[Part]>) -> Message {
 
 fn call(config: Config, menu: Menu, query: Query, seed: u64) -> Result<Answer, Failure> {
     let mut domain = Domain::played(&config, seed, no_scripts(), menu).expect("valid menu");
+    reply(&mut domain, config, query)
+}
+
+fn reply(domain: &mut Domain, config: Config, query: Query) -> Result<Answer, Failure> {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
     let token = Token::new(1);
     let mut out = Queue::uncapped();
-    step(&mut domain, &env, Event::Call { reply_to: ReplyTo::new(token), call: token, query }, &mut out);
-    fire(&mut domain, &env, &mut out);
+    step(domain, &env, Event::Call { reply_to: ReplyTo::new(token), call: token, query }, &mut out);
+    fire(domain, &env, &mut out);
     let Some(Request::Reply { to, result }) = out.pop() else { panic!("one terminal reply") };
     assert_eq!(to, ReplyTo::new(token));
     assert!(out.is_empty());

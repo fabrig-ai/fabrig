@@ -1,10 +1,9 @@
 //! Named draws and bounded answer capture (skein/docs/design/testing/fakes/drawn-agent.md, 3–4).
 
-use alloc::boxed::Box;
-use skein_lib::{List, Lru, Rng, Set, len_u64};
+use skein_lib::{List, Lru, Rng, Set, len_u64, usize_of};
 
 use crate::Config;
-use crate::api::{Caching, Capture, Drawn, Finish, Key, Line, Part, Query, Role, Seeds, Turn};
+use crate::api::{Caching, Capture, Drawn, Filled, Finish, Key, Line, Part, Query, Role, Seeds, Slot, Source, Turn};
 use crate::limits;
 
 #[derive(Debug)]
@@ -30,6 +29,43 @@ pub(crate) struct Draws {
     kept: List<Drawn>,
     bytes_left: u32,
     full: bool,
+}
+
+/// Slot evidence for one answer, copied only within the remaining capture budget.
+pub(crate) struct SlotCapture {
+    kept: List<Filled>,
+    remaining: Option<u32>,
+}
+
+impl SlotCapture {
+    pub(crate) fn active(&self) -> bool {
+        self.remaining.is_some()
+    }
+
+    pub(crate) fn record(&mut self, call: u32, id: &[u8], slot: u32, value: &[u8], source: Source, class: &[u8]) {
+        self.remaining = slot_room(self.remaining, id, value, class);
+        if self.active() {
+            let draw = Filled { call, id: id.into(), slot, value: value.into(), source, class: class.into() };
+            self.kept.push(draw).expect("at least one byte per kept slot draw");
+        }
+    }
+
+    pub(crate) fn replay(&mut self, slots: &[Filled], parts: &[Part]) {
+        for filled in slots {
+            if !self.active() {
+                break;
+            }
+            let Some(Part::ToolCall { id, .. }) = parts.get(usize_of(filled.call)) else {
+                unreachable!("replay admission checks the call position");
+            };
+            self.record(filled.call, id, filled.slot, &filled.value, filled.source, &filled.class);
+        }
+    }
+}
+
+fn slot_room(remaining: Option<u32>, id: &[u8], value: &[u8], class: &[u8]) -> Option<u32> {
+    let price = u32::try_from(limits::filled(id, value, class)?).ok()?;
+    remaining?.checked_sub(price)
 }
 
 impl Draws {
@@ -89,27 +125,37 @@ impl Draws {
         Key { conversation, turn, attempt }
     }
 
-    pub(crate) fn replay(&self, key: Key) -> Option<&Turn> {
+    #[expect(clippy::manual_find, reason = "step code searches with an explicit loop, not a closure")]
+    pub(crate) fn replay(&self, key: Key) -> Option<&Drawn> {
         for drawn in &self.replay.answers {
             if drawn.key == key {
-                return Some(&drawn.answer);
+                return Some(drawn);
             }
         }
         None
     }
 
+    pub(crate) fn slot_capture(&self) -> SlotCapture {
+        let remaining = if self.full || self.kept.room() == 0 { None } else { Some(self.bytes_left) };
+        SlotCapture { kept: List::with_capacity(self.bytes_left), remaining }
+    }
+
     /// Count the answer even if it is cut short after being drawn.
-    pub(crate) fn answered(&mut self, key: Key, parts: &[Part], finish: Finish, tokens: u64) {
+    pub(crate) fn answered(&mut self, key: Key, parts: &[Part], finish: Finish, tokens: u64, slots: SlotCapture) {
         let _evicted =
             self.attempts.insert(key.conversation, Attempt { turn: key.turn, next: key.attempt.saturating_add(1) });
         if self.full || self.kept.capacity() == 0 {
             return;
         }
+        let Some(remaining) = slots.remaining else {
+            self.full = true;
+            return;
+        };
         let Some(price) = limits::drawn_parts(parts) else {
             self.full = true;
             return;
         };
-        if self.kept.room() == 0 || price > u64::from(self.bytes_left) {
+        if price > u64::from(remaining) {
             self.full = true;
             return;
         }
@@ -124,17 +170,44 @@ impl Draws {
             };
             lines.push(line).expect("room for every part");
         }
-        self.bytes_left = self
-            .bytes_left
+        self.bytes_left = remaining
             .checked_sub(u32::try_from(price).expect("price fits the remaining capture"))
             .expect("fits the capture");
         self.kept
-            .push(Drawn { key, answer: Turn { lines: lines.into_boxed(), finish, tokens }, slots: Box::new([]) })
+            .push(Drawn {
+                key,
+                answer: Turn { lines: lines.into_boxed(), finish, tokens },
+                slots: slots.kept.into_boxed(),
+            })
             .expect("room for one more answer");
     }
 
     pub(crate) fn capture(&self) -> Capture {
         Capture { answers: self.kept.to_boxed(), full: self.full }
+    }
+
+    pub(crate) fn classify(&mut self, id: &[u8], slot: u32, class: &[u8]) -> bool {
+        if self.full || !crate::take::valid_name(class) {
+            return false;
+        }
+        let added = u32::try_from(class.len()).expect("validated class length");
+        for drawn in self.kept.iter_mut() {
+            for filled in &mut drawn.slots {
+                if &*filled.id != id || filled.slot != slot {
+                    continue;
+                }
+                let old = u32::try_from(filled.class.len()).expect("admitted class length");
+                let available = self.bytes_left.checked_add(old).expect("old class was charged to the capture");
+                let Some(remaining) = available.checked_sub(added) else {
+                    self.full = true;
+                    return false;
+                };
+                filled.class = class.into();
+                self.bytes_left = remaining;
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -173,7 +246,7 @@ fn field(mut hash: u64, bytes: &[u8]) -> u64 {
 }
 
 /// Check the capture's shapes and unique keys after its aggregate bytes have been admitted.
-pub(crate) fn valid(replay: &Capture) -> bool {
+pub(crate) fn valid(replay: &Capture, slots: &[Slot]) -> bool {
     let mut keys = Set::with_capacity(u32::try_from(replay.answers.len()).expect("admitted capture bytes"));
     for drawn in &replay.answers {
         let Key { conversation, turn, attempt } = drawn.key;
@@ -182,7 +255,14 @@ pub(crate) fn valid(replay: &Capture) -> bool {
             return false;
         }
         for slot in &drawn.slots {
-            if slot.id.is_empty() || slot.value.is_empty() || slot.value.len() > 256 || !valid_class(&slot.class) {
+            let line = drawn.answer.lines.get(usize_of(slot.call));
+            if !is_call(line)
+                || usize_of(slot.slot) >= slots.len()
+                || slot.id.is_empty()
+                || slot.value.is_empty()
+                || slot.value.len() > 256
+                || (!slot.class.is_empty() && !crate::take::valid_name(&slot.class))
+            {
                 return false;
             }
         }
@@ -209,14 +289,17 @@ fn valid_turn(turn: &Turn) -> bool {
     true
 }
 
-fn valid_class(class: &[u8]) -> bool {
-    if class.is_empty() || class.len() > 32 {
-        return false;
+fn is_call(line: Option<&Line>) -> bool {
+    match line {
+        Some(Line::Call { .. }) => true,
+        Some(
+            Line::Text { .. }
+            | Line::Cut { .. }
+            | Line::Take { .. }
+            | Line::Fail { .. }
+            | Line::Pieces { .. }
+            | Line::Opaque { .. },
+        )
+        | None => false,
     }
-    for byte in class {
-        if !byte.is_ascii_alphanumeric() && *byte != b'_' {
-            return false;
-        }
-    }
-    true
 }

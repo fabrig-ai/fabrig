@@ -188,6 +188,11 @@ pub(crate) fn drawn_parts(parts: &[Part]) -> Option<u64> {
     Some(total)
 }
 
+/// Owned storage of one captured slot draw, including its wrapper.
+pub(crate) fn filled(id: &[u8], value: &[u8], class: &[u8]) -> Option<u64> {
+    array(1, size_of::<Filled>())?.checked_add(bytes(id)?)?.checked_add(bytes(value)?)?.checked_add(bytes(class)?)
+}
+
 /// Owned replay bytes, including wrappers and slot evidence.
 pub(crate) fn replay(capture: &Capture) -> Option<u64> {
     let mut total = array(capture.answers.len(), size_of::<Drawn>())?;
@@ -207,12 +212,8 @@ pub(crate) fn replay(capture: &Capture) -> Option<u64> {
             };
             total = total.checked_add(owned)?;
         }
-        total = total.checked_add(array(drawn.slots.len(), size_of::<Filled>())?)?;
         for slot in &drawn.slots {
-            total = total
-                .checked_add(bytes(&slot.id)?)?
-                .checked_add(bytes(&slot.value)?)?
-                .checked_add(bytes(&slot.class)?)?;
+            total = total.checked_add(filled(&slot.id, &slot.value, &slot.class)?)?;
         }
     }
     Some(total)

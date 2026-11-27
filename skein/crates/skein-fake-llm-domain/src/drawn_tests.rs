@@ -5,7 +5,7 @@ use skein_lib::{Duration, Env, List, Queue, ReplyTo, Time, Token, Wall, bytes::c
 
 use crate::api::{
     Answer, Caching, Capture, Cut, Drawn, Error, Failure, Filled, Finish, Key, Line, Message, Part, Query, Role, Rules,
-    Scripts, Seeds, Source, Strike, ToolChoice, Turn, Usage,
+    Scripts, Seeds, Slot, Source, Strike, ToolChoice, Turn, Usage,
 };
 use crate::tests::{CONFIG, query, says, script, user};
 use crate::{Config, Domain, Event, Request, fire, step};
@@ -450,26 +450,42 @@ fn malformed_or_oversized_replays_are_refused_at_configuration() {
         assert_eq!(admit(&config, Box::new([malformed])).err(), Some(Error::InvalidRequest));
     }
     let slot = Filled {
+        call: 0,
         id: copy_of(b"call"),
-        slot: 9,
+        slot: 0,
         value: copy_of(b"valid"),
         source: Source::Conversation,
         class: copy_of(b"class_1"),
     };
-    admit(&config, Box::new([Drawn { slots: Box::new([slot.clone()]), ..first.clone() }]))
-        .expect("valid slot metadata");
+    let admit_slot = |slot| {
+        let menu = crate::api::Menu {
+            slots: Box::new([Slot {
+                name: copy_of(b"target"),
+                before: copy_of(b"<"),
+                after: copy_of(b">"),
+                unissued: copy_of(b"missing"),
+                weight: 0,
+                numeric: None,
+            }]),
+            ..menu()
+        };
+        let answer = Turn {
+            lines: Box::new([Line::Call { name: copy_of(b"ls"), arguments: copy_of(b"{}") }]),
+            finish: Finish::ToolCalls,
+            tokens: 8,
+        };
+        let drawn = Drawn { key: first.key, answer, slots: Box::new([slot]) };
+        Domain::drawn(&config, SEEDS, scripts(), menu, rules(), Capture { answers: Box::new([drawn]), full: false })
+    };
+    admit_slot(slot.clone()).expect("valid slot metadata");
     for malformed in [
         Filled { id: Box::new([]), ..slot.clone() },
         Filled { value: Box::new([]), ..slot.clone() },
         Filled { value: Box::new([b'x'; 257]), ..slot.clone() },
-        Filled { class: Box::new([]), ..slot.clone() },
         Filled { class: Box::new([b'x'; 33]), ..slot.clone() },
         Filled { class: copy_of(b"bad-class"), ..slot },
     ] {
-        assert_eq!(
-            admit(&config, Box::new([Drawn { slots: Box::new([malformed]), ..first.clone() }])).err(),
-            Some(Error::InvalidRequest)
-        );
+        assert_eq!(admit_slot(malformed).err(), Some(Error::InvalidRequest));
     }
 
     let scripts = Scripts { cued: Box::new([script(b"cued", Box::new([says(b"script")]))]), ..scripts() };
