@@ -1,6 +1,13 @@
+use core::convert::Infallible;
+
 use jig_protocol_worker_link::{Event, Request};
 use jig_worker_link_world::{World, fixtures, referee};
 use skein_lib::{Duration, Rng};
+use skein_world::{
+    sweep::{cases, gate},
+    this_test,
+};
+
 fn cancel(world: &mut World, name: &[u8]) {
     world.down(Event::CancelRelay { run: fixtures::RUN_SEVEN, attempt: fixtures::ATTEMPT_TWO, call: name.into() });
 }
@@ -66,11 +73,15 @@ fn exercise(seed: u64) -> (u32, u32, usize) {
 #[test]
 fn fuzzy_engines_cuts_and_stalls_keep_relays_ending_once() {
     let mut counts = (0, 0, 0);
-    for seed in 0..40 {
+    cases(this_test!("fuzzy_engines_cuts_and_stalls_keep_relays_ending_once"), 0..40, |seed| {
         let (cuts, stalls, resends) = exercise(seed);
         counts.0 += cuts;
         counts.1 += stalls;
         counts.2 += resends;
+        Ok::<(), Infallible>(())
+    })
+    .expect("relay checks assert");
+    if gate() {
+        assert!(counts.0 > 0 && counts.1 > 0 && counts.2 > 0);
     }
-    assert!(counts.0 > 0 && counts.1 > 0 && counts.2 > 0);
 }
