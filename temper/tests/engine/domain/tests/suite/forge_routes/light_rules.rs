@@ -216,7 +216,7 @@ fn a_conflict_under_rules_asking_neither_says_why_it_holds() {
     );
     assert!(matches!(
         change_row(&world, task).change.state,
-        change_step::State::Held { why: change_step::Hold::Resolutions, .. }
+        change_step::State::Held { hold: change_step::Hold { cause: change_step::Cause::Resolutions, .. }, .. }
     ));
     let tasks::Phase::Held { source, .. } = &live_task(&world, task).phase else { panic!("resolution hold") };
     let tasks::HoldSource::Account { words, .. } = source.as_ref().expect("resolution bound account").as_ref() else {

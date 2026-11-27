@@ -462,3 +462,31 @@ fn talk_and_leave_from_the_link_decode_to_the_people_acts() {
         assert_eq!(ask(record.clone(), &f::models(), &limits), Ok(expected));
     }
 }
+
+#[test]
+fn measure_crosses_the_keyed_wire_and_answers_as_release() {
+    use crate::Message;
+    use jig_client_domain::contract as c;
+    use skein_lib::Reader;
+    let limits = f::client_limits();
+    let ask = c::Ask::Measure { project: 2, task: u64::MAX, revision: c::Revision { value: 11 } };
+    let wire = jig_client_protocol_link::translate::asks::ask(&ask, limits.wire()).unwrap();
+    let encoded = f::encode_ask(&wire);
+    w::Operation::decode(limits.wire(), &mut Reader::new(&encoded)).expect_err("measure is not a compound operation");
+    let mut exchange = Exchange::new();
+    exchange.send(Message::Request(f::keyed(w::Owner::Jig, w::VERSION, encoded)));
+    exchange.authenticate();
+    let Some(Request::Core(event)) = exchange.out.pop() else { panic!("core entrance") };
+    let core::Event::People(p::Event::Ask { sign_in, key, ask, .. }) = *event else { panic!("keyed people request") };
+    assert_eq!(sign_in, 41);
+    assert_eq!(key, [5; 16]);
+    assert_eq!(ask, p::Ask::Measure { project: 2, task: u64::MAX, revision: 11 });
+    assert_eq!(
+        f::translated(&p::Reply::Outcome(p::Outcome::Released { task: u64::MAX }), limits.wire()),
+        w::Final::Done(w::Done {
+            outcome: w::Outcome::Document(w::OutcomeDocument {
+                value: w::DocumentOutcome::Released(w::OutcomeReleased { task: u64::MAX }),
+            }),
+        }),
+    );
+}

@@ -1,6 +1,7 @@
 # branches: status
 
-2026-11-26. Where the tree's code lags or departs from [branches.md](branches.md).
+2026-11-27. Where the tree's code lags or departs from [branches.md](branches.md).
+
 
 
 

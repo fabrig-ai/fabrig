@@ -124,7 +124,10 @@ fn read_error(
         | Error::NotInstalled => false,
     };
     if !retry {
-        row.change.state = change::State::Held { was: Box::new(row.change.state.clone()), why: change::Hold::Failed };
+        row.change.state = change::State::Held {
+            was: Box::new(row.change.state.clone()),
+            hold: change::Hold::new(change::Cause::Failed, env.wall),
+        };
         d.read_sessions.remove(&row.task);
     }
     d.changes.insert(row.task, row.clone()).expect("known change");
@@ -137,7 +140,7 @@ fn read_error(
             out,
             Request::ChangeDecision {
                 task: row.task,
-                decision: change::Decision::Hold(change::Hold::Failed),
+                decision: change::Decision::Hold(change::Cause::Failed),
                 entry: None,
                 evidence: None,
             },

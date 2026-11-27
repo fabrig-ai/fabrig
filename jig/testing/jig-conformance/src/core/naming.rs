@@ -256,6 +256,7 @@ fn ask_project(ask: &people::Ask) -> Option<u32> {
         | people::Ask::Stop { project, .. }
         | people::Ask::Conclude { project, .. }
         | people::Ask::Cancel { project, .. }
+        | people::Ask::Measure { project, .. }
         | people::Ask::Release { project, .. }
         | people::Ask::Create { project, .. }
         | people::Ask::Delegate { project, .. }

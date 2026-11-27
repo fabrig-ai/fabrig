@@ -20,7 +20,7 @@ engine already decides each call by (`temper/crates/temper-engine-domain-transla
 |---|---|
 | delegate | `delegate`, `goal`, `change`, `finding`, `red`, `follow` |
 | message | `message`, `introduce`, `mark_read` |
-| control | `decided`, `amend`, `cancel`, `release` |
+| control | `decided`, `amend`, `cancel`, `release`, `measure` |
 | decide | `decide`, `decide_escalation`, `withdraw` |
 | propose | `propose` |
 | subscribe | `subscribe`, `unsubscribe`, `subscribe_forge` |
@@ -30,6 +30,8 @@ engine already decides each call by (`temper/crates/temper-engine-domain-transla
 | read | `read_task`, `read_forge`, `read_issues`, `read_ci` |
 | settings | `settings`, and `propose_settings` in its configuring form |
 | ask | `see`, `document`, `remember`, and `propose_settings` in its asking form |
+
+- **`measure`** takes `target` and `revision`, as `release` does, and asks jig's `Measure` (jig's `domain/people/acts.md`, 1): a release of a held task below the run that asks its procedure for one fresh measurement of what its hold judged (`../forge/change/repairs-releases.md`, 4). It is no option of `release`, whose `again` stays for an effect held uncertain. Declaring it moves the contract's version by one, the version before kept as 4 says (`../../protocol/wires.md`, 7).
 
 - **An asking charter keeps its own tools alone,** exactly as `tools.md`
   has it: one whose `tools` name the asking family and no family but it and

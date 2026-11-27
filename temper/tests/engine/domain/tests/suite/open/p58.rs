@@ -79,7 +79,10 @@ fn a_repair_whose_tests_pass_regates_by_itself() {
         }
     }
     let row = change_row(&world, task);
-    assert!(matches!(row.change.state, change::State::Held { why: change::Hold::RedStands, .. }));
+    assert!(matches!(
+        row.change.state,
+        change::State::Held { hold: change::Hold { cause: change::Cause::RedStands, .. }, .. }
+    ));
     assert_eq!(row.repair_tasks.as_ref(), [repair.task]);
     assert_eq!(dispatches(&world), before + 1);
     let held_task = task_row(&world, task).expect("held change");

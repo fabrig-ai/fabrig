@@ -600,7 +600,10 @@ fn approval_waits_are_live_changes_short_of_an_approval_at_their_last_head() {
             Some((true, 1)),
         ),
         (
-            State::Held { was: Box::new(first.clone()), why: change::Hold::Stalled },
+            State::Held {
+                was: Box::new(first.clone()),
+                hold: temper_engine_domain_forge_change::Hold::new(change::Cause::Stalled, Wall::EPOCH),
+            },
             Some(1),
             Some(Some(HEAD)),
             true,

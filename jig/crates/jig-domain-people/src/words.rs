@@ -47,6 +47,7 @@ pub(crate) fn valid(ask: &Ask) -> bool {
         | Ask::Conclude { .. }
         | Ask::Lift { .. }
         | Ask::Leave { .. }
+        | Ask::Measure { .. }
         | Ask::Release { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }

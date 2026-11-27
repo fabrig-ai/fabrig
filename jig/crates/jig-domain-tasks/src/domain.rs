@@ -722,6 +722,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Release { reply_to, by, operation } => {
             crate::control::release(domain, env, reply_to, by, operation, out);
         }
+        Event::Measure { reply_to, by, task } => {
+            crate::control::measure(domain, env, reply_to, by, task, out);
+        }
         Event::Amend { reply_to, by, operation, places, reads_project } => {
             crate::control::amend(domain, env, reply_to, by, operation, &places, reads_project, out);
         }
@@ -1326,6 +1329,9 @@ fn milestone(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queu
     }
     if task.record.phase == Phase::Active(Active::Due) {
         task.record.due_reason = match task.observed_phase.as_ref() {
+            Some(Phase::Held { .. } | Phase::Waiting) if task.record.due_reason == crate::Why::Measured => {
+                crate::Why::Measured
+            }
             Some(Phase::Waiting)
                 if task.record.due_reason == crate::Why::Made
                     && (task.record.dependencies.is_empty() || starts_kept) =>

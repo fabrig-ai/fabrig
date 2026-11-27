@@ -123,7 +123,10 @@ fn live_states_never_give_room_even_with_an_ending() {
         change::State::Resolving { requested: false, base },
         change::State::Repairing { requested: false, why: change::Repair::Ci },
         change::State::Landing { head },
-        change::State::Held { was: Box::new(change::State::Producing { requested: false }), why: change::Hold::Failed },
+        change::State::Held {
+            was: Box::new(change::State::Producing { requested: false }),
+            hold: change::Hold::new(change::Cause::Failed, skein_lib::Wall::EPOCH),
+        },
     ] {
         let (mut d, env) = full();
         d.changes.get_mut(&fixtures::CHANGE).unwrap().change.state = state.clone();
