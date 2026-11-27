@@ -147,14 +147,18 @@ application root            routes between the core and every connector
     decides them: `ops`'s infrastructure restarts keyed where its backend
     gives operations' ids and unrecoverable where it doesn't. Writes that
     differ in any of the three are different kinds (3.1).
-  - **One table of its kinds:** a connector keeps its effect kinds, each
-    once with its form, recovery class and waiting, in one table of its
-    own vocabulary, which its own steps read where they need a kind's
-    recovery (`ops`'s infrastructure holding an uncertain restart its
-    backend can't recover) and from which its root builds its declaration,
-    translating each row. No description and no request of the connector
-    carries them again, and no root restates them, so the declaration and
-    the connector can't disagree, and a kind added to the table is declared.
+  - **One table of its kinds:** each effect kind's form, recovery class
+    and waiting are stated once. A connector whose own steps read them
+    or whose configuration decides them (`ops`'s infrastructure, holding
+    an uncertain restart its backend can't recover; temper's forge; the
+    test connector) keeps its effect kinds, each once with all three, in
+    one table of its own vocabulary, and its root builds its declaration
+    from that table, translating each row and restating none. No
+    description and no request of the connector carries them again, so
+    the declaration and the connector can't disagree, and a kind added to
+    the table is declared. A connector that reads none of them and
+    decides none (`ops`'s observability, with its one silence) leaves
+    them to its root's declaration, the one place they are stated.
   - **Said and judged per instance, as before:** a resource's role and
     hold in a project, said up (3.2, 3.3), which wins over its kind's
     rule; a batch member's holdings, its symbols resolved, judged by the
