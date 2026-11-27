@@ -1,6 +1,6 @@
 # store-versions: status
 
-2026-11-22. Where the tree's code lags or departs from [store-versions.md](store-versions.md).
+2026-11-27. Where the tree's code lags or departs from [store-versions.md](store-versions.md).
 
 - **Not yet:** 1: `ShownTest`: a tier row's many names are `FailingTest`s,
   widened to 4,096 bytes in the test-id jobs' wide text, and up to
@@ -12,3 +12,5 @@
   store's 1,024, not past a finding's signature's 512, and a tier's lists
   of failing tests are bounded at the stock's 16 [in flight: change
   8564].
+- **Not yet:** 1: the `test-ids-*` pages convert each value by code of their own, not by temper's written-converter function. [in flight: change 21310]
+- **Not yet:** 1: the commit check's `Switching` says `a patch switch is pending`. [in flight: change 21307]

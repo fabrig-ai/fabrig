@@ -4,6 +4,8 @@
 
 - **Not yet:** 1.8: no `Layout { why: Unread }`, and the refusals' record is `Unkept`, not `Refusals`. [in flight: change 21249]
 
+- **Not yet:** 1.8: `Behind`, `Ahead` and `Check`'s words speak of patch levels, patches and a copy this start patched. [in flight: change 21307]
+
 - **Not yet:** the retention gap remains `growth.status.md`, 1.1.
 
 - **Not yet:** the reference-binary crash and fake-store gaps remain `testing.status.md`, 1.
