@@ -29,6 +29,10 @@ POPEN = subprocess.Popen
 
 
 def setUpModule():
+    # Close tests opt in with their own settings and result files, not the caller's.
+    close_variables = ('TEMPER_JOB', 'TEMPER_CLOSE_REFUSAL', 'TEMPER_CLOSE_OUTDATED')
+    env = {key: value for key, value in os.environ.items() if key not in close_variables}
+    unittest.enterModuleContext(mock.patch.dict(os.environ, env, clear=True))
     guard = mock.patch.object(subprocess, 'Popen', side_effect=AssertionError('unexpected real subprocess'))
     guard.start()
     unittest.addModuleCleanup(guard.stop)
@@ -1027,10 +1031,8 @@ class Changes(unittest.TestCase):
         return job / 'result.json'
 
     def close_without_checks(self, **variables):
-        env = {k: v for k, v in self.env.items() if k not in
-               ('TEMPER_JOB', 'TEMPER_CLOSE_REFUSAL', 'TEMPER_CLOSE_OUTDATED')}
         with mock.patch.object(Path, 'cwd', return_value=self.root), \
-             mock.patch.dict(os.environ, {**env, **variables}, clear=True), \
+             mock.patch.dict(os.environ, {**self.env, **variables}, clear=True), \
              mock.patch.object(PRE, 'workspace_checks') as checks, mock.patch.object(PRE, 'run') as run, \
              redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()) as err:
             status = PRE.main(['--close'])
