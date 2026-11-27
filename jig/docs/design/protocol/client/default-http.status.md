@@ -1,9 +1,10 @@
 # default-http: status
 
-2026-11-24. Where the tree's code lags or departs from [default-http.md](default-http.md).
+2026-11-27. Where the tree's code lags or departs from [default-http.md](default-http.md).
 
 
 
+- **Not yet:** 5: a public read whose layout's place holds a decimal version is answered as a layout not served, not as any other path under `public/` [in flight: change 21063]
 - **Departs:**  the tree-cursor refusal remains `README.status.md`, 4. 4: the reference server, by its `PeerEnd::Call` (`jig/testing/jig-test-service/src/limits.rs`), leaves a peer's end during a mounted call to skein's server and does not end the connection itself (`jig/crates/jig-protocol-engine-clients-http/src/server.rs`): a request all read goes on to its response, the engine end hears nothing of that end, a stream's end is seen at a failed write or the stall, and an exchange left unanswered says `ExchangeGone` (`wire.md`, 2.2) only at the stall. The engine-clients world plays the section's end in `jig/tests/engine-clients/tests/suite/gone.rs` alone, whose server it builds with `PeerEnd::Connection`, as temper's (`temper/crates/temper-service/src/limits.rs`).
 
 `wire.md`, sections 2.1 and 2.2 and `sign-in.md` and `default-http.md`, sections 1 and 3 have the approval's ask, read,
