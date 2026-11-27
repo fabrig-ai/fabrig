@@ -1,8 +1,14 @@
 //! Arbitrary and mutated family bytes (protocol/store/records.md, section 1, and protocol/store/testing.md, section 1).
+//! Each seeded batch is one case (`jig/docs/design/domain/testing-workloads.md`, 7).
 use super::super::values;
 use jig_protocol_store::tasks_v13::Record;
 use jig_protocol_store::{accounts_v2, component_v3, notes_v1, people_v17};
 use skein_lib::{Reader, Rng, length::len_u64};
+use skein_world::{
+    sweep::{Test, cases},
+    this_test,
+};
+use std::convert::Infallible;
 
 fn notes(bytes: &[u8]) {
     if let Ok(scope) = notes_v1::Scope::decode(&notes_v1::CEILINGS, &mut Reader::new(bytes)) {
@@ -31,58 +37,71 @@ fn accounts(bytes: &[u8]) {
         assert_eq!(row.encode(&accounts_v2::CEILINGS).expect("decoded value encodes").as_ref(), bytes);
     }
 }
-fn arbitrary(seed: u64, check: fn(&[u8])) {
-    let mut rng = Rng::new(seed);
-    let mut buffer = [0_u8; 128];
-    for _ in 0_u32..10_000 {
-        let length = usize::try_from(rng.below(129)).expect("bounded length");
-        for byte in buffer.get_mut(..length).expect("within buffer") {
-            *byte = u8::try_from(rng.next_u64() & 0xff).expect("low byte");
-        }
-        check(buffer.get(..length).expect("within buffer"));
-    }
-}
-fn mutated(text: &'static str, seed: u64, check: fn(&[u8])) {
-    let values = skein_codegen::values(text);
-    let mut fixed_values = values.fixed.clone();
-    fixed_values.sort_by(|left, right| left.name.cmp(&right.name));
-    let mut rng = Rng::new(seed);
-    for fixed_value in fixed_values.into_iter().filter(|value| value.name.ends_with("_full.bin")) {
-        let fixed_value = fixed_value.bytes;
-        check(&fixed_value);
-        for _ in 0_u32..100 {
-            let mut bytes = fixed_value.clone();
-            if !bytes.is_empty() {
-                let index = usize::try_from(rng.below(len_u64(bytes.len()))).expect("index fits");
-                *bytes.get_mut(index).expect("chosen byte") = u8::try_from(rng.next_u64() & 0xff).expect("low byte");
+fn arbitrary(test: Test, seed: u64, check: fn(&[u8])) {
+    cases(test, [seed], |seed| {
+        let mut rng = Rng::new(seed);
+        let mut buffer = [0_u8; 128];
+        for _ in 0_u32..10_000 {
+            let length = usize::try_from(rng.below(129)).expect("bounded length");
+            for byte in buffer.get_mut(..length).expect("within buffer") {
+                *byte = u8::try_from(rng.next_u64() & 0xff).expect("low byte");
             }
-            check(&bytes);
+            check(buffer.get(..length).expect("within buffer"));
         }
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+}
+fn mutated(test: Test, schema: &'static str, seed: u64, check: fn(&[u8])) {
+    cases(test, [seed], |seed| {
+        let values = skein_codegen::values(schema);
+        let mut fixed_values = values.fixed.clone();
+        fixed_values.sort_by(|left, right| left.name.cmp(&right.name));
+        let mut rng = Rng::new(seed);
+        for fixed_value in fixed_values.into_iter().filter(|value| value.name.ends_with("_full.bin")) {
+            let fixed_value = fixed_value.bytes;
+            check(&fixed_value);
+            for _ in 0_u32..100 {
+                let mut bytes = fixed_value.clone();
+                if !bytes.is_empty() {
+                    let index = usize::try_from(rng.below(len_u64(bytes.len()))).expect("index fits");
+                    *bytes.get_mut(index).expect("chosen byte") =
+                        u8::try_from(rng.next_u64() & 0xff).expect("low byte");
+                }
+                check(&bytes);
+            }
+        }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 #[test]
 fn arbitrary_notes_rows_never_panic_and_round_trip_when_they_decode() {
-    arbitrary(0x5701_e014, notes);
+    arbitrary(this_test!("arbitrary_notes_rows_never_panic_and_round_trip_when_they_decode"), 0x5701_e014, notes);
 }
 #[test]
 fn mutated_notes_fixed_rule_values_never_panic() {
-    mutated(values::NOTES, 0x5702_e014, notes);
+    mutated(this_test!("mutated_notes_fixed_rule_values_never_panic"), values::NOTES, 0x5702_e014, notes);
 }
 #[test]
 fn arbitrary_component_rows_never_panic_and_round_trip_when_they_decode() {
-    arbitrary(0x5703_e014, component);
+    arbitrary(
+        this_test!("arbitrary_component_rows_never_panic_and_round_trip_when_they_decode"),
+        0x5703_e014,
+        component,
+    );
 }
 #[test]
 fn mutated_component_fixed_rule_values_never_panic() {
-    mutated(values::COMPONENT, 0x5704_e014, component);
+    mutated(this_test!("mutated_component_fixed_rule_values_never_panic"), values::COMPONENT, 0x5704_e014, component);
 }
 #[test]
 fn arbitrary_accounts_rows_never_panic_and_round_trip_when_they_decode() {
-    arbitrary(0x570a_e014, accounts);
+    arbitrary(this_test!("arbitrary_accounts_rows_never_panic_and_round_trip_when_they_decode"), 0x570a_e014, accounts);
 }
 #[test]
 fn mutated_accounts_fixed_rule_values_never_panic() {
-    mutated(values::ACCOUNTS, 0x570b_e014, accounts);
+    mutated(this_test!("mutated_accounts_fixed_rule_values_never_panic"), values::ACCOUNTS, 0x570b_e014, accounts);
 }
 
 fn tasks(bytes: &[u8]) {
@@ -93,11 +112,11 @@ fn tasks(bytes: &[u8]) {
 }
 #[test]
 fn arbitrary_tasks_rows_never_panic_and_round_trip_when_they_decode() {
-    arbitrary(0x5705_e014, tasks);
+    arbitrary(this_test!("arbitrary_tasks_rows_never_panic_and_round_trip_when_they_decode"), 0x5705_e014, tasks);
 }
 #[test]
 fn mutated_tasks_fixed_rule_values_never_panic() {
-    mutated(values::TASKS, 0x5706_e014, tasks);
+    mutated(this_test!("mutated_tasks_fixed_rule_values_never_panic"), values::TASKS, 0x5706_e014, tasks);
 }
 
 fn people(bytes: &[u8]) {
@@ -111,11 +130,11 @@ fn people(bytes: &[u8]) {
 
 #[test]
 fn arbitrary_people_rows_never_panic_and_round_trip_when_they_decode() {
-    arbitrary(0x5701_e019, people);
+    arbitrary(this_test!("arbitrary_people_rows_never_panic_and_round_trip_when_they_decode"), 0x5701_e019, people);
 }
 #[test]
 fn mutated_people_fixed_rule_values_never_panic() {
-    mutated(values::PEOPLE, 0x5702_e019, people);
+    mutated(this_test!("mutated_people_fixed_rule_values_never_panic"), values::PEOPLE, 0x5702_e019, people);
 }
 
 fn core(bytes: &[u8]) {
@@ -129,11 +148,11 @@ fn core(bytes: &[u8]) {
 }
 #[test]
 fn arbitrary_core_rows_never_panic_and_round_trip_when_they_decode() {
-    arbitrary(0x5703_e019, core);
+    arbitrary(this_test!("arbitrary_core_rows_never_panic_and_round_trip_when_they_decode"), 0x5703_e019, core);
 }
 #[test]
 fn mutated_core_fixed_rule_values_never_panic() {
-    mutated(values::CORE, 0x5704_e019, core);
+    mutated(this_test!("mutated_core_fixed_rule_values_never_panic"), values::CORE, 0x5704_e019, core);
 }
 
 fn frames(bytes: &[u8]) {
@@ -151,7 +170,7 @@ fn frames(bytes: &[u8]) {
 }
 #[test]
 fn arbitrary_frames_never_panic_and_round_trip_when_they_decode() {
-    arbitrary(0x5701_e017, frames);
+    arbitrary(this_test!("arbitrary_frames_never_panic_and_round_trip_when_they_decode"), 0x5701_e017, frames);
 }
 #[test]
 fn mutated_and_short_frames_never_panic() {
@@ -193,12 +212,21 @@ fn test_connector(bytes: &[u8]) {
 }
 #[test]
 fn arbitrary_test_connector_rows_never_panic_and_round_trip_when_they_decode() {
-    arbitrary(0x5701_e018, test_connector);
+    arbitrary(
+        this_test!("arbitrary_test_connector_rows_never_panic_and_round_trip_when_they_decode"),
+        0x5701_e018,
+        test_connector,
+    );
 }
 
 #[test]
 fn mutated_test_connector_fixed_rule_values_never_panic() {
-    mutated(values::TEST_CONNECTOR, 0x5702_e018, test_connector);
+    mutated(
+        this_test!("mutated_test_connector_fixed_rule_values_never_panic"),
+        values::TEST_CONNECTOR,
+        0x5702_e018,
+        test_connector,
+    );
 }
 
 fn settings(bytes: &[u8]) {
@@ -224,6 +252,15 @@ fn settings(bytes: &[u8]) {
 }
 #[test]
 fn arbitrary_and_mutated_settings_records_never_panic_and_round_trip() {
-    arbitrary(0x57aa_0191, settings);
-    mutated(values::SETTINGS, 0x57aa_0192, settings);
+    arbitrary(
+        this_test!("arbitrary_and_mutated_settings_records_never_panic_and_round_trip", "arbitrary"),
+        0x57aa_0191,
+        settings,
+    );
+    mutated(
+        this_test!("arbitrary_and_mutated_settings_records_never_panic_and_round_trip", "mutated"),
+        values::SETTINGS,
+        0x57aa_0192,
+        settings,
+    );
 }

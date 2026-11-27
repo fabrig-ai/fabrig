@@ -2374,6 +2374,7 @@ dependencies = [
  "skein-lib",
  "skein-oauth",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
