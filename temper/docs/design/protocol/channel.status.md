@@ -2,8 +2,6 @@
 
 2026-11-26. Where temper's code lags or departs from [channel.md](channel.md).
 
-- **Not yet:** 1 and 4, *Admission asked*: `temper-worker-wire` has no `Repository.admit`, `Ask::admit`, `Answer::admitted` or `unadmitted`, and the worker reads none [in flight: change 18918].
-- **Not yet:** 4, *Admission asked*: the engine's items ask no admission and it answers no `admit` [in flight: change 18923].
 
 
 

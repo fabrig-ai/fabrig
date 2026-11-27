@@ -2,7 +2,6 @@
 
 2026-11-26. Where the tree's code lags or departs from [landing-turn.md](landing-turn.md).
 
-- **Not yet:** 1, *Through the record of temper's writes*: the turn's reads of its tip and its round's pull request are judged by no record, so a tip behind temper's writes makes the round stale [in flight: change 18926].
 
 
 - **Not yet:** 1: the turn's merge of a member reads no comparison of

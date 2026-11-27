@@ -2,7 +2,6 @@
 
 2026-11-26. Where the tree's code lags or departs from [keeping-up.md](keeping-up.md).
 
-- **Not yet:** 3, *a write's readback*: the ancestry reader is a lost writer's forward reread (`src/domain.rs`, `lost_read`) [in flight: change 18917].
 
 - **Not yet:** 1: follows own watches too [in flight: change 105].
 

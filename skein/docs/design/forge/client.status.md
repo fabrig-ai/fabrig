@@ -2,7 +2,6 @@
 
 2026-11-26. Where skein's code lags or departs from [client.md](client.md).
 
-- **Not yet:** 4, *Moved*, 4.2 and 8: the client keeps a writer flag (`Event::Writer`), takes a forward move under a writer as its own by an ancestry read, and reports `Drift` with no actor [in flight: change 18924].
 
 
 
