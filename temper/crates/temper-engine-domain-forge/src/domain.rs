@@ -2048,7 +2048,6 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::StepTier { task, entry, heard } => crate::tiers::step(d, env, task, entry, heard, out),
         Event::VetoTier { task, entry } => crate::tiers::veto(d, task, entry, out),
         Event::OrderLanding { task, changes } => crate::landing::order(d, task, &changes, out),
-        Event::JoinLanding { task, member, after } => crate::landing::join(d, task, member, &after, out),
         Event::Landing { row } => crate::landing::register(d, env, row, out),
         Event::TrainRefusal { repository, branch, cause } => {
             crate::train_refusal::replace(d, out, repository, branch, cause, env.wall);
