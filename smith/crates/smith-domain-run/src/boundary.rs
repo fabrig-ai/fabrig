@@ -256,6 +256,10 @@ pub enum MessageRefusal {
 
 /// run -> parent
 #[derive(PartialEq, Eq, Debug)]
+#[cfg_attr(
+    target_arch = "wasm32",
+    expect(clippy::large_enum_variant, reason = "bounded diagnostics move inline with their terminal")
+)]
 pub enum Request {
     /// Internal notice after the last child settles; the root may release a held main completion.
     CompletionReady { conversation: Token },
