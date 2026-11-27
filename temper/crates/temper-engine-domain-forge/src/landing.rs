@@ -2865,7 +2865,7 @@ fn round_read(
 fn head_commit_trailers(commits: &[api::CommitMessage], head: api::Commit) -> Option<Box<[u8]>> {
     for commit in commits {
         if commit.id == head {
-            return Some(crate::member_message::trailers(&commit.message));
+            return Some(temper_protocol_member_message::trailers(&commit.message));
         }
     }
     None
@@ -3054,7 +3054,7 @@ fn upstream_branch(d: &Domain, row: &LandingRow) -> Option<Box<[u8]>> {
 }
 
 fn squash_head(message: &[u8], head: api::Commit) -> bool {
-    crate::member_message::names_head(message, head)
+    temper_protocol_member_message::names_head(message, head)
 }
 
 /// A receipt is shared by project, repository, gate and filtered tree, independent

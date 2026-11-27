@@ -849,7 +849,7 @@ fn prepare_request(domain: &Domain, task: u64, limit: u32, head_trailers: &[Head
                 break;
             }
         }
-        let text = forge::member_message::Member {
+        let text = temper_protocol_member_message::Member {
             title: &change.title,
             words: &change.report,
             change: member.change,
@@ -858,9 +858,12 @@ fn prepare_request(domain: &Domain, task: u64, limit: u32, head_trailers: &[Head
             goal: change.goal,
             head_trailers: trailers,
         };
-        let message =
-            forge::member_message::commit_message(&text, forge::member_message::Kind::Merge { into_main: main });
-        let squash = forge::member_message::commit_message(&text, forge::member_message::Kind::Squash);
+        let message = temper_protocol_member_message::commit_message(
+            &text,
+            temper_protocol_member_message::Kind::Merge { into_main: main },
+        );
+        let squash =
+            temper_protocol_member_message::commit_message(&text, temper_protocol_member_message::Kind::Squash);
         members
             .push(PrepareMember {
                 number: u64::try_from(index).ok()?.checked_add(1)?,

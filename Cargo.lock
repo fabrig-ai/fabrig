@@ -6818,6 +6818,7 @@ dependencies = [
  "temper-engine-domain-ways",
  "temper-limits-fixtures",
  "temper-protocol-brief",
+ "temper-protocol-member-message",
  "temper-protocol-reaches",
  "temper-protocol-worker-wire",
 ]
@@ -6855,6 +6856,7 @@ dependencies = [
  "temper-engine-domain-forge-vocabulary",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
+ "temper-protocol-member-message",
  "temper-protocol-reaches",
  "temper-protocol-store",
 ]
@@ -7123,6 +7125,7 @@ dependencies = [
  "temper-engine-domain-forge-tiers",
  "temper-engine-inspect",
  "temper-faults",
+ "temper-protocol-member-message",
  "temper-protocol-reaches",
  "temper-workload",
 ]
@@ -8082,6 +8085,14 @@ version = "0.0.0"
 dependencies = [
  "skein-lib",
  "smith-domain-run",
+]
+
+[[package]]
+name = "temper-protocol-member-message"
+version = "0.0.0"
+dependencies = [
+ "skein-forge",
+ "skein-lib",
 ]
 
 [[package]]

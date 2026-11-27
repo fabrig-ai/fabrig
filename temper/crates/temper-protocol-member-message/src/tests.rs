@@ -1,5 +1,6 @@
 //! Squash trailer sources and bounds (temper/docs/design/protocol/tooling.md, 4).
-use crate::member_message::{Kind, Member, TRAILER_BYTES, commit_message, names_head, trailers};
+#![expect(clippy::disallowed_macros, reason = "ordinary test fixtures and assertions format expected messages")]
+use crate::{Kind, Member, TRAILER_BYTES, commit_message, names_head, trailers, with_head_trailers};
 
 const HEAD: [u8; 32] = [0x11; 32];
 const HEX: &str = "1111111111111111111111111111111111111111111111111111111111111111";
@@ -139,6 +140,70 @@ fn the_description_gives_way_before_whole_trailer_lines() {
             commit_message(&member, Kind::Squash).as_ref(),
             format!("{title}{paragraph}\n\n{line}\n{required}").as_bytes(),
             "{description_room} bytes left for the description",
+        );
+    }
+}
+
+#[test]
+fn checkout_head_trailers_match_the_composer() {
+    let original = member(b"Page now shows the model's week.", &[]);
+    let squash = commit_message(&original, Kind::Squash);
+    let cases: &[(&[u8], &[u8])] = &[
+        (b"Fix the page\n\nSome account.\n\nLook-request: 12\nLook-landed: 3", b"Look-request: 12\nLook-landed: 3"),
+        (b"Fix the page\n\nChange: 9\nLook-request: 12\nhEaD: ...\nPull-request: 8\nGoal: 4", b"Look-request: 12"),
+        (b"Fix the page", b""),
+        (b"Fix the page\n\nLook-request: 12\nSome account.", b""),
+    ];
+    for (head, kept) in cases {
+        let with_trailers = Member { head_trailers: kept, ..original };
+        let expected = commit_message(&with_trailers, Kind::Squash);
+        assert_eq!(with_head_trailers(&squash, head), expected, "from empty: {head:?}");
+        assert_eq!(with_head_trailers(&expected, head), expected, "from already present: {head:?}");
+    }
+}
+
+#[test]
+fn checkout_head_trailers_refit_the_description() {
+    let first = "a".repeat(65);
+    let words = format!("{first} {}", "b".repeat(958));
+    assert_eq!(words.len(), 1024);
+    let original = member(words.as_bytes(), &[]);
+    let squash = commit_message(&original, Kind::Squash);
+    let required = format!("Change: 17960\nPull-request: 6808\nHead: {HEX}\nGoal: 17816");
+    let prefix = "Look-request: ";
+    let moved = format!("\n\n{first} bb…");
+    for (room, paragraph) in [(71, moved.as_str()), (3, "")] {
+        let value_bytes = 4096 - original.title.len() - required.len() - prefix.len() - 5 - room;
+        let line = format!("{prefix}{}", "x".repeat(value_bytes));
+        let head = format!("Fix the page\n\n{line}");
+        let expected = commit_message(&Member { head_trailers: line.as_bytes(), ..original }, Kind::Squash);
+        assert_eq!(expected.as_ref(), format!("TITLE{paragraph}\n\n{line}\n{required}").as_bytes());
+        assert_eq!(with_head_trailers(&squash, head.as_bytes()), expected, "{room} bytes of room");
+        assert_eq!(
+            with_head_trailers(&expected, head.as_bytes()),
+            expected,
+            "already present with {room} bytes of room"
+        );
+    }
+}
+
+#[test]
+fn checkout_leaves_a_message_without_the_squash_shape_unchanged() {
+    let squash = commit_message(&member(b"Some account.", &[]), Kind::Squash);
+    #[expect(clippy::disallowed_methods, reason = "the test edits a composed UTF-8 fixture")]
+    let text = core::str::from_utf8(&squash).expect("composed squash is UTF-8");
+    let cases = [
+        text.replace("Change: 17960\n", ""),
+        text.replace("Pull-request: 6808\n", ""),
+        text.replace(&format!("\nHead: {HEX}"), ""),
+        text.replace(&format!("Head: {HEX}"), "Head: invalid"),
+        format!("{text}\nSome account."),
+        format!("Not the title\n\n{text}"),
+    ];
+    for malformed in cases {
+        assert_eq!(
+            with_head_trailers(malformed.as_bytes(), b"Head title\n\nLook-request: 12").as_ref(),
+            malformed.as_bytes()
         );
     }
 }
