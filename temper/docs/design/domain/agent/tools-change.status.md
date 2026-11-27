@@ -1,7 +1,8 @@
 # tools-change: status
 
-2026-11-24. Where the tree's code lags or departs from [tools-change.md](tools-change.md).
+2026-11-27. Where the tree's code lags or departs from [tools-change.md](tools-change.md).
 
+- **Not yet:** 1, `merge`: the call is refused, naming the setting, where the change's project names no `merge_job`. [in flight: change 20352]
 
 `tools-change.md`, section 1 has no known implementation gap in whole-goal child isolation:
 words-only calls and batch members use the nearest held goal branch,

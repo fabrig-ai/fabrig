@@ -1,7 +1,8 @@
 # README: status
 
-2026-11-26. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-27. Where the tree's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 1, parameter 20: a close change's start takes no parameter 20, and is refused where its project names no `close_job`. [in flight: change 20352]
 
 
 

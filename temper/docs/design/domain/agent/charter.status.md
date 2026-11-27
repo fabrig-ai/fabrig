@@ -1,7 +1,8 @@
 # charter: status
 
-2026-11-26. Where the tree's code lags or departs from [charter.md](charter.md).
+2026-11-27. Where the tree's code lags or departs from [charter.md](charter.md).
 
+- **Not yet:** 4, the conventions and *What a delivery checks*: temper's charter names no hooks directory, so `.temper/pre-pr` runs at both moments in every repository (`temper-engine-smith/src/start.rs`, `charter_with_history`). [in flight: change 20339]
 
 - **Not yet:** 4, *How long a check may take*: no run's charter names a
   checks' bound (`temper-engine-smith/src/start.rs`, `charter_with_history`).

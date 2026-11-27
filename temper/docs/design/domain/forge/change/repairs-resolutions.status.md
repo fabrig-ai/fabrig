@@ -1,7 +1,8 @@
 # repairs-resolutions: status
 
-2026-11-22. Where the tree's code lags or departs from [repairs-resolutions.md](repairs-resolutions.md).
+2026-11-27. Where the tree's code lags or departs from [repairs-resolutions.md](repairs-resolutions.md).
 
+- **Not yet:** 1, "The merge job": a conflict goes to the merge job by the project's `merge_job` alone, with no read of `.temper/hooks/` at its head. [in flight: change 20352]
 - **Not yet:** "A repair" and "A resolution": the preservation words, a resolution's instructions, full and compact, and the coding charter's line yield to the request as revised and an answer, not the current spec and rulings, and a resolution's merge-job result takes its room before the change's context [in flight: change 6059].
 
 - **Not yet:** "A resolution", a file that is not text: every pull section carries both sides of each file raw, so one binary file makes the assignment carrying it unsendable and its task held for good (`temper-engine-domain-forge/src/brief.rs`, `brief_answer`).

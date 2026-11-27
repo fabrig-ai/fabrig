@@ -1,7 +1,9 @@
 # jobs: status
 
-2026-11-25. Where the tree's code lags or departs from [jobs.md](jobs.md).
+2026-11-27. Where the tree's code lags or departs from [jobs.md](jobs.md).
 
+- **Not yet:** 2, *A hook is checked before it runs*: the worker spawns a command under `.temper/hooks/` as any other, unchecked. [in flight: change 20340]
+- **Not yet:** 2, the merge and close kinds: their command is the project's `merge_job` or `close_job` alone, never the repository's hook. [in flight: change 20352]
 
 
 `jobs.md`'s close kind is built: kind 4 is declared with its bounds,

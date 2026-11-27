@@ -17,3 +17,8 @@ detail for interpreting earlier receipts.
 - **Not yet:** 2, *Delivery and CI entry points*: `.temper/goal-pre-pr`
   writes no `temper/rerun` in a checkout without one [in flight: change
   18913].
+- **Not yet:** 1, 2 (*Delivery and CI entry points*), 3 (*Code inputs*),
+  4 (check 9) and 4.1: fabrig keeps no `.temper/hooks/`; its checks,
+  merge and close are `.temper/pre-pr`, `.temper/merge` and
+  `.temper/checked-close`, and the checker's list and the gate's scope
+  name no hook. [in flight: change 20341]
