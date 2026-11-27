@@ -3,7 +3,6 @@
 2026-11-27. Where the tree's code lags or departs from [branches.md](branches.md).
 
 
-- **Not yet:** 2, step 1: the closer makes its close step by the project's `close_job` alone, reads no `.temper/hooks/` and carries no parameter 20. [in flight: change 20352]
 
 
 

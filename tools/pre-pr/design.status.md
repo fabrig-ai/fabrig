@@ -6,8 +6,4 @@ goal check and close run candidate assertions from the snapshot. Close selects
 the published budget baseline in the source checkout. The full diagnostic is available by explicit dispatch. Sections 2–8 retain historical
 detail for interpreting earlier receipts.
 
-- **Not yet:** 1, 2 (*Delivery and CI entry points*), 3 (*Code inputs*),
-  4 (check 9) and 4.1: fabrig keeps no `.temper/hooks/`; its checks,
-  merge and close are `.temper/pre-pr`, `.temper/merge` and
-  `.temper/checked-close`, and the checker's list and the gate's scope
-  name no hook. [in flight: change 20341]
+No gap.

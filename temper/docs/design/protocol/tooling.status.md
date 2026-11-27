@@ -2,7 +2,6 @@
 
 2026-11-27. Where temper's code lags or departs from [tooling.md](tooling.md).
 
-- **Not yet:** 1, 4.1 and 4.2: the merge and close commands are the project's `merge_job` and `close_job` alone; no repository's hook is found. [in flight: change 20352]
 
 
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their

@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [engine.md](engine.md).
 
-- **Not yet:** `landing`, `merge_job` and `close_job`: each serves a repository with `.temper/hooks/` too. [in flight: change 20352]
 
 
 - **Not yet:** `landing`, a landing rule's `sets`: `LandingRule` has

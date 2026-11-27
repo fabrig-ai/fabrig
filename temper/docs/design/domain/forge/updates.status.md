@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [updates.md](updates.md).
 
-- **Not yet:** 1, *A conflict* and *A catch-up*: the merge job comes by the project's `merge_job` alone, and a catch-up reads no `.temper/hooks/` nor holds for want of a merge command. [in flight: change 20352]
 - **Not yet:**
   - 1: no supplied result shows the three-thread real-process trial
     passing after update recovery. Both styles' lost answers, retries,

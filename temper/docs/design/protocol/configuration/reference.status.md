@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [reference.md](reference.md).
 
-- **Not yet:** 2 and 4: `docs/examples/reference/landing.json` names `merge_job` and `close_job`, and fabrig's repository keeps no `.temper/hooks/`, its merge and checks at `.temper/merge` and `.temper/pre-pr`. [in flight: change 20341]
 
 
 - **Not yet:** the whole document: stage one's golden (`../../testing/README.md`, the
