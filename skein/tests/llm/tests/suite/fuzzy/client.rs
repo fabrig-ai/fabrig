@@ -1,10 +1,15 @@
-//! Seeded fragmentation, delayed grants, premature lower close and stalls.
+//! Seeded fragmentation, delayed grants, premature lower close and stalls
+//! (skein/docs/design/testing/sweeps.md, 4.2 to 4.5).
+
 use skein_llm::{Failure, client};
 use skein_llm_world::{World, call, limits, text_response};
+use skein_world::{sweep::cases, this_test};
+use std::convert::Infallible;
 
 #[test]
 fn fragmentation_and_delayed_room_keep_the_same_completion() {
-    for seed in 1..=128 {
+    let test = this_test!("fragmentation_and_delayed_room_keep_the_same_completion");
+    cases(test, 1..=128, |seed| {
         let mut world = World::new(call(seed), limits(), text_response(seed % 2 == 0), seed);
         world.fragmentation(u32::try_from(seed % 73 + 1).unwrap(), u32::try_from(seed % 7).unwrap());
         world.request(client::Request::Start);
@@ -15,14 +20,30 @@ fn fragmentation_and_delayed_room_keep_the_same_completion() {
             "seed {seed}: {:?}",
             world.seen
         );
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+}
+
+fn closing_cut(seed: u64, wire_len: usize) -> usize {
+    let len = u64::try_from(wire_len).expect("fixture length fits in u64");
+    usize::try_from(seed.wrapping_mul(17) % len).expect("cut is less than the wire length")
+}
+
+#[test]
+fn closing_cut_accepts_full_width_seeds() {
+    let wire_len = text_response(false).len();
+    // Multiplying -1 by 17 in wrapping arithmetic gives -17.
+    let wrapped = u64::MAX - 16;
+    assert_eq!(u64::try_from(closing_cut(u64::MAX, wire_len)).unwrap(), wrapped % u64::try_from(wire_len).unwrap());
 }
 
 #[test]
 fn closing_and_stalling_at_seeded_turns_never_duplicates_outcomes() {
-    for seed in 1..=128 {
+    let test = this_test!("closing_and_stalling_at_seeded_turns_never_duplicates_outcomes");
+    cases(test, 1..=128, |seed| {
         let wire = text_response(seed % 2 == 0);
-        let cut = usize::try_from(seed * 17).unwrap() % wire.len();
+        let cut = closing_cut(seed, wire.len());
         let mut world = World::new(call(seed), limits(), wire[..cut].to_vec(), seed);
         world.fragmentation(u32::try_from(seed % 19 + 1).unwrap(), 2);
         world.request(client::Request::Start);
@@ -41,7 +62,9 @@ fn closing_and_stalling_at_seeded_turns_never_duplicates_outcomes() {
         world.settle();
         world.request(client::Request::Cancel);
         world.assert_once();
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 #[test]
@@ -80,7 +103,8 @@ fn anthropic_seeded_fragmentation_and_grants_preserve_completion() {
         r#"{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":9}}"#,
         r#"{"type":"message_stop"}"#,
     ];
-    for seed in 1..=128 {
+    let test = this_test!("anthropic_seeded_fragmentation_and_grants_preserve_completion");
+    cases(test, 1..=128, |seed| {
         let mut input = call(seed);
         input.endpoint = skein_llm::Endpoint::anthropic();
         input.credential = Some(skein_llm::Credential::key(b"synthetic-oauth-token".to_vec().into()));
@@ -115,13 +139,16 @@ fn anthropic_seeded_fragmentation_and_grants_preserve_completion() {
             matches!(&answer.content[1], skein_llm::Block::Text { text, .. } if text.as_ref() == "Hello 🌍".as_bytes())
         );
         assert_eq!(world.machine.waiting(), client::Waiting::Idle);
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 #[test]
 fn randomized_receiving_limits_name_the_cap_and_the_bound_that_was_passed() {
     use skein_llm::Cap;
-    for seed in 1..=96 {
+    let test = this_test!("randomized_receiving_limits_name_the_cap_and_the_bound_that_was_passed");
+    cases(test, 1..=96, |seed| {
         let mut bounds = limits();
         let bound = u32::try_from(seed % 7 + 1).unwrap();
         let which = match seed % 6 {
@@ -191,13 +218,16 @@ fn randomized_receiving_limits_name_the_cap_and_the_bound_that_was_passed() {
         // tokens/bytes, and its SSE framing has more than seven bytes. An item
         // cap of one cannot accept its second output block.
         assert!(expected_bound < 8);
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }
 
 #[test]
 fn selective_known_events_ignore_seeded_extensions_and_field_order() {
-    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
-        for seed in 1_u64..=256 {
+    let test = this_test!("selective_known_events_ignore_seeded_extensions_and_field_order");
+    cases(test, 1..=256, |seed| {
+        for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
             let mut rng = skein_lib::Rng::new(seed);
             let noise =
                 "x".repeat(usize::try_from(rng.next_u64() % 2048).expect("seeded value fits the configured bound"));
@@ -269,5 +299,7 @@ fn selective_known_events_ignore_seeded_extensions_and_field_order() {
                 if completion.usage.input == Some(3) && completion.usage.output == Some(2)
                 && matches!(completion.content.as_ref(), [skein_llm::Block::Text { text, .. }] if text.as_ref() == b"hello"))), "{provider:?} seed {seed}: {:?}", world.seen);
         }
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }

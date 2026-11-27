@@ -18,13 +18,15 @@
 #
 #   fabrig: package(=fabrig-boundary)
 #
-# The tier profiles are browser-skein, live-skein, real-skein; live-smith,
-# real-smith, campaign-smith; live-jig, browser-jig, real-jig, campaign-jig;
+# The tier profiles are browser-skein, live-skein, real-skein, campaign-skein;
+# live-smith, real-smith, campaign-smith;
+# live-jig, browser-jig, real-jig, campaign-jig;
 # process-temper, live-temper, browser-temper, real-temper, campaign-temper;
-# conformance-hearth and real-hearth.
+# conformance-hearth, real-hearth and campaign-hearth.
 # A change to a tree's default or fuzzy clause changes its copy in real-TREE;
 # a change to its fuzzy clause also changes its copy in campaign-TREE.
-# Real pairs report the gate layers' budgets; other tiers keep their own.
+# Real pairs report the gate layers' budgets; campaigns report the gate's
+# fuzzy layer ceilings as warnings. Other tiers keep their own budgets.
 #
 # Each tree's budget was 30 s focused and 120 s fuzzy, doubled provisionally
 # at the user's request on 10-22; the workspace's is their sum, until the
@@ -309,6 +311,33 @@ slow-timeout = { period = "2000ms" }
 platform = 'cfg(target_os = "macos")'
 slow-timeout = { period = "80s" }
 
+[profile.campaign-hearth]
+junit = { path = "junit.xml", store-success-output = true, store-failure-output = true }
+default-filter = """
+(
+  package(/^hearth(-|$)/) & (kind(test) & test(/^fuzzy::/))
+) & (
+  binary_id(=hearth-accounts-world::suite)
+  | binary_id(=hearth-builder-world::simulated)
+  | binary_id(=hearth-config-world::suite)
+  | binary_id(=hearth-git-world::suite)
+  | binary_id(=hearth-mmdebstrap-world::suite)
+  | binary_id(=hearth-render-world::suite)
+  | binary_id(=hearth-template-world::suite)
+  | binary_id(=hearth-tree-world::suite)
+)
+"""
+
+# macOS doubles the inherited Linux slow periods.
+[[profile.campaign-hearth.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.campaign-hearth.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "12s" }
+
 [profile.campaign-jig]
 junit = { path = "junit.xml", store-success-output = true, store-failure-output = true }
 default-filter = """
@@ -354,6 +383,51 @@ filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
 slow-timeout = { period = "2000ms" }
 
 [[profile.campaign-jig.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "12s" }
+
+[profile.campaign-skein]
+junit = { path = "junit.xml", store-success-output = true, store-failure-output = true }
+default-filter = """
+(
+  (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))
+  & ((kind(test) | package(=skein-deflate)) & test(/^fuzzy::/))
+) & (
+  binary_id(=skein-browser-world::suite)
+  | binary_id(=skein-channel-world::suite)
+  | binary_id(=skein-codec-tests::suite)
+  | binary_id(=skein-conformance-sim::suite)
+  | binary_id(=skein-deflate)
+  | binary_id(=skein-echo-world::simulated)
+  | binary_id(=skein-fake-checkout-tests::suite)
+  | binary_id(=skein-fake-peers-tests::simulated)
+  | binary_id(=skein-forge-client-world::suite)
+  | binary_id(=skein-forge-dialect-tests::suite)
+  | binary_id(=skein-forge-protocol-world::suite)
+  | binary_id(=skein-forge-setup-world::suite)
+  | binary_id(=skein-http-world::suite)
+  | binary_id(=skein-io-world::suite)
+  | binary_id(=skein-json-world::suite)
+  | binary_id(=skein-kv-tests::simulated)
+  | binary_id(=skein-lib-tests::suite)
+  | binary_id(=skein-llm-connection-world::suite)
+  | binary_id(=skein-llm-world::suite)
+  | binary_id(=skein-oauth-accounts-world::simulated)
+  | binary_id(=skein-oauth-issuer-world::suite)
+  | binary_id(=skein-oauth-world::suite)
+  | binary_id(=skein-protocol-world::suite)
+  | binary_id(=skein-sim-tests::suite)
+  | binary_id(=skein-world-tests::simulated)
+)
+"""
+
+# macOS doubles the inherited Linux slow periods.
+[[profile.campaign-skein.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.campaign-skein.overrides]]
 platform = 'cfg(target_os = "macos")'
 slow-timeout = { period = "12s" }
 

@@ -15,6 +15,7 @@ hearth-protocol-template.workspace = true
 hearth-test-fixtures.workspace = true
 skein-scratch.workspace = true
 skein-heap.workspace = true
+skein-world.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

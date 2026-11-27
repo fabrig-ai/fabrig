@@ -329,6 +329,7 @@ dependencies = [
  "hearth-protocol-accounts",
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -489,6 +490,7 @@ dependencies = [
  "skein-checks",
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -624,6 +626,7 @@ dependencies = [
  "skein-heap",
  "skein-lib",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
@@ -692,6 +695,7 @@ dependencies = [
  "skein-checks",
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -3144,6 +3148,7 @@ dependencies = [
  "skein-scratch",
  "skein-ui",
  "skein-ui-web",
+ "skein-world",
 ]
 
 [[package]]
@@ -3161,6 +3166,7 @@ dependencies = [
  "skein-channel",
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -3186,6 +3192,7 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "skein-ui-example-view-codec",
+ "skein-world",
 ]
 
 [[package]]
@@ -3232,6 +3239,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-sim",
+ "skein-world",
 ]
 
 [[package]]
@@ -3239,6 +3247,7 @@ name = "skein-deflate"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -3336,6 +3345,7 @@ name = "skein-fake-checkout-tests"
 version = "0.0.0"
 dependencies = [
  "skein-fake-checkout",
+ "skein-world",
 ]
 
 [[package]]
@@ -3627,6 +3637,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
@@ -3684,6 +3695,7 @@ dependencies = [
  "skein-http",
  "skein-io",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -3718,6 +3730,7 @@ dependencies = [
  "skein-lib",
  "skein-rows",
  "skein-tls-kit",
+ "skein-world",
 ]
 
 [[package]]
@@ -3767,6 +3780,7 @@ dependencies = [
  "skein-lib",
  "skein-protocol-kit",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
@@ -3818,6 +3832,7 @@ dependencies = [
  "skein-lib",
  "skein-protocol-kit",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
@@ -3857,6 +3872,7 @@ version = "0.0.0"
 dependencies = [
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -3953,6 +3969,7 @@ dependencies = [
  "skein-llm",
  "skein-llm-kit",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
@@ -4028,6 +4045,7 @@ dependencies = [
  "skein-oauth",
  "skein-oauth-issuer",
  "skein-tls",
+ "skein-world",
 ]
 
 [[package]]
@@ -4043,6 +4061,7 @@ dependencies = [
  "skein-llm-kit",
  "skein-oauth",
  "skein-scratch",
+ "skein-world",
 ]
 
 [[package]]
@@ -4168,6 +4187,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-sim",
+ "skein-world",
 ]
 
 [[package]]

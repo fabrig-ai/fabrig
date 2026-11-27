@@ -6,14 +6,17 @@
 //! body's CRC-32 and its length. Round trips through an inflater are the
 //! focused tests' (skein-deflate's `src/tests/gzip.rs`).
 //!
-//! A sweep asserts that what it injects fell (testing-strategy.md, 3): each
-//! kind of body, a body past one block, and members stored at the bound
+//! The gate checks reach across its seeds (`skein/docs/design/testing/sweeps.md`, 4):
+//! each kind of body, a body past one block, and members stored at the bound
 //! and coded well under it.
 
 use std::collections::BTreeMap;
+use std::convert::Infallible;
 
 use skein_deflate::gzip;
 use skein_lib::Rng;
+use skein_world::sweep::{cases, gate};
+use skein_world::this_test;
 
 const ROUNDS: u64 = 100;
 
@@ -128,8 +131,10 @@ fn crc(body: &[u8]) -> u32 {
 #[test]
 fn every_member_is_within_its_bound_framed_and_the_same_for_the_same_body() {
     let mut fell: BTreeMap<String, u32> = BTreeMap::new();
-    for round in 0..ROUNDS {
-        let seed = 0x00a1_0000 + round;
+    let at_gate = gate();
+    let base = 0x00a1_0000;
+    let test = this_test!("every_member_is_within_its_bound_framed_and_the_same_for_the_same_body");
+    cases::<_, Infallible, _>(test, base..base + ROUNDS, |seed| {
         let mut rng = Rng::new(seed);
         let kind = one_of(&mut rng, &[Kind::Random, Kind::Runs, Kind::Words, Kind::Copies, Kind::Mixed]);
         let length = length(&mut rng);
@@ -157,16 +162,23 @@ fn every_member_is_within_its_bound_framed_and_the_same_for_the_same_body() {
         let mut less = vec![0_u8; bound - short];
         assert_eq!(gzip::encode(&body, &mut less), None, "seed {seed:#x}: room short by {short} taken");
 
-        *fell.entry(format!("{kind:?}")).or_default() += 1;
-        if body.len() > BLOCK {
-            *fell.entry("past one block".into()).or_default() += 1;
+        if at_gate {
+            *fell.entry(format!("{kind:?}")).or_default() += 1;
+            if body.len() > BLOCK {
+                *fell.entry("past one block".into()).or_default() += 1;
+            }
+            if written == bound {
+                *fell.entry("stored at the bound".into()).or_default() += 1;
+            }
+            if body.len() >= 1_000 && written * 3 < body.len() {
+                *fell.entry("coded under a third".into()).or_default() += 1;
+            }
         }
-        if written == bound {
-            *fell.entry("stored at the bound".into()).or_default() += 1;
-        }
-        if body.len() >= 1_000 && written * 3 < body.len() {
-            *fell.entry("coded under a third".into()).or_default() += 1;
-        }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if !at_gate {
+        return;
     }
     for what in
         ["Random", "Runs", "Words", "Copies", "Mixed", "past one block", "stored at the bound", "coded under a third"]
