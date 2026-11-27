@@ -56,6 +56,7 @@ pub struct Joint {
     pub stopped: Vec<(u16, skein_forge_connection::Stopped)>,
     rng: Rng,
     cut_chance: u32,
+    protect_forgejo_startup: bool,
     direct: Option<Result<raw::Answer, raw::Error>>,
     closed_counts: RequestCounts,
     starts: StartCounts,
@@ -200,6 +201,7 @@ impl Joint {
             stopped: Vec::new(),
             rng: Rng::new(seed),
             cut_chance,
+            protect_forgejo_startup: false,
             direct: None,
             closed_counts: RequestCounts::default(),
             starts: StartCounts::default(),
@@ -212,6 +214,10 @@ impl Joint {
         };
         world.component.begin(&world.env, &mut world.above, &mut world.below);
         world
+    }
+    /// Keeps Forgejo's startup connections uncut; call connections still draw cuts.
+    pub fn protect_forgejo_startup(&mut self) {
+        self.protect_forgejo_startup = true;
     }
     pub fn call(&mut self, call: u64, repository: api::Repository, op: api::Op) {
         self.action(Request::Call { call: Token::new(call), repository, op });
@@ -461,6 +467,14 @@ impl Joint {
             skein_io::Request::Connect { owner, .. } => {
                 let cut =
                     if self.rng.chance(self.cut_chance) { Cut::At(self.rng.between(0, 2048)) } else { Cut::Never };
+                let cut = if self.protect_forgejo_startup
+                    && self.forges.iter().any(|&forge| {
+                        !matches!(self.component.start(forge), Some(skein_forge_connection::start::Start::Ready { .. }))
+                    }) {
+                    Cut::Never
+                } else {
+                    cut
+                };
                 let mut peer = Peer {
                     heads: std::collections::VecDeque::new(),
                     line_indices: Vec::new(),

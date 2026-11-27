@@ -3670,6 +3670,7 @@ dependencies = [
  "skein-http",
  "skein-io",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
