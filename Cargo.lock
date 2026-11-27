@@ -3144,6 +3144,7 @@ dependencies = [
  "skein-channel",
  "skein-heap",
  "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
