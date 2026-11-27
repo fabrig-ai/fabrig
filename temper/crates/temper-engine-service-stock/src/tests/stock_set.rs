@@ -19,6 +19,7 @@ fn the_stock_set_holds_exactly_five_files_and_assembles_both_charters() {
         let text = std::fs::read_to_string(entry.path()).unwrap();
         assert!(text.ends_with('\n') && !text.ends_with("\n\n"));
         assert!(!text.contains("claude-") && !text.contains("gpt-"), "{name}");
+        assert_no_repository_path(&name, &text);
         assert!(names.insert(name));
     }
     assert_eq!(
@@ -70,8 +71,70 @@ fn the_stock_set_holds_exactly_five_files_and_assembles_both_charters() {
     assert!(coder.parts.is_empty());
 }
 
+fn assert_no_repository_path(name: &str, text: &str) {
+    for path in ["docs/", "skein/", "smith/", "jig/", "temper/", "hearth/", "tools/", "examples/", ".config/"] {
+        assert!(!text.contains(path), "{name}: repository path {path}");
+    }
+    for word in text.split(|ch: char| !ch.is_alphanumeric() && !"._-".contains(ch)) {
+        let file = word.trim_end_matches('.');
+        let markdown = file.rsplit_once('.').is_some_and(|(_, extension)| extension == "md");
+        assert!(!markdown || file == "AGENTS.md", "{name}: Markdown file {file}");
+    }
+}
+
 fn assembled_goal() -> temper_charter_set::GoalAgent<Reasons> {
     temper_charter_set::goal_agent(&crate::stock::charter_set(), |name| Reasons::named(name.as_bytes())).unwrap()
+}
+
+#[test]
+fn the_goal_specs_keep_only_steps_at_the_boundary() {
+    let assembled = assembled_goal();
+    let instructions = core::str::from_utf8(&assembled.instructions).unwrap();
+    assert!(instructions.contains("- `## Steps`: exactly what crosses the change's boundary (the public names, types and signatures other changes or the design rely on, cited by the design's section) and the order where order matters. No sketch of the code's shape and no example until a change's question or report shows it needs one. The rest is the implementer's. No estimate and no test commands: the implementer runs only its new tests and repairs, and delivery runs the checks."));
+    assert!(!instructions.contains("sketch the code's place"));
+    assert!(instructions.contains("- **Joined where changes meet:** where two changes meet at a line, wire or file format, a test runs one's output through the other, in the spec of the one whose `after` names the other."));
+    let report = instructions.split("\n\n").find(|paragraph| paragraph.starts_with("**Your report note:**")).unwrap();
+    assert!(report.contains("What the request asks for in its result goes in the body too."));
+    let change = instructions.split("\n\n").find(|paragraph| paragraph.starts_with("**A change** for code")).unwrap();
+    assert!(change.contains("While the change deleting the goal's contracts document is live, `amend` its `after` to name each change you cut."));
+}
+
+#[test]
+fn the_designer_keeps_a_lean_design_and_temporary_contracts() {
+    let assembled = assembled_goal();
+    let part = assembled.parts.first().unwrap();
+    assert_eq!(part.reasons.as_ref(), &[Reasons::FIRST]);
+    let designer = core::str::from_utf8(&part.text).unwrap();
+    assert!(designer.contains("1. **A lean design, eventually.** Every part of the request designed, in documents that outlast the goal. They keep concepts and their rules, invariants and transitions, stored formats and wires, failures and their order, order and time, trust, the edges between areas, and why; they leave to the code the types, fields and steps that no other area reads."));
+    assert!(!designer.contains("A complete design, eventually"));
+    assert!(designer.contains("- **A wave's design** comes before its changes: the sections the request asks for, keeping what a lasting design keeps, with wire and stored forms; the shapes its changes share and no other area reads (types, fields, signatures) as binding contracts in the goal's contracts document, a document of the goal's own named `contracts`, beside the area's design and with its own status where the project keeps status, which no lasting document cites; both by path and section; and the status the project keeps, as it will stand once the goal lands. Never edit the draft's text. `deliver` it before you cut the changes that cite it, by path and section."));
+    assert!(!designer.contains("and the shapes that cross changes (types, fields, signatures, wire forms)"));
+    assert!(designer.contains("- **Fewer concepts:** your note lists the concepts the goal adds and removes, with every public type it adds or removes, test kits' included."));
+    assert!(designer.contains("- **The contracts document goes:** where the goal has one, cut a last change before you park, after every other, that deletes it and its status."));
+}
+
+#[test]
+fn the_coordinator_prefers_fewer_concepts_and_corrects_the_design_on_results() {
+    let assembled = assembled_goal();
+    let questions = assembled.parts.iter().find(|part| part.reasons.contains(&Reasons::QUESTION)).unwrap();
+    let questions = core::str::from_utf8(&questions.text).unwrap();
+    assert!(questions.contains("- **Decide** by the design and spec, preferring the design's shape and, among options that keep it, the one with fewer concepts; accept a simplification that keeps the behaviour and the lasting design true. If wrong or missing a shared shape, revise and `deliver` it before answering, a shape the changes share going in the contracts document, with a **Design departs** entry for what is built differently."));
+    assert!(!questions.contains("preferring the design's shape. If wrong or missing a shared shape"));
+    let results = assembled.parts.iter().find(|part| part.reasons.contains(&Reasons::RESULT)).unwrap();
+    let mut lines = core::str::from_utf8(&results.text).unwrap().lines();
+    let ended = lines.find(|line| line.starts_with("- **A change ended**")).unwrap();
+    assert!(ended.ends_with("With nothing left to cut, park: the closer lands the goal."));
+    let detail = lines.next().unwrap();
+    assert!(detail.starts_with("- **Detail on demand:**"));
+    assert!(detail.contains("- **Detail on demand:** where a finished change's report, its `## Left` and `## Simpler` included, shows the design or a spec short or untrue, correct it before you park: what a lasting design keeps in the design, a shape changes share in the contracts document, the rest in the specs still to run, by `amend`. Never accept such a report as outside acceptance: correct the design, or have its status say Not yet or Design departs. Each correction goes in your note: what was missing or wrong, what showed it, and where it went."));
+}
+
+#[test]
+fn the_implementer_reports_simplifications() {
+    let engine = engine(&generated());
+    let coder = engine.charters.iter().find(|charter| charter.number == 2).unwrap();
+    let instructions = core::str::from_utf8(&coder.policy.instructions).unwrap();
+    assert!(instructions.contains("- **Say where it repeats:** where the design or your spec makes you write the same thing twice, or a type with no behaviour of its own, say so: as a question when the simpler form crosses your change's edge, otherwise under `## Simpler` in your report, naming the place and the simpler form."));
 }
 
 #[test]
