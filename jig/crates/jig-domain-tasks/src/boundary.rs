@@ -1075,6 +1075,12 @@ pub enum Event {
         by: Party,
         operation: crate::Release,
     },
+    /// Root-checked release of a held procedure for fresh measurement.
+    Measure {
+        reply_to: ReplyTo,
+        by: Party,
+        task: u64,
+    },
     /// Root-checked amendment of a live delegate, with a fresh commit-order message number.
     Amend {
         /// The core verified that the task tree's requester reads its project at admission.

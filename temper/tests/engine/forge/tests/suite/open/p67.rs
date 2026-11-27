@@ -106,4 +106,50 @@ fn a_no_change_landing_repair_regates_once() {
         })
         .expect("receipt at the regated key");
     assert_ne!(replacement.run.id, failed.run.id, "the fresh run replaces the failed receipt");
+    let second_run = replacement.run.id;
+    measure_again(&mut world, &key, second_run);
+}
+
+fn measure_again(world: &mut temper_engine_forge_world::World, key: &top::ReceiptKey, second_run: u64) {
+    for entry in 700..740 {
+        if landings::step_landing(world, 62, entry) == landing::Decision::Finish {
+            break;
+        }
+    }
+    let stopped = changes::change_step_task(world, CHANGE, 800, change::Status::Passed, Box::new([]), false, false);
+    assert_eq!(stopped, change::Decision::Hold(change::Cause::RedStands));
+    world.take_calls();
+    let release = top::TaskRelease { revision: 3, at: world.wall(), measure: true };
+    world.event(top::Event::ReleaseChange { task: CHANGE, release: Some(release.clone()) });
+    world.restart();
+    world.event(top::Event::ReleaseChange { task: CHANGE, release: Some(release) });
+    for entry in 801..821 {
+        changes::change_step_task(world, CHANGE, entry, change::Status::Passed, Box::new([]), false, false);
+        if matches!(world.change(CHANGE).change.state, change::State::Ready { .. }) {
+            break;
+        }
+    }
+    assert_eq!(world.change(CHANGE).regate, Some(top::Regate { receipt: key.clone(), run: second_run, taken: None }));
+    let mut row = landings::landing_row(world.change(CHANGE));
+    row.landing.task = 63;
+    row.landing.round = landing::Round::new(b"temper/1/l63".as_slice().into());
+    row.landing.members[0].branch.clone_from(&row.landing.round.branch);
+    landings::register(world, row);
+    for entry in 900..980 {
+        if matches!(landings::step_landing(world, 63, entry), landing::Decision::Leave { .. }) {
+            break;
+        }
+    }
+    let measured = world
+        .change(CHANGE)
+        .regate
+        .as_ref()
+        .expect("measurement identity")
+        .taken
+        .expect("new dispatch took the measurement");
+    assert_ne!(measured, second_run);
+    assert_eq!(world.change(CHANGE).change.repairs, 1);
+    let reruns =
+        world.take_calls().into_iter().filter(|op| matches!(op, api::Op::Write(api::Write::Dispatch { .. }))).count();
+    assert_eq!(reruns, 1, "the accepted act dispatches at the failed key once");
 }

@@ -175,7 +175,9 @@ pub fn scene(tree: &Tree, node: NodeId) -> Scene {
 pub fn named(ask: &Ask) -> Vec<(Object, Revision)> {
     match ask {
         Ask::Lift { hold, revision, .. } => vec![(Object::PlacedHold(*hold), *revision)],
-        Ask::Release { task, revision, .. } | Ask::Decide { on: DecideOn::Escalation { task, revision, .. }, .. } => {
+        Ask::Measure { task, revision, .. }
+        | Ask::Release { task, revision, .. }
+        | Ask::Decide { on: DecideOn::Escalation { task, revision, .. }, .. } => {
             vec![(Object::Escalation(*task), *revision)]
         }
         Ask::Amend { task, revision, change, .. } => amendment(*task, *revision, change),

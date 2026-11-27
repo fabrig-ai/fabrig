@@ -469,6 +469,7 @@ MeModel: ceilings encoded=6589 decoded=6688; at_most(3) encoded=138 decoded=81
 MeParty: ceilings encoded=131091 decoded=131072; at_most(3) encoded=25 decoded=6
 MePrices: ceilings encoded=37 decoded=0; at_most(3) encoded=37 decoded=0
 MeProject: ceilings encoded=102280231 decoded=102496384; at_most(3) encoded=1192 decoded=2196
+Measure: ceilings encoded=20 decoded=0; at_most(3) encoded=20 decoded=0
 Member: ceilings encoded=16777252 decoded=16777216; at_most(3) encoded=39 decoded=3
 Message: ceilings encoded=65552 decoded=65536; at_most(3) encoded=19 decoded=3
 MessageKind: ceilings encoded=4194570 decoded=4195328; at_most(3) encoded=52 decoded=114

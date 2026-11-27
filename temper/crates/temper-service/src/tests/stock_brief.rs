@@ -12,6 +12,13 @@ use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 use smith_domain_run as run;
 
+// stock.md: charter 5's host room less 64 section titles and framing and 66 bytes spare.
+const CHARTER_5_HOST_ROOM: u32 = 317_460;
+const STOCK_BRIEF_BYTES: u32 = 315_922;
+const FRAMING: u32 = 64 * (16 + 7);
+const MARGIN: u32 = 66;
+const REFERENCE_SPEC_BYTES: usize = 63_740;
+
 fn configured() -> smith_agent_shell::config::Configuration {
     let mut configuration =
         fixtures::stock_configuration(63_740, 48_000).expect("stock agent with local fake destinations");
@@ -124,7 +131,7 @@ fn red_is_offered_only_to_stock_delegators_with_room_for_their_briefs() {
         if number == 5 {
             let room = run::brief_room(&charter, Some(&workspace(true)), &limits).unwrap();
             eprintln!("red charter 5 with workspace: room={room}");
-            assert!(room >= 318_046 + 64 * (16 + 7) + 66, "charter 5's pinned whole-brief margin: {room}");
+            assert!(room >= STOCK_BRIEF_BYTES + FRAMING + MARGIN, "charter 5's pinned whole-brief margin: {room}");
         }
         assert_eq!(
             charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == b"red"),
@@ -216,8 +223,8 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
             // Six boxed alternative LLMs carry an 80-byte optional speed:
             // 16 each for name and alias slice, 48 for prices. Main's
             // inline LLM isn't charged here, and no speed owns a payload.
-            const GOAL_CHARTER_BYTES: u64 = 59_894;
-            assert_eq!(original.owned_bytes().unwrap(), GOAL_CHARTER_BYTES);
+            const CHARTER_5_WITH_SMALL_BRIEF_OWNED: u64 = 62_102;
+            assert_eq!(original.owned_bytes().unwrap(), CHARTER_5_WITH_SMALL_BRIEF_OWNED);
 
             assert_eq!(receiving, 127_391);
             assert!(original.owned_bytes().unwrap() <= receiving, "the goal's smaller offer keeps its maximal brief");
@@ -267,12 +274,8 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
 
 #[test]
 fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
-    const FRAMING: u32 = 64 * (16 + 7);
     // Task words and contract, then the task identity and requester.
     const TASK_PARTS: u32 = 2;
-    const MARGIN: u32 = 66;
-    // The non-brief host part is 40,521 bytes within the 360,125-byte host bound.
-    const GOAL_BRIEF_ROOM: u32 = 319_604;
     const OTHER: u32 = 768;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
@@ -281,9 +284,9 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     let assignments = Assignments::new();
     let largest = temper_engine_smith::charter(&assignments.assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, GOAL_BRIEF_ROOM, "charter 5's maximal non-brief host part leaves this room");
+    assert_eq!(room, CHARTER_5_HOST_ROOM, "charter 5's maximal non-brief host part leaves this room");
 
-    assert_eq!(brief.brief_bytes, 318_046);
+    assert_eq!(brief.brief_bytes, STOCK_BRIEF_BYTES);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert!(brief.brief_bytes <= full.min(room - FRAMING));
@@ -347,15 +350,36 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     reference_spec_receiving_rows(&assignments);
 }
 
+#[test]
+fn charter_five_with_a_workspace_keeps_a_whole_spec() {
+    let limits = configured().service.limits.domain.run;
+    let mut assignment = assignment(5, false, 0);
+    assignment.sections = task_section(REFERENCE_SPEC_BYTES);
+    let charter = temper_engine_smith::charter(&assignment);
+    let mounted = workspace(true);
+    let mut fitted = temper_engine_smith::charter(&assignment);
+    temper_protocol_brief::fit_brief(&mut fitted, Some(&mounted), &limits);
+    assert!(fitted == charter, "charter 5 cut a {REFERENCE_SPEC_BYTES}-byte spec");
+    assert!(fitted.owned_bytes().unwrap() <= run::charter_room(Some(&mounted), &limits).unwrap());
+    assert!(
+        run::brief_bytes(&fitted.brief).unwrap()
+            <= u64::from(run::brief_room(&fitted, Some(&mounted), &limits).unwrap())
+    );
+}
+
+fn task_section(bytes: usize) -> Box<[temper_engine_domain::BriefSection]> {
+    Box::new([temper_engine_domain::BriefSection {
+        kind: temper_engine_domain::BriefKind::Core(jig_domain_brief::Core::Task),
+        body: temper_engine_domain::BriefBody::Text(vec![b's'; bytes].into()),
+    }])
+}
+
 fn reference_spec_receiving_rows(assignments: &Assignments) {
     let configuration = fixtures::stock_configuration(63_740, 48_000).expect("reference agent");
     let limits = configuration.service.limits.domain.run;
     let mut assignment = assignments.assignment(2, false, 0);
     assignment.run.policy = crate::tests::reference_settings::charter(&assignments.defaults, 2).policy;
-    assignment.sections = Box::new([temper_engine_domain::BriefSection {
-        kind: temper_engine_domain::BriefKind::Core(jig_domain_brief::Core::Task),
-        body: temper_engine_domain::BriefBody::Text(Box::default()),
-    }]);
+    assignment.sections = task_section(0);
     let empty = temper_engine_smith::charter(&assignment);
     let mounted = workspace(true);
     let owned_room = run::charter_room(Some(&mounted), &limits).unwrap();
@@ -366,9 +390,9 @@ fn reference_spec_receiving_rows(assignments: &Assignments) {
         .min(rendered_room.checked_sub(run::brief_bytes(&empty.brief).unwrap()).unwrap());
     let room = usize::try_from(room).unwrap();
     eprintln!("reference coding section room={room}");
-    assert!(room >= 63_740, "the reference coding charter must hold a whole spec");
+    assert!(room >= REFERENCE_SPEC_BYTES, "the reference coding charter must hold a whole spec");
     let past_room = room.checked_add(1).unwrap();
-    for (size, whole) in [(63_740, true), (room, true), (past_room, false), (131_072, false)] {
+    for (size, whole) in [(REFERENCE_SPEC_BYTES, true), (room, true), (past_room, false), (131_072, false)] {
         let mut charter = temper_engine_smith::charter(&assignment);
         charter.brief.sections[0].text = vec![b's'; size].into();
         let mut original = temper_engine_smith::charter(&assignment);

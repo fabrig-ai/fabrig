@@ -10,7 +10,7 @@ use std::convert::Infallible;
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as landing;
-use temper_engine_forge_world::{World, changes, fake_config, landings::LANDING, translate};
+use temper_engine_forge_world::{World, changes, fake_config, landings::LANDING, open, translate};
 use temper_faults::{
     forge::{CLOSED_BY_ANOTHER as CLOSED, MERGE_LATE, MERGED_BY_ANOTHER as MERGED},
     stale::{MOVED_BASE, REOPENED, SQUASHED, STALE},
@@ -96,7 +96,7 @@ fn close_and_release(world: &mut World, task: u64) {
     let injection = world.inject(CLOSED, Struck { request: Some(pull.to_string()), ..Struck::default() });
     assert_eq!(world.external_now(raw::Op::Write(raw::Write::Close { number: pull }), 2), raw::Answer::Done);
     world.stop(injection);
-    assert_eq!(step(world, task, 80_001, false), change::Decision::Hold(change::Hold::PullClosed));
+    assert_eq!(step(world, task, 80_001, false), change::Decision::Hold(change::Cause::PullClosed));
     world.event(top::Event::ReleaseChange { task, release: None });
     assert_eq!(step(world, task, 80_002, true), change::Decision::Effect(change::Effect::Reopen));
     assert_eq!(step(world, task, 80_003, false), change::Decision::Ready);
@@ -110,7 +110,7 @@ fn stale_state_keeps_the_opens_invariants() {
     for kind in STALE {
         sweep.configure(kind);
     }
-    super::lagging::exclude_records(&mut sweep);
+    open::exclude(&mut sweep, &STALE).expect("narrow stale-view exclusions");
     let mut own_late_merges = 0;
     let mut skipped = 0;
     cases(test, 1..=8, |seed| {
@@ -131,7 +131,8 @@ fn stale_state_keeps_the_opens_invariants() {
     if at_gate {
         assert!(own_late_merges > 0, "an engine merge's record arrived after a later visible write");
         eprintln!("{own_late_merges} seeds observed the engine's own merge behind a later write");
-        eprintln!("{}: {} draws left out", super::lagging::LATE_RECORD, sweep.left_out(super::lagging::LATE_RECORD));
+        let scenario = open::MERGE_LATE_RECORD.scenario;
+        eprintln!("{scenario}: {} draws left out", sweep.left_out(scenario));
     }
     sweep.check_fell().expect("configured stale sequences fell");
 }

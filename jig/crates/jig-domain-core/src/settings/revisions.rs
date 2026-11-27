@@ -111,7 +111,11 @@ impl Core {
 }
 
 pub(crate) fn moved_hold(revision: u64, why: tasks::Hold) -> people::Refusal {
-    people::Refusal::Moved { now: people::Moved::Hold { revision, reason: hold_reason(why) } }
+    people::Refusal::Moved { now: hold_change(revision, why) }
+}
+
+pub(crate) fn hold_change(revision: u64, why: tasks::Hold) -> people::Moved {
+    people::Moved::Hold { revision, reason: hold_reason(why) }
 }
 
 fn hold_reason(why: tasks::Hold) -> people::HoldReason {

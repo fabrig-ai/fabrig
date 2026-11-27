@@ -69,6 +69,7 @@ mod review;
 mod two_workers;
 mod walk;
 pub mod workload;
+pub use workload::faults::{CAMPAIGN_KINDS, FaultDraw, GATE_KINDS};
 
 pub use agreement::call;
 pub use delegates::survey_delegation;
@@ -570,7 +571,7 @@ impl World {
         script: Script,
         repository: bool,
         config: engine::Config,
-        limits: fn(&mut engine::Limits),
+        limits: impl FnOnce(&mut engine::Limits),
     ) -> Self {
         Self::configured_case(seed, script, repository, config, limits, (repository_forge(seed), link::default_forge()))
     }
@@ -580,7 +581,7 @@ impl World {
         script: Script,
         repository: bool,
         config: engine::Config,
-        limits: fn(&mut engine::Limits),
+        limits: impl FnOnce(&mut engine::Limits),
         (forge, forge_binding): (Forge, temper_engine_service_vocabulary::settings::Forge),
     ) -> Self {
         let (mut config, mut bounds) = configured_parts(config, repository);
@@ -706,7 +707,9 @@ impl World {
                 self.funded = true;
                 self.fund();
             }
-            if let Some(event) = self.root_events.pop_front() {
+            if let Some(event) = self.workload_close_reply().or_else(|| self.root_events.pop_front())
+                && let Some(event) = self.current_workload_request(event)
+            {
                 self.root_step(event);
             }
             let previous = self.store.applied;
@@ -764,7 +767,8 @@ impl World {
         }
         self.account_observe();
         self.workload_tick();
-        self.workload_fault_tick();
+        let result = self.workload_fault_tick();
+        self.keep_finding(result)?;
         for lane in &mut self.lanes {
             lane.worker.reclaim();
         }
@@ -788,6 +792,7 @@ impl World {
     fn engine_quiet(&self) -> bool {
         self.absence.engine_running
             && self.root_events.is_empty()
+            && !self.workload_close_waiting()
             && self.root_out.is_empty()
             && self.store.idle()
             && self.root.quiescent()
@@ -797,6 +802,7 @@ impl World {
     /// Visit retained bounds before a story's jump or the next grid tick.
     fn try_move_to(&mut self, at: Time) -> Result<(), String> {
         assert!(at >= self.env.now, "the story clock moves forward");
+        let at = self.workload_fetch_deadline().map_or(at, |deadline| at.min(deadline));
         if let Some(finding) = &self.finding {
             return Err(finding.clone());
         }
@@ -878,6 +884,7 @@ impl World {
     }
 
     fn worker_tick(&mut self, at: usize) {
+        self.workload_cut_fetch(at);
         let lane = &mut self.lanes[at];
         if let Some(event) = lane.worker_events.pop_front() {
             worker::step(&mut lane.worker, &lane.worker_env, event, &mut lane.worker_out);
@@ -1410,6 +1417,20 @@ impl World {
     }
 
     fn forge(&mut self, call: Token, repository: skein_forge::api::Repository, op: &skein_forge::api::Op) {
+        if self.hold_workload_close(call, repository, op) {
+            return;
+        }
+        let reply = self.forge_event(call, repository, op);
+        self.workload_forge_reply(op, reply);
+        self.workload_forge_answer(op);
+    }
+
+    fn forge_event(
+        &mut self,
+        call: Token,
+        repository: skein_forge::api::Repository,
+        op: &skein_forge::api::Op,
+    ) -> engine::Event {
         assert_eq!(repository.forge, self.forge_binding.number);
         let expected = self.walk.as_ref().map_or(temper_engine_forge_world::REPO.repository, |walk| walk.repository);
         assert!(repository.repository == 0 || repository.repository == expected);
@@ -1419,7 +1440,8 @@ impl World {
         let located = temper_engine_forge_world::translate::locate_name(op);
         let name = located.as_deref().unwrap_or(&self.repository_name);
         let raw = api::op(op, client);
-        let result = match self.forge.api_configured(name, self.forge_binding.user, raw, config) {
+        let reopen = self.workload_reopen_point(name, &raw);
+        let mut result = match self.forge.api_configured(name, self.forge_binding.user, raw, config) {
             Ok(answer) => {
                 let mut answer = api::answer(op, answer, client);
                 if let Ok(skein_forge::api::Answer::Run(run)) = &mut answer {
@@ -1443,14 +1465,32 @@ impl World {
                 skein_fake_forge_domain::time(&temper_worker_checkout_world::forge::config(), self.env.now),
             )),
         };
-        self.workload_forge_reply(
-            op,
-            engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
-                skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result },
-            ))),
-        );
-        let _moves = self.forge.moves();
-        self.workload_forge_answer(op);
+        let moves = self.forge.moves();
+        if let Some((number, before)) = reopen {
+            self.workload_reopen_after_close(number, before);
+        }
+        match &mut result {
+            Ok(skein_forge::api::Answer::Pull(pull)) => self.workload_base_behind_reply(op, pull),
+            Ok(skein_forge::api::Answer::Merged(to))
+                if matches!(
+                    op,
+                    skein_forge::api::Op::Write(skein_forge::api::Write::Merge {
+                        how: skein_forge::api::MergeHow::Style | skein_forge::api::MergeHow::FastForwardOnly,
+                        ..
+                    })
+                ) =>
+            {
+                self.workload_base_advance(&moves, *to);
+            }
+            _ => {}
+        }
+        engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(skein_forge_client::Event::Answered {
+            free: 0,
+            rate: None,
+            call,
+            cost: 1,
+            result,
+        })))
     }
 
     fn lane(&self, channel: Token) -> usize {
@@ -1748,8 +1788,11 @@ impl World {
             "answer {run:?}; current assignment {:?}",
             lane.assignment.as_ref().map(|assignment| assignment.task)
         );
-        if let host::Ending::Refused(_) = &answer.ending {
-            assert!(process.prepared(), "refusal precedes a process");
+        if matches!(
+            &answer.ending,
+            host::Ending::Refused(_) | host::Ending::Failed { failure: host::Failure::Unprepared(_), .. }
+        ) {
+            assert!(process.prepared(), "refusal or failed checkout precedes a process");
         } else {
             match (&answer.ending, process.agent().answer()) {
                 (host::Ending::Ended { outcome, .. }, run::Answer::Accepted { outcome: declared, .. }) => {
@@ -1948,24 +1991,36 @@ impl World {
                 let activity = worker_protocol::activity(&body);
                 self.lanes[at].worker_events.push_back(worker::Event::Activity { owner, activity });
             }
-            worker::Request::Io { owner, op, .. } => {
+            worker::Request::Io { owner, op, deadline } => {
                 self.observed.checkouts += 1;
                 self.forge.at(self.env.now);
                 let op = forge_operation(op, &self.forge_binding.git);
                 self.observe_merge_fetch(&op);
                 self.observe_close_io(&op);
-                let done = self.workload_io(at, owner, op);
-                self.lanes[at].worker_events.push_back(worker::Event::Done { owner, done });
-                let _moves = self.forge.moves();
+                let pushed = match &op {
+                    worker::checkout::git::Op::Push { commit, .. } => Some(*commit),
+                    _ => None,
+                };
+                let done = self.workload_io(at, owner, op, deadline);
+                let moves = self.forge.moves();
+                if let Some(to) = pushed
+                    && !moves.is_empty()
+                {
+                    let to = temper_worker_checkout_world::translate::fake(to);
+                    self.workload_base_advance(&moves, temper_engine_forge_world::translate::commit(to));
+                }
+                if let Some(done) = done {
+                    self.lanes[at].worker_events.push_back(worker::Event::Done { owner, done });
+                }
             }
-            // Diagnostics do not affect the story. IO ends at once, winning the cancellation race.
+            worker::Request::CancelIo { owner } => self.workload_cancel_fetch(at, owner),
+            // Diagnostics do not affect the story.
             worker::Request::Paused { .. }
             | worker::Request::Git { .. }
             | worker::Request::AgentSignalled { .. }
             | worker::Request::AgentStopped { .. }
             | worker::Request::Unprepared { .. }
-            | worker::Request::ResultsIgnored { .. }
-            | worker::Request::CancelIo { .. } => {}
+            | worker::Request::ResultsIgnored { .. } => {}
         }
     }
 

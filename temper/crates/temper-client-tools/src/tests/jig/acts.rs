@@ -712,6 +712,97 @@ fn a_plain_change_release_and_an_agents_repeat_still_reach_the_engine() {
     }
 }
 
+#[test]
+fn a_keyed_measure_sends_the_task_project_and_replays_after_lifting_the_hold() {
+    let mut root = fixtures::signed_in(fixtures::PARTY);
+    let argv = ["task", "measure", "41", "--hold", "9", "--key", "measure-41"];
+    let mut task = fixtures::offered(&[]);
+    task.project = 7;
+    task.chip.executor = c::ChipExecutor::Procedure { connector: temper_client_protocol_wire::FORGE, kind: 2 };
+    let held = fixtures::held_task(task.clone(), c::HoldCategory::Procedure);
+    for document in [held, task] {
+        let call = root.submit(&argv);
+        assert_eq!(root.reads.get(&call).unwrap().1, c::Read::Task { task: 41 });
+        root.serve(call, fixtures::task_result(document));
+        assert_eq!(root.sent_name(call), Some(fixtures::named("measure-41")));
+        let jig_client::Ask::Jig(ask) = &root.sends.get(&call).expect("the keyed measure reached jig").2 else {
+            panic!("jig request")
+        };
+        assert_eq!(**ask, c::Ask::Measure { project: 7, task: 41, revision: c::Revision { value: 9 } });
+        root.done(call, c::Outcome::Document(c::DocumentOutcome::Released { task: 41 }));
+        let printed = root.answer(call).expect("release answer, including the replay");
+        assert_eq!((printed.status, printed.stdout.as_ref()), (0, b"done: task 41, release\n".as_slice()));
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the test surrounds each expected recovery with its text or JSON field")]
+fn measure_recovers_from_not_offered_using_the_read_hold() {
+    let placed_without_revision = fixtures::held_task(fixtures::offered(&[]), c::HoldCategory::Placed { hold: 12 });
+    let mut placed = placed_without_revision.clone();
+    placed.hold.as_mut().unwrap().placed = Some(c::PlacedHold {
+        number: 12,
+        owner: c::HoldOwner::Party { person: fixtures::PARTY },
+        scope: c::HoldScope::Subtree { task: 41 },
+        mode: c::HoldMode::Stop,
+        reason: b"parked".as_slice().into(),
+        placed_at: fixtures::DECIDED_AT,
+        revision: c::Revision { value: 3 },
+        lifted: false,
+        may_lift: true,
+    });
+    let uncertain = fixtures::held_task(fixtures::offered(&[]), c::HoldCategory::Uncertain { entry: 13 });
+    let agent = fixtures::held_task(fixtures::offered(&[]), c::HoldCategory::Stopped);
+    for (task, next) in [
+        (placed, "hold lift 12 --rev 3 --with-tasks"),
+        (placed_without_revision, "read the revision of placed hold 12 with task show 41, then use hold lift"),
+        (
+            uncertain,
+            "task release 41 --hold 9 (add --again only if the effect did not happen and you want to repeat it)",
+        ),
+        (agent, "task release 41 --hold 9"),
+    ] {
+        for json in [false, true] {
+            let mut root = fixtures::signed_in(fixtures::PARTY);
+            let words = ["task", "measure", "41", "--hold", "2", "--json"];
+            let call = root.submit(if json { &words } else { &words[..5] });
+            root.serve(call, fixtures::task_result(task.clone()));
+            assert!(root.sent_name(call).is_some(), "the task read cannot refuse a replay");
+            root.answered(call, c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None });
+            let printed = root.answer(call).unwrap();
+            assert_eq!(printed.status, 2);
+            let expected = if json { format!("\"next\":\"{next}\"") } else { format!("\nuse instead: {next}\n") };
+            let bytes = printed.stderr;
+            assert!(skein_lib::bytes::find(&bytes, expected.as_bytes()).is_some(), "missing {expected}");
+        }
+    }
+}
+
+#[test]
+fn measure_keeps_the_engines_moved_revision_and_authority_refusal() {
+    for (refusal, expected) in [
+        (
+            c::Refusal::Moved { now: c::Revision { value: 7 }, what: c::Moved::Hold { reason: None } },
+            "task measure: The object changed\nrevision now: 7\nread again: task show 41\n",
+        ),
+        (
+            c::Refusal::Authority {
+                lacking: c::Lacking::HoldOwner { hold: 12, owner: c::HoldOwner::Party { person: 3 } },
+                proposable: Some(true),
+            },
+            "task measure: Held by hold 12, placed by person 3: only they, or a role above theirs, may release it\n",
+        ),
+    ] {
+        let mut root = fixtures::signed_in(fixtures::PARTY);
+        let call = root.submit(&["task", "measure", "41", "--hold", "2"]);
+        let task = fixtures::held_task(fixtures::offered(&[]), c::HoldCategory::Uncertain { entry: 13 });
+        root.serve(call, fixtures::task_result(task));
+        root.answered(call, c::Answer::Refused { refusal, at: None });
+        let printed = root.answer(call).unwrap();
+        assert_eq!((printed.status, printed.stderr.as_ref()), (2, expected.as_bytes()));
+    }
+}
+
 fn answer_contract() -> c::TaskContractDocument {
     let mut choices = skein_lib::List::with_capacity(1);
     choices

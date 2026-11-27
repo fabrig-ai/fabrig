@@ -11,7 +11,7 @@ fn a_lagging_pull_waits_with_its_stall_counting_then_takes_the_pushed_head() {
         assert_eq!(waiting.decision, Decision::Wait { until: Some(at(32)) });
         assert_eq!(waiting.change, c);
         let stalled = step(&waiting.change, &f, &heard(), at(32), &LIMITS);
-        assert_eq!(stalled.decision, Decision::Hold(Hold::Stalled));
+        assert_eq!(stalled.decision, Decision::Hold(Cause::Stalled));
         assert_eq!(stalled.change.last_head, Some(HEAD));
         f.pull = Pull::Open { head: HEAD, base: BASE };
         f.behind = None;
@@ -31,13 +31,16 @@ fn opening_drift_keeps_the_expected_head_even_when_the_pull_agrees_with_the_bran
     let f = Facts {
         branch: Some(NEW),
         pull: Pull::Open { head: NEW, base: BASE },
-        drift: Some(Hold::BranchMoved),
+        drift: Some(Cause::BranchMoved),
         ..facts()
     };
     let moved = decide(&c, &f, &heard());
-    assert_eq!(moved.decision, Decision::Hold(Hold::BranchMoved));
+    assert_eq!(moved.decision, Decision::Hold(Cause::BranchMoved));
     assert_eq!(moved.change.last_head, Some(HEAD));
-    assert_eq!(moved.change.state, State::Held { was: Box::new(c.state), why: Hold::BranchMoved });
+    assert_eq!(
+        moved.change.state,
+        State::Held { was: Box::new(c.state), hold: crate::Hold::new(Cause::BranchMoved, at(1)) }
+    );
     let mut fresh = change(State::Opening { requested: true });
     fresh.last_head = None;
     assert_eq!(decide(&fresh, &Facts { drift: None, ..f }, &heard()).change.last_head, Some(NEW));
@@ -47,9 +50,9 @@ fn opening_drift_keeps_the_expected_head_even_when_the_pull_agrees_with_the_bran
 fn a_release_finding_its_pull_closed_reopens_instead_of_opening() {
     // A general release and a moved branch both keep ownership of their closed pull.
     for (why, was) in
-        [(Hold::Stalled, State::Checking { head: HEAD }), (Hold::BranchMoved, State::Opening { requested: true })]
+        [(Cause::Stalled, State::Checking { head: HEAD }), (Cause::BranchMoved, State::Opening { requested: true })]
     {
-        let c = change(State::Held { was: Box::new(was), why });
+        let c = change(State::Held { was: Box::new(was), hold: crate::Hold::new(why, Wall::EPOCH) });
         let f = Facts { pull: Pull::Closed, ..facts() };
         let lifted = decide(&c, &f, &Heard { released: true, ..heard() });
         assert_eq!(lifted.change.state, State::Reopening { requested: false, retarget: false });
@@ -61,10 +64,10 @@ fn a_release_finding_its_pull_closed_reopens_instead_of_opening() {
 #[test]
 fn a_step_reading_its_branch_missing_holds_as_deleted_not_moved() {
     let c = change(State::Checking { head: HEAD });
-    let missing = decide(&c, &Facts { branch: None, drift: Some(Hold::BranchMissing), ..facts() }, &heard());
-    assert_eq!(missing.decision, Decision::Hold(Hold::BranchMissing));
-    let moved = decide(&c, &Facts { branch: Some(NEW), drift: Some(Hold::BranchMoved), ..facts() }, &heard());
-    assert_eq!(moved.decision, Decision::Hold(Hold::BranchMoved));
+    let missing = decide(&c, &Facts { branch: None, drift: Some(Cause::BranchMissing), ..facts() }, &heard());
+    assert_eq!(missing.decision, Decision::Hold(Cause::BranchMissing));
+    let moved = decide(&c, &Facts { branch: Some(NEW), drift: Some(Cause::BranchMoved), ..facts() }, &heard());
+    assert_eq!(moved.decision, Decision::Hold(Cause::BranchMoved));
 }
 
 #[test]
@@ -88,6 +91,6 @@ fn a_branch_at_the_steps_head_is_never_moved() {
     ] {
         let c = change(state);
         let f = Facts { pull: Pull::Open { head: NEW, base: BASE }, ..facts() };
-        assert_ne!(decide(&c, &f, &heard()).decision, Decision::Hold(Hold::BranchMoved), "{:?}", c.state);
+        assert_ne!(decide(&c, &f, &heard()).decision, Decision::Hold(Cause::BranchMoved), "{:?}", c.state);
     }
 }

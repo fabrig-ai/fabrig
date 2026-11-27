@@ -14,6 +14,7 @@ use crate::forge_routes::landing::{landing_rows, task_row};
 use crate::forge_routes::light_rules::change_row;
 
 mod branch_holds;
+mod capability_refresh;
 mod p113;
 mod p120;
 mod p53;

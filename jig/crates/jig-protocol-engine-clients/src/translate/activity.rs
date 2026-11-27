@@ -25,7 +25,7 @@ pub(crate) fn activity_to_record(value: &t::Line) -> Result<w::Activity, w::Prob
         t::Line::RunBegan { attempt, why: value, resumed, fresh: cause } => {
             w::Activity::RunBegan(w::ActivityRunBegan {
                 attempt: *attempt,
-                why: mapped::run_why_to_record(value),
+                why: run_why_to_record(*value),
                 resumed: *resumed,
                 fresh: match cause {
                     Some(cause) => Some(mapped::run_fresh_to_record(cause)),
@@ -70,6 +70,18 @@ pub(crate) fn activity_to_record(value: &t::Line) -> Result<w::Activity, w::Prob
         }
         t::Line::Milestone { position } => w::Activity::Milestone(w::ActivityMilestone { position: *position }),
     })
+}
+// A measurement is a release in the run history; only the procedure reads the distinct cause.
+fn run_why_to_record(why: t::Why) -> w::RunWhy {
+    match why {
+        t::Why::Made => w::RunWhy::Made,
+        t::Why::Ready => w::RunWhy::Ready,
+        t::Why::Message { message } => w::RunWhy::Message(w::RunWhyMessage { message }),
+        t::Why::Released | t::Why::Measured => w::RunWhy::Released,
+        t::Why::Retry { tries } => w::RunWhy::Retry(w::RunWhyRetry { tries: mapped::failure_tries_to_record(&tries) }),
+        t::Why::Narrowed => w::RunWhy::Narrowed,
+        t::Why::Changed => w::RunWhy::Changed,
+    }
 }
 #[cfg_attr(
     target_pointer_width = "64",

@@ -77,9 +77,23 @@ fn a_session_runs_its_tool_rounds_and_yields_with_the_providers_answer() {
 }
 
 #[test]
+fn an_opener_does_not_nudge_a_session_whose_kit_is_closing() {
+    const CLOSING_KIT_SEED: u64 = 65_939;
+    let settings = noisy(CLOSING_KIT_SEED);
+    let mut world = World::new(settings);
+    submit_noisily(&mut world, &settings, CLOSING_KIT_SEED);
+    world.run(ITERATIONS);
+    assert!(
+        world
+            .sessions()
+            .any(|(opener, session)| !session.yields.is_empty() && end(&world, opener) == out_of(Dimension::Time))
+    );
+}
+
+#[test]
 fn a_nudged_session_goes_on_until_its_opener_closes_it() {
     // Each of the three messages gets two successful tool rounds.
-    const NUDGED_ROUNDS_SEED: u64 = 0;
+    const NUDGED_ROUNDS_SEED: u64 = 7;
     let calm = Settings::calm(NUDGED_ROUNDS_SEED);
     let mut world = World::new(Settings { nudges: Count { min: 2, max: 2 }, ..calm });
     let opener = world.submit(Time::ZERO, spec(b"fix the build"));
@@ -96,7 +110,7 @@ fn a_nudged_session_goes_on_until_its_opener_closes_it() {
 #[test]
 fn malformed_calls_are_answered_with_their_problem_and_the_conversation_goes_on() {
     // Multiple malformed calls are answered without tool effects.
-    const MALFORMED_BATCH_SEED: u64 = 18;
+    const MALFORMED_BATCH_SEED: u64 = 6;
     let calm = Settings::calm(MALFORMED_BATCH_SEED);
     let settings = Settings { provider: Config { malformed: 1000, calls_per_answer: 3, ..calm.provider }, ..calm };
     let mut world = World::new(settings);
@@ -465,7 +479,7 @@ fn a_cancel_sent_after_its_run_ended_in_the_same_iteration_is_a_lost_race() {
 #[test]
 fn the_turn_budget_ends_a_session_that_keeps_calling_tools() {
     // Every completion calls a tool until the turn budget is spent.
-    const TURN_BUDGET_SEED: u64 = 12;
+    const TURN_BUDGET_SEED: u64 = 1;
     let calm = Settings::calm(TURN_BUDGET_SEED);
     let mut world = World::new(Settings { provider: Config { tool_rounds: 100, ..calm.provider }, ..calm });
     let opener = world.submit(Time::ZERO, budgeted(Budget { turns: 3, ..BUDGET }));
@@ -737,7 +751,7 @@ fn a_guarded_request_past_the_line_is_refused_by_the_world() {
     // The guard refuses one drawn request before it is sent.
     const GUARD_REFUSAL_SEED: u64 = 104;
     const LINE: u64 = 200;
-    const DRAWN_NEW_PART: u64 = 615;
+    const DRAWN_NEW_PART: u64 = 741;
     let mut world = World::new(Settings::calm(GUARD_REFUSAL_SEED));
     let opener = world.submit(Time::ZERO, Spec { line: LINE, ..spec(b"fix the build") });
     world.run(ITERATIONS);

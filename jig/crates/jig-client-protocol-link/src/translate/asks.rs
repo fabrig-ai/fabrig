@@ -382,6 +382,9 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
                 again: opt0,
             })
         }
+        c::Ask::Measure { project, task, revision } => {
+            w::Ask::Measure(w::Measure { project: *project, task: *task, revision: wire_revision(*revision) })
+        }
         c::Ask::Amend { project, task, revision, change, reason } => w::Ask::Amend(Box::new(w::Amend {
             project: *project,
             task: *task,

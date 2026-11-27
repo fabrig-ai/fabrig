@@ -646,13 +646,9 @@ budgets.
   `TOKEN_BYTES`, so that the appended count's error reaches its bounds
   both ways. It applies the guard as the protocol layer does, from that
   rendered size (`session-context.md`, 1.1).
-- **Its drawn calls name every tool the session offers.** The world's
-  translator offers `job` beside `shell`, under the shell grant, and
-  decodes a `job` call and a `shell` call's `yield_seconds` as
-  `smith-protocol-llm` does: the same call, or the same problem, for
-  every body of the menu (`smith/docs/design/testing.md`, 4) and each
-  cut prefix of one, which `smith-protocol-llm-world`'s
-  `the_session_fake_decodes_like_the_protocol` compares.
+- **Its drawn calls name every tool the session offers,** each with
+  every field the product decodes, and the refusals they target come
+  with their setups (`smith/docs/design/drawn-agent.md`, 2 to 4).
 - **A yielding command outlasts its yield on the world's clock.** A
   command's end is drawn from `Settings::tool`, as every operation's is,
   and nothing really sleeps. One whose end comes after its yield is held
@@ -761,6 +757,9 @@ budgets.
     `consumed` and `unissued` at the gate's seeds. `before_opening`
     needs a session opened from a transcript, which the sweep doesn't
     draw, so it is printed, not asked for.
+  - **It counts the shapes its completions reached,** and asks for each
+    refusal it targets (`smith/docs/design/shapes.md`, 4;
+    `smith/docs/design/drawn-agent.md`, 8).
 
 ## 11. Open questions
 

@@ -48,6 +48,7 @@ pub(crate) enum Control {
     Stop,
     Cancel { reason_len: usize, grace: Option<skein_lib::Duration> },
     Release { again: Option<bool> },
+    Measure,
 }
 
 pub(crate) struct Proposal {

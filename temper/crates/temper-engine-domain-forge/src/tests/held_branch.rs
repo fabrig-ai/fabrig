@@ -108,7 +108,7 @@ fn drift_on_a_goal_branch_reaches_the_change_landing_it() {
         let requests = moved(&mut d, observed);
         let drift = DriftChange::Branch { expected: fixtures::HEAD, observed };
         assert_eq!(d.hold(&name()).unwrap().drift, Some(Drift { at: env().wall, change: drift }));
-        assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, Some(change::Hold::BranchMoved));
+        assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, Some(change::Cause::BranchMoved));
         for task in [GOAL, fixtures::CHANGE] {
             assert!(requests.contains(&Request::Drift { task, resource: name() }), "{requests:?}");
         }
@@ -196,7 +196,7 @@ fn an_updates_writer_owns_only_forward_moves_by_its_identity() {
         }
         assert_eq!(
             d.change(fixtures::CHANGE).unwrap().drift,
-            if drifted { Some(change::Hold::BranchMoved) } else { None }
+            if drifted { Some(change::Cause::BranchMoved) } else { None }
         );
     }
 }
@@ -539,10 +539,10 @@ fn prepares_unattributed_rebase_is_drift_on_any_other_completion() {
                 "{outcome:?}"
             );
             prepare_at_head(&mut d, fixtures::BASE);
-            assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, Some(change::Hold::BranchMoved));
+            assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, Some(change::Cause::BranchMoved));
             assert!(matches!(
                 d.change(fixtures::CHANGE).unwrap().change.state,
-                change::State::Held { why: change::Hold::BranchMoved, .. }
+                change::State::Held { hold: change::Hold { cause: change::Cause::BranchMoved, .. }, .. }
             ));
         }
     }
@@ -585,7 +585,7 @@ fn prepares_rebase_without_main_is_drift() {
         );
         rebase_made(&mut d);
         prepare_at_head(&mut d, fixtures::BASE);
-        assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, Some(change::Hold::BranchMoved));
+        assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, Some(change::Cause::BranchMoved));
     }
 }
 
@@ -614,7 +614,7 @@ fn only_prepares_pending_rebase_can_explain_a_rewrite() {
                 d.hold(&resource).unwrap().drift.as_ref().unwrap().change,
                 DriftChange::Branch { expected: fixtures::HEAD, observed: Some(fixtures::BASE) }
             );
-            assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, Some(change::Hold::BranchMoved));
+            assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, Some(change::Cause::BranchMoved));
         }
     }
 }
@@ -650,7 +650,7 @@ fn prepares_pending_rebase_does_not_explain_a_third_head_or_a_late_original() {
             );
             rebase_made(&mut d);
             prepare_at_head(&mut d, head);
-            assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, Some(change::Hold::BranchMoved));
+            assert_eq!(d.change(fixtures::CHANGE).unwrap().drift, Some(change::Cause::BranchMoved));
         }
     }
 }
@@ -726,7 +726,7 @@ fn prepares_deferred_rebase_is_rebuilt_after_restart() {
             rebase_outcome(&mut restored, outcome);
             assert_eq!(
                 restored.change(fixtures::CHANGE).unwrap().drift,
-                if confirms { None } else { Some(change::Hold::BranchMoved) }
+                if confirms { None } else { Some(change::Cause::BranchMoved) }
             );
         }
     }
@@ -779,7 +779,7 @@ fn prepares_writer_does_not_own_another_identity_or_a_backwards_move() {
             rebase_outcome(&mut d, skein_forge_client::Outcome::Failed(skein_forge::api::Error::Refused));
             prepare_at_head(&mut d, fixtures::BASE);
             let row = d.change(fixtures::CHANGE).unwrap();
-            assert_eq!(row.drift, Some(change::Hold::BranchMoved));
+            assert_eq!(row.drift, Some(change::Cause::BranchMoved));
             assert_eq!(
                 row.change.state,
                 change::State::Held {
@@ -788,7 +788,7 @@ fn prepares_writer_does_not_own_another_identity_or_a_backwards_move() {
                         main: LANDING_TIP,
                         ready_since: env().wall
                     }),
-                    why: change::Hold::BranchMoved,
+                    hold: change::Hold::new(change::Cause::BranchMoved, env().wall),
                 }
             );
             assert_eq!(d.branch_head(&resource), Some(fixtures::HEAD));
@@ -811,7 +811,7 @@ fn prepares_settled_answer_does_not_explain_a_third_head() {
             DriftChange::Branch { expected: fixtures::BASE, observed: Some(OUTSIDE) }
         );
         let row = d.change(fixtures::CHANGE).unwrap();
-        assert_eq!(row.drift, Some(change::Hold::BranchMoved));
+        assert_eq!(row.drift, Some(change::Cause::BranchMoved));
         assert_eq!(
             row.change.state,
             change::State::Held {
@@ -820,7 +820,7 @@ fn prepares_settled_answer_does_not_explain_a_third_head() {
                     main: LANDING_TIP,
                     ready_since: env().wall
                 }),
-                why: change::Hold::BranchMoved,
+                hold: change::Hold::new(change::Cause::BranchMoved, env().wall),
             }
         );
         assert_eq!(d.branch_head(&resource), Some(fixtures::BASE));
@@ -939,7 +939,7 @@ fn a_settled_update_does_not_explain_another_head() {
                     base: LANDING_TIP,
                     ready_since: env().wall
                 }),
-                why: change::Hold::BranchMoved,
+                hold: change::Hold::new(change::Cause::BranchMoved, env().wall),
             }
         );
         assert_eq!(
@@ -1028,7 +1028,7 @@ fn facts_say_whether_a_changes_branch_is_its_requesters() {
         } else {
             change::State::Held {
                 was: Box::new(change::State::Checking { head: fixtures::HEAD }),
-                why: change::Hold::BranchMoved,
+                hold: change::Hold::new(change::Cause::BranchMoved, env().wall),
             }
         };
         assert_eq!(state, &expected, "holder={holder:?}: {requests:?}");
@@ -1131,7 +1131,7 @@ fn an_unconfirmed_move_of_a_goal_branch_is_drift_before_the_keep_reads_it() {
         d.change(fixtures::CHANGE).unwrap().change.state,
         change::State::Held {
             was: Box::new(change::State::Checking { head: fixtures::HEAD }),
-            why: change::Hold::BranchMoved,
+            hold: change::Hold::new(change::Cause::BranchMoved, env().wall),
         },
         "{requests:?}"
     );

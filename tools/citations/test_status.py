@@ -109,7 +109,7 @@ class Status(unittest.TestCase):
                 + "- **Departs:** None\n- **Design lags:** NONE.\n"
                 + "- **Design departs:** none\n- **Open:** none.\n",
                 f"{DESIGN}/draft/b.status.md": OPENING + "No gap.\n",
-                f"{DESIGN}/draft/c.status.md": OPENING,
+                f"{DESIGN}/draft/c.status.md": OPENING + "No gap.\n",
                 f"{DESIGN}/draft/archive/d.status.md": OPENING + "No gap.\n",
                 f"{DESIGN}/e.status.md": OPENING + "No gap.\n"},
              expected(done=f"- {DESIGN}/draft/a.md\n- {DESIGN}/draft/b.md\n- {DESIGN}/draft/c.md")),
@@ -133,12 +133,17 @@ class Status(unittest.TestCase):
             ("unread", {
                 f"{DESIGN}/draft/a.status.md": OPENING + "No known gaps.\n",
                 f"{DESIGN}/draft/b.status.md": "# b: status\n\n- **Not yet:** 1: x\n",
-                f"{DESIGN}/draft/c.status.md": "2026-11-20. No heading.\n\nNo gap.\n",
+                f"{DESIGN}/draft/c.status.md": OPENING,
                 f"{DESIGN}/draft/d.status.md": "",
                 f"{DESIGN}/draft/e.status.md": "# e: status\n\nUndated.\n\n- **Open:** x\n",
-                f"{DESIGN}/draft/archive/f.status.md": OPENING + "No known gaps.\n"},
-             expected(unread="\n".join(f"- {DESIGN}/draft/{name}.status.md"
-                                       for name in ("a", "archive/f", "b", "c", "d", "e")))),
+                f"{DESIGN}/draft/f.status.md": "2026-11-20. No heading.\n\nNo gap.\n",
+                f"{DESIGN}/draft/g.status.md": OPENING + " \t\n\n",
+                f"{DESIGN}/draft/archive/f.status.md": OPENING + "No known gaps.\n",
+                f"{DESIGN}/draft/archive/g.status.md": OPENING,
+                f"{DESIGN}/h.status.md": OPENING + " \t\n\n"},
+             expected(unread="\n".join(f"- {DESIGN}/{name}.status.md" for name in (
+                 "draft/a", "draft/archive/f", "draft/archive/g", "draft/b", "draft/c",
+                 "draft/d", "draft/e", "draft/f", "draft/g", "h")))),
             ("kinds and sorted files", {
                 f"{DESIGN}/z.status.md": OPENING + "- **Design departs:** 2: x\n",
                 f"{DESIGN}/draft/archive/b.status.md": OPENING
@@ -168,8 +173,8 @@ class Status(unittest.TestCase):
                       + f"- {DESIGN}/at.md: 49,152 bytes",
                       unread=f"- {DESIGN}/big.status.md")),
             ("done paths sort by document", {
-                f"{DESIGN}/draft/a.n.status.md": OPENING,
-                f"{DESIGN}/draft/a.status.md": OPENING},
+                f"{DESIGN}/draft/a.n.status.md": OPENING + "No gap.\n",
+                f"{DESIGN}/draft/a.status.md": OPENING + "No gap.\n"},
              expected(done=f"- {DESIGN}/draft/a.md\n- {DESIGN}/draft/a.n.md")),
             ("tag-only text", {f"{DESIGN}/a.status.md": OPENING
                               + "- **Not yet:** 4: [in flight: change 12].\n"},

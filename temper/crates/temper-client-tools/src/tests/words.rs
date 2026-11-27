@@ -300,11 +300,14 @@ fn indices_are_kept() {
         }
         let mut expected = Vec::new();
         for row in table::TOOLS {
-            if jig::table::name_words(row.name).0 == group.name {
-                expected.extend_from_slice(&fixtures::usage(row));
-                expected.extend_from_slice(b"  ");
-                expected.extend_from_slice(row.line);
-                expected.push(b'\n');
+            if jig::table::name_words(row.name).0 == group.name && row.name != b"task measure" {
+                let next = if row.name == b"task release" { Some(&jig::rows::MEASURE) } else { None };
+                for listed in [Some(*row), next].into_iter().flatten() {
+                    expected.extend_from_slice(&fixtures::usage(listed));
+                    expected.extend_from_slice(b"  ");
+                    expected.extend_from_slice(listed.line);
+                    expected.push(b'\n');
+                }
             }
         }
         assert_eq!(

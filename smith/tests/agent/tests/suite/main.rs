@@ -33,7 +33,7 @@ mod fuzzy {
 
     #[test]
     fn edge_seeds_are_valid_cases() {
-        messages::empty_brief_case(0x61c8_8646_80b5_f170);
+        messages::empty_brief_case(0x61c8_8646_80b5_f170, None);
         simulation::mid_delivery_case(u64::MAX);
         let _ = simulation::host_cancellation_case(u64::MAX);
     }

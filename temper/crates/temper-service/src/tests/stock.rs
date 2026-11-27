@@ -6,11 +6,11 @@
 use super::fixtures;
 use jig_protocol_config as config;
 
-// Both policies charge the main Model inline, plus a carrier for main and six
-// alternatives. Each carrier includes a 16-byte speeds slice and a 16-byte
-// optional default speed name; neither owns a speed payload in stock.
-const CODING_CHARTER_BYTES: u64 = 12_912;
-const GOAL_CHARTER_BYTES: u64 = 28_098;
+// Both policies charge the main Model inline, plus model carriers. A model
+// includes eight aligned cache-lifetime bytes, a 16-byte speeds slice and a
+// 16-byte optional default speed name; stock owns no speed payload.
+const CODING_CHARTER_BYTES: u64 = 13_204;
+const GOAL_CHARTER_BYTES: u64 = 29_937;
 
 /// Replace one engine override, keeping every other generated entry.
 pub(super) fn limited(document: &(impl fixtures::Input + ?Sized), name: &[u8], value: u64) -> fixtures::Start {

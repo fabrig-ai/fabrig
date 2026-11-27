@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 13;
 pub const LAYOUT: [u8; 32] = [
-    0x59, 0x15, 0x61, 0xe3, 0x40, 0x17, 0x6f, 0x44, 0xbd, 0x93, 0xb2, 0xd5, 0xfe, 0xf8, 0x07, 0x11, 0xba, 0xea, 0xaf,
-    0xc1, 0x5b, 0xd6, 0x66, 0x4f, 0x29, 0x65, 0x3f, 0xbd, 0x0a, 0xb1, 0xdf, 0xf8,
+    0xff, 0x49, 0xbb, 0x25, 0x1a, 0x95, 0xfb, 0xa9, 0x68, 0x6a, 0x11, 0x0c, 0x1f, 0xbb, 0x3b, 0x1e, 0xf9, 0xb9, 0x08,
+    0x07, 0x18, 0xe0, 0x86, 0x7b, 0xc3, 0x21, 0xe4, 0x1f, 0x29, 0x18, 0xd4, 0x43,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -2199,6 +2199,7 @@ pub enum Why {
     Retry(Tries),
     Narrowed,
     Changed,
+    Measured,
 }
 
 // Record: Why.
@@ -2211,7 +2212,8 @@ impl Why {
         skein_codec::bounds::Node::Named("Tries"),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -2248,6 +2250,7 @@ impl Record for Why {
             Self::Retry(value) => { field::put(out, &[4], paths::WHY_TAG)?; value.write(limits, out) },
             Self::Narrowed => field::put(out, &[5], paths::WHY_TAG),
             Self::Changed => field::put(out, &[6], paths::WHY_TAG),
+            Self::Measured => field::put(out, &[7], paths::WHY_TAG),
         }
     }
 
@@ -2261,7 +2264,8 @@ impl Record for Why {
             4 => Ok(Self::Retry(Tries::read(limits, reader)?)),
             5 => Ok(Self::Narrowed),
             6 => Ok(Self::Changed),
-            7..=u8::MAX => Err(Problem { path: paths::WHY_TAG, reason: skein_codec::Reason::Tag }),
+            7 => Ok(Self::Measured),
+            8..=u8::MAX => Err(Problem { path: paths::WHY_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }

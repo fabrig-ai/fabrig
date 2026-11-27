@@ -5002,6 +5002,7 @@ dependencies = [
  "smith-protocol-llm-world",
  "smith-protocol-machine",
  "smith-protocol-machine-fixtures",
+ "smith-session-world",
 ]
 
 [[package]]
@@ -5982,6 +5983,7 @@ dependencies = [
  "temper-box-kit",
  "temper-client-domain",
  "temper-client-journeys-tool",
+ "temper-client-tools",
  "temper-client-walk-lines",
  "temper-config-shell",
  "temper-engine-domain",

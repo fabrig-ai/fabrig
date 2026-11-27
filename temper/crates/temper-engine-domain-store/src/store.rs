@@ -1006,6 +1006,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     | jig_domain_people::Ask::HandBackPerson { .. }
                     | jig_domain_people::Ask::Conclude { .. }
                     | jig_domain_people::Ask::Lift { .. }
+                    | jig_domain_people::Ask::Measure { .. }
                     | jig_domain_people::Ask::Release { .. }
                     | jig_domain_people::Ask::AccountSignIn { .. }
                     | jig_domain_people::Ask::AccountSignOut { .. } => Some(0),

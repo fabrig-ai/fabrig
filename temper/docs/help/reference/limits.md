@@ -55,7 +55,7 @@ Every row belongs to the temper-limits setting: its name, unit, stock value, whe
 | `root.journal.writes` | count | 12,288 | next start | Bounds unique writes per commit, including the saved deployment header; a decision has one fewer slot. |
 | `root.journal.deliveries` | count | 512 | next start | Sets the door output count used in the default admission watermark, without capping a decision. |
 | `root.journal.transcript_bytes` | bytes | 18,431,846 | next start | Bounds transcript bytes or a wrapped child row's owned bytes admitted to the journal. |
-| `root.journal.result_bytes` | bytes | 318,046 | next start | Bounds owned result text or assignment section text admitted to a held delivery. |
+| `root.journal.result_bytes` | bytes | 315,922 | next start | Bounds owned result text or assignment section text admitted to a held delivery. |
 | `root.journal.run_bytes` | bytes | 65,536 | next start | Bounds a run charter's owned bytes in a held assignment. |
 | `root.loads.loads` | count | 2 | next start | Bounds issued store loads, including abandoned reads awaiting their terminal answer. |
 | `root.loads.rows` | count | 2 | next start | Bounds rows requested and accepted in one incoming store page. |
@@ -67,7 +67,7 @@ Every row belongs to the temper-limits setting: its name, unit, stock value, whe
 | `root.brief.sections` | count | 10 | next start | Bounds brief sections the root gathers at once. |
 | `root.brief.parts` | count | 2 | next start | Bounds parts in one gathered brief section. |
 | `root.brief.read_bytes` | bytes | 131,584 | next start | Bounds bytes read for one gathered brief section. |
-| `root.brief.brief_bytes` | bytes | 318,046 | next start | Bounds the body of a gathered brief. |
+| `root.brief.brief_bytes` | bytes | 315,922 | next start | Bounds the body of a gathered brief. |
 | `root.brief.gather_ms` | milliseconds | 300,000 | next start | Bounds the time spent gathering a brief. |
 | `root.brief.budgets.task` | bytes | 131,584 | next start | Bounds task section bytes in a gathered brief. |
 | `root.brief.budgets.dependencies` | bytes | 128 | next start | Bounds dependency section bytes in a gathered brief. |

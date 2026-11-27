@@ -7,7 +7,7 @@ use temper_engine_domain_forge_change as change;
 
 const REPAIR: u64 = 52;
 const ATTEMPT: JobAttempt = JobAttempt { head: fixtures::HEAD, run: 7, job: 41, attempt: 1 };
-const UNCHECKED: &[u8] = b"its red at 030303030303 stands: repair task 52 changed nothing, and the same content can't be checked again: no failed check names a job the forge can run again; release this change to ask a fresh repair, or cancel it";
+const UNCHECKED: &[u8] = b"its red at 030303030303 stands: repair task 52 changed nothing, and the same content can't be checked again: no failed check names a job the forge can run again; amend this change to ask a fresh repair, or cancel it";
 
 fn checked(kind: Kind, late: bool, no_change: bool) -> (Domain, change::Decision, u32) {
     checked_repair(kind, late, no_change, false, change::Repair::Ci, None, Some(ATTEMPT))
@@ -146,9 +146,9 @@ fn empty_repairs_rerun_read_jobs_only_on_a_forge_that_writes_reruns() {
                 row.effect_account.as_ref().expect("account").words.as_ref(),
                 b"ran job 41 of ci/test again at 030303030303: a repair changed nothing"
             );
-            assert_eq!(row.ci_recheck, Some(CiRecheck { job: ATTEMPT, taken: None }));
+            assert_eq!(row.ci_recheck, Some(CiRecheck { job: ATTEMPT, taken: None, semantic: false }));
         } else {
-            assert_eq!(decision, change::Decision::Hold(change::Hold::RedStands));
+            assert_eq!(decision, change::Decision::Hold(change::Cause::RedStands));
             assert_eq!(row.change.repairs, 1);
             assert_eq!(row.change.updates, 0);
             assert!(row.pending.is_none());
@@ -213,7 +213,7 @@ fn a_flake_terminal_during_gathering_uses_the_post_terminal_branch() {
     let (d, decision, branches) = checked_repair(Kind::Forgejo, true, false, true, why, Some(advanced), Some(ATTEMPT));
     assert_eq!(branches, 2, "flake verdicts require a branch read sent after the end");
     assert_eq!(d.change(fixtures::CHANGE).unwrap().change.last_head, Some(advanced));
-    assert_ne!(decision, change::Decision::Hold(change::Hold::Flake));
+    assert!(!matches!(decision, change::Decision::Hold(_)));
 }
 
 #[test]
@@ -224,7 +224,7 @@ fn a_review_repair_delivery_during_gathering_reads_its_branch_after_the_end() {
             checked_repair(Kind::Forgejo, true, false, false, why, Some(advanced), Some(ATTEMPT));
         assert_eq!(branches, 2, "{why:?}: a delivery needs a branch read after its terminal");
         assert_eq!(d.change(fixtures::CHANGE).expect("delivered change").change.last_head, Some(advanced));
-        assert_ne!(decision, change::Decision::Hold(change::Hold::Failed));
+        assert_ne!(decision, change::Decision::Hold(change::Cause::Failed));
     }
 }
 
@@ -235,6 +235,8 @@ fn decision(d: &Domain, requests: &[Request]) -> Option<change::Decision> {
     for request in requests {
         if let Request::ChangeDecision { decision, .. } = request {
             decided = Some(*decision);
+        } else if let Request::ReplayJudgement { replay, .. } = request {
+            decided = Some(change::Decision::ReplayJudgement(*replay));
         }
         if let Request::Save { record: Stored::ChangeHot(row), .. } = request
             && row.task == fixtures::CHANGE
@@ -338,7 +340,7 @@ fn a_restarted_recheck_waits_for_its_later_ended_attempt_then_holds_and_releases
         assert!(matches!(decision, change::Decision::Wait { until: Some(_) }), "{link:?}: {decision:?}");
         let row = d.change(fixtures::CHANGE).unwrap();
         assert_eq!(row.change.state, change::State::Checking { head: fixtures::HEAD });
-        assert_eq!(row.ci_recheck, Some(CiRecheck { job: ATTEMPT, taken: None }));
+        assert_eq!(row.ci_recheck, Some(CiRecheck { job: ATTEMPT, taken: None, semantic: false }));
         assert_eq!((row.change.repairs, row.change.updates), (1, 0));
         assert!(row.pending.is_none(), "no second write after restart");
     }
@@ -349,30 +351,42 @@ fn a_restarted_recheck_waits_for_its_later_ended_attempt_then_holds_and_releases
     ];
     assert_eq!(
         read_ci(&mut d, fixtures::HEAD, Ci::Failed, &checks, &ended),
-        change::Decision::Hold(change::Hold::RedStands)
+        change::Decision::Hold(change::Cause::RedStands)
     );
     let row = d.change(fixtures::CHANGE).unwrap();
-    assert_eq!(row.ci_recheck, Some(CiRecheck { job: ATTEMPT, taken: Some(2) }));
+    assert_eq!(row.ci_recheck, Some(CiRecheck { job: ATTEMPT, taken: Some(2), semantic: false }));
     assert_eq!(
         row.change.state,
         change::State::Held {
             was: Box::new(change::State::Repairing { requested: false, why: change::Repair::Ci }),
-            why: change::Hold::RedStands,
+            hold: change::Hold {
+                judged: Some(change::Judged { head: fixtures::HEAD, spec: row.spec_revision }),
+                ..change::Hold::new(change::Cause::RedStands, env().wall)
+            },
         }
     );
     assert_eq!(row.change.repairs, 1);
-    assert_eq!(row.producer_failure.as_deref(), Some(b"its red at 030303030303 stands: repair task 52 changed nothing, and the same content failed again: ci/test, ci/lint; release this change to ask a fresh repair, or cancel it".as_slice()));
+    let original = row.producer_failure.clone();
+    assert_eq!(row.producer_failure.as_deref(), Some(b"its red at 030303030303 stands: repair task 52 changed nothing, and the same content failed again: ci/test, ci/lint; amend this change to ask a fresh repair, measure it again, or cancel it".as_slice()));
 
     let mut released = restored(&d);
-    outputs(&mut released, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
-    assert_eq!(released.change(fixtures::CHANGE).unwrap().change.repairs, 0);
+    let release = TaskRelease { revision: 3, at: env().wall, measure: false };
+    outputs(&mut released, Event::ReleaseChange { task: fixtures::CHANGE, release: Some(release.clone()) });
+    let mut released = restored(&released);
+    assert!(outputs(&mut released, Event::ReleaseChange { task: fixtures::CHANGE, release: Some(release) }).is_empty());
     assert_eq!(
         read_ci(&mut released, fixtures::HEAD, Ci::Failed, &checks, &ended),
-        change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci))
+        change::Decision::ReplayJudgement(change::Replay::RedStands { head: fixtures::HEAD })
     );
     let row = released.change(fixtures::CHANGE).unwrap();
     assert_eq!(row.change.repairs, 1);
-    assert!(row.ci_recheck.is_none());
+    assert!(row.pending.is_none());
+    assert_eq!(row.ci_recheck, Some(CiRecheck { job: ATTEMPT, taken: Some(2), semantic: false }));
+    let change::State::Held { hold, .. } = &row.change.state else { panic!("red stands again") };
+    assert_eq!(hold.cause, change::Cause::RedStands);
+    assert_eq!(hold.judged, Some(change::Judged { head: fixtures::HEAD, spec: row.spec_revision }));
+    assert!(hold.words.is_empty());
+    assert_eq!(row.producer_failure, original);
 
     let passed = [ci_check(b"ci/test", Check::Passed, Some(later))];
     let mut green = ended;
@@ -383,6 +397,74 @@ fn a_restarted_recheck_waits_for_its_later_ended_attempt_then_holds_and_releases
     assert_eq!(row.change.repairs, 1);
     assert!(row.producer_failure.is_none());
     assert!(!matches!(row.change.state, change::State::Held { .. }));
+}
+
+#[test]
+fn a_measured_release_rechecks_once_across_restart_and_judges_its_new_failures() {
+    let (mut d, _, _) = checked(Kind::Forgejo, false, true);
+    settle_rerun(&mut d, ATTEMPT, Ok(Answer::Done));
+    let second = JobAttempt { attempt: 2, ..ATTEMPT };
+    let checks = [ci_check(b"ci/old", Check::Failed, Some(second))];
+    let ended = fixtures::failed_run(second, Some(1));
+    assert_eq!(
+        read_ci(&mut d, fixtures::HEAD, Ci::Failed, &checks, &ended),
+        change::Decision::Hold(change::Cause::RedStands)
+    );
+
+    let release = TaskRelease { revision: 3, at: env().wall, measure: true };
+    outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: Some(release.clone()) });
+    let mut d = restored(&d);
+    assert_eq!(
+        read_ci(&mut d, fixtures::HEAD, Ci::Failed, &checks, &ended),
+        change::Decision::Effect(change::Effect::Rerun { head: fixtures::HEAD })
+    );
+    settle_rerun(&mut d, second, Ok(Answer::Done));
+    let mut d = restored(&d);
+    assert!(outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: Some(release) }).is_empty());
+    assert!(matches!(read_ci(&mut d, fixtures::HEAD, Ci::Failed, &checks, &ended), change::Decision::Wait { .. }));
+    assert_eq!(
+        d.change(fixtures::CHANGE).unwrap().ci_recheck,
+        Some(CiRecheck { job: second, taken: None, semantic: false })
+    );
+
+    let third = JobAttempt { attempt: 3, ..ATTEMPT };
+    let fresh = [ci_check(b"ci/new", Check::Failed, Some(third))];
+    assert_eq!(
+        read_ci(&mut d, fixtures::HEAD, Ci::Failed, &fresh, &fixtures::failed_run(third, Some(1))),
+        change::Decision::Hold(change::Cause::RedStands)
+    );
+    let row = d.change(fixtures::CHANGE).unwrap();
+    assert_eq!(row.ci_recheck, Some(CiRecheck { job: second, taken: Some(3), semantic: false }));
+    assert!(row.pending.is_none());
+    assert_eq!(row.change.repairs, 1);
+    assert!(skein_lib::bytes::find(row.producer_failure.as_ref().unwrap(), b"failed again: ci/new;").is_some());
+}
+
+#[test]
+fn a_semantic_recheck_keeps_its_reason_for_an_amended_release_after_restart() {
+    let (mut d, _, _) =
+        checked_repair(Kind::Forgejo, false, true, false, change::Repair::Semantic, None, Some(ATTEMPT));
+    assert!(d.change(fixtures::CHANGE).unwrap().ci_recheck.unwrap().semantic);
+    settle_rerun(&mut d, ATTEMPT, Ok(Answer::Done));
+    let second = JobAttempt { attempt: 2, ..ATTEMPT };
+    let checks = [ci_check(b"ci/test", Check::Failed, Some(second))];
+    let ended = fixtures::failed_run(second, Some(1));
+    assert_eq!(
+        read_ci(&mut d, fixtures::HEAD, Ci::Failed, &checks, &ended),
+        change::Decision::Hold(change::Cause::RedStands)
+    );
+
+    let mut d = restored(&d);
+    let revised = d.change(fixtures::CHANGE).unwrap().spec_revision + 1;
+    d.refresh_spec_revision(fixtures::CHANGE, revised, &mut Queue::uncapped());
+    outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
+    assert_eq!(
+        read_ci(&mut d, fixtures::HEAD, Ci::Failed, &checks, &ended),
+        change::Decision::Delegate(change::Delegate::Repair(change::Repair::Semantic))
+    );
+    let row = d.change(fixtures::CHANGE).unwrap();
+    assert_eq!(row.change.repairs, 2);
+    assert!(row.ci_recheck.is_none());
 }
 
 #[test]
@@ -398,10 +480,10 @@ fn a_green_measurement_goes_on_and_ending_or_moving_clears_the_record() {
     let row = d.change(fixtures::CHANGE).unwrap();
     assert_eq!(row.change.last_head, Some(fixtures::HEAD));
     assert_eq!(row.change.repairs, 1);
-    assert_eq!(row.ci_recheck, Some(CiRecheck { job: ATTEMPT, taken: Some(2) }));
+    assert_eq!(row.ci_recheck, Some(CiRecheck { job: ATTEMPT, taken: Some(2), semantic: false }));
 
     let mut moved = restored(&d);
-    assert_eq!(read_ci(&mut moved, [9; 32], Ci::Passed, &[], &run), change::Decision::Hold(change::Hold::BranchMoved));
+    assert_eq!(read_ci(&mut moved, [9; 32], Ci::Passed, &[], &run), change::Decision::Hold(change::Cause::BranchMoved));
     assert!(moved.change(fixtures::CHANGE).unwrap().ci_recheck.is_none());
 
     let mut repaired = restored(&d);
@@ -435,13 +517,16 @@ fn runner_failure_after_a_recheck_keeps_the_runner_path() {
         read_ci(&mut d, fixtures::HEAD, Ci::Failed, &checking, &fixtures::failed_run(later, Some(0))),
         change::Decision::Effect(change::Effect::Rerun { head: fixtures::HEAD })
     );
-    assert_eq!(d.change(fixtures::CHANGE).unwrap().ci_recheck, Some(CiRecheck { job: ATTEMPT, taken: Some(2) }));
+    assert_eq!(
+        d.change(fixtures::CHANGE).unwrap().ci_recheck,
+        Some(CiRecheck { job: ATTEMPT, taken: Some(2), semantic: false })
+    );
     settle_rerun(&mut d, later, Ok(Answer::Done));
     let last = JobAttempt { attempt: 3, ..ATTEMPT };
     let checking = [ci_check(b"ci/test", Check::Failed, Some(last))];
     assert_eq!(
         read_ci(&mut d, fixtures::HEAD, Ci::Failed, &checking, &fixtures::failed_run(last, Some(0))),
-        change::Decision::Hold(change::Hold::Runner)
+        change::Decision::Hold(change::Cause::Runner)
     );
     let row = d.change(fixtures::CHANGE).unwrap();
     assert_eq!(row.change.repairs, 1);
@@ -455,7 +540,7 @@ fn a_refused_recheck_write_holds_instead_of_waiting_for_an_attempt() {
     let checks = [ci_check(b"ci/test", Check::Failed, Some(ATTEMPT))];
     assert_eq!(
         read_ci(&mut d, fixtures::HEAD, Ci::Failed, &checks, &fixtures::failed_run(ATTEMPT, Some(1))),
-        change::Decision::Hold(change::Hold::RedStands)
+        change::Decision::Hold(change::Cause::RedStands)
     );
     let row = d.change(fixtures::CHANGE).unwrap();
     assert_eq!(row.change.repairs, 1);

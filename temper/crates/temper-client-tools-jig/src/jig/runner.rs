@@ -228,6 +228,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::LIFT_AT
         | rows::TASK_DECIDE_AT
         | rows::WITHDRAW_AT
+        | rows::MEASURE_AT
         | rows::AMEND_AT
         | rows::CHANGE_SETTINGS_AT
         | rows::PROPOSE_SETTINGS_AT

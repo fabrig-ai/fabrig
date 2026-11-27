@@ -239,6 +239,15 @@
     has a phrase ("tests and proof"), and draws at most four rows, a
     person holding an area among them as "You" with Team's line of what
     waits on them. Decided by goal 1984's design, 2026-11-12.
+  - 11.1 and 15: `/chats` alone for Where you left off, as 15's default,
+    but its rows unnumbered and no command taking a row's number, where
+    15's default numbers them as the mockups draw it: a row's place moves
+    as rows come and go, so Up from the box reaches the rows and Enter
+    opens one, `/chats` alone opens the project's chats, and `/chats`
+    with words is sent as words after any command that takes none
+    (`../client/tui/pages/launchpad.md`, 4;
+    `../client/tui/pages/README.md`, 2, *Words after a command that
+    takes none*). The user's word of 2026-11-27.
   - 11.3 and 13: `../client/tui/pages/talk.md`, 1, sets the talk's head
     and its Now inside its frame, where `role.html` draws an empty frame
     and the two lines under it; says "this period S of B" where the
@@ -367,10 +376,6 @@
     has leaving a box never lose its words: step code keeps no list
     without a bound. Decided by goal 19962's design, 2026-11-27.
 - **Open:**
-  - 11.1 and 15: `/chats` or `/resume N` for Where you left off. The
-    design takes `/chats N`, N a row's place, which no row draws, Up
-    reaching the rows (the user's word of 2026-11-27;
-    `../client/tui/pages/launchpad.md`, 4).
   - 4 and 15: Needs you as a list on a wide page, or one card at a time.
     `../client/pages/README.md`, *Needs you*, takes the default: the list,
     one at a time on a phone.

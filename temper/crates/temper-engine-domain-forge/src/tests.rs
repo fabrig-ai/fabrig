@@ -693,6 +693,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
         | Request::CloseDecision { .. }
+        | Request::ReplayJudgement { .. }
+        | Request::RelayRefusal { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
         | Request::Read { .. }
@@ -809,6 +811,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
         | Request::CloseDecision { .. }
+        | Request::ReplayJudgement { .. }
+        | Request::RelayRefusal { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
         | Request::Read { .. }
@@ -918,6 +922,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
         | Request::CloseDecision { .. }
+        | Request::ReplayJudgement { .. }
+        | Request::RelayRefusal { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
         | Request::Read { .. }

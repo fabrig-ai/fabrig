@@ -16,13 +16,13 @@ use skein_lib::{List, Reader, Writer};
 const POSITIONS: usize = 3;
 const NEW: &[u8] = b"new-model";
 
-fn catalogue() -> Box<[CatalogueModel]> {
-    let base = core::Model {
+fn entry(number: u32, name: Box<[u8]>) -> CatalogueModel {
+    let model = core::Model {
         provider: 3,
         dialect: 2,
         endpoint: 1,
         program: None,
-        name: b"careful".as_slice().into(),
+        name,
         cache_life_ms: 0,
         window: 200_000,
         output: 32_000,
@@ -36,7 +36,7 @@ fn catalogue() -> Box<[CatalogueModel]> {
         speeds: Box::default(),
         speed: None,
     };
-    let row = |number, model| CatalogueModel {
+    CatalogueModel {
         first_read: None,
         number,
         model,
@@ -46,14 +46,17 @@ fn catalogue() -> Box<[CatalogueModel]> {
         withdrawn: false,
         source: ModelSource::Stock,
         estimated: false,
-    };
-    let mut added = row(3, core::Model { name: NEW.into(), ..base.clone() });
+    }
+}
+
+fn catalogue() -> Box<[CatalogueModel]> {
+    let mut added = entry(3, NEW.into());
     added.shown = Some(b"New model".as_slice().into());
     added.description = Some(b"Added to the catalogue".as_slice().into());
     added.picker = false;
     added.source = ModelSource::List;
     added.first_read = Some(skein_lib::Wall::from_nanos(123));
-    Box::new([added, row(1, base)])
+    Box::new([added, entry(1, b"careful".as_slice().into())])
 }
 
 fn create() -> w::Ask {
@@ -75,6 +78,28 @@ fn create() -> w::Ask {
     w::Ask::Create(w::Create { project: f::PROJECT, tasks: f::pieces(&[writer.finish()]) })
 }
 
+fn model_exchange(mut env: skein_lib::Env<crate::Limits>) -> f::Exchange {
+    env.limits.wire.owned_record = w::CEILINGS.owned_record;
+    f::Exchange::with_env(env)
+}
+
+fn me_models(exchange: &mut f::Exchange, model: u8) -> List<w::MeModel> {
+    let (owner, reply, _) = exchange.read_until(&w::Read::Me, skein_lib::Wall::from_nanos(u64::MAX));
+    let mut frame = f::frame_two_projects();
+    for project in frame.projects.iter_mut() {
+        project.offer = List::from_boxed(Box::new([core::Offered { model, accounts: List::with_capacity(0) }]));
+    }
+    exchange.release_read(reply, core::reads::Answer::Document(Box::new(core::documents::Document::Frame(frame))));
+    let w::ReadAnswer::Value(value) = exchange.read_answer(owner) else { panic!("me read") };
+    let w::ReadValue::Me(me) =
+        w::ReadValue::decode(&exchange.env.limits.wire, &mut Reader::new(value.record.as_ref())).unwrap()
+    else {
+        panic!("me")
+    };
+    let project = skein_codec::piece::split(&mut Reader::new(me.projects.as_ref())).unwrap().unwrap();
+    w::MeProject::decode(&exchange.env.limits.wire, &mut Reader::new(&project)).unwrap().models
+}
+
 #[test]
 fn a_catalogue_replaces_the_models_a_request_names() {
     for clock in [0, 123, 9_000_000_000_000_000] {
@@ -82,9 +107,8 @@ fn a_catalogue_replaces_the_models_a_request_names() {
         env.wall = skein_lib::Wall::from_nanos(clock);
         env.now = skein_lib::Time::from_nanos(clock);
         env.limits.wire.keyed_request = w::CEILINGS.keyed_request;
-        env.limits.wire.owned_record = w::CEILINGS.owned_record;
         env.limits.message_bytes = w::CEILINGS.keyed_request;
-        let mut exchange = f::Exchange::with_env(env);
+        let mut exchange = model_exchange(env);
         let message = || {
             let keyed = w::Keyed {
                 key: [5; 16],
@@ -122,24 +146,10 @@ fn a_catalogue_replaces_the_models_a_request_names() {
             panic!("create")
         };
         assert_eq!(batch.first().unwrap().llm.as_ref().unwrap().main.model, 2);
-        let (owner, reply, _) = exchange.read_until(&w::Read::Me, skein_lib::Wall::from_nanos(u64::MAX));
-        let mut frame = f::frame_two_projects();
-        for project in frame.projects.iter_mut() {
-            project.templates = List::with_capacity(0);
-            project.defaults = List::with_capacity(0);
-            project.offer = List::from_boxed(Box::new([core::Offered { model: 2, accounts: List::with_capacity(0) }]));
-        }
-        exchange.release_read(reply, core::reads::Answer::Document(Box::new(core::documents::Document::Frame(frame))));
-        let w::ReadAnswer::Value(value) = exchange.read_answer(owner) else { panic!("me read") };
-        let w::ReadValue::Me(me) =
-            w::ReadValue::decode(&exchange.env.limits.wire, &mut Reader::new(value.record.as_ref())).unwrap()
-        else {
-            panic!("me")
-        };
-        let project = skein_codec::piece::split(&mut Reader::new(me.projects.as_ref())).unwrap().unwrap();
-        let project = w::MeProject::decode(&exchange.env.limits.wire, &mut Reader::new(&project)).unwrap();
-        assert_eq!(project.models.get(0).unwrap().name.as_ref(), NEW);
-        assert_eq!(project.models.get(0).unwrap().new_until, Some(123 + core::settings::catalogue::NEW_FOR.as_nanos()));
+        let offered = me_models(&mut exchange, 2);
+        let added = offered.get(0).unwrap();
+        assert_eq!(added.name.as_ref(), NEW);
+        assert_eq!(added.new_until, Some(123 + core::settings::catalogue::NEW_FOR.as_nanos()));
     }
 }
 
@@ -179,6 +189,32 @@ fn a_hole_is_no_model() {
         panic!("named refusal")
     };
     assert_eq!(refusal.model.as_ref(), NEW);
+}
+
+// The numbered catalogue has seven stock models and deployment models 39 through MODELS.
+const STOCK: u32 = 7;
+const FIRST_ADDED: u32 = 39;
+const ADDED_INDEX: u8 = 38;
+const HOLE_INDEX: usize = 7;
+
+#[test]
+fn clients_keep_catalogue_numbers_across_holes_and_in_me() {
+    let mut entries = List::with_capacity(jig_domain_tasks::MODELS);
+    for number in (1..=STOCK).chain(FIRST_ADDED..=jig_domain_tasks::MODELS) {
+        let name = skein_lib::bytes::concat(&[b"m", skein_lib::Decimal::of(u64::from(number)).as_bytes()]);
+        entries.push(entry(number, name)).expect("one entry per model number");
+    }
+    let models = translate::llm::catalogue(entries.as_slice());
+    let mut exchange = model_exchange(f::env());
+    exchange.component.down(&exchange.env, Event::Catalogue { models }, &mut exchange.out);
+    let table = &exchange.component.settings.models;
+    let added = table.get(usize::from(ADDED_INDEX)).expect("added model's slot");
+    assert_eq!((added.name.as_ref(), added.number), (b"m39".as_slice(), FIRST_ADDED));
+    let hole = table.get(HOLE_INDEX).expect("hole's slot");
+    assert_eq!((hole.name.as_ref(), hole.number), (b"".as_slice(), 0));
+    let offered = me_models(&mut exchange, ADDED_INDEX);
+    let [added] = offered.as_slice() else { panic!("one offered model") };
+    assert_eq!((added.name.as_ref(), added.number), (b"m39".as_slice(), FIRST_ADDED));
 }
 
 #[test]
