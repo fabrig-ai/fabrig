@@ -344,6 +344,19 @@ them.
   project's policy grants the job kinds its goals may make (the close
   job, job 4, `configuration/stock.md`), so a kind 5 would be refused
   until each deployment's settings granted it.
+- **A close asks for its outdated finding in its spec too:** `JobSpec`'s
+  `outdated`, a `bool` defaulting to `false` and marked `droppable`
+  (skein's `data/codec/README.md`, 3), true on every close job the
+  engine makes (`tooling.md`, 4.2). A worker given it sets
+  `TEMPER_CLOSE_OUTDATED=3` in the command's environment. Unlike
+  `refusal`, a worker whose layout lacks it keeps the spec, the field
+  dropped by the Keep plan (skein's `data/codec/layouts.md`, 2), so
+  that worker runs the close as before, its command not told, and a
+  close it breaks is read as before: the worker says, by the layout it
+  states at its opening, whether it carries the ask. A spec of an
+  earlier engine, without it, reads as `false`. Why droppable: a close
+  that waited for a newer worker would hold the goal, where one run as
+  before costs only the catch-up its finding would have brought.
 
 ## 9. Clients
 
