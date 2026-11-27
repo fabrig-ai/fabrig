@@ -1,7 +1,12 @@
 //! Random agent memory stays under scenario ceilings at every entry point.
 
+use core::convert::Infallible;
+
 use skein_lib::Duration;
-use skein_world::domain::heap::Meter;
+use skein_world::{
+    domain::heap::Meter,
+    sweep::{Case, cases, gate},
+};
 use smith_agent_world::memory::{LIMITS, churn};
 use smith_domain::{Limits, run};
 
@@ -18,7 +23,7 @@ const RANDOM_AGENT_CEILING: u64 = 240_000;
 const WIDE_RANDOM_AGENT_CEILING: u64 = 320_000;
 
 #[test]
-fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_entry_point() {
+fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_entry_point() -> Result<(), Case<Infallible>> {
     let wider = Limits {
         content_edge_records: WIDE_CONTENT_EDGE_RECORDS,
         run: run::Limits { runs: 3, conversations: 8, run_conversations: 4, calls: 8, ..LIMITS.run },
@@ -37,19 +42,30 @@ fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_entry_po
         },
         ..LIMITS
     };
+    let collect_reach = gate();
     let mut seen = [0; 18];
-    for seed in 0..12 {
-        for (limits, ceiling) in [(LIMITS, RANDOM_AGENT_CEILING), (wider, WIDE_RANDOM_AGENT_CEILING)] {
-            eprintln!("agent memory replay: seed={seed}, rounds=3000, limits={limits:?}");
-            let counted = churn(&limits, seed, 3_000, ceiling);
-            for (all, one) in seen.iter_mut().zip(counted) {
-                *all += one;
+    cases(
+        skein_world::this_test!("a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_entry_point"),
+        0..12,
+        |seed| {
+            for (limits, ceiling) in [(LIMITS, RANDOM_AGENT_CEILING), (wider, WIDE_RANDOM_AGENT_CEILING)] {
+                eprintln!("agent memory replay: seed={seed}, rounds=3000, limits={limits:?}");
+                let counted = churn(&limits, seed, 3_000, ceiling);
+                if collect_reach {
+                    for (all, one) in seen.iter_mut().zip(counted) {
+                        *all += one;
+                    }
+                }
             }
-        }
+            Ok(())
+        },
+    )?;
+    if collect_reach {
+        eprintln!("agent memory boundary coverage: {seen:?}");
+        assert!(seen[..7].iter().all(|count| *count > 10), "every kind of request was made: {seen:?}");
+        assert!(seen[7..].iter().all(|count| *count > 0), "terminal and refusal classes occurred: {seen:?}");
     }
-    eprintln!("agent memory boundary coverage: {seen:?}");
-    assert!(seen[..7].iter().all(|count| *count > 10), "every kind of request was made: {seen:?}");
-    assert!(seen[7..].iter().all(|count| *count > 0), "terminal and refusal classes occurred: {seen:?}");
+    Ok(())
 }
 
 #[test]

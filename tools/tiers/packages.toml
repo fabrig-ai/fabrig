@@ -15,6 +15,7 @@ browser-temper = [
 ]
 
 campaign-smith = [
+    "smith-agent-world",
     "smith-run-world",
     "smith-tools-world",
 ]
