@@ -10,6 +10,8 @@ use skein_lib::{Duration, List, Set, Wall};
 pub const SPEEDS: u32 = 4;
 pub const SPEED_ALIASES: u32 = 2;
 pub const SPEED_NAME_BYTES: u32 = 32;
+const CLAUDE_CODE: &[u8] = b"claude_code";
+const FAST: &[u8] = b"fast";
 
 /// How long a list model is new (jig/docs/design/domain/engine/settings-catalogue.md, 2).
 pub const NEW_FOR: Duration = Duration::from_secs(7 * 86_400);
@@ -272,8 +274,8 @@ pub fn speeds_fit(model: &Model) -> bool {
     let mut names = Set::with_capacity(SPEEDS.saturating_mul(SPEED_ALIASES.saturating_add(1)));
     for speed in &model.speeds {
         let route = match model.program.as_deref() {
-            Some(program) => program == b"claude_code" && speed.name.as_ref() == b"fast",
-            None => model.dialect != 2 || speed.name.as_ref() == b"fast",
+            Some(program) => program == CLAUDE_CODE && speed.name.as_ref() == FAST,
+            None => model.dialect != 2 || speed.name.as_ref() == FAST,
         };
         if !route || !prices_fit(model, speed) || speed.also.len() > skein_lib::usize_of(SPEED_ALIASES) {
             return false;
@@ -344,24 +346,28 @@ pub fn shape(value: &CatalogueModel, number: u32, providers: &[super::ProviderSe
 
 #[must_use]
 pub fn bound() -> Option<u64> {
+    // Only a direct route can use all speeds. A program takes no speeds,
+    // except Claude Code, which can declare and default to `fast` alone.
+    let name_bytes = u64::from(SPEED_NAME_BYTES);
+    let direct = speed_bytes(name_bytes)?.checked_mul(u64::from(SPEEDS))?.checked_add(name_bytes)?;
+    let fast = u64::try_from(FAST.len()).ok()?;
+    let claude = u64::try_from(CLAUDE_CODE.len()).ok()?.checked_add(speed_bytes(fast)?)?.checked_add(fast)?;
+    let route = direct.max(claude).max(u64::from(accounts::NAME));
     u64::try_from(size_of::<CatalogueModel>())
         .ok()?
         .checked_add(u64::from(crate::MODEL_NAME_BYTES).checked_mul(2)?)?
         .checked_add(u64::from(crate::MODEL_DESCRIPTION_BYTES))?
-        .checked_add(u64::from(jig_domain_accounts::NAME))?
         .checked_add(
             u64::from(crate::EFFORTS).checked_mul(
                 u64::from(crate::EFFORT_BYTES).checked_add(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
             )?,
         )?
         .checked_add(u64::from(crate::EFFORT_BYTES))?
-        .checked_add(speed_bytes()?.checked_mul(u64::from(SPEEDS))?)?
-        .checked_add(u64::from(SPEED_NAME_BYTES))
+        .checked_add(route)
 }
 
-fn speed_bytes() -> Option<u64> {
-    let name_bytes = u64::from(SPEED_NAME_BYTES);
-    let alias_bytes = u64::try_from(size_of::<Box<[u8]>>()).ok()?.checked_add(name_bytes)?;
+fn speed_bytes(name_bytes: u64) -> Option<u64> {
+    let alias_bytes = u64::try_from(size_of::<Box<[u8]>>()).ok()?.checked_add(u64::from(SPEED_NAME_BYTES))?;
     u64::try_from(size_of::<Speed>())
         .ok()?
         .checked_add(name_bytes)?

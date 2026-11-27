@@ -487,14 +487,15 @@ fn full_speed_declarations_fit_the_catalogue_and_count_in_a_charters_size() {
     assert!(crate::settings::catalogue::fits(&row, 1));
     // Each speed owns three names and two alias pointers. The default name is a separate allocation.
     let allocated = 4 * (size_of::<crate::Speed>() + 3 * 32 + 2 * size_of::<Box<[u8]>>()) + 32;
+    // The route with four speeds has no program allocation.
     let carrier_without_speed_allocations = size_of::<CatalogueModel>()
         + 2 * usize::try_from(crate::MODEL_NAME_BYTES).unwrap()
-        + usize::try_from(crate::MODEL_DESCRIPTION_BYTES + jig_domain_accounts::NAME).unwrap()
+        + usize::try_from(crate::MODEL_DESCRIPTION_BYTES).unwrap()
         + 16 * (size_of::<Box<[u8]>>() + 32)
         + 32;
-    assert!(
-        crate::settings::catalogue::bound().unwrap()
-            >= u64::try_from(carrier_without_speed_allocations + allocated).unwrap()
+    assert_eq!(
+        crate::settings::catalogue::bound().unwrap(),
+        u64::try_from(carrier_without_speed_allocations + allocated).unwrap()
     );
     // The main model can also be a sub-agent: the run's worst case prices it twice.
     assert_eq!(
