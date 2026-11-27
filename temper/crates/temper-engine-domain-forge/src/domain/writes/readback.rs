@@ -1,6 +1,7 @@
 //! Fresh, pinned reads for write intents and completed attempts (writes.md, sections 3–4 and 7).
 use super::{
-    Domain, Name, Operation, Queue, Request, Sender, Tip, WriteState, advance, after, before, filtered, save_changed,
+    Domain, Name, Operation, Queue, Request, Sender, Tip, WriteState, advance, after, before, prune_refused,
+    save_changed,
 };
 use crate::Limits;
 use skein_forge::api::{Answer, Commit, Error, Pull, Read, Repository};
@@ -570,7 +571,7 @@ pub(super) fn settle(
         break;
     }
     if state == WriteState::Refused {
-        row.entries = filtered(row, None, true).into_boxed();
+        prune_refused(row);
     } else {
         advance(row);
     }

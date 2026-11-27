@@ -2480,6 +2480,23 @@ impl World {
         self.flush();
     }
 
+    fn offer_forge_call(&mut self, event: fake::Event, delay: Option<Duration>) {
+        if delay.is_none() && self.restart_calls.is_none() {
+            fake::step(&mut self.fake, &self.fake_env, event, &mut self.fake_out);
+            return;
+        }
+        let mut limits = self.fake_env.limits.clone();
+        if let Some(delay) = delay {
+            limits.latency_min = delay;
+            limits.latency_max = delay;
+        }
+        if let Some(calls) = &mut self.restart_calls {
+            calls.push((event, limits));
+        } else {
+            fake::step(&mut self.fake, &self.fake_env.with(limits), event, &mut self.fake_out);
+        }
+    }
+
     /// Step every input waiting at once: the one sent, then what the
     /// protocol layer answered at once, as the root's door gives them.
     pub fn flush(&mut self) {
@@ -3041,27 +3058,15 @@ impl World {
                     self.pending_repositories.insert(call, Box::from(name));
                     let wire = Token::new(u64::from(self.forge_calls));
                     assert!(self.wire_calls.insert(wire, call).is_none(), "unique physical reply right");
-                    let mut limits = self.fake_env.limits.clone();
-                    if slow {
-                        limits.latency_min = self.slow_branch_latency;
-                        limits.latency_max = self.slow_branch_latency;
-                    }
-                    if let Some(delay) = review_delay.or(comparison_delay).or(ci_delay) {
-                        limits.latency_min = delay;
-                        limits.latency_max = delay;
-                    }
-                    let fake_env = self.fake_env.with(limits);
                     let event = fake::Event::Call {
                         reply_to: ReplyTo::new(wire),
                         user: 1,
                         repository: Box::from(name),
                         op: raw,
                     };
-                    if let Some(calls) = &mut self.restart_calls {
-                        calls.push((event, fake_env.limits));
-                    } else {
-                        fake::step(&mut self.fake, &fake_env, event, &mut self.fake_out);
-                    }
+                    let delay =
+                        review_delay.or(comparison_delay).or(ci_delay).or(slow.then_some(self.slow_branch_latency));
+                    self.offer_forge_call(event, delay);
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => match delivery {

@@ -205,14 +205,23 @@ pub(crate) fn remove(d: &mut Domain, name: &Name, out: &mut Queue<Request>) {
     }
 }
 
-fn filtered(row: &mut Writes, erase: Option<u64>, drop_refused: bool) -> List<Written> {
-    let mut entries = List::with_capacity(write_limit());
-    for entry in core::mem::replace(&mut row.entries, Box::new([])) {
-        if Some(entry.order) != erase && !(drop_refused && entry.state == WriteState::Refused) {
-            entries.push(entry).expect("the record's stored list bound");
+fn prune_refused(row: &mut Writes) {
+    let mut kept = 0u32;
+    for entry in &row.entries {
+        if entry.state != WriteState::Refused {
+            kept = kept.checked_add(1).expect("bounded write list");
         }
     }
-    entries
+    if skein_lib::usize_of(kept) == row.entries.len() {
+        return;
+    }
+    let mut entries = List::allocated(kept);
+    for entry in core::mem::replace(&mut row.entries, Box::new([])) {
+        if entry.state != WriteState::Refused {
+            entries.push(entry).expect("counted kept writes");
+        }
+    }
+    row.entries = entries.into_boxed();
 }
 
 /// Move through the known, settled writes in admission order, without ever
@@ -318,7 +327,14 @@ impl Domain {
             }
             return Err(Full { name: name.clone(), senders: senders(row) });
         };
-        let mut entries = filtered(row, erase, false);
+        let count = u32::try_from(row.entries.len()).expect("bounded write list");
+        let count = if erase.is_some() { count } else { count.checked_add(1).expect("room checked") };
+        let mut entries = List::allocated(count);
+        for entry in core::mem::replace(&mut row.entries, Box::new([])) {
+            if Some(entry.order) != erase {
+                entries.push(entry).expect("counted kept writes");
+            }
+        }
         entries.push(Written { order, sender, state: WriteState::Admitted, operation }).expect("room checked");
         row.entries = entries.into_boxed();
         row.next = next;

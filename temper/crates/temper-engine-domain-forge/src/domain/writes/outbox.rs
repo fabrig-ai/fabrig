@@ -1,7 +1,7 @@
 //! Admission and progress in the decisions that save the outbox row and its Flight.
 use super::{
-    Domain, Limits, Name, Operation, Queue, Request, Sender, WriteState, advance, branch, filtered, full, known_head,
-    remove, save_changed,
+    Domain, Limits, Name, Operation, Queue, Request, Sender, WriteState, advance, branch, full, known_head,
+    prune_refused, remove, save_changed,
 };
 use skein_forge::api::{Commit, MergeHow, Repository, Write};
 use skein_forge_client::{Condition, Entry, Made, Outcome};
@@ -242,7 +242,7 @@ fn mark(d: &mut Domain, sender: Sender, progress: Progress, out: &mut Queue<Requ
             }
         }
         if changed {
-            row.entries = filtered(row, None, true).into_boxed();
+            prune_refused(row);
             let previous = row.head;
             advance(row);
             save_changed(row, previous, &mut d.write_heads, out);
