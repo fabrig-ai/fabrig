@@ -122,6 +122,10 @@ pub struct Settings {
     pub tool: Span,
     /// The chance, per mille, that io fails an operation of the tools.
     pub tool_errors: u32,
+    /// Mount a second, read-only directory at `/ref` in each session's workspace.
+    pub reference: bool,
+    /// Give the shared menu's README body more draws to exercise dependent calls.
+    pub rewrite_heavy: bool,
     /// How many times the opener nudges a session that yields before it
     /// closes it, drawn for each session.
     pub nudges: Count,
@@ -208,6 +212,8 @@ impl Settings {
             network: Span::millis(1, 20),
             tool: Span::millis(10, 500),
             tool_errors: 0,
+            reference: false,
+            rewrite_heavy: false,
             nudges: Count { min: 0, max: 0 },
             think: Span::millis(0, 50),
             abandon: 0,
@@ -227,12 +233,7 @@ impl Settings {
 /// names it in the spec as io names its root.
 #[must_use]
 pub fn spec(prompt: &[u8]) -> agent::Spec {
-    let repo = Directory {
-        host: Box::new([smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-        mount: io::names(b"/work").into_vec().pop().expect("mount name"),
-        root: Token::new(0),
-        writable: true,
-    };
+    let repo = directory(b"host", b"work", Token::new(0), true);
     let grants = Grants { inspect: true, modify: true, shell: true };
     let authority = Authority { cwd: io::names(b"/work").into_vec().pop(), repos: Box::new([repo]), grants };
     agent::Spec {
@@ -257,6 +258,11 @@ pub fn spec(prompt: &[u8]) -> agent::Spec {
         output: 1024,
         budget: BUDGET,
     }
+}
+
+fn directory(host: &[u8], mount: &[u8], root: Token, writable: bool) -> Directory {
+    let name = |text: &[u8]| tools::Name::new(text.into()).expect("fixture name");
+    Directory { host: Box::new([name(host)]), mount: name(mount), root, writable }
 }
 
 /// What the world counted.
@@ -596,6 +602,7 @@ pub struct World {
     rng: Rng,
     settings: Settings,
     rendered_result: u32,
+    decoder: smith_protocol_llm::Limits,
 
     agent: agent::Domain,
     agent_stage: Stage<agent::Limits, agent::Event, agent::Request>,
@@ -694,7 +701,7 @@ impl World {
             &settings.provider,
             seeds,
             Scripts { cued: scripts, asked: Box::new([]), otherwise: Box::new([]) },
-            crate::provider::menu(),
+            crate::provider::weighted_menu(settings.rewrite_heavy),
             Rules { cued: Box::new([]), asked: Box::new([]) },
             replay,
         )
@@ -706,6 +713,7 @@ impl World {
             rng,
             settings,
             rendered_result: translate::render_bound(&settings.agent),
+            decoder: translate::decode_limits(&settings.agent.tools),
             agent,
             agent_stage: Stage::uncapped(settings.agent),
             provider,
@@ -1423,7 +1431,12 @@ impl World {
             match op {
                 Op::Spawn { cwd, command, head, tail, after } => {
                     match io::spawn(&self.checkout, &cwd, &command, &[], (head, tail)) {
-                        Ok(started) => {
+                        Ok(mut started) => {
+                            // The script names changes relative to its cwd; the fake takes checkout paths.
+                            for (path, _) in &mut started.process.program.changes {
+                                let root = paths::name(self.checkout.root_path(cwd.root.raw()), &cwd.path);
+                                *path = paths::name(&root, path);
+                            }
                             if let Some(yield_at) = after.map(|delay| self.now.saturating_add(delay))
                                 && yield_at < ends.min(deadline)
                             {
@@ -1679,7 +1692,8 @@ impl World {
                         if let Ok(answer) = &mut result {
                             crate::provider::report(&mut answer.usage, input);
                         }
-                        let event = translate::outcome(owner, result, &mut self.tickets, opener, &served);
+                        let event =
+                            translate::outcome(owner, result, &mut self.tickets, opener, &served, &self.decoder);
                         self.agent_stage.push(event);
                     } else {
                         self.stats.late_answers += 1;
@@ -1751,6 +1765,13 @@ impl World {
         self.roots.insert(root, opener);
         for repo in &mut spec.authority.repos {
             repo.root = io::token(root);
+        }
+        if self.settings.reference {
+            let root = fixture::seed_reference(&mut self.checkout, format!("ref{opener}").as_bytes());
+            self.roots.insert(root, opener);
+            let mut repos = std::mem::take(&mut spec.authority.repos).into_vec();
+            repos.push(directory(b"host-ref", b"ref", io::token(root), false));
+            spec.authority.repos = repos.into_boxed_slice();
         }
         let session = Session {
             previous_prompt: None,

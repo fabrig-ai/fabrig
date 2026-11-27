@@ -101,15 +101,16 @@ pub(crate) fn query_bounded(prompt: agent::Prompt, tickets: &Tickets, maximum: u
 /// a call of the session of `opener` that offered the tools of `served`. A
 /// call to one of those is kept in `tickets`, as the top level would keep it.
 #[must_use]
-pub fn outcome(
+pub(crate) fn outcome(
     owner: Token,
     result: Result<provider::Answer, provider::Error>,
     tickets: &mut Tickets,
     opener: u64,
     served: &[agent::Descriptor],
+    limits: &smith_protocol_llm::Limits,
 ) -> Event {
     match result {
-        Ok(answer) => Event::Completed { owner, completion: completion(answer, tickets, opener, served) },
+        Ok(answer) => Event::Completed { owner, completion: completion(answer, tickets, opener, served, limits) },
         Err(error) => Event::Failed {
             retry_ok: true,
             owner,
@@ -168,6 +169,7 @@ fn completion(
     tickets: &mut Tickets,
     opener: u64,
     served: &[agent::Descriptor],
+    limits: &smith_protocol_llm::Limits,
 ) -> agent::Completion {
     let stop = match answer.finish {
         provider::Finish::Stop => agent::Stop::EndTurn,
@@ -183,11 +185,17 @@ fn completion(
         cache_write_tokens: cache_write,
         reasoning_tokens: reasoning,
     };
-    let content = answer.parts.into_iter().map(|part| block(part, tickets, opener, served)).collect();
+    let content = answer.parts.into_iter().map(|part| block(part, tickets, opener, served, limits)).collect();
     agent::Completion { reasoning_dropped: Box::default(), content, stop, usage }
 }
 
-fn block(part: provider::Part, tickets: &mut Tickets, opener: u64, served: &[agent::Descriptor]) -> agent::Block {
+fn block(
+    part: provider::Part,
+    tickets: &mut Tickets,
+    opener: u64,
+    served: &[agent::Descriptor],
+    limits: &smith_protocol_llm::Limits,
+) -> agent::Block {
     match part {
         provider::Part::Text { text } => agent::Block::Text { text, replay: None },
         provider::Part::Opaque { bytes } => agent::Block::Opaque { bytes },
@@ -202,7 +210,7 @@ fn block(part: provider::Part, tickets: &mut Tickets, opener: u64, served: &[age
                         effect,
                     }
                 }
-                None => decode(&name, &arguments),
+                None => decode_bounded(&name, &arguments, limits),
             };
             agent::Block::ToolCall(agent::ToolCall { id, name, input: arguments, call, replay: None })
         }
@@ -239,14 +247,26 @@ fn failure(error: provider::Error) -> agent::Failure {
 /// protocol layer decodes it: or what keeps it from being one.
 #[must_use]
 pub fn decode(name: &[u8], arguments: &[u8]) -> agent::Decoded {
+    decode_bounded(name, arguments, &decode_limits(&crate::TOOLS))
+}
+
+pub(crate) fn decode_limits(tools: &smith_domain_tools::Limits) -> smith_protocol_llm::Limits {
+    let mut client = skein_llm_kit::limits();
+    // Like the profile, leave room for the longest path and Write's JSON
+    // framing, then apply the native escape factor (limits-derivation.md, 1).
+    let framing = u32::try_from(br#"{"path":"","content":""}"#.len()).expect("small framing");
+    let escape = skein_llm::ESCAPE;
+    let input = tools.tool_payload.saturating_add(tools.path_bytes).saturating_add(framing.div_ceil(escape));
+    client.input = client.input.min(input.saturating_mul(escape));
+    let stated = smith_protocol_llm::Stated::from_tools(tools, client.input).expect("finite workspace fixture");
+    smith_protocol_llm_fixtures::small(client, stated)
+}
+
+fn decode_bounded(name: &[u8], arguments: &[u8], limits: &smith_protocol_llm::Limits) -> agent::Decoded {
     use smith_domain::llm;
 
-    let client = skein_llm_kit::limits();
-    let stated = smith_protocol_llm::Stated::from_tools(&smith_domain_tools_fixtures::SMALL, client.input)
-        .expect("finite workspace fixture");
-    let limits = smith_protocol_llm_fixtures::small(client, stated);
     let grants = Grants { inspect: true, modify: true, shell: true };
-    match smith_protocol_llm::decode(name, arguments, grants, &[], llm::Asker::Main, &limits) {
+    match smith_protocol_llm::decode(name, arguments, grants, &[], llm::Asker::Main, limits) {
         llm::Decoded::Owned { call } => agent::Decoded::Owned { call },
         llm::Decoded::Invalid { problem } => agent::Decoded::Invalid { descriptor: None, problem },
         llm::Decoded::Builtin { .. } | llm::Decoded::Served { .. } => unreachable!("only workspace tools are granted"),

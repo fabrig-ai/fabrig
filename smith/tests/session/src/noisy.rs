@@ -107,7 +107,7 @@ pub fn noisy(seed: u64) -> Settings {
         .history_bytes
         .checked_add(crate::reservation_envelope(&settings.agent).expect("bounded scripted credits"))
         .expect("bounded pressure plus credit envelope");
-    // Draw the job cells last, keeping every earlier draw in its seed's place.
+    // Keep the job-cell draw in place and draw the workspace limits after it.
     settings.agent.tools.jobs = pick(1, u64::from(calm.agent.tools.jobs));
     if job_heavy(seed) {
         settings.provider.calls_per_answer = 1;
@@ -116,12 +116,40 @@ pub fn noisy(seed: u64) -> Settings {
         // answer. Keep the short, otherwise uninteresting one-call worlds
         // weighted toward refusals without adding tool rounds.
         if settings.provider.calls_per_answer == 3 && parallel_tools >= 3 {
-            settings.provider.calls_per_answer = parallel_tools + 1;
+            settings.provider.calls_per_answer = parallel_tools + 2;
         }
         // Keep a low-refusal tail for multi-turn reads, lists, and searches.
         settings.provider.malformed += if settings.provider.malformed < 35 { 200 } else { 780 };
     }
+    vary_workspace(&mut settings, pick);
     settings
+}
+
+fn vary_workspace(settings: &mut Settings, mut pick: impl FnMut(u64, u64) -> u32) {
+    settings.rewrite_heavy = pick(0, 15) == 0 && !job_heavy(settings.seed);
+    if settings.rewrite_heavy {
+        // Some worlds can follow a file across several short tool turns.
+        settings.provider.calls_per_answer = 1;
+        settings.provider.malformed = settings.provider.malformed.min(200);
+        settings.provider.tool_rounds = settings.provider.tool_rounds.max(10);
+        settings.tool.max = settings.tool.max.min(settings.agent.tools.file_timeout);
+    }
+    settings.reference = pick(0, 3) == 0;
+    if settings.reference {
+        settings.agent.tools.repos = 2;
+    }
+    if pick(0, 3) == 0 {
+        limit_payload(&mut settings.agent.tools, pick(128, 144));
+    }
+}
+
+// The default read window fits one payload, and a listing uses that window
+// with room for at least one entry and a nonempty name (limits-derivation.md, 1).
+fn limit_payload(tools: &mut tools::Limits, bound: u32) {
+    tools.tool_payload = bound;
+    tools.read_bytes = tools.read_bytes.min(bound);
+    tools.list_bytes =
+        u64::from(tools.read_bytes).max(u64::try_from(size_of::<tools::Entry>() + 1).expect("entry fits"));
 }
 
 /// Up to eight sessions opened at random times in the first minute, each with
@@ -164,6 +192,18 @@ pub fn submit_noisily(world: &mut World, settings: &Settings, seed: u64) {
         };
         if job_heavy {
             opening.authority.grants = tools::Grants { inspect: false, modify: false, shell: true };
+        }
+        if settings.rewrite_heavy {
+            // Keep invalid and exhausted openings; otherwise the opener can
+            // follow results into later turns in this share of worlds.
+            if budget.turns > 0 && budget.turns <= most.turns && budget.time != Duration::ZERO {
+                opening.budget.turns = most.turns;
+                opening.budget.time = most.time;
+            }
+            opening.budget.input *= 4;
+            opening.budget.output *= 4;
+            opening.budget.cache_read *= 4;
+            opening.budget.cache_write *= 8;
         }
         world.submit(at, opening);
     }

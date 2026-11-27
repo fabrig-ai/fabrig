@@ -27,10 +27,15 @@ pub const SLOT_NAMES: [&[u8]; 5] = [b"job", b"offset", b"listed", b"found", b"na
 /// Complete application-owned bodies and deliberate invalid entries.
 #[must_use]
 pub fn menu() -> Menu {
+    weighted_menu(false)
+}
+
+pub(super) fn weighted_menu(rewrites: bool) -> Menu {
     // Each body declares every field. This shared prefix also ensures that cuts
     // through the common fields are identical across rows.
     const COMMON: &str = r#""wait_seconds":1,"stop":false,"timeout_seconds":4,"output_bytes":32,"depth":2,"glob":"*""#;
     const NORMAL: &str = r#""offset":1,"window":28,"yield_seconds":0,"command":"ls","pattern":":""#;
+    const REWRITE: &str = r#""offset":1,"window":28,"yield_seconds":4,"command":"rewrite README.md","pattern":":""#;
     const FAIL: &str = r#""offset":1,"window":28,"yield_seconds":4,"command":"false","pattern":":""#;
     const CONTINUE: &str = r#""offset":"{{#offset}}","window":28,"yield_seconds":0,"command":"ls","pattern":":""#;
     const ZERO_AND_NUL_PATTERN: &str = r#""offset":0,"window":28,"yield_seconds":0,"command":"ls","pattern":"\u0000""#;
@@ -68,15 +73,23 @@ pub fn menu() -> Menu {
         body.push(b'}');
         body.into_boxed_slice()
     };
-    let arguments = Box::new([
+    let mut arguments = vec![
         body("{{listed}}", "null", "42", "43", NORMAL, POLL),
         body("{{found}}", "null", "42", "43", NORMAL, FIRST_JOB),
         body("{{named}}", "null", "42", "43", CONTINUE, POLL),
-    ]);
+    ];
+    if rewrites {
+        let rewrite = body("README.md", r#""README.md: generated""#, "generated", "kept", REWRITE, FIRST_JOB);
+        // A wider share of one useful body leaves room to draw a read, a
+        // rewrite and a dependent write. Tool and body draws stay independent.
+        arguments.extend(std::iter::repeat_n(rewrite, 9));
+    }
     // Refusing literals need no slot scan or expansion. They still draw the
     // offered tool independently: only the deliberate unknown entry overrides it.
+    // This 152-byte content exceeds the drawn payload, not the JSON call bound.
+    let large_source = format!("\"src/lib.rs: {}\"", "rewritten ".repeat(14));
     let refusing = [
-        body("src/lib.rs", SOURCE, "u", "v", NORMAL, FIRST_JOB),
+        body("src/lib.rs", &large_source, "u", "v", NORMAL, FIRST_JOB),
         body("./README.md", r#""README.md: rewritten""#, "hello", "hello", NORMAL, FIRST_JOB),
         body("docs", "null", "guide", "manual", NORMAL, FIRST_JOB),
         body(".", "null", "a", "b", NORMAL, FIRST_JOB),
@@ -86,6 +99,7 @@ pub fn menu() -> Menu {
         body(&"x".repeat(257), SOURCE, "42", "43", NORMAL, FIRST_JOB),
         body(".git/config", SOURCE, "42", "43", ZERO_AND_NUL_PATTERN, FIRST_JOB),
         body(r"bad\u0000path", SOURCE, "42", "43", NUL_COMMAND, FIRST_JOB),
+        body("/ref/README.md", r#""README.md: amended""#, "reference", "amended", REWRITE, FIRST_JOB),
     ];
     let slot = |index: usize, before: &[u8], after: &[u8], unissued: &[u8], numeric| Slot {
         name: SLOT_NAMES[index].into(),
@@ -97,7 +111,7 @@ pub fn menu() -> Menu {
     };
     let numeric = Some(Bounds { low: 1, high: u64::from(u32::MAX) });
     Menu {
-        arguments,
+        arguments: arguments.into_boxed_slice(),
         invalid: [
             InvalidInput {
                 name: Some(b"delete_repository".as_slice().into()),

@@ -2,7 +2,10 @@
 
 use skein_fake_llm_domain::api::{Bounds, Line, Script, Source, Turn};
 use skein_lib::Time;
-use smith_domain_session::{llm::Endpoint, record};
+use smith_domain_session::{
+    llm::{Block, Endpoint},
+    record,
+};
 use smith_domain_tools::Grants;
 use smith_session_world::fixture::{calls, says};
 use smith_session_world::provider::{SLOT_NAMES, UNISSUED_PATH, menu};
@@ -19,6 +22,95 @@ fn call(name: &[u8], arguments: &[u8]) -> Turn {
 
 fn script(turns: Vec<Turn>) -> Box<[Script]> {
     Box::new([Script { cue: bytes(SYSTEM), turns: turns.into() }])
+}
+
+fn scripted_results(settings: &Settings, mut turns: Vec<Turn>) -> Vec<(Box<[u8]>, bool)> {
+    turns.push(says(Box::new([Line::Text { text: bytes(b"done") }]), 48));
+    let mut world = World::with_scripts(*settings, script(turns));
+    let opener = world.submit(Time::ZERO, spec(TASK));
+    world.run(ITERATIONS);
+    world
+        .session(opener)
+        .records
+        .iter()
+        .flat_map(|turn| &turn.messages)
+        .flat_map(|message| &message.content)
+        .filter_map(|block| match block {
+            Block::ToolResult { result, .. } => Some(smith_session_world::translate::render(result)),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn a_rewrite_stales_a_write_but_an_edit_loads_again() {
+    let results = scripted_results(
+        &Settings::calm(1),
+        vec![
+            call(b"read", br#"{"path":"README.md"}"#),
+            call(b"shell", br#"{"command":"rewrite README.md"}"#),
+            call(b"write", br#"{"path":"README.md","content":"README.md: overwritten"}"#),
+            call(b"edit", br#"{"path":"README.md","edits":[{"old":"generated","new":"edited"}]}"#),
+            call(b"read", br#"{"path":"README.md"}"#),
+        ],
+    );
+    assert_eq!(results.len(), 5);
+    assert!(!results[0].1 && !results[1].1);
+    assert!(results[2].1 && results[2].0.starts_with(b"file changed or is gone since it was read"), "{results:?}");
+    assert!(!results[3].1 && !results[4].1);
+    assert!(results[4].0.starts_with(b"1: README.md: edited\n"), "{results:?}");
+}
+
+#[test]
+fn only_inspection_can_use_the_reference_directory() {
+    let calm = Settings::calm(1);
+    let mut mounted = Settings { reference: true, ..calm };
+    mounted.agent.tools.repos = 2;
+    let read = || call(b"read", br#"{"path":"/ref/README.md"}"#);
+    let results = scripted_results(
+        &mounted,
+        vec![
+            call(b"write", br#"{"path":"/ref/README.md","content":"README.md: amended"}"#),
+            call(b"remove", br#"{"path":"/ref/README.md"}"#),
+            read(),
+        ],
+    );
+    assert_eq!(results.len(), 3);
+    for (text, error) in &results[..2] {
+        assert!(*error);
+        assert_eq!(text.as_ref(), b"path is read-only: /ref/README.md");
+    }
+    assert!(!results[2].1 && results[2].0.starts_with(b"1: README.md: reference\n"), "{results:?}");
+    assert_eq!(
+        scripted_results(&calm, vec![read()]),
+        [(bytes(b"path is outside the workspace: /ref/README.md"), true)]
+    );
+}
+
+#[test]
+fn the_payload_bound_refuses_the_larger_write_and_stores_the_smaller_one() {
+    let mut settings = Settings::calm(1);
+    settings.agent.tools.tool_payload = 128;
+    settings.agent.tools.read_bytes = 128;
+    settings.agent.tools.list_bytes = 128;
+    let marker = b"src/lib.rs: rewritten rewritten";
+    let large = menu()
+        .invalid
+        .into_iter()
+        .find(|entry| skein_lib::bytes::find(&entry.arguments, marker).is_some())
+        .expect("the oversized menu body");
+    let results = scripted_results(
+        &settings,
+        vec![
+            call(b"write", &large.arguments),
+            call(b"write", br#"{"path":"notes.md","content":"notes.md: noted"}"#),
+            call(b"read", br#"{"path":"notes.md"}"#),
+        ],
+    );
+    assert_eq!(results.len(), 3);
+    assert!(results[0].1 && results[0].0.starts_with(b"write content too large: 152 bytes, bound 128 bytes;"));
+    assert!(!results[1].1 && !results[2].1);
+    assert!(results[2].0.starts_with(b"1: notes.md: noted"), "{results:?}");
 }
 
 #[test]

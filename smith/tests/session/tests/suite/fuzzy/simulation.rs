@@ -19,7 +19,7 @@ const ITERATIONS: u32 = 100_000;
 // refusal and twice after a translator refusal.
 const ORIGINAL_ESCAPED: u32 = 4;
 
-const BODY_REFUSALS: [Answer; 18] = [
+const REFUSALS: [Answer; 21] = [
     Answer::Outside,
     Answer::TooLong,
     Answer::Protected,
@@ -36,6 +36,9 @@ const BODY_REFUSALS: [Answer; 18] = [
     Answer::UnknownTool,
     Answer::UnknownJob,
     Answer::NotRead,
+    Answer::Stale,
+    Answer::ReadOnly,
+    Answer::TooLarge,
     Answer::TimedOut,
     Answer::JobsFull,
 ];
@@ -163,7 +166,7 @@ fn random_worlds_settle_with_every_session_ended() {
     for (slot, [shown, unissued]) in SLOT_NAMES.iter().zip(slot_cases) {
         assert!(shown > 0 && unissued > 0, "slot {slot:?}: {shown} shown, {unissued} unissued cases");
     }
-    for answer in BODY_REFUSALS {
+    for answer in REFUSALS {
         assert!(sample.answered(answer) > 0, "the unchanged gate seeds reach {}", answer.word());
     }
     for (reference, class) in WORKSPACE_CLASSES {

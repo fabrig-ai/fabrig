@@ -23,14 +23,19 @@ const MISSING: &[u8] = b"notes.md";
 /// The commands on the menu, and how each ends. What each writes starts with
 /// the command. (The world draws how long a command runs, as it does for every
 /// operation.)
-const COMMANDS: [(&[u8], u8); 5] = [(b"cargo test", 0), (b"ls", 0), (b"true", 0), (b"cat README.md", 0), (b"false", 1)];
+const COMMANDS: [(&[u8], u8); 6] =
+    [(b"cargo test", 0), (b"ls", 0), (b"true", 0), (b"cat README.md", 0), (b"false", 1), (b"rewrite README.md", 0)];
 
 /// Scripts the commands on the menu, once for the whole checkout.
 pub fn script(checkout: &mut Checkout) {
     for (command, code) in COMMANDS {
         let output = output(command);
-        let program =
-            Program { duration: Duration::from_millis(50), output, exit: fake::Exit::Code(code), changes: Vec::new() };
+        let changes = if command == b"rewrite README.md" {
+            vec![(b"README.md".to_vec(), Some(b"README.md: generated\n".to_vec()))]
+        } else {
+            Vec::new()
+        };
+        let program = Program { duration: Duration::from_millis(50), output, exit: fake::Exit::Code(code), changes };
         checkout.program(command, program);
     }
 }
@@ -47,6 +52,12 @@ pub fn seed(checkout: &mut Checkout, at: &[u8]) -> u64 {
     for (path, content) in FILES {
         checkout.write(&[at, b"/", path].concat(), content);
     }
+    checkout.root(at)
+}
+
+pub(super) fn seed_reference(checkout: &mut Checkout, at: &[u8]) -> u64 {
+    checkout.mkdir(at);
+    checkout.write(&[at, b"/README.md"].concat(), b"README.md: reference\n");
     checkout.root(at)
 }
 
@@ -137,10 +148,29 @@ pub fn fits(call: &Call, outcome: &Outcome) -> bool {
     let Some(place) = place(path) else {
         return matches!(outcome, Outcome::Outside { .. });
     };
+    let reference = path.absolute.then(|| beneath(&place, b"ref")).flatten();
+    fits_path(reference.unwrap_or(&place), reference.is_some(), call, outcome)
+}
+
+fn fits_path(place: &[u8], reference: bool, call: &Call, outcome: &Outcome) -> bool {
+    if reference {
+        match outcome {
+            Outcome::ReadOnly { path: Resolved::Other { directory, path } } => {
+                return directory.as_bytes() == b"ref"
+                    && path.as_ref() == place
+                    && matches!(call, Call::Write { .. } | Call::Edit { .. } | Call::Remove { .. });
+            }
+            Outcome::Outside { path: Resolved::Outside { path } } => return beneath(path, b"ref") == Some(place),
+            Outcome::NotFound { path: Resolved::Other { directory, path } } => {
+                return directory.as_bytes() == b"ref" && path.as_ref() == place;
+            }
+            _ => {}
+        }
+    }
     let file = |path: &[u8]| path == MISSING || FILES.iter().any(|(file, _)| *file == path);
     let directory = |path: &[u8]| path.is_empty() || FILES.iter().any(|(file, _)| beneath(file, path).is_some());
     let in_directory = |entry: &[u8]| {
-        if place.is_empty() { entry.to_vec() } else { [place.as_slice(), b"/", entry].concat() }
+        if place.is_empty() { entry.to_vec() } else { [place, b"/", entry].concat() }
     };
     let marked = |content: &[u8], path: &[u8]| {
         let prefix = [path, b":"].concat();
@@ -148,10 +178,10 @@ pub fn fits(call: &Call, outcome: &Outcome) -> bool {
     };
     match (call, outcome) {
         (Call::Read { offset, .. }, Outcome::Read { first, total, content, .. }) => {
-            file(&place) && *first == (*offset).min(total.saturating_add(1)) && marked(content, &place)
+            file(place) && *first == (*offset).min(total.saturating_add(1)) && marked(content, place)
         }
         (Call::List { .. }, Outcome::Listed { entries, .. }) => {
-            directory(&place)
+            directory(place)
                 && entries.iter().all(|entry| {
                     let path = in_directory(&entry.name);
                     match entry.kind {
@@ -163,7 +193,7 @@ pub fn fits(call: &Call, outcome: &Outcome) -> bool {
         }
         // A share below the line may cut the last hit before its pattern.
         (Call::Search { pattern, .. }, Outcome::Found { hits, .. }) => hits.iter().enumerate().all(|(index, hit)| {
-            let path = if hit.path.is_empty() { place.clone() } else { in_directory(&hit.path) };
+            let path = if hit.path.is_empty() { place.to_vec() } else { in_directory(&hit.path) };
             file(&path)
                 && marked(&hit.text, &path)
                 && (holds(&hit.text, pattern)
@@ -174,12 +204,12 @@ pub fn fits(call: &Call, outcome: &Outcome) -> bool {
                             .flat_map(|(_, content)| content.split(|byte| *byte == b'\n'))
                             .any(|line| line.starts_with(&hit.text) && holds(line, pattern))))
         }),
-        (Call::Remove { .. }, Outcome::Removed) => file(&place) || directory(&place),
-        (Call::Write { .. }, Outcome::Written { created }) => file(&place) && (!*created || place == MISSING),
+        (Call::Remove { .. }, Outcome::Removed) => file(place) || directory(place),
+        (Call::Write { .. }, Outcome::Written { created }) => file(place) && (!*created || place == MISSING),
         (Call::Edit { .. }, Outcome::Edited { .. } | Outcome::EditFailed { .. })
-        | (Call::List { .. }, Outcome::NotDirectory { .. }) => file(&place),
+        | (Call::List { .. }, Outcome::NotDirectory { .. }) => file(place),
         (Call::Remove { .. }, Outcome::NotEmpty)
-        | (Call::Read { .. } | Call::Write { .. } | Call::Edit { .. }, Outcome::NotFile) => directory(&place),
+        | (Call::Read { .. } | Call::Write { .. } | Call::Edit { .. }, Outcome::NotFile) => directory(place),
         (_, Outcome::NotFound { path: Resolved::Working { path } }) => path.as_ref() == place,
 
         (Call::Search { pattern, glob, .. }, Outcome::NulByte) => {
@@ -188,6 +218,10 @@ pub fn fits(call: &Call, outcome: &Outcome) -> bool {
         (Call::Remove { .. } | Call::Write { .. } | Call::Edit { .. }, Outcome::Protected) => {
             place.is_empty() || place.split(|&byte| byte == b'/').any(|part| part.eq_ignore_ascii_case(b".git"))
         }
+        (
+            Call::Write { content, .. },
+            Outcome::TooLarge { what: smith_domain_tools::SizePart::WriteContent, size, bound },
+        ) => *size == skein_lib::len_u64(content.len()) && *size > u64::from(*bound),
         (Call::Remove { .. } | Call::Write { .. } | Call::Edit { .. }, Outcome::NotRead | Outcome::Stale)
         | (_, Outcome::TooLong) => true,
         _ => false,
