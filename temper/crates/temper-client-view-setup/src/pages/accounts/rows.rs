@@ -170,7 +170,7 @@ fn draw(
     } else if let Some(source) = deciding {
         notice(b, root, w, bindings, row, provider, name, source, sources, manage, busy);
     }
-    if let Some(trial) = crate::pages::model_check::of_account(root, w, row.account) {
+    if let Some(trial) = crate::pages::model_check::of_account(root, w, row.account, times) {
         crate::pages::model_check::line(b, root, w, bindings, &trial, crate::pages::model_check::Place::Row);
     }
     if let Some(uses) = uses {

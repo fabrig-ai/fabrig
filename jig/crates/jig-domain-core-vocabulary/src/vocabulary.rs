@@ -1397,6 +1397,11 @@ pub enum NamedAction {
         revision: u64,
         again: Option<bool>,
     },
+    /// Release a held procedure below the run for fresh measurement.
+    Measure {
+        target: u64,
+        revision: u64,
+    },
     Amend {
         target: u64,
         revision: u64,
@@ -1636,6 +1641,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Cancel { .. }
         | tasks::Event::Fail { .. }
         | tasks::Event::Release { .. }
+        | tasks::Event::Measure { .. }
         | tasks::Event::Amend { .. }
         | tasks::Event::Move { .. }
         | tasks::Event::Subscribe { .. }

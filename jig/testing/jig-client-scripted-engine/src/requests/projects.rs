@@ -33,6 +33,7 @@ impl<A: Application> Engine<A> {
             | Ask::HandBack { .. }
             | Ask::Decide { .. }
             | Ask::Lift { .. }
+            | Ask::Measure { .. }
             | Ask::Release { .. }
             | Ask::Amend { .. }
             | Ask::Stop { .. }

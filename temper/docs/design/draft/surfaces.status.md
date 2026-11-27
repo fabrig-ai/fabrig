@@ -1,6 +1,6 @@
 # surfaces: status
 
-2026-11-15. Where the design lags or departs from [surfaces.md](surfaces.md).
+2026-11-27. Where the design lags or departs from [surfaces.md](surfaces.md).
 
 - **Design lags:**
   - 3: `../client/pages/home.md`, 1, *Home on All projects*, has no owners'
@@ -213,13 +213,6 @@
     alone: the page is one tree at every width, and no design gives a
     short form's words for each reason. Decided by goal 367's design,
     2026-11-11.
-  - 11.1, 13 and 15: `../client/tui/pages/launchpad.md`, 4, *Where you left off*,
-    ends each chat's row with "/chats N", N its place, which `/chats N`
-    opens, where the mockups draw "/chats" once, on the first row, and
-    number no row. Decided by the cut of `tui-whole-t1`, from 15's
-    default, a list numbered as the launchpad numbers it; the mockups
-    win (13), so a look request draws the rows as they do: T2's request
-    (`tui-design-session.md`) leaves them.
   - 11.1 and 13: `../client/tui/pages/launchpad.md`, 5, draws a need's row as
     Home's line and when it asked, "asked 20 min ago", with no asker,
     where the Pair mockup (`../client/tui/whole-story/pair/launchpad.html`)
@@ -368,9 +361,16 @@
     then the project and the model and effort, where 11.1 lists the
     project, the model and effort, then the link's state
     (`../client/tui/pages/README.md`, *The link's state*).
+  - 11.4: the TUI keeps the words not sent of at most 32 boxes, the one
+    left longest ago going first past them
+    (`../client/tui/pages/README.md`, 1, *Its words kept*), where 11.4
+    has leaving a box never lose its words: step code keeps no list
+    without a bound. Decided by goal 19962's design, 2026-11-27.
 - **Open:**
   - 11.1 and 15: `/chats` or `/resume N` for Where you left off. The
-    design takes `/chats N` (above).
+    design takes `/chats N`, N a row's place, which no row draws, Up
+    reaching the rows (the user's word of 2026-11-27;
+    `../client/tui/pages/launchpad.md`, 4).
   - 4 and 15: Needs you as a list on a wide page, or one card at a time.
     `../client/pages/README.md`, *Needs you*, takes the default: the list,
     one at a time on a phone.

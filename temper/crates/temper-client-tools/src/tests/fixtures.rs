@@ -194,6 +194,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     WITHDRAW_CALL,
     &["task", "decide", "41", "release", "--hold", "2"],
     &["task", "release", "41", "--hold", "2"],
+    &["task", "measure", "41", "--hold", "2"],
     STOP_CALL,
     &["task", "cancel", "41", "finished"],
     &["task", "tree", "41"],
@@ -794,6 +795,7 @@ impl Harness {
                 | 6
                 | 9..=15
                 | crate::jig::rows::TASK_DECIDE_AT
+                | crate::jig::rows::MEASURE_AT
                 | crate::jig::rows::TAKE_AT
                 | crate::jig::rows::HAND_BACK_AT
                 | 31

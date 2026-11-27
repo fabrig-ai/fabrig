@@ -325,6 +325,7 @@ fn ask_names(ask: &people::Ask, project: u32) -> bool {
         | people::Ask::Stop { project: owner, .. }
         | people::Ask::Conclude { project: owner, .. }
         | people::Ask::Cancel { project: owner, .. }
+        | people::Ask::Measure { project: owner, .. }
         | people::Ask::Release { project: owner, .. }
         | people::Ask::TakePerson { project: owner, .. }
         | people::Ask::HandBackPerson { project: owner, .. }

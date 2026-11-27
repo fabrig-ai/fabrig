@@ -1,6 +1,7 @@
 # acts: status
 
-2026-11-24. Where the tree's code lags or departs from [acts.md](acts.md).
+2026-11-27. Where the tree's code lags or departs from [acts.md](acts.md).
+
 
 
 - **Not yet:** 1: a connector's refusal for its own full table of

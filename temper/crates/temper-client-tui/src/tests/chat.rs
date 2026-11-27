@@ -701,7 +701,7 @@ fn draw_into(
     });
     foot.closed = Some("Claude Opus 5.5 · high".as_bytes().into());
     foot.needs = d::pages::needs::Count { count: 1, cut: false };
-    foot.composer.as_mut().unwrap().placeholder = b"Reply".as_slice().into();
+    foot.composer.as_mut().unwrap().placeholder = view.words().say(crate::words::Word::ChatReply, &[]);
     foot.composer.as_mut().unwrap().focus = 1;
     foot.running = if list.is_some() { None } else { Some(b"working".as_slice().into()) };
     foot.list = list;

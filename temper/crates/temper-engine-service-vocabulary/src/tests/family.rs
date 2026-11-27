@@ -678,7 +678,7 @@ fn panel() -> forge::Panel {
         head: Some([4; 32]),
         pull: Some(123),
         step: forge::PanelStep::Queued { place: 3, ahead: Box::new([49, 47]) },
-        hold: Some(change::Hold::Updates),
+        hold: Some(change::Cause::Updates),
         runs: Some(81),
         ci_required: true,
         ci: change::Status::Pending,
@@ -860,19 +860,20 @@ fn every_panel_step_keeps_its_payload_on_the_wire() {
 fn every_hold_and_ci_verdict_keeps_its_meaning_on_the_wire() {
     for (input, expected) in [
         (None, None),
-        (Some(change::Hold::Stalled), Some(w::Hold::Stalled)),
-        (Some(change::Hold::Repairs), Some(w::Hold::Repairs)),
-        (Some(change::Hold::Questions), Some(w::Hold::Questions)),
-        (Some(change::Hold::Resolutions), Some(w::Hold::Resolutions)),
-        (Some(change::Hold::Updates), Some(w::Hold::Updates)),
-        (Some(change::Hold::BranchMoved), Some(w::Hold::Moved)),
-        (Some(change::Hold::BranchMissing), Some(w::Hold::Missing)),
-        (Some(change::Hold::PullClosed), Some(w::Hold::Closed)),
-        (Some(change::Hold::Retargeted), Some(w::Hold::Retargeted)),
-        (Some(change::Hold::Failed), Some(w::Hold::Failed)),
-        (Some(change::Hold::Runner), Some(w::Hold::Failed)),
-        (Some(change::Hold::RedStands), Some(w::Hold::Failed)),
-        (Some(change::Hold::Rejected), Some(w::Hold::Rejected)),
+        (Some(change::Cause::Stalled), Some(w::Hold::Stalled)),
+        (Some(change::Cause::Repairs), Some(w::Hold::Repairs)),
+        (Some(change::Cause::Questions), Some(w::Hold::Questions)),
+        (Some(change::Cause::Resolutions), Some(w::Hold::Resolutions)),
+        (Some(change::Cause::Updates), Some(w::Hold::Updates)),
+        (Some(change::Cause::BranchMoved), Some(w::Hold::Moved)),
+        (Some(change::Cause::BranchMissing), Some(w::Hold::Missing)),
+        (Some(change::Cause::PullClosed), Some(w::Hold::Closed)),
+        (Some(change::Cause::Retargeted), Some(w::Hold::Retargeted)),
+        (Some(change::Cause::Failed), Some(w::Hold::Failed)),
+        (Some(change::Cause::Runner), Some(w::Hold::Failed)),
+        (Some(change::Cause::RedStands), Some(w::Hold::Failed)),
+        (Some(change::Cause::CloseRefused), Some(w::Hold::Failed)),
+        (Some(change::Cause::Rejected), Some(w::Hold::Rejected)),
     ] {
         let mut value = panel();
         value.hold = input;
@@ -4154,6 +4155,8 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
         State::Answered { seconds: 3 },
         State::Failed { why: Why::Refused },
         State::Failed { why: Why::Waited },
+        State::Limited { reset: None },
+        State::Limited { reset: Some(skein_lib::Wall::from_nanos(u64::MAX)) },
         State::Failed { why: Why::Ended { class: Class::Transient } },
         State::Failed { why: Why::Ended { class: Class::Infrastructure } },
         State::Failed { why: Why::Ended { class: Class::Permanent } },
@@ -4168,6 +4171,8 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
         w::TrialState::Answered(w::TrialAnswered { seconds: 3 }),
         w::TrialState::Failed(w::TrialFailed { why: w::TrialWhy::Refused }),
         w::TrialState::Failed(w::TrialFailed { why: w::TrialWhy::Waited }),
+        w::TrialState::Limited(w::TrialLimited { reset: None }),
+        w::TrialState::Limited(w::TrialLimited { reset: Some(u64::MAX) }),
     ];
     for (index, state) in states.into_iter().enumerate() {
         let rows = Box::new([

@@ -389,7 +389,13 @@ fn exhausted_repairs_and_the_follows_own_spend_hold_escalate_to_the_role() {
     let revision = escalation(&mut world, a, role);
     assert!(matches!(
         questions::row(&world, a).change.state,
-        temper_engine_domain_forge_change::State::Held { why: temper_engine_domain_forge_change::Hold::Repairs, .. }
+        temper_engine_domain_forge_change::State::Held {
+            hold: temper_engine_domain_forge_change::Hold {
+                cause: temper_engine_domain_forge_change::Cause::Repairs,
+                ..
+            },
+            ..
+        }
     ));
     let run = ready_role(&mut world, role);
     let answer = world.scripted_call(

@@ -198,7 +198,7 @@ They are `skein_world::sweep`'s, and `this_test!` is at the crate's root.
 - **`seeds`** is a range or a hand-picked list: the gate's seeds, unchanged. Its length is the case count, at the gate and in a campaign.
 - **A check returns its finding,** as jig's core sweeps return theirs, or panics (4.4). A test returns `cases`'s result, or words it in its own failure.
 - **A case's seed is the world's seed.** A world on streams takes it as `Streams::new(seed)`, and one that isn't takes it as it took its loop's seed. A draw made some other way, as a fixture picked by `seed % n`, takes it from the case's seed too, so that a campaign moves every draw.
-- **Counted as `each_seed` counts:** each case `cases` runs is a `seed` check (`skein_checks::count`, checks.md), in every mode, so a sweep that moves from `each_seed` keeps its counts.
+- **Counted as `each_seed` counts:** each case `cases` runs is a `seed` check (`skein_checks::count`, checks.md), in every mode, so a sweep that moves from `each_seed` keeps its counts. Inside a case, `Sweep::ran` folds its ledger and counts no `seed`, since `cases` counts the case, so a sweep on `Sweep` keeps its counts too; outside one it counts a seed, as before. A test that folds several worlds' ledgers at each seed gives each world a part and its own `cases`, so that each world's case is counted, and replays, alone.
 - **`each_seed` stays** as it is, for the loops that keep fixed seeds, focused tests' among them: it runs its range in every mode, as given, and counts it.
 
 ### 4.3 Its modes

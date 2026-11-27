@@ -89,6 +89,15 @@ pub fn trial_state_to_record(value: &temper_engine_domain_trials::State) -> temp
         temper_engine_domain_trials::State::Failed { why: field_000000 } => temper_client_protocol_wire::v1::TrialState::Failed(temper_client_protocol_wire::v1::TrialFailed {
             why: trial_why_to_record(field_000000)
         }),
+        temper_engine_domain_trials::State::Limited { reset: field_000000 } => temper_client_protocol_wire::v1::TrialState::Limited(temper_client_protocol_wire::v1::TrialLimited {
+            reset: match field_000000 {
+                Some(item) => {
+                    let converted = skein_codec::convert::wall_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
     }
 }
 

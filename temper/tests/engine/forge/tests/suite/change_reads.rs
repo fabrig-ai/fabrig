@@ -153,7 +153,7 @@ fn a_reset_to_an_older_write_without_an_actor_waits_until_the_stall() {
         .into_iter()
         .find_map(|request| match request {
             top::Request::ChangeDecision {
-                decision: change::Decision::Hold(change::Hold::Stalled), evidence, ..
+                decision: change::Decision::Hold(change::Cause::Stalled), evidence, ..
             } => evidence,
             _ => None,
         })
@@ -181,7 +181,7 @@ fn a_reset_to_an_older_write_by_another_actor_is_drift_immediately() {
         },
     });
     let (decision, evidence) = step(&mut world, 11);
-    assert_eq!(decision, change::Decision::Hold(change::Hold::BranchMoved));
+    assert_eq!(decision, change::Decision::Hold(change::Cause::BranchMoved));
     let evidence = evidence.expect("the read that held");
     assert_eq!(evidence.prior.last_head, Some(head));
     assert_eq!(evidence.head, Some(found));
@@ -192,7 +192,7 @@ fn a_reset_to_an_older_write_by_another_actor_is_drift_immediately() {
 fn another_hands_close_holds_the_change_for_its_own_pull() {
     let (mut world, _, pull) = pushed_change(410, b"main");
     world.close(pull);
-    assert_eq!(step(&mut world, 10).0, change::Decision::Hold(change::Hold::PullClosed));
+    assert_eq!(step(&mut world, 10).0, change::Decision::Hold(change::Cause::PullClosed));
     assert_eq!(world.change(TASK).pull, Some(pull));
     assert_eq!(world.writes(), 0);
 }
@@ -202,7 +202,7 @@ fn a_numbered_pull_read_on_another_base_holds_as_retargeted() {
     // The fake need not implement editing the base: a numbered read of the
     // same pull on a different branch is the observation the change judges.
     let (mut world, _, pull) = pushed_change(411, b"other");
-    assert_eq!(step(&mut world, 10).0, change::Decision::Hold(change::Hold::Retargeted));
+    assert_eq!(step(&mut world, 10).0, change::Decision::Hold(change::Cause::Retargeted));
     assert_eq!(world.change(TASK).pull, Some(pull));
     assert_eq!(world.writes(), 0);
 }

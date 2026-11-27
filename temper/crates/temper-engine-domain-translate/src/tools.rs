@@ -177,6 +177,10 @@ pub enum Tool {
         reason: Box<[u8]>,
     },
     /// Release one held delegate.
+    Measure {
+        target: u64,
+        revision: u64,
+    },
     Release {
         target: u64,
         revision: u64,

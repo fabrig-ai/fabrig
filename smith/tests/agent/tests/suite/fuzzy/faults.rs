@@ -16,6 +16,8 @@ use smith_domain::{
 use smith_session_world::shapes::{Reached, Sample};
 
 const ROUNDS: u32 = 10_000;
+// Seeds 0 and 1 draw a wider and a narrower read window on the resumed endpoint, respectively.
+const WINDOW_SEEDS: [u64; 2] = [0, 1];
 
 fn world(settings: &Settings, history: Option<Transcript>, read_bytes: u64) -> World {
     let scripts = Box::new([Script {
@@ -47,8 +49,7 @@ fn resumed_windows_carry_over() -> Result<(), Case<String>> {
     let mut sweep = Sweep::new("resumed direct windows");
     sweep.configure(smith_faults::WINDOW_ELSEWHERE);
     let mut shapes = Sample::new("resumed_windows_carry_over");
-    // One seed suffices for this composition; the endpoint and work still come from independent streams.
-    cases(skein_world::this_test!("resumed_windows_carry_over"), [0], |seed| {
+    cases(skein_world::this_test!("resumed_windows_carry_over"), WINDOW_SEEDS, |seed| {
         eprintln!("resumed direct windows seed {seed}");
         let streams = Streams::new(seed);
         let mut workload = streams.rng(Stream::Workload, "runs");

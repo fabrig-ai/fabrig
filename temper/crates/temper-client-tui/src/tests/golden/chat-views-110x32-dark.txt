@@ -27,7 +27,7 @@
 
 ✦ working
 ─────────────────────────────────────────────────────────── Hello / How does a change… T2 on 127.0.0.1:8367 ──
-❯ Reply
+❯ Reply, or ← to leave.
 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
  ● Live · Hello · Claude Opus 5.5 · high                                                          1 needs you
 --
@@ -60,7 +60,7 @@ c...............................................................................
 ..............................................................................................................
 ceeeeeeee.....................................................................................................
 ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdddddfffddddddddddddddddddeeeeeeeeeeeeeeeeeeeeefff
-ccfffff.......................................................................................................
+ccfffffffffffffffffffff.......................................................................................
 ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 .ggggggfffeeeeefffeeeeeeeeeeeeeeeeeeeeee..........................................................ccccccccccc.
 --

@@ -198,7 +198,7 @@ fn a_failed_merge_released_after_its_base_holds_its_head_lands_without_resending
     }
     assert!(
         matches!(&change_row(&world, task).change.state,
-        change::State::Held { was, why: change::Hold::Failed } if matches!(was.as_ref(), change::State::Landing { .. })),
+        change::State::Held { was, hold: change::Hold { cause: change::Cause::Failed, .. } } if matches!(was.as_ref(), change::State::Landing { .. })),
         "{:?}",
         change_row(&world, task)
     );
