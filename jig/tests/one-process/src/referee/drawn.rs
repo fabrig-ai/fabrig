@@ -1,17 +1,13 @@
-//! Evidence from the last conversation the fake provider saw (jig/docs/design/protocol/service-testing.md, 1).
+//! Evidence from the fake provider's last conversation and the final durable turn
+//! (jig/docs/design/protocol/service-testing.md, 1).
 use crate::fixtures::drawn::{DELEGATE, NEVER_ISSUED, ROUNDS};
-use skein_fake_llm_domain::api::Part;
+use jig_channel_kit::world::store::Store;
+use jig_domain_core::{CoreRecord, Record};
+use skein_fake_llm_domain::api::{Part, Role};
 use skein_fake_peers::llm::Observation;
+use smith_session_world::shapes::{Answer, Call, Class, Reached, Reference, Sample, Tool};
 use std::collections::{BTreeMap, BTreeSet};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-enum Target {
-    Live,
-    Ended,
-    NeverIssued,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Reply {
     Sent,
     Subscribed,
@@ -21,18 +17,16 @@ enum Reply {
     Unrecognized,
 }
 
-type Tally = BTreeMap<(Target, Reply), usize>;
-
 const DELEGATED: &[u8] = b"Delegated tasks: 2 at spec revision 0";
 const SUBSCRIPTION_REFUSAL: &[u8] =
     b"Refused: the target must be a task this one references or a live task of its project its tree's requester reads";
 
-pub(crate) fn check(observations: &[Observation]) -> Result<(), String> {
+pub(crate) fn check(observations: &[Observation], store: &Store) -> Result<(), String> {
     let mut queries = observations.iter().filter_map(|observation| match observation {
         Observation::Query { query, .. } => Some(query),
         _ => None,
     });
-    let last = queries.next_back().ok_or("drawn chat never reached the model; tally: {}")?;
+    let last = queries.next_back().ok_or("drawn chat never reached the model")?;
     let mut outputs = BTreeMap::new();
     for part in last.messages.iter().flat_map(|message| &message.parts) {
         if let Part::ToolOutput { id, output, .. } = part {
@@ -42,34 +36,35 @@ pub(crate) fn check(observations: &[Observation]) -> Result<(), String> {
     }
     // The last query asks for the scripted finish. Each preceding tool answer
     // appears in a message of its own before the matching outputs.
-    let batches = last.messages.iter().filter_map(|message| {
-        let calls = message.parts.iter().filter(|part| matches!(part, Part::ToolCall { .. })).collect::<Vec<_>>();
-        (!calls.is_empty()).then_some(calls)
-    });
+    let batches =
+        last.messages.iter().filter(|message| message.role == Role::Assistant).map(|message| {
+            message.parts.iter().filter(|part| matches!(part, Part::ToolCall { .. })).collect::<Vec<_>>()
+        });
     let cancel = ROUNDS + 1;
-    let mut sample = Sample::default();
+    let mut evidence = Evidence::default();
+    let mut completions = Vec::new();
     for (batch, calls) in batches.enumerate() {
-        sample.batches += 1;
+        let mut completion = Vec::new();
         let script = match batch {
             0 => Some((b"delegate".as_slice(), DELEGATED)),
             index if index == cancel => Some((b"cancel".as_slice(), b"Done".as_slice())),
             _ => None,
         };
         if calls.len() != 1 {
-            sample.problems.push(format!("round {batch} returned {} calls instead of one", calls.len()));
+            evidence.problems.push(format!("round {batch} returned {} calls instead of one", calls.len()));
         }
         for call in calls {
             let Part::ToolCall { id, name, arguments } = call else { unreachable!("selected only tool calls") };
             let answer = outputs.get(id.as_ref()).copied();
-            if !sample.ids.insert(id.as_ref()) || !matches!(answer, Some((_, 1))) {
-                sample
+            if !evidence.ids.insert(id.as_ref()) || !matches!(answer, Some((_, 1))) {
+                evidence
                     .problems
                     .push(format!("call {} did not occur and get answered exactly once", String::from_utf8_lossy(id)));
             }
             let output = answer.map_or(b"".as_slice(), |(output, _)| output);
             if let Some((tool, want)) = script {
                 if name.as_ref() != tool || output != want {
-                    sample.problems.push(format!(
+                    evidence.problems.push(format!(
                         "script round {batch}: expected {} → {}, got {} → {}",
                         String::from_utf8_lossy(tool),
                         String::from_utf8_lossy(want),
@@ -77,61 +72,95 @@ pub(crate) fn check(observations: &[Observation]) -> Result<(), String> {
                         String::from_utf8_lossy(output)
                     ));
                 }
+                completion.push(Call { tool: Tool::Delegated, answer: Answer::Delegated, references: Vec::new() });
             } else {
-                sample.drawn(batch > cancel, name, arguments, output);
+                completion.push(evidence.drawn(batch > cancel, name, arguments, output));
             }
         }
+        completions.push(completion);
     }
     let expected = 2 * (ROUNDS + 1);
     let earlier = queries.clone().count();
-    if sample.batches != expected || earlier != expected {
-        sample.problems.push(format!(
-            "expected {expected} tool rounds before finish; saw {} in the last query and {} earlier queries",
-            sample.batches, earlier
+    if completions.len() != expected || earlier != expected {
+        evidence.problems.push(format!(
+            "expected {expected} tool rounds before finish; saw {} in the last query and {earlier} earlier queries",
+            completions.len()
         ));
     }
     // A call echoed in an earlier query must still be in the conversation at finish.
     for part in queries.flat_map(|q| q.messages.iter().flat_map(|m| &m.parts)) {
         if let Part::ToolCall { id, .. } = part
-            && !sample.ids.contains(id.as_ref())
+            && !evidence.ids.contains(id.as_ref())
         {
-            sample.problems.push(format!("call {} disappeared before finish", String::from_utf8_lossy(id)));
+            evidence.problems.push(format!("call {} disappeared before finish", String::from_utf8_lossy(id)));
         }
     }
-    sample.finish()
+    evidence.check(&completions)?;
+    let mut reached = Reached::new();
+    for completion in &completions {
+        reached.completion(completion);
+    }
+    // No later query can echo the finish; take it from the durable transcript.
+    let terminal = store
+        .rows
+        .values()
+        .find_map(|row| match row {
+            jig_test_domain::Record::Core(Record::Core(CoreRecord::Turn(turn)))
+                if usize::try_from(turn.turn).ok() == Some(expected + 1) =>
+            {
+                Some(turn)
+            }
+            _ => None,
+        })
+        .ok_or("drawn chat did not record its final completion")?;
+    let config = crate::fixtures::drawn::agent_configuration();
+    let turn = smith_protocol_channel::decode_turn(
+        &terminal.transcript,
+        terminal.turn,
+        &config.limits.channel.transcript,
+        &config.channel_endpoints,
+    )
+    .map_err(|why| format!("drawn chat's final turn: {why:?}"))?;
+    reached.turns(&[turn]);
+    let mut sample = Sample::new("a_person_s_chat_is_answered_by_the_in_process_worker");
+    sample.ran(&reached)?;
+    sample.write();
+    Ok(())
 }
 
 #[derive(Default)]
-struct Sample<'a> {
-    tally: Tally,
+struct Evidence<'a> {
     problems: Vec<String>,
     ids: BTreeSet<&'a [u8]>,
-    batches: usize,
 }
 
-impl Sample<'_> {
-    fn drawn(&mut self, cancelled: bool, name: &[u8], arguments: &[u8], output: &[u8]) {
-        if !matches!(name, b"message" | b"subscribe") {
-            self.problems.push(format!("stretch drew another tool: {}", String::from_utf8_lossy(name)));
-        }
+impl Evidence<'_> {
+    fn drawn(&mut self, cancelled: bool, name: &[u8], arguments: &[u8], output: &[u8]) -> Call {
+        let tool = match name {
+            b"message" => Tool::Message,
+            b"subscribe" => Tool::Subscribe,
+            _ => {
+                self.problems.push(format!("stretch drew another tool: {}", String::from_utf8_lossy(name)));
+                Tool::Unknown
+            }
+        };
         let body = serde_json::from_slice::<serde_json::Value>(arguments).ok();
         let target = match body.as_ref().and_then(|body| body.get("target")).and_then(serde_json::Value::as_u64) {
-            Some(DELEGATE) if cancelled => Target::Ended,
-            Some(DELEGATE) => Target::Live,
-            Some(NEVER_ISSUED) => Target::NeverIssued,
+            Some(DELEGATE) if cancelled => Class::Ended,
+            Some(DELEGATE) => Class::Live,
+            Some(NEVER_ISSUED) => Class::Unissued,
             _ => {
                 self.problems.push(format!("unexpected drawn target: {}", String::from_utf8_lossy(arguments)));
-                return;
+                Class::Unknown
             }
         };
         let reply = classify(output);
-        *self.tally.entry((target, reply)).or_default() += 1;
         let fits = matches!(
-            (target, name, reply),
-            (Target::Live, b"message", Reply::Sent | Reply::QuestionRefused)
-                | (Target::Live, b"subscribe", Reply::Subscribed)
-                | (Target::Ended | Target::NeverIssued, b"message", Reply::MissingReference)
-                | (Target::Ended | Target::NeverIssued, b"subscribe", Reply::SubscriptionRefused)
+            (target, tool, &reply),
+            (Class::Live, Tool::Message, Reply::Sent | Reply::QuestionRefused)
+                | (Class::Live, Tool::Subscribe, Reply::Subscribed)
+                | (Class::Ended | Class::Unissued, Tool::Message, Reply::MissingReference)
+                | (Class::Ended | Class::Unissued, Tool::Subscribe, Reply::SubscriptionRefused)
         );
         if !fits {
             self.problems.push(format!(
@@ -141,22 +170,35 @@ impl Sample<'_> {
                 String::from_utf8_lossy(output)
             ));
         }
+        let answer = match reply {
+            Reply::Sent => Answer::Sent,
+            Reply::Subscribed => Answer::Subscribed,
+            Reply::MissingReference | Reply::SubscriptionRefused => Answer::NoReference,
+            Reply::QuestionRefused => Answer::Refused,
+            Reply::Unrecognized => Answer::Unknown,
+        };
+        let mut references = vec![(Reference::Task, target)];
+        if tool == Tool::Message
+            && let Some(body) = body
+            && body["form"] == "answer"
+        {
+            let class = if body["question"].as_u64() == Some(NEVER_ISSUED) { Class::Unissued } else { Class::Unknown };
+            references.push((Reference::Question, class));
+        }
+        Call { tool, answer, references }
     }
 
-    fn finish(mut self) -> Result<(), String> {
-        for target in [Target::NeverIssued, Target::Ended] {
-            if ![Reply::MissingReference, Reply::SubscriptionRefused]
+    fn check(mut self, completions: &[Vec<Call>]) -> Result<(), String> {
+        for target in [Class::Unissued, Class::Ended] {
+            if !completions
                 .iter()
-                .any(|&reply| self.tally.contains_key(&(target, reply)))
+                .flatten()
+                .any(|call| call.answer == Answer::NoReference && call.references.contains(&(Reference::Task, target)))
             {
                 self.problems.push(format!("no refusal for {target:?} targets"));
             }
         }
-        if self.problems.is_empty() {
-            Ok(())
-        } else {
-            Err(format!("{}; drawn target × reply tally: {:?}", self.problems.join("; "), self.tally))
-        }
+        if self.problems.is_empty() { Ok(()) } else { Err(self.problems.join("; ")) }
     }
 }
 

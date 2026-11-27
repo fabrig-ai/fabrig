@@ -221,7 +221,7 @@ impl Referee {
                 _ => None,
             })
             .ok_or("drawn chat's provider")?;
-        drawn::check(peer.observations())?;
+        drawn::check(peer.observations(), &self.store.borrow())?;
         Ok(true)
     }
     fn text_reached(&mut self, now: Time, service: &crate::world::ServiceHost, other: &[Proc]) -> Result<bool, String> {

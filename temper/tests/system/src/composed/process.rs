@@ -686,9 +686,10 @@ impl Process {
         for (number, read, spent) in &agent.turn_metadata()[self.sent_turns..] {
             let index = usize::try_from(*number - 1).expect("positive turn");
             let record = agent.turns()[index].clone();
-            if let Some(prefix) = self.stretch_prefix {
-                let task = around.assignment.expect("drawn turn's assignment").task;
-                around.observed.stretches.observe(task, prefix + index, &record, around.store);
+            if self.stretch_prefix.is_some() || around.observed.stretches.counts_shapes() {
+                let task = around.assignment.expect("recorded turn's assignment").task;
+                let round = self.stretch_prefix.map(|prefix| prefix + index);
+                around.observed.stretches.observe(task, round, &record, around.store);
             }
             if let Some(producer) = &mut self.producer {
                 let piece = producer.hold(&record, *number);

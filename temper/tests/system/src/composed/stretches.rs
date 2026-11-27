@@ -6,6 +6,7 @@ use smith_domain_session::{
     llm::{Block, Returned},
     record,
 };
+use smith_session_world::shapes::{Answer, Call, Class, Reached, Reference, Sample, Tool};
 use std::{
     collections::{BTreeMap, BTreeSet},
     ops::Range,
@@ -128,6 +129,18 @@ pub enum Refusal {
     Other(String),
 }
 
+impl Refusal {
+    fn answer(&self) -> Answer {
+        match self {
+            Self::ReadReference | Self::MessageReference => Answer::NoReference,
+            Self::EndedRecipient => Answer::RecipientEnded,
+            Self::AnsweredQuestion => Answer::QuestionAnswered,
+            Self::UnknownMessage => Answer::NotUnread,
+            Self::Other(_) => Answer::Refused,
+        }
+    }
+}
+
 /// Target classes distinguished by the workload's referee.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Target {
@@ -146,9 +159,27 @@ pub struct Audit {
     played: BTreeSet<(u64, usize)>,
     calls: u64,
     refusals: BTreeMap<(Refusal, Target), u64>,
+    shapes: Option<Reached>,
 }
 
 impl Audit {
+    /// Retains allowlisted completion shapes for a case of the composed sweep.
+    pub fn count_shapes(&mut self) {
+        self.shapes = Some(Reached::new());
+    }
+
+    pub(super) fn counts_shapes(&self) -> bool {
+        self.shapes.is_some()
+    }
+
+    /// Folds one completed case into the sweep's sample.
+    ///
+    /// # Errors
+    /// Refuses a case with a shape outside skein's permitted text form.
+    pub fn fold_shapes(&self, sample: &mut Sample) -> Result<(), String> {
+        sample.ran(self.shapes.as_ref().expect("composed shapes enabled"))
+    }
+
     pub(super) fn plan(&mut self, task: u64, ranges: Vec<Range<usize>>) {
         match self.planned.entry(task) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -160,10 +191,15 @@ impl Audit {
         }
     }
 
-    pub(super) fn observe(&mut self, task: u64, index: usize, turn: &record::Turn, store: &Store) {
-        if !self.planned.get(&task).is_some_and(|ranges| ranges.iter().any(|range| range.contains(&index))) {
+    pub(super) fn observe(&mut self, task: u64, index: Option<usize>, turn: &record::Turn, store: &Store) {
+        let Some(index) = index.filter(|index| {
+            self.planned.get(&task).is_some_and(|ranges| ranges.iter().any(|range| range.contains(index)))
+        }) else {
+            if let Some(shapes) = &mut self.shapes {
+                shapes.turns(std::slice::from_ref(turn));
+            }
             return;
-        }
+        };
         assert!(self.played.insert((task, index)), "task {task} repeated drawn round {index}");
         let blocks = || turn.messages.iter().flat_map(|message| &message.content);
         let mut results = BTreeMap::new();
@@ -173,6 +209,7 @@ impl Audit {
             }
         }
         let mut calls = 0;
+        let mut completion = Vec::new();
         for call in blocks().filter_map(Block::tool_call) {
             assert!(
                 TOOLS.iter().any(|tool| tool.as_bytes() == call.name.as_ref()),
@@ -181,29 +218,33 @@ impl Audit {
             );
             let result = results.remove(call.id.as_ref()).expect("one answer per drawn call");
             calls += 1;
-            self.count(task, &call.name, &call.input, result, store);
+            if let Some(shape) = self.count(task, &call.name, &call.input, result, store) {
+                completion.push(shape);
+            }
         }
         assert!((1..=CALLS).contains(&calls), "task {task}: {calls} drawn calls at round {index}");
         assert!(results.is_empty(), "task {task}: results with no drawn call: {results:?}");
         self.calls += u64::from(calls);
+        if let Some(shapes) = &mut self.shapes {
+            shapes.completion(&completion);
+        }
     }
 
-    fn count(&mut self, task: u64, tool: &[u8], input: &[u8], result: &Returned, store: &Store) {
+    fn count(&mut self, task: u64, tool: &[u8], input: &[u8], result: &Returned, store: &Store) -> Option<Call> {
         let Returned::Text { text, error, .. } = result else {
             panic!("task {task}: drawn call got an unexpected terminal: {result:?}");
         };
         let args: Value = serde_json::from_slice(input).expect("drawn body");
-        let target = match tool {
-            b"read_task" => &args["task"],
-            b"message" => &args["target"],
-            b"mark_read" => &args["messages"][0],
+        let (tool, reference, target) = match tool {
+            b"read_task" => (Tool::ReadTask, Reference::Task, &args["task"]),
+            b"message" => (Tool::Message, Reference::Task, &args["target"]),
+            b"mark_read" => (Tool::MarkRead, Reference::Message, &args["messages"][0]),
             _ => unreachable!("tool was checked"),
-        }
-        .as_u64()
-        .expect("numeric target");
+        };
+        let target = target.as_u64().expect("numeric target");
         let class = if target == UNISSUED {
             Target::NeverIssued
-        } else if tool != b"mark_read"
+        } else if tool != Tool::MarkRead
             && store.rows.get(&super::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(target)))).is_some_and(
                 |row| {
                     matches!(row, super::engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))
@@ -215,32 +256,39 @@ impl Audit {
         } else {
             Target::Conversation
         };
-        if tool == b"read_task" && class == Target::NeverIssued {
+        if tool == Tool::ReadTask && class == Target::NeverIssued {
             assert!(*error, "task {task}: read of never-issued task succeeded");
             assert_eq!(text.as_ref(), b"Task read refused: no reference", "task {task}: read of never-issued task");
         }
         let decision = format!("Refused: task {target} ");
         let detail = text.strip_prefix(decision.as_bytes()).unwrap_or(text.as_ref());
-        let refusal = if tool == b"mark_read" && text.starts_with(b"named none of your unrecorded words: ") {
-            Refusal::UnknownMessage
-        } else if !*error {
-            return;
-        } else if text.as_ref() == b"Task read refused: no reference" {
-            Refusal::ReadReference
-        } else if detail.starts_with(b"question ") && skein_lib::bytes::find(detail, b" was answered by ").is_some() {
-            Refusal::AnsweredQuestion
-        } else if tool == b"message"
-            && class == Target::EndedPersonDelegate
-            && (no_message_reference(text, detail) || matches!(detail, b"unknown" | b"task state"))
-        {
-            // An ended person task may already have lost its live delegation reference.
-            Refusal::EndedRecipient
-        } else if tool == b"message" && no_message_reference(text, detail) {
-            Refusal::MessageReference
+        let answer = if let Some(refusal) = refusal(tool, text, *error, detail, class) {
+            let answer = refusal.answer();
+            *self.refusals.entry((refusal, class)).or_default() += 1;
+            answer
         } else {
-            Refusal::Other(String::from_utf8_lossy(text).into_owned())
+            match tool {
+                Tool::ReadTask if text.starts_with(b"Task ") => Answer::Read,
+                Tool::Message if text.starts_with(b"Message ") && text.ends_with(b" sent") => Answer::Sent,
+                Tool::MarkRead if text.starts_with(b"recorded: ") => Answer::Marked,
+                _ => Answer::Unknown,
+            }
         };
-        *self.refusals.entry((refusal, class)).or_default() += 1;
+        self.shapes.as_ref()?;
+        // A non-sentinel mark_read number comes from the producer's own sent-message slot.
+        let owner = if reference == Reference::Message { task } else { target };
+        let class = match class {
+            Target::NeverIssued => Class::Unissued,
+            Target::EndedPersonDelegate => Class::Ended,
+            Target::Conversation if live_task(owner, store) => Class::Live,
+            Target::Conversation => Class::Unknown,
+        };
+        let mut references = vec![(reference, class)];
+        if tool == Tool::Message && args["form"] == "answer" {
+            let class = if args["question"].as_u64() == Some(UNISSUED) { Class::Unissued } else { Class::Unknown };
+            references.push((Reference::Question, class));
+        }
+        Some(Call { tool, answer, references })
     }
 
     /// Every registered stretch ran all its rounds, once each.
@@ -268,4 +316,33 @@ impl Audit {
     pub fn played(&self) -> (usize, u64) {
         (self.played.len(), self.calls)
     }
+}
+
+fn live_task(task: u64, store: &Store) -> bool {
+    matches!(
+        store.rows.get(&super::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task)))),
+        Some(super::engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(_))))
+    )
+}
+
+fn refusal(tool: Tool, text: &[u8], error: bool, detail: &[u8], class: Target) -> Option<Refusal> {
+    Some(if tool == Tool::MarkRead && text.starts_with(b"named none of your unrecorded words: ") {
+        Refusal::UnknownMessage
+    } else if !error {
+        return None;
+    } else if text == b"Task read refused: no reference" {
+        Refusal::ReadReference
+    } else if detail.starts_with(b"question ") && skein_lib::bytes::find(detail, b" was answered by ").is_some() {
+        Refusal::AnsweredQuestion
+    } else if tool == Tool::Message
+        && class == Target::EndedPersonDelegate
+        && (no_message_reference(text, detail) || matches!(detail, b"unknown" | b"task state"))
+    {
+        // An ended person task may already have lost its live delegation reference.
+        Refusal::EndedRecipient
+    } else if tool == Tool::Message && no_message_reference(text, detail) {
+        Refusal::MessageReference
+    } else {
+        Refusal::Other(String::from_utf8_lossy(text).into_owned())
+    })
 }

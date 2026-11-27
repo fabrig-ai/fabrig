@@ -5,6 +5,7 @@ use skein_world::{
     sweep::{Sweep, cases, gate},
     this_test,
 };
+use smith_session_world::shapes::Sample;
 use temper_faults::restarts;
 use temper_system_world::composed::{
     CAMPAIGN_KINDS, GATE_KINDS, World,
@@ -49,6 +50,7 @@ fn a_restart_changes_no_composed_outcome() -> Result<(), String> {
 #[test]
 fn every_family_falls_in_the_composed_workload() -> Result<(), String> {
     const CAMPAIGN_CASES: u64 = 16;
+    const SWEEP: &str = "every_family_falls_in_the_composed_workload";
     // Seed 6 draws a hold with its release and a red gate to read.
     let campaign_kinds;
     let (seeds, kinds) = if gate() {
@@ -57,7 +59,8 @@ fn every_family_falls_in_the_composed_workload() -> Result<(), String> {
         campaign_kinds = [GATE_KINDS, CAMPAIGN_KINDS].concat();
         (0..CAMPAIGN_CASES, campaign_kinds.as_slice())
     };
-    let mut sweep = Sweep::new("every_family_falls_in_the_composed_workload");
+    let mut sweep = Sweep::new(SWEEP);
+    let mut shapes = Sample::new(SWEEP);
     for &kind in kinds {
         sweep.configure(kind);
     }
@@ -66,6 +69,7 @@ fn every_family_falls_in_the_composed_workload() -> Result<(), String> {
     cases(this_test!("every_family_falls_in_the_composed_workload"), seeds, |seed| {
         eprintln!("mixed seed {seed}");
         let mut world = World::faulted_workload(seed, kinds);
+        world.observed.stretches.count_shapes();
         world.exclude_workload_close(&sweep);
         if !gate() {
             world.exclude_workload_other_merge(&sweep);
@@ -74,11 +78,14 @@ fn every_family_falls_in_the_composed_workload() -> Result<(), String> {
         world.assert_workload()?;
         world.judge_workload_faults()?;
         report_stretches("mixed", seed, &world);
-        refusals.extend(world.observed.stretches.refusals().keys().cloned());
+        let audit = &world.observed.stretches;
+        refusals.extend(audit.refusals().keys().cloned());
+        audit.fold_shapes(&mut shapes)?;
         sweep.ran(world.workload_ledger());
         Ok::<(), String>(())
     })
     .map_err(|case| case.to_string())?;
+    shapes.write();
     sweep.check_fell()?;
     if gate() {
         for required in [

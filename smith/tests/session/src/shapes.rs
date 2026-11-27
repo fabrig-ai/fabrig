@@ -1,4 +1,4 @@
-//! The `smith/1` completion vocabulary and its per-case reach (smith/docs/design/shapes.md,
+//! The `smith/2` completion vocabulary and its per-case reach (smith/docs/design/shapes.md,
 //! 2–5). A shape retains only allowlisted words, not provider or workspace data.
 
 use std::collections::BTreeMap;
@@ -9,7 +9,7 @@ use smith_domain_session::{llm, record};
 use smith_domain_tools::{Call as WorkspaceCall, Exit, JobEnd, Mismatch, Outcome};
 
 /// The version of the words and completion text the worlds write.
-pub const VOCABULARY: &str = "smith/1";
+pub const VOCABULARY: &str = "smith/2";
 
 macro_rules! words {
     ($(#[$meta:meta])* $name:ident, $all:ident; $($(#[$variant_meta:meta])* $variant:ident => $word:literal),+ $(,)?) => {
@@ -50,7 +50,15 @@ words! {
     Shell => "shell",
     /// Read or stop a held command.
     Job => "job",
-    /// A tool the host serves.
+    /// Read a task.
+    ReadTask => "read_task",
+    /// Send words, a question, or an answer.
+    Message => "message",
+    /// Subscribe to a task.
+    Subscribe => "subscribe",
+    /// Record words as read.
+    MarkRead => "mark_read",
+    /// Another tool the host serves.
     Delegated => "delegated",
     /// No known tool.
     Unknown => "unknown",
@@ -143,6 +151,24 @@ words! {
     Delegated => "delegated",
     /// The completion did not settle an answer to the call.
     Unanswered => "unanswered",
+    /// A task was read.
+    Read => "read",
+    /// A message was sent.
+    Sent => "sent",
+    /// A subscription was added.
+    Subscribed => "subscribed",
+    /// Words were recorded as read.
+    Marked => "marked",
+    /// The caller could neither reference nor read the task as required by the tool.
+    NoReference => "no_reference",
+    /// The message recipient had ended.
+    RecipientEnded => "recipient_ended",
+    /// The question already had an answer.
+    QuestionAnswered => "question_answered",
+    /// No unread words could be marked.
+    NotUnread => "not_unread",
+    /// An application tool refused for another reason.
+    Refused => "refused",
     /// No other word describes the answer.
     Unknown => "unknown",
 }
@@ -156,6 +182,12 @@ words! {
     Offset => "offset",
     /// A yielded command's number.
     Job => "job",
+    /// A task number named by a read, message, or subscription.
+    Task => "task",
+    /// The question a message answers.
+    Question => "question",
+    /// The message whose words a call marks read.
+    Message => "message",
 }
 
 words! {
@@ -175,6 +207,8 @@ words! {
     Foreign => "foreign",
     /// No session issued the job, or the path or line never existed.
     Unissued => "unissued",
+    /// A named task had already ended.
+    Ended => "ended",
     /// The call did not name a reference the world could classify.
     Unknown => "unknown",
 }
@@ -256,11 +290,12 @@ fn owned(outcome: &Outcome) -> Answer {
 pub struct Call {
     pub tool: Tool,
     pub answer: Answer,
-    /// In path, offset, job order, omitting those the call doesn't carry.
+    /// In path, offset, job, task, question, message order, omitting absent references.
     pub references: Vec<(Reference, Class)>,
 }
 
 /// What one case reached, with each completion's shape in visitation order.
+#[derive(Debug, PartialEq, Eq)]
 pub struct Reached {
     shapes: Vec<String>,
     answers: [bool; ANSWERS.len()],
@@ -479,7 +514,7 @@ pub struct Sample {
 }
 
 impl Sample {
-    /// An empty sweep sample in `smith/1`.
+    /// An empty sweep sample in `smith/2`.
     #[must_use]
     pub fn new(sweep: &'static str) -> Sample {
         Sample {

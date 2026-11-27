@@ -1766,6 +1766,7 @@ dependencies = [
  "smith-host-protocol",
  "smith-protocol-channel",
  "smith-protocol-llm",
+ "smith-session-world",
 ]
 
 [[package]]
@@ -8514,6 +8515,7 @@ dependencies = [
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
  "smith-protocol-llm-world",
+ "smith-session-world",
  "smith-transcript",
  "temper-agent-fixtures",
  "temper-blame",
