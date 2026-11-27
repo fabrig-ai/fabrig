@@ -203,13 +203,13 @@ Offered where the run's charter names the control family and its authority holds
 
 ## measure
 
-Lift a delegate's procedure hold for one fresh check. Not for placed or uncertain holds.
+Lift a procedure hold for one fresh check. No placed or uncertain holds.
 
 A write.
 Offered where the run's charter names the control family and its authority holds it.
 
-- `target`: integer >=1; required. The held task's number.
-- `revision`: integer >=0; required. The hold's revision, as you last read it.
+- `target`: integer >=1; required. Held delegate number.
+- `revision`: integer >=0; required. Last-read hold revision.
 
 ## release
 
