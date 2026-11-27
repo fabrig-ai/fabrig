@@ -628,6 +628,20 @@ system world (`tiers.md`, 1.1) running `COMPOSED`'s draw.
   party's chat (the engine's references admit its requester, its
   delegates and those it was introduced to), and the world wires no
   introduction for it.
+- **Drawn stretches** (`../draft/misbehaving-agents.md`, 5.2): each
+  producer plays a stretch of the workload's round count before it
+  delivers and another before it parks or finishes (skein's
+  `testing/fakes/drawn-agent.md`, 5), of `read_task`, `message` and
+  `mark_read` alone, through either provider: the typed one and
+  `temper-fake` (`../protocol/setup/playground.md`, 9) each take the menu
+  and the round count. The menu's slots name the tasks its creation
+  replies and reads show, its inbox labels' questions paired with
+  their askers, a foreign one by its weight, and the messages it sent.
+  Words and questions go only to the tasks it delegated, so no
+  scripted agent wakes out of its script. The goals' expectations
+  stay; a stretch adds that each drawn call is answered once, and
+  counts each refusal its draws reach: a task it holds no reference
+  to, an answered question, an ended recipient.
 - **Its streams:** the workload from `Workload`; the acts from `Parties`;
   the world's scheduling from `Scheduling`, part `system`; each injector
   from its `Faults` part.
