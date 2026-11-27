@@ -17,7 +17,7 @@ pub(crate) mod relays;
 pub(crate) mod resources;
 
 use crate::{
-    Ask, CallKey, CallPart, CallRecord, Core, CoreRecord, Event, Family, Held, Limits, Now, PendingCall, Record,
+    Ask, CallHolder, CallKey, CallPart, CallRecord, Core, CoreRecord, Event, Family, Held, Limits, Now, Record,
     Request, ToolKind, Write, fresh,
     routing::{Work, effect::procedure::ProcedureCall, run::Proposing},
 };
@@ -171,7 +171,7 @@ pub(crate) fn start(
                 }
                 None => {}
             }
-            if core.counters.deployment().calls == u64::MAX || !core.reserve_call(key, PendingCall::Routed) {
+            if core.counters.deployment().calls == u64::MAX || !core.reserve_call(key, CallHolder::Routed) {
                 out.push(Request::Now(Box::new(Now::EffectAnswer { to, key, part: CallPart::Unavailable })));
                 drop_staged(core, &mut out, number, owner);
                 return out;
@@ -215,7 +215,7 @@ pub(crate) fn start(
 
 fn begin_acceptance(core: &mut Core, key: Option<CallKey>, proposal: &tasks::Proposal) -> bool {
     if let Some(key) = key
-        && core.pending_calls.get(&key) != Some(&PendingCall::Routed)
+        && core.pending_calls.get(&key) != Some(&CallHolder::Routed)
     {
         return false;
     }
@@ -246,7 +246,7 @@ fn propose_start(
         drop_staged(core, &mut out, number, owner);
         return out;
     }
-    if core.counters.deployment().calls == u64::MAX || !core.reserve_call(key, PendingCall::Routed) {
+    if core.counters.deployment().calls == u64::MAX || !core.reserve_call(key, CallHolder::Routed) {
         out.push(Request::Now(Box::new(Now::EffectAnswer { to, key, part: CallPart::Unavailable })));
         drop_staged(core, &mut out, number, owner);
         return out;
