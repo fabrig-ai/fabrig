@@ -1,5 +1,7 @@
 use core::cell::RefCell;
 
+use crate::faults::FaultLedger;
+use crate::sweep::Sweep;
 use crate::sweep::cases::{Case, Test, cases_in, dispatch_hook};
 use crate::test_env::Mode;
 
@@ -115,6 +117,45 @@ fn a_finding_stops_the_sweep_and_names_the_case() {
             "unexpected case output: {}",
             run.lines.join("\n")
         );
+    }
+}
+
+#[test]
+fn folding_ledgers_counts_only_the_cases_in_each_mode() {
+    const GATE_CASES: u64 = 3;
+    const REPLAY_CASES: u64 = 1;
+    let ledger = FaultLedger::new();
+    for (mode, expected) in [(Mode::Gate, GATE_CASES), (CAMPAIGN, GATE_CASES), (Mode::Replay(42), REPLAY_CASES)] {
+        let mut sweep = Sweep::new("folding");
+        let counts = RefCell::new(Vec::new());
+        let count = |n| counts.borrow_mut().push(n);
+        cases_in(
+            mode,
+            TEST,
+            0..GATE_CASES,
+            |_| {
+                sweep.ran_in(&ledger, count);
+                Ok::<_, &str>(())
+            },
+            |_| {},
+            count,
+        )
+        .expect("all cases pass");
+        assert_eq!(counts.into_inner(), [expected], "{mode:?}");
+    }
+}
+
+#[test]
+fn folding_ledgers_counts_each_call_before_and_after_a_case() {
+    const ONE_FOLD: u64 = 1;
+    let ledger = FaultLedger::new();
+    for result in [Ok(()), Err("boom")] {
+        let mut sweep = Sweep::new("folding");
+        let mut counts = Vec::new();
+        sweep.ran_in(&ledger, |n| counts.push(n));
+        let _case = cases_in(Mode::Gate, TEST, [3], |_| result, |_| {}, |_| {});
+        sweep.ran_in(&ledger, |n| counts.push(n));
+        assert_eq!(counts, [ONE_FOLD, ONE_FOLD], "check returned {result:?}");
     }
 }
 

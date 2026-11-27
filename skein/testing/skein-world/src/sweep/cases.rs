@@ -162,6 +162,10 @@ std::thread_local! {
     static ACTIVE: Cell<Option<Location>> = const { Cell::new(None) };
 }
 
+pub(super) fn in_case() -> bool {
+    ACTIVE.get().is_some()
+}
+
 // The location belongs to the check, and is restored even if it unwinds.
 struct Active(Option<Location>);
 
