@@ -218,6 +218,7 @@ impl World {
         self.drain();
     }
 
+    /// Cold restart from the fixture with the same resource kind declarations.
     pub fn restart(&mut self, seed: u64, requirement: bool) {
         let mut config = fixture(seed, requirement).0;
         for kind in &mut config.first.kinds {
@@ -225,6 +226,12 @@ impl World {
                 kind.recovery = self.recovery;
             }
         }
+        self.restart_from_fixture(config);
+    }
+
+    /// Keep the running connector's declared resource kinds when rebuilding a fixture.
+    pub(crate) fn restart_from_fixture(&mut self, mut config: root::Config) {
+        config.resource_kinds.clone_from(&self.restart_config.0.resource_kinds);
         self.restart_with(config);
     }
 

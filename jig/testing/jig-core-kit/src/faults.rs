@@ -96,7 +96,7 @@ pub fn worker_fault(world: &mut World, index: usize, fault: Fault) {
 
 /// Cold restart with the scenario's original charter and host capacities.
 pub fn restart(world: &mut World, seed: u64, engine: bool) {
-    world.restart_with(crate::peers::fixture(seed, u32::from(engine)).0);
+    world.restart_from_fixture(crate::peers::fixture(seed, u32::from(engine)).0);
     // Account usability is an independently refreshed runtime capability.
     world.send(jig_test_domain::Event::Core(jig_domain_core::Event::Account(jig_domain_accounts::Event::Component(
         jig_domain_accounts::FromComponent::Granted {
