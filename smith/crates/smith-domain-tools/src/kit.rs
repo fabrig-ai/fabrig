@@ -8,8 +8,9 @@
 //! snippets and change something, its deadline must not have passed, and the kit
 //! must have room for one more call. A filesystem call that passes becomes a
 //! flight; the namespace root's listing answers directly from its authority.
-//! A yielded command leaves the batch but keeps its IO owner in the jobs
-//! table. Reads of one job queue there; reads of different jobs can proceed.
+//! A yielding command reserves a job cell before its IO request. On yield it
+//! leaves the batch and keeps its IO owner in that cell. Reads of one job queue
+//! there; reads of different jobs can proceed.
 //!
 //! The transition table.
 //!
@@ -116,7 +117,7 @@ pub(crate) fn call(
     let id = Id::from_token(kit);
     let entry = domain.kits.get(id).expect("the session owns its kit");
     assert!(entry.state == State::Open, "no call follows a close");
-    let call = match call {
+    let (call, yielding) = match call {
         Call::Job { job, wait, output, stop } => {
             if !entry.working.grants.shell {
                 domain.facts.push_call(
@@ -143,9 +144,12 @@ pub(crate) fn call(
             crate::jobs::call(domain, env, id, read, out);
             return;
         }
-        Call::Shell { after: crate::Yield::Asked(_), .. } if entry.jobs.full() => {
-            out.push(Request::Invalid { to: reply_to, problem: crate::JobProblem::Full { jobs: env.limits.jobs } });
-            return;
+        call @ Call::Shell { after: crate::Yield::Asked(_), .. } => {
+            if entry.jobs.full() {
+                out.push(Request::Invalid { to: reply_to, problem: crate::JobProblem::Full { jobs: env.limits.jobs } });
+                return;
+            }
+            (call, true)
         }
         call @ (Call::Read { .. }
         | Call::List { .. }
@@ -153,7 +157,7 @@ pub(crate) fn call(
         | Call::Remove { .. }
         | Call::Write { .. }
         | Call::Edit { .. }
-        | Call::Shell { .. }) => call,
+        | Call::Shell { after: crate::Yield::Never, .. }) => (call, false),
     };
     let Domain { kits, flights, facts } = domain;
     let kit = kits.get_mut(id).expect("a kit lives until its session closes it");
@@ -162,9 +166,13 @@ pub(crate) fn call(
     match admit(kit, call, deadline, env) {
         Ok(Admitted::Work(work)) => {
             facts.push_call(FactKind::Started { session: kit.session, tool }, observation);
-            let flight = flight::start(flights, id, reply_to, observation, work, deadline, env, out);
-            let fresh = kit.flights.insert(flight).expect("checked for room at the entrance");
+            let (flight, request) = flight::start(flights, id, reply_to, observation, work, deadline, env);
+            if yielding {
+                kit.jobs.reserve(flight);
+            }
+            let fresh = kit.flights.insert(flight).expect("the kit admitted this flight within its call room");
             assert!(fresh, "a flight is new to its kit");
+            out.push(request);
         }
         Ok(Admitted::Directories) => {
             facts.push_call(FactKind::Started { session: kit.session, tool }, observation);
@@ -198,7 +206,7 @@ pub(crate) fn close(domain: &mut Domain, kit: Token, limits: &Limits, out: &mut 
     let id = Id::from_token(kit);
     let kit = domain.kits.get_mut(id).expect("a kit lives until its session closes it");
     assert!(kit.state == State::Open, "a kit is closed once");
-    if kit.flights.is_empty() && kit.jobs.empty() {
+    if kit.flights.is_empty() && kit.jobs.no_held_jobs() {
         end(&mut domain.kits, &mut domain.facts, id, out);
         return;
     }
@@ -240,7 +248,7 @@ pub(crate) fn finished(
     match kit.state {
         State::Open => {}
         State::Closing => {
-            if kit.flights.is_empty() && kit.jobs.empty() {
+            if kit.flights.is_empty() && kit.jobs.no_held_jobs() {
                 end(kits, facts, id, out);
             }
         }
@@ -251,7 +259,7 @@ pub(crate) fn finished(
 /// Finish a closing kit once both ordinary calls and held owners have settled.
 pub(crate) fn settled(kits: &mut Slab<Kit>, facts: &mut Facts, id: Id<Kit>, out: &mut Queue<Request>) {
     let kit = kits.get(id).expect("a kit owns its pending work");
-    if kit.state == State::Closing && kit.flights.is_empty() && kit.jobs.empty() {
+    if kit.state == State::Closing && kit.flights.is_empty() && kit.jobs.no_held_jobs() {
         end(kits, facts, id, out);
     }
 }
@@ -259,6 +267,7 @@ pub(crate) fn settled(kits: &mut Slab<Kit>, facts: &mut Facts, id: Id<Kit>, out:
 /// Ends the kit `id`, which runs nothing: its session learns it has closed.
 fn end(kits: &mut Slab<Kit>, facts: &mut Facts, id: Id<Kit>, out: &mut Queue<Request>) {
     let kit = kits.get_mut(id).expect("a kit lives until it is retired");
+    kit.jobs.assert_drained();
     kit.state = State::Closed;
     facts.push(FactKind::Closed { session: kit.session });
     out.push(Request::Closed { session: kit.session });

@@ -333,6 +333,23 @@ workspace that can write can remove, with no shell needed.
     reads the end of one that ended. A `job` call naming a
     number its session never answered `running`, or a job whose end was
     already answered, is answered as an invalid call.
+  - **Its cell.** Each of a session's `jobs` places is a cell, and a
+    yielding command holds one from its admission: a `shell` call with
+    `yield_seconds` reserves a cell as the tools admit it, and is
+    refused as above when every cell is held or reserved. Its `running`
+    answer makes the reserved cell its job's, under the number it names;
+    an answer of its end within its yield gives the cell back. Inserting
+    a job asserts that its cell was reserved for its own command and that
+    its number names no job held; each release asserts that the cell is
+    held by that job and frees it once: the answer that reports its end,
+    or its `job.ended` as its session closes. A `job` call likewise
+    holds a read's place from its admission, answered `busy` where the
+    kit's calls fill its room, to its answer, and its insertion
+    asserts that no read holds that place
+    (skein/docs/foundation/programming-model.md, 10.4). A session runs a
+    `shell` call alone, as a write (session.md, section 5), so a cell
+    reserved at admission is the one its `running` answer would have
+    taken, and what its LLM sees is unchanged.
   - **Cancelled for another writer.** A session's running jobs are its
     writes in progress. Whatever takes the lease (run.md, section 5.3, and run-delivery.md, section 1.1
     ) first cancels the running jobs of every other session, and

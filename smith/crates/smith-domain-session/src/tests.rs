@@ -6,6 +6,7 @@ mod accounting;
 mod program;
 mod restore;
 mod retry;
+mod room;
 mod tell;
 
 use alloc::boxed::Box;
@@ -86,6 +87,12 @@ impl Harness {
         self.keep_facts();
         fire(&mut self.domain, &self.env, &mut self.out);
         self.one()
+    }
+
+    fn after_reclaim(&mut self) -> Option<Request> {
+        assert!(!self.domain.is_ready(), "the next batch waits for reclaim");
+        self.domain.reclaim();
+        self.resume()
     }
 
     /// Starts the session that is ready, which emits at most one request
@@ -781,12 +788,13 @@ fn adjacent_reads_run_together_and_a_write_runs_alone_and_results_go_back_in_ord
     let &[run_a, run_b] = first.as_slice() else { panic!("two reads, not {first:?}") };
     assert_eq!(h.step(ran(run_b, b"b")), None, "the batch waits for all its runs");
     // The read before the write, alone; the write; the read after it.
-    let second = h.batch(ran(run_a, b"a"));
-    let &[run_c] = second.as_slice() else { panic!("one read, not {second:?}") };
-    let third = h.batch(ran(run_c, b"c"));
-    let &[run_d] = third.as_slice() else { panic!("one write, not {third:?}") };
-    let fourth = h.batch(Event::Done { owner: run_d, done: Done::Stored { version: Version::new([2, 0, 0, 0]) } });
-    let &[run_e] = fourth.as_slice() else { panic!("one read, not {fourth:?}") };
+    let (run_c, op) = running(h.step(ran(run_a, b"a")));
+    assert_eq!(loading(&op), place(b"c"));
+    let (run_d, op) = running(h.step(ran(run_c, b"c")));
+    let Op::Store { .. } = op else { panic!("one write") };
+    let (run_e, op) =
+        running(h.step(Event::Done { owner: run_d, done: Done::Stored { version: Version::new([2, 0, 0, 0]) } }));
+    assert_eq!(loading(&op), place(b"e"));
     let (_, prompt) = calling(h.step(ran(run_e, b"e")));
     let results = [
         result(b"a", read(b"a")),
@@ -1439,6 +1447,7 @@ fn completion_name_exhaustion_ends_before_any_owned_or_delegated_effect() {
             }
         }
         assert!(used && ended);
+        assert_eq!(crate::session::provider_credit_for_test(&harness.domain, session), (0, None));
     }
 }
 
@@ -1503,7 +1512,9 @@ fn exact_provider_envelope_admits_and_one_byte_short_refuses_before_effects() {
         Event::Open { opener: Token::new(1), opening: opening(spec()) },
         &mut refused.out,
     );
-    let Some(Request::Opened { .. }) = refused.next() else { panic!("the fresh window opens before its limit") };
+    let Some(Request::Opened { session, .. }) = refused.next() else {
+        panic!("the fresh window opens before its limit")
+    };
     assert_eq!(
         refused.one(),
         Some(ended(
@@ -1516,6 +1527,7 @@ fn exact_provider_envelope_admits_and_one_byte_short_refuses_before_effects() {
             0
         ))
     );
+    assert_eq!(room::held(&refused, session), (0, None, 0, 0), "refusal holds no provider credit");
     assert_eq!((refused.domain.sessions(), refused.domain.kits(), refused.domain.runs()), (1, 1, 0));
     refused.domain.reclaim();
     assert_eq!((refused.domain.sessions(), refused.domain.kits(), refused.domain.runs()), (0, 0, 0));
@@ -1547,9 +1559,12 @@ fn a_batch_one_byte_short_runs_every_read_with_a_smaller_cap() {
     let (owner, _) = h.open(1);
     let runs = h.batch(Event::Completed { owner, completion: completion(content, Stop::ToolUse) });
     assert_eq!(runs.len(), 2);
+    assert_eq!(room::held(&h, owner), (8190, None, 8190, 0));
     assert_eq!(h.batch(Event::Close { session: owner }).as_slice(), runs.as_slice());
     assert_eq!(h.step(ran(runs.as_slice()[0], &[b'x'; 4096])), None);
+    assert_eq!(room::held(&h, owner), (4095, None, 4095, 0));
     assert_eq!(h.step(ran(runs.as_slice()[1], &[b'y'; 4096])), Some(ended(End::Closed, 1)));
+    assert_eq!(room::held(&h, owner), (0, None, 0, 0));
     for block in &h.turn_records.get(0).expect("ordinary turn").messages[2].content {
         let Block::ToolResult {
             result: Returned::Owned { outcome: Outcome::Read { content, window, cut, .. } }, ..

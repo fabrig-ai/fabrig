@@ -388,6 +388,9 @@ pub(super) fn cut(
     if !super::charge(conversation, added, limits) {
         return Err(Refusal::TooLarge);
     }
+    if count > 0 {
+        conversation.result_place = Some(super::history::Place::at(conversation, 0).ok_or(Refusal::TooLarge)?);
+    }
     conversation.resumed_results = cut.results;
     conversation.waking = if keep_waking { Some(text) } else { None };
     conversation.cursor.told =

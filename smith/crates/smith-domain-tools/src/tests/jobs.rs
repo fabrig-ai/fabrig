@@ -1,7 +1,11 @@
-//! Content-free observations of the job outcomes used by live calls.
+//! Job cell admission and release, and content-free observations of job outcomes.
 
-use crate::{BytesClamp, Exit, FactKind, JobEnd, JobNumber, Outcome, TimeoutClamp, Tool, Verdict};
-use skein_lib::{Duration, Token};
+use super::{ALL, Harness, authority, bytes};
+use crate::{
+    BytesClamp, Done, Event, Exit, FactKind, JobEnd, JobNumber, JobProblem, Outcome, Request, Timeout, TimeoutClamp,
+    Tool, Verdict, Yield,
+};
+use skein_lib::{Duration, ReplyTo, Token};
 
 fn observe(end: JobEnd) -> FactKind {
     crate::facts::answered(
@@ -172,40 +176,145 @@ fn a_job_stop_has_the_write_effect() {
     assert_eq!(crate::effect(&call), crate::Effect::Write);
 }
 
+// The last cell and the last call place are exercised independently (tools.md, section 5).
+const ONE_JOB: u32 = 1;
+const ONE_CALL: u32 = 1;
+const TWO_CALLS: u32 = 2;
+const SESSION: u64 = 1;
+const FIRST_JOB: JobNumber = JobNumber(1);
+const NEXT_JOB: JobNumber = JobNumber(2);
+
+fn yielding_shell() -> crate::Call {
+    crate::Call::Shell {
+        command: bytes(b"cargo build"),
+        timeout: Timeout::Default,
+        output: crate::Budget::Default,
+        after: Yield::Asked(Duration::from_secs(1)),
+    }
+}
+
+fn spawn(harness: &mut Harness, kit: Token, call: u64) -> Token {
+    match harness.send(kit, call, yielding_shell()) {
+        Some(Request::Io { owner, .. }) => owner,
+        other => panic!("expected the yielding shell to be admitted, got {other:?}"),
+    }
+}
+
+fn held() -> Done {
+    Done::Held { head: Box::default(), tail: Box::default(), dropped: 0 }
+}
+
+fn running(job: JobNumber) -> Outcome {
+    Outcome::Running {
+        job,
+        head: Box::default(),
+        tail: Box::default(),
+        dropped: 0,
+        timeout: TimeoutClamp::Within,
+        output: BytesClamp::Within,
+        after: TimeoutClamp::Within,
+    }
+}
+
+fn poll(job: JobNumber) -> crate::Call {
+    crate::Call::Job { job, wait: crate::Wait::Default, output: crate::Budget::Default, stop: false }
+}
+
+fn polled(end: JobEnd) -> Done {
+    Done::Job { head: Box::default(), tail: Box::default(), dropped: 0, end }
+}
+
+fn with_one_job(calls: u32) -> (Harness, Token) {
+    let mut harness = Harness::new(crate::Limits { jobs: ONE_JOB, calls, ..super::LIMITS });
+    let kit = harness.open(SESSION, authority(ALL));
+    (harness, kit)
+}
+
+fn with_running_job(calls: u32) -> (Harness, Token, Token) {
+    let (mut harness, kit) = with_one_job(calls);
+    let owner = spawn(&mut harness, kit, 1);
+    drop(harness.end(owner, held()));
+    (harness, kit, owner)
+}
+
 #[test]
-fn a_resumed_kits_first_job_follows_its_saved_highest() {
-    use super::{ALL, Harness, LIMITS, authority, bytes};
-    use crate::{Budget, Call, Event, Request, Timeout, Yield};
-    let mut harness = Harness::new(LIMITS);
-    let opened = harness.step(Event::Open { session: Token::new(1), jobs: 3, authority: authority(ALL) });
-    let Some(Request::Opened { kit, .. }) = opened else { panic!("kit admitted") };
-    let spawned = harness.send(
-        kit,
-        1,
-        Call::Shell {
-            command: bytes(b"cargo build"),
-            timeout: Timeout::Default,
-            output: Budget::Default,
-            after: Yield::Asked(Duration::from_secs(1)),
-        },
-    );
-    let Some(Request::Io { owner, .. }) = spawned else { panic!("shell spawned") };
+fn a_pending_yield_reserves_the_last_job_cell() {
+    let (mut harness, kit) = with_one_job(TWO_CALLS);
+    let owner = spawn(&mut harness, kit, 1);
     assert_eq!(
-        harness.step(Event::Done {
-            owner,
-            done: crate::Done::Held { head: Box::default(), tail: Box::default(), dropped: 0 }
-        }),
-        Some(Request::Answer {
-            to: skein_lib::ReplyTo::new(Token::new(1)),
-            outcome: Outcome::Running {
-                job: JobNumber(4),
+        harness.send(kit, 2, yielding_shell()),
+        Some(Request::Invalid { to: ReplyTo::new(Token::new(2)), problem: JobProblem::Full { jobs: ONE_JOB } })
+    );
+    assert_eq!(harness.end(owner, held()), (1, running(FIRST_JOB)));
+}
+
+#[test]
+fn reading_the_end_reopens_the_cell_not_its_number() {
+    let (mut harness, kit, owner) = with_running_job(ONE_CALL);
+    drop(harness.send(kit, 2, poll(FIRST_JOB)));
+    drop(harness.end(owner, polled(JobEnd::Ended(Exit::Code { code: 0 }))));
+    let next = spawn(&mut harness, kit, 3);
+    assert_eq!(harness.end(next, held()), (3, running(NEXT_JOB)));
+}
+
+#[test]
+fn exiting_before_yield_returns_the_reserved_job_cell() {
+    let (mut harness, kit) = with_one_job(ONE_CALL);
+    let owner = spawn(&mut harness, kit, 1);
+    let exit = Exit::Code { code: 0 };
+    let ended = Done::Exited { exit, head: Box::default(), tail: Box::default(), dropped: 0 };
+    assert_eq!(
+        harness.end(owner, ended),
+        (
+            1,
+            Outcome::Exited {
+                exit,
                 head: Box::default(),
                 tail: Box::default(),
                 dropped: 0,
                 timeout: TimeoutClamp::Within,
                 output: BytesClamp::Within,
-                after: TimeoutClamp::Within,
             }
+        )
+    );
+    let next = spawn(&mut harness, kit, 2);
+    assert_eq!(harness.end(next, held()), (2, running(FIRST_JOB)));
+}
+
+#[test]
+fn job_reads_share_the_kits_room_with_other_calls() {
+    let (mut harness, kit, _) = with_running_job(TWO_CALLS);
+    drop(harness.start(kit, 2, super::read(b"a")));
+    drop(harness.send(kit, 3, poll(FIRST_JOB)));
+    assert_eq!(
+        harness.send(kit, 4, poll(FIRST_JOB)),
+        Some(Request::Answer { to: ReplyTo::new(Token::new(4)), outcome: Outcome::Busy })
+    );
+}
+
+#[test]
+fn a_job_reads_place_is_reusable_after_its_answer() {
+    let (mut harness, kit, owner) = with_running_job(ONE_CALL);
+    drop(harness.send(kit, 2, poll(FIRST_JOB)));
+    drop(harness.end(owner, polled(JobEnd::Running)));
+    assert_eq!(
+        harness.send(kit, 3, poll(FIRST_JOB)),
+        Some(Request::Job {
+            owner,
+            act: crate::JobAct::Read {
+                head: super::LIMITS.shell_head,
+                tail: super::LIMITS.shell_tail,
+                wait: super::LIMITS.job_poll,
+            },
         })
     );
+}
+
+#[test]
+fn a_resumed_kits_first_job_follows_its_saved_highest() {
+    let mut harness = Harness::new(super::LIMITS);
+    let opened = harness.step(Event::Open { session: Token::new(SESSION), jobs: 3, authority: authority(ALL) });
+    let Some(Request::Opened { kit, .. }) = opened else { panic!("kit admitted") };
+    let owner = spawn(&mut harness, kit, 1);
+    assert_eq!(harness.end(owner, held()), (1, running(JobNumber(4))));
 }

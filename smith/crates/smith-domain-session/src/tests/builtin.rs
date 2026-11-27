@@ -64,6 +64,26 @@ fn a_builtin_call_is_done_at_once() {
 }
 
 #[test]
+fn a_program_result_and_a_forgotten_stand_in_each_release_their_own_credit() {
+    let mut h = Harness::new(&LIMITS);
+    let first = b"answered";
+    let second = b"forgotten";
+    let session = begin(&mut h, Box::new([builtin(first, Effect::Read), builtin(second, Effect::Read)]));
+    let share = LIMITS.delegated_result_bytes.checked_sub(skein_lib::len_u64(STAND_IN.len())).expect("stand-in fits");
+    let paired = share.checked_mul(2).expect("two bounded program shares");
+    assert_eq!(room::held(&h, session), (paired, None, 0, paired));
+    assert_eq!(h.step(result_event(session, first, b"kept", false)), None);
+    assert_eq!(room::held(&h, session), (share, None, 0, share));
+    assert_eq!(h.step(result_event(session, first, b"duplicate", false)), None);
+    assert_eq!(room::held(&h, session), (share, None, 0, share));
+    assert_eq!(h.step(Event::Close { session }), Some(ended(End::Closed, 1)));
+    assert_eq!(room::held(&h, session), (0, None, 0, 0));
+    let messages = &h.turn_records.last().expect("the last program turn").messages;
+    assert_eq!(returned(messages, first), expected(b"kept", false));
+    assert_eq!(returned(messages, second), expected(STAND_IN, true));
+}
+
+#[test]
 fn a_builtin_result_patches_its_slot() {
     let mut harness = Harness::new(&LIMITS);
     let session = begin(&mut harness, Box::new([builtin(b"read", Effect::Read)]));
@@ -247,9 +267,11 @@ fn a_builtin_after_waiting_writers_is_done_immediately() {
     assert_eq!(owners.len(), 2);
     assert_ne!(owners[0], owners[1], "program and opener calls share the same issuer");
     assert_eq!(harness.step(result_event(session, b"read", b"done early", false)), None);
-    let second = harness.batch(answered(*first.get(0).unwrap(), 7, 4, false));
-    assert_eq!(second.len(), 1);
-    let (_, prompt) = calling(harness.step(answered(*second.get(0).unwrap(), 7, 4, false)));
+    let Some(Request::Delegate { owner: second, .. }) = harness.step(answered(*first.get(0).unwrap(), 7, 4, false))
+    else {
+        panic!("second writer")
+    };
+    let (_, prompt) = calling(harness.step(answered(second, 7, 4, false)));
     assert_eq!(returned(&prompt.messages, b"read"), expected(b"done early", false));
 }
 
