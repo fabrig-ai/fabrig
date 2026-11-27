@@ -192,6 +192,7 @@ fn owner_of(request: &Request) -> Token {
         | Request::Cut { owner, .. }
         | Request::OpenRead { owner, .. }
         | Request::OpenReadNoFollow { owner, .. }
+        | Request::OpenSiblingFile { owner, .. }
         | Request::OpenDirectory { owner, .. }
         | Request::Load { owner, .. }
         | Request::Scan { owner, .. }

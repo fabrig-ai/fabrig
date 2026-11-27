@@ -428,6 +428,8 @@ class Delivery(unittest.TestCase):
                 with self.subTest(args=args, failed=failed), contextlib.ExitStack() as stack:
                     out = stack.enter_context(redirect_stdout(io.StringIO()))
                     stack.enter_context(redirect_stderr(io.StringIO()))
+                    # This fixture has no goal head and checks the standalone exit status.
+                    stack.enter_context(mock.patch.dict(os.environ, {'TEMPER_CLOSE_REFUSAL': ''}))
                     stack.enter_context(mock.patch.object(Path, 'cwd', return_value=self.root))
                     stack.enter_context(mock.patch.object(PRE, 'checked_git', return_value=b''))
                     stack.enter_context(mock.patch.object(PRE, 'snapshot', side_effect=['first', 'first']))
@@ -517,12 +519,37 @@ class Delivery(unittest.TestCase):
         self.assertIn('pre-pr: broke: no base: this is no git checkout', err.getvalue())
 
     def test_shell_entry_points_forward_to_the_expected_mode(self):
-        for hook, suffix in [('pre-pr', ''), ('goal-child-pre-pr', ' --child "$@"'), ('goal-pre-pr', ' --goal "$@"'),
-                             ('checked-close', ' --close')]:
-            script = HERE.parents[1] / '.temper' / hook
-            commands = [line for line in script.read_text().splitlines() if line.startswith('exec ')]
-            self.assertEqual(commands, ['exec python3 -I -B tools/pre-pr/pre_pr.py' + suffix])
-            self.assertTrue(script.stat().st_mode & 0o111)
+        temper = HERE.parents[1] / '.temper'
+        self.assertEqual(os.readlink(temper / 'hooks/finish'), 'deliver')
+        for entry, command in [
+            ('hooks/deliver', 'tools/pre-pr/pre_pr.py'),
+            ('hooks/merge', '"$(dirname "$0")/../../tools/merge/merge.py" "$@"'),
+            ('hooks/close', 'tools/pre-pr/pre_pr.py --close'),
+            ('goal-child-pre-pr', 'tools/pre-pr/pre_pr.py --child "$@"'),
+            ('goal-pre-pr', 'tools/pre-pr/pre_pr.py --goal "$@"'),
+        ]:
+            with self.subTest(entry=entry):
+                script = temper / entry
+                self.assertFalse(script.is_symlink())
+                self.assertTrue(script.stat().st_mode & 0o111)
+                commands = [line for line in script.read_text().splitlines() if line.startswith('exec ')]
+                self.assertEqual(commands, ['exec python3 -I -B ' + command])
+        for wrapper, hook in [('pre-pr', 'deliver'), ('merge', 'merge'),
+                              ('close', 'close'), ('checked-close', 'close')]:
+            with self.subTest(wrapper=wrapper):
+                script = temper / wrapper
+                self.assertTrue(script.stat().st_mode & 0o111)
+                self.assertEqual(script.read_text(), f'#!/bin/sh\nexec "$(dirname "$0")/hooks/{hook}" "$@"\n')
+
+    def test_goal_checks_select_merge_tests_when_the_merge_hook_changes(self):
+        with mock.patch.object(PRE, 'metadata', return_value={'packages': [], 'workspace_members': []}), \
+             mock.patch.object(PRE, 'clippy', return_value=(0, [])), \
+             mock.patch.object(PRE, 'test_binaries', return_value={}), \
+             mock.patch.object(PRE, 'run', return_value=(0, '')) as run:
+            PRE.goal_checks(self.root, ['.temper/hooks/merge'], self.env, self.errors, 0)
+        run.assert_called_once_with(['python3', '-I', '-B', 'tools/merge/test_merge.py'],
+                                    self.root, self.env, stdout=True)
+        self.assertEqual(self.errors, [])
 
     def test_goal_hook_installs_only_a_missing_rerun_marker_before_goal_mode(self):
         from shutil import copy2
@@ -1616,6 +1643,22 @@ class Gate(unittest.TestCase):
                     with mock.patch.object(subprocess, 'check_output', return_value=paths), redirect_stdout(io.StringIO()):
                         self.assertEqual(GATE.checks(root, 'base', 'head', root, execute), status)
                     self.assertEqual([call.args[0] for call in execute.call_args_list], commands)
+
+    def test_delivery_hooks_are_code_inputs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = ['.temper/hooks/deliver', '.temper/hooks/finish']
+            self.assertEqual(PRE.code_inputs(paths, {'packages': [], 'workspace_members': []}, root), paths)
+
+    def test_finish_hook_selects_checker_tests(self):
+        self.assertEqual(GATE.route({'.temper/hooks/finish'}), 'checker')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            execute = mock.Mock(return_value=subprocess.CompletedProcess([], 0))
+            with mock.patch.object(subprocess, 'check_output', return_value=b'.temper/hooks/finish\0'), \
+                 redirect_stdout(io.StringIO()):
+                self.assertEqual(GATE.checks(root, 'base', 'head', root, execute), 0)
+            execute.assert_called_once_with(['python3', '-I', '-B', 'tools/pre-pr/test_pre_pr.py'], cwd=root, timeout=600)
 
     def test_preflight_runs_tests_and_writes_real_outcome(self):
         for paths, status, expected in [(b'tools/pre-pr/pre_pr.py\0', 0, 0),

@@ -138,10 +138,17 @@ pub fn contract_to_record(value: &smith_domain_run::outcome::OutcomeSpec) -> Res
 
 #[must_use]
 pub fn conventions_to_record(value: &smith_domain_run::Conventions) -> smith_charter::v5::Conventions {
-    let smith_domain_run::Conventions { guide: field_000000, checks: field_000001 } = value;
+    let smith_domain_run::Conventions { guide: field_000000, checks: field_000001, hooks: field_000002 } = value;
     smith_charter::v5::Conventions {
         guide: field_000000.clone(),
-        checks: field_000001.clone()
+        checks: field_000001.clone(),
+        hooks: match field_000002 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        }
     }
 }
 

@@ -210,6 +210,9 @@ impl Driver {
                     self.seen[2] += 1;
                     self.ask(Asked::Probe { owner });
                 }
+                Request::Lower(smith_domain::Lower::ProbeHooks { .. }) => {
+                    panic!("memory fixtures select only a legacy check")
+                }
                 Request::Lower(smith_domain::Lower::Check { owner, .. }) => {
                     self.seen[3] += 1;
                     self.ask(Asked::Check { owner, aborted: false });

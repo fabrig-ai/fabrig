@@ -300,6 +300,7 @@ fn succeed(op: &mut Op, fd: &mut i32) -> Result<Done, Error> {
         | Op::Sync { .. }
         | Op::Lock { .. }
         | Op::Stat { .. }
+        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::Rename { .. }
         | Op::Remove { .. }
@@ -334,6 +335,7 @@ fn stopped(op: &mut Op, fd: &mut i32) -> Result<Done, Error> {
         | Op::Sync { .. }
         | Op::Lock { .. }
         | Op::Stat { .. }
+        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::Rename { .. }
         | Op::Remove { .. }

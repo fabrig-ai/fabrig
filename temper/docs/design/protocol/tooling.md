@@ -3,9 +3,10 @@
 Provisional, 2026-11-10. The contract between temper
 and a project's own tooling: the `prepare` and `key` commands a project
 that lands by turn may name (`../domain/landing-prepare.md`, 1.3, and `../domain/landing-proof.md`, 1.1),
-the `merge` command any project may name for the merge job
-(`../domain/forge/change/repairs.md`), and the `close` command any project may name
-for a goal's closer (`../domain/forge/branches.md`, 2); what temper gives them,
+the `merge` command any repository may keep for the merge job
+(`../domain/forge/change/repairs.md`), and the `close` command any repository may keep
+for a goal's closer (`../domain/forge/branches.md`, 2), each its hook or, in a
+repository without `.temper/hooks/`, a path its project names (`hooks.md`); what temper gives them,
 what they write, and how they end. temper runs them as jobs on a worker
 (`../domain/worker/jobs.md`). What is open is `tooling.md`, section 7.
 
@@ -17,7 +18,10 @@ what they write, and how they end. temper runs them as jobs on a worker
   `merge` settles the conflicts it knows in a merge in progress, a path
   in the repository it merges, run from that merge (4.1); `close`
   settles what a goal leaves once its changes have ended, a path in the
-  goal's branch's repository, run at the branch's tip (4.2).
+  goal's branch's repository, run at the branch's tip (4.2). Each of
+  these two is the repository's hook, `.temper/hooks/merge` or
+  `.temper/hooks/close`, or, in a repository without `.temper/hooks/`,
+  the project's `merge_job` or `close_job` (`hooks.md`, 4.2 and 5).
 - **A directory, not a forge.** temper fetches every repository the
   command needs into a directory it gives the command, and pushes what
   the command made. The command holds no credential, reaches no forge,
@@ -185,11 +189,15 @@ The merge job's command (`../domain/forge/change/repairs.md`; `../domain/worker/
 ): it settles the conflicts the project's rules know (a counted
 baseline recounted, a generated file made again), with no model.
 
-- **Named by the project's `merge_job`** (`configuration/engine.md`
-  ), a path in the repository being merged, run from the merge in
+- **The repository's `merge` hook, or the project's `merge_job`**
+  (`hooks.md`, 4.2 and 5; `configuration/engine.md`): `.temper/hooks/merge`
+  where the head the merge is made on holds `.temper/hooks/`, the
+  project's `merge_job` where it holds none; a path in the repository
+  being merged, run from the merge in
   progress, not from the home: the files it settles and the scripts
   that settle them are that repository's. A command file left in
-  conflict, or absent from the merge, is the command's failure.
+  conflict, or absent from the merge, is the command's failure, as a
+  hook the worker's check refuses is (`hooks.md`, 4.3).
 - **Its directory** holds one repository, the one the job writes, under
   its own name (`<name>/`): checked out at the head being merged into, with the base
   merged in by temper and not committed, git's merge in progress, the
@@ -335,11 +343,14 @@ into its base. fabrig's settles the goal's in-flight status entries
 (fabrig's `DESIGN.md`, section 2); another project's may settle what it
 keeps of a goal's work in its own files.
 
-- **Named by the project's `close_job`** (`configuration/engine.md`
-  ), a path in the goal's branch's repository, as `merge_job` is: the
+- **The repository's `close` hook, or the project's `close_job`**
+  (`hooks.md`, 4.2 and 5; `configuration/engine.md`): `.temper/hooks/close`
+  where the goal's branch's tip holds `.temper/hooks/`, the project's
+  `close_job` where it holds none; a path in the goal's branch's
+  repository, as the merge command is: the
   files it settles and the scripts that settle them are that
   repository's. A command file absent from the branch is the command's
-  failure.
+  failure, as a hook the worker's check refuses is (`hooks.md`, 4.3).
 - **Its directory** holds one repository, the one the job writes, under
   its own name (`<name>/`): checked out at the goal's branch's tip, on
   the close change's own branch made there, clean, nothing staged. That
@@ -369,7 +380,7 @@ keeps of a goal's work in its own files.
   all the same: its entry is deleted when its change landed, and
   otherwise the tag alone goes, with the space before it, the
   punctuation staying.
-- **A close may check what it settles,** as fabrig's `.temper/checked-close`
+- **A close may check what it settles,** as fabrig's `.temper/hooks/close`
   does: it settles, then runs pre-PR's close check over the staged tree
   (`tools/pre-pr/design.md`, 4.1). The check's verdict is the close's:
   passed, refused by the goal's own failures, or not judged, the check
