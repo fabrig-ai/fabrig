@@ -23,7 +23,7 @@ pub(crate) mod view;
 
 pub use crate::vocabulary::{Event, Held, HoldingsNeed, Limits, Request, Timer, ToolKind, TranscriptLoad};
 use crate::{
-    CallKey, CallPart, Core, RoutedCall,
+    CallKey, CallPart, Core, PendingCall, RoutedCall,
     routing::{
         children::{
             route_account, route_brief, route_fleet, route_projection_settled, tag_account, tag_brief, tag_fleet,
@@ -83,14 +83,14 @@ impl Core {
     #[must_use]
     pub fn reserve_connector_call(&mut self, key: CallKey) -> bool {
         self.start_runtime_input();
-        self.pending_calls.insert(key, true) == Ok(None)
+        self.reserve_call(key, PendingCall::Application)
     }
 
     /// Retain a connector subscription's task-hub continuation with its named call.
     #[must_use]
     pub fn reserve_connector_subscription(&mut self, token: Token, key: CallKey, subscription: u64) -> Option<Token> {
-        self.start_input();
-        if !self.reserve_connector_call(key) {
+        self.start_runtime_input();
+        if !self.reserve_call(key, PendingCall::Routed) {
             return None;
         }
         Some(self.fly_call(token, RoutedCall::Subscribe { key, subscription }))
@@ -768,7 +768,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::NamedAnswer { to, key, part } => route_named_answer(core, to, key, part),
         Event::NamedAction { to, key, action } => named_action(core, env, work, to, key, action),
         Event::DelegateValidated { to, key, batch, stubs } => delegate_validated(core, env, to, key, batch, stubs),
-        Event::DelegateInputFailed { to, key } => delegate_input_failed(work, to, key),
+        Event::DelegateInputFailed { to, key } => delegate_input_failed(core, to, key),
         Event::DelegateHoldings { request, connector, holdings, refused } => {
             delegate_holdings(core, env, work, request, connector, holdings, refused)
         }

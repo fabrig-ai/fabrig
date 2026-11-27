@@ -18,6 +18,8 @@ fn with_live_names(live: u8) -> (Core, Env<Limits>) {
     limits.tasks.inbox_messages = 32;
     limits.tasks.inbox_bytes = 4096;
     limits.authority.batch = 8;
+    // Two waiting batches can outlive a third batch's retained refusal.
+    limits.call_records = 3;
     let old = core_with_limits(&limits);
     let mut config = config(41);
     config.defaults.rules.ceiling.delegation.tasks = 16;
