@@ -3,7 +3,7 @@
 2026-11-28. Where the tree's code lags or departs from [fixture-lifetime.md](fixture-lifetime.md).
 
 - **Not yet:**
-  - 1 and 2: the box kit's and temper-box's test binaries' long-runners start with no parent-death signal, but the kit's owned forge and the boxes `boxed.rs` wraps, so a test killed with no cleanup leaves the rest running.
-  - 1 and 2: a journey's session starts its box and a deployment's processes with no parent-death signal, and the browser tier its server program.
+  - 1 and 2: the box kit's and temper-box's test binaries' long-runners start with no parent-death signal, but the kit's owned forge and the boxes `boxed.rs` wraps, so a test killed with no cleanup leaves the rest running. [in flight: change 22179]
+  - 1 and 2: a journey's session starts its box and a deployment's processes with no parent-death signal, and the browser tier its server program. [in flight: change 22180]
   - 4: the process tier's story has no runtime result: written and compiled in its plan, it runs after landing.
 - **Design departs:** 5: on macOS a start on skein-io is direct, where the request (draft-12's, 2026-11-28) asks that every process a test or a journey starts end with it however it ends: the wrapper's watcher there is a child of the wrapped program in its group, which the box's and the kits' tree checks don't know, and `../protocol/setup/box.md`, 7 holds the box's own macOS guard open. A std start dies with its starter's process on macOS too. The designer's, goal 22151, 2026-11-28.
