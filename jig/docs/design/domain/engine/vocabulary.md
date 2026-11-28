@@ -380,12 +380,13 @@ The engine's own enums gain the port (2.2): `In::Connector(Connector, Up)`, the 
   - an **operation that ends later**, answered by an `Up` naming it whenever it ends, in any
     later decision, the engine keeping the state that waits for it across a restart too, as it
     does today (catching up, releasing a deleted project, settling a closing task's effects,
-    projecting a goal, planning a run's brief and gathering or cutting its sections
-    (`briefs.md`, 1.4), gathering a party's document or a task line's parts, which a connector may
-    read from its store first, the core keeping the watcher or the read that waits for them, as
-    `temper/docs/design/draft/jig-domain-api.md`, 6.3 has it; deciding an application's
+    projecting a goal, gathering a party's document or a task line's parts, which a connector
+    may read from its store first, the core keeping the watcher or the read that waits for them,
+    as `temper/docs/design/draft/jig-domain-api.md`, 6.3 has it; deciding an application's
     request, which may need held work first, a load, a setup or a forge read, the core keeping
-    the pending request until it is decided).
+    the pending request until it is decided). Planning a run's brief and gathering or cutting
+    its sections can end later too, but the engine keeps their state only until a restart, when
+    the preparation begins again (`briefs.md`, 1.4).
 - **The decision's assertion, over judgements alone.** Each judgement asked is outstanding until
   its connector answers it. At the decision's end, which a root marks by `finish_decision`
   (2.3), none is outstanding: the engine asserts it, as it asserts its routes' invariants. A

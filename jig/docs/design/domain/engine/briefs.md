@@ -358,12 +358,15 @@ child, each still named along its old path, and `DOCUMENT_PRIORITY` with them.
   room for its required sections` (1.1), and every section planned is
   dropped. An optional section takes a slot left after the required
   ones, or is dropped. A document no connector planned is not in the
-  brief.
+  brief. The engine drops connector sections by connector number, then
+  in each plan's order.
 - **A plan out of bounds** is taken as no plan, and each of its
   sections dropped: more sections than a brief holds, a token named
   twice, a document that is not its own in the context or is planned
-  twice, or a document's section planned required. The engine tells the
-  connector nothing more (3).
+  twice, or a document's section planned required. Each offered
+  occurrence of a token named twice is dropped. Only documents offered
+  by plans in bounds keep their slots. The engine tells the connector
+  nothing more (3).
 - **Gathered and cut by the brief child** (1): the placed sections, the
   brief's bytes and its deadline, `brief.gather` after placing. Each
   connector section is asked `Gather`, with the read bound
