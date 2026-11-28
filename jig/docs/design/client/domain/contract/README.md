@@ -161,8 +161,8 @@ Moved to [`watches.md`](watches.md), section 1.
   `me` carries no range. Versions are frozen, and a client at another
   layout is refused by name (`../../../protocol/client/versions.md`, section 1).
 - **A version not served is refused with a typed answer,** *version not
-  served* (`answers.md`, section 1), naming the owner and the ranges the engine
-  serves, with nothing read, made or kept; a read and a watch in it
+  served* (`answers.md`, section 1), naming the owner, with nothing
+  read, made or kept; a read and a watch in it
   likewise. What the client then does with that owner's requests, reads
   and watches, and when it sends what it kept, is ../client/watches.md's, 2;
   what the application says of it is its own (the reference UI's:

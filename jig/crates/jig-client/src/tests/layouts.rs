@@ -8,7 +8,6 @@ const VERSION: u32 = 1;
 const LAYOUT: [u8; 32] = [1; 32];
 const OTHER: [u8; 32] = [2; 32];
 const OWNERS: &[Spoken] = &[Spoken { family: FAMILY, version: VERSION, layout: LAYOUT }];
-const RANGE: contract::VersionRange = contract::VersionRange { first: VERSION, last: VERSION };
 
 fn starting(owners: &'static [Spoken]) -> Client {
     let limits = Limits { domain: DomainLimits { owners, ..fixtures::domain_limits() }, ..fixtures::limits() };
@@ -78,16 +77,7 @@ fn another_or_missing_jig_layout_refuses_before_reading_me() {
         assert_eq!(link.state, Link::OutOfDate);
         assert!(!link.unreadable, "the fixed head refuses the layout by name");
         assert!(c.requests().contains(&Request::CloseStream));
-        assert_eq!(
-            fixtures::pages(c.requests()).as_slice(),
-            &[(
-                ME,
-                Readout::NotServed {
-                    family: None,
-                    served: Some(contract::VersionRange { first: w::VERSION, last: w::VERSION }),
-                }
-            )]
-        );
+        assert_eq!(fixtures::pages(c.requests()).as_slice(), &[(ME, Readout::NotServed { family: None })]);
         no_transport(&c);
         c.fire(Time::from_nanos(u64::MAX));
         no_transport(&c);
@@ -110,7 +100,7 @@ fn another_or_missing_owner_layout_refuses_only_its_work() {
         let link = c.machine.link();
         assert_eq!(link.state, Link::Live);
         assert_eq!(link.not_served, &[FAMILY]);
-        let refusal = [(TASK, Readout::NotServed { family: Some(FAMILY), served: Some(RANGE) })];
+        let refusal = [(TASK, Readout::NotServed { family: Some(FAMILY) })];
         assert_eq!(fixtures::pages(c.requests()).as_slice(), &refusal);
         assert!(c.requests().contains(&Request::Told { told: Told::Ended { handle: TASK, why: Why::NotServed } }));
         no_transport(&c);

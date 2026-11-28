@@ -69,10 +69,7 @@ fn start(root: &mut Domain, kept: List<crate::store::Record>) -> Token {
     Token::new(0)
 }
 fn confirm(root: &mut Domain, watch: Token, party: u64) {
-    drive(
-        root,
-        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
-    );
+    drive(root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } });
     // Explicit synthetic identity and empty offers, supplied independently of the party's display name.
     let frame = Me {
         charters: List::with_capacity(0),

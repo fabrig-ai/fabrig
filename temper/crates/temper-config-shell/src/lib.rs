@@ -1,5 +1,6 @@
 //! The file's vocabulary and reader (temper/docs/design/protocol/configuration/file.md, 2–7).
 mod document;
+mod formats;
 mod machine;
 mod merge;
 mod pages;
@@ -9,6 +10,7 @@ pub mod rows;
 mod source;
 mod template;
 
+pub use formats::{Move, MoveKind, MovedOut};
 pub use machine::{facts, read, read_with};
 pub use pages::{help, reference};
 pub use parse::{parse, patch};
@@ -19,6 +21,7 @@ pub use temper_service_core::startup::Shape;
 pub use template::substitute;
 
 pub const FILE: &str = "temper.toml";
+pub const UPGRADE_LINE: &str = "print temper.toml at the newest format";
 pub const FORMER: &str = "temper.json";
 const FILE_BYTES: usize = 1 << 20;
 
@@ -124,6 +127,11 @@ pub struct Read {
     pub file: File,
     pub document: Box<[u8]>,
     pub keys: Keys,
+    /// The format as written, 1 where absent.
+    pub format: i64,
+    /// One complete diagnostic per moved key, in file order.
+    pub notices: Vec<String>,
+    pub moved_out: Vec<MovedOut>,
 }
 
 /// A deterministic standalone start for shared test harnesses. The file goes

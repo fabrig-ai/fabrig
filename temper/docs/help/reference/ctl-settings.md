@@ -112,3 +112,16 @@ Key: --key KEY, required.
 The file is settings apply's. Read the proposal with proposal show
 PROPOSAL.
 ```
+
+## settings upgrade
+
+```
+settings upgrade FILE
+  FILE (items): a file, at most 1048576 bytes; required. The settings file, JSON, or -
+Print a settings file at the newest format
+Prints: The settings file as JSON on stdout and any format notices on stderr
+--json: the record settings_file.
+Key: none.
+Reads no charter directory named in the file, writes no file, and
+needs no sign-in. A refused file names what it could not read (exit 1).
+```

@@ -234,17 +234,7 @@ fn starting(root: &mut crate::Domain, kept: List<skein_lib::RequestRecord<jig_cl
     crate::step(
         root,
         &env(&limits),
-        Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::Served {
-                    served: true,
-                    versions: Some(contract::VersionRange {
-                        first: jig_client_protocol_wire::VERSION,
-                        last: jig_client_protocol_wire::VERSION,
-                    }),
-                },
-            },
-        },
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
         &mut out,
     );
     out

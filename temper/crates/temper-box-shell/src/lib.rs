@@ -52,6 +52,9 @@ pub enum Command {
     Overview,
     Version,
     Versions,
+    ConfigUpgrade {
+        directories: Directories,
+    },
     Upgrade {
         directories: Directories,
         request: temper_engine_shell::upgrade::Request,
@@ -249,6 +252,10 @@ fn configure_row(
     };
     match words {
         ["versions"] => return if arguments.is_empty() { Ok(Command::Versions) } else { Err(invalid()) },
+        ["config", "upgrade"] => {
+            return temper_service_shell::config_upgrade::configure(arguments, environment, working)
+                .map(|directories| Command::ConfigUpgrade { directories });
+        }
         ["upgrade", mode @ ("--check" | "--workers" | "--back")] => {
             return temper_engine_shell::upgrade::configure(mode, arguments, environment, working)
                 .map(|(directories, request)| Command::Upgrade { directories, request });
@@ -332,7 +339,20 @@ pub fn run(
     version: &'static str,
     commit: &'static str,
 ) -> Result<u8, String> {
+    run_with_stdout(command, environment, working, run_as, version, commit, |text| print!("{text}"))
+}
+
+fn run_with_stdout(
+    command: Command,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    run_as: &[u8],
+    version: &'static str,
+    commit: &'static str,
+    stdout: impl FnOnce(&str),
+) -> Result<u8, String> {
     let exit = match command {
+        Command::ConfigUpgrade { directories } => return print_config_upgrade(&directories, stdout),
         Command::Upgrade { directories, request } => {
             return upgrade::run(&directories, &request);
         }
@@ -357,21 +377,21 @@ pub fn run(
             return temper_engine_shell::restore::run_prepared(TABLE.binary, &directories, name, service, &deployment);
         }
         Command::Overview => {
-            print!("{}", TABLE.help());
+            stdout(&TABLE.help());
             return Ok(0);
         }
         Command::Versions => {
-            print!("{}", temper_engine_shell::versions());
+            stdout(&temper_engine_shell::versions());
             return Ok(0);
         }
         Command::Version => {
-            print!("{}", skein_shell::Table { version, commit, ..TABLE }.version_line());
+            stdout(&skein_shell::Table { version, commit, ..TABLE }.version_line());
             return Ok(0);
         }
         Command::Claude { program, arguments } => return Ok(claude_code::run(&program, &arguments, environment)),
         Command::Relay | Command::ProgramChild => unreachable!("smith modes are dispatched by main"),
         Command::Usage(row) => {
-            print!("{}", TABLE.command_help(row));
+            stdout(&TABLE.command_help(row));
             return Ok(0);
         }
         Command::Init { directories, boxed } => {
@@ -420,13 +440,22 @@ pub fn run(
             );
         }
         Command::Help { request } => {
-            print!("{}", help::answer(&request)?);
+            stdout(&help::answer(&request)?);
             return Ok(0);
         }
         Command::Ctl { arguments } => return Ok(ctl::run(&arguments, &Clock::new())),
         Command::Open { arguments } => return Ok(open::run(&arguments, &Clock::new())),
     };
     Ok(exit_status(exit))
+}
+
+fn print_config_upgrade(directories: &Directories, stdout: impl FnOnce(&str)) -> Result<u8, String> {
+    stdout(&temper_service_shell::config_upgrade::answer(
+        TABLE.binary,
+        directories,
+        temper_config_shell::Shape::Standalone,
+    )?);
+    Ok(0)
 }
 
 fn box_status(result: Result<Exit, String>) -> Result<u8, String> {

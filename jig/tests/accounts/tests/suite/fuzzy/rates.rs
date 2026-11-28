@@ -2,10 +2,16 @@
 use crate::rates::{ACCOUNT, LABEL, MINUTE, fresh, read_report, report, value};
 use jig_domain_accounts::{ORIGIN_PROGRAM, ORIGIN_USAGE_READ};
 use skein_lib::{Duration, Rng, Wall};
+use skein_world::{
+    sweep::{Case, cases},
+    this_test,
+};
+use std::convert::Infallible;
 
 #[test]
-fn seeded_window_reports_keep_bounded_ordered_readings_and_saturating_rates() {
-    for seed in 0..32 {
+fn seeded_window_reports_keep_bounded_ordered_readings_and_saturating_rates() -> Result<(), Case<Infallible>> {
+    let test = this_test!("seeded_window_reports_keep_bounded_ordered_readings_and_saturating_rates");
+    cases(test, 0..32, |seed| {
         let mut rng = Rng::new(seed);
         let mut world = fresh(None);
         let mut at = MINUTE;
@@ -57,5 +63,6 @@ fn seeded_window_reports_keep_bounded_ordered_readings_and_saturating_rates() {
                 );
             }
         }
-    }
+        Ok(())
+    })
 }

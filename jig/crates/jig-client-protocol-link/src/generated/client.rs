@@ -15,34 +15,6 @@ pub fn owner_to_domain(record: jig_client_protocol_wire::v44::Owner) -> jig_clie
 }
 
 #[must_use]
-pub fn served_to_domain(record: jig_client_protocol_wire::v44::Served) -> jig_client_domain::contract::Served {
-    let jig_client_protocol_wire::v44::Served { owner: field_000000, first: field_000001, last: field_000002 } = record;
-    jig_client_domain::contract::Served {
-        owner: owner_to_domain(field_000000),
-        first: field_000001,
-        last: field_000002
-    }
-}
-
-#[must_use]
-pub fn not_served_to_domain(record: jig_client_protocol_wire::v44::NotServed) -> jig_client_domain::contract::NotServed {
-    let jig_client_protocol_wire::v44::NotServed { owner: field_000000, served: field_000001 } = record;
-    jig_client_domain::contract::NotServed {
-        owner: owner_to_domain(field_000000),
-        served: {
-            let source = field_000001;
-            let count = source.len();
-            let mut translated = skein_lib::List::with_capacity(count);
-            for item in source.into_boxed() {
-                let converted = served_to_domain(item);
-                assert!(translated.push(converted).is_ok(), "one output per source item");
-            }
-            translated
-        }
-    }
-}
-
-#[must_use]
 pub fn approval_loopback_to_domain(record: jig_client_protocol_wire::v44::ApprovalLoopback) -> crate::Loopback {
     let jig_client_protocol_wire::v44::ApprovalLoopback { port: field_000000, grant: field_000001 } = record;
     crate::Loopback {

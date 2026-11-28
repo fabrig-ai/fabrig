@@ -152,6 +152,7 @@ fn nonwriting_operations_and_failed_writers_start_no_view() {
                 | git::Op::Push { .. }
                 | git::Op::Look { .. }
                 | git::Op::IsAncestor { .. }
+                | git::Op::Message { .. }
         ) {
         } else {
             panic!("unclassified fixture");

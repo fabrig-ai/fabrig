@@ -6,7 +6,7 @@ mod runs;
 use skein_lib::{Duration, Time};
 use skein_world::faults::{FaultLedger, Injection, Kind, Struck};
 
-use crate::{BILLING_REFUSAL, CHECK_WAITS, EDGE_REFUSAL, UNTOOLED_PROGRAM, WINDOW_ELSEWHERE};
+use crate::{BILLING_REFUSAL, CHECK_WAITS, EDGE_REFUSAL, UNTOOLED_PROGRAM, WINDOW_ELSEWHERE, parks};
 
 fn time(seconds: u64) -> Time {
     Time::ZERO.checked_add(Duration::from_secs(seconds)).expect("test time fits")
@@ -37,6 +37,24 @@ fn smith_kinds_name_their_family_and_fault() {
         (UNTOOLED_PROGRAM, "worker", "untooled program"),
         (CHECK_WAITS, "worker", "check waits for a place"),
     ] {
+        assert_eq!(kind, Kind { family, name });
+    }
+}
+
+#[test]
+fn park_kinds_have_their_contract_names_family_and_order() {
+    let family = "a session's state at a park";
+    assert_eq!(parks::FAMILY, family);
+    let expected = [
+        (parks::WITHHELD_WAIT, "a withheld wait"),
+        (parks::JOB_RUNNING, "a job running"),
+        (parks::CUT_TURN, "a cut turn with kept parts"),
+        (parks::HOST_CALL_ANSWERED, "a host call answered"),
+        (parks::HOST_CALL_UNANSWERED, "a host call unanswered"),
+        (parks::SUB_AGENT_KEPT, "a sub-agent's conversation kept"),
+    ];
+    assert_eq!(parks::KINDS, expected.map(|(kind, _)| kind));
+    for (kind, name) in expected {
         assert_eq!(kind, Kind { family, name });
     }
 }

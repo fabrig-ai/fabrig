@@ -111,7 +111,7 @@ pub(super) fn root_state(
         }]));
     }
     let (mut root, me_watch) = f::starting();
-    f::client(&mut root, jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
+    f::client(&mut root, jig_client::Event::Up { up: jig_client::Up::Served { served: true } });
     let mut out = f::client(
         &mut root,
         jig_client::Event::Up {
@@ -2118,7 +2118,7 @@ pub(super) fn walk_root(choices: bool) -> Domain {
             with: Some(jig_client::With::Transport),
         },
     );
-    let mut more = f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true, versions: None } });
+    let mut more = f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true } });
     while let Some(request) = more.pop() {
         out.push(request);
     }

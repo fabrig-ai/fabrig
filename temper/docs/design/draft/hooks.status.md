@@ -1,11 +1,11 @@
 # hooks: status
 
-2026-11-27.
+2026-11-28.
 
 ## Design lags
 
 - 3.4, 6: `../protocol/hooks.md`, 2.1, `../protocol/tooling.md`, section 2, and `../domain/agent/charter.md`, section 4: a job's time is its kind's deadline, a constant (ten minutes for `close`), and a check's bound the project's `check_timeout_ms`; `../domain/landing-settings.md`, 1.1, has no ceiling for a hook's time. fabrig has no `.temper/hooks/config.toml` setting `close` to 1,800 seconds. Goal H3's.
-- 5: `../protocol/hooks.md`, 5, `../domain/landing-settings.md`, 1.1, `../protocol/configuration/engine.md` and `../domain/agent/charter.md`, section 4: `.temper/pre-pr`, `merge_job` and `close_job` are still read for a repository without `.temper/hooks/`, `check_timeout_ms` still bounds checks, and `temper ctl` takes all three settings. `../protocol/configuration/reference.md` and `tools/pre-pr/design.md`: fabrig keeps `.temper/pre-pr`, `merge`, `close` and `checked-close` as wrappers. Goal H2's. `goal-pre-pr` and `goal-child-pre-pr` remain in `.temper/`; their removal belongs to a separate goal (`hooks.md`, 5).
+- 5: `../protocol/hooks.md`, 5, `../domain/landing-settings.md`, 1.1, `../protocol/configuration/engine.md` and `../domain/agent/charter.md`, section 4: `.temper/pre-pr`, `merge_job` and `close_job` are still read for a repository without `.temper/hooks/`, `check_timeout_ms` still bounds checks, and `temper ctl` takes all three settings. `../protocol/configuration/reference.md` and `tools/pre-pr/design.md`: fabrig keeps `.temper/pre-pr`, `merge`, `close` and `checked-close` as wrappers. Goal H2's.
 
 ## Design departs
 

@@ -1,12 +1,11 @@
-//! The scenarios of io's worlds (runtime/io/README.md, 5), each a world built from a seed
-//! and a simulator's configuration, under tiny limits: slabs of two or three
+//! The scenarios of io's worlds (`skein/docs/design/runtime/io/README.md`, 5),
+//! each a world built from a seed and a simulator's configuration, under tiny limits: slabs of two or three
 //! sockets, intakes and outputs of a few dozen bytes. A calm configuration
 //! holds each scenario to everything it expects; under faults, a stream may
 //! break, and what it received need only be a prefix of what was sent.
 //!
-//! The focused tests run a few seeds of each (`tests/scenarios.rs`); the
-//! fuzzy ones sweep hundreds, calm and chaotic
-//! (`tests/fuzzy_scenarios.rs`).
+//! Focused tests run fixed seeds; fuzzy cases draw every scenario at each seed
+//! (`skein/docs/design/testing/sweeps.md`, 4.2 and 4.5).
 
 use std::net::{Ipv4Addr, SocketAddr};
 
@@ -124,6 +123,10 @@ fn dial(to: &'static str, at: Time, plan: Plan) -> Dial {
     Dial { to: Target::Named(to), at, plan }
 }
 
+fn client(seed: u64, dials: Vec<Dial>) -> Owner {
+    Owner::new(seed.wrapping_add(1), Vec::new(), dials)
+}
+
 /// Listen on port 0, accept, bind the first socket and reject the second:
 /// the first exchanges both ways, the second is closed unread. With a slab of
 /// two sockets, the listener and the first fill it, so the second waits in
@@ -146,7 +149,7 @@ pub fn accept(seed: u64, config: Config) -> World {
     let mut world = World::new(seed, config, Referee::new(seed, expect));
     world.spawn(limits(2), Owner::new(seed, vec![serve("server", vec![Some(served), None])], Vec::new()));
     let dials = vec![dial("server", Time::ZERO, first), dial("server", ms(1), second)];
-    world.spawn(limits(2), Owner::new(seed + 1, Vec::new(), dials));
+    world.spawn(limits(2), client(seed, dials));
     world
 }
 
@@ -177,7 +180,7 @@ pub fn connects(seed: u64, config: Config) -> World {
         dial("server", Time::ZERO, say("c")),
         Dial { to: Target::Addr(local(9)), at: ms(2_000), plan: say("d") },
     ];
-    world.spawn(limits(2), Owner::new(seed + 1, Vec::new(), dials));
+    world.spawn(limits(2), client(seed, dials));
     world
 }
 
@@ -199,7 +202,7 @@ pub fn backlog(seed: u64, config: Config) -> World {
     let serve = Serve { name: "server", addr: local(0), answers: vec![Some(holder)], close: ServeClose::At(ms(200)) };
     let mut world = World::new(seed, config, Referee::new(seed, expect));
     world.spawn(limits(2), Owner::new(seed, vec![serve], Vec::new()));
-    world.spawn(limits(5), Owner::new(seed + 1, Vec::new(), dials));
+    world.spawn(limits(5), client(seed, dials));
     world
 }
 
@@ -234,7 +237,7 @@ pub fn descriptors(seed: u64, config: Config) -> World {
         dials.push(dial("server", Time::ZERO, expecting(plan(name, bytes.clone(), 16, Reads::Mixed(16)), &bytes)));
     }
     dials.push(dial("server", Time::ZERO, plan("d-2", Box::from(&b"hi"[..]), 4, Reads::Fill(1))));
-    world.spawn(limits(3), Owner::new(seed + 1, Vec::new(), dials));
+    world.spawn(limits(3), client(seed, dials));
     world
 }
 
@@ -264,7 +267,7 @@ pub fn batch(seed: u64, config: Config) -> World {
     for ((name, to), bytes) in [("b-0", "one"), ("b-1", "two")].into_iter().zip(messages) {
         dials.push(dial(to, Time::ZERO, expecting(plan(name, bytes.clone(), 16, Reads::Mixed(16)), &bytes)));
     }
-    world.spawn(limits(2), Owner::new(seed + 1, Vec::new(), dials));
+    world.spawn(limits(2), client(seed, dials));
     world
 }
 
@@ -317,7 +320,7 @@ pub fn burst(seed: u64, config: Config) -> World {
         };
         dials.push(dial("server", Time::ZERO, plan));
     }
-    world.spawn(limits(2), Owner::new(seed + 1, Vec::new(), dials));
+    world.spawn(limits(2), client(seed, dials));
     world
 }
 
@@ -348,7 +351,7 @@ pub fn exchange(seed: u64, config: Config) -> World {
         dial("server", Time::ZERO, expecting(plan("one", one.clone(), chunk(&mut rng), Reads::Mixed(16)), &one)),
         dial("server", Time::ZERO, expecting(plan("two", two.clone(), chunk(&mut rng), Reads::Mixed(16)), &two)),
     ];
-    world.spawn(limits(2), Owner::new(seed + 1, Vec::new(), dials));
+    world.spawn(limits(2), client(seed, dials));
     world
 }
 
@@ -378,7 +381,7 @@ pub fn backpressure(seed: u64, config: Config) -> World {
     let sink = expecting(plan("sink", Box::new([]), 4, Reads::From(start, 16)), &upload);
     world.spawn(limits(2), Owner::new(seed, vec![serve("server", vec![Some(sink)])], Vec::new()));
     let upload = Plan { close: When::Sent, ..plan("upload", upload, 16, Reads::Never) };
-    world.spawn(limits(2), Owner::new(seed + 1, Vec::new(), vec![dial("server", Time::ZERO, upload)]));
+    world.spawn(limits(2), client(seed, vec![dial("server", Time::ZERO, upload)]));
     world
 }
 
@@ -415,7 +418,7 @@ pub fn refusal_mid_upload(seed: u64, config: Config) -> World {
     };
     world.spawn(limits(2), Owner::new(seed, vec![serve("server", vec![Some(refuser)])], Vec::new()));
     let uploader = expecting(plan("uploader", upload.into_boxed_slice(), 16, Reads::Scan(Delimiter::LF, 16)), b"no\n");
-    world.spawn(limits(2), Owner::new(seed + 1, Vec::new(), vec![dial("server", Time::ZERO, uploader)]));
+    world.spawn(limits(2), client(seed, vec![dial("server", Time::ZERO, uploader)]));
     world
 }
 
@@ -435,7 +438,7 @@ pub fn abort(seed: u64, config: Config) -> World {
     let late = plan("late", Box::new([]), 4, Reads::From(ms(20), 16));
     world.spawn(limits(2), Owner::new(seed, vec![serve("server", vec![Some(late)])], Vec::new()));
     let aborter = Plan { close: When::At(ms(10)), abort: true, ..plan("aborter", upload, 16, Reads::Fill(4)) };
-    world.spawn(limits(2), Owner::new(seed + 1, Vec::new(), vec![dial("server", Time::ZERO, aborter)]));
+    world.spawn(limits(2), client(seed, vec![dial("server", Time::ZERO, aborter)]));
     world
 }
 
@@ -453,7 +456,7 @@ pub fn close_deadline(seed: u64, config: Config) -> World {
     let leaver = Plan { finish: false, close: When::Sent, ..plan("leaver", Box::from(&b"bye"[..]), 4, Reads::Never) };
     world.spawn(limits(2), Owner::new(seed, vec![serve("server", vec![Some(leaver)])], Vec::new()));
     let stayer = Plan { finish: false, close: When::At(ms(5_000)), ..plan("stayer", Box::new([]), 4, Reads::Never) };
-    world.spawn(limits(2), Owner::new(seed + 1, Vec::new(), vec![dial("server", Time::ZERO, stayer)]));
+    world.spawn(limits(2), client(seed, vec![dial("server", Time::ZERO, stayer)]));
     world
 }
 
@@ -491,7 +494,7 @@ pub fn closes(seed: u64, config: Config) -> World {
     let serve = Serve { name: "server", addr: local(0), answers, close };
     let mut world = World::new(seed, config, Referee::new(seed, expect));
     world.spawn(limits(3), Owner::new(seed, vec![serve], Vec::new()));
-    world.spawn(limits(2), Owner::new(seed + 1, Vec::new(), dials));
+    world.spawn(limits(2), client(seed, dials));
     world
 }
 

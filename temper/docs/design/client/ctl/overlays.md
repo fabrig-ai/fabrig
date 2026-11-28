@@ -64,6 +64,21 @@ setting's value kept over a charter's default, is jig's
   the words of the assembly's refusals (`temper-charter-set`'s
   `Refusal`): `settings file item 1: overlay.charters[0]: notes.md:
   unknown Markdown file`.
+- **A charter file's format**
+  (`../../protocol/configuration/file-formats.md`): a file may open with
+  front matter, three lines alone, `+++`, `format = N` and `+++`, spaces
+  around `=` optional; without it, it is format 1. This client reads
+  format 1 alone. The front matter is no part of the file's text. A
+  newer format is refused before anything is sent, naming the item, the
+  directory and the file: `settings file item 1: overlay.charters[0]:
+  goal.md: format 2; this temper ctl reads format 1: upgrade it, or
+  write the file at format 1`; front matter holding any other line, or
+  not closed, `...: goal.md: front matter holds format = N alone`, and
+  N not a whole number from 1, `...: goal.md: format: a whole number
+  from 1`. Its lines are read by their form, in `temper-charter-set`,
+  not by a TOML parser, so `temper-config-shell` stays the one crate
+  that parses TOML (`../../protocol/configuration/file.md`, 8). The
+  stock's set (`../../domain/agent/charter.md`, 1) has none.
 - **Assembled for its charter** by the rule the stock's set is
   (`../../domain/agent/charter.md`, 1): charter 5 takes `common`, `goal`,
   `designer` and `coordinator`, its instructions `common` then `goal`

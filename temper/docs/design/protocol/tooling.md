@@ -46,9 +46,12 @@ what they write, and how they end. temper runs them as jobs on a worker
   `close`.
 - **Its environment** is `PATH` from the worker's configuration,
   `HOME` the job's directory, `LANG=C.UTF-8`, `TEMPER_JOB` the job's
-  directory, `TEMPER_CLOSE_REFUSAL=3` for a close whose job asks for a
-  typed refusal (4.2), and nothing else: no credential, no token, no
-  variable of the worker's.
+  directory. For a close whose job asks for a typed refusal (4.2), it
+  adds `TEMPER_CLOSE_REFUSAL=3` and `TEMPER_CLOSE_RESULT_BYTES`, the
+  lesser of the spec's result limit and the worker's declared result
+  limit, in decimal. For a close whose job asks for an outdated finding
+  (4.2), it adds `TEMPER_CLOSE_OUTDATED=3`. Nothing else: no credential,
+  no token, no variable of the worker's.
 - **Its time** is the project's `prepare_timeout`, or for `merge` and
   `close` its kind's deadline (4.1, 4.2), after which it and its
   children are killed and the job fails.
@@ -90,7 +93,8 @@ what they write, and how they end. temper runs them as jobs on a worker
 - **`request.json`:** `{"version": 1, "repository": NAME, "main":
   COMMIT, "from": COMMIT, "combine": "merge" | "squash",
   "train_upstream": COMMIT, "members": [{"number": N, "branch": BRANCH,
-  "head": COMMIT, "message": TEXT, "squash": TEXT, "prefix": BRANCH}],
+  "head": COMMIT, "message": TEXT, "squash": TEXT, "head_trailers":
+  true, "prefix": BRANCH}],
   "upstreams": [{"repository": NAME, "main": COMMIT, "candidate":
   COMMIT}], "gates": [NAME]}`; commits as 40 or 64 hexadecimal digits,
   names as the project's settings give them, `main` the round's base.
@@ -119,6 +123,18 @@ what they write, and how they end. temper runs them as jobs on a worker
     (`../testing/qa/landings.md`, 4). `message` carries no TRAILERS: a
     merge keeps the member's own commits, and their trailers with them.
     Neither ends in a newline.
+  - **`head_trailers`,** present, and `true`, only for a member whose
+    producer's words keep no TRAILERS in a train whose `combine` is
+    `squash`: its TRAILERS are its head commit's, which the job reads
+    from its checkout (`git-operations.md`, 1.9, `Message`) where it
+    squashes the member, and nowhere else. Its squash's message is then
+    `squash` with the head's TRAILERS in place of any it holds, composed
+    by this section's order and bound, DESCRIPTION cut again where they
+    take its room: what `squash` would be had the engine composed it
+    with them. A head whose message the read gives none of leaves
+    `squash` as it is. A member the job merges reads nothing. A worker
+    of an earlier build ignores the field, and a request of an earlier
+    engine, without it, reads as `false`: `version` stays 1.
   - **TITLE** is the member's change's title, as its pull request
     carries it, N the pull request's number, C the change's task, G its
     goal's task (the tracked task it serves), and HEAD the member's head
@@ -137,8 +153,10 @@ what they write, and how they end. temper runs them as jobs on a worker
     line, so the trailers are always the message's last paragraph.
   - **TRAILERS** are the member's own: those of the last paragraph of
     its producer's words, or, where the words keep none, of its head
-    commit's message, as the round read it
-    (`../domain/landing-prepare.md`, 1.2). A text's last paragraph is
+    commit's message: as the job reads it under `head_trailers`, and in
+    `squash` as the first page of the round's containment read gave it,
+    where that page held the head (`../domain/landing-prepare.md`, 1.2).
+    A text's last paragraph is
     what follows its last blank line (a line empty or of whitespace
     alone), blank lines at its end aside. It holds trailers where a
     paragraph comes before it and each of its lines, its trailing
@@ -396,7 +414,8 @@ keeps of a goal's work in its own files.
   does: it settles, then runs pre-PR's close check over the staged tree
   (`tools/pre-pr/design.md`, 4.1). The check's verdict is the close's:
   passed, refused by the goal's own failures, or not judged, the check
-  having broken (`../draft/whose-red.md`, 3.1).
+  having broken (`../draft/whose-red.md`, 3.1), or having found the goal
+  outdated for main's published counts.
 - **`result.json`, exit 0:** `{"settled": [PATH]}`, the files it staged,
   in index order, cut to the kind's result bound with `"more": N` as
   `merge`'s are (4.1). Nothing staged with exit 0 is success: the close
@@ -411,11 +430,27 @@ keeps of a goal's work in its own files.
   counts it judged against, `null` where it read none there; each NAME a
   failure of the goal's own, as the check names it, in the check's order.
   It is compact JSON with ASCII escapes, members in that order, within
-  the kind's result bound with its newline, the names that fit kept whole
-  and the rest counted in `more`, absent when none is omitted, as
-  `merge`'s are (4.1, *Bounded whole*). Nothing is committed or pushed.
+  the bound `TEMPER_CLOSE_RESULT_BYTES` names, including its newline.
+  The names that fit are kept whole and the rest counted in `more`,
+  absent when none is omitted, as `merge`'s are (4.1, *Bounded whole*).
+  Without a whole decimal bound of at least 512 the close check uses 512.
+  The requester decided on 2026-11-27 to carry more names where both ends
+  hold them and still place closes on workers declaring 512. The worker
+  reads within its declared bound. Nothing is committed or pushed.
   The job finishes, spending no try, and the close change holds at once
   on the refusal (`../domain/forge/change/repairs-releases.md`, 1).
+- **`result.json`, exit 3, outdated,** only where the command's
+  environment holds `TEMPER_CLOSE_OUTDATED=3`: the goal's branch could
+  not be judged against main's published counts,
+  `{"outdated":{"head":H,"why":W}}`. H is the commit the job's checkout
+  was at; W `window`, the branch holding none of the commits the counts
+  cover, or `ancestry`, its checkout's ancestry too incomplete to tell.
+  It is compact JSON, members in that order, ending in a newline, and
+  replaces the settlement's result; nothing is committed or pushed. The
+  job finishes, spending no try, and the close change ends with no
+  change, for its closer to catch the goal up from main
+  (`../domain/forge/change/repairs-releases.md`, 1). A close that sees
+  `TEMPER_CLOSE_REFUSAL=3` alone writes no finding: it breaks, as below.
 - **Any other exit,** a signal, the job's deadline, or a result missing
   or past its bound: the command's failure, the check broke, its stderr's
   last `tooling_log_bytes` kept. The job fails in the run's own class and
@@ -426,15 +461,21 @@ keeps of a goal's work in its own files.
   command of an earlier build refuses any other. The engine asks for the
   refusal in the close job's spec, which only a worker whose layout keeps
   the ask is sent (`wires.md`, 8; `../domain/worker/jobs.md`, 2), and
-  that worker sets `TEMPER_CLOSE_REFUSAL=3` (2). A command that doesn't
-  see it exits as before, so a refusal never reaches a build that would
+  that worker sets `TEMPER_CLOSE_REFUSAL=3` (2). Workers whose layouts lack
+  the result limit still take the ask and use the 512-byte fallback. A
+  command that doesn't see the refusal ask exits as before, so a refusal never reaches a build that would
   read a finished close with nothing pushed as one with nothing to
-  settle.
+  settle. The outdated finding is asked for the same way, in the spec's
+  `outdated`, which the worker turns into `TEMPER_CLOSE_OUTDATED=3`;
+  but a worker whose layout lacks that field keeps the spec without it
+  (`wires.md`, 8), so its close runs with the command not told, and
+  breaks as before.
 - **Checked against its attempt.** The engine takes a finished close as a
   refusal only when its job asked for one, its result is `refused`, its
   `head` is the commit that job's checkout started at, and nothing was
-  pushed; as settlement it takes only `settled`. Any other finished
-  result is the command's failure. The engine knows the commit, not the
+  pushed; as an outdated finding, only on the same terms with the result
+  `outdated`, its `why` one of the two; as settlement it takes only
+  `settled`. Any other finished result is the command's failure. The engine knows the commit, not the
   tree settlement makes of it; the close is deterministic by contract,
   so the commit and the job's fixed request give the tree.
 - **Deterministic by contract,** as `merge`: the same tree and request

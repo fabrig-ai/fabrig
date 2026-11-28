@@ -1,22 +1,22 @@
-use crate::upgrades::{check, frames, patching, rehearsal};
-use jig_store_world::patches;
+use crate::upgrades::{check, frames, generation_cuts, rehearsal};
+use jig_store_world::upgrade_fixtures;
 
 #[test]
 fn drop_copy_and_switch_recover_after_every_mutation() {
     for link_error in [None, Some(skein_io::kernel::Error::Other(18))] {
-        let mut trace = patching::second_generation();
+        let mut trace = generation_cuts::second_generation();
         trace.refuse_links(link_error);
         trace.trace_writes();
         let expected_last = trace.open_switched().expect("traced second upgrade with task logs");
-        patching::drop_copy_or_switch_cuts(trace.changes(), expected_last, link_error);
+        generation_cuts::drop_copy_or_switch_cuts(trace.changes(), expected_last, link_error);
     }
 }
 
 #[test]
 fn cuts_across_check_and_switch_recover_whole_maps() {
-    let records = patches::Records::story();
-    let mut complete = records.committed(check::SEED, patches::BASE);
-    complete.owner_sets(patches::SETS);
+    let records = upgrade_fixtures::Records::story();
+    let mut complete = records.committed(check::SEED, upgrade_fixtures::BASE);
+    complete.owner_sets(upgrade_fixtures::SETS);
     complete.trace_writes();
     complete.open_switched().expect("complete job upgrade to enumerate its cuts");
     let (first, after_switch, _) = check::seal_and_switch(&complete);
@@ -45,7 +45,7 @@ fn every_wires_commit_cut_keeps_back_open_or_refuses_as_committed() {
 }
 
 #[test]
-fn every_file_cut_in_a_patched_read_preserves_all_files() {
+fn every_file_cut_in_a_converted_read_preserves_all_files() {
     for read in frames::kinds() {
         frames::a_read_cut_preserves_files(read, |operations| (0..=operations).collect());
     }

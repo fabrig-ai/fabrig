@@ -73,6 +73,7 @@ pub(super) fn done(
                     | git::Done::ParentUnreachable { .. }
                     | git::Done::Looked { .. }
                     | git::Done::IsAncestor { .. }
+                    | git::Done::Message { .. }
                     | git::Done::Brings { .. }
                     | git::Done::Merged
                     | git::Done::Conflicted { .. }

@@ -1637,10 +1637,7 @@ impl Joint {
         Self::with_driver(seed, limits, engine, transport, component, refuse_hello)
     }
     fn client_parts(config: &engine::Config, limits: &client::Limits) -> (Transport, crate::component::Composition) {
-        let mut transport = Transport::new(jig_client::contract::VersionRange {
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION,
-        });
+        let mut transport = Transport::new(true);
         transport.models.clone_from(&config.core.settings.models);
         transport.providers = config.core.settings.llm_providers.clone();
         (transport, crate::component::Composition::new(config, limits.client.domain))
@@ -1794,14 +1791,7 @@ impl Joint {
             who,
             RootEvent::Client {
                 event: jig_client::Event::Up {
-                    up: jig_client::Up::FamilyServed {
-                        family: fixtures::FORGE,
-                        served: true,
-                        versions: Some(jig_client::contract::VersionRange {
-                            first: temper_client_protocol_wire::CLIENT_VERSION,
-                            last: temper_client_protocol_wire::CLIENT_VERSION,
-                        }),
-                    },
+                    up: jig_client::Up::FamilyServed { family: fixtures::FORGE, served: true },
                 },
             }
             .into(),

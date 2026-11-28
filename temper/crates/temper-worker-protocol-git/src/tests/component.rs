@@ -396,6 +396,56 @@ fn stdout_past_its_cap_is_read_dropped_and_ends_broken() {
     );
 }
 #[test]
+fn message_stdout_at_the_cap_is_kept_whole() {
+    let cap = skein_lib::usize_of(fixtures::limits().stdout_bytes);
+    let stdout = raw_commit(cap);
+    let message = Box::from(stdout.get(RAW_HEADER.len()..).expect("message follows the header"));
+    assert_eq!(read_message(&stdout, 0), git::Done::Message { message: Some(message) });
+}
+
+#[test]
+fn message_stdout_past_its_cap_is_absent() {
+    let cap = skein_lib::usize_of(fixtures::limits().stdout_bytes);
+    let stdout = raw_commit(cap.checked_add(1).expect("the cap plus one byte"));
+    assert_eq!(read_message(&stdout, 0), git::Done::Message { message: None });
+}
+
+#[test]
+fn a_failed_message_read_is_broken_even_past_the_cap() {
+    let cap = skein_lib::usize_of(fixtures::limits().stdout_bytes);
+    let stdout = raw_commit(cap.checked_add(1).expect("the cap plus one byte"));
+    assert_eq!(
+        read_message(&stdout, 128),
+        git::Done::FailedWithOutput {
+            fault: git::Fault::Broken,
+            diagnostic: git::PushDiagnostic::empty().named(b"cat-file"),
+        }
+    );
+}
+
+const RAW_HEADER: &[u8] = b"tree T\ncommitter C\n\n";
+fn raw_commit(size: usize) -> Box<[u8]> {
+    let mut stdout = skein_lib::bytes::zeroed(size);
+    for (at, byte) in stdout.iter_mut().enumerate() {
+        *byte = RAW_HEADER.get(at).copied().unwrap_or(b'x');
+    }
+    stdout
+}
+
+fn read_message(stdout: &[u8], code: u8) -> git::Done {
+    let mut component = fixtures::Started::new();
+    component.down(Request::Io {
+        owner: fixtures::OWNER,
+        op: git::Op::Message { at: fixtures::at(), commit: fixtures::COMMIT },
+        deadline: fixtures::DEADLINE,
+        identity: None,
+    });
+    super::view::invocation(&mut component, stdout, code);
+    let (_, done) = component.done().expect("one terminal from cat-file");
+    done
+}
+
+#[test]
 fn a_merges_unmerged_stdout_alone_keeps_a_prefix_past_its_cap() {
     let mut component = fixtures::Started::new();
     let op = git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT, identity: 1, account: None };

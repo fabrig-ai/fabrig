@@ -339,3 +339,76 @@ fn a_part_without_a_root_crosses_as_written() {
     shim.check_up(&mut peer, &up, &up);
     shim.check_down(&mut peer, &down, &down);
 }
+
+#[test]
+fn written_whole_frames_lend_and_accept_the_kind_tag_with_the_body() {
+    use crate::Written;
+    use convert::Advance;
+    let text = replace(
+        crate::SCHEMA,
+        "record Acknowledge { task: u64 attempt: u64 }",
+        "record Acknowledge { task: u64 attempt: bool }",
+    );
+    let text = replace(
+        &text,
+        "record Fact { task: u64 attempt: u64 value: FactValue }",
+        "record Fact { task: bool attempt: u64 value: FactValue }",
+    );
+    let worker = parse(&text);
+    let mut entries = List::with_capacity(2);
+    for declaration in ["FromWorker", "FromEngine"] {
+        let root = worker.root(declaration.as_bytes(), None).expect("frame root");
+        let layout = worker.layout(root, &[]).expect("whole frame layout").digest();
+        entries.push(Written { wire: crate::wire::FAMILY, declaration, layout }).expect("one entry per direction");
+    }
+    let mut peer = Plans::with_written(&[crate::SCHEMA], &List::uncapped(), &entries)
+        .expect("engine text")
+        .judge(&[stated(&worker)])
+        .expect("both written directions, with a kind table");
+    assert!(peer.gaps().is_empty());
+    let engine = parse(crate::SCHEMA);
+    let mut rng = Rng::new(167);
+    for rule in KINDS {
+        let (mode, base) = if rule.body == Kind::Fact {
+            (Mode::Read, UP)
+        } else if rule.body == Kind::Acknowledge {
+            (Mode::Keep, DOWN)
+        } else {
+            continue;
+        };
+        let own = draw_frame(&engine, *rule, &mut rng, true);
+        let mut writer = skein_lib::Writer::new(own.len().checked_sub(7).expect("a u64 becomes a bool"));
+        match mode {
+            Mode::Read => {
+                writer.put(own.get(..1).expect("tag")).expect("same tag");
+                writer.put(&[0]).expect("worker task as bool");
+                writer.put(own.get(9..).expect("suffix")).expect("unchanged suffix");
+            }
+            Mode::Keep => {
+                writer.put(own.get(..9).expect("tag and task")).expect("unchanged prefix");
+                writer.put(&[0]).expect("worker attempt as bool");
+            }
+        }
+        let other = writer.finish();
+        let (source, target) = match mode {
+            Mode::Read => (other, own),
+            Mode::Keep => (own, other),
+        };
+        let (&source_tag, source_body) = source.split_first().expect("tag and body");
+        let step = match mode {
+            Mode::Read => convert::start_receive(&mut peer, number(base, source_tag), source_body, &LIMITS),
+            Mode::Keep => convert::start_send(&mut peer, from_tagged(base, &source), &LIMITS),
+        };
+        let Advance::Waiting(waiting) = step else {
+            panic!("the whole frame waits: {step:?}");
+        };
+        let call = waiting.converting(&peer);
+        assert_eq!((call.wire, call.mode, call.value), (crate::wire::FAMILY, mode, source.as_ref()));
+        assert!(target.len() <= skein_lib::usize_of(call.bound));
+        let expected = from_tagged(base, &target);
+        let Advance::Frame(got) = waiting.answered(&mut peer, Ok(target), &LIMITS) else {
+            panic!("the written answer is a whole frame");
+        };
+        assert_eq!(got.bytes(), expected.bytes());
+    }
+}

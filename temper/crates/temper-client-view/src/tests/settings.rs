@@ -415,9 +415,7 @@ fn repositories_wait_for_the_watch_without_claiming_none() {
     );
     let mut served = drive(
         &mut unknown,
-        d::Event::Client {
-            event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
-        },
+        d::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
     );
     while let Some(request) = served.pop() {
         out.push(request);

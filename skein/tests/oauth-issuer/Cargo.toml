@@ -20,6 +20,7 @@ skein-tls.workspace = true
 skein-oauth-issuer.workspace = true
 skein-oauth.workspace = true
 skein-heap.workspace = true
+skein-world.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

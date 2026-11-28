@@ -170,7 +170,7 @@ mod tests {
         for event in [
             jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
             jig_client::Event::SignIn { with: jig_client::With::Transport },
-            jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+            jig_client::Event::Up { up: jig_client::Up::Served { served: true } },
         ] {
             requests.extend(root_event(&mut root, Event::Client { event }));
         }

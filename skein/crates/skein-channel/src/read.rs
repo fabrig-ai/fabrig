@@ -1,5 +1,5 @@
 //! Header admission for one owner read (net/channel.md, sections 5.3 and 6).
-//! It knows the selected version and this side's receive bounds, but never
+//! It knows this side's receive bounds, but never
 //! decodes application bodies or stores stream bytes. `classify` is called
 //! before any body allocation or skip demand.
 use super::{Direction, Header, Limits, Role, Schema};
@@ -16,7 +16,7 @@ pub(super) enum ReadKind {
 }
 
 /// Validates kind, direction and length before any allocation.
-pub(super) fn classify(schema: &Schema, role: Role, limits: &Limits, version: u16, header: Header) -> Option<ReadKind> {
+pub(super) fn classify(schema: &Schema, role: Role, limits: &Limits, header: Header) -> Option<ReadKind> {
     match header.kind {
         0 | 1 | 2 | 4 | 7..=0x00ff => None,
         3 => {
@@ -40,24 +40,21 @@ pub(super) fn classify(schema: &Schema, role: Role, limits: &Limits, version: u1
                 None
             }
         }
-        0x0100..=0xffff => {
-            let table = schema.version(version).expect("selected version was checked");
-            match table.kind(header.kind) {
-                Some(kind) => {
-                    let peer_sends = match role {
-                        Role::Initiator => kind.direction == Direction::FromResponder,
-                        Role::Responder => kind.direction == Direction::FromInitiator,
-                    };
-                    if peer_sends && header.body_len <= kind.largest { Some(ReadKind::Body) } else { None }
-                }
-                None => {
-                    if header.body_len <= limits.skip {
-                        Some(ReadKind::Skip)
-                    } else {
-                        None
-                    }
+        0x0100..=0xffff => match schema.kind(header.kind) {
+            Some(kind) => {
+                let peer_sends = match role {
+                    Role::Initiator => kind.direction == Direction::FromResponder,
+                    Role::Responder => kind.direction == Direction::FromInitiator,
+                };
+                if peer_sends && header.body_len <= kind.largest { Some(ReadKind::Body) } else { None }
+            }
+            None => {
+                if header.body_len <= limits.skip {
+                    Some(ReadKind::Skip)
+                } else {
+                    None
                 }
             }
-        }
+        },
     }
 }

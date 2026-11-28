@@ -1,7 +1,9 @@
 //! Temper's channel parts (temper/docs/design/protocol/wires.md, 6).
 use crate::{v1, wire};
+use alloc::boxed::Box;
 use jig_protocol_worker_wire::{Application, Carried, Root, Spoken};
-use skein_lib::List;
+use skein_codec::layout::{Mode, Refusal, Side};
+use skein_lib::{Buffer, List};
 
 /// The worker wire at its current layout.
 #[must_use]
@@ -27,5 +29,17 @@ pub fn application(limits: &v1::Limits) -> Result<Application, v1::Problem> {
     ] {
         roots.push(Root { carried, wire: wire::FAMILY, declaration }).expect("eight translated parts");
     }
-    Ok(Application { spoken: spoken_wires, roots })
+    Ok(Application { spoken: spoken_wires, roots, written: List::uncapped() })
+}
+
+/// Temper's written converters (jig/docs/design/protocol/channel/layouts.md, 7).
+#[expect(clippy::disallowed_methods, reason = "the protocol validates parsed schema identifiers")]
+pub fn convert(_mode: Mode, from: &Side<'_>, _to: &Side<'_>, _value: &[u8], out: &mut Buffer) -> Result<(), Refusal> {
+    out.clear();
+    let name = from.text.spelled(from.text.declaration(from.root.decl).name);
+    Err(Refusal {
+        declaration: Box::from(core::str::from_utf8(name).expect("schema declaration names are ASCII")),
+        part: Box::from(""),
+        why: Box::from("temper has no written converter for this layout pair"),
+    })
 }

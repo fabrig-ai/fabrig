@@ -1,6 +1,6 @@
 //! Concrete test-application adapter; application vocabulary is read only here.
 use crate::harness::{App, CardKey, Duty, Receipt, Sent, StoreWrite};
-use jig_client_domain::contract::{Answer, Ask, ReadNone, ReadResult, Revision, VersionRange, WatchEnd, WatchEvent};
+use jig_client_domain::contract::{Answer, Ask, ReadNone, ReadResult, Revision, WatchEnd, WatchEvent};
 use jig_client_test_domain::{self as domain, Address, Event, Request, first};
 use jig_client_test_view as view;
 use jig_client_view::boundary::Offset;
@@ -263,16 +263,7 @@ impl App for Test {
                     root,
                     env,
                     Event::Client {
-                        event: jig_client::Event::Up {
-                            up: jig_client::Up::FamilyServed {
-                                family,
-                                served: true,
-                                versions: Some(VersionRange {
-                                    first: jig_client_test_protocol_wire::VERSION,
-                                    last: jig_client_test_protocol_wire::VERSION,
-                                }),
-                            },
-                        },
+                        event: jig_client::Event::Up { up: jig_client::Up::FamilyServed { family, served: true } },
                     },
                     out,
                 );
@@ -467,8 +458,8 @@ pub fn family_answer(answer: domain::family::Answer) -> jig_client::Answered {
 }
 fn client_event(event: Event) -> Event {
     let up = match event {
-        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served, versions: None } } } => {
-            jig_client::Up::Served { served, versions: None }
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served } } } => {
+            jig_client::Up::Served { served }
         }
         Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched { watch, event } } } => {
             jig_client::Up::Watched { watch, event }
@@ -495,9 +486,7 @@ fn client_event(event: Event) -> Event {
                 },
                 first::ReadResult::Unknown => jig_client::Readout::Family { family: domain::FIRST, record: None },
                 first::ReadResult::Busy => jig_client::Readout::Limit,
-                first::ReadResult::Unsupported => {
-                    jig_client::Readout::NotServed { family: Some(domain::FIRST), served: None }
-                }
+                first::ReadResult::Unsupported => jig_client::Readout::NotServed { family: Some(domain::FIRST) },
                 first::ReadResult::NotAllowed => jig_client::Readout::Jig(ReadResult::None(ReadNone::Refused)),
                 first::ReadResult::SignedOut => jig_client::Readout::Jig(ReadResult::None(ReadNone::SignedOut)),
             },

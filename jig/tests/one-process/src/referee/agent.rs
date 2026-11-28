@@ -3,6 +3,12 @@
 use jig_conformance::referee::Observed;
 use skein_io::kernel::{Complete, Done, Op};
 use skein_lib::Reader;
+
+pub(super) enum Frame {
+    Start { attempt: u64, identity: Option<[u8; 16]>, resumed: bool, budget: u64 },
+    Turn { attempt: u64, turn: smith_channel::Turn },
+    Parked { attempt: u64 },
+}
 use smith_channel::Record;
 use std::collections::BTreeMap;
 
@@ -11,10 +17,15 @@ pub(crate) struct Wire {
     pipes: BTreeMap<i32, (bool, Vec<u8>)>,
     attempt: u64,
     pub events: Vec<Observed>,
+    pub(super) park_frames: Option<Vec<Frame>>,
     pub answers: Vec<smith_channel::RunResult>,
     pub mode: Option<smith_charter::Mode>,
 }
 impl Wire {
+    pub(crate) fn for_park() -> Self {
+        Self { park_frames: Some(Vec::new()), ..Self::default() }
+    }
+
     pub fn complete(&mut self, complete: &Complete) {
         match (&complete.kind, &complete.result) {
             (Op::Spawn { spawn }, Ok(Done::Spawned { .. })) => {
@@ -56,11 +67,20 @@ impl Wire {
         let limits = crate::fixtures::agent_limits();
         if down && kind == 0x0100 {
             let start = smith_channel::Start::decode(&limits, &mut Reader::new(bytes)).expect("agent Start bytes");
-            assert_eq!(start.identity, Some(crate::fixtures::RUN_ID), "logical chat identity");
             let charter = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&start.charter))
                 .expect("agent charter bytes");
             self.mode = Some(charter.mode.clone());
             self.attempt = start.activation;
+            if let Some(frames) = &mut self.park_frames {
+                frames.push(Frame::Start {
+                    attempt: start.activation,
+                    identity: start.identity,
+                    resumed: !start.transcript.is_empty(),
+                    budget: charter.budget.spend,
+                });
+                return;
+            }
+            assert_eq!(start.identity, Some(crate::fixtures::RUN_ID), "logical chat identity");
             self.events.push(Observed::Assigned {
                 task: 1,
                 attempt: self.attempt,
@@ -72,10 +92,19 @@ impl Wire {
             });
         } else if !down && kind == 0x0110 {
             let answer = smith_channel::Answer::decode(&limits, &mut Reader::new(bytes)).expect("agent Answer bytes");
+            if let Some(frames) = &mut self.park_frames
+                && answer.result == smith_channel::RunResult::Parked
+            {
+                frames.push(Frame::Parked { attempt: self.attempt });
+            }
             self.answers.push(answer.result);
         } else if !down && kind == 0x0109 {
             let turn = smith_channel::Turn::decode(&limits, &mut Reader::new(bytes)).expect("agent Turn bytes");
-            self.events.push(Observed::Completion { task: 1, attempt: self.attempt, cumulative: turn.spent });
+            if let Some(frames) = &mut self.park_frames {
+                frames.push(Frame::Turn { attempt: self.attempt, turn });
+            } else {
+                self.events.push(Observed::Completion { task: 1, attempt: self.attempt, cumulative: turn.spent });
+            }
         }
     }
 }

@@ -2,9 +2,8 @@
 use jig_domain_core as core;
 use jig_protocol_store::{Event, Request, Restore, SecretOwner, SecretValue, Secrets, Write};
 use jig_store_world::{
-    World,
-    patches::{BASE, SETS},
-    root,
+    World, root,
+    upgrade_fixtures::{BASE, SETS},
 };
 use skein_lib::{Secret, Token};
 

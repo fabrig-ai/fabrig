@@ -431,6 +431,50 @@ Once the lab exists, it benchmarks hearth as it does any product
 facts compared run over run. A regression in hearth's efficiency is a
 finding, as a failing check is.
 
+### 4.5 Campaigns
+
+hearth's fuzzy sweeps run after landing with fresh seeds, in rounds of
+the pair `campaign-hearth`, by `tools/tiers/campaign hearth`
+(`tools/tiers/campaign.md`; the pair, `tools/tiers/layers.md`, 9.3;
+`temper/docs/design/draft/fuzzy-campaigns.md`, 9). The gate keeps its
+seeds and every sweep's whole sample.
+
+- **The binaries it lists:** every hearth binary with a fuzzy sweep.
+  First its machine worlds, `hearth-accounts-world::suite`,
+  `hearth-config-world::suite`, `hearth-git-world::suite`,
+  `hearth-mmdebstrap-world::suite`, `hearth-template-world::suite` and
+  `hearth-tree-world::suite`; then the builder's simulated world,
+  `hearth-builder-world::simulated`, and the render world,
+  `hearth-render-world::suite`.
+- **Their sweeps take their cases from skein's seam**
+  (`skein/docs/design/testing/sweeps.md`, 4.2 to 4.5). Each fuzzy loop
+  over seeds is one `cases` call, with its test's identity and its gate
+  seeds unchanged: its range, with the pinned seeds before it. A helper
+  that runs several tests' loops, as render's property shards and the
+  builder's input tables share one, takes its caller's identity.
+- **A case is its test's seed:** where a loop runs several parts at a
+  seed (a file kind, an exit, an edit), the case runs each of them at
+  that seed, and the tree world's edits each alone run every edit
+  inside a seed's case.
+- **Any seed a valid case:** the offset a test adds to its seed wraps; a
+  seed that picks a recording, a fault or an edit is reduced in `u64`
+  before it narrows; an edit with nothing to edit in the drawn tree is
+  skipped, never failed. The gate's seeds draw what they drew.
+- **Checks over the loop at the gate alone:** a tally of what fell, a
+  kind's coverage, and the builder's protocol faults' exact set wait for
+  `gate()`. A case's own checks, the reference's and the oracle's
+  verdicts, settlement and each case's fault, run in every mode.
+- **What keeps its seeds:** render's focused fleets, through
+  `hearth-test-render`'s `properties::cases` on `each_seed`, which
+  focused tests share (the draft, 9), while render's fuzzy property
+  shards take cases; the builder's cold restart before each submission
+  and its large render's ceiling (`worlds.md`, 4), fixed scenarios at
+  `SIMULATION_SEED`; render's fixed oracle differences beside its oracle
+  sweeps. A round runs them as the gate does and names each with its
+  time (`tools/tiers/campaign.md`, 3).
+- **Its cost** is reported against hearth's fuzzy ceilings, as warnings
+  (`tools/tiers/budgets.md`, 4.2).
+
 ## 5. By milestone
 
 | | Tiers added | The fake machine grows | Fakes of tools | Outside the gate |
@@ -457,6 +501,10 @@ VM tier its one real machine relies on.
   requests, how large the kernel makes the mirror, and whether a runner
   keeps the fetched mirror between runs. It depends on the first
   measurements and on the runner's disk.
+- **The builder's fixed tests in a campaign** (4.5): whether its cold
+  restarts and its large render, run as the gate runs them, outweigh its
+  sweeps in a round. The first rounds' times say; if they do, they move
+  to a binary of their own (`tools/tiers/layers.md`, 9.3).
 - **How much shell the machine interprets:** temper's subset, plus which
   file commands. It depends on temper's own open question, and on what
   the test repositories' escape hatches need.

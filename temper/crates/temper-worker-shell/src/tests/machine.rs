@@ -93,8 +93,7 @@ impl Disk {
 
     pub(crate) fn configuration(&self, shape: Shape) -> Read {
         let bytes = self.read(&Path::new(ROOT).join(FILE));
-        let temper_config_shell::Read { file, document, keys } = super::configuration::parse(&bytes, shape);
-        Read { file, document, keys }
+        Read::from(super::configuration::parse(&bytes, shape))
     }
 
     pub(crate) fn login(&self) -> Result<std::process::Command, String> {

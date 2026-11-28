@@ -7,7 +7,9 @@ use crate::{
 fn every_call_goes_from_argv_to_json_and_back_unchanged() {
     for words in fixtures::EVERY_TOOL {
         let mut call = fixtures::call(words);
-        if call.tool == jig::rows::CHANGE_SETTINGS_AT || call.tool == jig::rows::PROPOSE_SETTINGS_AT {
+        if [jig::rows::CHANGE_SETTINGS_AT, jig::rows::PROPOSE_SETTINGS_AT, jig::rows::UPGRADE_SETTINGS_AT]
+            .contains(&call.tool)
+        {
             let value = jig::call::Value::Text(br#"{"items":[]}"#.as_slice().into());
             *call.values.get_mut(0).expect("FILE") = Some(if call.tool == jig::rows::CHANGE_SETTINGS_AT {
                 jig::call::Values::Many(Box::new([value]))

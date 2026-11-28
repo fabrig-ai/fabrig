@@ -131,8 +131,9 @@ fn candidate_spec() -> Spec {
             members: Box::new([CandidateMember {
                 number: 1,
                 head: commit(2),
-                message: message(),
-                squash_message: message(),
+                message: bytes(b"Fix it\n\nBecause."),
+                squash_message: bytes(b"Fix it\n\nBecause."),
+                head_trailers: false,
             }]),
         }),
     };

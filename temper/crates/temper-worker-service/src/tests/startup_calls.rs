@@ -66,15 +66,12 @@ fn per_kind_terms_reject_call_and_reply_mismatches_even_with_larger_other_frames
     for (role, kind) in [(Role::Initiator, 0x0102), (Role::Responder, 0x0182)] {
         for short in [true, false] {
             let mut terms = List::with_capacity(u32::try_from(wire::KINDS.len()).unwrap());
-            for entry in &larger.version(wire::VERSION).unwrap().kinds {
-                let largest = if short && entry.kind == kind {
-                    smaller.version(wire::VERSION).unwrap().kind(kind).unwrap().largest
-                } else {
-                    entry.largest
-                };
+            for entry in &larger.kinds {
+                let largest =
+                    if short && entry.kind == kind { smaller.kind(kind).unwrap().largest } else { entry.largest };
                 terms.push(Term { kind: entry.kind, largest }).unwrap();
             }
-            assert_eq!(wire::terms_gap(&larger, wire::VERSION, role, &terms), if short { Some(kind) } else { None });
+            assert_eq!(wire::terms_gap(&larger.kinds, role, &terms), if short { Some(kind) } else { None });
         }
     }
 }

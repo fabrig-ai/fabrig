@@ -318,12 +318,12 @@ impl Check {
     fn words(&self) -> &'static [&'static str] {
         match self {
             Self::Load { .. } => &[
-                "The check before the switch found a record the restart could not load within the deployment's limits in the copy of the store this start patched in ",
-                ", and the generation it patched from stays active, unchanged. Every start of this build checks a fresh copy the same way: start the build before it again, which opens that generation as it was.",
+                "The check before the switch found a record the restart could not load within the deployment's limits in the copy of the store this start upgraded in ",
+                ", and the generation it upgraded from stays active, unchanged. Every start of this build checks a fresh copy the same way: start the build before it again, which opens that generation as it was.",
             ],
             Self::Private { .. } => &[
-                "The check before the switch found a file in the secrets' store of the copy this start patched in ",
-                " that is not private to the service's user, and the generation it patched from stays active, unchanged. A start makes its copy's files private, so another process or user changed one: make sure nothing else writes in ",
+                "The check before the switch found a file in the secrets' store of the copy this start upgraded in ",
+                " that is not private to the service's user, and the generation it upgraded from stays active, unchanged. A start makes its copy's files private, so another process or user changed one: make sure nothing else writes in ",
                 ", and start again.",
             ],
         }
@@ -357,7 +357,7 @@ pub enum OpenRefusal {
     /// A job refused its page or answered outside its bounds (protocol/store/jobs.md, 3).
     Job { owner: crate::Owner, job: Box<str>, key: Option<Box<[u8]>>, why: Box<str> },
     /// The check before the switch failed (10.2, step 5); the generation
-    /// patched from stays active, unchanged.
+    /// upgraded from stays active, unchanged.
     Check { why: Check },
 }
 /// Why a layout cannot be read or kept (protocol/store/opening.md, 1.8).
@@ -367,12 +367,13 @@ pub enum Unplanned {
     Text,
     Undeclared,
     Retired,
-    Unkept(Unkept),
+    Unkept(Refusals),
+    Unread(Refusals),
 }
 
-/// The later layout's refusals, with the first one's names (protocol/store/opening.md, 1.8).
+/// A layout's refusals, with the first one's names (protocol/store/opening.md, 1.8).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Unkept {
+pub struct Refusals {
     pub refused: u64,
     pub why: skein_codec::layout::Refused,
     pub declaration: Box<str>,
@@ -495,6 +496,10 @@ impl OpenRefusal {
                 " holds values a later build wrote that this build cannot keep, and this start has changed nothing in it. Start the later build again, or, with it, restore a checkpoint of ",
                 " taken before it started, then start this build.",
             ],
+            Self::Layout { why: Unplanned::Unread(_), .. } => &[
+                "",
+                " holds values at an older layout that this build cannot read, and this start has changed nothing in it. Start the build before it again, or a later build whose written job converts that layout.",
+            ],
             Self::Layout { .. } => &[
                 "",
                 " holds values at a layout this build cannot read, and this start has changed nothing in it. Start the build before it again, or a later build whose schema converts that layout, by its defaults and former names or by a written job.",
@@ -529,13 +534,13 @@ impl OpenRefusal {
             Self::OlderBuild { why: Older::Behind } => &[
                 "",
                 bridge_words!(
-                    " holds a store from an older build, at patch levels behind this build's, and this start has changed nothing in it. This build keeps no patch: start build `",
+                    " holds a store from an older build, at levels behind this build's, and this start has changed nothing in it. This build keeps none of the jobs that bring it there: start build `",
                     "` on it and let it open, which brings it to this build's levels, then start this build."
                 ),
             ],
             Self::Ahead { .. } => &[
                 "",
-                " holds a store from a later build, at patch levels past this build's, and this start has changed nothing in it. No patch runs backwards: start the later build again, or restore ",
+                " holds a store from a later build, at levels past this build's, and this start has changed nothing in it. No job runs backwards: start the later build again, or restore ",
                 " from a backup this build made.",
             ],
             Self::Set { .. } => &[
@@ -608,7 +613,7 @@ impl OpenRefusal {
 /// Which older build (protocol/store/records.md, 3, and protocol/store/opening.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Older {
-    /// A store before an owner's baseline, which records no patch level (5.3).
+    /// A store before an owner's baseline, which records no level (protocol/store/records.md, 3).
     Unleveled,
     /// No floor row, or one below this build's floor (protocol/store/opening.md, 1.8).
     Floor,
@@ -675,7 +680,7 @@ pub enum CommitCheck {
     Queue,
     /// More writes than the root's bound, `Commits::writes`.
     Writes,
-    /// Wires, a dropped transcript or a turn while a patch switch is pending.
+    /// Wires, a dropped transcript or a turn while an upgrade's switch is pending.
     Switching,
     /// A key, record, turn frame or first commit's own rows past codec limits.
     Encoding,

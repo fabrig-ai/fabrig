@@ -283,15 +283,21 @@ a layout.
 Before anything is written, every open (whether it writes or not)
 plans each layout the registry holds to its value type's binary layout
 (skein's `data/codec/layouts.md`): from its row's text and held texts
-and its root and variant, to `current`'s; an older layout by
-`Plan::derive`, a later one by `Plan::between` in the mode 5.6 gives,
-its values checked as 5.6 says. A layout planned is kept in
+and its root and variant, to `current`'s, by `Plan::between` in the
+mode 5.6 gives: an older layout of a value type of the map in Read, as
+the engine reads a worker's message (temper's
+`draft/layouts-both-ways.md`, 4.4), and a later one in Keep. An older
+layout of a value type held outside the map, a log's (`logs.md`, 8) or
+the frames' (1), is planned by `Plan::derive`, the Read mode refusing
+no value: the open walks no log and no frame, and nothing writes such
+a value again. A plan that may refuse a value (`Plan::refuses`) has its
+layout's values checked as 5.6 says. A layout planned is kept in
 memory for the read edge. A layout with no plan is refused, unless:
 
 - a written job of the binary converts from it (`jobs.md`, 4): one
   naming it by fingerprint (`One`), pending or done, or, where its plan
-  is `Underived`, one converting its value type's unplanned layouts
-  (`Unplanned`), pending; or
+  is `Underived` or may refuse a value, one converting its value
+  type's unplanned layouts (`Unplanned`), pending; or
 - no value holds it: the census counts none at its id in each keyspace
   its value type's ranges reach, with no count past the census's heads
   there (`growth.md`, 1.3), where it is retired (5.4). A value type a
@@ -309,8 +315,9 @@ opens.
 The refusal, `OpenRefusal::Layout`, names the family, the value type
 (its number, root and variant), the id, why (`Underived`'s, a text its
 row names that is missing or does not parse, a value type the binary
-does not declare, or a later layout's values the binary can't keep,
-`Unkept`, 5.6), and the values the census counts at that id, or that
+does not declare, a later layout's values the binary can't keep,
+`Unkept`, or an older layout's values it can't read, `Unread`, 5.6),
+and the values the census counts at that id, or that
 it cannot tell (`opening.md`, 1.8). A layout row of a value type the
 binary no longer declares is refused the same way while a value may
 hold it, `Undeclared`, whether its family is one the binary declares or
@@ -378,21 +385,28 @@ so the store keeps which way each layout lies.
   was stored, for its reader to refuse as it would any malformed value
   (4). A `Write::Copy` from such a value puts what the binary read, as
   a put of the read value would: the copy is the binary's own write,
-  and the log keeps the source whole. An older layout is planned by `derive`, as before, so an
-  upgrade's plans and refusals are unchanged. A later layout with no
+  and the log keeps the source whole. An older layout is planned as
+  5.3 says. A later layout with no
   plan is refused as 5.3 refuses any, while a value may hold it.
 - **Checked before anything is written:** once every plan is made
   (5.3), the open walks the ranges of each value type of the map with
-  a later layout the census can't show empty (5.3), a page at a time,
-  and converts each value at a later layout by its Keep plan, counting
-  each one refused per layout and writing nothing. Where any is
+  a layout the census can't show empty (5.3) whose plan may refuse a
+  value (`Plan::refuses`), and that no written job takes (5.3), a page
+  at a time: a plan with no part it refuses at converts every value. It converts each value at such a layout by its plan,
+  a later layout's Keep and an older one's Read, counting each one
+  refused per layout and writing nothing. Where any is
   refused, the open is refused `OpenRefusal::Layout` at the first such
-  layout in the registry's key order, why `Unkept` with the count
+  layout in the registry's key order, why `Unkept` for a later layout
+  and `Unread` for an older one, each with the count
   refused and the first refusal's kind, declaration and part
   (`Plan::refusal`), `values` the census's count at its id
-  (`opening.md`, 1.8). The previous generation, or a checkpoint taken
-  before the later build started, is then the way back
-  (`opening-rehearsal.md`, 1). A rehearsal makes the same check.
+  (`opening.md`, 1.8). For a later layout, the previous generation, or
+  a checkpoint taken before the later build started, is then the way
+  back (`opening-rehearsal.md`, 1); for an older one, the build before,
+  or a later build whose written job converts the layout. A rehearsal
+  makes the same check. A store whose older values hold no variant the
+  binary dropped and no number past a bound it narrowed opens and
+  reads them with no written job.
 - **Then it serves,** each value at a later layout converted by its
   Keep plan as it is read and put back at the binary's; settling puts
   the rest and retires what it empties (`settling.md`).
@@ -415,15 +429,18 @@ so the store keeps which way each layout lies.
 
 ## 6. Written changes
 
-A change no plan derives (a field computed from others, a variant
-dropped, a type changed in meaning) is its owner's **written job**
-(`jobs.md`, 4): a job that names the value type and the layout it
-converts from, or each of its layouts no plan reaches, walks that value
-type's keys, and is handed each value at such a layout as it is stored,
-with that layout's texts, to put it again at the binary's. Its owner's function reads the old value by skein's
-generic values (skein's `data/codec/run-time.md`, section 2) and builds
-the new by its generated code. The check takes its layouts as converted
-(5.3), and the next writing open retires them.
+A change no plan derives (a field computed from others, a type
+changed in meaning), or one whose plan refuses a value the store holds
+(a variant dropped that a value holds, a bound narrowed that a value
+passes, 5.6), is its owner's **written converter** (skein's
+`data/codec/layouts.md`, 4), the same function its engine calls for a
+sent value of that type (`../channel/layouts.md`, 6), run over the
+store by a **written job** (`jobs.md`, 4): a job that names the value
+type and the layout it converts from, or each of its layouts no plan
+converts whole, walks that value type's keys, and is handed each value
+at such a layout as it is stored, with that layout's texts, to put it
+again at the binary's by the converter. The check takes its layouts as
+converted (5.3), and the next writing open retires them.
 
 A written job also takes a layout that a plan reaches when the values
 at that layout are not all the root it names. The read edge leaves
@@ -565,6 +582,17 @@ values at a written job's layouts to the job, never to a plan
   at the next id still plans the later layout to keep. A store
   without orders opened by a binary with them is written orders and
   reads as before.
+- **Older layouts read by Read plans** (5.3, 5.6), step tests over a
+  fixture family's texts, the binary's dropping a variant of a map
+  value type and narrowing a bound of another: a store whose values at
+  the older layout hold neither opens with no written job and reads
+  each value back at the binary's layout; one where a value holds the
+  dropped variant, or passes the narrowed bound, is refused `Layout`
+  with why `Unread`, its count and first refusal, before anything is
+  written; the same store with a written job naming the layout, or an
+  `Unplanned` one pending, opens and hands the job its values; a
+  log-held value type's older layout dropping a variant is still
+  `Underived`, as before.
 - **The conversion buffer** (7), measured under skein's counting
   allocator in the store's world: a store whose plans convert holds no
   buffer at open; its first converted read makes one at its value's

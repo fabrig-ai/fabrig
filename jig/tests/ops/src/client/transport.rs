@@ -1,6 +1,6 @@
 //! Opaque shell token routes and the finite Ops protocol adapter, beside the shared world.
 use super::{Document, Ops, OpsScript, Subject};
-use jig_client_domain::contract::{ObjectKey, Read, ReadNone, ReadValue, VersionRange, WatchEnd, WatchEvent};
+use jig_client_domain::contract::{ObjectKey, Read, ReadNone, ReadValue, WatchEnd, WatchEvent};
 use jig_client_kit::harness::{ClientId, Front, FrontFault, Observed};
 use jig_client_kit::observe;
 use jig_client_scripted_engine::{self as engine, ApplicationScope, Envelope, Up};
@@ -71,7 +71,7 @@ impl Scripted {
     }
     fn open_me(&mut self, client: ClientId, now: Time) {
         let party = self.parties[&client];
-        if !self.engine.versions().contains(jig_client_protocol_wire::VERSION) {
+        if !self.engine.served() {
             return;
         }
         if !self.engine.truth().sign_ins.contains_key(&party) {
@@ -98,12 +98,7 @@ impl Scripted {
             delivered.push((
                 client,
                 Event::Client {
-                    event: jig_client::Event::Up {
-                        up: jig_client::Up::Served {
-                            served: self.engine.versions().contains(jig_client_protocol_wire::VERSION),
-                            versions: None,
-                        },
-                    },
+                    event: jig_client::Event::Up { up: jig_client::Up::Served { served: self.engine.served() } },
                 },
             ));
         }
@@ -435,7 +430,7 @@ impl Front<Ops> for Scripted {
             }
             FrontFault::Versions => {
                 self.hellos.extend(self.parties.keys().copied());
-                engine::Fault::Versions(VersionRange { first: 2, last: 2 })
+                engine::Fault::Served(false)
             }
             FrontFault::ObjectGone => {
                 if let Some(key) = self.last_object {

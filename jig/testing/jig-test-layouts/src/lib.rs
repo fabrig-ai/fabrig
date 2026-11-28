@@ -10,6 +10,7 @@ pub const FIXTURE_SMITH_OWNER: &str = "fixture-smith";
 pub mod frames;
 pub mod layouts;
 pub mod records;
+pub mod written;
 
 /// Fixture key ranges (protocol/store/keys.md, 1.2).
 pub mod keys {

@@ -3,9 +3,8 @@ use jig_protocol_store::{
     BackRefusal, Event, KeptMap, KeptWire, OpenRefusal, Owner, OwnerSets, Request, Undecoded, Wire, Write,
 };
 use jig_store_world::{
-    World,
-    patches::{self, BASE, Records, SETS},
-    root,
+    World, root,
+    upgrade_fixtures::{self, BASE, Records, SETS},
     world::Change,
 };
 use skein_lib::Token;
@@ -14,7 +13,7 @@ const SEED: u64 = 0x5245_4845;
 const OWNER: Token = Token::new(900);
 const WIRES: &[Wire] = &[Wire { name: "fixture-worker", version: 7 }];
 const MID: OwnerSets = SETS;
-const AFTER: OwnerSets = patches::NEXT;
+const AFTER: OwnerSets = upgrade_fixtures::NEXT;
 
 fn previous() -> World {
     let mut world = Records::story().committed(SEED, BASE);
@@ -26,7 +25,7 @@ fn previous() -> World {
     world
 }
 fn without_wires(records: &Records) -> World {
-    let mut world = World::unopened_observed(SEED, patches::limits(), None);
+    let mut world = World::unopened_observed(SEED, upgrade_fixtures::limits(), None);
     world.owner_sets(BASE);
     world.open().expect("source start");
     let writes =
@@ -56,7 +55,7 @@ fn rehearsal_reports_kept_wires_and_job_counts_without_writing_source() {
     let events = world.rehearse();
     rehearsal_lines(&events, Some(&[KeptWire { name: "fixture-worker".into(), version: 7 }]));
     assert!(events.iter().any(|event| matches!(event, Event::Decoded { owner: OWNER, records: 10 })), "{events:?}");
-    assert!(events.iter().any(|event| matches!(event, Event::Ran { of: Owner::Application, job, rows: 3, commits: 2, .. } if job.as_ref() == patches::NEXT.sets[0].jobs[1].name)), "{events:?}");
+    assert!(events.iter().any(|event| matches!(event, Event::Ran { of: Owner::Application, job, rows: 3, commits: 2, .. } if job.as_ref() == upgrade_fixtures::NEXT.sets[0].jobs[1].name)), "{events:?}");
     assert!(matches!(events.last(), Some(Event::Opened { pending: true, .. })), "{events:?}");
     Records::story().check_public(&mut world, &"rehearsed copy");
     assert_eq!(world.contents(), before, "every source path and byte unchanged");
@@ -128,15 +127,15 @@ fn rehearsal_decodes_unchanged_families_before_planning_but_start_never_walks() 
 
 #[test]
 fn job_rehearsal_reads_shared_transcripts_without_cutting_them() {
-    let mut world = patches::frame_committed(SEED, patches::FRAME_WINDOWS, false);
-    world.owner_sets(patches::FRAME_JOBS);
+    let mut world = upgrade_fixtures::frame_committed(SEED, upgrade_fixtures::FRAME_WINDOWS, false);
+    world.owner_sets(upgrade_fixtures::FRAME_JOBS);
     let before = world.contents();
     let events = world.rehearse();
     rehearsal_lines(&events, None);
     assert!(matches!(events.last(), Some(Event::Opened { pending: true, .. })), "{events:?}");
     assert_eq!(
         world.get(jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(root::LIVE))),
-        patches::frame_proof(root::LIVE, true, false)
+        upgrade_fixtures::frame_proof(root::LIVE, true, false)
     );
     let turns =
         world.transcript(jig_protocol_store::TranscriptRead::Page { task: root::LIVE, backwards: false, after: None });
@@ -260,7 +259,7 @@ pub(crate) fn wires_cuts(cuts: &[u32]) -> Vec<WiresOutcome> {
                 let events = retry.request(retry.open_request());
                 assert!(
                     matches!(events.as_slice(), [Event::Opened { last: found, pending: false, .. }] if *found == last),
-                    "no patch or site on the next start: cut {cut}: {events:?}"
+                    "no upgrade or site on the next start: cut {cut}: {events:?}"
                 );
                 retry.accept_recovery(last);
                 records.check_public(retry, &cut);
@@ -318,9 +317,9 @@ fn cuts_at_the_wires_commit_keep_back_open_or_refuse_as_committed() {
 
 #[test]
 fn back_before_own_commit_reopens_previous_records_and_transcript_lengths() {
-    let mut world = patches::frame_committed(SEED, patches::FRAME_WINDOWS, false);
+    let mut world = upgrade_fixtures::frame_committed(SEED, upgrade_fixtures::FRAME_WINDOWS, false);
     let before = world.contents();
-    world.owner_sets(patches::FRAME_JOBS);
+    world.owner_sets(upgrade_fixtures::FRAME_JOBS);
     world.open_switched().expect("frame fixture job switched");
     world.crash(SEED);
     let (path, bytes) = before
@@ -335,7 +334,7 @@ fn back_before_own_commit_reopens_previous_records_and_transcript_lengths() {
     assert!(matches!(events.as_slice(), [Event::Back { owner: OWNER, to: 1 }]), "{events:?}");
     assert_eq!(world.active(), b"1\n");
     world.crash(SEED);
-    world.owner_sets(patches::FRAME_VERSION_HEADS_BASE);
+    world.owner_sets(upgrade_fixtures::EARLIER_FRAME_BASE);
     world.open().expect("previous generation opens");
     for (name, bytes) in before.iter().filter(|(path, _)| path.starts_with(b"generations/1/store/logs/")) {
         if name == path {
@@ -351,7 +350,7 @@ fn back_before_own_commit_reopens_previous_records_and_transcript_lengths() {
     let turns =
         world.transcript(jig_protocol_store::TranscriptRead::Page { task: root::LIVE, backwards: false, after: None });
     // The previous binary reads its stored generated versions direct.
-    let expected = patches::fixture_turn(1, patches::FRAME_SAID, patches::FRAME_REPLAY, 0);
+    let expected = upgrade_fixtures::fixture_turn(1, upgrade_fixtures::FRAME_SAID, upgrade_fixtures::FRAME_REPLAY, 0);
     assert_eq!(turns, [root::turn(root::LIVE, 1, 1, &expected), root::turn(root::LIVE, 1, 2, &expected)]);
     assert!(!world.paths().iter().any(|path| path.starts_with(b"generations/2")));
 }
@@ -392,7 +391,7 @@ fn unchanged_except_recovery_empty_segments(before: &Contents, after: &Contents,
 #[test]
 fn back_refuses_committed_missing_previous_and_unreadable_manifest() {
     let (mut world, last) = switched();
-    world.open().expect("active patched generation opens");
+    world.open().expect("active upgraded generation opens");
     assert!(world.wires(WIRES));
     world.commit(Box::new([Write::Save(root::header(last + 1)), Write::Wires])).expect("start mark");
     world.crash(SEED);
@@ -458,7 +457,12 @@ fn rehearsal_names_a_malformed_held_turn_at_its_stored_offset() {
     use jig_test_layouts::frames;
     for file in [false, true] {
         let tasks = if file { &[frames::TASK][..] } else { &[] };
-        let mut world = crate::map_held::world_with_sets(SEED, &patches::limits(), tasks, patches::FRAME_VERSION_HEADS);
+        let mut world = crate::map_held::world_with_sets(
+            SEED,
+            &upgrade_fixtures::limits(),
+            tasks,
+            upgrade_fixtures::EARLIER_FRAMES,
+        );
         let good = frame_reads::turn(1, b"said", b"replay", 0);
         let mut bad = good.to_vec();
         bad.pop();
@@ -469,7 +473,7 @@ fn rehearsal_names_a_malformed_held_turn_at_its_stored_offset() {
             super::frames::log_frame_bytes(&first)
         };
         world.commit(root::record_turn_commit(2, first)).expect("good turn");
-        world.commit(root::turn_commit(3, frames::TASK, 2, &bad)).expect("malformed opaque turn");
+        world.commit(root::turn_commit(3, frames::TASK, 2, &bad)).expect("malformed turn with a registered head");
         world.crash(SEED);
         world.owner_sets(frame_reads::SETS);
         let before = world.contents();

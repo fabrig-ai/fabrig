@@ -74,6 +74,7 @@ fn a_removed_changes_cancel_ends_its_procedure_even_while_held() {
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         });
         let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
         crate::route::forge_route::outputs(&mut domain, &env, &mut decision, &mut forge_out);

@@ -184,16 +184,12 @@ mod tests {
         );
         crate::settle(&mut root, &env, &mut out);
         while out.pop().is_some() {}
-        let mut served = skein_lib::List::with_capacity(1);
-        served
-            .push(w::Served {
-                owner: w::Owner::Jig,
-                first: jig_client_protocol_wire::VERSION,
-                last: jig_client_protocol_wire::VERSION,
-            })
-            .unwrap();
         let hello = jig_client_test_records::opened(
-            w::Hello { stream: [7; 16], served, heartbeat: skein_lib::Duration::from_secs(30) },
+            w::Hello {
+                stream: [7; 16],
+                served: skein_lib::List::with_capacity(0),
+                heartbeat: skein_lib::Duration::from_secs(30),
+            },
             jig_client_test_records::frame_record(),
         );
         let mut writer = skein_lib::Writer::new(

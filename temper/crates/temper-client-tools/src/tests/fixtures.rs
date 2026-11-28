@@ -278,6 +278,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["revision", "list"],
     &["settings", "apply", "FILE", "--against", "5", "--key", "settings-5"],
     &["settings", "propose", "FILE", "--against", "5", "--key", "proposal-5"],
+    &["settings", "upgrade", "FILE"],
     &["proposal", "show", "p73/7"],
     &["forge", "accept", "3", "1"],
     &["revision", "advance", "7", "--key", "move-7"],
@@ -654,7 +655,7 @@ pub(crate) fn started_with_limits(
     };
     harness.client(client::Event::StartUnlinked { kept });
     harness.client(client::Event::SignIn { with: client::With::Transport });
-    harness.client(client::Event::Up { up: client::Up::Served { served: true, versions: None } });
+    harness.client(client::Event::Up { up: client::Up::Served { served: true } });
     harness
 }
 pub(crate) fn signed_in(party: u64) -> Harness {

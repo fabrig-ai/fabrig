@@ -12,6 +12,17 @@ fn a_person_s_chat_is_answered_by_the_in_process_worker() {
 }
 
 #[test]
+fn a_delegate_s_withheld_wait_is_answered_after_parking_on_nothing() {
+    let mut settings = fixtures::calm(fixtures::SEED);
+    settings.chat = fixtures::Chat::DelegateWait;
+    let outcome = world::run(settings, fixtures::one_person_chat(b"Hello"));
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.chats_made, 1);
+    assert_eq!(outcome.runs_answered, 2);
+    assert!(outcome.drained);
+}
+
+#[test]
 fn a_signal_mid_run_drains_then_ends_the_worker_with_nothing_waiting() {
     let outcome = world::drain_mid_run(fixtures::calm(fixtures::SEED), false);
     assert_eq!(outcome.verdict, Verdict::Passed);

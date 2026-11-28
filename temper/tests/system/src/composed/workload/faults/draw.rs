@@ -1,5 +1,5 @@
 //! The composed fault and party draw, without a world (temper/docs/design/testing/workloads.md, 5).
-use super::{CAMPAIGN_KINDS, GATE_KINDS, Plan, bounds, forge_faults, parks, people, restarts, stale, worker};
+use super::{CAMPAIGN_KINDS, GATE_KINDS, Plan, bounds, cells, forge_faults, parks, people, restarts, stale, worker};
 use skein_lib::Duration;
 use skein_world::{
     faults::Kind,
@@ -45,6 +45,7 @@ const INJECTED_CATALOGUE: &[(Kind, Eligible)] = &[
 /// The composed world's plans and acts for one seed and its configured kinds.
 pub struct FaultDraw {
     pub(super) plans: Vec<Plan>,
+    pub(super) cell: Option<cells::Target>,
     pub(super) actions: Vec<Action>,
     people: Vec<(Kind, String)>,
     pub(super) ineligible: BTreeSet<Kind>,
@@ -88,7 +89,11 @@ impl FaultDraw {
             .iter()
             .copied()
             .filter(|kind| {
-                !matches!(*kind, people::HOLDS_A_MEMBER | people::RELEASES_A_MEMBER | bounds::FORGE_READ_ADMISSIONS)
+                !cells::KINDS.contains(kind)
+                    && !matches!(
+                        *kind,
+                        people::HOLDS_A_MEMBER | people::RELEASES_A_MEMBER | bounds::FORGE_READ_ADMISSIONS
+                    )
             })
             .filter_map(|kind| {
                 let rng = match kind.family {
@@ -132,6 +137,7 @@ impl FaultDraw {
                 }
             })
             .collect();
+        let cell = cells::Target::draw(streams, workload, kinds, &mut ineligible);
         let disk = worker::Disk::draw(&mut worker_rng);
         let (actions, people) = party_draw(streams, workload, kinds, &mut ineligible);
         plans.extend(injected.iter().filter_map(|&(kind, eligible)| {
@@ -161,6 +167,7 @@ impl FaultDraw {
             .collect();
         Self {
             plans,
+            cell,
             actions,
             people,
             ineligible,
@@ -177,6 +184,10 @@ impl FaultDraw {
         self.plans.iter().any(|plan| plan.kind == kind)
     }
 
+    pub(in crate::composed::workload) fn has_park_cell(&self) -> bool {
+        self.cell.is_some()
+    }
+
     pub(in crate::composed::workload) fn bounds(&self) -> &[Kind] {
         &self.bounds
     }
@@ -190,6 +201,7 @@ impl FaultDraw {
             .chain(self.people.iter().map(|(kind, goal)| (*kind, goal.as_str())))
             .chain(self.bounds.iter().map(|&kind| (kind, "")))
             .chain(self.wrong_tree.then_some((temper_blame::WRONG_TREE, "")))
+            .chain(self.cell.iter().flat_map(cells::Target::planned))
             .collect()
     }
 

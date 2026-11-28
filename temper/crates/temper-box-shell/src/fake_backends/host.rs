@@ -121,7 +121,7 @@ impl Host for Native<'_> {
         temper_config_shell::facts(dirs)
     }
     fn read_config(&self, dirs: &Directories) -> Result<Read, String> {
-        temper_config_shell::read(dirs, Shape::Standalone).map_err(|why| why.to_string())
+        temper_service_shell::configuration::report(temper_config_shell::read(dirs, Shape::Standalone))
     }
     fn read_bundle(&self, path: &Path, limits: Clients) -> Result<(), String> {
         crate::bundle::read(super::bytes(path).as_ref(), limits).map(|_| ())
