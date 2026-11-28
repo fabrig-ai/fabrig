@@ -1136,6 +1136,11 @@ impl World {
                 let result = self.store.read(range);
                 self.root_events.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
             }
+            engine::StoreRequest::Engine(
+                engine_store::Out::Switch | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. },
+            ) => {
+                unreachable!("start requests use the bounded page and switch adapter");
+            }
             engine::StoreRequest::Engine(engine_store::Out::Load {
                 load,
                 range:
@@ -1684,7 +1689,7 @@ impl World {
             | Delivery::Restarting { .. }
             | Delivery::LimitSettingsCommitted { .. }
             | Delivery::Drained
-            | Delivery::Start(_)
+            | Delivery::Resume(_)
             | Delivery::Load { .. }
             | Delivery::CarriedUnused { .. }) => panic!("unscripted released delivery: {other:?}"),
         }

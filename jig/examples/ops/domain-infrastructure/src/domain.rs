@@ -863,7 +863,11 @@ fn stage(domain: &mut Domain, env: &Env<Limits>, token: Token, effect: Effect, o
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the complete connector vocabulary")]
 pub fn step_system(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
-        Event::Ask(_) | Event::Released(_) | Event::StageEffect { .. } | Event::EffectOwner { .. } => {
+        Event::Ask(_)
+        | Event::Released(_)
+        | Event::StageEffect { .. }
+        | Event::RestoreDone
+        | Event::EffectOwner { .. } => {
             unreachable!("the connector port handles engine inputs")
         }
         Event::ProcedureAdmission { task, answer } => {

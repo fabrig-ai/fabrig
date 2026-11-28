@@ -1,4 +1,5 @@
 //! A small ops root world with one fleet admission and two retained hub turns.
+use super::store;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
@@ -8,6 +9,7 @@ use jig_ops_domain as root;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 
 pub struct World {
+    start_rows: std::collections::BTreeMap<root::Key, root::Record>,
     pub domain: root::Domain,
     pub env: Env<root::Limits>,
     owner: Token,
@@ -21,8 +23,8 @@ impl World {
         let (configuration, mut limits) = super::config::root(187);
         limits.core.fleet.turns = 1;
         limits.host.turns = 2;
-        let world_configuration_providers = configuration.core.settings.llm_providers.clone();
         let mut world = Self {
+            start_rows: store::account_rows(&configuration.core.settings.llm_providers),
             domain: root::Domain::new(configuration, &limits).expect("fixture core configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             owner: Token::new(0),
@@ -30,10 +32,6 @@ impl World {
             kept: Vec::new(),
         };
         world.send(root::Event::Restart { pending: false });
-        for row in jig_test_profile::fixtures::account_rows(&world_configuration_providers) {
-            let jig_test_domain::Record::Core(row) = row else { panic!("core account fixture") };
-            world.send(root::Event::Store(root::Store::Restore(root::Record::Core(row))));
-        }
         world.settle();
         for event in [
             core::Event::Period { project: 1, period: 1, budget: 1000, next: None },
@@ -161,10 +159,16 @@ impl World {
                             result,
                         })));
                     }
-                    root::Output::Load { phase, .. } => {
-                        self.send(root::Event::Store(root::Store::Restored(phase)));
+                    root::Output::Store(core::engine::store::Out::Load {
+                        load,
+                        range: core::engine::store::Range::Start { ranges, after },
+                    }) => self.send(store::start_page(&self.start_rows, load, &ranges, after.as_ref())),
+                    root::Output::ConnectorLoad(range) => {
+                        for event in store::connector_rows(&self.start_rows, &range) {
+                            self.send(event);
+                        }
                     }
-                    root::Output::Switch => self.send(root::Event::Store(root::Store::Switched)),
+                    root::Output::Store(core::engine::store::Out::Switch) => self.send(store::switched()),
                     other @ (root::Output::ApplicationDocument { .. }
                     | root::Output::ApplicationRead { .. }
                     | root::Output::IncidentAssociationRefused { .. }

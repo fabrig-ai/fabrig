@@ -131,14 +131,24 @@ fn a_failed_commit_never_reaches_the_component() {
 }
 #[test]
 fn slow_pages_hold_a_restore_answer_for_their_ticks() {
+    use core::engine::store::{Answer, In, Out, Range, Rows};
     let mut store = committed();
+    for answer in store.answers() {
+        assert!(matches!(answer, Up::Root(root::Event::Store(In::Census(_)))));
+    }
     store.fault(Fault::SlowPages { by: 2 });
-    store.ask(StoreOut::Start { phase: core::start::Phase::LoadCore, census: None });
+    store.ask(StoreOut::Engine(Out::Load {
+        load: skein_lib::Token::new(1),
+        range: Range::Start { ranges: Box::new(core::RestoreRange::LIVE), after: None },
+    }));
     assert!(store.answers().is_empty());
     store.tick(false).expect("page tick");
     assert!(store.answers().is_empty());
     store.tick(false).expect("page tick");
-    assert!(store.answers().iter().any(|answer| matches!(answer, Up::Root(root::Event::StartRecord(_)))));
+    assert!(store.answers().iter().any(|answer| matches!(
+        answer,
+        Up::Root(root::Event::Store(In::Loaded { result: Answer::Rows(Rows::Start { .. }), .. }))
+    )));
 }
 #[test]
 fn a_fork_replays_to_the_same_rows() {

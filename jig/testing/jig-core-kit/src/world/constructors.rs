@@ -316,7 +316,7 @@ impl World {
             reads: None,
             observer,
             heap,
-            restoring: None,
+            switch_held: false,
             events: VecDeque::new(),
             limits: *limits,
             cut: None,

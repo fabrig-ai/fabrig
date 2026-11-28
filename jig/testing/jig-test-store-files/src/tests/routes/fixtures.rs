@@ -118,13 +118,20 @@ pub fn send(
     }
     assert!(below.store.is_empty() && below.secrets.is_empty() && below.transcripts.is_empty());
 }
+pub fn down(routes: &mut jig_test_store::route::Routes, out: jig_test_store::StoreOut) -> jig_protocol_store::Request {
+    let mut immediate = skein_lib::Queue::uncapped();
+    let request = jig_test_store::route::down(routes, out, false, &mut immediate).expect("routed request");
+    assert!(immediate.is_empty());
+    request
+}
+
 pub fn routed(
     component: &mut Component,
     routes: &mut jig_test_store::route::Routes,
     out: jig_test_store::StoreOut,
 ) -> Box<[jig_test_store::Up]> {
     let mut requests = skein_lib::Queue::with_capacity(64);
-    requests.push(jig_test_store::route::down(routes, out).expect("routed request"));
+    requests.push(down(routes, out));
     let mut found = skein_lib::List::with_capacity(128);
     for _ in 0..64_u32 {
         let Some(request) = requests.pop() else {

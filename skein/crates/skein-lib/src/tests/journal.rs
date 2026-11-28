@@ -207,6 +207,54 @@ fn restored_journal_continues_numbering_and_releases_after_durability() {
 }
 
 #[test]
+fn late_restore_keeps_held_output_ready_and_resumes_numbering() {
+    let mut journal = Journal::<u8, u8>::uncapped(RELEASE, 0);
+    let mut held = journal.decide();
+    held.push_held(7);
+    journal.accept(held);
+    journal.restore_numbering(7);
+
+    let mut writing = journal.decide();
+    writing.push_write(1);
+    writing.push_held(10);
+    journal.accept(writing);
+    assert_eq!(journal.commit().expect("first commit after restore").number, 8);
+
+    let mut out = Queue::with_capacity(RELEASE);
+    assert_eq!(journal.release(&mut out), Released::Some);
+    assert_eq!(out.pop(), Some(7));
+    assert!(out.is_empty());
+    journal.committed(8);
+    assert_eq!(journal.release(&mut out), Released::Some);
+    assert_eq!(out.pop(), Some(10));
+    assert!(journal.idle());
+}
+
+#[test]
+fn door_outputs_leave_in_order_after_numbering_is_restored() {
+    let mut journal = Journal::<(), u8>::uncapped(RELEASE, 0);
+    journal.now(10).expect("running journal");
+    journal.now(20).expect("running journal");
+    journal.restore_numbering(7);
+
+    let mut out = Queue::with_capacity(RELEASE);
+    assert_eq!(journal.release(&mut out), Released::Some);
+    assert_eq!(out.pop(), Some(10));
+    assert_eq!(out.pop(), Some(20));
+}
+
+#[test]
+fn restoring_the_same_durable_number_leaves_numbering_unchanged() {
+    let mut journal = Journal::<u8, ()>::uncapped(RELEASE, 7);
+    journal.restore_numbering(7);
+
+    let mut writing = journal.decide();
+    writing.push_write(1);
+    journal.accept(writing);
+    assert_eq!(journal.commit().expect("first commit").number, 8);
+}
+
+#[test]
 fn idle_tracks_open_decisions_commits_outputs_and_stop() {
     let mut journal = Journal::<u8, u8>::uncapped(RELEASE, 0);
     let mut out = Queue::with_capacity(2);

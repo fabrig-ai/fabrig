@@ -873,6 +873,7 @@ pub(crate) fn erased_revision(writes: &List<Write>, before: u32) -> bool {
             }
             Write::Save(_)
             | Write::Erase(_)
+            | Write::Wires
             | Write::CopySettingsRevision(_)
             | Write::DropHistory { .. }
             | Write::DropTranscript { .. } => {}

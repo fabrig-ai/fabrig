@@ -388,7 +388,7 @@ impl Driver {
                 Some(temper_engine_domain_forge::Document::Change(*panel.clone()))
             }
             Delivery::Push(_)
-            | Delivery::Start(_)
+            | Delivery::Resume(_)
             | Delivery::ProjectMade { .. }
             | Delivery::Bound { .. }
             | Delivery::ProjectReleased { .. }

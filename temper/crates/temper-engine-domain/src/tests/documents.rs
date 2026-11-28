@@ -429,7 +429,7 @@ fn plan_from_engine(domain: &mut Domain, env: &Env<Limits>, task: u64) -> parts:
                 return *plan;
             } else if let Out::Held(Peer::Store(store::Out::Load { load, range: store::Range::Notes(_) })) = output {
                 next = Some(load);
-            } else if let Out::Core(core::Request::Write(_)) = output {
+            } else if let Out::Write(_) = output {
             } else {
                 panic!("expected a note load or plan, got {output:?}");
             }

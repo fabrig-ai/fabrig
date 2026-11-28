@@ -1,4 +1,4 @@
-//! Connector restart and adoption values (jig/docs/design/domain/connectors.md, 2).
+//! Connector restart and adoption values (jig/docs/design/domain/connectors.md, 2; engine/vocabulary.md, 2.6).
 
 use crate::ops::Role;
 use crate::resources::Name;
@@ -57,6 +57,8 @@ pub struct Adoption {
 /// Lifecycle asks of every connector.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Ask {
+    /// Restore your records, then report `Done { stage: Restored }`.
+    Restore,
     /// Operation that ends later: catch up from opening, answered by `Up::Done` once per stage.
     CatchUp,
     /// Notification: adopt this resource into the project; no answer.
@@ -69,7 +71,7 @@ pub enum Ask {
 /// A connector's lifecycle answers and adoptions.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Up {
-    /// One catch-up stage is done.
+    /// Restoration or one half of catching up is done.
     Done { stage: RestartStage },
     /// A deleted project's release is durable, or the connector held nothing for it.
     Released { project: u32 },

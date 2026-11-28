@@ -529,7 +529,7 @@ fn restart_coalesces_triggers_and_drops_stale_or_retired_home_answers() {
     w.settle();
     assert_eq!(w.root_reads(), reads);
     assert_eq!(w.revision(), &refused);
-    w.event(Event::ReleaseProject { project: PROJECT, request: Token::new(9) });
+    w.event(Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: PROJECT })));
     assert!(w.erased.contains(&Key::DotTemperRevision { project: PROJECT }));
     assert!(w.d.temper_revision(PROJECT).is_none());
 }

@@ -349,7 +349,6 @@ fn outputs(
             | Request::Drift { .. }
             | Request::Call { .. }
             | Request::Read { .. }
-            | Request::RestartDone { .. }
             | Request::Replace { .. }
             | Request::LinkDisagreed { .. }
             | Request::ConversionAskDropped { .. }

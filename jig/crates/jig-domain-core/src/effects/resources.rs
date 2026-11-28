@@ -335,6 +335,35 @@ pub(crate) fn task_access(role: connector::ResourceRole) -> tasks::ResourceAcces
     }
 }
 
+pub(crate) fn hold_kind(hold: connector::HoldKind) -> tasks::HoldKind {
+    match hold {
+        connector::HoldKind::Shared => tasks::HoldKind::Shared,
+        connector::HoldKind::Exclusive { wait } => {
+            tasks::HoldKind::Exclusive { taken: if wait { tasks::Taken::Waits } else { tasks::Taken::Refuses } }
+        }
+        connector::HoldKind::Pooled { wait, .. } => {
+            tasks::HoldKind::Pooled { taken: if wait { tasks::Taken::Waits } else { tasks::Taken::Refuses } }
+        }
+    }
+}
+
+pub(crate) fn restore_report(
+    core: &mut Core,
+    env: &Env<Limits>,
+    project: u32,
+    name: tasks::Name,
+    role: connector::ResourceRole,
+    hold: connector::HoldKind,
+) {
+    let _restored = core.restore_resource_role(env, project, name.clone(), role);
+    // Cache the hold rule as report state. The core's restored pool rows,
+    // not a connector's loading report, supply the durable slot counts.
+    let mut out = Queue::uncapped();
+    let event = tasks::Event::Resource { name, hold: hold_kind(hold) };
+    crate::routing::step::step_tasks(core, env, event, &mut out);
+    assert!(out.is_empty(), "restored resource reports decide nothing");
+}
+
 impl Core {
     /// Restore a connector's durable adoption before tasks open. This restores
     /// report state only; it cannot decide a hold or stop a live activation.

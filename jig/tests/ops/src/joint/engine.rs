@@ -265,7 +265,9 @@ impl Application for OpsApplication {
         };
         if let root::Output::Store(engine_store::Out::Load { load, range }) = delivery {
             let result = match range {
-                range @ (engine_store::Range::Window { .. } | engine_store::Range::Notes(_)) => {
+                range @ (engine_store::Range::Start { .. }
+                | engine_store::Range::Window { .. }
+                | engine_store::Range::Notes(_)) => {
                     return Ops::deliver(
                         &mut peers.conformance,
                         systems,
@@ -293,8 +295,7 @@ impl Application for OpsApplication {
             | root::Output::IncidentAssociationRefused { .. }
             | root::Output::Application { .. }
             | root::Output::Commit { .. }
-            | root::Output::Switch
-            | root::Output::Load { .. }
+            | root::Output::ConnectorLoad(_)
             | root::Output::ReadResult { .. }
             | root::Output::CoreLoad(_)
             | root::Output::Store(_)
@@ -401,8 +402,7 @@ impl Application for OpsApplication {
             )
             | root::Output::IncidentAssociationRefused { .. }
             | root::Output::Commit { .. }
-            | root::Output::Switch
-            | root::Output::Load { .. }
+            | root::Output::ConnectorLoad(_)
             | root::Output::ReadResult { .. }
             | root::Output::CoreLoad(_)
             | root::Output::Store(_)

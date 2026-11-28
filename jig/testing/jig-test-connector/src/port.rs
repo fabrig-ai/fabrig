@@ -13,20 +13,47 @@ pub enum Out {
     Save(Record),
     Erase(RecordKey),
     System(SystemRequest),
-    LostRead { task: u64, attempt: u64, resource: resources::Name, call: SystemRequest },
-    Procedure { task: u64, step: u64, code: u16, context: Box<ops::RunContext> },
+    LostRead {
+        task: u64,
+        attempt: u64,
+        resource: resources::Name,
+        call: SystemRequest,
+    },
+    Procedure {
+        task: u64,
+        step: u64,
+        code: u16,
+        context: Box<ops::RunContext>,
+    },
     Projection(Box<projections::ProjectionFeed>),
-    EffectOwner { effect: Effect, origin: effects::EffectOrigin },
-    ApplicationRelease { request: Token, project: u32, release: crate::ApplicationRelease },
-    ReadAnswered { reply: ReplyTo, answer: Result<crate::ClientDocument, crate::DocumentMissing> },
-    Topic { token: Token, resources: Option<Box<[effects::Effect]>> },
-    RestoreRefused { kind: u32, scope: u32, number: u32 },
-    RestoreResource { project: u32, name: resources::Name, role: resources::ResourceRole, hold: resources::HoldKind },
+    EffectOwner {
+        effect: Effect,
+        origin: effects::EffectOrigin,
+    },
+    ApplicationRelease {
+        request: Token,
+        project: u32,
+        release: crate::ApplicationRelease,
+    },
+    ReadAnswered {
+        reply: ReplyTo,
+        answer: Result<crate::ClientDocument, crate::DocumentMissing>,
+    },
+    Topic {
+        token: Token,
+        resources: Option<Box<[effects::Effect]>>,
+    },
+    /// Load the next page of this connector's live range after earlier commits.
+    LoadLive {
+        after: Option<Box<[u8]>>,
+    },
 }
 
 #[derive(Debug)]
 pub(crate) struct Port {
     number: u16,
+    settings_owner: bool,
+    restoring: bool,
     inputs: Map<Token, Effect>,
     effect_tasks: Map<Token, u64>,
     outbox: Map<u64, (u64, crate::Purpose)>,
@@ -45,6 +72,8 @@ impl Port {
     pub(crate) fn new(limits: &Limits) -> Self {
         Self {
             number: 1,
+            settings_owner: false,
+            restoring: false,
             inputs: Map::with_capacity(limits.staged.saturating_add(1)),
             effect_tasks: Map::with_capacity(limits.procedures),
             outbox: Map::with_capacity(limits.entries.saturating_add(1)),
@@ -65,6 +94,11 @@ impl Domain {
     /// Bind the number used inside qualified contract resource names.
     pub fn address(&mut self, number: jig::Connector) {
         self.port.number = number.0;
+    }
+
+    /// Report defaults at restart, even if no settings values are configured.
+    pub fn settings_owner(&mut self) {
+        self.port.settings_owner = true;
     }
 
     pub fn take_document(&mut self, watcher: Token) -> Option<crate::ClientDocument> {
@@ -123,7 +157,7 @@ impl Domain {
     }
 
     /// Join restored topic rows to restored subscription numbers without changing either record.
-    pub fn restore_interest(&mut self, task: u64, topic: u16, number: u64) {
+    fn restore_interest(&mut self, task: u64, topic: u16, number: u64) {
         if self.subscriptions.contains_key(&(topic, task)) {
             self.port.interests.insert(number, (task, topic)).expect("one binding per kept subscription");
         }
@@ -132,58 +166,167 @@ impl Domain {
 
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Out>) {
     let mut raw = Queue::uncapped();
-    if let Event::Ask(ask) = event {
-        asked(domain, env, ask, &mut raw, out);
-    } else if let Event::Released(released) = event {
-        match released {
+    match event {
+        Event::Ask(ask) => asked(domain, env, ask, &mut raw, out),
+        Event::Released(released) => match released {
             jig::Released::Make { entry } => crate::step_system(domain, env, Event::Make { entry }, &mut raw),
             jig::Released::Answered { .. } => {} // the fake sends no deployment acts
-        }
-    } else if let Event::StageEffect { owner, effect, start } = event {
-        domain.port.inputs.insert(owner, effect).expect("admitted effect owner");
-        if let Some(origin) = start {
-            if let effects::EffectOrigin::Procedure { task, .. } = &origin {
-                domain.port.effect_tasks.insert(owner, *task).expect("admitted procedure effect");
+        },
+        Event::StageEffect { owner, effect, start } => {
+            domain.port.inputs.insert(owner, effect).expect("admitted effect owner");
+            if let Some(origin) = start {
+                if let effects::EffectOrigin::Procedure { task, .. } = &origin {
+                    domain.port.effect_tasks.insert(owner, *task).expect("admitted procedure effect");
+                }
+                say_effect(out, effects::Up::Start { owner, origin });
             }
-            say_effect(out, effects::Up::Start { owner, origin });
         }
-    } else if let Event::WriterRead { resource, event } = event {
-        if let crate::SystemEvent::Fact { resource: observed, fact, .. }
-        | crate::SystemEvent::Settle { resource: observed, fact } = &event
-            && !fact.pending
-            && observed.segments() == resource.path.as_ref()
-        {
-            crate::step_system(domain, env, Event::System(event), &mut raw);
-            reported(domain, &mut raw, false, out);
-            out.push(Out::Up(jig::Up::Resources(resources::Up::ReadAfresh { resource })));
+        Event::WriterRead { resource, event } => {
+            if let crate::SystemEvent::Fact { resource: observed, fact, .. }
+            | crate::SystemEvent::Settle { resource: observed, fact } = &event
+                && !fact.pending
+                && observed.segments() == resource.path.as_ref()
+            {
+                crate::step_system(domain, env, Event::System(event), &mut raw);
+                reported(domain, &mut raw, out);
+                out.push(Out::Up(jig::Up::Resources(resources::Up::ReadAfresh { resource })));
+            }
         }
-    } else if let Event::Restore { record } = event {
-        if let Record::Outbox(entry) = &record {
-            kept(domain, entry.number, entry.task, entry.key.origin);
-        }
-        crate::step_system(domain, env, Event::Restore { record }, &mut raw);
-        reported(domain, &mut raw, true, out);
-    } else {
-        crate::step_system(domain, env, event, &mut raw);
+        Event::RestoredPage { rows, after } => restored_page(domain, env, rows, after, out),
+        Event::Restore { record } => restore_record(domain, env, record, out),
+        event @ (Event::SettingsDefaults
+        | Event::RestoreSettings { .. }
+        | Event::ForgetReplaced { .. }
+        | Event::JudgeSettings { .. }
+        | Event::KeepSettings { .. }
+        | Event::KeepProposalSettings { .. }
+        | Event::DropProposalSettings { .. }
+        | Event::SaveSettingsDefaults { .. }
+        | Event::ReadSetting { .. }
+        | Event::DocumentPrepare { .. }
+        | Event::DocumentForget { .. }
+        | Event::Document { .. }
+        | Event::ReadDocument { .. }
+        | Event::ApplicationPrepare { .. }
+        | Event::ApplicationDrop { .. }
+        | Event::Application { .. }
+        | Event::ApplicationCore { .. }
+        | Event::Close { .. }
+        | Event::EffectDecision { .. }
+        | Event::Judge { .. }
+        | Event::Procedure { .. }
+        | Event::StepMade { .. }
+        | Event::StepRefused { .. }
+        | Event::Read { .. }
+        | Event::Gather { .. }
+        | Event::Cut { .. }
+        | Event::Items { .. }
+        | Event::HandOver { .. }
+        | Event::CatchUp { .. }
+        | Event::WaitsRefused { .. }
+        | Event::Restart(..)
+        | Event::Names { .. }
+        | Event::Unnamed { .. }
+        | Event::Adopt { .. }
+        | Event::DescribeTopic { .. }
+        | Event::Subscribe { .. }
+        | Event::Unsubscribe { .. }
+        | Event::Describe { .. }
+        | Event::Keep { .. }
+        | Event::DescribeProposal { .. }
+        | Event::KeepProposal { .. }
+        | Event::DropProposal { .. }
+        | Event::Drop { .. }
+        | Event::Make { .. }
+        | Event::Resolve { .. }
+        | Event::Withdraw { .. }
+        | Event::ReleaseProject { .. }
+        | Event::System(_)) => crate::step_system(domain, env, event, &mut raw),
     }
-    reported(domain, &mut raw, false, out);
+    reported(domain, &mut raw, out);
+}
+
+fn restore_record(domain: &mut Domain, env: &Env<Limits>, record: Record, out: &mut Queue<Out>) {
+    match &record {
+        Record::Outbox(entry) => kept(domain, entry.number, entry.task, entry.key.origin),
+        Record::ApplicationObject { .. }
+        | Record::ApplicationAnswer { .. }
+        | Record::Proposal { .. }
+        | Record::Procedure(_)
+        | Record::ProcedureDelegateOutcome { .. }
+        | Record::Result { .. }
+        | Record::Task { .. }
+        | Record::Adoption { .. }
+        | Record::Subscription { .. }
+        | Record::Pool { .. }
+        | Record::Made { .. }
+        | Record::SettingDefault { .. }
+        | Record::SettingChange { .. }
+        | Record::SettingProposal { .. }
+        | Record::SettingReplaced { .. } => {}
+    }
+    let mut raw = Queue::uncapped();
+    crate::step_system(domain, env, Event::Restore { record }, &mut raw);
+    reported(domain, &mut raw, out);
+}
+
+fn restored_page(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    rows: Box<[crate::RestoreRow]>,
+    after: Option<Box<[u8]>>,
+    out: &mut Queue<Out>,
+) {
+    if !domain.port.restoring {
+        return;
+    }
+    for row in rows {
+        let subscription = row.record.subscription();
+        restore_record(domain, env, row.record, out);
+        if !domain.port.restoring {
+            return;
+        }
+        if let Some((topic, task)) = subscription {
+            for number in row.interests {
+                domain.restore_interest(task, topic, number);
+            }
+        }
+    }
+    if after.is_some() {
+        out.push(Out::LoadLive { after });
+        return;
+    }
+    if domain.port.settings_owner {
+        let mut raw = Queue::uncapped();
+        crate::settings::defaults(domain, &mut raw);
+        reported(domain, &mut raw, out);
+    }
+    if domain.port.restoring {
+        domain.port.restoring = false;
+        out.push(Out::Up(jig::Up::Lifecycle(lifecycle::Up::Done { stage: lifecycle::RestartStage::Restored })));
+    }
 }
 
 pub fn resume(domain: &mut Domain, out: &mut Queue<Out>) {
     let mut raw = Queue::uncapped();
     crate::domain::resume_system(domain, &mut raw);
-    reported(domain, &mut raw, false, out);
+    reported(domain, &mut raw, out);
 }
 
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Out>) {
     let mut raw = Queue::uncapped();
     crate::fire_system(domain, env, &mut raw);
-    reported(domain, &mut raw, false, out);
+    reported(domain, &mut raw, out);
 }
 
 fn asked(domain: &mut Domain, env: &Env<Limits>, ask: jig::Ask, raw: &mut Queue<Request>, out: &mut Queue<Out>) {
     let event = match ask {
         jig::Ask::Lifecycle(ask) => match ask {
+            lifecycle::Ask::Restore => {
+                domain.port.restoring = true;
+                out.push(Out::LoadLive { after: None });
+                return;
+            }
             lifecycle::Ask::CatchUp => {
                 let mut procedures = List::with_capacity(domain.procedures.len());
                 for (task, _) in &domain.procedures {
@@ -432,11 +575,11 @@ fn effect_ask(
     let kept_entry = if let Event::Keep { entry, .. } = &event { Some(*entry) } else { None };
     crate::step_system(domain, env, event, raw);
     if let Some(task) = release {
-        reported(domain, raw, false, out);
+        reported(domain, raw, out);
         say_effect(out, effects::Up::Released { task });
     }
     if let Some(entry) = kept_entry {
-        reported(domain, raw, false, out);
+        reported(domain, raw, out);
         if !domain.outbox.entries.contains_key(&entry) {
             domain.port.outbox.remove(&entry);
         }
@@ -645,7 +788,7 @@ fn setting_defaults(defaults: Box<[crate::SettingDefault]>, dropped: Box<[(u32, 
 }
 
 #[expect(clippy::too_many_lines, reason = "the fake system's total translation into contract and local outputs")]
-fn reported(domain: &mut Domain, raw: &mut Queue<Request>, restoring: bool, out: &mut Queue<Out>) {
+fn reported(domain: &mut Domain, raw: &mut Queue<Request>, out: &mut Queue<Out>) {
     for _ in 0..raw.len() {
         let up = match raw.pop().expect("fake output count") {
             Request::Save { record } => {
@@ -668,8 +811,8 @@ fn reported(domain: &mut Domain, raw: &mut Queue<Request>, restoring: bool, out:
             }
             Request::SettingsDefaults { defaults, dropped } => jig::Up::Settings(setting_defaults(defaults, dropped)),
             Request::RestoreRefused { kind, scope, number } => {
-                out.push(Out::RestoreRefused { kind, scope, number });
-                continue;
+                domain.port.restoring = false;
+                jig::Up::Settings(settings::Up::Unfit { kind, scope, number })
             }
             Request::ProjectReleased { project } => jig::Up::Lifecycle(lifecycle::Up::Released { project }),
             Request::ReadAfreshDone => {
@@ -787,15 +930,6 @@ fn reported(domain: &mut Domain, raw: &mut Queue<Request>, restoring: bool, out:
                 continue;
             }
             Request::Resource { project, resource } => {
-                if restoring {
-                    out.push(Out::RestoreResource {
-                        project,
-                        name: named(domain, &resource.path),
-                        role: resource_role(resource.role),
-                        hold: report_hold(domain, &resource.path, resource.hold),
-                    });
-                    continue;
-                }
                 jig::Up::Resources(resource_report(domain, project, &resource.path, resource.role, resource.hold))
             }
             Request::Adopted { .. }

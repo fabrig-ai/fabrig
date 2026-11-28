@@ -31,7 +31,7 @@ pub(super) fn iterate(
                 }
             }
             Some(Output::InvalidSecret) => store.host.above.push(store::Event::PageRefused {
-                owner: Token::new(0),
+                owner: crate::tokens::token(crate::tokens::ACCOUNTS, 0),
                 failure: store::restore::Failure {
                     cause: store::restore::Cause::Decode(store::restore::DecodeFailure::Value),
                     row: None,

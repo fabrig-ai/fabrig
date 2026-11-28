@@ -432,6 +432,10 @@ pub(super) fn connector_ask(
                 super::kinds::ask(domain, env, decision, ask);
             }
         }
+        Ask::Lifecycle(lifecycle::Ask::Restore) => {
+            assert_eq!(connector, domain.config.forge_connector, "the configured restore connector");
+            crate::store_route::load_forge(domain, env, decision, None);
+        }
         Ask::Parts(
             parts::Ask::Plan(_)
             | parts::Ask::Abandon { .. }

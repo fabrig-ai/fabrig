@@ -61,7 +61,7 @@ pub enum Delivery {
         project: u32,
     },
     /// Resumes the start only after this decision is durable.
-    Start(jig_domain_core::start::Continuation),
+    Resume(jig_domain_core::engine::Resume),
     /// Tell a new finding holder only after the areas/triager save commits (domain/areas.md, 5).
     FindingsOwned {
         project: u32,
@@ -627,7 +627,7 @@ impl Decision {
             | Delivery::Refuse { .. }
             | Delivery::PartBusy { .. }
             | Delivery::TurnBusy { .. }
-            | Delivery::Start(_)
+            | Delivery::Resume(_)
             | Delivery::Load { .. } => true,
         };
         if !within {

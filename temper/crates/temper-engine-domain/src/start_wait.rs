@@ -1,6 +1,7 @@
 //! A long start step's observations, independent of admission (protocol/service-process.md, 1.3;
 //! domain/root-restart.md, 1.1). The forge supplies its own restart terms.
-use crate::{Domain, Fact, Limits, Range};
+use crate::loads::Kind;
+use crate::{Domain, Fact, Limits};
 use alloc::boxed::Box;
 use jig_domain_core::start::Phase;
 use skein_lib::{Decimal, Env, List, bytes};
@@ -29,27 +30,21 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Limits>) {
 
 fn words(domain: &Domain, step: Phase) -> Box<[u8]> {
     let mut words = Box::default();
-    if let Some(range) = &domain.startup_range
-        && !domain.sweep_page
-    {
-        let name: &[u8] = match range {
-            Range::Core(crate::CoreRange::Sweep) => b"the sweep's rows",
-            Range::Core(
-                crate::CoreRange::Deployment
-                | crate::CoreRange::Settings
-                | crate::CoreRange::Accounts
-                | crate::CoreRange::Tasks
-                | crate::CoreRange::RunProofs
-                | crate::CoreRange::People
-                | crate::CoreRange::Calls
-                | crate::CoreRange::TaskResult { .. }
-                | crate::CoreRange::RequesterWord { .. }
-                | crate::CoreRange::Turns { .. }
-                | crate::CoreRange::ApplicationNotes(_),
-            ) => b"the core's records",
-            Range::Census(_) => b"the inbox",
-            Range::Forge => b"the forge's records",
-            Range::History(_) => unreachable!("history is not a start range"),
+    if let Some(kind) = domain.start_page {
+        let name: &[u8] = match kind {
+            Kind::People if step == Phase::Sweep => b"the sweep's rows",
+            Kind::Deployment
+            | Kind::Settings
+            | Kind::Accounts
+            | Kind::People
+            | Kind::Tasks
+            | Kind::RunProofs
+            | Kind::Calls => b"the core's records",
+            Kind::Census => b"the inbox",
+            Kind::Forge => b"the forge's records",
+            Kind::TaskResult | Kind::RequesterWord | Kind::Turns | Kind::Notes | Kind::History => {
+                unreachable!("only live pages are owed by the start")
+            }
         };
         words = wait_kind(1, b"store page", b"store pages", &[name.into()]);
     }
@@ -96,26 +91,22 @@ mod tests {
         let limits = resume_fixture::limits();
         let mut domain = Domain::new(resume_fixture::config(7), &limits).unwrap();
         assert_eq!(words(&domain, Phase::Link).as_ref(), b"nothing named");
-        for (range, step, expected) in [
-            (Range::Core(crate::CoreRange::Deployment), Phase::LoadCore, "1 store page (the core's records)"),
-            (
-                Range::Census(jig_domain_core::Census { questions: Box::new([]), results: Box::new([]) }),
-                Phase::LoadInbox,
-                "1 store page (the inbox)",
-            ),
-            (Range::Forge, Phase::RestoreConnector { connector: 0 }, "1 store page (the forge's records)"),
-            (Range::Core(crate::CoreRange::Sweep), Phase::Sweep, "1 store page (the sweep's rows)"),
+        for (kind, step, expected) in [
+            (Kind::Deployment, Phase::LoadCore, "1 store page (the core's records)"),
+            (Kind::Census, Phase::LoadInbox, "1 store page (the inbox)"),
+            (Kind::Forge, Phase::RestoreConnector { connector: 0 }, "1 store page (the forge's records)"),
+            (Kind::People, Phase::Sweep, "1 store page (the sweep's rows)"),
         ] {
-            domain.startup_range = Some(range);
+            domain.start_page = Some(kind);
             assert_eq!(words(&domain, step).as_ref(), expected.as_bytes());
         }
-        domain.sweep_page = true;
+        domain.start_page = None;
         assert_eq!(
             words(&domain, Phase::Sweep).as_ref(),
             b"nothing named",
             "the sweep's answered page is not owed again"
         );
-        domain.sweep_page = false;
+
         assert_eq!(
             wait_kind(
                 2,
@@ -126,7 +117,7 @@ mod tests {
             .as_ref(),
             b"2 store pages (the core's records, the inbox)"
         );
-        domain.startup_range = None;
+        domain.start_page = None;
         domain.durable_commit = 9;
         domain.sent_commit = 10;
         assert_eq!(words(&domain, Phase::Wires).as_ref(), b"1 commit in flight (commit 10)");

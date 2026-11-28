@@ -87,8 +87,7 @@ fn subscription_answer(outputs: Box<[Output]>, key: core::CallKey) {
                 answered = true;
             }
             Output::Commit { .. }
-            | Output::Switch
-            | Output::Load { .. }
+            | Output::ConnectorLoad(_)
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
             | Output::Store(_)

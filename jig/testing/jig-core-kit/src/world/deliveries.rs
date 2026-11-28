@@ -7,6 +7,20 @@ impl World {
     #[expect(clippy::too_many_lines, reason = "one exhaustive delivery handler drives the script's independent peers")]
     pub(super) fn delivered(&mut self, mut delivery: root::Delivery) -> Result<(), String> {
         self.observer.delivered(self.wall, &mut delivery)?;
+        match delivery {
+            root::Delivery::Store(
+                out @ (engine_store::Out::Switch
+                | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. }),
+            ) => {
+                self.start_load(out);
+                return Ok(());
+            }
+            root::Delivery::ConnectorLoad { number, after } => {
+                self.connector_load(number, after);
+                return Ok(());
+            }
+            _ => {}
+        }
         let internal_read = matches!(&delivery, root::Delivery::Store(engine_store::Out::Load { range: engine_store::Range::Read(range), .. }) if range.party == 0);
         if !internal_read
             && !matches!(delivery, root::Delivery::System { .. } | root::Delivery::LostRead { .. })
@@ -49,7 +63,7 @@ impl World {
             root::Delivery::Core(core::Held::ReadList { channel, read, endpoint, grant }) => {
                 self.list_reads.push(crate::lists::Reading { channel, read, endpoint, grant });
             }
-            root::Delivery::Start(_) | root::Delivery::Connector(..) => {
+            root::Delivery::Resume(_) | root::Delivery::Connector(..) => {
                 unreachable!("the root resumes its held start continuation")
             }
             root::Delivery::ProjectMade { project } => self.project_made.push((self.store.applied, project)),
@@ -96,6 +110,7 @@ impl World {
                 self.store.ask(StoreOut::Engine(load));
             }
             root::Delivery::Store(load) => self.point_load(load),
+            root::Delivery::ConnectorLoad { .. } => unreachable!("start loads routed above"),
             root::Delivery::Core(
                 core::Held::Applied { .. }
                 | core::Held::ApplicationDelivery { .. }

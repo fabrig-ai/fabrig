@@ -86,6 +86,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     match event {
         Event::Ask(ask) => match ask {
             jig::Ask::Lifecycle(ask) => match ask {
+                lifecycle::Ask::Restore => out.push(Out::LoadRestore),
                 lifecycle::Ask::CatchUp => step_system(domain, env, Event::ReadAfresh, &mut system),
                 lifecycle::Ask::ReleaseProject { project } => {
                     out.push(Out::Up(jig::Up::Lifecycle(lifecycle::Up::Released { project })));
@@ -107,6 +108,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             jig::Ask::Procedures(ask) => procedure(domain, env, ask, &mut system, out),
             jig::Ask::Resources(_) | jig::Ask::Projections(_) | jig::Ask::Settings(_) | jig::Ask::Requests(_) => {}
         },
+        Event::RestoreDone => {
+            out.push(Out::Up(jig::Up::Lifecycle(lifecycle::Up::Done { stage: lifecycle::RestartStage::Restored })));
+        }
         Event::Released(released) => match released {
             jig::Released::Make { entry } => step_system(domain, env, Event::MakeEntry { entry }, &mut system),
             jig::Released::Answered { .. } => {}

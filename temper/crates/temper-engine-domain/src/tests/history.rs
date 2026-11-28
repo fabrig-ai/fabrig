@@ -28,7 +28,7 @@ fn issue(domain: &mut Domain, env: &Env<Limits>, load: u64, most: u32, after: Op
         return None;
     };
     let mut out = Queue::with_capacity(1);
-    crate::restart::request_load(domain, waiter, range.clone(), after.clone(), &mut out);
+    crate::store_route::request_load(domain, waiter, range.clone(), after.clone(), &mut out);
     let Some(Request::Store(StoreRequest::Load { owner, range: found, after: cursor, most: rows, .. })) = out.pop()
     else {
         return None;

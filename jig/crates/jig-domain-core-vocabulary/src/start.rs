@@ -162,7 +162,7 @@ pub enum HeldLimit {
 }
 
 /// Ordered live ranges of the cold start (protocol/store/keys.md, 1.3, and protocol/store/loads.md, 2).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum RestoreRange {
     /// The deployment header, first.
     Deployment,

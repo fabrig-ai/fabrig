@@ -712,6 +712,12 @@ impl World {
                     let result = self.store.read(range);
                     self.queue(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }), 0);
                 }
+                engine::Request::Store(engine::StoreRequest::Engine(
+                    engine_store::Out::Switch
+                    | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. },
+                )) => {
+                    unreachable!("start requests use the bounded page and switch adapter");
+                }
                 engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
                     load,
                     range:
@@ -920,7 +926,7 @@ impl World {
             | Delivery::Refuse { .. }
             | Delivery::PartBusy { .. }
             | Delivery::TurnBusy { .. } => panic!("unexpected escalation delivery {delivery:?}"),
-            Delivery::Start(_)
+            Delivery::Resume(_)
             | Delivery::Fleet(_)
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }

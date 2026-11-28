@@ -550,23 +550,23 @@ impl Store {
     pub fn ask(&mut self, out: StoreOut) {
         match out {
             StoreOut::Commit { number, writes } => self.submit(number, writes, 0),
-            out @ (StoreOut::Start { .. } | StoreOut::Engine(_)) => {
+            out @ (StoreOut::ConnectorLoad { .. } | StoreOut::Engine(_)) => {
                 self.request(out);
             }
         }
     }
     fn request(&mut self, out: StoreOut) {
-        if matches!(out, StoreOut::Start { phase: jig_domain_core::start::Phase::Switch, .. })
-            && !self.generation_pending
-        {
-            self.replies.push(Up::Root(root::Event::StartDone(jig_domain_core::start::Phase::Switch)));
-            return;
-        }
-        if matches!(out, StoreOut::Start { phase: jig_domain_core::start::Phase::Switch, .. }) {
+        if matches!(out, StoreOut::Engine(jig_domain_core::engine::store::Out::Switch)) && self.generation_pending {
             self.switch_requests += 1;
         }
-        let request = route::down(&mut self.routes, out).expect("root has room for its store request");
-        self.drive(VecDeque::from([request]), Queue::uncapped());
+        let mut immediate = Queue::uncapped();
+        if let Some(request) = route::down(&mut self.routes, out, self.generation_pending, &mut immediate) {
+            self.drive(VecDeque::from([request]), Queue::uncapped());
+        } else {
+            while let Some(reply) = immediate.pop() {
+                self.replies.push(reply);
+            }
+        }
     }
     pub fn answers(&mut self) -> Vec<Up> {
         let mut replies = std::mem::take(&mut self.replies);
@@ -691,8 +691,6 @@ impl Store {
     }
     fn event(&mut self, event: Event, requests: &mut VecDeque<Request>) {
         match event {
-            // This world does not consume the census (protocol/store/growth.md, 1.3).
-            Event::Census { .. } => {}
             Event::Opened { last, pending, .. } => {
                 self.applied = last;
                 self.generation_pending = pending;
@@ -762,6 +760,7 @@ impl Store {
                 ..
             }
             | Event::Ran { .. }
+            | Event::Census { .. }
             | Event::Page { .. }
             | Event::Loaded { .. }
             | Event::Read { .. }
@@ -791,6 +790,15 @@ impl Store {
     /// Suspend captured pages without losing their original store flights.
     pub fn pause_pages(&mut self, paused: bool) {
         self.pages_paused = paused;
+    }
+    /// Replace a captured restore page by a refusal on that same store flight.
+    pub fn refuse_held_page(&mut self, failure: protocol::restore::Failure) {
+        let Some(Delayed { event: Event::Page { owner, .. }, .. }) = self.delayed.pop_front() else {
+            panic!("a held restore page")
+        };
+        let mut next = VecDeque::new();
+        self.event(Event::PageRefused { owner, failure }, &mut next);
+        assert!(next.is_empty(), "the refused flight is terminal");
     }
     fn tick_pages(&mut self) {
         if self.pages_paused {

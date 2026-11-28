@@ -302,7 +302,7 @@ fn every_operational_entrance_consumes_input() {
         Entrance {
             name: "step",
             input: |core, env| {
-                let _out = crate::step(core, env, crate::Event::Fill { bytes: 0 });
+                let _out = crate::routing::step_store(core, env, crate::engine::store::In::Fill { bytes: 0 });
             },
         },
         Entrance {

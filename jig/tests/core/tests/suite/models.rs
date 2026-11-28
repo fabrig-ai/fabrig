@@ -489,16 +489,15 @@ fn a_change_asks_the_root_to_tell_the_catalogue_before_its_commit() {
     let mut told = 0;
     let mut committed = false;
     while let Some(next) = out.pop() {
-        let Out::Core(request) = next else { continue };
-        match request {
-            core::Request::Ask { ask: core::Ask::Catalogue { models }, .. } => {
+        match next {
+            Out::Core(core::Request::Ask { ask: core::Ask::Catalogue { models }, .. }) => {
                 assert!(!committed, "catalogue precedes the revision's commit writes");
                 assert!(models.contains(&value));
                 told += 1;
             }
-            core::Request::Write(core::Write::Save(core::Record::Core(core::CoreRecord::Settings(
-                s::Record::Revision { .. },
-            )))) => committed = true,
+            Out::Write(core::Write::Save(core::Record::Core(core::CoreRecord::Settings(s::Record::Revision {
+                ..
+            })))) => committed = true,
             _ => {}
         }
     }

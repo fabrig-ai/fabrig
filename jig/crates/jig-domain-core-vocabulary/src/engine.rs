@@ -1,16 +1,19 @@
-//! The engine's pass-through vocabulary
-//! (`jig/docs/design/domain/engine/vocabulary.md`, 2).
+//! The engine's in-process vocabulary
+//! (`jig/docs/design/domain/engine/vocabulary.md`, 2 and 2.6).
 
 use crate::{Event, Request};
 use jig_domain_contract::{Ask, Connector, Released, Up};
+use skein_lib::Token;
 
-/// An input from the root, using the core's vocabulary.
+/// An input from the root, addressed to the core or one of the ports.
 #[derive(Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "the root moves a complete input by value")]
 pub enum In {
     Core(Event),
     Store(store::In),
     Connector(Connector, Up),
+    /// A start continuation released by the journal.
+    Resume(Resume),
 }
 
 impl In {
@@ -22,7 +25,7 @@ impl In {
         };
         match self {
             Self::Core(event) => event.new_work(),
-            Self::Store(_) => false,
+            Self::Store(_) | Self::Resume(_) => false,
             Self::Connector(_, up) => match up {
                 Up::Act { .. } | Up::Topics(topics::Up::News { .. }) => true,
                 Up::Resources(up) => match up {
@@ -61,7 +64,10 @@ impl In {
                 )
                 | Up::Projections(projections::Up::Settled { .. } | projections::Up::Outbox { .. })
                 | Up::Settings(
-                    settings::Up::Judged { .. } | settings::Up::Restored { .. } | settings::Up::Defaults { .. },
+                    settings::Up::Judged { .. }
+                    | settings::Up::Restored { .. }
+                    | settings::Up::Defaults { .. }
+                    | settings::Up::Unfit { .. },
                 )
                 | Up::Requests(requests::Up::Decided { .. } | requests::Up::Marked { .. }) => false,
             },
@@ -69,12 +75,16 @@ impl In {
     }
 }
 
-/// An output to the root, with the core's request mark intact.
+/// An output to the root, marked for its place in the decision.
 #[derive(Hash, Debug)]
 pub enum Out {
     Core(Request),
+    /// A write for the decision's commit.
+    Write(store::Write),
     Ask(Connector, Ask),
     Held(Peer),
+    /// An output given once the decision is accepted, not held for its commit.
+    Now(Peer),
 }
 
 /// Which timers the root admits at its watermark.
@@ -84,12 +94,23 @@ pub enum Admit {
     Finishing,
 }
 
-/// The peer addressed by a held engine output.
+/// The peer addressed by an engine output.
 #[derive(Hash, Debug)]
 pub enum Peer {
     Store(store::Out),
     Connector(Connector, Released),
+    /// The application's reports of the start.
+    Application(application::Out),
+    /// The engine itself, once the journal releases the continuation.
+    Resume(Resume),
 }
 
 /// The engine's in-process store port.
 pub mod store;
+
+/// The engine's own continuation; the root does not read it.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Resume(pub Token);
+
+/// The application's in-process port.
+pub mod application;

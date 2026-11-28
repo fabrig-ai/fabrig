@@ -762,12 +762,11 @@ impl Protocol {
                 top::Request::Call { call, repository, op } => {
                     calls.push((call, repository, op)).expect("bounded calls");
                 }
-                top::Request::RestartDone { stage } => {
-                    restart = match stage {
-                        top::RestartStage::Restored => Some(top::Event::CatchUp),
-                        top::RestartStage::ReadAfresh | top::RestartStage::Settled => None,
-                    };
-                    self.seen.push(top::Request::RestartDone { stage }).expect("world output capacity");
+                restored @ top::Request::Up(jig_domain_contract::Up::Lifecycle(
+                    jig_domain_contract::lifecycle::Up::Done { stage: top::RestartStage::Restored },
+                )) => {
+                    restart = Some(top::Event::CatchUp);
+                    self.seen.push(restored).expect("world output capacity");
                 }
                 other @ (top::Request::Settled { .. }
                 | top::Request::LoadHistory { .. }

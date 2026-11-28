@@ -19,9 +19,9 @@ pub fn class(event: &Event) -> Class {
         Event::WatchApplication { .. }
         | Event::ReadApplication { .. }
         | Event::Application { .. }
-        | Event::Restart { .. }
         | Event::Effect { .. } => Class::New,
-        Event::AgentContent { .. }
+        Event::Restart { .. }
+        | Event::AgentContent { .. }
         | Event::Store(..)
         | Event::Released(..)
         | Event::ObservabilityTimer
@@ -66,6 +66,7 @@ fn observability_class(event: &observability::Event) -> Class {
         | O::Make { .. }
         | O::MakeEntry { .. }
         | O::Restore { .. }
+        | O::RestoreDone
         | O::ReadAfresh
         | O::Restart
         | O::Ask(_)
@@ -118,6 +119,7 @@ fn infrastructure_class(event: &infrastructure::Event) -> Class {
         | I::MakeEntry { .. }
         | I::ResolveEntry { .. }
         | I::Restore { .. }
+        | I::RestoreDone
         | I::ReadAfresh
         | I::Restart
         | I::Ask(_)

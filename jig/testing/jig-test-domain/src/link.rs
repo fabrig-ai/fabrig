@@ -100,7 +100,8 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
             }
         }
         other @ (Delivery::Store(_)
-        | Delivery::Start(_)
+        | Delivery::Resume(_)
+        | Delivery::ConnectorLoad { .. }
         | Delivery::AssignedJob { .. }
         | Delivery::Link { .. }
         | Delivery::Message { .. }
@@ -251,7 +252,6 @@ pub(super) enum Work {
     ConnectorResume {
         number: u16,
     },
-    Start(crate::StartInput),
     CallAnswered {
         to: ReplyTo,
         call: core::SettledCall,

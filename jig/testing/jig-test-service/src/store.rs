@@ -12,7 +12,6 @@ pub(super) const KERNEL_HANDOFF_ENTRIES: u32 = protocol::host::KERNEL_HANDOFF_EN
 pub(super) struct Store {
     pub(super) host: Hosted,
     routes: route::Routes,
-    restoring: Option<jig_domain_core::start::Phase>,
     pub(super) routed: Queue<Up>,
     pub(super) submitted: Queue<Submit>,
     pub(super) opened: bool,
@@ -75,7 +74,6 @@ impl Store {
         Self {
             host,
             routes,
-            restoring: None,
             routed: Queue::uncapped(),
             submitted: Queue::with_capacity(KERNEL_HANDOFF_ENTRIES),
             opened: false,
@@ -92,19 +90,12 @@ impl Store {
         self.host.component.catalogue(names);
     }
     pub(super) fn down(&mut self, out: StoreOut) -> bool {
-        if let StoreOut::Start { phase, .. } = &out {
-            if self.restoring == Some(*phase) {
-                assert_eq!(*phase, jig_domain_core::start::Phase::Sweep, "only sweep resumes a paused walk");
-                return true;
-            }
-            assert!(self.restoring.is_none(), "one start walk at a time");
-            self.restoring = Some(*phase);
-        }
-        if let Some(request) = route::down(&mut self.routes, out) {
+        let replies = self.routed.len();
+        if let Some(request) = route::down(&mut self.routes, out, self.pending, &mut self.routed) {
             self.host.ask(request);
             true
         } else {
-            false
+            self.routed.len() != replies
         }
     }
     pub(super) fn work_pending(&self, now: Time) -> bool {
@@ -196,8 +187,6 @@ pub(super) fn answer(engine: &mut crate::Engine) {
             | protocol::Event::Back { .. }
             | protocol::Event::BackRefused { .. }
             | protocol::Event::Closed { .. } => unreachable!("an engine store never rehearses or goes back"),
-            // This test service does not consume the census (protocol/store/growth.md, 1.3).
-            protocol::Event::Census { .. } => {}
             protocol::Event::OpenRefused { why, .. } => {
                 let failure = engine
                     .store
@@ -206,10 +195,8 @@ pub(super) fn answer(engine: &mut crate::Engine) {
                     .start_open_failure()
                     .cloned()
                     .unwrap_or(protocol::restore::OpenFailure::Refused(why));
-                engine.end = Some(crate::End::Stopped(crate::Stop::StoreOpen {
-                    phase: engine.domain.core_mut().start_phase(),
-                    failure,
-                }));
+                engine.end =
+                    Some(crate::End::Stopped(crate::Stop::StoreOpen { phase: engine.domain.start_phase(), failure }));
             }
             event @ (protocol::Event::SecretsNotReady { owner }
             | protocol::Event::Kept { owner }
@@ -224,14 +211,13 @@ pub(super) fn answer(engine: &mut crate::Engine) {
                     engine.store.host.secrets.push(event);
                 }
             }
+            // A source's restore refusal is not a terminal for a start-page load.
+            protocol::Event::PageRefused { owner, failure } if crate::accounts::owns(owner) => {
+                engine.end =
+                    Some(crate::End::Stopped(crate::Stop::StorePage { phase: engine.domain.start_phase(), failure }));
+            }
             protocol::Event::Corrupt { .. } => {
                 unreachable!("the service opens its store in start mode")
-            }
-            protocol::Event::PageRefused { failure, .. } => {
-                engine.end = Some(crate::End::Stopped(crate::Stop::StorePage {
-                    phase: engine.domain.core_mut().start_phase(),
-                    failure,
-                }));
             }
             // This shell never hands owner sets; routing answers Site with NoSite.
             other @ (protocol::Event::Checkpointed { .. }
@@ -240,6 +226,8 @@ pub(super) fn answer(engine: &mut crate::Engine) {
             | protocol::Event::RestoreRefused { .. }
             | protocol::Event::CheckpointHeld { .. }
             | protocol::Event::CheckpointRemoved { .. }
+            | protocol::Event::Census { .. }
+            | protocol::Event::PageRefused { .. }
             | protocol::Event::Page { .. }
             | protocol::Event::Job { .. }
             | protocol::Event::Ran { .. }
@@ -263,40 +251,13 @@ pub(super) fn answer(engine: &mut crate::Engine) {
 fn answer_routed(engine: &mut crate::Engine) {
     for _ in 0..engine.store.routed.len() {
         let up = engine.store.routed.pop().expect("store routing");
-        // A sweep erase and its held continuation must finish before the next
-        // row or page. Commit terminals still pass the paused walk.
-        if engine.domain.core_mut().start_phase() == Some(jig_domain_core::start::Phase::Sweep)
-            && !engine.domain.quiescent()
-            && match &up {
-                Up::Root(root::Event::Committed { .. } | root::Event::Failed { .. }) => false,
-                Up::Ask(_) | Up::Root(_) => true,
-            }
-        {
-            engine.store.routed.push(up);
-            continue;
-        }
         match up {
             Up::Root(root::Event::Failed { number }) => crate::stop::failed(engine, number),
-            Up::Root(root::Event::StartDone(phase)) => {
-                assert_eq!(engine.store.restoring.take(), Some(phase), "the selected walk finishes once");
-                engine.events.push(root::Event::StartDone(phase));
-            }
-
-            Up::Root(root::Event::StartRecord(row)) => {
-                if row.key() == root::Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment)) {
-                    engine.first_periods.truncate(0);
-                }
-                engine.root_steps = engine.root_steps.wrapping_add(1);
-                root::start_record(&mut engine.domain, &engine.env, row);
-            }
             Up::Root(event) => {
                 engine.blocked = false;
                 engine.step(event);
             }
             Up::Ask(request) => engine.store.host.ask(request),
-        }
-        if engine.domain.start_failure().is_some() || engine.domain.start_page_failure().is_some() {
-            crate::stop::invalid_restore(engine);
         }
         if engine.end.is_some() {
             break;

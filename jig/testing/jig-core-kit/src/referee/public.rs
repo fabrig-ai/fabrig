@@ -2,7 +2,7 @@
 //!
 //! The model consumes submitted writes and boundary messages, never the public index.
 //! Its requester paths and bounded prefixes determine which tasks an answer may name.
-use jig_domain_core as core;
+use jig_domain_core::{self as core, engine::store as engine_store};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -48,8 +48,16 @@ impl Referee {
             self.retained.clear();
             self.frozen.clear();
         }
-        if let root::Event::StartRecord(row) = event {
-            self.rows.insert(row.key(), row.clone());
+        if let root::Event::Store(engine_store::In::Loaded {
+            result: engine_store::Answer::Rows(engine_store::Rows::Start { items, .. }),
+            ..
+        }) = event
+        {
+            for item in items {
+                if let engine_store::Item::Record(row) = item {
+                    self.rows.insert(root::Key::Core(row.key()), root::Record::Core(row.clone()));
+                }
+            }
         }
         if let root::Event::Core(core::Event::PublicRead { reply, read }) = event {
             self.public_step = true;

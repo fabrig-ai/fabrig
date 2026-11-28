@@ -3,7 +3,7 @@
 
 pub use jig_domain_core_vocabulary::engine::*;
 
-use crate::{Ask, Config, Core, Held, Limits, Request, Timer};
+use crate::{Ask, Config, Core, Held, Limits, Request, Timer, start::port};
 use jig_domain_contract::{Connector, Declaration, StartProblem};
 
 use skein_lib::{Env, Queue, Time, Wall};
@@ -41,12 +41,15 @@ impl Engine {
 
 /// Take one input as one decision, appending the core's requests in order.
 pub fn step(engine: &mut Engine, env: &Env<Limits>, input: In, out: &mut Queue<Out>) {
-    let requests = match input {
-        In::Core(event) => crate::step(&mut engine.core, env, event),
-        In::Store(event) => crate::routing::step_store(&mut engine.core, env, event),
-        In::Connector(connector, up) => crate::routing::step_connector(&mut engine.core, env, connector, up),
-    };
-    append(requests, out);
+    match input {
+        In::Core(event) => {
+            let requests = crate::step(&mut engine.core, env, event);
+            append(requests, out);
+        }
+        In::Store(event) => port::store(&mut engine.core, env, event, out),
+        In::Connector(connector, up) => port::connector(&mut engine.core, env, connector, up, out),
+        In::Resume(resume) => port::resume(&mut engine.core, env, resume, out),
+    }
 }
 
 /// Fire one due timer as one decision, appending the core's requests in order.
@@ -131,9 +134,8 @@ pub fn append(mut requests: Queue<Request>, out: &mut Queue<Out>) {
                 | Held::PublicWait { .. }
                 | Held::NeedArrived { .. } => Out::Core(Request::Held(held)),
             },
-            other @ (Request::ProjectMade { .. } | Request::Ask { .. } | Request::Write(_) | Request::Now(_)) => {
-                Out::Core(other)
-            }
+            Request::Write(write) => Out::Write(write),
+            other @ (Request::ProjectMade { .. } | Request::Ask { .. } | Request::Now(_)) => Out::Core(other),
         };
         out.push(output);
     }

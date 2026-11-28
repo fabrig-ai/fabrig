@@ -317,7 +317,7 @@ fn a_connectors_close_answer_waits_for_the_commit_and_keeps_the_key() {
     let mut decision = journal.decide();
     while let Some(output) = out.pop() {
         match output {
-            Out::Core(Request::Write(write)) => decision.push_write(write),
+            Out::Write(write) => decision.push_write(write),
             Out::Held(Peer::Connector(number, released)) => decision.push_held((number, released)),
             Out::Core(Request::Held(held)) => {
                 if let Held::Acted { .. } = *held {
@@ -327,6 +327,8 @@ fn a_connectors_close_answer_waits_for_the_commit_and_keeps_the_key() {
             Out::Core(Request::Ask { .. } | Request::Now(_) | Request::ProjectMade { .. })
             | Out::Ask(..)
             | Out::Held(Peer::Store(_)) => {}
+            Out::Core(Request::Write(_)) => panic!("writes use the store port"),
+            Out::Now(_) | Out::Held(Peer::Application(_) | Peer::Resume(_)) => panic!("no start is driven"),
         }
     }
     journal.accept(decision);
@@ -603,8 +605,8 @@ fn assert_subscription_answer(out: &Queue<Out>, key: crate::CallKey, ask: Option
     use crate::{CoreRecord, Record, Write};
     let mut outputs = Queue::uncapped();
     for output in out {
-        if let Out::Ask(_, contract::Ask::Topics(_))
-        | Out::Core(Request::Write(Write::Save(Record::Core(CoreRecord::Call(_))))) = output
+        if let Out::Ask(_, contract::Ask::Topics(_)) | Out::Write(Write::Save(Record::Core(CoreRecord::Call(_)))) =
+            output
         {
             outputs.push(output);
             continue;
@@ -621,7 +623,7 @@ fn assert_subscription_answer(out: &Queue<Out>, key: crate::CallKey, ask: Option
         };
         assert_eq!((*connector, notification), (DECLARER, &ask));
     }
-    let Some(Out::Core(Request::Write(Write::Save(Record::Core(CoreRecord::Call(row)))))) = outputs.pop() else {
+    let Some(Out::Write(Write::Save(Record::Core(CoreRecord::Call(row))))) = outputs.pop() else {
         panic!("{part:?} is recorded without further input: {out:?}");
     };
     assert_eq!((row.key, &row.part, &row.settled), (key, part, &None));

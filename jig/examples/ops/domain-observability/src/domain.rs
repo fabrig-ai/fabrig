@@ -587,7 +587,11 @@ fn make(domain: &mut Domain, env: &Env<Limits>, key: Key, out: &mut Queue<Reques
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the complete connector vocabulary")]
 pub fn step_system(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
-        Event::Ask(_) | Event::Released(_) | Event::StageEffect { .. } | Event::WakeReleased { .. } => {
+        Event::Ask(_)
+        | Event::Released(_)
+        | Event::StageEffect { .. }
+        | Event::RestoreDone
+        | Event::WakeReleased { .. } => {
             unreachable!("the connector port handles engine inputs")
         }
         Event::DocumentPrepare { token, subject } => {

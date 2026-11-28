@@ -1,4 +1,4 @@
-//! Application settings items, judgments and defaults (jig/docs/design/domain/connectors.md, 2).
+//! Application settings items, judgments and defaults (jig/docs/design/domain/connectors.md, 2; engine/vocabulary.md, 2.6).
 
 use alloc::boxed::Box;
 use skein_lib::Token;
@@ -95,6 +95,8 @@ pub enum Ask {
 /// A settings connector's judgements and defaults.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Up {
+    /// At startup: a stored value of the connector's kinds it cannot hold.
+    Unfit { kind: u32, scope: u32, number: u32 },
     /// The connector's judgement of the proposed items.
     Judged { owner: Token, judged: Box<[Judged]> },
     /// The connector's judgement of the restored items.

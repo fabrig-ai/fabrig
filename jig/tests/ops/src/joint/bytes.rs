@@ -652,8 +652,7 @@ impl Bytes {
             }
             root::Output::IncidentAssociationRefused { .. }
             | root::Output::Commit { .. }
-            | root::Output::Switch
-            | root::Output::Load { .. }
+            | root::Output::ConnectorLoad(_)
             | root::Output::CoreLoad(_)
             | root::Output::Store(_)
             | root::Output::Observability(_)

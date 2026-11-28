@@ -28,6 +28,10 @@ pub fn answer_connector(engine: &mut Engine, env: &Env<core::Limits>, connector:
             }
             Out::Held(Peer::Store(load)) => core::Request::Held(Box::new(core::Held::Store(load))),
             Out::Core(request) => request,
+            Out::Write(write) => core::Request::Write(write),
+            Out::Now(_) | Out::Held(Peer::Application(_) | Peer::Resume(_)) => {
+                unreachable!("the world drives its own start")
+            }
         };
         requests.push(request);
     }

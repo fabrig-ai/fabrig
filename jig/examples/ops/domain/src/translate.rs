@@ -7,7 +7,6 @@ use jig_domain_contract::{
     effects::{self, EffectKind},
     resources::{ResourceKind, Rule, Taken},
 };
-use jig_domain_core as core;
 use jig_ops_domain_connectors::{Connector, number};
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
@@ -39,16 +38,6 @@ pub(crate) fn read_description(
         access: authority::EffectAccess::Context,
         additional: Box::new([]),
         guards: Box::new([]),
-    }
-}
-
-/// The connector owns adoption roles; the root carries them into core admission.
-pub(crate) const fn resource_role(role: infrastructure::ResourceRole) -> core::effects::connector::ResourceRole {
-    match role {
-        infrastructure::ResourceRole::Owned => core::effects::connector::ResourceRole::Owned,
-        infrastructure::ResourceRole::Participant => core::effects::connector::ResourceRole::Participant,
-        infrastructure::ResourceRole::Context => core::effects::connector::ResourceRole::Context,
-        infrastructure::ResourceRole::Unavailable => core::effects::connector::ResourceRole::Unavailable,
     }
 }
 

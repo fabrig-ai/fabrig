@@ -3,10 +3,10 @@
 2026-11-28. Where jig's code lags or departs from [root.md](root.md).
 
 
-- **Departs:** 3, 5, 8, 11: the test root is not in `ops`'s shape: its
+- **Departs:** 3, 5, 11: the test root is not in `ops`'s shape: its
   `Domain` keeps `now`, `store_answers`, `busy` and `public_reads` beside
   the journal between steps, its `release` steps released callbacks
-  before draining `now`, its restart puts loads in `now`, and its
+  before draining `now`, and its
   `Now::RunPrepared`, `Now::RelayBusy`, `Now::DropCall` and held fleet
   events run otherwise than `ops`'s. Aligning them moves when an event
   runs, and what it keeps is the user's to decide, and they deferred it on

@@ -139,6 +139,7 @@ pub(super) fn step(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, s
             }
         },
         Up::Settings(up) => match up {
+            settings::Up::Unfit { .. } => stopping::empty(),
             settings::Up::Judged { owner, judged } => {
                 core.judgements.answered(source, Subject::SettingsJudge(owner));
                 crate::settings::application::judged(core, env, work, owner, judged)

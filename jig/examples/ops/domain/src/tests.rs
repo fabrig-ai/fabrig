@@ -6,6 +6,7 @@ use crate::{Config, Domain, Event, Limits, Output, Released, Store, release, ste
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
+use jig_domain_core::engine::store as engine_store;
 use jig_domain_host as host;
 use jig_domain_link::{Form, Scheme};
 use jig_ops_domain_infrastructure as infrastructure;
@@ -334,8 +335,7 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
                     }
                 }
             }
-            Output::Switch
-            | Output::Load { .. }
+            Output::ConnectorLoad(_)
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
             | Output::Store(_)
@@ -356,8 +356,20 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
     }
     assert!(header.is_some());
     let (mut domain, _) = fixture();
-    step(&mut domain, &env, Event::Restart { pending: false });
+    let load = start::load_core(&mut domain, &env);
+    let next = engine_store::Cursor { interval: 1, after: Box::new([]) };
+    let Some(crate::Record::Core(header)) = header else { panic!("deployment header") };
+    step(&mut domain, &env, start::page(load, Box::new([engine_store::Item::Record(header)]), Some(next)));
+    let outputs = take(&mut domain, &env);
+    let [Output::Store(engine_store::Out::Load { load, range: engine_store::Range::Start { after: Some(_), .. } })] =
+        outputs.as_ref()
+    else {
+        panic!("header restore asks for the next page without a commit: {outputs:?}")
+    };
+    let items = start::settings_items(&domain);
+    step(&mut domain, &env, start::page(*load, items, None));
     let mut loads = List::with_capacity(16);
+    loads.push(Phase::LoadCore).expect("the finite start walk");
     for _ in 0..64_u32 {
         for output in take(&mut domain, &env) {
             match output {
@@ -367,18 +379,28 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
                 }))) => {
                     assert_eq!(account, 1);
                 }
-                Output::Switch => step(&mut domain, &env, Event::Store(Store::Switched)),
-                Output::Load { phase: stage, .. } => {
-                    loads.push(stage).unwrap();
-                    if let Some(record) = header.take() {
-                        step(&mut domain, &env, Event::Store(Store::Restore(record)));
-                        assert!(take(&mut domain, &env).is_empty(), "header restore is an empty admitted decision");
-                        for row in jig_test_profile::fixtures::initial_settings_current(&domain.engine.core().current) {
-                            step(&mut domain, &env, Event::Store(Store::Restore(crate::Record::Core(row))));
-                        }
-                    }
-                    step(&mut domain, &env, Event::Store(Store::Restored(stage)));
+                Output::Store(engine_store::Out::Load {
+                    load,
+                    range: engine_store::Range::Start { ranges, after: None },
+                }) => {
+                    let phase = match ranges.as_ref() {
+                        [core::RestoreRange::Census(_)] => Phase::LoadInbox,
+                        [core::RestoreRange::People] => Phase::Sweep,
+                        _ => panic!("unexpected core range: {ranges:?}"),
+                    };
+                    loads.push(phase).expect("the finite start walk");
+                    step(&mut domain, &env, start::page(load, Box::new([]), None));
                 }
+                Output::ConnectorLoad(range) => {
+                    let owner = match range {
+                        crate::Range::Infrastructure => jig_ops_domain_connectors::Connector::Infrastructure,
+                        crate::Range::Observability => jig_ops_domain_connectors::Connector::Observability,
+                    };
+                    let connector = jig_ops_domain_connectors::number(owner);
+                    loads.push(Phase::RestoreConnector { connector }).expect("the finite start walk");
+                    step(&mut domain, &env, start::empty_connector(range));
+                }
+                Output::Store(engine_store::Out::Switch) => step(&mut domain, &env, start::switched()),
                 Output::ToChild(value) => step(&mut domain, &env, Event::Released(value)),
                 Output::Commit { number, .. } => {
                     step(&mut domain, &env, Event::Store(Store::Committed { number, fill: 0 }));
@@ -433,6 +455,14 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
 }
 
 fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Output]> {
+    settle_with_core_rows(domain, env, Box::new([]))
+}
+
+fn settle_with_core_rows(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    mut items: Box<[engine_store::Item]>,
+) -> Box<[Output]> {
     let mut seen = List::with_capacity(4096);
     for _ in 0..64_u32 {
         let values = take(domain, env);
@@ -443,8 +473,19 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Output]> {
             match value {
                 Output::Commit { number, .. } => step(domain, env, Event::Store(Store::Committed { number, fill: 0 })),
                 Output::ToChild(value) => step(domain, env, Event::Released(value)),
-                Output::Load { phase, .. } => step(domain, env, Event::Store(Store::Restored(phase))),
-                Output::Switch => step(domain, env, Event::Store(Store::Switched)),
+                Output::Store(engine_store::Out::Load {
+                    load,
+                    range: engine_store::Range::Start { ranges, after: None },
+                }) => {
+                    let items = if ranges.as_ref() == core::RestoreRange::LIVE {
+                        ::core::mem::replace(&mut items, Box::new([]))
+                    } else {
+                        Box::new([])
+                    };
+                    step(domain, env, start::page(load, items, None));
+                }
+                Output::ConnectorLoad(range) => step(domain, env, start::empty_connector(range)),
+                Output::Store(engine_store::Out::Switch) => step(domain, env, start::switched()),
                 Output::Store(core::engine::store::Out::Load { load, range: core::engine::store::Range::Notes(_) }) => {
                     let result = core::engine::store::Answer::Rows(core::engine::store::Rows::Records {
                         records: Box::new([]),
@@ -482,11 +523,13 @@ fn started_chat_with_contract(contract: u16) -> (Domain, Env<Limits>, Token) {
     use jig_domain_people as people;
     let (mut domain, env) = fixture();
     step(&mut domain, &env, Event::Restart { pending: false });
-    for row in jig_test_profile::fixtures::account_rows(&jig_test_profile::config(17).core.settings.llm_providers) {
+    let records = jig_test_profile::fixtures::account_rows(&jig_test_profile::config(17).core.settings.llm_providers);
+    let mut items = List::with_capacity(u32::try_from(records.len()).expect("fixture row count"));
+    for row in records {
         let jig_test_domain::Record::Core(row) = row else { panic!("core account fixture") };
-        step(&mut domain, &env, Event::Store(Store::Restore(crate::Record::Core(row))));
+        items.push(engine_store::Item::Record(row)).expect("one item per account row");
     }
-    settle(&mut domain, &env);
+    settle_with_core_rows(&mut domain, &env, items.into_boxed());
     for event in [
         core::Event::Period { project: 1, period: 1, budget: 1000, next: None },
         core::Event::Account(accounts::Event::Want),
@@ -522,8 +565,7 @@ fn started_chat_with_contract(contract: u16) -> (Domain, Env<Limits>, Token) {
                 reply: people::Reply::SignedIn { sign_in: session, .. }, ..
             }) => sign_in = Some(session),
             Output::Commit { .. }
-            | Output::Switch
-            | Output::Load { .. }
+            | Output::ConnectorLoad(_)
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
             | Output::Store(_)
@@ -561,8 +603,7 @@ fn started_chat_with_contract(contract: u16) -> (Domain, Env<Limits>, Token) {
             Output::Agent(host::ToAgent::Start { owner, .. }) => started = Some(*owner),
             Output::Agent(_)
             | Output::Commit { .. }
-            | Output::Switch
-            | Output::Load { .. }
+            | Output::ConnectorLoad(_)
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
             | Output::Store(_)
@@ -707,8 +748,7 @@ fn connector_documents_and_reads_share_the_last_connector_commit_barrier() {
                 answers = answers.checked_add(1).unwrap();
             }
             Output::Commit { .. }
-            | Output::Switch
-            | Output::Load { .. }
+            | Output::ConnectorLoad(_)
             | Output::ReadResult { .. }
             | Output::CoreLoad(_)
             | Output::Store(_)
@@ -755,24 +795,6 @@ fn assert_service_document(document: crate::ClientDocument) {
     let crate::ClientDocument::Observability(value) = document else { panic!("observability owns the document") };
     let observability::ClientDocument::Service { fact, .. } = *value else { panic!("service document") };
     assert_eq!(fact.healthy_replicas, 2);
-}
-
-#[test]
-fn an_unknown_connector_refuses_the_restart_without_loading_a_child() {
-    for connector in [0, 3, u16::MAX] {
-        let (mut domain, env) = fixture();
-        crate::domain::decide(
-            &mut domain,
-            &env,
-            crate::domain::Work::Start(core::start::Action::Step(core::start::Phase::RestoreConnector { connector })),
-        );
-        match take(&mut domain, &env).as_ref() {
-            [Output::Stop] => {}
-            other => panic!("unknown owner stops without a child load: {other:?}"),
-        }
-        assert_eq!(domain.start.state, crate::domain::StartState::Stopped);
-        assert!(!domain.ready(), "unknown owner cannot open decisions");
-    }
 }
 
 fn chat_request(limits: &core::Limits, words: &[u8]) -> jig_domain_people::Ask {
@@ -829,22 +851,17 @@ fn either_start_refusal_cause_assembles_a_permanent_end() {
 #[test]
 fn stopping_ignores_the_starts_mark_continuations() {
     let (mut domain, env) = fixture();
-    step(&mut domain, &env, name(1));
-    settle(&mut domain, &env);
+    step(&mut domain, &env, Event::Restart { pending: false });
+    let continuation =
+        start::drive(&mut domain, &env, &mut skein_lib::Map::uncapped(), true).expect("the durable Wires continuation");
     step(&mut domain, &env, Event::Core(core::Event::Stopping));
     settle(&mut domain, &env);
-    let (mut starting, _) = fixture();
-    let _begin = starting.engine.core_mut().start_begin(false, env.wall);
-    let mut out = Queue::uncapped();
-    let core::start::Action::Commit(continuation) =
-        starting.engine.core_mut().start_done(&env.with(env.limits.core), core::start::Phase::LoadCore, &mut out)
-    else {
-        panic!("seed continuation")
-    };
-    for event in [Event::Store(Store::Switched), Event::Released(Released::Start(continuation))] {
+    for event in [start::switched(), Event::Released(Released::Resume(continuation))] {
         step(&mut domain, &env, event);
         assert!(take(&mut domain, &env).is_empty());
-        assert_eq!(domain.engine.core().start_failure(), None);
+        assert_eq!(domain.start_phase(), Some(core::start::Phase::Wires));
+        assert_eq!(domain.start_failure(), None);
+        assert!(!domain.ready());
     }
 }
 

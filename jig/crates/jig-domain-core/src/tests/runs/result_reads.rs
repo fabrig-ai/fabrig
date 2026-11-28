@@ -109,7 +109,7 @@ fn activate(engine: &mut Engine, env: &Env<Limits>, task: u64) -> Queue<Out> {
     engine::step(engine, env, In::Core(Event::Activate { context, ready: true }), &mut outputs);
     let mut out = Queue::uncapped();
     while let Some(output) = outputs.pop() {
-        if let Out::Core(Request::Write(_)) = output {
+        if let Out::Write(_) = output {
             continue;
         }
         out.push(output);
@@ -171,9 +171,15 @@ fn two_preparations_share_one_load_slot_without_failing() {
                 assert!(second.replace(load).is_none());
             }
             Out::Core(Request::Now(now)) => assert_no_failure(&now),
-            Out::Core(Request::Held(_) | Request::Write(_) | Request::Ask { .. } | Request::ProjectMade { .. })
+            Out::Write(_)
+            | Out::Core(Request::Held(_) | Request::Ask { .. } | Request::ProjectMade { .. })
             | Out::Ask(..)
             | Out::Held(Peer::Connector(..)) => {}
+            Out::Core(Request::Write(_)) => panic!("writes use the store port"),
+            Out::Now(_)
+            | Out::Held(Peer::Application(_) | Peer::Resume(_) | Peer::Store(engine_store::Out::Switch)) => {
+                panic!("no start is driven")
+            }
         }
     }
     engine::step(

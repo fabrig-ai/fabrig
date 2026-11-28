@@ -710,7 +710,7 @@ impl Round {
                 Work::Forge(event) => {
                     self.send(event);
                 }
-                Work::Core(jig_domain_core::Event::Marked { .. }) | Work::StartDone(_) => {}
+                Work::Core(jig_domain_core::Event::Marked { .. }) => {}
                 Work::Tasks(tasks::Event::WakeProcedure { task }) if task == self.task => {
                     woken = true;
                     self.wake();
