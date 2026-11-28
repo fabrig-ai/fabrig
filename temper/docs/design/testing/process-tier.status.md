@@ -1,7 +1,8 @@
 # process-tier: status
 
-2026-11-24. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
+2026-11-28. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
 
+- **Not yet:** 4: a test process killed: the story's stand-in starts a bare box through `boxed.rs`'s wrapper, not a box with `--fake-backends` and fixtures of its own through the kit's two starts.
 
 
 
