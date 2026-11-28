@@ -24,6 +24,12 @@ pub struct Commit {
     pub(crate) wires: bool,
     turn_ends: BTreeMap<u64, Option<u64>>,
 }
+#[derive(Clone, Copy, Default)]
+struct LogPrefix {
+    bytes: usize,
+    recovered: bool,
+}
+
 #[derive(Default)]
 pub struct Store {
     pub rows: BTreeMap<root::Key, root::Record>,
@@ -36,7 +42,7 @@ pub struct Store {
     pub(crate) restored: Option<BTreeMap<root::Key, root::Record>>,
     restoring: bool,
     files: BTreeMap<Vec<u8>, Vec<u8>>,
-    validated: BTreeMap<Vec<u8>, usize>,
+    validated: BTreeMap<Vec<u8>, LogPrefix>,
     lengths: BTreeMap<u64, u64>,
     generations: BTreeMap<Vec<u8>, generations::Generation>,
     layouts: layouts::Layouts,
@@ -223,9 +229,9 @@ impl Store {
                         super::secrets::check(&bytes, "store bytes")?;
                     }
                     if let Some(validated) = self.validated.get_mut(&path)
-                        && at < *validated
+                        && at < validated.bytes
                     {
-                        *validated = 0;
+                        *validated = LogPrefix::default();
                     }
                     let file = self.files.entry(logs::path(&path).unwrap_or_else(|| path.clone())).or_default();
                     file.resize(file.len().max(at + bytes.len()), 0);
@@ -248,11 +254,13 @@ impl Store {
                 }
                 Observed::Linked { from, to } => {
                     if let Some(bytes) = self.files.get(&from).cloned() {
+                        self.forget_recovered_prefix(&to);
                         self.files.insert(to, bytes);
                     }
                 }
                 Observed::Renamed { from, to } => {
                     if let Some(bytes) = self.files.remove(&from) {
+                        self.forget_recovered_prefix(&to);
                         self.files.insert(to.clone(), bytes);
                     }
                     if in_generation(&to) == Some(b"store/snapshot".as_slice()) {
@@ -260,9 +268,6 @@ impl Store {
                     }
                 }
                 Observed::Recovered(path) if is_log(&path) => {
-                    if let Some(bytes) = self.files.get(&path) {
-                        self.recovered.extend(frames(bytes, 0).0.into_iter().map(|(number, _)| number));
-                    }
                     committed.extend(self.durable(&path, limits, names, connector, false)?);
                 }
                 Observed::Snapshot(path) => {
@@ -293,6 +298,12 @@ impl Store {
         }
         Ok(committed)
     }
+    fn forget_recovered_prefix(&mut self, path: &[u8]) {
+        if let Some(prefix) = self.validated.get_mut(path) {
+            prefix.recovered = false;
+        }
+    }
+
     fn durable(
         &mut self,
         path: &[u8],
@@ -303,12 +314,24 @@ impl Store {
     ) -> Result<Vec<Commit>, String> {
         let mut committed = Vec::new();
         let Some(bytes) = self.files.get(path) else { return Ok(committed) };
-        let start = self.validated.get(path).copied().unwrap_or(0);
+        let prefix = self.validated.get(path).copied().unwrap_or_default();
         // A copied segment can arrive after a newer segment of the same generation.
         // Per-key positions in record keep its newer writes while filling that prefix.
-        let (frames, used) = frames(&bytes[start..], 0);
-        self.validated.insert(path.to_vec(), start + used);
-        for (number, ops) in frames {
+        let (suffix, used) = frames(&bytes[prefix.bytes..], 0);
+        if !synced {
+            // Read completions extend a checked prefix. A frame only seen on sync
+            // still needs to be counted as recovered when the log is read back.
+            if prefix.bytes != 0 && !prefix.recovered {
+                self.recovered.extend(frames(bytes, 0).0.into_iter().map(|(number, _)| number));
+            } else {
+                self.recovered.extend(suffix.iter().map(|(number, _)| *number));
+            }
+        }
+        self.validated.insert(
+            path.to_vec(),
+            LogPrefix { bytes: prefix.bytes + used, recovered: !synced || (prefix.recovered && used == 0) },
+        );
+        for (number, ops) in suffix {
             if !self.record(path, number, &ops, false) {
                 continue;
             }
