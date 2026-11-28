@@ -217,14 +217,14 @@ before it asks any completion:
   | `deliver` or `finish` with a change, its delivery unanswered | its checks run again on the same tree, given the same results directory (`run-delivery.md`, 1.1), then its delivery asked anew; a `finish` is judged as ever |
   | a `save` or another host call, unanswered | asked anew, under this activation's name for it (run.md, 5.2) |
   | `sub_agent` | its conversation goes on (section 6), and its answer is the call's result |
-  | `wait` | answered as a parked run's withheld `wait` is, with the messages that woke the run (run.md, section 6) |
+  | `wait` | answered as a parked run's withheld `wait` is, with the messages that woke the run (`run-messages.md`, section 1) |
   | any other, with no part | run now: a drain tells a part for each command it cut and a command tells its start, so it never started, or it is a workspace tool a crash cut, run again |
 
   A host call is asked anew under this activation's name only when no
   host decided it, since a name carries its activation and no later one
   reuses it (run.md, 5.2). A call a host decided in any earlier activation
-  is among the start's answered calls under its own name (run.md, section
-  6), whether a drain settled its relay or the engine settled it after
+  is among the start's answered calls under its own name (`run-messages.md`,
+  section 1), whether a drain settled its relay or the engine settled it after
   losing the worker, and an engine holding a decided effect it has not
   yet settled places the run again only once it has.
 - **The model sees each as if the call had run once:** a rerun's or a
@@ -310,7 +310,7 @@ before it asks any completion:
 
 - **What a resumed turn's host calls made:** a host keys what a turn's
   calls made by their names in the turn's activation (jig's
-  `domain/engine/executors.md`, 2); a call answered from an earlier
+  `domain/engine/executors-transcripts.md`, 1); a call answered from an earlier
   activation's record names nothing there. Default: so, as a call told
   in a waking prompt names nothing today.
 - **Parts for a local host,** which resumes its chats in one process:

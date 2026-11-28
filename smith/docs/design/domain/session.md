@@ -524,10 +524,6 @@ that asked for it, whose result is the child's final message.
   gives it its last completions, with a narrowed tool choice (budget.md
   ).
 
-## 8. Context management
-
-Moved to [`session-context.md`](session-context.md), section 1.
-
 ## 9. Below the domain
 
 Requests enter uncapped queues, without an output allowance for one

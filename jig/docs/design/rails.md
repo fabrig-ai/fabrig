@@ -107,7 +107,7 @@ held like any other output (`domain/engine/decisions.md`, 1.2;
   The root does the step it is asked for, and the core asks for the next
   one only after hearing that this one is done.
 - **Effects follow one loop** (`domain/engine/vocabulary.md`, 1.4;
-  `domain/connectors.md`, section 4):
+  `domain/connectors-effects.md`, section 1):
   1. a connector proposes an effect, from a procedure's step or from an
      agent's call;
   2. the core admits it against authority;

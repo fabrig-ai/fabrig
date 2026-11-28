@@ -249,10 +249,6 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
   connection being made; the hello within the hello's deadline from
   `Accept`. Each is the component's, from its limits.
 
-## 5. Bytes of other owners
-
-Moved to [`owners.md`](owners.md), section 1.
-
 ## 6. Names
 
 - **A run is named by its task's number, and an attempt by its attempt's
@@ -353,14 +349,6 @@ Moved to [`owners.md`](owners.md), section 1.
   under way, so a read's key goes when its read does. Nothing else tells a
   table to forget.
 
-## 8. Liveness and flow control
-
-Moved to [`liveness.md`](liveness.md), section 1.
-
-## 9. The worker's link
-
-Moved to [`worker-link.md`](worker-link.md), section 1.
-
 ## 10. Limits and the worst case
 
 - **The application's parts' ceilings** are the schema's, and sized so
@@ -414,10 +402,6 @@ Moved to [`worker-link.md`](worker-link.md), section 1.
   (accounts in the deployment, sources per account) and the
   application's credentials; a worker's program sources, from program
   sources per worker.
-
-## 11. Testing
-
-Moved to [`testing.md`](testing.md), section 1.
 
 ## 12. What it owes and is owed
 

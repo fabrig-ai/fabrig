@@ -227,4 +227,4 @@ it is read, by plans from the registry's texts, as a map value is
   the open, as a log-held value type's does (`logs.md`, 8), so temper's
   stored-layouts check holds every deployed frames' layout to a plan
   (temper's `protocol/floor.md`, 6). A frame's move is no level's:
-  smith's level stays 0 (`opening.md`, 3; `records.md`, 3).
+  smith's level stays 0 (`opening-owners.md`, 1; `records.md`, 3).

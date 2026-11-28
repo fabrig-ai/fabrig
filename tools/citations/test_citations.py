@@ -8,6 +8,8 @@ import unittest
 
 SCRIPT = Path(__file__).with_name("citations.py").resolve()
 DESIGN = "skein/docs/design"
+TEMPER = "temper/docs/design"
+MOVED = "Moved to [`b.md`](b.md), section 1.\n"
 DOC = "# a\n\n## 1. One\n\nText.\n\n## 2. Two\n\n### 2.1 Part\n\nText.\n"
 
 
@@ -47,6 +49,99 @@ class Citations(unittest.TestCase):
         self.commit("head")
         result = self.since_base()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def moved_section(self, opening=""):
+        self.write(f"{TEMPER}/a.md", f"# a\n\n{opening}## 2. Old\n\n{MOVED}")
+        self.write(f"{TEMPER}/b.md", "# b\n\n## 1. New\n\nText.\n")
+
+    def test_a_section_citation_points_to_where_the_text_moved(self):
+        self.moved_section()
+        self.write(f"{TEMPER}/c.md", f"# c\n\nSee `{TEMPER}/a.md`, 2.\n\nSee `{TEMPER}/b.md`, 1.\n")
+        self.commit("split")
+        result = self.run_check("--all")
+        self.assertEqual(result.stdout.splitlines(), [
+            f"{TEMPER}/c.md:3: moved {TEMPER}/a.md 2 (moved to {TEMPER}/b.md, section 1): See `{TEMPER}/a.md`, 2."
+        ])
+        self.assertEqual(result.returncode, 1)
+
+    def test_bare_sections_and_status_labels_point_to_moved_text(self):
+        self.moved_section("See section 2.\n\n")
+        self.write(f"{TEMPER}/a.status.md", "# a: status\n\n- **Not yet:** 2: A gap.\n")
+        self.commit("split")
+        result = self.run_check("--all")
+        detail = f"moved {TEMPER}/a.md 2 (moved to {TEMPER}/b.md, section 1)"
+        self.assertEqual(result.stdout.splitlines(), [
+            f"{TEMPER}/a.md:3: {detail}: See section 2.",
+            f"{TEMPER}/a.status.md:3: {detail}: - **Not yet:** 2: A gap.",
+        ])
+        self.assertEqual(result.returncode, 1)
+
+    def test_a_section_can_move_to_a_whole_document(self):
+        self.write(f"{TEMPER}/a.md", "# a\n\n## 2. Old\n\nMoved to [`c.md`](../c.md).\n")
+        self.write("temper/docs/c.md", "# c\n\nText.\n")
+        self.write(f"{TEMPER}/b.md", "# b\n\nSee `a.md`, 2.\n")
+        self.commit("split")
+        result = self.run_check("--all")
+        self.assertEqual(result.stdout.splitlines(), [
+            f"{TEMPER}/b.md:3: moved {TEMPER}/a.md 2 (moved to temper/docs/c.md): See `a.md`, 2."
+        ])
+        self.assertEqual(result.returncode, 1)
+
+    def test_only_sections_without_other_text_are_moved(self):
+        self.moved_section()
+        self.write(f"{TEMPER}/a.md", "# a\n\n"
+                   f"## 2. Old\n\n{MOVED}\n### 2.1 Old part\n\n{MOVED}\n### 2.2 Another part\n\n{MOVED}\n"
+                   f"## 3. Kept child\n\n{MOVED}\n### 3.1 Kept part\n\nText.\n\n"
+                   f"## 4. Kept body\n\n{MOVED}\nText.\n\n"
+                   f"## 5. Kept under an unnumbered heading\n\n{MOVED}\n### Details\n\nText.\n\n"
+                   f"## 6. Code is text\n\n{MOVED}\n```md\n## Not a heading\n```\n")
+        self.write(f"{TEMPER}/c.md", "# c\n\nSee `a.md`, sections 2, 2.1, 2.2, 3, 3.1, 4, 5 and 6.\n")
+        self.commit("split")
+        result = self.run_check("--all")
+        self.assertEqual(result.stdout.splitlines(), [
+            f"{TEMPER}/c.md:3: moved {TEMPER}/a.md {n} (moved to {TEMPER}/b.md, section 1): "
+            "See `a.md`, sections 2, 2.1, 2.2, 3, 3.1, 4, 5 and 6."
+            for n in ("2", "2.1", "2.2")
+        ])
+        self.assertEqual(result.returncode, 1)
+
+    def test_the_gate_counts_new_moved_citations_only(self):
+        self.moved_section()
+        source = "# c\n\nSee `a.md`, 2.\n"
+        self.write(f"{TEMPER}/c.md", source)
+        self.commit("split with a stale citation")
+        self.write(f"{TEMPER}/c.md", source + "\nSee `b.md`, 1.\n")
+        self.commit("add a destination citation")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("0 new broken since HEAD~1 (1 in all)", result.stderr)
+
+        self.write(f"{TEMPER}/c.md", source + "\nAlso see `a.md`, 2.\n")
+        self.commit("add a stale citation")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(len(result.stdout.splitlines()), 1, result.stdout)
+        self.assertIn(f"moved {TEMPER}/a.md 2", result.stdout)
+
+    def test_removing_a_moved_section_leaves_a_new_missing_section(self):
+        self.moved_section()
+        self.write(f"{TEMPER}/c.md", "# c\n\nSee `a.md`, 2.\n")
+        self.commit("split with a stale citation")
+        self.write(f"{TEMPER}/a.md", "# a\n\n## 1. Kept\n\nText.\n")
+        self.commit("remove the old heading")
+        result = self.since_base()
+        self.assertEqual(result.stdout.splitlines(), [f"{TEMPER}/c.md:3: section {TEMPER}/a.md 2 (missing): See `a.md`, 2."])
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("1 new broken since HEAD~1 (1 in all)", result.stderr)
+
+    def test_allow_can_excuse_a_moved_citation(self):
+        self.moved_section()
+        self.write(f"{TEMPER}/c.md", "# c\n\nSee `a.md`, 2.\n")
+        self.write("tools/citations/allow.txt", f"{TEMPER}/c.md {TEMPER}/a.md 2 # A historical citation.\n")
+        self.commit("split with a historical citation")
+        result = self.run_check("--all")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(result.stdout, "")
 
     def test_a_dead_path_fails(self):
         self.write(f"{DESIGN}/c.md", "# c\n\n## 1. One\n\nSee `gone.md`.\n")

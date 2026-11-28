@@ -313,18 +313,6 @@ When no live task names a resource, it leaves the working set.
   nothing it named need be kept for it. A connector that keeps nothing
   past a release takes `Unname` as nothing to do.
 
-## 4. Effects and the outbox
-
-Moved to [`connectors-effects.md`](connectors-effects.md), section 1.
-
-## 5. Facts and events
-
-Moved to [`connectors-facts.md`](connectors-facts.md), section 1.
-
-## 6. Procedures
-
-Moved to [`connectors-procedures.md`](connectors-procedures.md), section 1.
-
 ## 7. Requirements and verdicts
 
 - **A connector defines requirements** on its own facts, each with the

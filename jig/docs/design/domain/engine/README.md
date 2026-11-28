@@ -209,14 +209,6 @@ edge (../people/README.md, section 2).
   - the settings: the defaults, the changes over them, the held
     revisions and their charter versions (`settings.md`).
 
-## 4. Its vocabulary toward the root
-
-Moved to [`vocabulary.md`](vocabulary.md), section 1.
-
-## 5. Decisions and the store
-
-Moved to [`decisions.md`](decisions.md), section 1.
-
 ## 6. Accounts
 
 The accounts child domain keeps the deployment's LLM accounts, and an
@@ -362,10 +354,6 @@ protocol layer, which composes jig's pieces with its own:
   input reaches that constructor only after validation; the core seeds
   the whole set and the deployment's roster, with no other implicit
   roster or partial seed.
-
-## 9. The world
-
-Moved to [`world.md`](world.md), section 1.
 
 ## 10. Open questions
 

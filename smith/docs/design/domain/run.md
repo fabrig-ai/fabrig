@@ -69,10 +69,6 @@ session   one conversation with an LLM; runs the workspace's tools
   sessions, and which session is whose sub-agent is the run's
   bookkeeping.
 
-## 3. Starting a run
-
-Moved to [`run-start.md`](run-start.md), section 1.
-
 ## 4. What a run does
 
 - **Inputs precede alarms.** `run_inputs_drained` requires admitted input
@@ -316,10 +312,6 @@ with the call that asked for them. Work that should outlive the run, run
 elsewhere or have its own authority is the host's, which may offer a
 host tool for it, as temper's `delegate` does.
 
-## 6. Messages, waiting, parking, resuming
-
-Moved to [`run-messages.md`](run-messages.md), section 1.
-
 ## 7. Results
 
 ### 7.1 The result contract
@@ -362,10 +354,6 @@ delivered first (`run-delivery.md`, section 1), and ends the run once its delive
 The run checks the form of a result; the host may check it again against
 what it knows, as it commits it, and refuse it as a failed attempt for
 its next run to hear of. smith does not make the host's judgement.
-
-## 8. Delivering a change
-
-Moved to [`run-delivery.md`](run-delivery.md), section 1.
 
 ## 9. The answer
 

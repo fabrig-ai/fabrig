@@ -170,7 +170,7 @@ The core already says of each output whether it is part of the decision, held or
 
 ### 4.5 Nothing else
 
-`Engine` has no other public method and no public field. The 67 methods temper's root calls today, and those `ops` and the test root call, 73 in all, each become an input of a port, an output, or the engine's own business (section 13). Worlds read the engine as its peers do, and the store as the restart oracle does (`jig/docs/design/domain/engine/README.md`, 9).
+`Engine` has no other public method and no public field. The 67 methods temper's root calls today, and those `ops` and the test root call, 73 in all, each become an input of a port, an output, or the engine's own business (section 13). Worlds read the engine as its peers do, and the store as the restart oracle does (`jig/docs/design/domain/engine/world.md`, 1).
 
 While the move runs, the pass-through keeps a temporary access to the whole `Core`, shared and exclusive, by method and never by `Deref`, so that every use roots make of it today, its children's state and its counters included, compiles unchanged. Each milestone narrows it, and the clean-up removes it.
 
@@ -329,7 +329,7 @@ A run's reads are a party's, read as its task's requester or as itself: one `Rea
 
 ### 7.3 Outcomes and refusals
 
-Each operation has its outcome, and a refusal one shape whatever its source: the operation it stopped at, why (moved, with what it is now; denied, with authority's findings and whom a proposal could go to; invalid; busy; unknown), and the facts a client or a run shows (`jig/docs/design/client/domain/contract/README.md`, 3). Today's `people::Outcome`, `StepRefusal`, `tasks::Problem`, `EffectRefusal`, `HoldingsRefusal` and `WatchRefusal` are its cases or go.
+Each operation has its outcome, and a refusal one shape whatever its source: the operation it stopped at, why (moved, with what it is now; denied, with authority's findings and whom a proposal could go to; invalid; busy; unknown), and the facts a client or a run shows (`jig/docs/design/client/domain/contract/answers.md`, 1). Today's `people::Outcome`, `StepRefusal`, `tasks::Problem`, `EffectRefusal`, `HoldingsRefusal` and `WatchRefusal` are its cases or go.
 
 ### 7.4 A procedure's step
 

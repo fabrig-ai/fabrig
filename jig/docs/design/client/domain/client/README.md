@@ -155,10 +155,6 @@ jig-client                        jig_client::Client: the domain and the link, c
   `jig-client-shell-native`, a native shell over skein's HTTP client;
   and `jig-client-view`, the reference UI (../README.md, section 2).
 
-## 4. Its vocabulary toward the application
-
-Moved to [`vocabulary.md`](vocabulary.md), section 1.
-
 ## 5. Pages and the working set
 
 Pages, places, navigation and the working set are the reference UI's,
@@ -240,14 +236,6 @@ own, or the reference UI's (../view-state.md, 5; ../objects.md, section 2). What
 a confirmation says is data in jig's documents (../contract/documents.md, 3 and
 4); what holds below it is the revision a decision names and the
 request table's once (`requests.md`); jig's check is ../testing.md's, 6.2.
-
-## 8. The small store
-
-Moved to [`small-store.md`](small-store.md), section 1.
-
-## 9. Signing in
-
-Moved to [`sign-in.md`](sign-in.md), section 1.
 
 ## 10. Time and notices
 

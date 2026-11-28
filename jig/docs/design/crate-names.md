@@ -66,7 +66,7 @@
 | `jig-client-test-shell-web` | jig's test application's browser shell, written to be copied | `protocol/browser/application.md`, 1.1 |
 | `jig-client-test-domain`, `jig-client-test-view`, `jig-client-test-kit`, `jig-client-test-records`, `jig-client-test-protocol-wire` | the client's test kits | `client/domain/testing.md` |
 | `jig-client-test-protocol-wire-codec` | the generated record code of the test application's client records, below `jig-client-test-protocol-wire`, which keeps their schema and translates them | `tools/crates/design.md`, 3.2 |
-| `jig-client-kit`, `jig-client-protocol-kit` | what the client's worlds share: the harness, fronts and stories; the protocol client | `domain/testing.md`, section 7 |
+| `jig-client-kit`, `jig-client-protocol-kit` | what the client's worlds share: the harness, fronts and stories; the protocol client | `domain/testing-fakes.md`, section 1 |
 | `jig-client-scripted-engine` | the engine as the client's worlds play it | `client/domain/testing.md`, section 4 |
 | `jig-client-fake-person-browser` | jig's stories for a browser shell and its attack stories, on skein's face and harness | `protocol/browser/testing.md` |
 | `jig-client-world`, `jig-client-protocol-world`, `jig-client-wire-world`, `jig-client-browser-world` | the client's worlds: through its surface; through bytes; its wire's records; the browser tier | `client/domain/testing.md`, section 4; `protocol/client/testing.md`, section 1; `protocol/browser/testing.md` |
@@ -83,7 +83,7 @@
   kits (`jig-test-domain`, and the rest), its worlds, the reference
   root's test application, `jig-test` and `jig-test-service`
   (`protocol/service.md`, section 7), with the rig its stories share,
-  `jig-test-kit` (`domain/testing.md`, section 7), and `jig-boundary`,
+  `jig-test-kit` (`domain/testing-fakes.md`, section 1), and `jig-boundary`,
   the check of the crate graph.
 - **The UI kit's crates are skein's** (skein's `ui/README.md`, section 2): the
   tree, `skein-ui`, which `jig-client-view` builds on; the text shell,

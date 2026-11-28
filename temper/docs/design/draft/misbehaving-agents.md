@@ -155,7 +155,7 @@ Each owner is read against 3.1, and an assertion is added where a use of a reser
 
 - **Fresh seeds after landing,** a case replayed, a finding's words and pinning, reach counted over a campaign, and the rule that a fault found outside the worlds widens the nearest world's draws: the fresh-seed campaigns draft's.
 - **A generated producer for landings and goals** in temper's forge and engine worlds, drawing the forge's references through this draft's slots. It is named in the fresh-seed campaigns draft, but neither draft schedules it yet.
-- **Real models in tests:** benchmarks, outside the suites (`smith/docs/design/testing.md`, 2.4).
+- **Real models in tests:** benchmarks, outside the suites (`smith/docs/design/testing-tiers.md`, 4).
 - **Coverage-guided fuzzing** of decoders, and conversion across two releases under a crash.
 - **Shrinking** a captured agent before it is pinned.
 
