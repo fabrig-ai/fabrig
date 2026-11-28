@@ -34,17 +34,17 @@ python3 -I -B tools/citations/test_citations.py
 - **Another repository's documents:** a citation of one ("the probe repository's
   `docs/a.md`") is refused: a finding (`outside`) even where a file of that name exists
   here.
-- **A moved section:** a section whose text, from its heading to the next heading at its level
-  or above, is one line naming where it went holds no text to cite (`DESIGN.md`, 5). That
-  line starts with `Moved to ` and a Markdown link to the file the text went to, followed by
-  `, section N` where it went to a section of that file, and by a full stop alone where the
-  section became that document. A citation of it is refused as a missing section is, as a
+- **A moved section:** a section whose own text, between its heading and the next heading, is
+  one line naming where it went, and whose subsections are each moved too, holds no text to
+  cite (`DESIGN.md`, 5). That line starts with `Moved to ` and a Markdown link to the file
+  the text went to, followed by `, section N` where it went to a section of that file, and
+  by a full stop alone where the section became that document. A citation of it is refused as a missing section is, as a
   finding of its own kind, `moved`, that says where the text went: `PATH:LINE: moved TARGET
   (moved to DEST, section N): CONTEXT`, or `(moved to DEST)` where the line names no
   section. TARGET is what the missing section's finding would print; DEST is the line's
   first link, from the repository root, and N the number after it. Every reading of a
   section counts: a path's section, a bare section, a status file's label. A section that
-  holds anything else, a subsection's heading included, isn't moved. Its kind being its own,
+  holds any other text, or a subsection that isn't moved, isn't moved. Its kind being its own,
   removing a moved section that something still cites fails the gate as a missing section.
   Point the citation at DEST; the next split removes the line and its heading.
 - **Not citations:** dates or counts ("`x.md`, 21 places") after a path,
