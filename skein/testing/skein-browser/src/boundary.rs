@@ -219,7 +219,7 @@ pub enum Event {
         text: Box<[u8]>,
         url: Box<[u8]>,
     },
-    /// A main-frame request, reported only where the page asks (browser.md, 5).
+    /// A main-frame request, reported only where the page asks (testing/browser-vocabulary.md, 1).
     Sent {
         page: Token,
         id: Box<[u8]>,
@@ -253,7 +253,7 @@ pub enum Ending {
     Unanswered,
 }
 
-/// A person's other tab, as the browser lists it (skein/docs/design/testing/browser.md, 6).
+/// A person's other tab, as the browser lists it (skein/docs/design/testing/browser-operations.md, 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Tab {
     pub url: Box<[u8]>,
@@ -308,7 +308,7 @@ pub enum Key {
     ArrowRight,
     /// Select the focused field's whole value with Control+A; `shift` is ignored.
     SelectAll,
-    /// A keyboard letter a to z; Alt makes no text (testing/browser.md, section 5).
+    /// A keyboard letter a to z; Alt makes no text (testing/browser-vocabulary.md, section 1).
     Letter {
         letter: u8,
         alt: bool,
@@ -369,7 +369,7 @@ pub struct States {
     pub checked: bool,
     pub expanded: bool,
     pub selected: bool,
-    /// A toggle's `pressed` reads `true` (skein/docs/design/testing/browser.md, 5).
+    /// A toggle's `pressed` reads `true` (skein/docs/design/testing/browser-vocabulary.md, 1).
     pub pressed: bool,
 }
 

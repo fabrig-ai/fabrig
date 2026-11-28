@@ -2,8 +2,9 @@
 
 2026-11-26. Where skein's code lags or departs from [browser.md](browser.md).
 
-Unlisted sections have no known gap. Section 5's retained terminal boxed
-matches, truncation count and scope resolution without geometry are present.
+Unlisted sections have no known gap. The retained terminal boxed
+matches, truncation count and scope resolution without geometry
+(`browser-vocabulary.md`, section 1) are present.
 Its `States.pressed` reads Chromium's text or boolean `true`; false,
 mixed and absent properties read unpressed. The parser table holds
 those five forms. No implementation gap remains for that state.

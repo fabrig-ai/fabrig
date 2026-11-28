@@ -274,7 +274,7 @@ real key in that restored form.
   the page's own state for what it reads or acts on, never on the page having
   been fast: a press waits until its target stands where a person meets it,
   nothing covering it and no later member of its row still to arrive and
-  move it (skein's `testing/browser.md`, 6: a cover is the test's to wait
+  move it (skein's `testing/browser-operations.md`, 1: a cover is the test's to wait
   out); a read waits for the words, status or box the page shows for it;
   and a step resting on a scroll position, an earlier page of messages, a
   reply or a disclosure first sees that the page shows it. Where only a

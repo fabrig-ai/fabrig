@@ -12,6 +12,8 @@ fakes are indexed in [`fakes/README.md`](fakes/README.md).
 
 - [`service-tiers.md`](service-tiers.md): what skein supplies for a service's tiers.
 - [`layout.md`](layout.md): test crates, shared harnesses and suites.
+- [`browser-vocabulary.md`](browser-vocabulary.md): the browser kit's requests, events and values.
+- [`browser-operations.md`](browser-operations.md): how the browser kit carries out those requests.
 
 ## 1. In one page
 
