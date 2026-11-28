@@ -52,7 +52,7 @@ impl Running {
         if let Some(path) = observations {
             command.arg("--observations").arg(path);
         }
-        let child = command.spawn().expect("valid fixture");
+        let child = support::fixture::spawn(&mut command, skein_io::kernel::Signal::Kill).expect("valid fixture");
         let mut run = Self {
             child: RefCell::new(Some(child)),
             sockets: RefCell::new(Vec::new()),
@@ -645,7 +645,7 @@ fn fakes_claim_their_inherited_listeners_before_the_first_drive() {
         document(&path, &value);
         let mut command = listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
         command.args(["fake", kind, "--document"]).arg(path).args(["--ready", "inherited "]);
-        let ended = listeners::probe(command, address, "inherited ");
+        let ended = listeners::probe(command, address, "inherited ", skein_io::kernel::Signal::Kill);
         assert!(ended.ready.is_some(), "fake ready: {:?}", ended.stderr);
         assert!(ended.reply.expect("fake answers").starts_with(b"HTTP/1.1 "));
         assert!(ended.status.success(), "fake drains: {:?}", ended.stderr);

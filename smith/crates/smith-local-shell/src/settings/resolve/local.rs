@@ -224,6 +224,7 @@ fn directories(
         .ok_or_else(|| input::refuse(settings, &key, "directory path exceeds its receiving bound"))?;
         directories.push(run::Directory {
             results: None,
+            hooks: None,
             host,
             name: name.as_bytes().into(),
             root: Token::new(u64::try_from(index).expect("bounded roots").checked_add(1).expect("bounded root")),

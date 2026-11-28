@@ -31,6 +31,7 @@ pub fn call(number: u64, name: &[u8], input: &[u8], outcome: Option<&[u8]>) -> c
         input: text(input),
         outcome: outcome.map(text),
         failed: false,
+        answer: None,
         objects: List::with_capacity(0),
         parts: List::with_capacity(0),
     })

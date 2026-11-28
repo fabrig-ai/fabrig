@@ -3072,9 +3072,12 @@ fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
     use temper_protocol_worker_wire::v1::{self, Record};
     for (head, head_text) in COMMITS {
         for (base, base_text) in COMMITS {
-            let bytes = super::merge::spec(b"fabrig", b".temper/merge", head, base, 4096).expect("merge spec");
+            let bytes =
+                super::forge::jobs::merge(b"fabrig", Some(b".temper/merge"), head, base, 4096).expect("merge spec");
             let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-            assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/merge");
+            assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/hooks/merge");
+            assert!(decoded.find && !decoded.refusal);
+            assert_eq!(decoded.fallback.as_ref(), b"fabrig/.temper/merge");
             let expected = alloc::format!(
                 "{{\"version\":1,\"head\":\"{}\",\"base\":\"{}\"}}",
                 core::str::from_utf8(head_text).unwrap(),
@@ -3082,8 +3085,8 @@ fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
             );
             assert_eq!(decoded.request.as_ref(), expected.as_bytes());
             let bound = u32::try_from(bytes.len()).unwrap();
-            assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound), Some(bytes));
-            assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound - 1), None);
+            assert_eq!(super::forge::jobs::merge(b"fabrig", Some(b".temper/merge"), head, base, bound), Some(bytes));
+            assert_eq!(super::forge::jobs::merge(b"fabrig", Some(b".temper/merge"), head, base, bound - 1), None);
         }
     }
 }
@@ -3143,7 +3146,7 @@ fn live_delegate_amendment(
     domain.forge.restore_begin(env.wall);
     restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
     let delegate =
-        super::change_delegate(&domain, &env, task, kind.unwrap_or(change::Delegate::Repair(change::Repair::Ci)))
+        super::change_delegate(&domain, &env, task, kind.unwrap_or(change::Delegate::Repair(change::Repair::Ci)), None)
             .unwrap();
     let mut change = domain.engine.core().tasks.task(task).unwrap().clone();
     let mut child = change.clone();
@@ -3422,7 +3425,9 @@ fn change_delegates_take_their_roles_saved_llm_choice() {
         (Delegate::Gate { number: CHECK_GATE, head: SHA1 }, Some(producing)),
         (Delegate::Gate { number: PERSON_GATE, head: SHA1 }, None),
     ] {
-        let Some(delegate) = super::change_delegate(&domain, &env, task, kind) else { panic!("delegate {kind:?}") };
+        let Some(delegate) = super::change_delegate(&domain, &env, task, kind, None) else {
+            panic!("delegate {kind:?}")
+        };
         assert_eq!(delegate.llm, expected, "{kind:?}");
     }
 }
@@ -4849,14 +4854,17 @@ fn the_job_root_names_the_declaration_the_engine_encodes() {
     let root = found.expect("job spec root");
     assert_eq!(root.wire, wire::FAMILY);
     assert_eq!(root.declaration, "JobSpec");
-    for (bytes, asks) in [
-        (super::close::spec(b"repo", b"close", b"{}", 4096).expect("close spec"), true),
-        (super::merge::spec(b"repo", b"merge", &[3; 32], &[4; 32], 4096).expect("merge spec"), false),
+    for (bytes, refusal) in [
+        (super::forge::jobs::close(b"repo", None, b"{}", 4096).expect("close spec"), true),
+        (super::forge::jobs::merge(b"repo", None, &[3; 32], &[4; 32], 4096).expect("merge spec"), false),
     ] {
         let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("JobSpec bytes");
         assert_ne!(spec.command.as_ref(), []);
         assert_ne!(spec.request.as_ref(), []);
-        assert_eq!((spec.refusal, spec.outdated), (asks, asks));
+        assert_eq!(spec.refusal, refusal);
+        assert_eq!(spec.outdated, refusal);
+        assert!(spec.find);
+        assert!(spec.fallback.is_empty());
     }
 }
 
@@ -4865,14 +4873,21 @@ fn the_job_root_names_the_declaration_the_engine_encodes() {
 fn a_close_jobs_spec_is_its_command_and_its_request() {
     use temper_protocol_worker_wire::v1::{self, Record};
     let request = br#"{"version":1,"goal":7,"changes":[{"task":9,"landed":true}]}"#;
-    let bytes = super::close::spec(b"fabrig", b".temper/close", request, 16384).expect("close spec");
+    let bytes = super::forge::jobs::close(b"fabrig", Some(b".temper/close"), request, 16384).expect("close spec");
     let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("job spec");
-    assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/close");
+    assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/hooks/close");
+    assert!(decoded.find && decoded.refusal);
+    assert_eq!(decoded.fallback.as_ref(), b"fabrig/.temper/close");
     assert_eq!(decoded.request.as_ref(), request);
     let bound = u32::try_from(bytes.len()).expect("bounded spec");
-    assert_eq!(super::close::spec(b"fabrig", b".temper/close", request, bound), Some(bytes));
+    assert_eq!(super::forge::jobs::close(b"fabrig", Some(b".temper/close"), request, bound), Some(bytes));
     assert_eq!(
-        super::close::spec(b"fabrig", b".temper/close", request, bound.checked_sub(1).expect("nonempty spec")),
+        super::forge::jobs::close(
+            b"fabrig",
+            Some(b".temper/close"),
+            request,
+            bound.checked_sub(1).expect("nonempty spec")
+        ),
         None
     );
 }
@@ -5836,7 +5851,7 @@ fn a_delegate_made_at_the_amendment_step_carries_its_reason() {
         step,
         connector,
         code,
-        &(change::Delegate::Repair(change::Repair::Ci), None),
+        &(change::Delegate::Repair(change::Repair::Ci), None, None),
     );
     let Some(super::Work::Core(jig_domain_core::Event::ProcedureStep { decision, .. })) = domain.work.pop() else {
         panic!("delegate step")

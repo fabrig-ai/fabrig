@@ -789,6 +789,27 @@ fn landing_gates() -> crate::settings::ProjectGates {
     }
 }
 #[test]
+fn landing_hook_ceiling_includes_both_endpoints() {
+    use crate::settings::ProjectLanding;
+    for hook_timeout_max_seconds in [1, 86_400] {
+        let value = ProjectLanding { hook_timeout_max_seconds, ..ProjectLanding::default() };
+        assert_eq!(
+            judge(&Item { kind: 4, scope: PROJECT, number: 1, value: Some(Value::Landing(value)) }, &BOUNDS),
+            Ok(())
+        );
+    }
+}
+#[test]
+fn landing_hook_ceiling_refuses_values_outside_both_endpoints() {
+    use crate::settings::{ProjectLanding, Refusal};
+    for hook_timeout_max_seconds in [0, 86_401] {
+        let value = ProjectLanding { hook_timeout_max_seconds, ..ProjectLanding::default() };
+        let refusal = judge(&Item { kind: 4, scope: PROJECT, number: 1, value: Some(Value::Landing(value)) }, &BOUNDS)
+            .expect_err("hook ceiling outside bounds");
+        assert!(matches!(refusal, Refusal::Landing { field: b"hook_timeout_max_seconds", .. }));
+    }
+}
+#[test]
 fn landing_fields_and_gate_names_are_judged() {
     use crate::settings::{ProjectGates, ProjectLanding};
     let default = ProjectLanding::default();

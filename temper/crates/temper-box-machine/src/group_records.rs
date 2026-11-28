@@ -156,7 +156,6 @@ impl GroupFiles {
             | Op::Sync { .. }
             | Op::Lock { .. }
             | Op::Stat { .. }
-            | Op::ReadLink { .. }
             | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Remove { .. }
@@ -295,7 +294,6 @@ impl GroupFiles {
                 | Op::Sync { .. }
                 | Op::Lock { .. }
                 | Op::Stat { .. }
-                | Op::ReadLink { .. }
                 | Op::HardLink { .. }
                 | Op::Rename { .. }
                 | Op::Remove { .. }

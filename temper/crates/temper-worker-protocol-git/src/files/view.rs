@@ -385,7 +385,6 @@ fn read(op: Op, count: u32) -> Box<[u8]> {
         | Op::Sync { .. }
         | Op::Lock { .. }
         | Op::Stat { .. }
-        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::List { .. }
         | Op::Spawn { .. }

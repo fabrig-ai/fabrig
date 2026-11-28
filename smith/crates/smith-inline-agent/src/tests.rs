@@ -547,6 +547,7 @@ fn directories_move_the_exact_io_root_into_the_run() {
         Some(Token::new(10)),
         Box::from([host::Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             root: Token::new(900),
             name: b"mounted".as_slice().into(),

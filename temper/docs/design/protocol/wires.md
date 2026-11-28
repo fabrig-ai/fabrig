@@ -360,10 +360,34 @@ them.
   dropped by the Keep plan (skein's `data/codec/layouts.md`, 2), so
   that worker runs the close as before, its command not told, and a
   close it breaks is read as before: the worker says, by the layout it
-  states at its opening, whether it carries the ask. A spec of an
-  earlier engine, without it, reads as `false`. Why droppable: a close
-  that waited for a newer worker would hold the goal, where one run as
-  before costs only the catch-up its finding would have brought.
+  states at its opening, whether it carries the ask. Dropping it does
+  not bypass the separate `find` and deadline requirements below. A
+  spec of an earlier engine, without `outdated`, reads as `false`.
+  Why droppable: where the worker can run the close, losing the ask
+  costs only the catch-up its finding would have brought.
+- **A merge or close job asks its worker to find its hook:** `JobSpec`'s
+  `find`, a `bool` defaulting to `false`, and `fallback`, bytes of the
+  `command`'s form defaulting to empty (`hooks.md`, 4.2 and 4.3). The
+  engine sets `find` on every merge and close job it makes, its
+  `command` the hook's path and its `fallback` the project's
+  `merge_job` or `close_job`, or empty. As `refusal`, it is no new kind,
+  and a worker whose layout lacks `find` can't keep a spec that sets it,
+  so the engine sends it none and the job waits for a worker of this
+  build, spending no try; a spec of an earlier engine reads `find`
+  false and `fallback` empty, and a worker of this build runs its
+  command as that engine expects.
+- **A hook's ceiling rides in the items:** `Items`' `hook_timeout_max_seconds`,
+  a `u32` defaulting to 3,600 and `droppable`, the project's
+  `hook_timeout_max_seconds` on every run's items and every job's
+  (`hooks.md`, 2.3). A worker whose layout lacks it drops it and reads
+  no hook's `config.toml`, as before (`hooks.md`, 6); items of an
+  earlier engine read 3,600, the setting's default.
+- **The merge and close kinds' deadline** is the ceiling's greatest,
+  86,400 seconds, in the engine's declaration and the worker's alike,
+  and each merge or close job's deadline its project's ceiling
+  (`hooks.md`, 2.3; `../domain/worker/jobs.md`, 2): a grown declaration,
+  so an engine of this build places neither kind on a worker of an
+  earlier build (above), as `find` alone would keep them off it.
 
 ## 9. Clients
 

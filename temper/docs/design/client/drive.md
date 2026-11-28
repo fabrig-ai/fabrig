@@ -238,6 +238,11 @@ directory stays until the next session. At a deployment the TUI and the
 browser end the same way, first; then the deployment's processes stop
 in their order (`../testing/qa/deployment.md`, 7).
 
+A session that ends otherwise, killed outright among them, takes them
+with it on Linux: it starts the box, and at a deployment each of its
+processes, dying with it (`../testing/fixture-lifetime.md`, 1 and 2), so the
+box stops as at a `SIGTERM` and a deployment's processes are killed.
+
 ### 2.5 Its exit
 
 | Status | When | Its last lines on stdout |

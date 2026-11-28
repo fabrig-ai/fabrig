@@ -41,7 +41,17 @@ fn readiness_eof_reports_child_status_and_stderr() {
 
 #[test]
 fn an_explicit_program_supplies_its_own_death_signal_wrapper() {
-    support::boxed::tests::an_explicit_program_supplies_its_own_death_signal_wrapper();
+    support::fixture::tests::an_explicit_program_supplies_its_own_death_signal_wrapper();
+}
+
+#[test]
+fn a_fixture_wrapper_preserves_the_command_and_names_its_owner_and_signal() {
+    support::fixture::tests::a_fixture_wrapper_preserves_the_command_and_names_its_owner_and_signal();
+}
+
+#[test]
+fn long_running_kit_commands_name_their_fixture_death_signal() {
+    support::fixture::tests::long_running_kit_commands_name_their_fixture_death_signal();
 }
 
 #[test]

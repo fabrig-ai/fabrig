@@ -703,7 +703,7 @@ fn render_checkout(
     let mut index: u32 = 0;
     let mut merging = false;
     let mut checked = 0_usize;
-    for Directory { name, host: _, root: _, writable, git, conflicts, results: _ } in repositories {
+    for Directory { name, host: _, root: _, writable, git, conflicts, .. } in repositories {
         if repositories.len() == 1 {
             text.put(b"- The working directory");
         } else {

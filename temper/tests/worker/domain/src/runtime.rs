@@ -572,7 +572,8 @@ impl World {
                 grants: Box::new([]),
             },
         };
-        let items = wire::Workspace { rerun: None, repositories: Box::new([repository]) };
+        let items =
+            wire::Workspace { hook_timeout_max_seconds: 3600, rerun: None, repositories: Box::new([repository]) };
         self.send(Event::Assign { assignment, items: Ok(items) })
     }
 

@@ -28,6 +28,50 @@ pub struct Spec {
     pub result: u32,
     /// Whether to ask the command for an outdated finding.
     pub outdated: bool,
+    pub hooks: Hooks,
+}
+
+/// Discovery, when requested, and the ceiling of commands run as hooks.
+#[derive(PartialEq, Eq, Debug)]
+pub struct Hooks {
+    /// `Some` asks to find the moment's hook, with an empty path for no fallback.
+    pub fallback: Option<Fallback>,
+    pub ceiling: u32,
+    /// What the prepared merge says about the hook's path.
+    pub conflict: Option<Conflict>,
+}
+
+impl Hooks {
+    #[must_use]
+    pub fn new(fallback: Option<Box<[u8]>>, ceiling: u32) -> Self {
+        let mut hooks = Self { fallback: None, ceiling, conflict: None };
+        if let Some(program) = fallback {
+            hooks.fallback = Some(Fallback { program, conflict: None });
+        }
+        hooks
+    }
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct Fallback {
+    pub program: Box<[u8]>,
+    pub conflict: Option<Conflict>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Conflict {
+    Path,
+    Cut,
+}
+
+impl Conflict {
+    #[must_use]
+    pub const fn why(self) -> &'static [u8] {
+        match self {
+            Self::Path => b"left in conflict",
+            Self::Cut => b"could not check for conflicts: the list was cut",
+        }
+    }
 }
 
 /// Parent to capability.
@@ -63,6 +107,11 @@ pub enum Event {
         exit: Exit,
         tail: Box<[u8]>,
     },
+    /// An explicit hook time was cut at the project ceiling.
+    TimeCut {
+        owner: Token,
+        line: Box<[u8]>,
+    },
     /// Terminal for `Read`: missing or oversized files yield `None`.
     Read {
         owner: Token,
@@ -81,7 +130,11 @@ pub enum Exit {
     Signal,
     /// A check of the command failed before it could be spawned. The tail is the failure line.
     NotRun,
-    /// The protocol layer reached the command's deadline.
+    /// Discovery found neither a hook nor an applicable fallback.
+    Absent,
+    /// The command ran past its own time; its tail starts with the reason.
+    Time,
+    /// The protocol layer reached the job's deadline.
     Deadline,
 }
 
@@ -93,7 +146,7 @@ pub enum Request {
         path: Box<[u8]>,
         bytes: Box<[u8]>,
     },
-    /// Kill the process group at `deadline`, answering `Exited(Deadline)`.
+    /// Find or check the command where applicable, and kill its group at its time or `deadline`.
     Spawn {
         owner: Token,
         program: Box<[u8]>,
@@ -102,6 +155,7 @@ pub enum Request {
         env: Box<[(Box<[u8]>, Box<[u8]>)]>,
         dir: Box<[u8]>,
         deadline: Time,
+        hooks: Hooks,
     },
     Kill {
         owner: Token,
@@ -132,6 +186,7 @@ pub enum Request {
 #[derive(PartialEq, Eq, Debug)]
 pub enum End {
     Finished { result: Box<[u8]>, deliver: bool },
+    Absent,
     Failed { detail: Box<[u8]> },
     Deadline,
 }

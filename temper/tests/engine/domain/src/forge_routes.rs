@@ -1321,6 +1321,7 @@ impl World {
                 limits.tasks.spec_bytes = spec_bytes.unwrap_or(4096);
                 let mut bound = protocol::merge_bound();
                 bound.kind = jig_domain_link::JobKind(1);
+                bound.deadline = Duration::from_secs(600);
                 bound.spec = bound.spec.min(limits.tasks.spec_bytes);
                 bound.result = bound.result.min(limits.tasks.result_bytes);
                 config.core.jobs = if omit_prepare { Box::new([]) } else { Box::new([bound]) };
@@ -2369,6 +2370,16 @@ impl World {
         crate::oracle::config::landing(&mut self.restart_config, 1).flakes = Some(flakes);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid flake policy configuration");
+        self
+    }
+
+    /// Set the project's hook ceiling before restoring its settings.
+    #[must_use]
+    pub fn with_hook_ceiling(mut self, seconds: u32) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "hook ceiling precedes startup");
+        crate::oracle::config::landing(&mut self.restart_config, 1).hook_timeout_max_seconds = seconds;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid hook ceiling configuration");
         self
     }
 

@@ -273,7 +273,7 @@ fn a_box_adopts_an_inherited_clients_listener_without_binding_again() {
     );
     let mut command = listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
     command.args(support::configuration::flags(scratch.path()));
-    let ended = listeners::probe(command, address, "secret=");
+    let ended = listeners::probe(command, address, "secret=", skein_io::kernel::Signal::Terminate);
     assert!(ended.ready.is_some(), "box ready: {:?}", ended.stderr);
     assert!(ended.reply.expect("clients answer").starts_with(b"HTTP/1.1 "));
     assert!(ended.status.success(), "box drains: {:?}", ended.stderr);
@@ -430,7 +430,7 @@ fn serve_claims_its_clients_listener_and_box_pipes_follow_it() {
         if boxed {
             command.arg("--box").stderr(std::process::Stdio::from(answers));
         }
-        let ended = listeners::probe(command, address, "secret=");
+        let ended = listeners::probe(command, address, "secret=", skein_io::kernel::Signal::Kill);
         drop(keep_answers_open);
         assert!(ended.ready.is_some(), "serve ready: {:?} {}", ended.stdout, String::from_utf8_lossy(&ended.stderr));
         assert!(ended.reply.expect("clients answer").starts_with(b"HTTP/1.1 "));
@@ -580,7 +580,7 @@ fi
 test "$LISTEN_FDS" = 1 || exit 22
 test -S /proc/self/fd/3 || exit 23
 export {parent_helper}=1
-'{}' --exact startup::forge_parent_listener_helper --nocapture &
+'{}' internal forge-child --parent "$$" --signal kill -- '{}' --exact startup::forge_parent_listener_helper --nocapture &
 helper=$!
 trap 'printf term > "{pid}.term"; wait "$helper"; exit 37' TERM
 printf '%s' "$helper" > '{pid}.helper'
@@ -593,6 +593,7 @@ wait "$helper"
 exit 38
 "#,
             skein_forge::forgejo::pin::VERSION,
+            skein_scratch::paths::binary("temper-box").display(),
             test.display(),
             pid = pid_file.display(),
             release = release.display(),
@@ -612,7 +613,8 @@ exit 38
     support::write_private(&state_path, temper_forge_setup::state::encode(&state).expose());
     let mut command = listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
     command.args(["forge", "run"]).args(support::configuration::flags(scratch.path())).args(["1", "forgejo"]);
-    let mut guard = Guard::new(command.spawn().expect("forge run"));
+    let mut guard =
+        Guard::new(support::fixture::spawn(&mut command, skein_io::kernel::Signal::Kill).expect("forge run"));
     wait(&mut guard, |_| pid_file.exists());
     let fake = fs::read_to_string(&pid_file).expect("fake pid").parse().expect("pid");
     guard.record(fake, guard.child.as_ref().expect("parent").id());
@@ -645,7 +647,7 @@ exit 38
     guard.child.as_mut().expect("parent").wait().expect("parent exit");
     eprintln!("parent story: parent exited");
     if kill {
-        // Real Forgejo has no script helper; the guard ends this test's helper.
+        // Forgejo's death is the check; the stand-in's helper follows its shell.
         guard.wait_for(fake);
     } else {
         guard.wait_all();

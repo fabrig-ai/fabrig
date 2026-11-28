@@ -15,25 +15,16 @@ pub(super) fn finding(row: &forge::ChangeRow) -> Option<(CloseAt, CloseOutdated)
     Some((at, at.outdated?))
 }
 
-pub(super) fn observed(
-    domain: &Domain,
-    closer: &forge::CloserRow,
-    task: &tasks::TaskRecord,
-    hooks: Option<forge::Hooks>,
-) -> Option<Box<[u64]>> {
-    if lack(hooks?, domain.forge.merge_job(task.project).is_some(), &task.authority.delegation.kinds).is_some() {
+pub(super) fn observed(domain: &Domain, closer: &forge::CloserRow, task: &tasks::TaskRecord) -> Option<Box<[u64]>> {
+    if lack(domain.config.merge_kind.is_some(), &task.authority.delegation.kinds).is_some() {
         return None;
     }
     Some(request_tasks(last_close(domain, closer)?))
 }
 
-pub(super) fn lack(hooks: forge::Hooks, legacy_job: bool, kinds: &[tasks::AuthorityExecutor]) -> Option<&'static [u8]> {
-    match hooks {
-        forge::Hooks::Legacy if !legacy_job => {
-            return Some(b"the project names no merge_job");
-        }
-        forge::Hooks::Directory { merge: false, .. } => return Some(b"`.temper/hooks/` names no `merge`"),
-        forge::Hooks::Legacy | forge::Hooks::Directory { merge: true, .. } => {}
+pub(super) fn lack(declared: bool, kinds: &[tasks::AuthorityExecutor]) -> Option<&'static [u8]> {
+    if !declared {
+        return Some(b"the engine declares no merge job kind");
     }
     if kinds.contains(&tasks::AuthorityExecutor::Job(forge::MERGE_KIND)) {
         None
@@ -98,13 +89,7 @@ pub(super) fn delegate(
     chat_change(domain, env, origin, &change, repository, close.base.clone(), None, spend)
 }
 
-pub(super) fn hold_words(
-    domain: &Domain,
-    closer: &forge::CloserRow,
-    step: c::Step,
-    change: u64,
-    hooks: Option<forge::Hooks>,
-) -> Option<Box<[u8]>> {
+pub(super) fn hold_words(domain: &Domain, closer: &forge::CloserRow, step: c::Step, change: u64) -> Option<Box<[u8]>> {
     match step {
         c::Step::Land => None,
         c::Step::Close => {
@@ -125,12 +110,8 @@ pub(super) fn hold_words(
                 return Some(closer_words::outdated(change, at, finding, Ok((update.task, commit))));
             }
             let task = domain.engine.core().tasks.task(closer.task).expect("held closer");
-            let why = lack(
-                hooks.unwrap_or(forge::Hooks::Legacy),
-                domain.forge.merge_job(task.project).is_some(),
-                &task.authority.delegation.kinds,
-            )
-            .unwrap_or(b"no catch-up was admitted");
+            let why = lack(domain.config.merge_kind.is_some(), &task.authority.delegation.kinds)
+                .unwrap_or(b"no catch-up was admitted");
             Some(closer_words::outdated(change, at, finding, Err(why)))
         }
         c::Step::CatchUp => {

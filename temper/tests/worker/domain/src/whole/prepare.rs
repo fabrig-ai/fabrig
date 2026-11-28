@@ -160,6 +160,7 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
         },
         items: Ok(wire::Workspace {
             rerun: None,
+            hook_timeout_max_seconds: 3600,
             repositories: Box::new([wire::Repository {
                 admit: false,
                 tag: 0,
@@ -185,6 +186,7 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
             refusal: false,
             result: 512,
             outdated: false,
+            fallback: None,
         }),
     };
     world.event(assignment())?;
@@ -418,6 +420,7 @@ fn run_stack(seed: u64, case: Case) -> Result<Report, String> {
         },
         items: Ok(wire::Workspace {
             rerun: None,
+            hook_timeout_max_seconds: 3600,
             repositories: Box::new([wire::Repository {
                 admit: false,
                 tag: 0,
@@ -437,6 +440,7 @@ fn run_stack(seed: u64, case: Case) -> Result<Report, String> {
             refusal: false,
             result: 512,
             outdated: false,
+            fallback: None,
         }),
     };
     world.event(assignment())?;

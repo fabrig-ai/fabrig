@@ -410,6 +410,10 @@ may change with them.
   `outcome`, and a result's `summary`. Its conversation words retain the
   turn part records and their continuations. `task turn` serves payloads
   with the same part numbers.
+- **A call's `answer`** is its answer kind's word, or `null` where the
+  turn holds no result for it (`jig/docs/design/client/domain/client/conversations.md`, 2),
+  wherever a call prints, `chat show` included, since it is no payload. The
+  text prints none.
 
 - **A task's document** prints its fields as jig's client gives them:
   its `dependencies` as links, and beside them its `dependency_facts`,

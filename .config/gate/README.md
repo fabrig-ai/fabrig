@@ -215,15 +215,18 @@ Each list has one entry per line; `#` starts a comment line.
 - **`.temper/hooks/deliver`** checks the delivery in the worker workspace using
   the changed packages, their immediate consumers and named integration
   targets. `.temper/hooks/finish` links to `deliver`.
-  A checker-only Gate runs the checker's Python suite. Explicit diagnostic
-  dispatch can check an accumulated goal using `.temper/goal-pre-pr HEAD DESTINATION`
-  (`tools/pre-pr/design.md`, 1).
+  A checker-only Gate runs the checker's Python suite
+  (`tools/pre-pr/design.md`, 1). A goal is checked once, by its close,
+  before it reaches the landing's gate.
 
 - **`.temper/hooks/merge`:** the reference's merge job, `tools/merge/merge.py`
   (`temper/docs/design/protocol/tooling.md`, 4.1).
 - **`.temper/hooks/close`:** fabrig's close command, which settles status with
   `tools/close/close.py` and then checks the goal
   (`temper/docs/design/protocol/tooling.md`, 4.2).
+- **`.temper/hooks/config.toml`:** the non-executable hook time file, which sets
+  the `close` timeout to 1,800 seconds (`temper/docs/design/protocol/hooks.md`, 2.3).
+  A change to it takes the same Gate route as a change to `deliver` or `finish`.
 - **Compatibility wrappers:** `.temper/pre-pr` runs `deliver`, `.temper/merge`
   runs `merge`, and `.temper/close` and `.temper/checked-close` run `close`.
 - **`.config/fixture-readers.toml`:** the readers and generators of every tracked

@@ -1,5 +1,5 @@
 //! Durable goal closer progress and fresh containment (temper/docs/design/domain/forge/branches.md, 2).
-use crate::{Domain, Hooks, Key, Limits, Name, Request, Stored};
+use crate::{Domain, Key, Limits, Name, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Commit, Error, Read, Repository};
 use skein_lib::{Duration, Env, List, Map, Queue, Token, Wall, bytes};
@@ -13,7 +13,6 @@ pub(crate) struct State {
     pub(crate) selection_reads: Map<Token, (u64, Repository)>,
     pub(crate) branch_waits: Map<u64, Name>,
     checked: Map<u64, (u64, Result<bool, Error>)>,
-    close_checked: Map<u64, CloseChecked>,
     backoffs: Map<u64, Duration>,
     pub(crate) progress: Map<u64, Progress>,
 }
@@ -50,7 +49,7 @@ pub(crate) struct Reading {
     pub(crate) task: u64,
     step: u64,
     repository: Repository,
-    check: Check,
+    base_branch: Box<[u8]>,
     read: Box<[u8]>,
     covered: Option<(Commit, Commit)>,
     stage: Stage,
@@ -58,23 +57,9 @@ pub(crate) struct Reading {
 #[derive(Hash, Debug)]
 enum Stage {
     Branch,
-    Hooks { head: Commit },
     Base { head: Commit },
     Contains { head: Commit, base: Commit },
 }
-#[derive(Hash, Debug)]
-pub(crate) enum Check {
-    Landing(Box<[u8]>),
-    Close(usize),
-}
-
-#[derive(Hash, Debug)]
-struct CloseChecked {
-    step: u64,
-    dependencies: usize,
-    result: Result<Hooks, Error>,
-}
-
 impl State {
     pub(crate) fn raise(&mut self, tasks: u32) {
         self.rows.raise(tasks);
@@ -82,7 +67,6 @@ impl State {
         self.selection_reads.raise(tasks);
         self.branch_waits.raise(tasks);
         self.checked.raise(tasks);
-        self.close_checked.raise(tasks);
         self.backoffs.raise(tasks);
         self.progress.raise(tasks);
     }
@@ -93,7 +77,6 @@ impl State {
             selection_reads: Map::with_capacity(tasks),
             branch_waits: Map::with_capacity(tasks),
             checked: Map::with_capacity(tasks),
-            close_checked: Map::with_capacity(tasks),
             backoffs: Map::with_capacity(tasks),
             progress: Map::with_capacity(tasks),
         }
@@ -136,13 +119,6 @@ impl Domain {
     /// New work during an offered step can invalidate its containment answer.
     pub fn discard_closer_answer(&mut self, task: u64) {
         self.closing.checked.remove(&task);
-        self.closing.close_checked.remove(&task);
-    }
-
-    #[must_use]
-    pub fn closer_close_checked(&self, task: u64, step: u64, dependencies: usize) -> Option<Result<Hooks, Error>> {
-        let answer = self.closing.close_checked.get(&task)?;
-        if answer.step == step && answer.dependencies == dependencies { Some(answer.result) } else { None }
     }
 
     #[must_use]
@@ -202,7 +178,6 @@ pub(crate) fn forget(d: &mut Domain, goal: u64, out: &mut Queue<Request>) {
 fn idle(d: &mut Domain, task: u64) {
     set_idle(d, task);
     d.closing.checked.remove(&task);
-    d.closing.close_checked.remove(&task);
     d.closing.backoffs.remove(&task);
     d.offered_change(task);
     let mut owners = List::with_capacity(d.closing.reads.len());
@@ -238,7 +213,7 @@ pub(crate) fn check(
     step: u64,
     repository: Repository,
     branch: Box<[u8]>,
-    check: Check,
+    base_branch: Box<[u8]>,
     out: &mut Queue<Request>,
 ) {
     for (_, reading) in &d.closing.reads {
@@ -259,12 +234,12 @@ pub(crate) fn check(
     let Some(sequence) = d.sequence.checked_add(1) else { return };
     d.sequence = sequence;
     let owner = Token::new(sequence | (1_u64 << 62));
-    let covered = if let Check::Landing(_) = check { covered(d, task) } else { None };
+    let covered = covered(d, task);
     d.closing
         .reads
         .insert(
             owner,
-            Reading { task, step, repository, check, read: branch_words(&branch), covered, stage: Stage::Branch },
+            Reading { task, step, repository, base_branch, read: branch_words(&branch), covered, stage: Stage::Branch },
         )
         .expect("one fresh check per closer");
     crate::domain::child(
@@ -282,11 +257,7 @@ pub(crate) fn answered(
     out: &mut Queue<Request>,
 ) {
     let Some(mut reading) = d.closing.reads.remove(&owner) else { return };
-    if let Check::Close(dependencies) = reading.check {
-        close_answered(d, env, owner, reading, dependencies, result, out);
-        return;
-    }
-    let Check::Landing(base_branch) = &reading.check else { unreachable!("close answered above") };
+    let base_branch = &reading.base_branch;
     match reading.stage {
         Stage::Contains { .. } => {
             let refused = result.as_ref().err().copied();
@@ -306,7 +277,6 @@ pub(crate) fn answered(
             return;
         }
         Stage::Branch | Stage::Base { .. } => {}
-        Stage::Hooks { .. } => unreachable!("only a close check reads hooks"),
     }
     let answer = match result {
         Ok(answer) => observation(answer),
@@ -360,11 +330,10 @@ pub(crate) fn answered(
             }
         },
         Stage::Contains { .. } => unreachable!("ancestry answered above"),
-        Stage::Hooks { .. } => unreachable!("only a close check reads hooks"),
     };
     let repository = reading.repository;
     let what = match reading.stage {
-        Stage::Branch | Stage::Hooks { .. } => unreachable!("a branch answer asks for the base"),
+        Stage::Branch => unreachable!("a branch answer asks for the base"),
         Stage::Base { .. } => branch_words(base_branch),
         Stage::Contains { head, base } => contains_words(base_branch, base, head),
     };
@@ -424,58 +393,6 @@ fn observation(answer: Answer) -> Observed {
 fn finish(d: &mut Domain, env: &Env<Limits>, reading: Reading, result: Result<bool, Error>, out: &mut Queue<Request>) {
     finish_wait(d, env, reading.task, result.is_err());
     d.closing.checked.insert(reading.task, (reading.step, result)).expect("one answer per closer");
-    out.push(Request::CloserChecked { task: reading.task });
-}
-
-fn close_answered(
-    d: &mut Domain,
-    env: &Env<Limits>,
-    owner: Token,
-    mut reading: Reading,
-    dependencies: usize,
-    result: Result<Answer, Error>,
-    out: &mut Queue<Request>,
-) {
-    let result = match reading.stage {
-        Stage::Branch => match result {
-            Ok(answer) => {
-                let Observed::Head { commit: head } = observation(answer) else {
-                    finish_close_check(d, env, reading, dependencies, Err(Error::InvalidAnswer), out);
-                    return;
-                };
-                reading.stage = Stage::Hooks { head };
-                reading.read = bytes::concat(&[crate::hooks::DIRECTORY, b" at ", &crate::commit_text(&head)]);
-                set_wait(d, reading.task, Wait::Landing { read: reading.read.clone(), last: None });
-                let repository = reading.repository;
-                d.closing.reads.insert(owner, reading).expect("replaces close check");
-                let read = crate::hooks::read(head, env.limits.client.answer_bytes);
-                crate::domain::child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
-                return;
-            }
-            Err(error) => Err(error),
-        },
-        Stage::Hooks { head } => crate::hooks::answered(head, result),
-        Stage::Base { .. } | Stage::Contains { .. } => unreachable!("a close check reads its branch and directory"),
-    };
-    finish_close_check(d, env, reading, dependencies, result, out);
-}
-
-fn finish_close_check(
-    d: &mut Domain,
-    env: &Env<Limits>,
-    reading: Reading,
-    dependencies: usize,
-    result: Result<Hooks, Error>,
-    out: &mut Queue<Request>,
-) {
-    if let Err(error) = result {
-        read_result(d, &reading, Some(error));
-    }
-    finish_wait(d, env, reading.task, result.is_err());
-    d.closing
-        .close_checked
-        .insert(reading.task, CloseChecked { step: reading.step, dependencies, result })
-        .expect("one close answer per closer");
     out.push(Request::CloserChecked { task: reading.task });
 }
 

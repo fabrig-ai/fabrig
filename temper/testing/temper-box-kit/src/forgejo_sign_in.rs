@@ -288,17 +288,17 @@ fn public_configuration(directory: &Path, forge: std::net::SocketAddr, temper: s
 
 fn start_serve(directory: &Path, leg: &str) -> (Serve, std::process::ChildStdout, String) {
     let log = fs::File::create(directory.join(format!("sign-in-{leg}-serve.log"))).expect("private log");
+    let mut command = Command::new(skein_scratch::paths::built("temper-box", "temper-box"));
+    command
+        .arg("serve")
+        .args(configuration::flags(directory))
+        .current_dir(directory)
+        .process_group(0)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(log);
     let mut serve = Serve {
-        child: Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
-            .arg("serve")
-            .args(configuration::flags(directory))
-            .current_dir(directory)
-            .process_group(0)
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(log)
-            .spawn()
-            .expect("serve"),
+        child: super::fixture::spawn(&mut command, skein_io::kernel::Signal::Kill).expect("serve"),
         reaped: false,
     };
     let stdout = serve.child.stdout.take().expect("stdout pipe");

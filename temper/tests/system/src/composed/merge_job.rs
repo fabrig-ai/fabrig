@@ -1,6 +1,6 @@
 //! The engine's merge job crosses its worker and returns to the change
 //! (temper/docs/design/testing/tiers.md, 1.1; domain/forge/change/repairs.md).
-use super::{Duration, Script, Token, VecDeque, World, call, engine, host, link, tasks, worker};
+use super::{Duration, Script, Token, VecDeque, World, call, engine, host, job_io::disk_path, link, tasks, worker};
 use jig_domain_link::JobBound;
 use temper_fake_checkout::git::Remote;
 use temper_worker_domain::tooling;
@@ -416,7 +416,7 @@ impl World {
     ) {
         assert_eq!(channel, super::CHANNEL);
         assert_eq!(job.kind.0, 3);
-        assert_eq!(job.deadline, Duration::from_secs(600));
+        assert_eq!(job.deadline, Duration::from_secs(3_600));
         let mut own = temper_service_core::limits::stock();
         let checkout = &self.lanes[0].worker_env.limits.checkout;
         own.checkout.repositories = checkout.repositories;
@@ -437,7 +437,13 @@ impl World {
                     .exists(&[repository.as_slice(), format!("/.git/objects/{base}").as_bytes()].concat()),
             );
         }
-        self.lanes[0].worker_events.push_back(link::job(job, workspace, &limits));
+        self.lanes[0].worker_events.push_back(link::hook_job(
+            job,
+            workspace,
+            &limits,
+            b"repo/.temper/hooks/merge",
+            b"repo/.temper/merge",
+        ));
     }
 
     pub(super) fn observe_merge_fetch(&mut self, op: &worker::checkout::git::Op) {
@@ -463,41 +469,7 @@ impl World {
         }
     }
 
-    pub(super) fn job_operation(&mut self, owner: Token, op: tooling::Request) {
-        let event = match op {
-            tooling::Request::Write { owner: inner, path, bytes } => {
-                assert_eq!(owner, inner);
-                self.lanes[0].disk.write(&disk_path(&path), &bytes);
-                tooling::Event::Written { owner, written: true }
-            }
-            tooling::Request::Spawn { owner: inner, program, args, dir, .. } => {
-                assert_eq!(owner, inner);
-                self.play_merge_command(owner, &program, &args, &dir);
-                return;
-            }
-            tooling::Request::Read { owner: inner, path, most } => {
-                assert_eq!(owner, inner);
-                let bytes = self.lanes[0]
-                    .disk
-                    .content(&disk_path(&path))
-                    .filter(|bytes| bytes.len() <= usize::try_from(most).expect("result bound"))
-                    .map(Into::into);
-                tooling::Event::Read { owner, bytes }
-            }
-            tooling::Request::Kill { owner: inner } => {
-                assert_eq!(owner, inner);
-                self.lanes[0].worker_events.push_back(worker::Event::Job {
-                    owner,
-                    event: tooling::Event::Exited { owner, exit: tooling::Exit::Signal, tail: Box::new([]) },
-                });
-                tooling::Event::Gone { owner }
-            }
-            other => panic!("root routes job IO only: {other:?}"),
-        };
-        self.lanes[0].worker_events.push_back(worker::Event::Job { owner, event });
-    }
-
-    fn play_merge_command(&mut self, owner: Token, program: &[u8], args: &[Box<[u8]>], directory: &[u8]) {
+    pub(super) fn play_merge_command(&mut self, owner: Token, program: &[u8], args: &[Box<[u8]>], directory: &[u8]) {
         let found = self.lanes[0].disk.content(&disk_path(program)) == Some(COMMAND);
         let dir = disk_path(directory);
         let repository = [dir.as_slice(), b"/repo"].concat();
@@ -565,11 +537,6 @@ impl World {
             .push_back(worker::Event::Job { owner, event: tooling::Event::Exited { owner, exit, tail: Box::new([]) } });
         self.lanes[0].worker_events.push_back(worker::Event::Job { owner, event: tooling::Event::Gone { owner } });
     }
-}
-
-/// The job IO face and the fake git face spell the same workspace directory differently.
-fn disk_path(path: &[u8]) -> Vec<u8> {
-    [b"ws/".as_slice(), path.strip_prefix(b"workspaces/").expect("job workspace path")].concat()
 }
 
 fn producer(files: &[Vec<u8>], content: &str) -> Script {

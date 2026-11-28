@@ -147,7 +147,7 @@ fn login_read_error(why: crate::Unread) -> String {
                 Error::NameTooLong => 36,
                 Error::Escape => 18,
                 Error::NotAFile => 6,
-                Error::InvalidArgument | Error::NotALink => 22,
+                Error::InvalidArgument => 22,
                 Error::Other(number) => number,
             };
             format!("user: errno {errno}")

@@ -54,6 +54,7 @@ fn a_run_looks_for_checks_in_writable_repositories_when_a_change_must_pass_them(
         directories: Box::new([
             Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"temper"),
                 root: Token::new(900),
@@ -63,6 +64,7 @@ fn a_run_looks_for_checks_in_writable_repositories_when_a_change_must_pass_them(
             },
             Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"docs"),
                 root: Token::new(901),

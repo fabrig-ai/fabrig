@@ -259,7 +259,6 @@ impl Started {
             | skein_io::kernel::Op::Sync { .. }
             | skein_io::kernel::Op::Close { .. } => skein_io::kernel::Done::Nothing,
             skein_io::kernel::Op::HardLink { .. }
-            | skein_io::kernel::Op::ReadLink { .. }
             | skein_io::kernel::Op::Lock { .. }
             | skein_io::kernel::Op::Socket { .. }
             | skein_io::kernel::Op::Bind { .. }
@@ -311,7 +310,6 @@ impl Started {
             | Op::Truncate { .. }
             | Op::Sync { .. }
             | Op::Stat { .. }
-            | Op::ReadLink { .. }
             | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Remove { .. }
@@ -363,7 +361,6 @@ impl Started {
             | Op::Truncate { .. }
             | Op::Sync { .. }
             | Op::Stat { .. }
-            | Op::ReadLink { .. }
             | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Remove { .. }
@@ -509,7 +506,6 @@ fn clone_file_kind(kind: &skein_io::kernel::Op) -> skein_io::kernel::Op {
         Op::List { fd, entries, names } => Op::List { fd: *fd, entries: entries.clone(), names: names.clone() },
         Op::Close { fd } => Op::Close { fd: *fd },
         Op::HardLink { .. }
-        | Op::ReadLink { .. }
         | Op::Lock { .. }
         | Op::Socket { .. }
         | Op::Bind { .. }

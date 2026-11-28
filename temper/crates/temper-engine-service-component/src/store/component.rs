@@ -281,7 +281,6 @@ impl Store {
             | Op::Lock { .. }
             | Op::Stat { .. }
             | Op::Rename { .. }
-            | Op::ReadLink { .. }
             | Op::HardLink { .. }
             | Op::Remove { .. }
             | Op::MakeDirectory { .. }

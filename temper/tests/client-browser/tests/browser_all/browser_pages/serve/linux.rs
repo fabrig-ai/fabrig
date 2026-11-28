@@ -1,6 +1,6 @@
 //! Retain a scratch serve's identity for the reading fault (temper/docs/design/client/web/testing.md, 6).
 use skein_fake_person::{Find, Next, Why};
-use skein_fake_person_browser::{BrowserFace, Play, Script, Setup};
+use skein_fake_person_browser::{BrowserFace, Play, Script};
 use skein_io::kernel::{Error, Fd, Signal, Target};
 use skein_lib::Time;
 use skein_shell::keeper;
@@ -11,7 +11,7 @@ use std::{
     os::unix::ffi::OsStrExt as _,
     path::{Path, PathBuf},
 };
-use temper_client_browser_world::Tier;
+use temper_client_browser_world::{Tier, temper};
 
 pub(super) struct Reading {
     script: Script,
@@ -23,12 +23,12 @@ pub(super) struct Reading {
 }
 
 impl Reading {
-    pub fn new(script: Script, switches: VecDeque<(u32, Signal)>, setup: &Setup<'_>, tier: &Tier) -> Self {
+    pub fn new(script: Script, switches: VecDeque<(u32, Signal)>, tier: &Tier) -> Self {
         Self {
             script,
             switches,
-            program: setup.server.clone(),
-            box_args: setup.args.clone(),
+            program: temper(),
+            box_args: tier.box_arguments(),
             serve_args: tier.box_serve(),
             serve: None,
         }

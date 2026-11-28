@@ -58,7 +58,7 @@ default-filter = """
   & not binary(/^browser_/)
 ) | (
   package(/^temper(-|$)/)
-  & not test(/^tests::sign_in::fuzzy_/) & not ((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-config-shell) | package(=temper-settings-form)) & test(/^fuzzy::/))
+  & not test(/^tests::sign_in::fuzzy_/) & not ((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-worker-domain-tooling) | package(=temper-config-shell) | package(=temper-settings-form)) & test(/^fuzzy::/))
   & not ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-change) | package(=temper-engine-domain-forge-landing) | package(=temper-engine-domain-forge-tiers)) & kind(lib) & test(/^fuzzy::/))
   & not binary(/^(process|live|live_github)$/)
   & not (binary(=proof_live) & test(/^rung_b0s_/))
@@ -122,7 +122,7 @@ default-filter = """
   & not binary(/^browser_/)
 ) | (
   package(/^temper(-|$)/)
-  & (((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-config-shell) | package(=temper-settings-form)) & test(/^fuzzy::/))
+  & (((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-worker-domain-tooling) | package(=temper-config-shell) | package(=temper-settings-form)) & test(/^fuzzy::/))
      | ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-change) | package(=temper-engine-domain-forge-landing) | package(=temper-engine-domain-forge-tiers)) & kind(lib) & test(/^fuzzy::/))
      | (package(=temper-engine-service-component) & test(/^tests::sign_in::fuzzy_/)))
   & not binary(/^(process|live|live_github)$/)
@@ -455,7 +455,7 @@ junit = { path = "junit.xml", store-success-output = true, store-failure-output 
 default-filter = """
 (
   package(/^temper(-|$)/)
-  & (((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-config-shell) | package(=temper-settings-form)) & test(/^fuzzy::/))
+  & (((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-worker-domain-tooling) | package(=temper-config-shell) | package(=temper-settings-form)) & test(/^fuzzy::/))
      | ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-change) | package(=temper-engine-domain-forge-landing) | package(=temper-engine-domain-forge-tiers)) & kind(lib) & test(/^fuzzy::/))
      | (package(=temper-engine-service-component) & test(/^tests::sign_in::fuzzy_/)))
   & not binary(/^(process|live|live_github)$/)
@@ -615,7 +615,7 @@ junit = { path = "junit.xml" }
 default-filter = """
 ((
   package(/^temper(-|$)/)
-  & not test(/^tests::sign_in::fuzzy_/) & not ((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-config-shell) | package(=temper-settings-form)) & test(/^fuzzy::/))
+  & not test(/^tests::sign_in::fuzzy_/) & not ((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-worker-domain-tooling) | package(=temper-config-shell) | package(=temper-settings-form)) & test(/^fuzzy::/))
   & not ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-change) | package(=temper-engine-domain-forge-landing) | package(=temper-engine-domain-forge-tiers)) & kind(lib) & test(/^fuzzy::/))
   & not binary(/^(process|live|live_github)$/)
   & not (binary(=proof_live) & test(/^rung_b0s_/))
@@ -623,7 +623,7 @@ default-filter = """
   & not binary(/^browser_/)
 ) | (
   package(/^temper(-|$)/)
-  & (((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-config-shell) | package(=temper-settings-form)) & test(/^fuzzy::/))
+  & (((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain) | package(=temper-worker-domain-tooling) | package(=temper-config-shell) | package(=temper-settings-form)) & test(/^fuzzy::/))
      | ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-change) | package(=temper-engine-domain-forge-landing) | package(=temper-engine-domain-forge-tiers)) & kind(lib) & test(/^fuzzy::/))
      | (package(=temper-engine-service-component) & test(/^tests::sign_in::fuzzy_/)))
   & not binary(/^(process|live|live_github)$/)

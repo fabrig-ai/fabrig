@@ -331,7 +331,6 @@ pub(crate) fn setup_error(error: kernel::Error) -> Error {
         | kernel::Error::NameTooLong
         | kernel::Error::Escape
         | kernel::Error::Busy
-        | kernel::Error::NotALink
         | kernel::Error::NotAFile => {
             unreachable!("an operation on sockets never fails with a file's error (skein_io::kernel)")
         }
@@ -371,7 +370,6 @@ pub(crate) fn connect_error(error: kernel::Error) -> Error {
         | kernel::Error::NameTooLong
         | kernel::Error::Escape
         | kernel::Error::Busy
-        | kernel::Error::NotALink
         | kernel::Error::NotAFile => {
             unreachable!("an operation on sockets never fails with a file's error (skein_io::kernel)")
         }
@@ -409,7 +407,6 @@ pub(crate) fn stream_fault(error: kernel::Error) -> Fault {
         | kernel::Error::NameTooLong
         | kernel::Error::Escape
         | kernel::Error::Busy
-        | kernel::Error::NotALink
         | kernel::Error::NotAFile => {
             unreachable!("an operation on sockets never fails with a file's error (skein_io::kernel)")
         }

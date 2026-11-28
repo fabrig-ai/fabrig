@@ -43,6 +43,8 @@ pub fn spec(request: &PrepareRequest, bound: u32) -> Option<Box<[u8]>> {
         refusal: false,
         result: temper_protocol_worker_wire::DEFAULT_JOB_RESULT_BYTES,
         outdated: false,
+        find: false,
+        fallback: Box::new([]),
     };
     if spec.measure(&v1::CEILINGS).ok()? > bound {
         return None;

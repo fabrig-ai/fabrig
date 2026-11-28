@@ -855,7 +855,6 @@ fn write_finished(complete: &Complete) -> bool {
         | Op::Lock { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
-        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
@@ -1332,7 +1331,6 @@ fn list_parts(kind: Op) -> (Box<[crate::kernel::Entry]>, Box<[u8]>) {
         | Op::Lock { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
-        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }

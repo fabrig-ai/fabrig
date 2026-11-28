@@ -15,6 +15,7 @@ pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) 
         directory_name,
         directory_path,
         directory_results_some,
+        hook_times_fault,
         directory_conflicts,
         directory_conflicts_item,
         workspace_directories,
@@ -66,6 +67,7 @@ pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) 
     inventory.value("directory_name", Value::Bytes(u64::from(directory_name)))?;
     inventory.value("directory_path", Value::Bytes(u64::from(directory_path)))?;
     inventory.value("directory_results_some", Value::Bytes(u64::from(directory_results_some)))?;
+    inventory.value("hook_times_fault", Value::Bytes(u64::from(hook_times_fault)))?;
     inventory.value("directory_conflicts", Value::Count(u64::from(directory_conflicts)))?;
     inventory.value("directory_conflicts_item", Value::Bytes(u64::from(directory_conflicts_item)))?;
     inventory.value("workspace_directories", Value::Count(u64::from(workspace_directories)))?;

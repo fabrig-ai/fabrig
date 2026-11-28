@@ -77,6 +77,7 @@ fn call() -> Call {
         input: text(b"whole private input"),
         outcome: Some(text(b"whole tool result")),
         failed: false,
+        answer: None,
         objects: list([ObjectKey::Task(8)]),
         parts: list([part()]),
     }

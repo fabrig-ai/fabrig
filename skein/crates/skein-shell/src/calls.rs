@@ -24,7 +24,6 @@ pub(crate) fn error(kind: &Op, errno: i32, cancelled: bool) -> Error {
             libc::EINVAL => Error::InvalidArgument,
             other => Error::Other(other),
         },
-        Op::ReadLink { .. } if errno == libc::EINVAL => Error::NotALink,
         // Cancelled only if a Cancel was submitted for it, which io does
         // for an Open, a Read, a Write or a Sync only.
         Op::Open { .. }
@@ -36,7 +35,6 @@ pub(crate) fn error(kind: &Op, errno: i32, cancelled: bool) -> Error {
         | Op::Lock { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
-        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
@@ -131,7 +129,6 @@ fn operation_error(kind: &Op, errno: i32) -> Error {
         | Op::Lock { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
-        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
@@ -204,13 +201,6 @@ pub(crate) fn file_error(kind: &Op, errno: i32) -> Error {
             libc::ENOSPC | libc::EDQUOT => Some(Error::NoSpace),
             libc::EROFS => Some(Error::ReadOnly),
             libc::EMLINK => Some(Error::TooManyLinks),
-            libc::ENAMETOOLONG => Some(Error::NameTooLong),
-            _ => None,
-        },
-        Op::ReadLink { .. } => match errno {
-            libc::ENOENT => Some(Error::NotFound),
-            libc::ENOTDIR => Some(Error::NotADirectory),
-            libc::EACCES | libc::EPERM => Some(Error::Permission),
             libc::ENAMETOOLONG => Some(Error::NameTooLong),
             _ => None,
         },
@@ -310,7 +300,7 @@ fn path_descriptors(operation: &Op) -> [Option<Fd>; 2] {
         | Op::PipeWrite { fd, .. } => [Some(*fd), None],
         Op::Open { root, .. } => [Some(*root), None],
         Op::Rename { from_dir, to_dir, .. } | Op::HardLink { from_dir, to_dir, .. } => [Some(*from_dir), Some(*to_dir)],
-        Op::ReadLink { dir, .. } | Op::Remove { dir, .. } | Op::MakeDirectory { dir, .. } => [Some(*dir), None],
+        Op::Remove { dir, .. } | Op::MakeDirectory { dir, .. } => [Some(*dir), None],
         Op::Spawn { spawn } => [Some(spawn.root), None],
         Op::Wait { pidfd, .. } | Op::Signal { pidfd, .. } => [Some(*pidfd), None],
     }

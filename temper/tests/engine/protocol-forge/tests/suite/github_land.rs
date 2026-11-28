@@ -174,7 +174,6 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
                 }
                 match decision {
                     change::Decision::Failed => panic!("unexpected source failure"),
-                    change::Decision::ReadMerge { head } => panic!("forge domain must handle hook reads: {head:?}"),
                     change::Decision::Wait { until: at } => until = at,
                     change::Decision::Hold(why) => panic!("QA: healthy path held: {why:?}"),
                     change::Decision::ReplayJudgement(replay) => panic!("unexpected replay: {replay:?}"),
@@ -448,7 +447,6 @@ fn ruleset_refuses_merge_without_landing() {
     for entry in 2..20 {
         match step(&mut world, entry, change::Status::Unknown) {
             change::Decision::Failed => panic!("unexpected source failure"),
-            change::Decision::ReadMerge { head } => panic!("forge domain must handle hook reads: {head:?}"),
             change::Decision::Hold(why) => {
                 assert_eq!(why, change::Cause::Failed, "QA: Protected writes fail the change's effect");
                 held = true;

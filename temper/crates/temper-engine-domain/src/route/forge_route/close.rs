@@ -3,46 +3,8 @@
 //! and failure retirement (temper/docs/design/domain/forge/change/repairs-releases.md, 1).
 use super::{Decision, Domain, Env, Limits, Work, forge, forge_change, tasks};
 use alloc::boxed::Box;
-use skein_lib::{Writer, bytes::copy_of};
-use temper_protocol_worker_wire::v1::{self, Record};
-
-pub(super) fn spec(repository: &[u8], command: &[u8], request: &[u8], bound: u32) -> Option<Box<[u8]>> {
-    let length = repository.len().checked_add(1)?.checked_add(command.len())?;
-    let mut path = Writer::new(length);
-    path.put(repository).ok()?;
-    path.put(b"/").ok()?;
-    path.put(command).ok()?;
-    let spec = v1::JobSpec {
-        command: path.finish(),
-        request: copy_of(request),
-        refusal: true,
-        result: temper_protocol_worker_wire::CLOSE_RESULT_BYTES,
-        outdated: true,
-    };
-    if spec.measure(&v1::CEILINGS).ok()? > bound {
-        return None;
-    }
-    spec.encode(&v1::CEILINGS).ok()
-}
-
-pub(super) fn hook(parameters: &[tasks::Parameter]) -> Option<&[u8]> {
-    for parameter in parameters {
-        if let tasks::Parameter::Bytes { name: 20, value } = parameter {
-            return Some(value);
-        }
-    }
-    None
-}
-
-pub(super) fn command<'a>(domain: &'a Domain, project: u32, hook: Option<&'a [u8]>) -> Option<&'a [u8]> {
-    match hook {
-        Some(path) => Some(path),
-        None => domain.forge.close_job(project),
-    }
-}
 
 pub(super) fn refusal(domain: &Domain, context: &tasks::RunContext) -> Option<&'static [u8]> {
-    let malformed_hook = b"malformed close hook parameter 20.";
     let mut request = None;
     let mut branch = false;
     let mut catch_up = false;
@@ -52,9 +14,6 @@ pub(super) fn refusal(domain: &Domain, context: &tasks::RunContext) -> Option<&'
             tasks::Parameter::Bytes { name: 17, value } => request = Some(value.as_ref()),
             tasks::Parameter::Bytes { name: 3, .. } | tasks::Parameter::Number { name: 11, value: 1 } => branch = true,
             tasks::Parameter::Bytes { name: 16, .. } => catch_up = true,
-            tasks::Parameter::Number { name: 20, .. } | tasks::Parameter::Resource { name: 20, .. } => {
-                return Some(malformed_hook);
-            }
             tasks::Parameter::Resource { name: 1, connector, resource }
                 if *connector == domain.config.forge_connector =>
             {
@@ -63,19 +22,10 @@ pub(super) fn refusal(domain: &Domain, context: &tasks::RunContext) -> Option<&'
             tasks::Parameter::Bytes { .. } | tasks::Parameter::Number { .. } | tasks::Parameter::Resource { .. } => {}
         }
     }
-    let hook = hook(&context.spec.parameters);
-    if let Some(path) = hook
-        && (request.is_none() || !forge::settings::job_path(path))
-    {
-        return Some(malformed_hook);
-    }
     let request = request?;
     if branch || catch_up || !request.starts_with(b"{\"version\":1,\"goal\":") {
         return Some(b"malformed close request parameter 17.");
     }
-    let Some(command) = command(domain, context.project, hook) else {
-        return Some(b"change's close: the project names no close_job.");
-    };
     let Some(bound) = domain.config.close_kind else {
         return Some(b"change's close: job kind 4 is not declared.");
     };
@@ -83,7 +33,8 @@ pub(super) fn refusal(domain: &Domain, context: &tasks::RunContext) -> Option<&'
         return Some(b"change's close: its authority does not delegate to job kind 4.");
     }
     if let Some(repository) = repository
-        && spec(&repository.name, command, request, bound.spec).is_none()
+        && forge::jobs::close(&repository.name, domain.forge.close_job(repository.project), request, bound.spec)
+            .is_none()
     {
         return Some(b"malformed close request parameter 17.");
     }

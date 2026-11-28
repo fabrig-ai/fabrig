@@ -3,6 +3,7 @@ use temper_worker_domain::wire;
 pub fn one_repository() -> wire::Workspace {
     wire::Workspace {
         rerun: None,
+        hook_timeout_max_seconds: 3600,
         repositories: Box::new([wire::Repository {
             admit: false,
             save: None,
@@ -151,7 +152,7 @@ fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
     let parts = if repository {
         Box::from([jig_protocol_worker_wire::Part {
             token: Token::new(1),
-            bytes: payload::items(&v1::Items { repositories, rerun: None }),
+            bytes: payload::items(&v1::Items { repositories, rerun: None, hook_timeout_max_seconds: 3600 }),
         }])
     } else {
         Box::default()

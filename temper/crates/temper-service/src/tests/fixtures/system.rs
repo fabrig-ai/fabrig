@@ -230,7 +230,6 @@ impl Kernel {
                     Ok(Done::Nothing)
                 }
                 other @ (Op::HardLink { .. }
-                | Op::ReadLink { .. }
                 | Op::Lock { .. }
                 | Op::Recv { .. }
                 | Op::Send { .. }

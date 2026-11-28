@@ -171,7 +171,7 @@ fn authority(workspace: Option<Workspace>, tools: Tools) -> Option<Authority> {
     };
     let count = u32::try_from(mounted.len()).ok()?;
     let mut repos = List::with_capacity(count);
-    for Directory { name, host, root, writable, git: _, conflicts: _, results: _ } in mounted {
+    for Directory { name, host, root, writable, .. } in mounted {
         let name = Name::new(name)?;
         let repo = ToolDirectory { host: host_names(&host)?, mount: name, root, writable };
         repos.push(repo).expect("room for every repository");

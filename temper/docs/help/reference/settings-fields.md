@@ -586,11 +586,12 @@ Landing at the next start.
 - tier_retries:u8;? default 2.
 - flakes:landing-flakes;? default rerun at checkout.rerun_processes.
 - check_timeout_ms:u64;? 1000 to 86400000; default none.
+- hook_timeout_max_seconds:u32;? 1 to 86400; default 3600.
 - gate_timeout_ms:u64;? 60000 to 86400000; default 3600000.
-- verification_bound_ms:u64;? ms; default 7200000.
+- verification_bound_ms:u64;? default 7200000.
 - merge_job:t[4096];? relative, no NUL or .. segments; see merge command in configuration.
 - close_job:t[4096];? relative, no NUL or .. segments.
-- repairs:repairs;? no repairs by default; needs wait landed.
+- repairs:repairs;? default none; requires wait landed.
 
 ## landing-flakes
 String `none` or object `{"rerun": N}`.
@@ -624,8 +625,8 @@ How trains combine changes.
 A repository's test gates and tiers.
 - forge:u16;! the adopted repository.
 - repository:u32;! the adopted repository.
-- gates:[1114240] gate-check;? at most forge.gates.
-- tiers:[1114240] tier-check;? at most forge.tiers.tiers.
+- gates:[1114240] gate-check;? <=forge.gates.
+- tiers:[1114240] tier-check;? <=forge.tiers.tiers.
 
 ## gate-check
 A workflow gate proving a landing.
@@ -697,7 +698,7 @@ Endpoint limits; all integers >0.
 - reasoning_item:u32;Reasoning item bytes.
 - head_ms:u64;Milliseconds.
 - idle_ms:u64;Milliseconds.
-- oversized:choice;Oversized reasoning behavior. `fail`: Refuse an oversized reasoning item. `drop`: Drop an oversized reasoning item.
+- oversized:choice;Oversized reasoning item. `fail`: Refuse the item. `drop`: Drop the item.
 
 ## limits
 Core limits: whole list; default=[]; no number/project.

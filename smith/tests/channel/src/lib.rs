@@ -810,6 +810,7 @@ impl World {
             }]),
             directories: Box::from([smith_host_domain::channel::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 root: Token::new(1),
                 name: Box::from(*b"src"),

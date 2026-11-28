@@ -36,6 +36,7 @@ pub fn activity(outcomes: &[&str]) -> c::ActivityPage {
                     input: c::Text::new(Box::default(), 512).unwrap(),
                     outcome: Some(c::Text::new(Box::from(outcome.as_bytes()), 512).unwrap()),
                     failed: false,
+                    answer: None,
                     objects: List::with_capacity(0),
                     parts: List::with_capacity(0),
                 }))

@@ -136,7 +136,7 @@ pub static FORMS: [Form; 102] = [
     Form { shape: Shape::TemperLimits, name: b"temper-limits", choice: Choice::List { item: Shape::LimitOverride, bound: Bound::Most(256) }, line: b"Application kind 22; as limits." },
     Form { shape: Shape::LimitOverride, name: b"limit-override", choice: Choice::Every, line: b"Reasoned override." },
 ];
-pub static FIELDS: [Field; 383] = [
+pub static FIELDS: [Field; 384] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -1451,11 +1451,12 @@ pub static FIELDS: [Field; 383] = [
     Field { shape: Shape::ProjectLanding, name: b"tier_retries", value: Value::Integer(Width::U8), list: None, null: false, line: b"Optional; default 2." },
     Field { shape: Shape::ProjectLanding, name: b"flakes", value: Value::Shape(Shape::LandingFlakes), list: None, null: false, line: b"Optional; default rerun at checkout.rerun_processes." },
     Field { shape: Shape::ProjectLanding, name: b"check_timeout_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Optional; 1000 to 86400000; default none." },
+    Field { shape: Shape::ProjectLanding, name: b"hook_timeout_max_seconds", value: Value::Integer(Width::U32), list: None, null: false, line: b"Optional; 1 to 86400; default 3600." },
     Field { shape: Shape::ProjectLanding, name: b"gate_timeout_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Optional; 60000 to 86400000; default 3600000." },
-    Field { shape: Shape::ProjectLanding, name: b"verification_bound_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Optional; ms; default 7200000." },
+    Field { shape: Shape::ProjectLanding, name: b"verification_bound_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Optional; default 7200000." },
     Field { shape: Shape::ProjectLanding, name: b"merge_job", value: Value::Text(Bound::Most(4096)), list: None, null: false, line: b"Optional; relative, no NUL or .. segments; see merge command in configuration." },
     Field { shape: Shape::ProjectLanding, name: b"close_job", value: Value::Text(Bound::Most(4096)), list: None, null: false, line: b"Optional; relative, no NUL or .. segments." },
-    Field { shape: Shape::ProjectLanding, name: b"repairs", value: Value::Shape(Shape::RepairSettings), list: None, null: false, line: b"Optional; no repairs by default; needs wait landed." },
+    Field { shape: Shape::ProjectLanding, name: b"repairs", value: Value::Shape(Shape::RepairSettings), list: None, null: false, line: b"Optional; default none; requires wait landed." },
     Field { shape: Shape::LandingFlakes, name: b"rerun", value: Value::Integer(Width::U32), list: None, null: false, line: b"0 to checkout.rerun_processes." },
     Field { shape: Shape::RepairSettings, name: b"repair_goals", value: Value::Integer(Width::U8), list: None, null: false, line: b"Optional; 1 to 16; default 2." },
     Field { shape: Shape::RepairSettings, name: b"repair_attempts", value: Value::Integer(Width::U8), list: None, null: false, line: b"Optional; 1 to 8; default 2." },
@@ -1471,8 +1472,8 @@ pub static FIELDS: [Field; 383] = [
     Field { shape: Shape::LandingCombineSettings, name: b"other", value: Value::Words(&[Word { word: b"merge", line: b"" }, Word { word: b"squash", line: b"" }]), list: None, null: false, line: b"Optional; default squash." },
     Field { shape: Shape::RepositoryGatesSettings, name: b"forge", value: Value::Integer(Width::U16), list: None, null: false, line: b"Required; the adopted repository." },
     Field { shape: Shape::RepositoryGatesSettings, name: b"repository", value: Value::Integer(Width::U32), list: None, null: false, line: b"Required; the adopted repository." },
-    Field { shape: Shape::RepositoryGatesSettings, name: b"gates", value: Value::Shape(Shape::GateCheckSettings), list: Some(Bound::Most(jig_client_protocol_wire::CEILINGS.application_value_bytes)), null: false, line: b"Optional; at most forge.gates." },
-    Field { shape: Shape::RepositoryGatesSettings, name: b"tiers", value: Value::Shape(Shape::TierCheckSettings), list: Some(Bound::Most(jig_client_protocol_wire::CEILINGS.application_value_bytes)), null: false, line: b"Optional; at most forge.tiers.tiers." },
+    Field { shape: Shape::RepositoryGatesSettings, name: b"gates", value: Value::Shape(Shape::GateCheckSettings), list: Some(Bound::Most(jig_client_protocol_wire::CEILINGS.application_value_bytes)), null: false, line: b"Optional; <=forge.gates." },
+    Field { shape: Shape::RepositoryGatesSettings, name: b"tiers", value: Value::Shape(Shape::TierCheckSettings), list: Some(Bound::Most(jig_client_protocol_wire::CEILINGS.application_value_bytes)), null: false, line: b"Optional; <=forge.tiers.tiers." },
     Field { shape: Shape::GateCheckSettings, name: b"name", value: Value::Text(Bound::Most(32)), list: None, null: false, line: b"Required; letters/digits/-/_; unique per repository." },
     Field { shape: Shape::GateCheckSettings, name: b"workflow", value: Value::Text(Bound::Most(255)), list: None, null: false, line: b"Required; workflow file, no slash." },
     Field { shape: Shape::GateCheckSettings, name: b"ignored", value: Value::Text(Bound::Most(1024)), list: Some(Bound::Most(jig_client_protocol_wire::CEILINGS.application_value_bytes)), null: false, line: b"Optional; <=forge.ignored_paths whole-segment paths, each <=forge.name_bytes." },
@@ -1508,7 +1509,7 @@ pub static FIELDS: [Field; 383] = [
     Field { shape: Shape::AgentLimits, name: b"reasoning_item", value: Value::Integer(Width::U32), list: None, null: false, line: b"Reasoning item bytes." },
     Field { shape: Shape::AgentLimits, name: b"head_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Milliseconds." },
     Field { shape: Shape::AgentLimits, name: b"idle_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Milliseconds." },
-    Field { shape: Shape::AgentLimits, name: b"oversized", value: Value::Words(&[Word { word: b"fail", line: b"Refuse an oversized reasoning item." }, Word { word: b"drop", line: b"Drop an oversized reasoning item." }]), list: None, null: false, line: b"Oversized reasoning behavior." },
+    Field { shape: Shape::AgentLimits, name: b"oversized", value: Value::Words(&[Word { word: b"fail", line: b"Refuse the item." }, Word { word: b"drop", line: b"Drop the item." }]), list: None, null: false, line: b"Oversized reasoning item." },
     Field { shape: Shape::LimitOverride, name: b"name", value: Value::Text(Bound::Most(64)), list: None, null: false, line: b"Required; 1-64 bytes: a-z/0-9/_/.; ascending, unique." },
     Field { shape: Shape::LimitOverride, name: b"value", value: Value::Integer(Width::U64), list: None, null: false, line: b"Required; limit's unit." },
     Field { shape: Shape::LimitOverride, name: b"reason", value: Value::Text(Bound::Most(120)), list: None, null: false, line: b"Required; 1-120 UTF-8 bytes: why override stock." },

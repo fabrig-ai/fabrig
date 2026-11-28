@@ -775,7 +775,7 @@ fn held_assignment() -> crate::Assignment {
         }]),
         messages: Box::new([]),
         saved: Box::new([]),
-        workspace: crate::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
+        workspace: crate::ForgeWorkspace::default(),
         workstream: 1,
         transcript: Box::new([]),
         answered: Box::new([]),
@@ -869,7 +869,7 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
             fixture.task,
             WorkspacePreparation::Ready(PreparedWorkspace {
                 workspace: RunWorkspace {
-                    workspace: crate::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
+                    workspace: crate::ForgeWorkspace::default(),
                     workstream: fixture.task,
                     writes: Box::new([]),
                     names: Box::new([]),

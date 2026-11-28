@@ -4,6 +4,7 @@
 
 
 
+
 `jobs.md`'s close kind is built: kind 4 is declared with its bounds,
 prepares the close change's checkout and delivers its staged tree with the
 goal's status message (`temper-worker-domain/src/jobs.rs`, `commit_title`).

@@ -16,7 +16,7 @@ use crate::limits::Limits;
 use crate::outcome::Change;
 use crate::prepare;
 use crate::run::Run;
-use crate::workspace::{self, Directory};
+use crate::workspace::{self, Directory, HookTime, HookTimes};
 use alloc::boxed::Box;
 use core::mem;
 use skein_lib::bytes::copy_of;
@@ -113,13 +113,20 @@ pub(crate) fn checked(
     let stage = mem::replace(&mut landing.stage, Stage::Closed);
     match stage {
         Stage::Checking { check, given, retry } => {
+            let hooks = hook_times(run, check);
+            let time = moment_time(hooks, landing.purpose);
             if ran.exit == Exit::TimedOut
                 && !retry
                 && may_finish
                 && let Some(until) = crate::run::check_retry_deadline(run)
             {
                 let cap = landing.deadline.min(until);
-                let bound = given.saturating_add(given).min(cap.saturating_since(env.now));
+                let mut bound = given.saturating_add(given).min(cap.saturating_since(env.now));
+                if let Some(hooks) = hooks
+                    && time.is_some()
+                {
+                    bound = bound.min(hooks.ceiling);
+                }
                 if bound > given {
                     landing.stage = start_check(id, run, landing.purpose, check, bound, cap, true, env, out);
                     return Settled::Going;
@@ -138,12 +145,16 @@ pub(crate) fn checked(
             if !passed && required {
                 let repository = copy_of(&repository(run, check).name);
                 let check = check_path(run, check, landing.purpose);
+                let ceiling_cut = match time {
+                    Some(time) if time.asked > time.time => Some(time.asked),
+                    Some(_) | None => None,
+                };
                 let result = match ran.exit {
                     Exit::Code { .. } if !ran.said_not_judged => {
-                        Returned::ChecksFailed { repository, check, given, ran }
+                        Returned::ChecksFailed { repository, check, given, ceiling_cut, ran }
                     }
                     Exit::Code { .. } | Exit::Signalled { .. } | Exit::TimedOut | Exit::Unstarted | Exit::Cancelled => {
-                        Returned::ChecksNotJudged { repository, check, given, ran }
+                        Returned::ChecksNotJudged { repository, check, given, ceiling_cut, ran }
                     }
                 };
                 back(owner, result, Settled::Refused, out)
@@ -287,12 +298,23 @@ fn next(
                     Purpose::Save => unreachable!("save runs no checks"),
                 },
             };
+            let times = hook_times(run, check);
+            if hook != Hook::Missing
+                && let Some(times) = times
+                && !times.fault.is_empty()
+            {
+                return broken(run, check, landing.purpose, call, &times.fault, out);
+            }
             match hook {
                 Hook::Missing => {}
-                Hook::Broken(problem) => return broken(run, check, landing.purpose, call, problem, out),
+                Hook::Broken(problem) => return broken(run, check, landing.purpose, call, hook_problem(problem), out),
                 Hook::Executable => {
                     let cap = landing.deadline.min(run.deadline);
-                    let bound = checks_bound(run, env).min(cap.saturating_since(env.now));
+                    let bound = match moment_time(times, landing.purpose) {
+                        Some(time) => time.time,
+                        None => checks_bound(run, env),
+                    };
+                    let bound = bound.min(cap.saturating_since(env.now));
                     landing.stage = start_check(id, run, landing.purpose, check, bound, cap, false, env, out);
                     return Settled::Going;
                 }
@@ -316,24 +338,42 @@ fn next(
     Settled::Going
 }
 
-fn broken(
-    run: &Run,
-    check: u32,
-    purpose: Purpose,
-    call: Token,
-    problem: HookProblem,
-    out: &mut Queue<Request>,
-) -> Settled {
-    let output: &[u8] = match problem {
+fn broken(run: &Run, check: u32, purpose: Purpose, call: Token, output: &[u8], out: &mut Queue<Request>) -> Settled {
+    let ran = Ran { exit: Exit::Unstarted, said_not_judged: false, output: copy_of(output), cut: 0 };
+    let repository = copy_of(&repository(run, check).name);
+    let check = check_path(run, check, purpose);
+    back(
+        call,
+        Returned::ChecksFailed { repository, check, given: Duration::ZERO, ceiling_cut: None, ran },
+        Settled::Refused,
+        out,
+    )
+}
+
+fn hook_problem(problem: HookProblem) -> &'static [u8] {
+    match problem {
         HookProblem::Unreadable => b"the hook could not be read",
         HookProblem::NotExecutable => b"the hook is not executable",
         HookProblem::NotFile => b"the hook is not a regular file",
         HookProblem::BadLink => b"the hook does not link directly to an executable file beside it",
-    };
-    let ran = Ran { exit: Exit::Unstarted, said_not_judged: false, output: copy_of(output), cut: 0 };
-    let repository = copy_of(&repository(run, check).name);
-    let check = check_path(run, check, purpose);
-    back(call, Returned::ChecksFailed { repository, check, given: Duration::ZERO, ran }, Settled::Refused, out)
+    }
+}
+
+fn hook_times(run: &Run, check: u32) -> Option<&HookTimes> {
+    let found = run.found.checks.get(check).expect("only discovered checks run");
+    match &found.kind {
+        prepare::Kind::Legacy => None,
+        prepare::Kind::Hooks(_) => repository(run, check).hooks.as_ref(),
+    }
+}
+
+fn moment_time(hooks: Option<&HookTimes>, purpose: Purpose) -> Option<HookTime> {
+    let hooks = hooks?;
+    match purpose {
+        Purpose::Finish => hooks.finish,
+        Purpose::Deliver => hooks.deliver,
+        Purpose::Save => unreachable!("save runs no checks"),
+    }
 }
 
 fn check_path(run: &Run, check: u32, purpose: Purpose) -> Box<[u8]> {

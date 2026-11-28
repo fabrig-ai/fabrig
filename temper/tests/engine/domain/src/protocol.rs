@@ -36,7 +36,7 @@ pub fn bounds() -> Bounds {
 /// The merge kind advertised by the scripted worker (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn merge_bound() -> JobBound {
-    JobBound { kind: JobKind(3), spec: 4096, result: 512, deadline: Duration::from_secs(600) }
+    JobBound { kind: JobKind(3), spec: 4096, result: 512, deadline: Duration::from_secs(86_400) }
 }
 
 /// One worker's hello on `channel`, listing the runs it hosts.
@@ -67,7 +67,10 @@ pub fn hello_with(channel: Token, worker: u32, slots: u32, bounds: Bounds, hosti
             hello: jig_domain_link::Hello {
                 fresh: false,
                 reads_usage: true,
-                jobs: Box::new([JobBound { kind: JobKind(1), ..merge_bound() }, merge_bound()]),
+                jobs: Box::new([
+                    JobBound { kind: JobKind(1), deadline: Duration::from_secs(600), ..merge_bound() },
+                    merge_bound(),
+                ]),
                 slots,
                 stop_bound: Duration::from_millis(100),
                 workstreams: Box::new([]),

@@ -29,7 +29,10 @@
   its moment's delivery is refused as `checks-failed`, below, with no
   process run, its exit `unstarted`, the time it was given 0, no bytes
   cut, and its tail one line saying why, as ``the hook is a link to
-  `../x`, not to an executable file beside it``. The checks path keeps
+  `../x`, not to an executable file beside it``. A hook found in a
+  directory whose start names a `fault` for its hooks' times is broken
+  the same way, its tail the fault's line (`../protocol/channel.md`,
+  section 3). The checks path keeps
   its own lookup: an executable there, followed through a link within
   the directory, or no check.
 - **Told in the prompt:** each writable directory's line names its
@@ -71,6 +74,13 @@
   project's goal-sized landings) gives its charter a larger bound; the
   reserve still holds one run at `check_timeout` alone (budget.md, 1),
   so a larger bound's check in the wind-down is cut at the run's end.
+- **A hook's own time,** where the start names one for its moment in
+  its directory (`../protocol/channel.md`, section 3), is its bound in
+  place of the checks', cut the same way; a moment the start names no
+  time for keeps the checks' bound. The host has already cut the time
+  at its ceiling; where it did, `asked` past `time`, the check's
+  feedback says so beside the time it was given, as ``given 3600 s, cut
+  at the host's ceiling from the 7200 s its directory asks``.
 - **A wait for what a check needs** is not its time. A check queued for a
   place its environment limits (a build's, among other repositories'
   builds) says so on its stderr: the whole line `smith-check: waiting`
@@ -88,7 +98,8 @@
   once more at once, on the same tree under the same lease, given twice
   the time its first run was given, cut at the call's deadline and at
   the run's ordinary deadline, so the retry never spends the finishing
-  reserve. The host is told the second check's start with its deadline,
+  reserve, and, for a hook its start times, at the start's `ceiling`, so
+  no run of a hook passes it. The host is told the second check's start with its deadline,
   as the first's. There is no retry while the run winds down, nor where
   the cut leaves no more than the first run was given; and never a
   third. Each directory's check retries on its own as it times out; a

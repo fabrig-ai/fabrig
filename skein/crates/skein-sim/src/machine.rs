@@ -100,12 +100,6 @@ pub enum Ask {
         at: u64,
         len: u32,
     },
-    /// The bytes of the link named in an open directory: [`Reply::Read`].
-    ReadLink {
-        dir: Handle,
-        name: Box<[u8]>,
-        room: u32,
-    },
     /// `bytes`, every one, written at `at`: [`Reply::Done`].
     Write {
         file: Handle,
@@ -191,9 +185,6 @@ impl core::fmt::Debug for Ask {
             }
             Self::Read { file, at, len } => {
                 f.debug_struct("Read").field("file", file).field("at", at).field("len", len).finish()
-            }
-            Self::ReadLink { dir, name, room } => {
-                f.debug_struct("ReadLink").field("dir", dir).field("name", name).field("room", room).finish()
             }
             Self::Write { file, at, bytes } => {
                 f.debug_struct("Write").field("file", file).field("at", at).field("bytes", bytes).finish()

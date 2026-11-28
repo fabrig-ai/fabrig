@@ -34,7 +34,7 @@ fn a_changes_merge_job_runs_on_its_worker() {
                 kind: jig_domain_link::JobKind(3),
                 spec: 4096,
                 result: 512,
-                deadline: skein_lib::Duration::from_secs(600),
+                deadline: skein_lib::Duration::from_secs(86_400),
             }],
             "{row:?}"
         );

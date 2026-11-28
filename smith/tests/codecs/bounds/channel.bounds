@@ -35,7 +35,7 @@ DeliveryFailure: ceilings encoded=529 decoded=512; at_most(3) encoded=20 decoded
 DeliveryReason: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 DeliveryRefusal: ceilings encoded=4621 decoded=4608; at_most(3) encoded=19 decoded=6
 DeliveryReply: ceilings encoded=33285 decoded=34304; at_most(3) encoded=38 decoded=81
-Directory: ceilings encoded=4207635 decoded=4219904; at_most(3) encoded=49 decoded=66
+Directory: ceilings encoded=4208706 decoded=4220928; at_most(3) encoded=99 decoded=69
 Drain: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 Effect: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Fact: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
@@ -45,6 +45,8 @@ Field: ceilings encoded=262216 decoded=262208; at_most(3) encoded=14 decoded=6
 Grant: ceilings encoded=8218 decoded=8192; at_most(3) encoded=29 decoded=3
 GrantRefresh: ceilings encoded=8218 decoded=8192; at_most(3) encoded=29 decoded=3
 GrantValue: ceilings encoded=8198 decoded=8192; at_most(3) encoded=9 decoded=3
+HookTime: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
+HookTimes: ceilings encoded=1070 decoded=1024; at_most(3) encoded=49 decoded=3
 HostAnswer: ceilings encoded=1048598 decoded=1048576; at_most(3) encoded=55 decoded=81
 HostAsk: ceilings encoded=1048648 decoded=1048640; at_most(3) encoded=14 decoded=6
 HostReply: ceilings encoded=1048581 decoded=1048576; at_most(3) encoded=8 decoded=3
@@ -100,7 +102,7 @@ SavedReply: ceilings encoded=1048582 decoded=1048576; at_most(3) encoded=39 deco
 Scheme: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Signal: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Signalled: ceilings encoded=6 decoded=0; at_most(3) encoded=6 decoded=0
-Start: ceilings encoded=1679245575 decoded=1680048640; at_most(3) encoded=569 decoded=1278
+Start: ceilings encoded=1679314119 decoded=1680118784; at_most(3) encoded=719 decoded=1503
 StartRefusal: ceilings encoded=19 decoded=0; at_most(3) encoded=19 decoded=0
 TimeoutFailure: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 TranscriptRefusal: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
@@ -115,5 +117,5 @@ Waiting: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 Window: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
 WindowBound: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 Withdraw: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
-Workspace: ceilings encoded=269288644 decoded=270079488; at_most(3) encoded=151 decoded=462
-family: ceilings encoded=1679245575 decoded=1680048640; at_most(3) encoded=569 decoded=1278
+Workspace: ceilings encoded=269357188 decoded=270149632; at_most(3) encoded=301 decoded=687
+family: ceilings encoded=1679314119 decoded=1680118784; at_most(3) encoded=719 decoded=1503

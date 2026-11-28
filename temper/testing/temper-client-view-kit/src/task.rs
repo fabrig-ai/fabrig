@@ -359,6 +359,7 @@ pub fn activity(conversation: bool) -> c::ActivityPage {
                 input: c::Text::new(Box::from(*b"Review the change"), 32).expect("input"),
                 outcome: Some(c::Text::new(Box::from(*b"Delegated tasks: 17"), 32).expect("outcome")),
                 failed: false,
+                answer: None,
                 objects: {
                     let mut objects = List::with_capacity(1);
                     objects.push(c::ObjectKey::Task(17)).expect("delegate");

@@ -39,6 +39,7 @@ pub fn delegate_call(task: u64) -> c::Call {
         input: acts::text(b"{}"),
         outcome: Some(acts::text(b"Delegated tasks: 2, 3")),
         failed: false,
+        answer: None,
         objects,
         parts: List::with_capacity(0),
     }

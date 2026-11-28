@@ -30,6 +30,27 @@ fn an_unmerged_hook_does_not_reach_the_spawn_boundary() {
     assert_eq!(merge::run(9, merge::Case::ConflictedHook).expect("world checks").pushes, 0);
 }
 
+/// temper/docs/design/protocol/hooks.md, 4.2: no hook does not deliver a conflict.
+#[test]
+fn an_absent_merge_hook_leaves_conflicts_undelivered() {
+    use temper_worker_domain_world::whole::merge;
+    assert_eq!(merge::run(10, merge::Case::NoHookConflicted).expect("world checks").pushes, 0);
+}
+
+/// temper/docs/design/protocol/hooks.md, 4.2: no hook still delivers a clean merge.
+#[test]
+fn an_absent_merge_hook_delivers_a_clean_catch_up() {
+    use temper_worker_domain_world::whole::merge;
+    assert_eq!(merge::run(11, merge::Case::NoHookClean).expect("world checks").pushes, 1);
+}
+
+/// temper/docs/design/protocol/hooks.md, 4.2: finding no close hook is a finished job, not a failure.
+#[test]
+fn an_absent_close_hook_finishes_without_delivering() {
+    use temper_worker_domain_world::whole::close;
+    assert_eq!(close::run(12, close::Case::NoHook).expect("world checks").pushes, 0);
+}
+
 /// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn a_delivering_kinds_job_pushes_its_writable_repositorys_head_before_answering() {

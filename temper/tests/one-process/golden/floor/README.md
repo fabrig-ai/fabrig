@@ -35,7 +35,9 @@ written by dev.fabrig.ai's 2026-11-25 08:44Z open: `jig-store-core`'s
 `TurnRecord` at id 6 and `smith-transcript`'s `Turn` at id 7. Each row takes
 its fingerprint from the corresponding schema text already in the store.
 The same commit advances the copy's deployment header to its commit number.
-The kept bytes predate that open and do not change.
+The simulated loader and the shell stories' host copy both append this commit
+from the shared `temper-deployment-fixtures` helper. The kept bytes predate
+that open and do not change.
 
 The focused reader `golden::floor_golden_store_opens_and_serves_the_kept_person` starts
 with production sets and compares both patch and job events with the empty

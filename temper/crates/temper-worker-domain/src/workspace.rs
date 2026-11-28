@@ -65,6 +65,7 @@ use crate::translate;
 #[derive(Debug)]
 pub(crate) struct Items {
     workstream: u64,
+    hook_timeout_max_seconds: u32,
     spec: Option<wire::Workspace>,
     tags: Box<[u64]>,
     branches: Box<[Option<Box<[u8]>>]>,
@@ -160,6 +161,7 @@ fn stage_items(
     }
     let entry = Items {
         workstream,
+        hook_timeout_max_seconds: items.hook_timeout_max_seconds,
         spec: Some(items),
         tags: tags.into_boxed(),
         branches: branches.into_boxed(),
@@ -833,6 +835,7 @@ pub(crate) fn directories(domain: &mut Domain, workspace: Token) -> (Token, Box<
         roots
             .push(agent::Directory {
                 results: None,
+                hooks: None,
                 root: directory,
                 name: copy_of(&root.name),
                 host: Box::new([]),
@@ -846,6 +849,23 @@ pub(crate) fn directories(domain: &mut Domain, workspace: Token) -> (Token, Box<
         roots.get_mut(conflicts.repository).expect("known repository").conflicts = conflicts.files;
     }
     (directory, roots.into_boxed())
+}
+
+/// The ceiling of the named run's held checkout, for the worker's start read.
+pub(crate) fn hook_timeout_ceiling(domain: &Domain, run: Token, directory: Token) -> Option<u32> {
+    for (_, workspace) in &domain.workspaces {
+        let held = match workspace.state {
+            State::Ready { directory, .. } => directory,
+            State::Preparing { .. } | State::Releasing | State::Closed => continue,
+        };
+        if held == directory
+            && let Some(hosting) = domain.host.hosting(workspace.run)
+            && hosting.run == run
+        {
+            return Some(domain.items.get(&workspace.items).expect("held workspace items").hook_timeout_max_seconds);
+        }
+    }
+    None
 }
 
 /// The prepared checkout's directory and writable repository name, for a job.
@@ -872,13 +892,19 @@ pub(crate) fn job_roots(domain: &Domain, workspace: Token) -> &[Root] {
     &domain.workspaces.get(Id::from_token(workspace)).expect("a prepared job workspace").roots
 }
 
+/// The checkout reports a row for each conflicted repository, even when its paths were cut.
+pub(crate) fn job_has_conflicts(domain: &Domain, workspace: Token) -> bool {
+    !domain.workspaces.get(Id::from_token(workspace)).expect("a prepared job workspace").conflicts.is_empty()
+}
+
 /// A merge can leave an executable hook in the tree while the index still calls it unmerged.
-pub(crate) fn job_hook_conflict(
+pub(crate) fn job_command_conflict(
     domain: &Domain,
     workspace: Token,
     repository: &[u8],
     path: &[u8],
-) -> Option<&'static [u8]> {
+) -> Option<crate::tooling::Conflict> {
+    use crate::tooling::Conflict;
     let record = domain.workspaces.get(Id::from_token(workspace)).expect("a prepared job workspace");
     for conflict in &record.conflicts {
         let root = record.roots.get(skein_lib::usize_of(conflict.repository)).expect("known repository");
@@ -887,16 +913,16 @@ pub(crate) fn job_hook_conflict(
         }
         for file in &conflict.files {
             if file.as_ref() == path {
-                return Some(b"left in conflict");
+                return Some(Conflict::Path);
             }
             if let Some(rest) = path.strip_prefix(file.as_ref())
                 && rest.starts_with(b"/")
             {
-                return Some(b"left in conflict");
+                return Some(Conflict::Path);
             }
         }
         if conflict.cut {
-            return Some(b"could not check for conflicts: the list was cut");
+            return Some(Conflict::Cut);
         }
     }
     None

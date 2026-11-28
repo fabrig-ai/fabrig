@@ -120,8 +120,7 @@ fn read_link(dir: i32, path: &[u8]) -> Option<Box<[u8]>> {
 }
 
 /// Reads one link without following the last component; refuses a possibly cut target.
-/// A kernel `ReadLink` passes a bare name, so it follows no parents either.
-pub(crate) fn read_target(dir: i32, name: &[u8], buf: &mut [u8]) -> Result<u32, i32> {
+fn read_target(dir: i32, name: &[u8], buf: &mut [u8]) -> Result<u32, i32> {
     let name = CString::new(name).map_err(|_| libc::EINVAL)?;
     let count = read_link_at(dir, &name, buf)?;
     if count == 0 || skein_lib::usize_of(count) == buf.len() { Err(libc::EOVERFLOW) } else { Ok(count) }
