@@ -271,7 +271,7 @@ Each ask is a judgement (◆), answered by an `Up` before the step returns, whic
 | `procedures` | · a procedure made, activated, messaged, released from a hold, closing; · told what its step made or why it was refused, or why its waits were | a step decided (7.4); unasked: a task's waits, whenever they change |
 | `projections` | ▷ project a goal; · forget a projection | a projection settled; unasked: its outbox entry's outcome |
 | `settings` | ◆ judge; · keep, restore, forget replaced values, save defaults; ◆ the models' catalogue | judged; the catalogue |
-| `requests` | ◆ decide an application's request; · drop it, its core part answered | decided; unasked: subjects marked changed |
+| `requests` | ▷ decide an application's request; · drop it, its core part answered | decided; unasked: subjects marked changed |
 
 Nine capabilities and about 50 cases, from 76 asks in two enums; [the notes](jig-domain-api.notes.md) map each of today's to its case. Hand-offs stay bounded and acyclic (`jig/docs/design/domain/engine/vocabulary.md`, 1.3).
 
