@@ -34,6 +34,19 @@ python3 -I -B tools/citations/test_citations.py
 - **Another repository's documents:** a citation of one ("the probe repository's
   `docs/a.md`") is refused: a finding (`outside`) even where a file of that name exists
   here.
+- **A moved section:** a section whose text, from its heading to the next heading at its level
+  or above, is one line naming where it went holds no text to cite (`DESIGN.md`, 5). That
+  line starts with `Moved to ` and a Markdown link to the file the text went to, followed by
+  `, section N` where it went to a section of that file, and by a full stop alone where the
+  section became that document. A citation of it is refused as a missing section is, as a
+  finding of its own kind, `moved`, that says where the text went: `PATH:LINE: moved TARGET
+  (moved to DEST, section N): CONTEXT`, or `(moved to DEST)` where the line names no
+  section. TARGET is what the missing section's finding would print; DEST is the line's
+  first link, from the repository root, and N the number after it. Every reading of a
+  section counts: a path's section, a bare section, a status file's label. A section that
+  holds anything else, a subsection's heading included, isn't moved. Its kind being its own,
+  removing a moved section that something still cites fails the gate as a missing section.
+  Point the citation at DEST; the next split removes the line and its heading.
 - **Not citations:** dates or counts ("`x.md`, 21 places") after a path,
   a possessive followed by a bare number ("x.md's 32 bytes"), and RFC sections
   ("RFC 6749, section 5.1", "RFC 9500's `testRSA2048` (section 2.1)", with a code span or
@@ -142,7 +155,11 @@ python3 -I -B tools/citations/test_status.py
     first line that starts with `## ` and a digit, a numbered section's heading, in a code
     fence or not; all its bytes where it has no such line. Status files, notes files and
     execution files (`*.status.md`, `*.notes.md`, `*.execution.md`) are left out, not read
-    for an opening; `draft/archive/` is included, as over the mark.
+    for an opening; `draft/archive/` is included, as over the mark. A page generated from a
+    table is left out too: one whose first line that isn't blank, after its title heading,
+    starts with `Generated from `, as the CLI pages `skein-shell`'s reference renderer writes
+    do. Its text is its renderer's, and no goal numbers it by hand (`design-upkeep.md`, 3.2).
+    It is still listed over the mark.
   - **Drafts done:** each draft whose status file is done, outside `draft/archive/`, named by
     the draft's own path (`DESIGN.md`, 4); a draft's notes file and execution file are never drafts.
   - **Unread status files.**
@@ -266,8 +283,16 @@ heading skein/docs/design/forge/markers.md 1: The markers
   new resolution. With sections it gains an explicit owner or resolving root path.
   Backticked link labels, including status-index document names,
   follow their links. Reports name final files and lines, with code and configuration
-  first. Plans and dated development records stay unchanged and unlisted. Exact allow-list
-  paths and section targets are rewritten.
+  first. Plans and dated development records stay unchanged and unlisted.
+- **Exceptions follow** what they excuse (`design-upkeep.md`, 4.2). An `allow.txt` line's
+  exact FILE follows its document's move, and its TARGET's path and section follow their
+  targets. Where a section move takes text holding a finding the line excuses from FILE to
+  another file, the line follows it there: FILE becomes that file where none of the excused
+  findings stays in FILE, and otherwise the line stays and a line for each new file follows
+  it, with the same TARGET and reason. TARGET `*` follows the same way. Nothing is dropped,
+  and each changed line counts as a rewritten citation. A glob FILE stays as written, listed
+  under **By hand** where it matches a moved document or where an excused finding moves to a
+  file it doesn't match.
 - **The final check** re-reads citations in the resulting tree with the checker's reader,
   and checks each original region against its mapped headings or document. Bare-number
   readings count too. An ambiguous reading may keep a permitted original candidate, but
