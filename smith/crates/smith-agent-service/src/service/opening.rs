@@ -61,6 +61,7 @@ impl Opening {
                         git: mount.git,
                         conflicts: mount.conflicts.clone(),
                         results: mount.results.clone(),
+                        hooks: mount.hooks.clone(),
                     })
                     .expect("root count was checked before opening");
             }

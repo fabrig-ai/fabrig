@@ -557,7 +557,6 @@ pub fn up(io: &mut Io, env: &Env<Limits>, complete: Complete, up: &mut Queue<Eve
                     | kernel::Error::NameTooLong
                     | kernel::Error::Escape
                     | kernel::Error::Busy
-                    | kernel::Error::NotALink
                     | kernel::Error::NotAFile,
                 ) => unreachable!("Usage fails only Other (runtime/kernel.md, section 6.3)"),
             };

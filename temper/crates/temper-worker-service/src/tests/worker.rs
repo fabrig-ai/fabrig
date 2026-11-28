@@ -45,6 +45,7 @@ fn a_workspace_start_carries_one_path_per_directory() {
         directories
             .push(smith::Directory {
                 results: None,
+                hooks: None,
                 root: Token::new(token),
                 name: name.into(),
                 host: Box::new([]),
@@ -89,6 +90,7 @@ fn a_start_fits_against_the_prepared_workspaces_conflicts_and_schema_costs() {
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             root: Token::new(73),
             name: b"work".as_slice().into(),
             host: Box::default(),
@@ -103,6 +105,7 @@ fn a_start_fits_against_the_prepared_workspaces_conflicts_and_schema_costs() {
     agent.run_limits.host_part = non_brief.checked_add(256).unwrap();
     start.directories = Box::new([smith_host_domain::Directory {
         results: None,
+        hooks: None,
         root: Token::new(73),
         name: b"work".as_slice().into(),
         host: Box::default(),

@@ -218,6 +218,12 @@ fn landing_round_trip(json: &[u8]) -> temper_client_protocol_wire::v1::ProjectLa
     landing
 }
 #[test]
+fn landing_hook_ceiling_round_trips_and_defaults() {
+    for (json, expected) in [(b"{}".as_slice(), 3_600), (br#"{"hook_timeout_max_seconds":1800}"#, 1_800)] {
+        assert_eq!(landing_round_trip(json).hook_timeout_max_seconds, expected);
+    }
+}
+#[test]
 fn landing_flakes_round_trip_unset_never_and_rerun() {
     use temper_client_protocol_wire::v1::{SettingsFlakeRerun, SettingsFlakes};
     for (json, expected) in [

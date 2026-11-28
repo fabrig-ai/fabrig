@@ -94,7 +94,6 @@ impl Disk {
                 | Op::Sync { .. }
                 | Op::Lock { .. }
                 | Op::Stat { .. }
-                | Op::ReadLink { .. }
                 | Op::HardLink { .. }
                 | Op::Rename { .. }
                 | Op::Remove { .. }
@@ -187,7 +186,6 @@ impl Disk {
             | Op::Append { .. }
             | Op::Sync { .. }
             | Op::Stat { .. }
-            | Op::ReadLink { .. }
             | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Spawn { .. }

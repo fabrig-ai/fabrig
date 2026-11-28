@@ -50,6 +50,7 @@ impl LongWorld {
             workspace: Some(agent::run::Workspace {
                 directories: Box::from([agent::run::Directory {
                     results: None,
+                    hooks: None,
                     host: Box::from(b"/host".as_slice()),
                     name: b"work".as_slice().into(),
                     root: Token::new(900),

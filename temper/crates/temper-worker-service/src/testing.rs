@@ -28,6 +28,15 @@ pub fn launch_args(worker: &mut Worker, args: Box<[Box<[u8]>]>, deadline: Time) 
 }
 
 pub(crate) fn request_command(worker: &mut Worker, args: Box<[Box<[u8]>]>, deadline: Time) {
+    request_with_hooks(worker, args, deadline, root::tooling::Hooks::new(None, 3600));
+}
+
+pub(crate) fn request_with_hooks(
+    worker: &mut Worker,
+    args: Box<[Box<[u8]>]>,
+    deadline: Time,
+    hooks: root::tooling::Hooks,
+) {
     worker.job_request(
         JOB,
         Request::Spawn {
@@ -42,6 +51,7 @@ pub(crate) fn request_command(worker: &mut Worker, args: Box<[Box<[u8]>]>, deadl
             ]),
             dir: b"workspaces/7".as_slice().into(),
             deadline,
+            hooks,
         },
     );
 }

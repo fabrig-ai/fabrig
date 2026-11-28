@@ -99,6 +99,7 @@ fn opaque_receipts_diagnostics_markers_and_check_tail_are_lossless_ascii() {
             repository: bytes(&opaque),
             check: bytes(b".smith/check"),
             given: Duration::from_secs(60),
+            ceiling_cut: None,
             ran: run::Ran {
                 exit: run::Exit::Code { code: 255 },
                 said_not_judged: false,
@@ -207,4 +208,25 @@ fn largest_usage_suffix_and_answer_fit_the_declared_feedback_bound() {
     assert!(received.text.ends_with(b"Child usage: used 4294967295 turns and 18446744073 seconds; stopped for budget: no; ordinary left 4294967295 turns and 18446744073 seconds."));
     let measured = skein_lib::len_u64(received.text.len());
     assert_eq!(feedback(answer(), measured - 1), Err(FeedbackRefusal::TooLarge));
+}
+
+#[test]
+fn hook_feedback_names_the_hosts_ceiling_cut_beside_the_given_time() {
+    let got = feedback(
+        run::Returned::ChecksFailed {
+            repository: bytes(b"work"),
+            check: bytes(b".smith/hooks/finish"),
+            given: Duration::from_secs(3600),
+            ceiling_cut: Some(Duration::from_secs(7200)),
+            ran: run::Ran { exit: run::Exit::Code { code: 1 }, said_not_judged: false, output: bytes(b""), cut: 0 },
+        },
+        256,
+    )
+    .expect("hook feedback");
+    assert!(got.error);
+    assert_eq!(
+        got.text.as_ref(),
+        b"checks-failed repository=\"work\" check=\".smith/hooks/finish\" exit=code:1 given_ms=3600000 \
+          (given 3600 s, cut at the host's ceiling from the 7200 s its directory asks) cut=0 tail=\"\""
+    );
 }

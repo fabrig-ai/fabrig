@@ -4,22 +4,21 @@ This document holds merge jobs and conflict resolutions, split from [`repairs.md
 
 ## 1. Resolutions
 
-- **The merge job** comes before a resolution where the change's
-  repository has a merge command at the head the merge is made on, its
-  `.temper/hooks/merge` or, where that head holds no `.temper/hooks/`,
-  its project's `merge_job` (`../../../protocol/hooks.md`, 4.2 and 5;
-  `../../../protocol/configuration/engine.md`), and the change's
-  authority delegates to the merge kind: a job of
+- **The merge job** comes before every resolution where the change's
+  authority delegates to the merge kind and the engine declares it: a job of
   kind 3 (`../../worker/jobs.md`), delegated by the change, which holds the
-  branch it writes. Once a conflict is found that such a job may take,
-  the kind declared and in its authority, the change reads
-  `.temper/hooks/` at that head, the answer kept while the head stands;
-  a read with no answer leaves the change waiting, and it reads again
-  at its next step. Its workspace is a resolution's, the base merged
-  into the branch's head;
+  branch it writes, made once a conflict is found that such a job may
+  take, with no read of the repository first. Its worker finds the
+  repository's merge command in the job's checkout, its
+  `.temper/hooks/merge` or, where the checkout holds no `.temper/hooks/`,
+  its project's `merge_job` (`../../../protocol/hooks.md`, 4.2, 4.3 and 5;
+  `../../../protocol/configuration/engine.md`). Its workspace is a
+  resolution's, the base merged into the branch's head;
   the merge command settles the conflicts it knows
   (`../../../protocol/tooling.md`, 4.1); if none is left, the worker commits
-  the merge and pushes it. On the job's result the change reads its
+  the merge and pushes it. A checkout with no command answers none,
+  pushing nothing, and the change goes to its resolution at once, as
+  below. On the job's result the change reads its
   branch afresh: a head that moved is the merge's, and the change goes
   on from it as from a resolution's push; a head that did not move
   means the command left conflicts, and the change makes a resolution

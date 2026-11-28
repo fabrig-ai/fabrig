@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 47;
 pub const LAYOUT: [u8; 32] = [
-    0xae, 0x55, 0xf2, 0x48, 0x83, 0xf9, 0x90, 0x8a, 0xdb, 0xd5, 0x55, 0x75, 0x9c, 0x0c, 0x28, 0x0b, 0x84, 0x35, 0xee,
-    0x62, 0xab, 0xba, 0xe7, 0x48, 0x1c, 0xd8, 0x62, 0xc4, 0x14, 0x1a, 0x8a, 0x8d,
+    0x4b, 0xea, 0x7b, 0x85, 0xb0, 0xb2, 0xfc, 0xb1, 0xcc, 0x7b, 0x12, 0xb7, 0x27, 0x74, 0x87, 0x7b, 0xd3, 0xdb, 0xea,
+    0x65, 0xdb, 0x89, 0x2f, 0x79, 0x8e, 0x1c, 0x51, 0xdd, 0x0b, 0xd3, 0x55, 0xd7,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -3440,6 +3440,7 @@ pub mod paths {
     pub const PROJECT_LANDING_WAIT: Path = Path::new("ProjectLanding.wait");
     pub const PROJECT_LANDING_REPAIRS: Path = Path::new("ProjectLanding.repairs");
     pub const PROJECT_LANDING_FLAKES: Path = Path::new("ProjectLanding.flakes");
+    pub const PROJECT_LANDING_HOOK_TIMEOUT_MAX_SECONDS: Path = Path::new("ProjectLanding.hook_timeout_max_seconds");
     pub const PROJECT_LANDING_TAIL: Path = Path::new("ProjectLanding (tail)");
     pub const SETTINGS_REPORT_FORMAT_TAG: Path = Path::new("SettingsReportFormat (tag)");
     pub const SETTINGS_GATE_REPORT_ARTIFACT: Path = Path::new("SettingsGateReport.artifact");
@@ -31764,6 +31765,7 @@ pub struct ProjectLanding {
     pub wait: SettingsLandingWait,
     pub repairs: Option<RepairSettings>,
     pub flakes: Option<SettingsFlakes>,
+    pub hook_timeout_max_seconds: u32,
 }
 
 // Record: ProjectLanding.
@@ -31789,11 +31791,12 @@ impl ProjectLanding {
         skein_codec::bounds::Node::Option { item: 16 },
         skein_codec::bounds::Node::Named("SettingsFlakes"),
         skein_codec::bounds::Node::Option { item: 18 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15, 17, 19] },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15, 17, 19, 20] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 110;
+    pub const ENCODED_AT_ZERO: u64 = 114;
 }
 
 impl Record for ProjectLanding {
@@ -31833,6 +31836,7 @@ impl Record for ProjectLanding {
         field::write(field::Nested, &self.wait, limits, out, paths::PROJECT_LANDING_WAIT)?;
         field::write(field::Optional { item: field::Nested }, &self.repairs, limits, out, paths::PROJECT_LANDING_REPAIRS)?;
         field::write(field::Optional { item: field::Nested }, &self.flakes, limits, out, paths::PROJECT_LANDING_FLAKES)?;
+        field::write(field::U32, &self.hook_timeout_max_seconds, limits, out, paths::PROJECT_LANDING_HOOK_TIMEOUT_MAX_SECONDS)?;
         Ok(())
     }
 
@@ -31853,6 +31857,7 @@ impl Record for ProjectLanding {
             wait: field::read(field::Nested, limits, reader, paths::PROJECT_LANDING_WAIT)?,
             repairs: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PROJECT_LANDING_REPAIRS)?,
             flakes: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PROJECT_LANDING_FLAKES)?,
+            hook_timeout_max_seconds: field::read(field::U32, limits, reader, paths::PROJECT_LANDING_HOOK_TIMEOUT_MAX_SECONDS)?,
         })
     }
 }

@@ -185,22 +185,15 @@ request's exact text form (`../../../protocol/tooling.md`, 4.2), within the clos
 kind's spec bound less the command's path; a value in another form, beside
 parameter 16 or on a change with a branch of its own pushed or handed,
 refuses the change's start as a malformed parameter. Its start is refused,
-naming the setting, where it carries no parameter 20 and the change's
-project names no `close_job`, and
-naming the kind where its authority does not delegate to kind 4. Like a
+naming the kind, where its authority does not delegate to kind 4. Like a
 catch-up's, its producer is the job: the change makes its own branch at its
 landing branch's tip, the job's checkout, and a job that pushed nothing ends
 the change with no change, as a catch-up already contained does (`../branches.md`, 2).
-
-The close hook a goal's close step found is bytes parameter 20: the
-hook's path in the repository, `.temper/hooks/close` as the closer
-writes it, within `close_job`'s bounds (relative, no NUL, no `..`
-segment, at most 4,096 bytes), and only beside parameter 17; another
-value, or one without parameter 17, refuses the start as a malformed
-parameter. With it, the change's job runs that path and the project's
-`close_job` is not read; without it, the project's `close_job`, as
-before, so a close change an earlier engine made runs as it did
-(`../../../protocol/hooks.md`, 4.2).
+Its job finds the close command in its checkout, `.temper/hooks/close`
+or, where it holds no `.temper/hooks/`, the project's `close_job`
+(`../../../protocol/hooks.md`, 4.2 and 4.3). Bytes parameter 20, the
+hook's path an earlier engine's closer wrote where its read found one,
+is read as no parameter and never written.
 
 The red landing a change repairs is carried as bytes parameter 12, its merge
 commit as 40 or 64 lowercase hexadecimal digits. The start keeps it with the

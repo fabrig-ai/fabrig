@@ -136,6 +136,7 @@ fn workspace() -> (Checkout, run::Workspace) {
         directories: Box::new([
             run::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root: Token::new(disk.root(b"work")),
@@ -145,6 +146,7 @@ fn workspace() -> (Checkout, run::Workspace) {
             },
             run::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"archive".as_slice().into(),
                 root: Token::new(disk.root(b"archive")),

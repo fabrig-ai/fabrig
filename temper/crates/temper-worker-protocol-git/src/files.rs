@@ -281,7 +281,6 @@ impl Task {
                     }
                 }
                 Op::HardLink { .. }
-                | Op::ReadLink { .. }
                 | Op::Lock { .. }
                 | Op::Socket { .. }
                 | Op::Bind { .. }
@@ -529,7 +528,6 @@ fn read_buffer(op: Op) -> Box<[u8]> {
         | Op::Truncate { .. }
         | Op::Sync { .. }
         | Op::Stat { .. }
-        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::Rename { .. }
         | Op::Remove { .. }
@@ -573,7 +571,6 @@ fn page(complete: kernel::Complete) -> Result<Box<[u8]>, Error> {
         | Op::Truncate { .. }
         | Op::Sync { .. }
         | Op::Stat { .. }
-        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::Rename { .. }
         | Op::Remove { .. }

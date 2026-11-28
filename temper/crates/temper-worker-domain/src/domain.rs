@@ -101,6 +101,12 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// The items' hook ceiling in seconds for an agent start's held checkout.
+    #[must_use]
+    pub fn hook_timeout_ceiling(&self, run: Token, directory: Token) -> Option<u32> {
+        crate::workspace::hook_timeout_ceiling(self, run, directory)
+    }
+
     /// Entries between the root's children. Child outputs are empty between
     /// entry points, since each completes its hand-offs; payload hand-outs
     /// remain pending until their ordered returns.
@@ -383,12 +389,30 @@ impl Domain {
     #[must_use]
     pub fn job_kind(&self, run: Token, attempt: Token) -> Option<(u32, Box<[u8]>)> {
         let evidence = self.job_evidence.get(&(run, attempt))?;
+        if evidence.noted {
+            return None;
+        }
         let verb = self.tooling.verb(evidence.kind);
         Some((evidence.kind.0, verb))
     }
 
+    /// The job's explicit time cut, if any, for its operator note.
+    #[must_use]
+    pub fn job_time_cut(&self, run: Token, attempt: Token) -> Option<&[u8]> {
+        self.job_evidence.get(&(run, attempt))?.cut.as_deref()
+    }
+
     /// Take a job's operator evidence once, outside facts, results and turns (domain/worker/jobs.md).
     pub fn job_why(&mut self, run: Token, attempt: Token) -> Option<Box<[u8]>> {
+        let evidence = self.job_evidence.get_mut(&(run, attempt))?;
+        if evidence.cut.is_some() {
+            // Keep the prefixed failure detail for replays until acknowledgement.
+            if evidence.noted {
+                return None;
+            }
+            evidence.noted = true;
+            return evidence.why.clone();
+        }
         self.job_evidence.remove(&(run, attempt))?.why
     }
 

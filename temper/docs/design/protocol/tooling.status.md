@@ -4,6 +4,7 @@
 
 
 
+
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their
   contract (`../domain/worker/jobs.md`): no project names one, and the
   worker's prepare kind is temper's own alone, with no key kind,

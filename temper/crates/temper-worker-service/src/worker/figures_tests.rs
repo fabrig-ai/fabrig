@@ -143,7 +143,7 @@ impl Story {
             self.cycle();
             if let Some((owner, _)) = self.stand.worker.processes.iter().next() {
                 let owner = *owner;
-                self.agent = Some(AgentPeer::launch(&mut self.stand.worker, &self.settings, owner, true));
+                self.agent = Some(AgentPeer::launch_on_stand(&mut self.stand, &self.settings, owner));
                 return;
             }
             self.stand.drain();

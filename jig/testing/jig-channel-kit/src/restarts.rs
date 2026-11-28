@@ -216,6 +216,7 @@ pub(crate) fn worker(root: kernel::Fd) -> Proc {
             git: false,
             conflicts: Box::default(),
             results: Some(b"/restart-workspace/results".as_slice().into()),
+            hooks: None,
         }]),
         Some(smith_domain::run::outcome::ChangeSpec {
             checks_must_pass: true,

@@ -431,6 +431,7 @@ impl World {
             let root = if restored { 1 } else { disk.root(b"work") };
             let first = run::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root: checkout_io::token(root),
@@ -451,6 +452,7 @@ impl World {
                     first,
                     run::Directory {
                         results: None,
+                        hooks: None,
                         host: Box::from(b"/host".as_slice()),
                         name: b"work2".as_slice().into(),
                         root: checkout_io::token(second_root),

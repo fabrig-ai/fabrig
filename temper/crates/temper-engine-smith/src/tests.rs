@@ -94,7 +94,7 @@ fn assignment() -> engine::Assignment {
         }]),
         messages: Box::new([]),
         saved: Box::new([]),
-        workspace: engine::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
+        workspace: engine::ForgeWorkspace::default(),
         workstream: 23,
         transcript: Box::new([]),
         parts: Box::new([]),

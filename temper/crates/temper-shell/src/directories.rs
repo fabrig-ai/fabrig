@@ -191,7 +191,7 @@ pub fn errno(error: Error) -> i32 {
         Error::NameTooLong => 36,
         Error::Escape => 18,
         Error::NotAFile => 6,
-        Error::InvalidArgument | Error::NotALink => 22,
+        Error::InvalidArgument => 22,
         Error::Reach(_) => unreachable!("a reach error answers a spawn, never a file or directory operation"),
         Error::Other(number) => number,
     }

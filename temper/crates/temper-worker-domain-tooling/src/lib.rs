@@ -15,13 +15,15 @@ extern crate alloc;
 
 mod boundary;
 mod domain;
-mod hooks;
+#[cfg(test)]
+mod fuzzy;
+pub mod hooks;
 mod limits;
 #[cfg(test)]
 mod tests;
 
-pub use boundary::{End, Event, Exit, Kind, Request, Spec};
+pub use boundary::{Conflict, End, Event, Exit, Fallback, Hooks, Kind, Request, Spec};
 pub use domain::Domain;
 pub use domain::step;
-pub use hooks::{hook_failure, hook_link_target, hook_path};
+pub use hooks::{CONFIG, CONFIG_BYTES, Fault, Times, cut_text, hook_failure, hook_path, tail_after_line, times};
 pub use limits::{Invalid, Limits, valid};

@@ -17,6 +17,7 @@ pub(crate) struct Spec {
     title: Box<[u8]>,
     own: Option<Box<prepare::Request>>,
     result: Option<(Box<[u8]>, u8)>,
+    ceiling: u32,
     value: Option<Result<wire::JobSpec, wire::Undecodable>>,
 }
 
@@ -25,6 +26,8 @@ pub(crate) struct Spec {
 pub(crate) struct Evidence {
     pub(crate) kind: JobKind,
     pub(crate) why: Option<Box<[u8]>>,
+    pub(crate) cut: Option<Box<[u8]>>,
+    pub(crate) noted: bool,
 }
 
 pub(crate) fn assign(
@@ -51,7 +54,7 @@ pub(crate) fn assign(
     }
     domain
         .job_evidence
-        .insert((run, attempt), Evidence { kind: job.kind, why: None })
+        .insert((run, attempt), Evidence { kind: job.kind, why: None, cut: None, noted: false })
         .expect("hosted slots and the entering assignment bound operator evidence");
     let items = match items {
         Ok(items) => items,
@@ -81,6 +84,7 @@ pub(crate) fn assign(
     if own.is_none() && crate::assignment::has_prefixes(&items) {
         return refuse(domain, run, attempt, b"prefixes require temper prepare", env, out);
     }
+    let ceiling = items.hook_timeout_max_seconds;
     if domain.job_specs.len() == domain.job_specs.capacity() || workspace::stage_job(domain, &mut job, items).is_none()
     {
         refused(domain, run, attempt, host::JobRefusal::Busy, out);
@@ -93,7 +97,7 @@ pub(crate) fn assign(
     let title = commit_title(job.kind, request);
     let prior = domain
         .job_specs
-        .insert((run, attempt), Spec { title, own, result: None, value: Some(spec) })
+        .insert((run, attempt), Spec { title, own, result: None, ceiling, value: Some(spec) })
         .expect("one staged spec per hosted slot and the entering assignment");
     assert!(prior.is_none(), "wire retries were dropped");
     route::host_step(domain, env, host::Event::Down(host::LinkDown::AssignJob { job }));
@@ -129,6 +133,7 @@ pub(crate) fn run(
     let hosting = domain.host.hosting(owner).expect("the hub starts an admitted job");
     let spec = domain.job_specs.get_mut(&(hosting.run, hosting.attempt)).expect("an admitted job has a staged spec");
     let own = spec.own.is_some();
+    let ceiling = spec.ceiling;
     let result = spec.result.take();
     if own && result.is_none() {
         return start_refused(domain, env, owner, b"prepare result");
@@ -159,6 +164,7 @@ pub(crate) fn run(
                 refusal: spec.refusal,
                 result: spec.result,
                 outdated: spec.outdated,
+                hooks: tooling::Hooks::new(spec.fallback, ceiling),
             },
             deadline,
             directory: path.finish(),
@@ -187,12 +193,17 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, owner: Token, event:
         | tooling::Event::Written { owner, .. }
         | tooling::Event::Spawned { owner }
         | tooling::Event::Exited { owner, .. }
+        | tooling::Event::TimeCut { owner, .. }
         | tooling::Event::Read { owner, .. }
         | tooling::Event::Gone { owner } => *owner,
     };
     if owner == inner && domain.jobs.contains_key(&owner) {
         match event {
             tooling::Event::Run { .. } | tooling::Event::Prepared { .. } | tooling::Event::Stop { .. } => {}
+            tooling::Event::TimeCut { line, .. } => {
+                let hosting = domain.host.hosting(owner).expect("an active job has its identity");
+                domain.job_evidence.get_mut(&(hosting.run, hosting.attempt)).expect("job evidence").cut = Some(line);
+            }
             event @ (tooling::Event::Written { .. }
             | tooling::Event::Spawned { .. }
             | tooling::Event::Exited { .. }
@@ -215,15 +226,18 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: tooling::Reque
         }
         tooling::Request::Ended { owner, end } => {
             let end = match end {
-                tooling::End::Finished { result, deliver } => {
-                    if deliver {
-                        match delivery(domain, owner, env.limits.host.detail_bytes) {
-                            Ok(delivery) => host::JobEnd::Finished { result, delivery: Some(delivery) },
-                            Err(detail) => host::JobEnd::Failed { detail },
-                        }
+                tooling::End::Finished { result, deliver } => finished(domain, env, owner, result, deliver),
+                tooling::End::Absent => {
+                    let hosting = domain.host.hosting(owner).expect("an absent hook has a job");
+                    let kind = domain.job_evidence.get(&(hosting.run, hosting.attempt)).expect("job kind").kind;
+                    let workspace = *domain.jobs.get(&owner).expect("discovery has a checkout");
+                    let clean_merge = kind == JobKind(3) && !workspace::job_has_conflicts(domain, workspace);
+                    let result = if clean_merge {
+                        b"{\"settled\":[]}".as_slice()
                     } else {
-                        host::JobEnd::Finished { result, delivery: None }
-                    }
+                        b"{\"settled\":[],\"hook\":\"none\"}".as_slice()
+                    };
+                    finished(domain, env, owner, result.into(), clean_merge)
                 }
                 tooling::End::Failed { detail } => host::JobEnd::Failed { detail },
                 tooling::End::Deadline => host::JobEnd::Deadline,
@@ -238,28 +252,54 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: tooling::Reque
     route::host_step(domain, env, host::Event::Job(event));
 }
 
-fn spawn(domain: &mut Domain, env: &Env<Limits>, op: tooling::Request, out: &mut Queue<Request>) {
-    let (owner, program, dir) = match &op {
-        tooling::Request::Spawn { owner, program, dir, .. } => (*owner, program, dir),
-        tooling::Request::Write { .. }
-        | tooling::Request::Kill { .. }
-        | tooling::Request::Read { .. }
-        | tooling::Request::Started { .. }
-        | tooling::Request::StartRefused { .. }
-        | tooling::Request::Ended { .. }
-        | tooling::Request::Gone { .. } => unreachable!("called for a job's spawn request"),
+fn spawn(domain: &mut Domain, env: &Env<Limits>, mut op: tooling::Request, out: &mut Queue<Request>) {
+    let tooling::Request::Spawn { owner, program, dir, hooks, .. } = &mut op else {
+        unreachable!("called for a job's spawn request");
     };
-    if let Some(workspace) = domain.jobs.get(&owner)
-        && let Some(path) = program.strip_prefix(dir.as_ref())
-        && let Some(command) = path.strip_prefix(b"/")
-        && let Some((repository, hook)) = tooling::hook_path(command)
-        && let Some(why) = workspace::job_hook_conflict(domain, *workspace, repository, hook)
-    {
-        let tail = tooling::hook_failure(hook, why);
-        step(domain, env, tooling::Event::Exited { owner, exit: tooling::Exit::NotRun, tail });
-        step(domain, env, tooling::Event::Gone { owner });
+    let owner = *owner;
+    if let Some(workspace) = domain.jobs.get(&owner) {
+        if let Some(command) = in_directory(program, dir)
+            && let Some((repository, hook)) = tooling::hook_path(command)
+        {
+            let conflict = workspace::job_command_conflict(domain, *workspace, repository, hook);
+            if let Some(conflict) = conflict
+                && hooks.fallback.is_none()
+            {
+                let tail = tooling::hook_failure(hook, conflict.why());
+                step(domain, env, tooling::Event::Exited { owner, exit: tooling::Exit::NotRun, tail });
+                step(domain, env, tooling::Event::Gone { owner });
+                return;
+            }
+            hooks.conflict = conflict;
+        }
+        if let Some(fallback) = &mut hooks.fallback
+            && let Some(command) = in_directory(&fallback.program, dir)
+        {
+            for (index, byte) in command.iter().enumerate() {
+                if *byte == b'/' {
+                    let (repository, path) = command.split_at_checked(index).expect("separator in path");
+                    let path = path.strip_prefix(b"/").expect("separator in path");
+                    fallback.conflict = workspace::job_command_conflict(domain, *workspace, repository, path);
+                    break;
+                }
+            }
+        }
+    }
+    out.push(Request::Job { owner, op });
+}
+
+fn in_directory<'a>(program: &'a [u8], directory: &[u8]) -> Option<&'a [u8]> {
+    program.strip_prefix(directory)?.strip_prefix(b"/")
+}
+
+fn finished(domain: &Domain, env: &Env<Limits>, owner: Token, result: Box<[u8]>, deliver: bool) -> host::JobEnd {
+    if deliver {
+        match delivery(domain, owner, env.limits.host.detail_bytes) {
+            Ok(delivery) => host::JobEnd::Finished { result, delivery: Some(delivery) },
+            Err(detail) => host::JobEnd::Failed { detail },
+        }
     } else {
-        out.push(Request::Job { owner, op });
+        host::JobEnd::Finished { result, delivery: None }
     }
 }
 
@@ -411,6 +451,11 @@ pub(crate) fn answered(
             host::JobEnding::Failed { .. } | host::JobEnding::Refused(_) => Some(job_reason(&answer)),
             host::JobEnding::Finished { .. } => None,
         };
+        if let Some(line) = &evidence.cut
+            && let Some(why) = &mut evidence.why
+        {
+            *why = tooling::tail_after_line(line, why, detail_bytes);
+        }
     }
     if let host::JobEnding::Failed { detail, .. } = &mut answer
         && let Some(evidence) = domain.job_evidence.get(&(run, attempt))

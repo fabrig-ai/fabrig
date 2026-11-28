@@ -88,6 +88,24 @@ pub fn job(
     temper_worker_domain::Event::AssignJob { job, items, spec }
 }
 
+/// The decoded assignment still asks the worker to discover the hook before using its fallback.
+pub(super) fn hook_job(
+    assignment: host::JobAssignment,
+    workspace: Option<&engine::ForgeWorkspace>,
+    limits: &v1::Limits,
+    command: &[u8],
+    fallback: &[u8],
+) -> temper_worker_domain::Event {
+    let event = job(assignment, workspace, limits);
+    let temper_worker_domain::Event::AssignJob { spec: Ok(spec), items: Ok(items), .. } = &event else {
+        panic!("hook job decodes")
+    };
+    assert_eq!(spec.command.as_ref(), command);
+    assert_eq!(spec.fallback.as_deref(), Some(fallback), "find is set and the fallback is carried");
+    assert_eq!(items.hook_timeout_max_seconds, 3_600);
+    event
+}
+
 /// The worker's parts through the service's channel records, without bytes.
 #[must_use]
 pub fn parts(work: &wire::Work, preparation: Option<wire::Preparation>) -> engine::Parts {

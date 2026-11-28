@@ -1,6 +1,7 @@
 # channel: status
 
-2026-11-24. Where smith's code lags or departs from [channel.md](channel.md).
+2026-11-27. Where smith's code lags or departs from [channel.md](channel.md).
+
 
 
 - **Not yet:** the workspace's files left in conflict: the schema allows 64 in a directory (`channel-v8.schema`), and the run limits' `conflicts` is fixed at 64 (`smith-domain-run/src/limits.rs`, `derive`).

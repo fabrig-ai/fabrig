@@ -95,6 +95,7 @@ pub fn workspace_start(seed: u64, job: smith_agent_world::Job) -> host::Start {
     source.workspace = Some(Token::new(9));
     source.directories = Box::from([host::Directory {
         results: None,
+        hooks: None,
         host: Box::from(b"/host".as_slice()),
         name: b"work".as_slice().into(),
         root: Token::new(1),

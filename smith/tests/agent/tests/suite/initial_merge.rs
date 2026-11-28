@@ -190,6 +190,7 @@ fn setup() -> Fixture {
         directories: Box::new([
             run::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root: roots[0],
@@ -199,6 +200,7 @@ fn setup() -> Fixture {
             },
             run::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"archive".as_slice().into(),
                 root: roots[1],
@@ -208,6 +210,7 @@ fn setup() -> Fixture {
             },
             run::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"notes".as_slice().into(),
                 root: roots[2],
@@ -217,6 +220,7 @@ fn setup() -> Fixture {
             },
             run::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"reference".as_slice().into(),
                 root: roots[3],

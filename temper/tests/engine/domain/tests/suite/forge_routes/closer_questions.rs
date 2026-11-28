@@ -18,8 +18,18 @@ fn repairing_landing() -> (World, engine::Assignment, Box<[u8]>, u64, u64, engin
 }
 
 fn landing_with_settlement(settle: bool) -> (World, engine::Assignment, Box<[u8]>, u64, u64) {
-    let (mut world, goal, branch) =
-        goal_world_with_updates(settle, true, None, true, true, STEPS, None, false, Some(Duration::from_secs(3600)), 3);
+    let (mut world, goal, branch) = goal_world_with_updates(
+        CloseKind::fixture(settle),
+        true,
+        None,
+        true,
+        true,
+        STEPS,
+        None,
+        false,
+        Some(Duration::from_secs(3600)),
+        3,
+    );
     add_change(&mut world, &goal, &branch, 93, b"First", b"done");
     if !settle {
         pending_head(&mut world, &branch);
@@ -358,8 +368,18 @@ fn a_restart_keeps_the_closers_question_and_relays_its_answer() {
 
 #[test]
 fn a_landings_resolution_asks_the_goal_through_its_closer_and_goes_on() {
-    let (mut world, goal, branch) =
-        goal_world_with_updates(false, true, None, true, true, STEPS, None, true, Some(Duration::from_secs(3600)), 3);
+    let (mut world, goal, branch) = goal_world_with_updates(
+        CloseKind::Undeclared,
+        true,
+        None,
+        true,
+        true,
+        STEPS,
+        None,
+        true,
+        Some(Duration::from_secs(3600)),
+        3,
+    );
     add_change(&mut world, &goal, &branch, 93, b"file", b"done");
     let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", b"base moved", 1)
         .expect("main conflicts with g");

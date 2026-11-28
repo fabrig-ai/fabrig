@@ -6920,6 +6920,7 @@ dependencies = [
  "temper-protocol-member-message",
  "temper-protocol-reaches",
  "temper-protocol-store",
+ "temper-protocol-worker-wire",
 ]
 
 [[package]]

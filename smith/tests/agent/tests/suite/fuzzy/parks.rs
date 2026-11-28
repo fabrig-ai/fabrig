@@ -227,6 +227,7 @@ fn drive(
             host: b"/work/temper".as_slice().into(),
             name: b"work".as_slice().into(),
             results: None,
+            hooks: None,
             writable: true,
             git: true,
             conflicts: Box::default(),

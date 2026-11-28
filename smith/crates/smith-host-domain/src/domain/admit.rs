@@ -53,6 +53,11 @@ pub(super) fn valid_start(start: &Start, limits: &Limits) -> Option<Invalid> {
         {
             return Some(Invalid::Directories);
         }
+        if let Some(hooks) = &directory.hooks
+            && !within(&hooks.fault, u64::from(crate::HOOK_FAULT_BYTES))
+        {
+            return Some(Invalid::Directories);
+        }
         for path in &directory.conflicts {
             if !within(path, u64::from(limits.path_bytes)) {
                 return Some(Invalid::Directories);

@@ -78,6 +78,7 @@ pub(crate) fn start(
                         git: directory.git,
                         conflicts: directory.conflicts,
                         results: directory.results,
+                        hooks: directory.hooks,
                     })
                     .expect("checked mount count");
             }

@@ -52,5 +52,17 @@ pub struct ForgeRepository {
 pub struct ForgeWorkspace {
     /// The project's rerun bound, if it states one.
     pub rerun: Option<u32>,
+    /// The project's hook ceiling, from the settings built at restore.
+    pub hook_timeout_max_seconds: u32,
     pub repositories: Box<[ForgeRepository]>,
+}
+
+impl Default for ForgeWorkspace {
+    fn default() -> Self {
+        Self {
+            rerun: None,
+            hook_timeout_max_seconds: crate::settings::ProjectLanding::default().hook_timeout_max_seconds,
+            repositories: Box::new([]),
+        }
+    }
 }

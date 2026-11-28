@@ -138,8 +138,9 @@ delegate from what it knows:
   an agent; the words say what the commit brings and why. Refused,
   naming the kind, where the run's authority does not delegate to the
   merge kind; a commit in another form is refused, naming it. Whether
-  the repository has a merge command is the change's to find, at its
-  branch's tip: one with none there holds the change, naming why
+  the repository has a merge command is the merge job's to find, in its
+  checkout: with none, a clean merge is delivered all the same and one
+  in conflict goes to its resolution at once
   (`../forge/updates.md`, section 1; `../../protocol/hooks.md`, 4.2).
   Whether the repository has the commit is the job's to find: one the
   forge cannot fetch fails the job, and holds the change.

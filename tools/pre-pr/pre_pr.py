@@ -482,7 +482,8 @@ def code_inputs(paths, data, root, *, local_manifests=False):
         # alone must not turn a package README into a build.
         if source or registered or (not documentation(path) and (
                 '.cargo' in Path(path).parts[:-1] or path.startswith(('.config/', 'tools/'))
-                or path in ('.temper/hooks/deliver', '.temper/hooks/finish', '.temper/pre-pr')
+                or path in ('.temper/hooks/deliver', '.temper/hooks/finish', HOOK_CONFIG,
+                            '.temper/pre-pr')
                 or (path.startswith('skein/scripts/') and path.endswith('.sh'))
                 or any(path.startswith(prefix) for prefix in prefixes)
                 or owner(root / path, directories) is not None
@@ -1361,7 +1362,7 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
     python_suites = set()
     for path in paths:
         file = Path(path)
-        if path in HOOKS or (path.startswith('tools/pre-pr/') and file.suffix == '.py'):
+        if path in HOOK_INPUTS or (path.startswith('tools/pre-pr/') and file.suffix == '.py'):
             python_suites.add('tools/pre-pr/test_pre_pr.py')
         elif completed_goal and file.suffix == '.py':
             suite = file if file.name.startswith('test_') else file.with_name('test_' + file.name)
@@ -1412,6 +1413,8 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
 
 HOOKS = {'.temper/hooks/deliver', '.temper/hooks/finish', '.temper/hooks/close',
          '.temper/pre-pr', '.temper/close', '.temper/checked-close'}
+HOOK_CONFIG = '.temper/hooks/config.toml'
+HOOK_INPUTS = HOOKS | {HOOK_CONFIG}
 
 
 def with_rust_tools(env):

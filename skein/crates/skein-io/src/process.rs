@@ -392,7 +392,6 @@ fn spawn_error(error: kernel::Error) -> Error {
         | kernel::Error::NameTooLong
         | kernel::Error::Escape
         | kernel::Error::Busy
-        | kernel::Error::NotALink
         | kernel::Error::NotAFile
         | kernel::Error::InvalidArgument
         | kernel::Error::Other(_) => Error::Other,
