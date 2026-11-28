@@ -388,7 +388,9 @@ record OpenAttempt { attempt: u64 claimed: option u64 started: option u64 from: 
     name, the commit its checkout held, the guide's path, each at most
     256 bytes, the SHA-256 of the bytes read, their count, and whether
     the read was whole. A report is taken once, for the attempt still
-    open; another, or one for an attempt closed, is dropped. An attempt
+    open; another, or one for an attempt closed, is dropped. An
+    application whose host reports with the attempt's end steps the
+    report first, then the end. An attempt
     whose host never reported keeps none, which reads as unreported,
     never as no guide.
   The row carries them as an optional field, its default none, so a row

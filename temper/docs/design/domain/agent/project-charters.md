@@ -122,10 +122,15 @@ form and the check before it lands are `../../protocol/temper-dir.md`,
   path, the SHA-256 of the bytes it read, their count and whether the
   read was whole (smith's `smith/docs/design/domain/run-start.md`, 1.3).
   The worker names each directory's repository and the commit its
-  checkout holds once prepared (`../worker/checkouts.md`), and sends the
-  engine one report for the attempt, kept as its other application
-  payloads are; the root records it on the attempt. A worker of the
-  build before sends none: the attempt reads as unreported.
+  checkout holds once prepared (`../worker/checkouts.md`), keeps the
+  report from preparation, and sends it once, on the attempt's durable
+  answer, as an optional member whose default is none; the root steps
+  it onto the attempt before that answer closes it. A running attempt
+  therefore reads as unreported until it answers: the draft asks only
+  that what a run read be read back while its records are kept, and the
+  answer is the one payload of the attempt a lost link doesn't lose. A
+  worker of the build before sends none: the attempt reads as
+  unreported.
 - **Read back:** `temper ctl task runs TASK` prints each attempt's
   sources (`../../client/ctl/tools-reads.md`, 1). With the set's commit
   and each guide's, a person reads from the repository what the run was
