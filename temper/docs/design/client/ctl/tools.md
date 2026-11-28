@@ -67,18 +67,6 @@
   Where a call prints a template, a charter or a policy by number, in
   `settings show`'s inventory and `me`, it prints its name beside it.
 
-## 2. Reads
-
-Moved to [`tools-reads.md`](tools-reads.md), section 1.
-
-## 3. Acts
-
-Moved to [`tools-acts.md`](tools-acts.md), section 1.
-
-## 4. Waiting
-
-Moved to [`tools-waiting.md`](tools-waiting.md), section 1.
-
 ## 5. Open questions
 
 None.

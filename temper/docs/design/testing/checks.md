@@ -276,10 +276,6 @@ each behaviour in the lowest world that owns it, and one smoke above:
   loop pass its layer's budget, the numbers go to the user; no story is
   cut or moved to fit.
 
-## 5. Stage 1: the golden, its check and its judge
-
-Moved to [`checks-stage-one.md`](checks-stage-one.md), section 1.
-
 ## 6. Checks every world holds
 
 Written from `../draft/failure-worlds.md`, sections 3, 5 and 6. Each

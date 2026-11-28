@@ -329,18 +329,6 @@
   check owed, which the rule above then judges; where no failed receipt
   resolves, it holds at once as above.
 
-## 2. Resolutions
-
-Moved to [`repairs-resolutions.md`](repairs-resolutions.md), section 1.
-
-## 3. Gathering briefs
-
-Moved to [`repairs-briefs.md`](repairs-briefs.md), section 1.
-
-## 4. Holds and releases
-
-Moved to [`repairs-releases.md`](repairs-releases.md), section 1.
-
 ## 5. Open questions
 
 See [Repairs, resolutions and releases: open questions](repairs-later.md).

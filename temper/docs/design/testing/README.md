@@ -78,10 +78,6 @@ is still open (`README.md`, section 6).
   540 is the tier's 6-minute aim, raised by half by the user's word of
   11-08, for now, to be revisited.
 
-## 2. temper's tiers
-
-Moved to [`tiers.md`](tiers.md), section 1.
-
 ## 3. Neighbours and their faces
 
 ### 3.1 Peers
@@ -112,10 +108,6 @@ searches and the checkout's git operations; its io face, io's records,
 a spawn with an argument vector among them. Every component's files and
 processes go through it: the worker's workspaces and agent processes,
 the agent's tools and checks, and the engine's store.
-
-## 4. Scenarios
-
-Moved to [`scenarios.md`](scenarios.md), section 1.
 
 ## 5. Layout
 

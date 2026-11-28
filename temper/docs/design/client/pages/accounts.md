@@ -4,25 +4,25 @@
 
 - **The accounts page** is jig's reference UI's accounts, on a page of
   temper's own (jig's `client/domain/pages.md`, sections 7 and 11),
-  with temper's words (2), in the forges' page's shape (with the
+  with temper's words (`accounts-words.md`, 1), in the forges' page's shape (with the
   user, 2026-10-23). It shows no value. Its acts are jig's accounts'
   requests (jig's `client/domain/contract/requests.md`, 2), each sent as `../root.md`, 1.6
   says. Its parts, in order:
   - *"Your accounts · N",* level 2, with "+ Connect a model", to
     `ConnectModel`, in its head; then each of the person's accounts as a
-    disclosure, folded, named by the account's heading (2, An
+    disclosure, folded, named by the account's heading (`accounts-words.md`, 1, An
     account), its summary its deciding source's state in words and the
-    account's line (2, An account's line), and under it the account's
-    usage (2, Usage). Opened, only what the summary does not say (the
+    account's line (`accounts-words.md`, 1, An account's line), and under it the account's
+    usage (`accounts-words.md`, 1, Usage). Opened, only what the summary does not say (the
     request `connect-flows`): no name, "Ready" or count of what it pays for
-    again. The state's words and acts (2, Each state); its check line and
-    the uses it pays for by name (2, An account's check line; An account's
+    again. The state's words and acts (`accounts-words.md`, 1, Each state); its check line and
+    the uses it pays for by name (`accounts-words.md`, 1, An account's check line; An account's
     line); its sources in order, each with its kind and state in words; on the
     deployment's accounts
     "Used by" and "Waiting for it", whose facts jig gives the
     deployment's accounts alone for now (a person's own leave them
     out, and its line its use: the user's pick, 10-23); and
-    the account's acts, on one line (2, Its acts): sign a source out, add a key to the account,
+    the account's acts, on one line (`accounts-words.md`, 1, Its acts): sign a source out, add a key to the account,
     replace or remove a key, remove the account, resume a source, move
     the account or a source, check a program's login again;
   - *the deployment's accounts,* for an owner, the same way under
@@ -30,7 +30,7 @@
   - *the playground's account,* in a section of its own, folded, while
     the playground is read (`../forge/family.md`, 7).
 
-  A state's "Continue with ChatGPT" and "Use an API key" (2, Each
+  A state's "Continue with ChatGPT" and "Use an API key" (`accounts-words.md`, 1, Each
   state) are `ConnectModel`'s ways, sent from the row, a sign-in coming
   back to the page; the page adds no account of its own: that is
   `ConnectModel`'s.
@@ -42,7 +42,7 @@
     "Use an API key" in a state's acts is the row's "Add an API key".
     "Continue with ChatGPT" in a row is a sign-in for the account's
     provider, held by the account's holder: its address, then its end,
-    are drawn in the row (2, A sign-in), as `ConnectModel`'s Signing
+    are drawn in the row (`accounts-words.md`, 1, A sign-in), as `ConnectModel`'s Signing
     in draws them, its paste among them (`ConnectModel`, The paste). "Use the API key first" moves the account's first
     key after its deciding source to that source's place. "Check
     again" checks the program's login of the source it names. "Sign
@@ -98,7 +98,7 @@
     opens a new tab and sends the sign-in, whose answer is the address
     the tab goes to. The provider sends that tab to the engine's
     listener, and the page, which stayed, shows the sign-in's end, read
-    on the `accounts` watch: Accounts with its confirmation, or the ending’s words and acts (2,
+    on the `accounts` watch: Accounts with its confirmation, or the ending’s words and acts (`accounts-words.md`, 1,
     A sign-in). The terminal prints the address and opens no browser
     (`../line.md`, 5). temper detects no browser elsewhere (`../README.md`, section 5, A browser on another
     machine): the page offers the paste to everyone, below.
@@ -138,8 +138,8 @@
     request is out, the button reads "Finishing…"; answered
     *finishing*, the field goes and the card reads "Finishing your
     sign-in…" until the `accounts` watch shows the end, Accounts or the
-    ending’s words (2, A sign-in). Refused, the field stays empty
-    with the refusal's words above it (2, The paste), and the sign-in
+    ending’s words (`accounts-words.md`, 1, A sign-in). Refused, the field stays empty
+    with the refusal's words above it (`accounts-words.md`, 1, The paste), and the sign-in
     still waits; refused *not waiting*, the card follows the watch: an
     end it shows, or, with the sign-in gone, "This sign-in has ended.",
     and the way's button again. *Lost* or *unsent* asks for the paste
@@ -201,7 +201,7 @@
     rule (`../ctl/areas.md`, area 5).
   - *Ready's place:* an account made lands on `Accounts`, its address
     replacing the way's, with the line "Added your ChatGPT plan. temper’s
-    agents now run on it." (2's words) and a quiet "Start a chat", to
+    agents now run on it." (`accounts-words.md`, 1's words) and a quiet "Start a chat", to
     `NewChat`, above the rows, and goes when the person leaves the page or
     acts on it. A plan's "Manage usage" is in its row.
   - *Its address* is its way (`../web/addresses.md`, 1): none at Choose; a
@@ -228,10 +228,6 @@
   The first run reaches its ways on the welcome's Model step (`welcome.md`, 1),
   and its "Continue with ChatGPT" signs in with the default document's
   OpenAI (`../../protocol/setup/init.md`, 6).
-
-## 2. LLM accounts' words
-
-Moved to [`accounts-words.md`](accounts-words.md), section 1.
 
 ## 3. Open questions
 

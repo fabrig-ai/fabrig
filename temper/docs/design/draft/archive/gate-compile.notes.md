@@ -1,6 +1,6 @@
 # gate-compile: the reasons behind it
 
-This holds the reasons for `gate-compile.md`, moved from [`../notes.md`](../notes.md), section 16.
+This holds the reasons for `gate-compile.md`, moved from the shared notes file.
 
 The reasons behind `gate-compile.md`, from the user, 2026-11-13.
 

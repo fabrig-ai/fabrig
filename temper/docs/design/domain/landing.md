@@ -357,26 +357,6 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   it are stacked again onto the last kept prefix, and the landing
   proves its new top. With no member left, the landing ends (4.2).
 
-## 5. Prepare
-
-Moved to [`landing-prepare.md`](landing-prepare.md), section 1.
-
-## 6. Keys and receipts
-
-Moved to [`landing-proof.md`](landing-proof.md), section 1.
-
-## 7. Proof
-
-Moved to [`landing-proof.md`](landing-proof.md), section 2.
-
-## 8. The turn
-
-Moved to [`landing-turn.md`](landing-turn.md), section 1.
-
-## 9. Trains
-
-Moved to [`landing-turn.md`](landing-turn.md), section 2.
-
 ## 10. What the forge shows
 
 See [Landings at the forge](landing-forge.md), section 1.
@@ -646,7 +626,7 @@ across a restart, a worker's loss and a release
 saved delivery across its worker's loss beside a proving landing; going
 live by `turn` with running work's settings kept (13); a copied policy's
 ceilings on the shipped capacities; a goal's delivery leaving its
-landing mid-proof, or sharing its run; a turn's merge not made (8):
+landing mid-proof, or sharing its run; a turn's merge not made (`landing-turn.md`, 1):
 raced by a goal's design delivery and answered `500`, its round ending
 with no hold and the next landing; lost and found merged, landed; lost
 with its pull request open, made again and landed; withdrawn with it

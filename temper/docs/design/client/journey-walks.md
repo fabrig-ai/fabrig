@@ -379,10 +379,6 @@ service, over HTTP, rather than joined to the engine's root.
   harness of the caller's, its processes and their order unchanged;
   `world`, `world_metered` and `slices` stay, at `()`.
 
-## 4. A walk in a world
-
-Moved to [`journey-walks-world.md`](journey-walks-world.md), section 1.
-
 ## 5. The program
 
 `temper-client-walk`, `temper/bin/temper-client-walk` and its crate

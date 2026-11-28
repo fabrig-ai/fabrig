@@ -301,14 +301,6 @@ Documents:
   absolute; `directories.md` gives each member's. None is resolved against
   the working directory.
 
-## 3. temper's members for a worker
-
-Moved to [`worker.md`](worker.md), section 1.
-
-## 4. The agent's configuration
-
-Moved to [`worker.md`](worker.md), section 2.
-
 ## 5. Secrets' files
 
 | File | Named by | Holds | Read by |
@@ -353,10 +345,6 @@ Moved to [`worker.md`](worker.md), section 2.
 - **No LLM account's file.** LLM accounts' records and keys are in
   jig's secrets' store, and a program's login is in its configuration
   directory, which temper never reads (../credentials-llm-accounts.md, section 1).
-
-## 6. First start and every start
-
-Moved to [`startup.md`](startup.md), section 1.
 
 ## 7. The client's arguments
 

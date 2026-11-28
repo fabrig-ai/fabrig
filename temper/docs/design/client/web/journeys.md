@@ -93,14 +93,6 @@ look; 8 a walk on a box; 9 the browser's journeys; 10 what is open.
   it of any node. The host's own act gives what it returns. With the view's tree, `Host::tree(&self) ->
   &Tree`, it is where an act is read and its node found for replay (`journeys-recordings.md`, 1.3).
 
-## 3. The recording
-
-Moved to [`journeys-recordings.md`](journeys-recordings.md), section 1.
-
-## 4. Replay
-
-Moved to [`journeys-recordings.md`](journeys-recordings.md), section 2.
-
 ## 5. The print
 
 ### 5.1 The programs

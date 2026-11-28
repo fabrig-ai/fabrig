@@ -1,6 +1,6 @@
 # per-wake: the reasons behind it
 
-This holds the reasons for `per-wake.md`, moved from [`notes.md`](notes.md), section 8.
+This holds the reasons for `per-wake.md`, moved from the shared notes file.
 
 The reasons behind `per-wake.md`, from the user, 2026-11-07.
 

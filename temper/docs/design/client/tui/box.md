@@ -71,7 +71,7 @@ start and stop are this section's own.
   section 1; jig's `protocol/client/sign-in.md`, *A sign-in held is
   kept*). While it signs in, the starting screen is drawn on a box set
   up before, and the welcome on a first run, its state "Connecting"
-  (*The starting screen*, below). It ends as `pages/sign-in.md`, section 2 says: `link_used` or `link_expired` reads the engine's link file
+  (`box-startup.md`, 2). It ends as `pages/sign-in.md`, section 2 says: `link_used` or `link_expired` reads the engine's link file
   a second later. Not ready and busy wait for jig's resend after its
   backoff, still "Connecting", because the box starts serve after it
   hands the link. Any other end falls back to the sign-in screen.
@@ -115,7 +115,7 @@ start and stop are this section's own.
 
   | Line | The TUI |
   |---|---|
-  | `link URL` | the printed link, the latest replacing the one before (*The welcome*) |
+  | `link URL` | the printed link, the latest replacing the one before (`box-startup.md`, 3) |
   | `log TEXT` | one of the box's last lines, at most 50 kept, `limits::BOX_LOG`, the oldest dropped (*`/log`*) |
   | `restarting STEP` | the box restarts STEP (*The box's state*) |
   | `running STEP` | STEP runs again |
@@ -138,7 +138,7 @@ start and stop are this section's own.
   Asked for (*Quitting*), it closes the TUI; unasked, the TUI stays open
   and says so (*A give up and an end*, below).
 - **Its pages:** on a box set up before, the starting screen until the
-  TUI has read `me` (*The starting screen*, below); the welcome while
+  TUI has read `me` (`box-startup.md`, 2); the welcome while
   `me` names no project, its link's place holding "The link comes here
   once the box has started." until the box's first `link` line; then the
   launchpad and a chat as `pages/README.md` draws them, with the playground's
@@ -158,22 +158,6 @@ start and stop are this section's own.
     `README.md`, 4 says, exit 1: the box's life pipe closes with
     `temper`, and the box stops by itself
     (`../../protocol/setup/box-front.md`, 1).
-
-## 2. The box’s stages
-
-Moved to [`box-startup.md`](box-startup.md), section 1.
-
-## 3. The starting screen
-
-Moved to [`box-startup.md`](box-startup.md), section 2.
-
-## 4. The welcome
-
-Moved to [`box-startup.md`](box-startup.md), section 3.
-
-## 5. Lending its terminal
-
-Moved to [`box-lending.md`](box-lending.md), section 1.
 
 ## 6. The playground
 
@@ -307,7 +291,7 @@ Stop the box? csv-export's running task stops with it.
 - **A group started:** at `started NAME` the host gives the notice
   "NAME started" (`Notice::Started { name }`, `pages/README.md`, 1,
   *The notice*), "Forgejo started"; `dormant NAME` gives none, the
-  group's failure being the browser's to say (*The welcome*, *The forge
+  group's failure being the browser's to say (`box-startup.md`, 3, *The forge
   under way*) and `/log`'s.
 - **A give up and an end:** the box stops its steps, says `gave-up`, and
   exits 1 (`../../protocol/setup/box-front.md`, 1). The TUI stays open and says
@@ -334,10 +318,6 @@ Stop the box? csv-export's running task stops with it.
   as the note opens and as lines come while it stands, and the body
   shows its end, the newest lines, as many as fit; PgUp reads back the
   rest until the next change (skein's `ui/screen.md`, 5.2).
-
-## 9. Opening the browser
-
-Moved to [`box-web.md`](box-web.md), section 1.
 
 ## 10. The place
 

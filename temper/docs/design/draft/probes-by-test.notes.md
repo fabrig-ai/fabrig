@@ -1,6 +1,6 @@
 # probes-by-test: the reasons behind it
 
-This holds the reasons for `probes-by-test.md`, moved from [`notes.md`](notes.md), section 19.
+This holds the reasons for `probes-by-test.md`, moved from the shared notes file.
 
 The reasons behind `probes-by-test.md`, from the user, 2026-11-14 and 2026-11-15.
 

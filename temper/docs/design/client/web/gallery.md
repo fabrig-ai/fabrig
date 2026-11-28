@@ -87,14 +87,6 @@ printed in a world from the engine's own answers by
   plain name (`signed-out`, `chats-empty`, `adoption-refused`). A name
   is never reused for another state.
 
-### 2.1 Project pages and settings
-
-Moved to [`gallery-project-states.md`](gallery-project-states.md), section 1.
-
-### 2.2 Journeys and interactions
-
-Moved to [`gallery-journey-states.md`](gallery-journey-states.md), section 1.
-
 ## 3. Its tests
 
 In `crates/temper-client-gallery-tool`'s own tests, in the view's world: each state's tree

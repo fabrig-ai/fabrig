@@ -69,7 +69,7 @@ The TUI's host and seam are split from [the TUI](README.md).
   background where it answered (`theme.md`), the
   address, whether the TUI has an engine's link file to read
   (on Linux, `XDG_RUNTIME_DIR` absolute; on macOS, always), whether it
-  is on a box (2, *On a box*), the small
+  is on a box (`directory.md`, 1, *On a box*), the small
   store's records and the credential as the native shell loaded them,
   the note as the binary read it for this address (2), whether the
   terminal draws the header's mark, `plain` where `TERM_PROGRAM` is

@@ -454,10 +454,6 @@
   across the person's projects: Home on All projects' statuses, the
   inbox unfiltered, the decided documents of the needs' projects and
   the person's chats and goals across projects (`../tui/pages/launchpad.md`, 2).
-### 1.2 Home on All projects
-
-Moved to [`home-across-projects.md`](home-across-projects.md), section 1.
-
 ### 1.3 A page's parts
 
 - **A page's parts** (`../../draft/surfaces.md`, section 12): what Home,
@@ -492,14 +488,6 @@ Moved to [`home-across-projects.md`](home-across-projects.md), section 1.
   temper is no card either: it counts nowhere a card does. An Only you item is no
   card: it is counted nowhere a card is. A need's why is its card's own
   line (`needs-you.md`, 1, *Why it reached you*), no part of the page's.
-### 1.4 Findings, drawn
-
-Moved to [`home-findings.md`](home-findings.md), section 1.
-
-### 1.5 Decided for you
-
-Moved to [`home-decisions.md`](home-decisions.md), section 1.
-
 ## 2. Open questions
 
 - **A copy Home's sheet asked, once in** (1): the request `ui-welcome`

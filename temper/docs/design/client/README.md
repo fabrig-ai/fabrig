@@ -290,14 +290,6 @@ longer than a client receives makes its document undecodable there, and
 jig's link drops its stream on such a record: every watch ends, and the
 page reads Offline and Behind.
 
-## 3. The client root
-
-Moved to [`root.md`](root.md), section 1.
-
-## 4. Signing in and the small store
-
-Moved to [`sign-in.md`](sign-in.md), section 1.
-
 ## 5. Open questions
 
 ### 5.1 The pages
@@ -309,11 +301,3 @@ Moved to [`sign-in.md`](sign-in.md), section 1.
 - **Clients that are not a person's:** a command run once and a
   service acting as a party are the agents' tools, `temper ctl`
   (`ctl/README.md`). A bot: none.
-
-### 5.8 Signing in
-
-Moved to [`sign-in.md`](sign-in.md), section 2.
-
-### 5.10 The client's own
-
-Moved to [`root.md`](root.md), section 2.
