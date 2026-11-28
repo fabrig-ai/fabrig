@@ -137,6 +137,11 @@ fn accept(journal: &mut Journal, limits: &Limits, decision: Decision, out: &mut 
     }
     Ok(())
 }
+pub(crate) fn accept_step(domain: &mut crate::Domain, env: &skein_lib::Env<crate::Limits>, decision: Decision) {
+    accept_routed(&mut domain.journal, &mut domain.engine.core_mut().counters, &env.limits.journal, decision, false)
+        .unwrap();
+}
+
 fn committed(journal: &mut Journal, number: u64) {
     mark_committed(&mut journal.inner, number);
     if !journal.inner.stopped() {

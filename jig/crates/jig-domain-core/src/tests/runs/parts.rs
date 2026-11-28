@@ -250,7 +250,7 @@ fn sent_words_follow_prepared_parts_and_always_complete_their_route() {
     }
 }
 
-fn arrive(core: &mut Core, limits: &Limits, from: tasks::Party, kind: tasks::MessageKind) {
+fn arrive(core: &mut Core, limits: &Limits, from: tasks::Party, kind: tasks::MessageKind) -> Box<[Request]> {
     watch_outputs(
         core,
         limits,
@@ -270,7 +270,7 @@ fn arrive(core: &mut Core, limits: &Limits, from: tasks::Party, kind: tasks::Mes
                 },
             },
         }),
-    );
+    )
 }
 
 fn notes_load(out: &[Request]) -> Token {
@@ -377,12 +377,24 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
             if arrival == Arrival::BeforeWorkspace {
                 finish_section(&mut core, &limits);
             }
-            arrive(&mut core, &limits, from, kind);
+            let out = arrive(&mut core, &limits, from, kind);
             assert_eq!(core.contexts.contains_key(&1), kept, "{arrival:?}: {name}: context current");
             if !kept {
-                let tasks::Phase::Active(tasks::Active::BackingOff { .. }) = core.tasks.task(1).unwrap().phase else {
-                    panic!("{arrival:?}: {name}: stale preparation backs off");
-                };
+                let row = core.tasks.task(1).unwrap();
+                assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Due), "{arrival:?}: {name}: due again");
+                assert_eq!(row.refusals, 0);
+                assert_eq!(row.tries, tasks::Tries::NONE);
+                assert!(row.retry_notice.is_none());
+                let mut reactivated = false;
+                for request in &out {
+                    if let Request::Now(now) = request
+                        && let Now::Activate { context } = now.as_ref()
+                        && context.task == 1
+                    {
+                        reactivated = true;
+                    }
+                }
+                assert!(reactivated, "{arrival:?}: {name}: requests a new activation");
                 assert!(!core.claiming.contains_key(&1));
                 continue;
             }

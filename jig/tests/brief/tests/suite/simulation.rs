@@ -248,16 +248,18 @@ fn a_full_table_or_a_busy_brief_refuses_for_capacity() {
 fn malformed_plans_say_why_they_are_refused_permanently() {
     let deadline = Time::ZERO.saturating_add(Duration::from_secs(10));
     let too_many = (0..=LIMITS.sections).map(|n| connector(u64::from(n), false, 0)).collect();
-    for (event, section, words) in [
+    for (event, dropped, section, words) in [
         (
             planned(too_many, LIMITS.brief_bytes, deadline),
+            (0..=LIMITS.sections).map(u64::from).collect::<Vec<_>>(),
             b"brief".as_slice(),
             b"it has more sections than a brief may hold".as_slice(),
         ),
-        (planned(Box::new([]), LIMITS.brief_bytes + 1, deadline), b"brief", b"its budget is past the limit"),
-        (planned(Box::new([]), LIMITS.brief_bytes, Time::ZERO), b"brief", b"its deadline has passed"),
+        (planned(Box::new([]), LIMITS.brief_bytes + 1, deadline), vec![], b"brief", b"its budget is past the limit"),
+        (planned(Box::new([]), LIMITS.brief_bytes, Time::ZERO), vec![], b"brief", b"its deadline has passed"),
         (
             planned(Box::new([connector(2, false, 0), connector(2, false, 1)]), LIMITS.brief_bytes, deadline),
+            vec![2, 2],
             b"brief",
             b"a section is planned twice",
         ),
@@ -273,15 +275,19 @@ fn malformed_plans_say_why_they_are_refused_permanently() {
                 LIMITS.brief_bytes,
                 deadline,
             ),
+            vec![],
             b"transcript",
             b"its text is past the brief's limit",
         ),
     ] {
         let mut world = World::new(LIMITS);
-        assert_eq!(
-            world.step(event),
-            [GatherRequest::Refused { brief: Token::new(1), failure: failure(GatherFate::Permanent, section, words) }]
-        );
+        let brief = Token::new(1);
+        let mut expected: Vec<_> = dropped
+            .into_iter()
+            .map(|token| GatherRequest::Drop { connector: 3, brief, section: Token::new(token) })
+            .collect();
+        expected.push(GatherRequest::Refused { brief, failure: failure(GatherFate::Permanent, section, words) });
+        assert_eq!(world.step(event), expected);
         assert!(world.domain.is_idle());
     }
 }

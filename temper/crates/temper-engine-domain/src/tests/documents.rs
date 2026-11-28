@@ -88,18 +88,7 @@ fn root(sections: u32, documents: Box<[parts::Document]>) -> (Domain, Env<Limits
 fn route(domain: &mut Domain, env: &Env<Limits>, out: Queue<Out>) {
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     crate::route::route_engine_requests(domain, env, &mut decision, out);
-    accept(domain, env, decision);
-}
-
-fn accept(domain: &mut Domain, env: &Env<Limits>, decision: Decision) {
-    crate::decision::accept_routed(
-        &mut domain.journal,
-        &mut domain.engine.core_mut().counters,
-        &env.limits.journal,
-        decision,
-        false,
-    )
-    .unwrap();
+    super::accept_step(domain, env, decision);
 }
 
 fn ask(domain: &mut Domain, env: &Env<Limits>, ask: parts::Ask) {
@@ -611,7 +600,7 @@ fn gathered_document(handoff: DocumentHandoff) -> (crate::Assignment, u32) {
     forge::step(&mut domain.forge, &crate::translate::environment_forge(&env), event, &mut out);
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     crate::route::forge_route::outputs(&mut domain, &env, &mut decision, &mut out);
-    accept(&mut domain, &env, decision);
+    super::accept_step(&mut domain, &env, decision);
     let Some(Work::Connector(connector, Up::Parts(parts::Up::Sized { task: owner, section, size }))) =
         domain.work.pop()
     else {
