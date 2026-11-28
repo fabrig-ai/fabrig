@@ -2673,7 +2673,7 @@ fn project_area_owners_are_judged_from_the_core() {
                     areas: Box::new([Area {
                         name: b"tests".as_slice().into(),
                         words: b"vsr's C tests".as_slice().into(),
-                        owner,
+                        owner: owner.clone(),
                     }]),
                 }),
                 "area tests",
