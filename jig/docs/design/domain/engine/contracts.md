@@ -41,8 +41,8 @@ put it. The kind of each ask: ◆ judgement, · notification, ▷ operation that
 | | `Resolve { entry, again }` | ▷ `Outbox` | `E::ResolveUncertain` |
 | | `Close { task, root, ending }` | ▷ `Closed` | `C::Close` |
 | | `Release { task, root, ending, entry }` | ▷ `Released` | `C::Release` |
-| `topics` | `Subscribed { request, key, subscription }` | · | `C::SubscriptionDone`; the core asks it, then settles the run's call itself (`Subscribed { subscription }`), as it does for a subscription no connector owns: no call is handed to the application and no root answers it |
-| | `Unsubscribed { request, key }` | · | `C::UnsubscriptionDone`; the same, its call settled `Unsubscribed` |
+| `topics` | `Subscribed { request, key, subscription, topic }` | · | `C::SubscriptionDone`; the core asks it, then settles the run's call itself (`Subscribed { subscription }`), as it does for a subscription no connector owns: no call is handed to the application and no root answers it. `topic: u64` is the connector's topic of the subscription the core admitted (its `SubscriptionKind::Topic`), so the connector binds `subscription` to its topic, for its `News`, from the ask alone, whichever call (a topic call or a named subscribe) made it |
+| | `Unsubscribed { request, key, subscription, topic }` | · | `C::UnsubscriptionDone`; the same, its call settled `Unsubscribed`; `subscription` and `topic` are the interest the call ended, as the core read it from the task's row to find its connector |
 | | `Refused { request }` | · | `C::DropSubscription` |
 | | `Ended { task, subscription }` | · | `C::EndTopic` |
 | `parts` | `Document { watcher, scope, subject, party, window }` | ◆ `Made` | `C::Document` |
@@ -87,7 +87,7 @@ put it. The kind of each ask: ◆ judgement, · notification, ▷ operation that
 | | `Closed { task }` | `E::Closed` |
 | | `Released { task }` | `T::Settled`, which roots build today |
 | | `Start { owner, origin }` | `C::EffectStart`, for a procedure's or a projection's effect; a run's call's still crosses as `In::Core` |
-| `topics` | `News { task, subscription, topic, class, words }` | `E::News` |
+| `topics` | `News { task, subscription, topic, class, words }` | `E::News`; the connector names the `subscription` its `Subscribed` ask bound to that task and topic; after a restart, the root's start restore, outside the port (`vocabulary.md`, 2.5), gives it its subscriptions' numbers again from the restored tasks' rows, its stored form unchanged |
 | `parts` | `Made { watcher, outcome }` | the views child's `Made`, which roots feed today as `C::View` |
 | | `Lines { token, parts }` | `C::Parts` |
 | | `Public { reply, answer }` | `C::PublicAnswered` |
