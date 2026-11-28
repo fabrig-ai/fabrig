@@ -15,7 +15,7 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use jig_domain_contract::{Connector, Declaration, resources::ResourceKind};
+use jig_domain_contract::{self as jig, Connector, Declaration, resources::ResourceKind};
 use jig_domain_core as core;
 use jig_domain_core::engine::{self, Admit, Engine, In, store as engine_store};
 use jig_domain_fleet as fleet;
@@ -100,6 +100,8 @@ pub enum Delivery {
     Start(core::start::Continuation),
     /// Core-held party, host, task or view output.
     Core(core::Held),
+    /// A connector continuation released back to its owner after the commit.
+    Connector(Connector, jig::Released),
     /// A held engine load, released after preceding commits.
     Store(engine_store::Out),
     /// An answer with its original opaque call name and durability class.
@@ -169,8 +171,9 @@ pub enum Request {
 
 /// A test input at the root boundary.
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "the testing root moves admitted core events by value")]
 pub enum Event {
+    /// An input from a scripted engine peer.
+    Engine(In),
     /// A channel opening, record or loss in the hub vocabulary.
     Link { channel: Token, link: link::Event },
     /// The protocol routing read a fenced result.
@@ -280,6 +283,14 @@ pub enum Event {
     Failed { number: u64 },
 }
 
+impl Event {
+    /// A test peer's answer or observation on the connector port.
+    #[must_use]
+    pub fn connector_up(number: u16, up: jig::Up) -> Self {
+        Self::Engine(In::Connector(Connector(number), up))
+    }
+}
+
 /// The journal's sizes (`domain/root.md` 4, 10).
 #[derive(Clone, Copy, Debug)]
 pub struct JournalSizes {
@@ -353,45 +364,22 @@ impl Config {
     }
 }
 
-use jig_domain_hub_link::OutboxOwner;
-
-fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntry) -> bool {
-    let key = &row.key;
-    let projection = key.origin == connector::Purpose::Projection;
-    let owner = OutboxOwner { task: row.task, projection };
-    domain.hub_link.keep_outbox_owner(row.number, owner);
-    if key.origin == connector::Purpose::Procedure {
-        domain.hub_link.keep_outbox_procedure(row.number, number);
-    } else {
-        let _removed = domain.hub_link.take_outbox_procedure(row.number);
-    }
-    true
-}
-
-/// The root's live components and one commit barrier.
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "catalogue release and restart progress are independent")]
 pub struct Domain {
-    scripted_project_releases: Option<Queue<(u16, u32)>>,
     scripted_workspaces: Option<Queue<core::Event>>,
-    scripted_parts: Option<Queue<(u16, core::PartsAsk)>>,
-    scripted_wait_reports: Option<Queue<core::Event>>,
     scripted_brief_failure: Option<jig_domain_brief::GatherFailure>,
-    scripted_holdings: Option<Queue<core::Event>>,
     brief_failures: Queue<(u64, jig_domain_brief::GatherFailure)>,
     hub_link: jig_domain_hub_link::Link,
     engine: Engine,
     first: connector::Domain,
     second: connector::Domain,
-    first_releases_effects: bool,
     journal: Journal<Write, Delivery>,
     now: Queue<Request>,
     catalogue_pending: bool,
     store_answers: Queue<Box<Event>>,
     busy: Queue<Box<Event>>,
     workspace_writes: Map<u64, Box<[tasks::Name]>>,
-    effects: Map<Token, connector::Effect>,
-    settings_judges: Map<Token, Token>,
     settings_connectors: Box<[u16]>,
     public_reads: u32,
     decision_wrote: bool,
@@ -405,30 +393,40 @@ pub struct Domain {
 impl Domain {
     /// Retain holdings reports and answers so a world can delay, lose or interleave
     /// connector traffic (jig/docs/design/domain/tasks/holds.md, 2).
-    pub fn script_holdings(&mut self) {
-        self.scripted_holdings = Some(Queue::uncapped());
+    /// Delay selected resource observations while still answering holdings in the decision.
+    pub fn delay_holding_reports(&mut self, number: u16, choices: Box<[bool]>) {
+        numbered(self, number).delay_holding_reports(choices);
     }
 
-    pub fn pop_holdings(&mut self) -> Option<core::Event> {
-        self.scripted_holdings.as_mut()?.pop()
+    pub fn take_holding_report(&mut self, number: u16) -> Option<In> {
+        let up = numbered(self, number).take_holding_report()?;
+        Some(In::Connector(Connector(number), jig::Up::Resources(up)))
     }
 
     /// Hold the test connector's per-answer part asks until the world answers.
     pub fn script_parts(&mut self) {
-        self.scripted_parts = Some(Queue::uncapped());
+        self.first.script_parts();
+        self.second.script_parts();
     }
 
     pub fn take_parts(&mut self) -> Option<(u16, core::PartsAsk)> {
-        self.scripted_parts.as_mut()?.pop()
+        if let Some(ask) = self.first.take_parts() {
+            return Some((1, ask));
+        }
+        Some((2, self.second.take_parts()?))
     }
 
     /// Hold the fake connector's wait reports to expose the view before delivery.
     pub fn script_wait_reports(&mut self) {
-        self.scripted_wait_reports = Some(Queue::uncapped());
+        self.first.script_wait_reports();
+        self.second.script_wait_reports();
     }
 
-    pub fn take_wait_report(&mut self) -> Option<core::Event> {
-        self.scripted_wait_reports.as_mut()?.pop()
+    pub fn take_wait_report(&mut self) -> Option<In> {
+        if let Some(up) = self.first.take_wait_report() {
+            return Some(In::Connector(Connector(1), jig::Up::Procedures(up)));
+        }
+        Some(In::Connector(Connector(2), jig::Up::Procedures(self.second.take_wait_report()?)))
     }
 
     /// The latest report refusal delivered to the selected fake connector.
@@ -480,14 +478,16 @@ impl Domain {
 
     /// Let a world supply connector release answers (jig/docs/design/domain/people/acts.md, 2).
     pub fn script_project_releases(&mut self) {
-        if self.scripted_project_releases.is_none() {
-            self.scripted_project_releases = Some(Queue::uncapped());
-        }
+        self.first.script_project_releases();
+        self.second.script_project_releases();
     }
 
     /// One configured connector asked to release a project during this start.
     pub fn take_project_release(&mut self) -> Option<(u16, u32)> {
-        self.scripted_project_releases.as_mut()?.pop()
+        if let Some(project) = self.first.take_project_release() {
+            return Some((1, project));
+        }
+        Some((2, self.second.take_project_release()?))
     }
 
     /// Configure the composed core before the testing application's first step.
@@ -512,7 +512,7 @@ impl Domain {
     ) -> Option<Box<[u8]>> {
         let token = Token::new(0);
         let mut out = Queue::uncapped();
-        connector::step(
+        connector::step_system(
             numbered(self, connector),
             &env.with(env.limits.connector),
             connector::Event::ReadSetting { token, kind, scope, number },
@@ -599,19 +599,12 @@ impl Domain {
             settings_connectors.push(kind.connector).expect("one owner per kind");
         }
         let declarations = config.declarations();
-        let mut first_releases_effects = false;
-        for declaration in &declarations {
-            if declaration.connector == Connector(1) {
-                first_releases_effects = !declaration.effects.is_empty();
-            }
-        }
+        let first = connector::Domain::new(config.first, &limits.connector);
+        let mut second = connector::Domain::new(config.second, &limits.connector);
+        second.address(Connector(2));
         Domain {
-            scripted_project_releases: None,
             scripted_workspaces: None,
-            scripted_parts: None,
-            scripted_wait_reports: None,
             scripted_brief_failure: None,
-            scripted_holdings: None,
             brief_failures: Queue::uncapped(),
             hub_link: jig_domain_hub_link::Link::new(
                 jig_domain_hub_link::Limits {
@@ -623,19 +616,14 @@ impl Domain {
             ),
             settings_connectors: settings_connectors.into_boxed(),
             engine: Engine::new(config.core, &declarations, &limits.core).expect("fixture core configuration"),
-            first: connector::Domain::new(config.first, &limits.connector),
-            second: connector::Domain::new(config.second, &limits.connector),
-            first_releases_effects,
+            first,
+            second,
             journal: Journal::uncapped(limits.journal.release, 0),
             now: Queue::uncapped(),
             catalogue_pending: false,
             store_answers: Queue::uncapped(),
             busy: Queue::uncapped(),
             workspace_writes: Map::with_capacity(limits.core.tasks.tasks),
-            effects: Map::with_capacity(
-                limits.core.call_records.checked_add(limits.core.tasks.tasks).expect("effect room"),
-            ),
-            settings_judges: Map::with_capacity(2),
             public_reads: 0,
             decision_wrote: false,
             stopped_reported: false,
@@ -698,7 +686,11 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         }
         Event::ConnectorTimer { number } => decide(domain, env, Work::ConnectorFire { number }),
         Event::WriterRead { connector, resource, event } => {
-            decide(domain, env, Work::WriterRead { connector, resource, event });
+            decide(
+                domain,
+                env,
+                Work::Connector { number: connector, event: connector::Event::WriterRead { resource, event } },
+            );
         }
         Event::Committed { number, fill } => {
             domain.journal.committed(number);
@@ -713,8 +705,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             decide(domain, env, Work::EffectCall { to, key, number, effect, deadline, proposal });
         }
         Event::Timer(timer) => decide(domain, env, Work::Timer(timer)),
-        Event::Core(event) => decide(domain, env, Work::Core(event)),
-        Event::Store(answer) => decide(domain, env, Work::Store(answer)),
+        Event::Core(event) | Event::Engine(In::Core(event)) => decide(domain, env, Work::Core(event)),
+        Event::Engine(input) => decide(domain, env, Work::Engine(input)),
+        Event::Store(answer) => decide(domain, env, Work::Engine(In::Store(answer))),
         Event::Credential { number, generation, valid } => decide(
             domain,
             env,
@@ -755,6 +748,12 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
     }
 }
 
+/// Route a scripted engine decision's outputs through the normal journal boundary.
+/// Test peers may step the engine several times before giving the decision back.
+pub fn accept_engine_outputs(domain: &mut Domain, env: &Env<Limits>, out: Queue<engine::Out>) {
+    decide(domain, env, Work::EngineOutputs(out));
+}
+
 #[expect(clippy::too_many_lines, reason = "one bounded decision routes the complete root work vocabulary")]
 fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     // A refused start leaves its decision unaccepted; the root takes no other.
@@ -780,9 +779,6 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             continue;
         };
         match next {
-            Work::ConnectorRestartDone { number } => {
-                domain.engine.core_mut().catch_up_done(number, core::effects::connector::RestartStage::Settled);
-            }
             Work::Start(input) => {
                 if let StartInput::Done(phase @ core::start::Phase::RestoreConnector { connector: number }) = input
                     && domain.settings_connectors.contains(&number)
@@ -794,7 +790,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                         connector::Event::SettingsDefaults,
                         &mut out,
                     );
-                    route_connector(domain, env, &mut decision, number, &mut out, &mut work);
+                    route_connector(domain, &mut decision, number, &mut out, &mut work);
                     work.push(Work::Start(StartInput::DefaultsReported(phase)));
                     continue;
                 }
@@ -865,19 +861,26 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             Work::ConnectorFire { number } => {
                 let mut out = Queue::uncapped();
                 connector::fire(numbered(domain, number), &env.with(env.limits.connector), &mut out);
-                route_connector(domain, env, &mut decision, number, &mut out, &mut work);
+                route_connector(domain, &mut decision, number, &mut out, &mut work);
             }
             Work::ProjectionEffect { goal, number, effect } => {
-                let owner = effect_payload(domain, effect);
-                work.push(Work::Core(core::Event::EffectStart {
-                    owner,
-                    connector: number,
-                    origin: core::EffectOrigin::Projection { goal, entry: None },
-                }));
+                let owner = domain.engine.core_mut().effect_owner();
+                work.push(Work::Connector {
+                    number,
+                    event: connector::Event::StageEffect {
+                        owner,
+                        effect,
+                        start: Some(jig::effects::EffectOrigin::Projection { goal, entry: None }),
+                    },
+                });
             }
             Work::TopicCall { to, key, number, topic } => topics::start(domain, to, key, number, topic, &mut work),
             Work::EffectCall { to, key, number, effect, deadline, proposal } => {
-                let owner = effect_payload(domain, effect);
+                let owner = domain.engine.core_mut().effect_owner();
+                work.push(Work::Connector {
+                    number,
+                    event: connector::Event::StageEffect { owner, effect, start: None },
+                });
                 let origin = match proposal {
                     Some(reason) => core::EffectOrigin::Propose { to, key, reason, as_holder: false },
                     None => core::EffectOrigin::Call { to, key, deadline },
@@ -901,36 +904,27 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 engine::step(&mut domain.engine, &env.with(env.limits.core), In::Core(event), &mut out);
                 route_engine(domain, env, &mut decision, out, &mut work);
             }
-            Work::Store(answer) => {
+            Work::Engine(input) => {
                 let mut out = Queue::uncapped();
-                engine::step(&mut domain.engine, &env.with(env.limits.core), In::Store(answer), &mut out);
+                engine::step(&mut domain.engine, &env.with(env.limits.core), input, &mut out);
                 route_engine(domain, env, &mut decision, out, &mut work);
             }
+            Work::EngineOutputs(out) => route_engine(domain, env, &mut decision, out, &mut work),
             Work::Finish => finish_only = true,
             Work::ResumeFleet => {
                 let requests = core::resume_fleet(domain.engine.core_mut(), &env.with(env.limits.core));
                 route_core(domain, env, &mut decision, requests, &mut work);
             }
-            Work::WriterRead { connector, resource, event } => {
-                if let connector::SystemEvent::Fact { resource: observed, fact, .. }
-                | connector::SystemEvent::Settle { resource: observed, fact } = &event
-                    && !fact.pending
-                    && observed.segments() == resource.path.as_ref()
-                {
-                    work.push(Work::Connector { number: connector, event: connector::Event::System(event) });
-                    work.push(Work::Core(core::Event::Tasks(tasks::Event::ReadAfresh { resource })));
-                }
-            }
             Work::Connector { number, event } => {
                 let mut requests = Queue::uncapped();
                 let connector = numbered(domain, number);
                 connector::step(connector, &env.with(env.limits.connector), event, &mut requests);
-                route_connector(domain, env, &mut decision, number, &mut requests, &mut work);
+                route_connector(domain, &mut decision, number, &mut requests, &mut work);
             }
             Work::ConnectorResume { number } => {
                 let mut requests = Queue::uncapped();
                 connector::resume(numbered(domain, number), &mut requests);
-                route_connector(domain, env, &mut decision, number, &mut requests, &mut work);
+                route_connector(domain, &mut decision, number, &mut requests, &mut work);
             }
             Work::Turn { channel, task, attempt, turn, cumulative, read, transcript, opens_window, refused } => {
                 let body = Payload::Turn { task, attempt, turn, cumulative, read, transcript, opens_window, refused };
@@ -1014,12 +1008,6 @@ impl Domain {
     }
 }
 
-fn effect_payload(domain: &mut Domain, effect: connector::Effect) -> Token {
-    let token = domain.engine.core_mut().effect_owner();
-    assert!(domain.effects.insert(token, effect).is_ok(), "admitted effect room");
-    token
-}
-
 fn payload(domain: &mut Domain, value: Payload) -> Token {
     domain.hub_link.retain(value)
 }
@@ -1061,6 +1049,11 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
         match delivery {
             Delivery::Start(continuation) => decide(domain, env, Work::Start(StartInput::Resume(continuation))),
             Delivery::Core(held) => release_core(domain, env, held, out),
+            Delivery::Connector(number, released) => match number.0 {
+                1 => decide(domain, env, Work::Connector { number: 1, event: connector::Event::Released(released) }),
+                2 => decide(domain, env, Work::Connector { number: 2, event: connector::Event::Released(released) }),
+                _ => unreachable!("engine releases to a configured connector"),
+            },
             Delivery::Fleet(event) => step(domain, env, Event::Core(core::Event::Fleet(event))),
             other @ (Delivery::Store(_)
             | Delivery::ApplicationDocument { .. }
@@ -1087,103 +1080,56 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
 }
 
 fn release_core(domain: &mut Domain, env: &Env<Limits>, held: core::Held, out: &mut Queue<Request>) {
-    match held {
-        core::Held::PublicWait { read } => {
-            step(domain, env, Event::Core(core::Event::PublicDurable { read }));
-        }
-        held @ core::Held::PublicRead { .. } => {
-            domain.public_reads = domain.public_reads.checked_sub(1).expect("one answer per admitted read");
-            out.push(Request::Deliver(Delivery::Core(held)));
-        }
-        core::Held::MakeEffect { connector, entry } => {
-            step(domain, env, Event::Connector { number: connector, event: connector::Event::Make { entry } });
-        }
-        core::Held::TaskPartKept { key } => {
-            step(
-                domain,
-                env,
-                Event::Core(core::Event::Fleet(fleet::Event::PartKept {
-                    run: Token::new(key.task),
-                    attempt: Token::new(key.attempt),
-                    part: key.number,
-                })),
-            );
-        }
-        core::Held::TaskTurnKept { task, attempt, turn } => {
-            step(
-                domain,
-                env,
-                Event::Core(core::Event::Fleet(jig_domain_fleet::Event::TurnKept {
-                    run: Token::new(task),
-                    attempt: Token::new(attempt),
-                    turn,
-                })),
-            );
-        }
-        core::Held::TaskTerminalAcknowledged { task, attempt } => {
-            step(
-                domain,
-                env,
-                Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Acknowledge {
-                    run: Token::new(task),
-                    attempt: Token::new(attempt),
-                })),
-            );
-        }
-        core::Held::StopRun { task, attempt } => {
-            step(
-                domain,
-                env,
-                Event::Core(core::Event::Fleet(fleet::Event::Cancel {
-                    run: Token::new(task),
-                    attempt: Token::new(attempt),
-                })),
-            );
-        }
-        core::Held::Relay { task, attempt, word, .. } => {
-            let event = relay_message(domain, task, attempt, word);
-            step(domain, env, event);
-        }
-        core::Held::Store(_) => {
-            unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
-        }
-        other @ (core::Held::Acted { .. }
-        | core::Held::Connector(_, _)
-        | core::Held::ConnectorActed { .. }
-        | core::Held::Drained
-        | core::Held::Restarting { .. }
-        | core::Held::ApplicationDelivery { .. }
-        | core::Held::ApplicationWatchEnded { .. }
-        | core::Held::Read { .. }
-        | core::Held::Applied { .. }
-        | core::Held::CarriedUnused { .. }
-        | core::Held::Delivery { .. }
-        | core::Held::WatchEnded { .. }
-        | core::Held::SettledCall { .. }
-        | core::Held::Assign { .. }
-        | core::Held::ReadUsage { .. }
-        | core::Held::ReadList { .. }
-        | core::Held::Sources { .. }
-        | core::Held::CheckSource { .. }
-        | core::Held::PauseWorker { .. }
-        | core::Held::SignOutSource { .. }
-        | core::Held::SourceSignedOut { .. }
-        | core::Held::Grant { .. }
-        | core::Held::Relayed { .. }
-        | core::Held::Inbound { .. }
-        | core::Held::PeopleReply { .. }
-        | core::Held::CallAnswer { .. }
-        | core::Held::Result { .. }
-        | core::Held::Acknowledge { .. }
-        | core::Held::AcknowledgePart { .. }
-        | core::Held::PartBusy { .. }
-        | core::Held::AcknowledgeTurn { .. }
-        | core::Held::Cancel { .. }
-        | core::Held::Refuse { .. }
-        | core::Held::TurnBusy { .. }
-        | core::Held::NotesWritten { .. }
-        | core::Held::NotesDeleted { .. }
-        | core::Held::NeedArrived { .. }) => out.push(Request::Deliver(Delivery::Core(other))),
+    if let core::Held::PublicWait { read } = held {
+        step(domain, env, Event::Core(core::Event::PublicDurable { read }));
+    } else if let core::Held::PublicRead { .. } = held {
+        domain.public_reads = domain.public_reads.checked_sub(1).expect("one answer per admitted read");
+        out.push(Request::Deliver(Delivery::Core(held)));
+    } else if let core::Held::TaskPartKept { key } = held {
+        step(
+            domain,
+            env,
+            Event::Core(core::Event::Fleet(fleet::Event::PartKept {
+                run: Token::new(key.task),
+                attempt: Token::new(key.attempt),
+                part: key.number,
+            })),
+        );
+    } else if let core::Held::TaskTurnKept { task, attempt, turn } = held {
+        step(
+            domain,
+            env,
+            Event::Core(core::Event::Fleet(jig_domain_fleet::Event::TurnKept {
+                run: Token::new(task),
+                attempt: Token::new(attempt),
+                turn,
+            })),
+        );
+    } else if let core::Held::TaskTerminalAcknowledged { task, attempt } = held {
+        step(
+            domain,
+            env,
+            Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Acknowledge {
+                run: Token::new(task),
+                attempt: Token::new(attempt),
+            })),
+        );
+    } else if let core::Held::StopRun { task, attempt } = held {
+        step(
+            domain,
+            env,
+            Event::Core(core::Event::Fleet(fleet::Event::Cancel {
+                run: Token::new(task),
+                attempt: Token::new(attempt),
+            })),
+        );
+    } else if let core::Held::Relay { task, attempt, word, .. } = held {
+        let event = relay_message(domain, task, attempt, word);
+        step(domain, env, event);
+    } else if let core::Held::Store(_) = held {
+        unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
+    } else {
+        out.push(Request::Deliver(Delivery::Core(held)));
     }
 }
 
@@ -1272,14 +1218,12 @@ fn hold(decision: &mut Decision<Write, Delivery>, value: Delivery) {
 
 // The translations below are deliberately exhaustive: a new boundary variant
 // must make the testing application say how it crosses its root.
-mod application_facts;
 mod client_documents;
 pub mod link;
 mod messages;
 pub mod parts;
 mod routes;
-mod steps;
-pub use steps::procedure_input;
+pub use connector::procedure_input;
 #[cfg(test)]
 mod tests;
 mod topics;
@@ -1349,28 +1293,8 @@ fn relay_message(domain: &mut Domain, task: u64, attempt: u64, word: tasks::Word
 
 /// Restore connector-owned rows and replay their current adoption reports.
 fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record: connector::Record) -> bool {
-    match &record {
-        connector::Record::Outbox(row) => {
-            if !remember_outbox(domain, number, row) {
-                return false;
-            }
-        }
-        connector::Record::SettingDefault { .. }
-        | connector::Record::SettingChange { .. }
-        | connector::Record::SettingReplaced { .. }
-        | connector::Record::SettingProposal { .. }
-        | connector::Record::ApplicationObject { .. }
-        | connector::Record::ApplicationAnswer { .. }
-        | connector::Record::Proposal { .. }
-        | connector::Record::Procedure(_)
-        | connector::Record::ProcedureDelegateOutcome { .. }
-        | connector::Record::Result { .. }
-        | connector::Record::Task { .. }
-        | connector::Record::Adoption { .. }
-        | connector::Record::Subscription { .. }
-        | connector::Record::Pool { .. }
-        | connector::Record::Made { .. } => {}
-    }
+    let interest =
+        if let connector::Record::Subscription { topic, task, .. } = &record { Some((*topic, *task)) } else { None };
     let mut out = Queue::uncapped();
     connector::step(
         numbered(domain, number),
@@ -1380,68 +1304,36 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
     );
     for _ in 0..out.len() {
         match out.pop().expect("restored connector output count") {
-            connector::Request::RestoreRefused { kind, scope, number } => {
+            connector::Out::RestoreRefused { kind, scope, number } => {
                 refuse_settings_restore(domain, kind, scope, number);
                 return false;
             }
-            connector::Request::SettingsRestored { .. }
-            | connector::Request::SettingsJudged { .. }
-            | connector::Request::SettingsDefaults { .. }
-            | connector::Request::SettingValue { .. } => {
-                unreachable!("restoring a row only reports resources or a refusal")
-            }
-            connector::Request::Resource { project, resource } => {
-                let role = match resource.role {
-                    connector::ResourceRole::Owned => core::effects::connector::ResourceRole::Owned,
-                    connector::ResourceRole::Participating => core::effects::connector::ResourceRole::Participant,
-                    connector::ResourceRole::Context => core::effects::connector::ResourceRole::Context,
-                    connector::ResourceRole::Unavailable => core::effects::connector::ResourceRole::Unavailable,
-                };
-                if !domain.engine.core_mut().restore_resource_role(
-                    &env.with(env.limits.core),
-                    project,
-                    tasks::Name { connector: number, path: resource.path.segments().into() },
-                    role,
-                ) {
+            connector::Out::RestoreResource { project, name, role, hold: _ } => {
+                if !domain.engine.core_mut().restore_resource_role(&env.with(env.limits.core), project, name, role) {
                     return false;
                 }
             }
-            connector::Request::Topic { .. }
-            | connector::Request::TopicRefused { .. }
-            | connector::Request::Document { .. }
-            | connector::Request::ReadAnswered { .. }
-            | connector::Request::Marked { .. }
-            | connector::Request::ProjectReleased { .. }
-            | connector::Request::Closed { .. }
-            | connector::Request::Verdict { .. }
-            | connector::Request::Step { .. }
-            | connector::Request::Waits { .. }
-            | connector::Request::Answer { .. }
-            | connector::Request::Ready { .. }
-            | connector::Request::Section { .. }
-            | connector::Request::Workspace { .. }
-            | connector::Request::DriftResource { .. }
-            | connector::Request::Changed { .. }
-            | connector::Request::Described { .. }
-            | connector::Request::EffectRefused { .. }
-            | connector::Request::EffectBusy { .. }
-            | connector::Request::Make { .. }
-            | connector::Request::Outcome { .. }
-            | connector::Request::Named { .. }
-            | connector::Request::Unknown { .. }
-            | connector::Request::Refused { .. }
-            | connector::Request::Adopted { .. }
-            | connector::Request::Slots { .. }
-            | connector::Request::Drift { .. }
-            | connector::Request::News { .. }
-            | connector::Request::Save { .. }
-            | connector::Request::Erase { .. }
-            | connector::Request::ReadAfreshDone
-            | connector::Request::RestartDone
-            | connector::Request::ApplicationDone { .. }
-            | connector::Request::ApplicationAgain { .. }
-            | connector::Request::ApplicationRelease { .. }
-            | connector::Request::System(_) => return false,
+            connector::Out::Up(_)
+            | connector::Out::Save(_)
+            | connector::Out::Erase(_)
+            | connector::Out::System(_)
+            | connector::Out::LostRead { .. }
+            | connector::Out::Procedure { .. }
+            | connector::Out::Projection(_)
+            | connector::Out::EffectOwner { .. }
+            | connector::Out::ApplicationRelease { .. }
+            | connector::Out::ReadAnswered { .. }
+            | connector::Out::Topic { .. } => return false,
+        }
+    }
+    if let Some((topic, task)) = interest
+        && let Some(row) = domain.engine.core().tasks.task(task)
+    {
+        let interests = row.subscriptions.clone();
+        for interest in interests {
+            if interest.kind == (tasks::SubscriptionKind::Topic { connector: number, topic: u64::from(topic) }) {
+                numbered(domain, number).restore_interest(task, topic, interest.number);
+            }
         }
     }
     true

@@ -640,27 +640,18 @@ fn a_parked_batch_waits_for_the_missing_connectors_report() {
             hold: core::effects::connector::HoldKind::Exclusive { wait: true },
         })));
     }
-    world.domain.script_holdings();
+    world.domain.delay_holding_reports(1, Box::new([true]));
     let parent = world.assignments[0];
     let child = resource_member(&world, 1, b"missing report");
+    let (parked, wall) = world.clocks();
+    world.set_clock(parked, wall);
     world.send(root::Event::Core(core::Event::Delegate {
         to: ReplyTo::new(Token::new(9940)),
         key: key(parent, 1),
         batch: Box::new([child]),
     }));
-    let mut reports = Vec::new();
-    let mut replies = Vec::new();
-    while let Some(event) = world.domain.pop_holdings() {
-        if matches!(event, core::Event::EffectConnector(core::effects::connector::Event::Resource { .. })) {
-            reports.push(event);
-        } else {
-            replies.push(root::Event::Core(event));
-        }
-    }
-    assert_eq!(reports.len(), 1);
-    let (parked, wall) = world.clocks();
-    world.set_clock(parked, wall);
-    world.send_all(replies);
+    assert!(world.domain.take_holding_report(1).is_some(), "connector withheld one report");
+    assert!(world.domain.take_holding_report(1).is_none(), "exactly one report was withheld");
     assert_eq!(world.domain.core().awaiting_resources_flights(), 1);
     let inspection = inspect(&world, 11734);
     let wait = inspection

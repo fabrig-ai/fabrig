@@ -318,6 +318,7 @@ impl Observer {
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
             | root::Delivery::Store(_)
+            | root::Delivery::Connector(..)
             | root::Delivery::Start(_)
             | root::Delivery::System { .. } => {}
         }

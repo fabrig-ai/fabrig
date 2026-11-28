@@ -244,6 +244,24 @@ fn parts_port() {
 }
 
 #[test]
+fn a_lines_operation_can_end_in_a_later_decision() {
+    let (mut core, _, env) = port_twins();
+    let mut asks = Queue::uncapped();
+    asks.push(crate::vocabulary::connector_ask(
+        DECLARER.0,
+        contract::Ask::Parts(parts::Ask::Lines(parts::PartsAsk {
+            token: OWNER,
+            party: PERSON,
+            kinds: List::with_capacity(0),
+            rows: List::with_capacity(0),
+        })),
+    ));
+    core.judgements.issued(&asks);
+    assert_eq!(core.judgements.outstanding(), None, "a pending lines operation is not a judgement");
+    drop(crate::finish_decision(&mut core, &env));
+}
+
+#[test]
 fn procedures_port() {
     ask(
         Ask::StepMade { task: TASK, step: 5, first: Some(2), revisions: Box::new([(2, 3)]) },

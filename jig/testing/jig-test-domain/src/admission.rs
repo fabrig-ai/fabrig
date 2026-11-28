@@ -12,6 +12,7 @@ pub use jig_domain_link::Class;
 pub fn class(event: &Event) -> Class {
     match event {
         Event::Core(event) => Class::of(event.new_work()),
+        Event::Engine(input) => Class::of(input.new_work()),
         Event::Timer(timer) => Class::of(timer.new_work()),
         Event::Link { link, .. } => match link {
             crate::link::Event::Hello { .. } | crate::link::Event::Lost => Class::Admitted,
@@ -76,7 +77,11 @@ fn connector_class(event: &connector::Event) -> Class {
             | connector::SystemEvent::Unavailable { .. }
             | connector::SystemEvent::Pool { .. } => Class::New,
         },
-        connector::Event::DocumentPrepare { .. }
+        connector::Event::Ask(_)
+        | connector::Event::Released(_)
+        | connector::Event::StageEffect { .. }
+        | connector::Event::WriterRead { .. }
+        | connector::Event::DocumentPrepare { .. }
         | connector::Event::DocumentForget { .. }
         | connector::Event::Document { .. }
         | connector::Event::ReadDocument { .. }
@@ -122,7 +127,8 @@ fn connector_class(event: &connector::Event) -> Class {
 #[expect(clippy::result_large_err, reason = "the admission boundary returns the original owned event")]
 pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<(), Event> {
     match event {
-        Event::Core(core::Event::PublicRead { reply, read }) => {
+        Event::Core(core::Event::PublicRead { reply, read })
+        | Event::Engine(core::engine::In::Core(core::Event::PublicRead { reply, read })) => {
             if public_admits(domain, &env.limits) {
                 step(domain, env, Event::Core(core::Event::PublicRead { reply, read }));
             } else {
@@ -157,6 +163,7 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
         | Event::ConnectorTimer { .. }
         | Event::StartBegin { .. }
         | Event::Timer(..)
+        | Event::Engine(..)
         | Event::Core(..)
         | Event::Credential { .. }
         | Event::Connector { .. }
@@ -245,6 +252,7 @@ fn split(domain: &mut Domain, event: Event) -> (Event, Option<Event>) {
         | Event::StartDone(_)
         | Event::Timer(..)
         | Event::Store(_)
+        | Event::Engine(..)
         | Event::Core(..)
         | Event::Credential { .. }
         | Event::Connector { .. }

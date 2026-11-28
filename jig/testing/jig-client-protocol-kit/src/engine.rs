@@ -385,6 +385,7 @@ impl Engine {
                 | root::Delivery::System { .. }
                 | root::Delivery::LostRead { .. }
                 | root::Delivery::Store(_)
+                | root::Delivery::Connector(..)
                 | root::Delivery::Start(_)
                 | root::Delivery::Procedure { .. } => {}
             }

@@ -84,11 +84,9 @@ pub(super) fn step(
         }
         Up::Parts(up) => match up {
             parts::Up::Made { watcher, outcome } => {
-                core.judgements.answered(source, Subject::Document(watcher));
                 view::routes::route_view(core, env, views::Event::Made { watcher, outcome })
             }
             parts::Up::Lines { token, parts } => {
-                core.judgements.answered(source, Subject::Lines(token));
                 crate::reads::parts::answered(core, env, addressed(source), token, parts)
             }
             parts::Up::Public { reply, answer } => {
@@ -143,7 +141,6 @@ pub(super) fn step(
         },
         Up::Requests(up) => match up {
             requests::Up::Decided { request, outcome } => {
-                core.judgements.answered(source, Subject::Application(request));
                 application_routes::finished(core, env, work, request, outcome)
             }
             requests::Up::Marked { subjects } => view::routes::marked(core, addressed(source), subjects),

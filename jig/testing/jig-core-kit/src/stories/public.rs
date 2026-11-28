@@ -146,40 +146,44 @@ pub fn document(answer: core::PublicAnswer) -> core::PublicDocument {
     document
 }
 
+fn move_ask(task: u64) -> people::Ask {
+    people::Ask::Move { project: 1, task, reason: b"hidden-move-reason".as_slice().into() }
+}
+
 pub fn move_out(world: &mut World, task: u64) {
-    assert!(matches!(
-        ask(world, 61, people::Ask::Move { project: 1, task, reason: b"hidden-move-reason".as_slice().into() }),
-        people::Reply::Outcome(people::Outcome::Moved { .. })
-    ));
+    assert!(matches!(ask(world, 61, move_ask(task)), people::Reply::Outcome(people::Outcome::Moved { .. })));
+}
+
+fn untrack_ask(world: &World, task: u64) -> people::Ask {
+    people::Ask::Amend {
+        project: 1,
+        task,
+        revision: fixtures::live_row(world, task).revisions.spec,
+        release: None,
+        amendment: people::Amendment {
+            tracked: Some(people::Tracking::Untracked),
+            ..jig_test_profile::fixtures::person_unchanged(b"hidden-untrack-reason")
+        },
+    }
 }
 
 pub fn untrack(world: &mut World, task: u64) {
-    let revision = fixtures::live_row(world, task).revisions.spec;
-    let answer = ask(
-        world,
-        62,
-        people::Ask::Amend {
-            project: 1,
-            task,
-            revision,
-            release: None,
-            amendment: people::Amendment {
-                tracked: Some(people::Tracking::Untracked),
-                ..jig_test_profile::fixtures::person_unchanged(b"hidden-untrack-reason")
-            },
-        },
-    );
+    let answer = ask(world, 62, untrack_ask(world, task));
     assert!(matches!(answer, people::Reply::Outcome(people::Outcome::Amended { .. })), "{answer:?}");
 }
 
-pub fn delete(world: &mut World) {
-    world.send(root::Event::Core(core::Event::Act {
+fn delete_event() -> core::Event {
+    core::Event::Act {
         reply_to: ReplyTo::new(Token::new(63)),
         connector: 1,
         key: [63; 16],
         act: Box::new(people::Act::RemoveProject { project: 1, grace: None }),
         carried: None,
-    }));
+    }
+}
+
+pub fn delete(world: &mut World) {
+    world.send(root::Event::Core(delete_event()));
     let answer = if world.manual {
         let index = world
             .released

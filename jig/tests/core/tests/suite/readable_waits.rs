@@ -5,6 +5,7 @@ use jig_core_world::fixtures::{
 };
 use jig_core_world::world::{Setup, World};
 use jig_domain_authority as authority;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -438,16 +439,18 @@ fn a_procedure_can_make_a_delegate_wait_on_another_readable_tree() {
     let procedure = delegate(&mut world, requester, 1, procedure);
     let (step, connector, code, context) = world.procedure_inputs.last().expect("procedure input");
     assert_eq!(context.task, procedure);
-    world.send(root::Event::Core(core::Event::ProcedureStep {
-        task: procedure,
-        step: *step,
-        connector: *connector,
-        code: u32::from(*code),
-        decision: core::ProcedureStep {
-            batch: Box::new([dependent(&world, prerequisite)]),
-            ..core::ProcedureStep::new(core::StepEnd::Wait)
-        },
-    }));
+    world.send(root::Event::connector_up(
+        *connector,
+        jig::Up::Procedures(jig::procedures::Up::Step {
+            task: procedure,
+            step: *step,
+            code: u32::from(*code),
+            decision: core::ProcedureStep {
+                batch: Box::new([dependent(&world, prerequisite)]),
+                ..core::ProcedureStep::new(core::StepEnd::Wait)
+            },
+        }),
+    ));
     let [child] = live_row(&world, procedure).delegates.as_ref() else {
         panic!("procedure did not delegate: {:?}", world.trace);
     };

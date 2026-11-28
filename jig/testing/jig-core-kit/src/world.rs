@@ -4,6 +4,7 @@ mod credentials;
 mod grants;
 use crate::Store;
 use jig_domain_accounts as accounts;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::engine::{self, Admit};
@@ -533,6 +534,7 @@ impl World {
                         | root::Event::StartRecord(_)
                         | root::Event::StartMissing { .. }
                         | root::Event::StartPageRefused { .. }
+                        | root::Event::Engine(_)
                         | root::Event::StartDone(_)
                 ) {
                     self.observer.inbound(&self.store, self.wall, &mut event)?;
@@ -709,7 +711,10 @@ impl World {
             while let Some((connector, project)) = self.domain.take_project_release() {
                 self.project_releases.push((connector, project));
                 if !self.hold_project_releases.contains(&connector) {
-                    self.events.push_back(root::Event::Core(core::Event::ProjectReleased { connector, project }));
+                    self.events.push_back(root::Event::connector_up(
+                        connector,
+                        jig::Up::Lifecycle(jig::lifecycle::Up::Released { project }),
+                    ));
                 }
             }
             if !self.stopped {
@@ -961,7 +966,7 @@ impl World {
         }
         self.drain();
         if let Some(task) = self.procedure {
-            self.send(root::Event::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task })));
+            self.send(root::Event::connector_up(1, jig::Up::Procedures(jig::procedures::Up::Wake { task })));
         }
     }
 }

@@ -120,7 +120,7 @@ impl World {
     pub fn event(&mut self, event: Event) -> Vec<Request> {
         let mut out = Queue::uncapped();
         let env = self.env();
-        connector::step(&mut self.domain, &env, event, &mut out);
+        connector::step_system(&mut self.domain, &env, event, &mut out);
         let requests = Self::collected(&mut out);
         self.commit(&requests);
         self.seen.extend(requests.iter().cloned());
@@ -131,7 +131,7 @@ impl World {
     pub fn fire(&mut self) -> Vec<Request> {
         let mut out = Queue::uncapped();
         let env = self.env();
-        connector::fire(&mut self.domain, &env, &mut out);
+        connector::fire_system(&mut self.domain, &env, &mut out);
         let requests = Self::collected(&mut out);
         self.commit(&requests);
         self.seen.extend(requests.iter().cloned());

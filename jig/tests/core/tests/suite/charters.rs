@@ -1,6 +1,7 @@
 use jig_core_world::test_support::bridged_step;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_link::Hello;
 use jig_domain_people as people;
@@ -163,7 +164,10 @@ fn a_procedure_hears_its_step_refused_for_a_model_outside_its_charter() {
 
     let before = task_records(&world);
     let decision = research_step(&world, task);
-    world.send(root::Event::Core(core::Event::ProcedureStep { task, step, connector, code, decision }));
+    world.send(root::Event::connector_up(
+        connector,
+        jig::Up::Procedures(jig::procedures::Up::Step { task, step, code, decision }),
+    ));
     assert_eq!(task_records(&world), before, "the refused step writes no task records");
     let record =
         jig_test_connector::Record::ProcedureDelegateOutcome { task, step, child: None, revisions: Box::new([]) };

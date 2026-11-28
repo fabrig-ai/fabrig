@@ -605,10 +605,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
                 input,
             )
         }
-        Event::ApplicationPart { request, ask } => {
-            core.judgements.answered(None, crate::judgements::Subject::Application(request));
-            application_routes::part(core, env, work, request, *ask)
-        }
+        Event::ApplicationPart { request, ask } => application_routes::part(core, env, work, request, *ask),
         Event::SettledCall { to, key, name, call } => {
             crate::runs::conversation::settle(core, &env.limits, to, key, name, call)
         }

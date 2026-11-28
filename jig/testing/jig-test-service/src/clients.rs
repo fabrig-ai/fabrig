@@ -476,6 +476,7 @@ impl Clients {
             | root::Event::StartMissing { .. }
             | root::Event::StartPageRefused { .. }
             | root::Event::StartBegin { .. }
+            | root::Event::Engine(_)
             | root::Event::StartDone(_)
             | root::Event::Link { .. }
             | root::Event::ResultRead { .. }
@@ -560,6 +561,7 @@ impl Clients {
             | root::Event::StartMissing { .. }
             | root::Event::StartPageRefused { .. }
             | root::Event::StartBegin { .. }
+            | root::Event::Engine(_)
             | root::Event::StartDone(_)
             | root::Event::Link { .. }
             | root::Event::ResultRead { .. }

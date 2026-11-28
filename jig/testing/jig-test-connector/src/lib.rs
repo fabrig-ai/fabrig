@@ -39,10 +39,16 @@ pub mod application_core;
 pub use application::{
     ApplicationCoreAnswer, ApplicationObject, ApplicationOutcome, ApplicationRelease, ApplicationRequest,
 };
+mod application_facts;
 mod boundary;
 mod domain;
 mod limits;
 mod outbox;
+pub mod parts;
+mod port;
+mod steps;
+pub use port::{Out, fire, resume, step};
+pub use steps::procedure_input;
 mod procedures;
 mod requirements;
 mod settings;
@@ -56,7 +62,7 @@ pub use boundary::{
     Request, RequirementSpec, ResourceRole, ResourceSpec, RestartStep, StepDecision, StepRefusal, StepWait,
     SystemEvent, SystemRequest, TopicSpec, Verdict, split,
 };
-pub use domain::{Domain, OUTPUTS_BOUND, closing_ready, fire, next_deadline, restart_ready, resume, step};
+pub use domain::{Domain, OUTPUTS_BOUND, closing_ready, fire_system, next_deadline, restart_ready, step_system};
 pub use limits::{Limits, valid};
 
 #[cfg(test)]

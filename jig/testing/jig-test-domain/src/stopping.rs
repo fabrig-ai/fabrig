@@ -34,6 +34,7 @@ pub(super) fn defer(domain: &mut Domain, event: Event) -> Result<Event, ()> {
         | Event::StartDone(_)
         | Event::Timer(_)
         | Event::Store(_)
+        | Event::Engine(_)
         | Event::Core(_)
         | Event::Credential { .. }
         | Event::CallAnswered { .. }

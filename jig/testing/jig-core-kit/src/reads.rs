@@ -105,6 +105,7 @@ impl Parties {
             | root::Event::StartMissing { .. }
             | root::Event::StartPageRefused { .. }
             | root::Event::StartBegin { .. }
+            | root::Event::Engine(_)
             | root::Event::StartDone(_) => {}
         }
     }

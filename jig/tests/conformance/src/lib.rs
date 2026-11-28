@@ -12,6 +12,7 @@ use jig_core_kit::conformance::Observer;
 use jig_core_kit::peers::Peers;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -532,6 +533,7 @@ impl Application for Testing {
         if !matches!(
             event,
             root::Event::StartBegin { .. }
+                | root::Event::Engine(_)
                 | root::Event::StartDone(_)
                 | root::Event::StartRecord(_)
                 | root::Event::StartMissing { .. }
@@ -592,10 +594,10 @@ impl Application for Testing {
         Ok(match delivery {
             root::Delivery::Projection { connector, feed } => {
                 if feed.closing {
-                    vec![Input::Event(root::Event::Core(core::Event::ProjectionSettled {
-                        goal: feed.goal.number,
+                    vec![Input::Event(root::Event::connector_up(
                         connector,
-                    }))]
+                        jig::Up::Projections(jig::projections::Up::Settled { goal: feed.goal.number }),
+                    ))]
                 } else {
                     Vec::new()
                 }
@@ -671,6 +673,7 @@ impl Application for Testing {
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
             | root::Delivery::CallAnswer { .. }
+            | root::Delivery::Connector(..)
             | root::Delivery::Start(_)
             | root::Delivery::Message { .. } => Vec::new(),
             root::Delivery::Fleet(_) => panic!("root consumes fleet continuations"),

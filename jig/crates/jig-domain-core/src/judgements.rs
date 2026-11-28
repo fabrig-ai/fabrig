@@ -14,12 +14,9 @@ pub(crate) enum Subject {
     ProcedureHoldings { task: u64, step: u64 },
     Describe(Token),
     Verdict(Token, effects::Judge),
-    Document(Token),
-    Lines(Token),
     Public(Token),
     SettingsJudge(Token),
     SettingsRestore(Token),
-    Application(Token),
 }
 
 #[derive(Hash, Debug)]
@@ -92,11 +89,6 @@ fn subject(ask: &contract::Ask) -> Option<Subject> {
             | effects::Ask::Close { .. }
             | effects::Ask::Release { .. } => None,
         },
-        contract::Ask::Parts(ask) => match ask {
-            parts::Ask::Document { watcher, .. } => Some(Subject::Document(*watcher)),
-            parts::Ask::Lines(lines) => Some(Subject::Lines(lines.token)),
-            parts::Ask::DropDocument { .. } | parts::Ask::Read { .. } | parts::Ask::Public { .. } => None,
-        },
         contract::Ask::Settings(ask) => match ask {
             settings::Ask::Judge { owner, .. } => Some(Subject::SettingsJudge(*owner)),
             settings::Ask::Restore { owner, .. } => Some(Subject::SettingsRestore(*owner)),
@@ -106,11 +98,17 @@ fn subject(ask: &contract::Ask) -> Option<Subject> {
             | settings::Ask::ForgetReplaced { .. }
             | settings::Ask::SaveDefaults { .. } => None,
         },
-        contract::Ask::Requests(ask) => match ask {
-            requests::Ask::Decide { request, .. } => Some(Subject::Application(*request)),
-            requests::Ask::Drop { .. } | requests::Ask::PartAnswered { .. } => None,
-        },
-        contract::Ask::Lifecycle(
+        contract::Ask::Parts(
+            parts::Ask::Document { .. }
+            | parts::Ask::Lines(_)
+            | parts::Ask::DropDocument { .. }
+            | parts::Ask::Read { .. }
+            | parts::Ask::Public { .. },
+        )
+        | contract::Ask::Requests(
+            requests::Ask::Decide { .. } | requests::Ask::Drop { .. } | requests::Ask::PartAnswered { .. },
+        )
+        | contract::Ask::Lifecycle(
             lifecycle::Ask::CatchUp | lifecycle::Ask::Adopt { .. } | lifecycle::Ask::ReleaseProject { .. },
         )
         | contract::Ask::Topics(

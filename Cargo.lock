@@ -1336,6 +1336,7 @@ dependencies = [
  "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
+ "jig-domain-contract",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-notes",
@@ -1369,6 +1370,7 @@ dependencies = [
  "jig-conformance",
  "jig-domain-accounts",
  "jig-domain-authority",
+ "jig-domain-contract",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
@@ -2491,6 +2493,7 @@ dependencies = [
 name = "jig-test-connector"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-contract",
  "skein-lib",
 ]
 
@@ -2608,6 +2611,7 @@ dependencies = [
  "jig-client-test-protocol-wire",
  "jig-domain-accounts",
  "jig-domain-brief",
+ "jig-domain-contract",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",

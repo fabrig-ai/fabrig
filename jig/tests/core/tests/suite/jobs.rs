@@ -5,6 +5,7 @@ use jig_core_world::{
     world::{Cut, World},
 };
 use jig_domain_authority as authority;
+use jig_domain_contract as jig;
 use jig_domain_core::{
     self as core, documents,
     engine::{self, In, Out},
@@ -22,16 +23,18 @@ fn job(world: &World, kind: u32, bytes: usize, seconds: u64) -> core::Delegate {
     jig_core_world::fixtures::job(world, kind, vec![0; bytes].into_boxed_slice(), Duration::from_secs(seconds))
 }
 
-fn step(world: &World, task: u64, child: core::Delegate) -> core::Event {
+fn step(world: &World, task: u64, child: core::Delegate) -> In {
     let (step, connector, code, context) = world.procedure_inputs.last().expect("procedure input");
     assert_eq!(context.task, task);
-    core::Event::ProcedureStep {
-        task,
-        step: *step,
-        connector: *connector,
-        code: u32::from(*code),
-        decision: core::ProcedureStep { batch: Box::new([child]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
-    }
+    In::Connector(
+        jig::Connector(*connector),
+        jig::Up::Procedures(jig::procedures::Up::Step {
+            task,
+            step: *step,
+            code: u32::from(*code),
+            decision: core::ProcedureStep { batch: Box::new([child]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
+        }),
+    )
 }
 
 fn no_child(world: &World, task: u64) {
@@ -54,19 +57,18 @@ fn decide(world: &mut World, task: u64, child: core::Delegate) -> core::StepRefu
     let event = step(world, task, child.clone());
     let env = world.env().with(world.env().limits.core);
     let mut requests = Queue::uncapped();
-    engine::step(world.domain.engine_mut(), &env, In::Core(event), &mut requests);
-    let Some(Out::Ask(connector, ask)) = requests.pop() else {
-        panic!("core refused the procedure step: {requests:?}");
-    };
-    let core::Request::Ask { connector: 1, ask: core::Ask::StepRefused { task: named, why, .. } } =
-        engine::bridge_ask(connector, ask)
+    engine::step(world.domain.engine_mut(), &env, event, &mut requests);
+    let Some(Out::Ask(
+        jig::Connector(1),
+        jig::Ask::Procedures(jig::procedures::Ask::StepRefused { task: named, why, .. }),
+    )) = requests.pop()
     else {
-        panic!("step refusal ask from the procedure's connector")
+        panic!("step refusal ask from the procedure's connector: {requests:?}");
     };
     assert_eq!(named, task);
     assert!(requests.is_empty());
     let event = step(world, task, child);
-    world.send(root::Event::Core(event));
+    world.send(root::Event::Engine(event));
     no_child(world, task);
     why
 }
@@ -217,7 +219,7 @@ fn start(seed: u64) -> (World, u64, u64) {
     let (mut world, procedure) = job_world(seed, true);
     let child = job(&world, 7, 64, 60);
     let event = step(&world, procedure, child);
-    world.send(root::Event::Core(event));
+    world.send(root::Event::Engine(event));
     let task = live_row(&world, procedure).delegates[0];
     (world, procedure, task)
 }
@@ -262,13 +264,17 @@ fn failed(failure: host::JobFailure) -> host::JobEnding {
 fn finish_procedure(world: &mut World, procedure: u64) {
     let (step, connector, code, context) = world.procedure_inputs.last().expect("next procedure input");
     assert_eq!(context.task, procedure);
-    world.send(root::Event::Core(core::Event::ProcedureStep {
-        task: procedure,
-        step: *step,
-        connector: *connector,
-        code: u32::from(*code),
-        decision: core::ProcedureStep::new(core::StepEnd::Result(tasks::TaskResult::Report { words: Box::new([]) })),
-    }));
+    world.send(root::Event::connector_up(
+        *connector,
+        jig::Up::Procedures(jig::procedures::Up::Step {
+            task: procedure,
+            step: *step,
+            code: u32::from(*code),
+            decision: core::ProcedureStep::new(core::StepEnd::Result(tasks::TaskResult::Report {
+                words: Box::new([]),
+            })),
+        }),
+    ));
     assert!(matches!(ended(world, procedure).phase, tasks::Phase::Ended(tasks::Ending::Done(_))));
 }
 
