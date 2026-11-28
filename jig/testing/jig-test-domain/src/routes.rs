@@ -113,7 +113,7 @@ pub(super) fn route_request(
         core::Request::Write(core::Write::Erase(key)) => write(domain, decision, Write::Erase(Key::Core(key))),
         core::Request::Held(held) => route_held(domain, env, decision, *held, work),
         core::Request::Now(now) => route_now(domain, env, decision, *now, work),
-        core::Request::Ask { connector, ask } => route_core_ask(domain, env, decision, connector, ask, work),
+        core::Request::Ask { connector, ask } => route_core_ask(domain, env, decision, connector, ask),
         core::Request::ProjectMade { project } => hold(decision, Delivery::ProjectMade { project }),
     }
 }
@@ -169,7 +169,6 @@ fn route_core_ask(
     decision: &mut Decision<Write, Delivery>,
     number: u16,
     ask: core::Ask,
-    work: &mut Queue<Work>,
 ) {
     if let core::Ask::ClaimDone { task, attempt, kinds, version } = ask {
         if number == 1 {
@@ -204,21 +203,6 @@ fn route_core_ask(
                 },
             );
         }
-        return;
-    }
-    if let core::Ask::Gather { section, budget } = ask {
-        work.push(Work::Connector {
-            number,
-            event: connector::Event::Gather { token: section, task: section.raw(), budget },
-        });
-        return;
-    }
-    if let core::Ask::CutTo { section, size } = ask {
-        work.push(Work::Connector { number, event: connector::Event::Cut { token: section, size } });
-        return;
-    }
-    if let core::Ask::Drop { section } = ask {
-        work.push(Work::Connector { number, event: connector::Event::HandOver { token: section } });
         return;
     }
     if let core::Ask::Workers(workers) = ask {
@@ -285,22 +269,6 @@ fn route_now(
         core::Now::Activate { context } => {
             work.push(Work::Core(core::Event::Activate { context, ready: domain.ready() }));
         }
-        core::Now::BriefCorePlanned { task, sections, .. } => {
-            if let Some(failure) = domain.scripted_brief_failure.clone() {
-                work.push(Work::Core(core::Event::BriefAssembled { task, failure: Some(failure) }));
-                return;
-            }
-            work.push(Work::Core(jig_domain_hub_link::brief_plan(
-                task,
-                sections,
-                env.limits.core.brief.brief_bytes,
-                env.now.saturating_add(skein_lib::Duration::from_secs(30)),
-            )));
-        }
-        core::Now::CompleteBrief { brief, order } => {
-            domain.hub_link.keep_brief(brief.raw(), order);
-            work.push(Work::Core(core::Event::BriefAssembled { task: brief.raw(), failure: None }));
-        }
         core::Now::WorkspaceRequest { task, attempt, context } => {
             prepare_workspace(domain, env, decision, work, task, attempt, &context);
         }
@@ -315,6 +283,7 @@ fn route_now(
             transcript,
             parts,
             grants,
+            brief,
             ..
         } => {
             let answered = domain.engine.core().settled_calls(task, attempt);
@@ -329,7 +298,7 @@ fn route_now(
                         task,
                         attempt,
                         conversation,
-                        brief: Box::new([]),
+                        brief,
                         charter,
                         run,
                         messages,
@@ -347,7 +316,6 @@ fn route_now(
         }
         core::Now::RunPreparationFailed { task } | core::Now::DropAssignment { task } => {
             drop(domain.hub_link.take_assignment(task));
-            drop(domain.hub_link.take_brief(task));
             drop(domain.workspace_writes.remove(&task));
         }
         core::Now::RestoreRefused => {
@@ -451,7 +419,7 @@ pub(crate) fn declaration(
         resources: Box::from(resources),
         effects: effects.into_boxed(),
         projects_goals: true,
-        sections: false,
+        sections: true,
     }
 }
 

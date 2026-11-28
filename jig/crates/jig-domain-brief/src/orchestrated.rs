@@ -220,7 +220,7 @@ fn begin(
 ) {
     let too_many = permanent(b"brief", b"it has more sections than a brief may hold");
     let Ok(count) = u32::try_from(sections.len()) else {
-        out.push(Request::Refused { brief, failure: too_many });
+        refuse(brief, &sections, too_many, out);
         return;
     };
     let failure = if domain.briefs.contains_key(&brief) || domain.briefs.len() == env.limits.briefs {
@@ -237,7 +237,7 @@ fn begin(
         None
     };
     if let Some(failure) = failure {
-        out.push(Request::Refused { brief, failure });
+        refuse(brief, &sections, failure, out);
         return;
     }
     for section in &sections {
@@ -245,7 +245,7 @@ fn begin(
             Planned::Core { kind, text, .. } => {
                 if text.len() > skein_lib::length::usize_of(env.limits.brief_bytes) {
                     let failure = permanent(planned::core_name(*kind), b"its text is past the brief's limit");
-                    out.push(Request::Refused { brief, failure });
+                    refuse(brief, &sections, failure, out);
                     return;
                 }
             }
@@ -291,6 +291,13 @@ fn begin(
         domain.deadlines.arm(brief, settle_at).expect("admitted brief deadline");
         domain.briefs.insert(brief, active).expect("admitted brief room");
     }
+}
+
+fn refuse(brief: Token, sections: &[Planned], failure: Failure, out: &mut Queue<Request>) {
+    for section in sections {
+        drop_one(brief, section, out);
+    }
+    out.push(Request::Refused { brief, failure });
 }
 
 fn distinct(sections: &[Planned]) -> bool {

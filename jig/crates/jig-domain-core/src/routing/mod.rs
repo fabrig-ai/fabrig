@@ -26,7 +26,7 @@ pub use crate::vocabulary::{Event, Held, HoldingsNeed, Limits, Request, Timer, T
 use crate::{
     CallHolder, CallKey, CallPart, Core, RoutedCall,
     routing::{
-        children::{route_account, route_brief, route_fleet, tag_account, tag_brief, tag_fleet},
+        children::{route_account, route_fleet, tag_account, tag_fleet},
         effect::note::route_notes,
         party::people::{route_people, sign_in},
         run::{
@@ -34,8 +34,8 @@ use crate::{
             delegation::{delegate, route_period, route_start_recurring},
             payloads::{route_answer_payload, route_turn_payload},
             preparation::{
-                brief_assembled, plan_brief, route_activate, route_claim_prepared, route_claim_refused,
-                route_preparation_failed, start_brief, workspace_prepared,
+                plan_brief, route_activate, route_claim_prepared, route_claim_refused, route_preparation_failed,
+                start_brief, workspace_prepared,
             },
         },
         task::{route_connector_repair, route_person_task, route_tasks, tag_task_outputs},
@@ -568,8 +568,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             core.settling = true;
             stopping::empty()
         }
-        Event::BriefAssembled { .. }
-        | Event::WorkspacePrepared { .. }
+        Event::WorkspacePrepared { .. }
         | Event::ClaimPrepared { .. }
         | Event::ClaimRefused { .. }
         | Event::StartRecurring { .. }
@@ -664,7 +663,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::StartRecurring { project, authority, template } => {
             route_start_recurring(core, work, project, authority, template)
         }
-        Event::BriefAssembled { task, failure } => brief_assembled(core, work, task, failure),
         Event::WorkspacePrepared { task, attempt, writes, holds, credentials, workspace } => workspace_prepared(
             core,
             env,
@@ -744,7 +742,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::NamedAnswer { to, key, part } => route_named_answer(core, to, key, part),
         Event::NamedAction { to, key, action } => named_action(core, env, work, to, key, action),
         Event::Delegate { to, key, batch } => delegate(core, env, work, to, key, batch),
-        Event::Brief(event) => route_brief(core, env, event),
         Event::Account(event) => route_account(core, env, work, event),
         Event::View(event) => route_view(core, env, event),
         Event::Notes(event) => route_notes(core, env, work, event),
@@ -814,7 +811,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
         Timer::Brief => {
             let mut out = Queue::uncapped();
             step::fire_brief(core, env, &mut out);
-            tag_brief(core, env, out)
+            run::briefs::tag(core, env, out)
         }
         Timer::Retention => {
             let mut out = Queue::uncapped();

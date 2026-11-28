@@ -3,15 +3,14 @@
 
 use crate::vocabulary::connector_ask;
 use crate::{
-    Ask, Core, CoreRecord, Limits, Record, Request, Write,
+    Core, CoreRecord, Limits, Record, Request, Write,
     routing::{children::append_people, view::routes::touch_task},
 };
 use alloc::boxed::Box;
-use jig_domain_brief as brief;
 use jig_domain_contract as contract;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, Queue, Token};
+use skein_lib::{Env, Queue};
 
 pub(crate) fn save(
     core: &mut Core,
@@ -398,27 +397,7 @@ fn clear_stale_preparation(
         drop(core.contexts.remove(&task.number));
         drop(core.dependency_results.remove(&task.number));
         core.discard_transcript(task.number);
-        let mut abandoned = Queue::uncapped();
-        crate::routing::step::step_brief(
-            core,
-            env,
-            brief::GatherEvent::Abandon { brief: Token::new(task.number) },
-            &mut abandoned,
-        );
-        for _ in 0..abandoned.len() {
-            match abandoned.pop().expect("abandoned brief output count") {
-                brief::GatherRequest::Drop { connector, section, .. } => {
-                    out.push(Request::Ask { connector, ask: Ask::Drop { section } });
-                }
-                brief::GatherRequest::Gather { .. }
-                | brief::GatherRequest::CutTo { .. }
-                | brief::GatherRequest::Complete { .. }
-                | brief::GatherRequest::Failed { .. }
-                | brief::GatherRequest::Refused { .. } => {
-                    unreachable!("abandon only releases connector sections")
-                }
-            }
-        }
+        crate::routing::run::briefs::abandon(core, env, task.number, out);
         if task.phase == tasks::Phase::Active(tasks::Active::Preparing) {
             let mut follow = Queue::uncapped();
             crate::routing::step::step_tasks(

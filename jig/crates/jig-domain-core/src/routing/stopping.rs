@@ -169,7 +169,6 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         Event::Fleet(event) => Ok(Event::Fleet(event)),
         Event::Stopping
         | Event::Activate { .. }
-        | Event::BriefAssembled { .. }
         | Event::WorkspacePrepared { .. }
         | Event::ClaimPrepared { .. }
         | Event::ClaimRefused { .. }
@@ -203,7 +202,6 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::AnswerPayload { .. }
         | Event::AcceptedTurn { .. }
         | Event::RefusedPayload { .. }
-        | Event::Brief(_)
         | Event::Account(_)
         | Event::View(_)
         | Event::Notes(_)
