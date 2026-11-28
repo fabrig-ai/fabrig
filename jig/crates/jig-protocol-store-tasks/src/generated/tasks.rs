@@ -77,7 +77,7 @@ pub struct Limits {
     pub approval_message_state: u32,
     pub verdict_message_fields: u32,
     pub word_words: u32,
-    pub guide_repository: u32,
+    pub guide_workspace: u32,
     pub guide_commit: u32,
     pub guide_path: u32,
     pub run_sources_build: u32,
@@ -193,7 +193,7 @@ pub const CEILINGS: Limits = Limits {
     approval_message_state: 524_288,
     verdict_message_fields: 1_048_576,
     word_words: 524_288,
-    guide_repository: 256,
+    guide_workspace: 256,
     guide_commit: 256,
     guide_path: 256,
     run_sources_build: 64,
@@ -309,7 +309,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "approval_message_state",
     "verdict_message_fields",
     "word_words",
-    "guide_repository",
+    "guide_workspace",
     "guide_commit",
     "guide_path",
     "run_sources_build",
@@ -429,7 +429,7 @@ impl Limits {
             self.approval_message_state,
             self.verdict_message_fields,
             self.word_words,
-            self.guide_repository,
+            self.guide_workspace,
             self.guide_commit,
             self.guide_path,
             self.run_sources_build,
@@ -550,7 +550,7 @@ impl Limits {
             approval_message_state: self.approval_message_state.min(most),
             verdict_message_fields: self.verdict_message_fields.min(most),
             word_words: self.word_words.min(most),
-            guide_repository: self.guide_repository.min(most),
+            guide_workspace: self.guide_workspace.min(most),
             guide_commit: self.guide_commit.min(most),
             guide_path: self.guide_path.min(most),
             run_sources_build: self.run_sources_build.min(most),
@@ -668,7 +668,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::APPROVAL_MESSAGE_STATE,
     paths::VERDICT_MESSAGE_FIELDS,
     paths::WORD_WORDS,
-    paths::GUIDE_REPOSITORY,
+    paths::GUIDE_WORKSPACE,
     paths::GUIDE_COMMIT,
     paths::GUIDE_PATH,
     paths::RUN_SOURCES_BUILD,
@@ -1274,7 +1274,7 @@ pub mod paths {
     pub const SUSPENSION_SINCE: Path = Path::new("Suspension.since");
     pub const SUSPENSION_UNTIL: Path = Path::new("Suspension.until");
     pub const SUSPENSION_TAIL: Path = Path::new("Suspension (tail)");
-    pub const GUIDE_REPOSITORY: Path = Path::new("Guide.repository");
+    pub const GUIDE_WORKSPACE: Path = Path::new("Guide.workspace");
     pub const GUIDE_COMMIT: Path = Path::new("Guide.commit");
     pub const GUIDE_PATH: Path = Path::new("Guide.path");
     pub const GUIDE_DIGEST: Path = Path::new("Guide.digest");
@@ -13100,7 +13100,7 @@ impl Record for Suspension {
 // Type: Guide.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Guide {
-    pub repository: Box<[u8]>,
+    pub workspace: Box<[u8]>,
     pub commit: Box<[u8]>,
     pub path: Box<[u8]>,
     pub digest: [u8; 32],
@@ -13111,7 +13111,7 @@ pub struct Guide {
 // Record: Guide.
 impl Guide {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
-        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, guide_repository) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, guide_workspace) },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, guide_commit) },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, guide_path) },
         skein_codec::bounds::Node::Scalar(32),
@@ -13146,7 +13146,7 @@ impl Record for Guide {
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
-        field::write(field::Text { limit: limits.guide_repository.min(CEILINGS.guide_repository) }, &self.repository, limits, out, paths::GUIDE_REPOSITORY)?;
+        field::write(field::Text { limit: limits.guide_workspace.min(CEILINGS.guide_workspace) }, &self.workspace, limits, out, paths::GUIDE_WORKSPACE)?;
         field::write(field::Text { limit: limits.guide_commit.min(CEILINGS.guide_commit) }, &self.commit, limits, out, paths::GUIDE_COMMIT)?;
         field::write(field::Text { limit: limits.guide_path.min(CEILINGS.guide_path) }, &self.path, limits, out, paths::GUIDE_PATH)?;
         field::write(field::Fixed::<32>, &self.digest, limits, out, paths::GUIDE_DIGEST)?;
@@ -13157,7 +13157,7 @@ impl Record for Guide {
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
-            repository: field::read(field::Text { limit: limits.guide_repository.min(CEILINGS.guide_repository) }, limits, reader, paths::GUIDE_REPOSITORY)?,
+            workspace: field::read(field::Text { limit: limits.guide_workspace.min(CEILINGS.guide_workspace) }, limits, reader, paths::GUIDE_WORKSPACE)?,
             commit: field::read(field::Text { limit: limits.guide_commit.min(CEILINGS.guide_commit) }, limits, reader, paths::GUIDE_COMMIT)?,
             path: field::read(field::Text { limit: limits.guide_path.min(CEILINGS.guide_path) }, limits, reader, paths::GUIDE_PATH)?,
             digest: field::read(field::Fixed::<32>, limits, reader, paths::GUIDE_DIGEST)?,
@@ -23852,7 +23852,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.approval_message_state,
     CEILINGS.verdict_message_fields,
     CEILINGS.word_words,
-    CEILINGS.guide_repository,
+    CEILINGS.guide_workspace,
     CEILINGS.guide_commit,
     CEILINGS.guide_path,
     CEILINGS.run_sources_build,

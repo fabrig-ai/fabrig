@@ -232,6 +232,7 @@ fn up_samples(world: &mut Joined, rng: &mut Rng) {
     let up = [
         (sample(rng).turn_notice(), Box::<[Part]>::default()),
         (fixtures::call(&sample(rng).0.to_be_bytes()), Box::default()),
+        (host::LinkUp::Guides { run: RUN, attempt: ATTEMPT, bytes: sample(rng).app(0) }, Box::default()),
         (
             host::LinkUp::Answer {
                 run: RUN,

@@ -2871,9 +2871,9 @@ pub fn suspension_to_domain(record: crate::tasks_v13::Suspension) -> jig_domain_
 
 #[must_use]
 pub fn guide_to_record(value: &jig_domain_tasks::Guide) -> crate::tasks_v13::Guide {
-    let jig_domain_tasks::Guide { repository: field_000000, commit: field_000001, path: field_000002, digest: field_000003, bytes: field_000004, whole: field_000005 } = value;
+    let jig_domain_tasks::Guide { workspace: field_000000, commit: field_000001, path: field_000002, digest: field_000003, bytes: field_000004, whole: field_000005 } = value;
     crate::tasks_v13::Guide {
-        repository: skein_codec::convert::text_to_record(field_000000),
+        workspace: skein_codec::convert::text_to_record(field_000000),
         commit: skein_codec::convert::text_to_record(field_000001),
         path: skein_codec::convert::text_to_record(field_000002),
         digest: *field_000003,
@@ -2883,9 +2883,9 @@ pub fn guide_to_record(value: &jig_domain_tasks::Guide) -> crate::tasks_v13::Gui
 }
 
 pub fn guide_to_domain(record: crate::tasks_v13::Guide) -> Result<jig_domain_tasks::Guide, crate::tasks_v13::Problem> {
-    let crate::tasks_v13::Guide { repository: field_000000, commit: field_000001, path: field_000002, digest: field_000003, bytes: field_000004, whole: field_000005 } = record;
+    let crate::tasks_v13::Guide { workspace: field_000000, commit: field_000001, path: field_000002, digest: field_000003, bytes: field_000004, whole: field_000005 } = record;
     Ok(jig_domain_tasks::Guide {
-        repository: match skein_codec::convert::text_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::GUIDE_REPOSITORY.problem(reason)) },
+        workspace: match skein_codec::convert::text_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::GUIDE_WORKSPACE.problem(reason)) },
         commit: match skein_codec::convert::text_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::GUIDE_COMMIT.problem(reason)) },
         path: match skein_codec::convert::text_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::GUIDE_PATH.problem(reason)) },
         digest: field_000003,

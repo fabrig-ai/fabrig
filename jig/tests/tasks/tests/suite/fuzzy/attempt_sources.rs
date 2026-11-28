@@ -35,7 +35,7 @@ fn reports_follow_claims_and_ends_across_arbitrary_restart_cuts() {
                 op @ (3 | 4) => {
                     let attempt = if op == 3 { ATTEMPT } else { ATTEMPT + 1 };
                     let guide = Guide {
-                        repository: "shop".into(),
+                        workspace: "shop".into(),
                         commit: "abc".into(),
                         path: "AGENTS.md".into(),
                         digest: [0; 32],

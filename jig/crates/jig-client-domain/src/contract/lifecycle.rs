@@ -19,7 +19,7 @@ pub struct AttemptLine {
 /// A guide read from the workspace of the attempt.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Guide {
-    pub repository: Box<str>,
+    pub workspace: Box<str>,
     pub commit: Box<str>,
     pub path: Box<str>,
     pub digest: [u8; 32],

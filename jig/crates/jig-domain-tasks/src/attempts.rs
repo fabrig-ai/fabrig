@@ -108,7 +108,7 @@ pub(crate) fn report(
         return;
     }
     for guide in &guides {
-        if guide.repository.len() > crate::GUIDE_TEXT_BYTES
+        if guide.workspace.len() > crate::GUIDE_TEXT_BYTES
             || guide.commit.len() > crate::GUIDE_TEXT_BYTES
             || guide.path.len() > crate::GUIDE_TEXT_BYTES
         {

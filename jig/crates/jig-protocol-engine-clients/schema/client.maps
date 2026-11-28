@@ -401,7 +401,7 @@ record ProposalHistory = d::ProposalHistory
 record AmendmentState = d::AmendmentState
 record HistoryAmendment by hand
 record HistoryLine = d::HistoryLine { at via s::wall }
-record Guide = t::Guide { repository via s::text, commit via s::text, path via s::text }
+record Guide = t::Guide { workspace via s::text, commit via s::text, path via s::text }
 record RunSources = t::RunSources { build via s::text, guides slice }
 record AttemptLine = d::AttemptLine { claimed via s::wall, started via s::wall, ended via s::wall }
 record HoldLine = d::HoldLine { at via s::wall }

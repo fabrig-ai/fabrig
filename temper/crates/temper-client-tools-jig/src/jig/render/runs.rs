@@ -105,7 +105,7 @@ fn time(at: Option<Wall>, out: &mut Text) {
 
 fn guide_text(guide: &c::Guide, out: &mut Text) {
     out.put(b"  guide ");
-    out.put(guide.repository.as_bytes());
+    out.put(guide.workspace.as_bytes());
     out.put(b" at ");
     out.put(guide.commit.as_bytes());
     out.put(b": ");
@@ -182,7 +182,7 @@ fn encode_sources(sources: &c::RunSources, out: &mut Encoder) {
             for guide in guides {
                 out.object_start();
                 out.key(b"repository");
-                out.string(guide.repository.as_bytes());
+                out.string(guide.workspace.as_bytes());
                 out.key(b"commit");
                 out.string(guide.commit.as_bytes());
                 out.key(b"path");
@@ -212,7 +212,7 @@ mod tests {
     fn task_runs_prints_attempt_sources_in_order_with_history_cursor() {
         const TASK: u64 = 17;
         let guide = c::Guide {
-            repository: "acme/shop".into(),
+            workspace: "acme/shop".into(),
             commit: "abc".into(),
             path: "AGENTS.md".into(),
             digest: [0xab; 32],
@@ -227,7 +227,7 @@ mod tests {
             guides: Some(Box::new([
                 guide.clone(),
                 c::Guide {
-                    repository: "acme/lib".into(),
+                    workspace: "acme/lib".into(),
                     path: "docs/AGENTS.md".into(),
                     bytes: 99,
                     whole: false,

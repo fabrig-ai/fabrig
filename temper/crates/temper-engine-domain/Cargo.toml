@@ -48,6 +48,7 @@ temper-engine-domain-forge-change.workspace = true
 temper-engine-domain-forge-issues.workspace = true
 
 [dev-dependencies]
+temper-engine-step-kit.workspace = true
 skein-fake-forge-domain.workspace = true
 jig-test-profile.workspace = true
 temper-limits-fixtures.workspace = true

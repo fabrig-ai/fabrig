@@ -417,7 +417,7 @@ fn claims_record_the_prepared_revision_and_the_tasks_set() {
 
 fn guide() -> Guide {
     Guide {
-        repository: "acme/shop".into(),
+        workspace: "acme/shop".into(),
         commit: "abc".into(),
         path: "AGENTS.md".into(),
         digest: [23; 32],
@@ -461,7 +461,7 @@ fn oversize_guide_reports_do_not_consume_the_open_attempts_report() {
     let beyond = "é".repeat((tasks::GUIDE_TEXT_BYTES / 2).checked_add(1).unwrap()).into_boxed_str();
     let oversize: [Box<[Guide]>; 4] = [
         Box::new([guide(), guide(), guide()]),
-        Box::new([guide(), Guide { repository: beyond.clone(), ..guide() }]),
+        Box::new([guide(), Guide { workspace: beyond.clone(), ..guide() }]),
         Box::new([guide(), Guide { commit: beyond.clone(), ..guide() }]),
         Box::new([guide(), Guide { path: beyond, ..guide() }]),
     ];
@@ -470,7 +470,7 @@ fn oversize_guide_reports_do_not_consume_the_open_attempts_report() {
     }
     let exactly = "é".repeat(tasks::GUIDE_TEXT_BYTES / 2).into_boxed_str();
     let valid =
-        Box::new([guide(), Guide { repository: exactly.clone(), commit: exactly.clone(), path: exactly, ..guide() }]);
+        Box::new([guide(), Guide { workspace: exactly.clone(), commit: exactly.clone(), path: exactly, ..guide() }]);
     let out = report(&mut core, &limits, attempt, valid.clone());
     assert_eq!(attempt_put(&out).unwrap().sources.as_ref().unwrap().guides.as_deref(), Some(valid.as_slice()));
 }

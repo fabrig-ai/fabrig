@@ -110,7 +110,7 @@ fn claimed() -> (Domain, Env<Limits>, u64) {
 
 fn guides() -> Box<[tasks::Guide]> {
     Box::new([tasks::Guide {
-        repository: "acme/shop".into(),
+        workspace: "acme/shop".into(),
         commit: "9f8e7d6c5b4a39000ff1e2d3c4b5a69788776655".into(),
         path: "AGENTS.md".into(),
         digest: [23; 32],

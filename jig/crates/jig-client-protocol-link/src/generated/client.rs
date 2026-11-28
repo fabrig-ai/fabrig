@@ -3344,9 +3344,9 @@ pub fn proposal_history_to_domain(record: jig_client_protocol_wire::v44::Proposa
 }
 
 pub fn guide_to_domain(record: jig_client_protocol_wire::v44::Guide) -> Result<jig_client_domain::contract::Guide, jig_client_protocol_wire::v44::Problem> {
-    let jig_client_protocol_wire::v44::Guide { repository: field_000000, commit: field_000001, path: field_000002, digest: field_000003, bytes: field_000004, whole: field_000005 } = record;
+    let jig_client_protocol_wire::v44::Guide { workspace: field_000000, commit: field_000001, path: field_000002, digest: field_000003, bytes: field_000004, whole: field_000005 } = record;
     Ok(jig_client_domain::contract::Guide {
-        repository: match skein_codec::convert::text_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(jig_client_protocol_wire::v44::paths::GUIDE_REPOSITORY.problem(reason)) },
+        workspace: match skein_codec::convert::text_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(jig_client_protocol_wire::v44::paths::GUIDE_WORKSPACE.problem(reason)) },
         commit: match skein_codec::convert::text_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(jig_client_protocol_wire::v44::paths::GUIDE_COMMIT.problem(reason)) },
         path: match skein_codec::convert::text_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(jig_client_protocol_wire::v44::paths::GUIDE_PATH.problem(reason)) },
         digest: field_000003,

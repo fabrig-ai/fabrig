@@ -20,7 +20,7 @@ pub(in crate::codec) fn wire_attempt_line(value: &c::AttemptLine) -> w::AttemptL
                     guides
                         .iter()
                         .map(|guide| w::Guide {
-                            repository: guide.repository.as_bytes().into(),
+                            workspace: guide.workspace.as_bytes().into(),
                             commit: guide.commit.as_bytes().into(),
                             path: guide.path.as_bytes().into(),
                             digest: guide.digest,

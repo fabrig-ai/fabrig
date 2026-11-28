@@ -403,6 +403,18 @@ impl Domain {
     pub fn forges(&self) -> forge::Forges {
         self.forge.forges()
     }
+
+    /// The connector's current home for a project.
+    #[must_use]
+    pub fn project_home(&self, project: u32) -> Option<&forge::Repository> {
+        self.forge.home(project)
+    }
+
+    /// The connector's retained method revision for a project.
+    #[must_use]
+    pub fn project_temper_revision(&self, project: u32) -> Option<&forge::DotTemperRevision> {
+        self.forge.temper_revision(project)
+    }
     /// The restored settings head; service admission keeps this revision with its lists.
     #[must_use]
     pub fn settings_revision(&self) -> u32 {

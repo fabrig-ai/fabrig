@@ -19,7 +19,7 @@ use skein_lib::Reader;
 /// Fixed item sizes without any collection or byte payload (protocol/store/records.md, 1).
 #[cfg(test)]
 pub(crate) const EMPTY: wire::Limits = wire::Limits {
-    guide_repository: 0,
+    guide_workspace: 0,
     guide_commit: 0,
     guide_path: 0,
     run_sources_build: 0,
@@ -163,7 +163,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         true,
     )?;
     let limits = wire::Limits {
-        guide_repository: wire::CEILINGS.guide_repository,
+        guide_workspace: wire::CEILINGS.guide_workspace,
         guide_commit: wire::CEILINGS.guide_commit,
         guide_path: wire::CEILINGS.guide_path,
         run_sources_build: wire::CEILINGS.run_sources_build,

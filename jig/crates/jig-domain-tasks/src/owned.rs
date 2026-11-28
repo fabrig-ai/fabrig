@@ -425,7 +425,7 @@ fn run_sources_bytes(sources: Option<&crate::RunSources>) -> Option<u64> {
         total = total.checked_add(bytes(size_of_val(&**guides))?)?;
         for guide in guides {
             total = total
-                .checked_add(bytes(guide.repository.len())?)?
+                .checked_add(bytes(guide.workspace.len())?)?
                 .checked_add(bytes(guide.commit.len())?)?
                 .checked_add(bytes(guide.path.len())?)?;
         }

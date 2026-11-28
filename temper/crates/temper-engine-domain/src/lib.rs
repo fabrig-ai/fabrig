@@ -66,7 +66,7 @@ pub use temper_engine_domain_see::{
     ForgePerson, OfferedModel, PersonForge, ProjectPerson, RepositoryIdentity, SeeAnswer, SeeLanding, SeeName,
     SeeNames, SeeNotRead, SeePerson, SeeProposal, SeeRead, SeeRepository, SeeSettings, SeeWords,
 };
-pub use translate::{Config, LANDING_ATTEMPTS, LandingRules, landing_stock};
+pub use translate::{Config, LANDING_ATTEMPTS, LandingRules, forge_declaration, landing_stock};
 
 /// Startup's secret-free decision (protocol/credentials.md, 2.2).
 /// Runs are volatile; every surviving carried row is no longer in use.

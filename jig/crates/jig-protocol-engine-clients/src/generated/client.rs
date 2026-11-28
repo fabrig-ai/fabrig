@@ -2300,9 +2300,9 @@ pub fn history_line_to_record(value: &jig_domain_core_vocabulary::documents::His
 
 #[must_use]
 pub fn guide_to_record(value: &jig_domain_tasks::Guide) -> jig_client_protocol_wire::v44::Guide {
-    let jig_domain_tasks::Guide { repository: field_000000, commit: field_000001, path: field_000002, digest: field_000003, bytes: field_000004, whole: field_000005 } = value;
+    let jig_domain_tasks::Guide { workspace: field_000000, commit: field_000001, path: field_000002, digest: field_000003, bytes: field_000004, whole: field_000005 } = value;
     jig_client_protocol_wire::v44::Guide {
-        repository: skein_codec::convert::text_to_record(field_000000),
+        workspace: skein_codec::convert::text_to_record(field_000000),
         commit: skein_codec::convert::text_to_record(field_000001),
         path: skein_codec::convert::text_to_record(field_000002),
         digest: *field_000003,

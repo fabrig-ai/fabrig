@@ -1166,6 +1166,8 @@ fn settings_document_bytes(limits: &Limits) -> u64 {
         // sub-agent arrays, one larger than before and one newly counted.
         + 2 * 8 * (2 * CHOICE_CARRIER_GROWTH + 64 * (MODEL_EFFORT_GROWTH + MODEL_EFFORT_BYTES))
         + 2 * (256 * (40 + 64 + 120) + 88)
+        // The two sets each keep eight New carriers, with eight aligned bytes for charter scope.
+        + VALUE_SETS * 8 * 8
         + NAMED_SETTINGS_BYTES;
     // Each set's one charter reserves the fixture's run bytes and includes
     // the speed fields in its inline model.

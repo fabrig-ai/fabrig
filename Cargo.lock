@@ -6910,6 +6910,7 @@ dependencies = [
  "temper-engine-domain-translate",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
+ "temper-engine-step-kit",
  "temper-limits-fixtures",
  "temper-protocol-brief",
  "temper-protocol-reaches",
@@ -7656,6 +7657,22 @@ dependencies = [
  "temper-protocol-brief",
  "temper-protocol-reaches",
  "temper-settings-form",
+]
+
+[[package]]
+name = "temper-engine-step-kit"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-core",
+ "jig-domain-tasks",
+ "jig-protocol-config-fixtures",
+ "jig-test-profile",
+ "skein-forge",
+ "skein-lib",
+ "temper-engine-domain-forge",
+ "temper-engine-domain-limits",
+ "temper-engine-domain-store",
+ "temper-limits-fixtures",
 ]
 
 [[package]]

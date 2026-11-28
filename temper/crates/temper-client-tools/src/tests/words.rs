@@ -56,6 +56,9 @@ fn every_shown_is_in_the_vocabulary() {
                         == if argument.kind == Kind::Literal { b"TIME".as_slice() } else { b"CONDITION".as_slice() }
                 } else if let Kind::Word { set } = argument.kind {
                     argument.shown == set.join(&b'|')
+                        || (argument.name == b"reason"
+                            && argument.shown == b"REASON"
+                            && set == settings_form::view::REASON_NAMES)
                 } else {
                     PLACEHOLDERS.contains(&argument.shown) || {
                         let pair: Vec<_> = argument.shown.split(|byte| *byte == b'/').collect();

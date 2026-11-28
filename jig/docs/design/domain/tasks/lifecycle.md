@@ -384,8 +384,8 @@ record OpenAttempt { attempt: u64 claimed: option u64 started: option u64 from: 
     revision and its `source`, or 0 and empty
     (`../engine/project-charters.md`, 4);
   - `guides`: none until its host reports them, then each guide its
-    agent read, at most one per workspace directory: the repository's
-    name, the commit its checkout held, the guide's path, each at most
+    agent read, at most one per workspace directory: the workspace's name
+    (`workspace`), the commit its checkout held, the guide's path, each at most
     256 bytes, the SHA-256 of the bytes read, their count, and whether
     the read was whole. A report is taken once, for the attempt still
     open; another, or one for an attempt closed, is dropped. The host

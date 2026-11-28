@@ -161,7 +161,7 @@ pub const GUIDES: u32 = 64;
 /// A guide read from a run's workspace (domain/tasks/lifecycle.md, 12.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Guide {
-    pub repository: Box<str>,
+    pub workspace: Box<str>,
     pub commit: Box<str>,
     pub path: Box<str>,
     pub digest: [u8; 32],

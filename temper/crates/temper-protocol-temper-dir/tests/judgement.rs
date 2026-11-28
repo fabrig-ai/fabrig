@@ -476,7 +476,19 @@ fn total_bytes_hold_at_the_bound_but_not_past() {
         let (reading, paths) = tree.read(FILE_BYTES);
         assert_eq!(paths.len(), requests + 2, "requests, including two listings");
         assert_eq!(reading.method_files().len(), kept);
-        let faults: Vec<_> = reading.judge(Home::Here, &deployment()).faults.iter().map(shown).collect();
+        // Every retained stem has a deployment charter. Only the read budget can refuse this tree.
+        let offered = (0..FULL_FILES - 1)
+            .map(|index| format!("a-{index}"))
+            .chain(["b".to_owned()])
+            .chain((0..more.len()).map(|index| format!("c-{index}")))
+            .map(|name| CharterRoom {
+                name: name.into_bytes().into(),
+                bytes: Some(skein_lib::len_u64(FULL_FILE)),
+                parts: 0,
+            })
+            .collect();
+        let deployment = DeploymentCharters { offered, limit: u32::try_from(MAX_FILES).expect("fixture file count") };
+        let faults: Vec<_> = reading.judge(Home::Here, &deployment).faults.iter().map(shown).collect();
         assert_eq!(faults, expected);
     }
 }

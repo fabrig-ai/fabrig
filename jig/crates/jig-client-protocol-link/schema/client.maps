@@ -484,7 +484,7 @@ record AmendmentState by hand
 record HistoryAmendment by hand
 # Check the optional proposal and amendment before the reason.
 record HistoryLine by hand
-record Guide = c::Guide { repository via s::text, commit via s::text, path via s::text }
+record Guide = c::Guide { workspace via s::text, commit via s::text, path via s::text }
 record RunSources = c::RunSources { build via s::text, guides slice }
 record AttemptLine = c::AttemptLine { claimed via s::wall, started via s::wall, ended via s::wall }
 record HoldLine = c::HoldLine { at via s::wall }

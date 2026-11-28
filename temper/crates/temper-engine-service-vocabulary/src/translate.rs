@@ -247,7 +247,7 @@ pub fn guides(bytes: &[u8], limits: &v1::Limits) -> Option<Box<[jig_domain_tasks
     let mut rows = List::with_capacity(record.guides.len());
     for guide in record.guides.into_boxed() {
         rows.push(jig_domain_tasks::Guide {
-            repository: Box::from(core::str::from_utf8(&guide.repository).ok()?),
+            workspace: Box::from(core::str::from_utf8(&guide.repository).ok()?),
             commit: Box::from(core::str::from_utf8(&guide.commit).ok()?),
             path: Box::from(core::str::from_utf8(&guide.path).ok()?),
             digest: guide.digest,
@@ -378,7 +378,7 @@ mod tests {
             .expect("items within bounds")
             .expect("workspace items");
         let bytes = items.encode(&limits).expect("encode items");
-        let decoded = v1::Items::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("wire items");
+        let decoded = v1::Items::decode(&limits, &mut Reader::new(&bytes)).expect("wire items");
         assert_eq!(decoded.hook_timeout_max_seconds, 1_800);
     }
 
@@ -402,7 +402,7 @@ mod tests {
             repository.delivered = delivered;
             let item = repository_item(&repository, false, &forges, &tokens, &limits).expect("repository item");
             let bytes = item.encode(&limits).expect("repository within bounds");
-            let decoded = v1::Repository::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("wire item");
+            let decoded = v1::Repository::decode(&limits, &mut Reader::new(&bytes)).expect("wire item");
             let v1::Access::Writable(value) = decoded.access else { panic!("writable repository") };
             assert_eq!(value.delivered, delivered);
             assert_eq!(value.expected, None);
@@ -421,7 +421,7 @@ mod tests {
             repository.pin = pin;
             let item = repository_item(&repository, false, &forges, &tokens, &limits).expect("repository item");
             let bytes = item.encode(&limits).expect("repository within bounds");
-            let decoded = v1::Repository::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("wire item");
+            let decoded = v1::Repository::decode(&limits, &mut Reader::new(&bytes)).expect("wire item");
             let v1::Access::Writable(value) = decoded.access else { panic!("writable repository") };
             assert_eq!(value.pin, pin);
             assert_eq!(value.expected, None);

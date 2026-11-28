@@ -718,6 +718,7 @@ fn settings_calls_parse_and_write_back_with_existing_numbers_unchanged() {
     for argv in [
         vec!["settings", "show"],
         vec!["settings", "show", "charter", "3", "--revision", "5"],
+        vec!["settings", "show", "charter", "3", "--project", "1"],
         vec!["settings", "show", "template", "4"],
         vec!["settings", "show", "policy", "5"],
         vec!["settings", "show", "rules"],
@@ -732,7 +733,7 @@ fn settings_calls_parse_and_write_back_with_existing_numbers_unchanged() {
     assert_eq!((rows::EXPORT_AT, rows::IMPORT_AT, rows::SETTINGS_AT, rows::CHANGE_SETTINGS_AT), (41, 42, 43, 47));
     for argv in [
         vec!["settings", "show", "rules", "--project", "1"],
-        vec!["settings", "show", "charter", "3", "--project", "1"],
+        vec!["settings", "show", "charter", "3", "--project", "1", "--revision", "5"],
         vec!["revision", "show", "4294967296"],
         vec!["settings", "show", "--watch"],
         vec!["settings", "apply", "FILE", "--against", "5"],
