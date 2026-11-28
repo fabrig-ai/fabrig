@@ -2,9 +2,6 @@
 
 2026-11-28. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
 
-- **Not yet:** 1.3: `EntryKind` has no `Link`: both dialects read a
-  listing's `symlink` as a file (`skein-forge/src/directory.rs`)
-  [in flight: change 22409].
 
 - **Not yet:** 1.2: `Merge`'s `Recorded { commit }`, Forgejo's
   `manually-merged` and GitHub's refusal of it; `MergeHow` has the style

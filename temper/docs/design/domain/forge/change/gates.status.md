@@ -2,7 +2,6 @@
 
 2026-11-28. Where the tree's code lags or departs from [gates.md](gates.md).
 
-- **Not yet:** 2: no change waits for temper's own check of `.temper/` or an owner's sign-off of it, and `requires` makes no change touching temper's method up to date [in flight: change 22426].
 
 - **Not yet:** 1: a follow's check, dispatched by its change with the
   followed source commit [in flight: change 111].

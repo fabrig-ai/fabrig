@@ -2,7 +2,6 @@
 
 2026-11-28. Where the tree's code lags or departs from [landing-turn.md](landing-turn.md).
 
-- **Not yet:** 1: no turn judges its candidate's `.temper/` [in flight: change 22427].
 - **Not yet:** 1: the turn's merge of a member reads no comparison of
   main's tip and its candidate, so a rule by path covers every member.
 - **Not yet:** 1: GitHub's turn, its
