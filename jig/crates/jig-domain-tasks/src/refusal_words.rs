@@ -71,6 +71,7 @@ impl Refusal {
                 LlmFault::Authority => b"model outside authority",
                 LlmFault::Procedure => b"no model runs this task",
                 LlmFault::Repeated => b"model repeated",
+                LlmFault::Speed => b"speed is not one the model declares",
             },
         };
         concat(&[b"Refused: ", reason])

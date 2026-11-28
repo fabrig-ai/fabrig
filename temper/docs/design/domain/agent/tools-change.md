@@ -138,8 +138,9 @@ delegate from what it knows:
   an agent; the words say what the commit brings and why. Refused,
   naming the kind, where the run's authority does not delegate to the
   merge kind; a commit in another form is refused, naming it. Whether
-  the repository has a merge command is the change's to find, at its
-  branch's tip: one with none there holds the change, naming why
+  the repository has a merge command is the merge job's to find, in its
+  checkout: with none, a clean merge is delivered all the same and one
+  in conflict goes to its resolution at once
   (`../forge/updates.md`, section 1; `../../protocol/hooks.md`, 4.2).
   Whether the repository has the commit is the job's to find: one the
   forge cannot fetch fails the job, and holds the change.
@@ -170,14 +171,21 @@ delegate from what it knows:
   section 3), refuses the call, naming it, as a `delegate` naming it
   would be refused.
 - **`llm`:** an LLM choice for each of the change's agents' roles, each
-  in jig's form, its models and efforts by their configured names and no
+  in jig's form, its models and efforts by their configured names, each
+  model's optional `speed` by its name or `standard`, and no
   account (jig's `protocol/configuration-templates.md`, 1):
 
   ```
   {"words": "...", "landing": "goal", "producer": 6,
-   "llm": {"producer": {"main": {"model": "gpt-6.1-sol", "effort": "high"}},
+   "llm": {"producer": {"main": {"model": "gpt-6.2-sol", "effort": "high", "speed": "ultrafast"}},
            "review": {"main": {"model": "gpt-6.1-sol", "effort": "medium"}}}}
   ```
+
+  A speed left out names none, and the role's agents take the speed
+  their charter's resolution gives the model (jig's
+  `domain/engine/executors.md`, 1). The `delegate` and `amend` tools'
+  `llm` members, which name models and efforts by configured index,
+  take each model's `speed` by name the same way.
 
   `producer` for its producing task, its repairs, its resolutions and
   its checks' gates; `review` for its agents' gates. The root checks
@@ -186,7 +194,10 @@ delegate from what it knows:
   the run's authority: a model not configured or named twice, an effort
   its model does not declare, a model, main or sub-agent, outside that
   charter's models or the authority's refuses the call, naming the
-  model and why. A role left out names none, and each of its agents takes
+  model and why; a speed its model does not declare there, nor
+  `standard`, refuses it as `speed SPEED is not one MODEL declares; it
+  declares S1, S2` (`it declares none` for a model with none), the
+  speeds in the model's order. A role left out names none, and each of its agents takes
   its models at each run's check (jig's `domain/tasks/README.md`, section 3).
   A role's choice carries no `later` (`../../draft/per-wake.md`, section
   5): a change's producers resume or finish in one activation, so each

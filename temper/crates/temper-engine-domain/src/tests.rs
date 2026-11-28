@@ -38,6 +38,44 @@ mod start_stop;
 mod start_wait;
 mod validity;
 
+pub(crate) fn owned_repository(forge: u16) -> temper_engine_domain_forge::Repository {
+    use temper_engine_domain_forge as domain;
+    domain::Repository {
+        contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
+        refusals: Box::default(),
+        workflows: Box::default(),
+        project: 5,
+        home: forge == 1,
+        provider: skein_forge::api::Repository { forge, repository: 1 },
+        host: Box::from(&b"forge.example"[..]),
+        owner: Box::from(&b"org"[..]),
+        name: Box::from(&b"repo"[..]),
+        prefix: Box::from(&b"temper/"[..]),
+        role: domain::Role::Owned,
+        ci: true,
+        checks: Box::new([]),
+        kinds: domain::Kinds {
+            read: true,
+            push: true,
+            open: true,
+            land: true,
+            review: true,
+            status: true,
+            comment: true,
+            issue: true,
+            branch: true,
+        },
+        protection: domain::Protection::Absent,
+        settings: skein_forge::api::Settings {
+            default_branch: Box::from(&b"main"[..]),
+            merge: true,
+            squash: true,
+            rebase: false,
+        },
+    }
+}
+
 const LIMITS: Limits =
     Limits { commits: 2, held: 8, writes: 4, deliveries: 4, transcript_bytes: 64, result_bytes: 32, run_bytes: 1 };
 
@@ -737,7 +775,7 @@ fn held_assignment() -> crate::Assignment {
         }]),
         messages: Box::new([]),
         saved: Box::new([]),
-        workspace: crate::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
+        workspace: crate::ForgeWorkspace::default(),
         workstream: 1,
         transcript: Box::new([]),
         answered: Box::new([]),
@@ -831,7 +869,7 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
             fixture.task,
             WorkspacePreparation::Ready(PreparedWorkspace {
                 workspace: RunWorkspace {
-                    workspace: crate::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
+                    workspace: crate::ForgeWorkspace::default(),
                     workstream: fixture.task,
                     writes: Box::new([]),
                     names: Box::new([]),

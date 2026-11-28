@@ -63,7 +63,7 @@ fn the_turn_landing_documents_check_as_their_shapes() {
     let model = temper_fake::llm::Document::decode(&rendered("model.json")).expect("fake model document");
     assert_eq!(model.key(), b"/turn/data/model/key");
     let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
-    assert_eq!(stock.models.len(), 7);
+    assert_eq!(stock.models.len(), 8);
     for charter in &stock.charters {
         let resolved = jig_domain_core::settings::charters::resolved(charter, &stock.models, &engine.limits.core)
             .expect("stock charter resolves without a settings change");

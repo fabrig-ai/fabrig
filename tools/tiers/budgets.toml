@@ -9,6 +9,10 @@
 # domain, at main's count plus 5%, renewed each week by temper/draft/store (the user, 11-23); simulated, system and slower layers get none.
 [tools]
 
+# Removed checks (section 13; none used a measured check counter):
+# skein-io::a_link_read_requires_room_for_a_whole_target checked the retired kernel link-read buffer contract.
+# skein-sim-tests::a_link_read_returns_its_unresolved_target checked the retired link-read machine call.
+# skein-io::every_op loses its link-read case because the kernel operation and its error are gone.
 [gate.default]
 references = { step = 0.04, domain = 0.2, system = 0.6, machine = 0.2, protocol = 0.2, io = 0.2, simulated = 1, real-loop = 1, end-to-end = 1, checks = 1 }
 

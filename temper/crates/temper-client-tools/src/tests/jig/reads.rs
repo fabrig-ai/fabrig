@@ -1240,7 +1240,7 @@ fn empty_account_wait_names_claude_login_path() {
             Some(model) => Some(c::LlmChoice {
                 later: None,
                 account: None,
-                main: c::ModelEffort { model: c::Text::new(Box::from(model), 32).unwrap(), effort: None },
+                main: c::ModelEffort { model: c::Text::new(Box::from(model), 32).unwrap(), effort: None, speed: None },
                 subagents: skein_lib::List::with_capacity(0),
             }),
             None => None,
@@ -1528,7 +1528,7 @@ fn task_waits_explain_the_next_act_after_the_code_line() {
         task.llm = Some(c::LlmChoice {
             later: None,
             account: None,
-            main: c::ModelEffort { model: c::Text::new(Box::from(*b"chosen"), 32).unwrap(), effort: None },
+            main: c::ModelEffort { model: c::Text::new(Box::from(*b"chosen"), 32).unwrap(), effort: None, speed: None },
             subagents: skein_lib::List::with_capacity(0),
         });
         task.run_wait = Some(wait);

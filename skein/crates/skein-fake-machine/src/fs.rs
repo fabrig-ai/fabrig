@@ -701,17 +701,6 @@ impl Machine {
         Ok(())
     }
 
-    /// Reads the link named in the open directory, without resolving its target.
-    pub fn read_link(&self, dir: Opened, name: &[u8]) -> Result<Option<&[u8]>, Refusal> {
-        let dir = self.handle(dir).node;
-        self.searchable(dir)?;
-        let node = self.look_up(dir, name)?.ok_or(Refusal::NotFound)?;
-        match &self.node_state(node).body {
-            Body::Link(target) => Ok(Some(target)),
-            Body::File(_) | Body::Directory { .. } | Body::Special(_) => Ok(None),
-        }
-    }
-
     /// Removes the entry `name` of the directory `dir` has open: an empty
     /// directory with `directory`, anything else without (`unlinkat`).
     pub fn remove(&mut self, dir: Opened, name: &[u8], directory: bool) -> Result<(), Refusal> {

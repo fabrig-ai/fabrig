@@ -294,7 +294,6 @@ impl Sim {
                     | Op::Lock { .. }
                     | Op::Stat { .. }
                     | Op::Rename { .. }
-                    | Op::ReadLink { .. }
                     | Op::HardLink { .. }
                     | Op::Remove { .. }
                     | Op::MakeDirectory { .. }
@@ -676,7 +675,6 @@ impl Sim {
             | Op::Lock { .. }
             | Op::Stat { .. }
             | Op::Rename { .. }
-            | Op::ReadLink { .. }
             | Op::HardLink { .. }
             | Op::Remove { .. }
             | Op::MakeDirectory { .. }
@@ -800,7 +798,6 @@ impl Sim {
             | Summary::Lock { .. }
             | Summary::Stat { .. }
             | Summary::Rename { .. }
-            | Summary::ReadLink { .. }
             | Summary::HardLink { .. }
             | Summary::Remove { .. }
             | Summary::MakeDirectory { .. }
@@ -1206,7 +1203,6 @@ impl Sim {
             | Op::Lock { .. }
             | Op::Stat { .. }
             | Op::Rename { .. }
-            | Op::ReadLink { .. }
             | Op::HardLink { .. }
             | Op::Remove { .. }
             | Op::MakeDirectory { .. }

@@ -2312,6 +2312,9 @@ dependencies = [
  "jig-client-domain",
  "skein-codegen",
  "skein-lib",
+ "smith-domain-session",
+ "smith-protocol-translate",
+ "smith-shapes",
  "smith-transcript",
 ]
 
@@ -6917,6 +6920,7 @@ dependencies = [
  "temper-protocol-member-message",
  "temper-protocol-reaches",
  "temper-protocol-store",
+ "temper-protocol-worker-wire",
 ]
 
 [[package]]

@@ -77,7 +77,6 @@ pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused, r
 
 mod close;
 pub(crate) mod delegate_record;
-mod merge;
 
 #[cfg(test)]
 mod tests;
@@ -1082,10 +1081,10 @@ pub(crate) fn run_workspace(
     _attempt: u64,
 ) -> Option<RunWorkspace> {
     if context.executor == (tasks::Executor::Agent { charter: super::trials::TRIAL_CHARTER }) {
-        return Some(status_route::workspace(context.task));
+        return Some(status_route::workspace(domain, context));
     }
     if context.executor == (tasks::Executor::Agent { charter: STATUS_CHARTER }) {
-        return Some(status_route::workspace(context.task));
+        return Some(status_route::workspace(domain, context));
     }
     if context.executor == (tasks::Executor::Job { kind: forge::PREPARE_KIND })
         && let tasks::Party::Task(parent) = context.requester
@@ -1097,7 +1096,7 @@ pub(crate) fn run_workspace(
         tasks::Executor::Agent { charter } => match domain.engine.core().charter(charter) {
             Some(charter) => {
                 if crate::no_workspace(&charter.policy) {
-                    return Some(status_route::workspace(context.task));
+                    return Some(status_route::workspace(domain, context));
                 }
                 charter.policy.modify
             }
@@ -1279,6 +1278,7 @@ pub(crate) fn run_workspace(
     Some(RunWorkspace {
         workspace: ForgeWorkspace {
             rerun: rerun_bound(domain, context.project),
+            hook_timeout_max_seconds: hook_timeout_max_seconds(domain, context.project),
             repositories: repositories.into_boxed(),
         },
         workstream: key,
@@ -1287,6 +1287,13 @@ pub(crate) fn run_workspace(
         designs: designs.into_boxed(),
         own_holds: own_holds.into_boxed(),
     })
+}
+
+fn hook_timeout_max_seconds(domain: &Domain, project: u32) -> u32 {
+    match domain.forge.landing_settings(project) {
+        Some(settings) => settings.hook_timeout_max_seconds,
+        None => forge::settings::ProjectLanding::default().hook_timeout_max_seconds,
+    }
 }
 
 /// The run or job takes its project's bound from the settings built at restore.
@@ -2578,7 +2585,12 @@ fn change_member(
     let origin = ChangeOrigin { authority: context.authority.clone(), tasks_left: context.tasks_left, source: None };
     match chat_change(domain, env, &origin, change, &repository, base, branch, spend) {
         Ok(member) => Ok(member),
-        Err(why) => Err(ChangeRefused::Refusal(why)),
+        Err(refusal) => match refusal {
+            ChangeBuildRefused::Task(why) => Err(ChangeRefused::Refusal(why)),
+            ChangeBuildRefused::Speed { model, speed } => {
+                Err(ChangeRefused::Words(speed_refusal(domain, model, speed.as_bytes())))
+            }
+        },
     }
 }
 
@@ -2813,6 +2825,79 @@ pub(super) struct OpenedSource {
     pub(super) parameter: Box<[u8]>,
 }
 
+#[derive(Debug)]
+pub(super) enum ChangeBuildRefused {
+    Task(tasks::Refusal),
+    Speed { model: u8, speed: skein_lib::Name<32> },
+}
+
+impl ChangeBuildRefused {
+    pub(super) fn task_refusal(self) -> tasks::Refusal {
+        match self {
+            Self::Task(why) => why,
+            Self::Speed { model, .. } => tasks::Refusal::Llm { model, why: tasks::LlmFault::Speed },
+        }
+    }
+}
+
+/// The tasks child has already found the failing model. Recover the named speed
+/// for its refusal: the main and a sub-agent can name that model at different speeds.
+pub(super) fn refused_speed(domain: &Domain, model: u8, choice: &tasks::LlmChoice) -> Option<skein_lib::Name<32>> {
+    // Resolving a charter keeps this row's declared speed names and their order.
+    let configured = domain.engine.core().settings.models.get(usize::from(model));
+    for entry in core::iter::once(&choice.main).chain(&choice.subagents) {
+        if entry.model != model {
+            continue;
+        }
+        if let Some(speed) = entry.speed
+            && speed.as_bytes() != tasks::STANDARD_SPEED
+        {
+            if let Some(configured) = configured
+                && configured.speed_named(speed.as_bytes()).is_some()
+            {
+                continue;
+            }
+            return Some(speed);
+        }
+    }
+    None
+}
+
+fn speed_refusal(domain: &Domain, model: u8, speed: &[u8]) -> Box<[u8]> {
+    let configured = domain.engine.core().settings.models.get(usize::from(model));
+    let mut words = List::uncapped();
+    append(&mut words, b"speed ");
+    append(&mut words, speed);
+    append(&mut words, b" is not one ");
+    model_words(&mut words, model, configured);
+    append(&mut words, b" declares; it declares ");
+    let speeds = match configured {
+        Some(configured) => configured.speeds.as_ref(),
+        None => &[],
+    };
+    if speeds.is_empty() {
+        append(&mut words, b"none");
+    }
+    for (index, item) in speeds.iter().enumerate() {
+        if index != 0 {
+            append(&mut words, b", ");
+        }
+        append(&mut words, &item.name);
+    }
+    words.into_boxed()
+}
+
+fn model_words(words: &mut List<u8>, model: u8, configured: Option<&crate::Model>) {
+    if let Some(configured) = configured
+        && !configured.is_hole()
+    {
+        append(words, &configured.name);
+    } else {
+        append(words, b"model ");
+        append(words, &decimal(u64::from(model)));
+    }
+}
+
 /// Expand one change with its share of the call's remaining authority.
 /// Ordinary delegation admission decides the resulting batch by its call name.
 #[expect(clippy::too_many_arguments, reason = "the resolved branch and landing accompany the admitted change context")]
@@ -2826,42 +2911,51 @@ pub(super) fn chat_change(
     base: Box<[u8]>,
     branch: Option<Box<[u8]>>,
     spend: u64,
-) -> Result<super::Delegate, tasks::Refusal> {
+) -> Result<super::Delegate, ChangeBuildRefused> {
     let ChangeOrigin { authority: held, tasks_left, source } = origin;
     let producer_charter = change.producer.unwrap_or(domain.forge.charters().change);
     let review_charter = domain.forge.charters().review;
     if domain.engine.core().charter(producer_charter).is_none()
         || domain.engine.core().charter(review_charter).is_none()
     {
-        return Err(tasks::Refusal::Executor);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Executor));
     }
-    if let Some(choice) = &change.llm.producer {
-        domain.engine.core().tasks.check_llm(producer_charter, held.models, choice)?;
-    }
-    if let Some(choice) = &change.llm.review {
-        domain.engine.core().tasks.check_llm(review_charter, held.models, choice)?;
+    for (charter, choice) in [(producer_charter, &change.llm.producer), (review_charter, &change.llm.review)] {
+        if let Some(choice) = choice
+            && let Err(why) = domain.engine.core().tasks.check_llm(charter, held.models, choice)
+        {
+            if let tasks::Refusal::Llm { model, why: tasks::LlmFault::Speed } = why
+                && let Some(speed) = refused_speed(domain, model, choice)
+            {
+                return Err(ChangeBuildRefused::Speed { model, speed });
+            }
+            return Err(ChangeBuildRefused::Task(why));
+        }
     }
     // The procedure takes a task and a level, and its producer another of each; with none at
     // all, the delegation's own admission names the missing authority.
     if *tasks_left == 1 {
-        return Err(tasks::Refusal::Tree);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Tree));
     }
     if held.delegation.depth == 1 {
-        return Err(tasks::Refusal::Depth);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Depth));
     }
     if spend <= domain.engine.core().authority.rules().minimum_run_spend {
-        return Err(tasks::Refusal::Funding);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Funding));
     }
     let mut authority = held.clone();
-    authority.grants = change_grants(domain, env, repository, &authority.grants, false, source.is_some())?;
+    authority.grants = match change_grants(domain, env, repository, &authority.grants, false, source.is_some()) {
+        Ok(grants) => grants,
+        Err(why) => return Err(ChangeBuildRefused::Task(why)),
+    };
     let mut kinds = List::with_capacity(5);
     kinds.push(tasks::AuthorityExecutor::Charter(producer_charter)).expect("producer kind");
     if producer_charter != review_charter {
         kinds.push(tasks::AuthorityExecutor::Charter(review_charter)).expect("review kind");
     }
     let questions = change_questions(domain, repository.project, change);
-    let gates =
-        configured_gates(domain, env, repository, &base, forge::Touched::UNKNOWN).ok_or(tasks::Refusal::Spec)?;
+    let gates = configured_gates(domain, env, repository, &base, forge::Touched::UNKNOWN)
+        .ok_or(ChangeBuildRefused::Task(tasks::Refusal::Spec))?;
     for gate in &gates {
         if gate.kind == forge_change::GateKind::Person && !kinds.as_slice().contains(&tasks::AuthorityExecutor::Role(1))
         {
@@ -2888,20 +2982,20 @@ pub(super) fn chat_change(
     let mut parameters = List::with_capacity(env.limits.tasks.parameters);
     for parameter in change_parameters(domain.config.forge_connector, repository.provider, base) {
         if parameters.push(parameter).is_err() {
-            return Err(tasks::Refusal::Spec);
+            return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
         }
     }
     if let Some(source) = source
         && (parameters.push(tasks::Parameter::Bytes { name: 10, value: source.title.clone() }).is_err()
             || parameters.push(tasks::Parameter::Bytes { name: 19, value: source.parameter.clone() }).is_err())
     {
-        return Err(tasks::Refusal::Spec);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
     }
     if let Some(branch) = branch {
         if parameters.push(tasks::Parameter::Bytes { name: 3, value: branch }).is_err()
             || parameters.push(tasks::Parameter::Number { name: 11, value: 1 }).is_err()
         {
-            return Err(tasks::Refusal::Spec);
+            return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
         }
         let mut title = change.words.as_ref();
         for (index, byte) in change.words.iter().enumerate() {
@@ -2912,7 +3006,7 @@ pub(super) fn chat_change(
             }
         }
         if !title.is_empty() && parameters.push(tasks::Parameter::Bytes { name: 10, value: title.into() }).is_err() {
-            return Err(tasks::Refusal::Spec);
+            return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
         }
     }
     if (change.producer.is_some() || change.llm != crate::ChangeLlm::default())
@@ -2920,7 +3014,7 @@ pub(super) fn chat_change(
             .push(tasks::Parameter::Bytes { name: 11, value: change_llm::spell(change.producer, &change.llm) })
             .is_err()
     {
-        return Err(tasks::Refusal::Spec);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
     }
     let route = match questions {
         forge_change::Route::Up => Some(2),
@@ -2929,17 +3023,17 @@ pub(super) fn chat_change(
     if let Some(value) = route
         && parameters.push(tasks::Parameter::Number { name: 14, value }).is_err()
     {
-        return Err(tasks::Refusal::Spec);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
     }
     if let Some(commit) = change.repairs
         && parameters.push(tasks::Parameter::Bytes { name: 12, value: commit_text(&commit) }).is_err()
     {
-        return Err(tasks::Refusal::Spec);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
     }
     if let Some(commit) = change.merge
         && parameters.push(tasks::Parameter::Bytes { name: 16, value: commit_text(&commit) }).is_err()
     {
-        return Err(tasks::Refusal::Spec);
+        return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
     }
     Ok(super::Delegate {
         deadline: tasks::Deadline::Named,
@@ -3038,6 +3132,7 @@ fn change_delegate(
     env: &Env<Limits>,
     task: u64,
     kind: forge_change::Delegate,
+    catch_up_head: Option<skein_forge::api::Commit>,
 ) -> Option<super::Delegate> {
     let row = domain.forge.change(task)?;
     let context = domain.engine.core().tasks.delegation(task)?;
@@ -3059,13 +3154,17 @@ fn change_delegate(
     if let forge_change::Delegate::Merge { base, from } = kind {
         let bound = domain.config.merge_kind?;
         let repository = domain.forge.repository(row.repository)?;
-        let (head, command) = domain.forge.merge_command(task, from)?;
+        let head = from.or(catch_up_head)?;
+        let fallback = domain.forge.merge_job(repository.project);
         return Some(super::Delegate {
             executor: tasks::Executor::Job { kind: forge::MERGE_KIND },
             spec: tasks::Spec {
                 job: Some(Box::new(tasks::JobSpec {
-                    bytes: merge::spec(&repository.name, command, &head, &base, bound.spec)?,
-                    deadline: bound.deadline,
+                    bytes: forge::jobs::merge(&repository.name, fallback, &head, &base, bound.spec)?,
+                    deadline: skein_lib::Duration::from_secs(u64::from(hook_timeout_max_seconds(
+                        domain,
+                        repository.project,
+                    ))),
                 })),
                 asks: false,
                 words: Box::new([]),
@@ -3088,14 +3187,16 @@ fn change_delegate(
     if kind == forge_change::Delegate::Close {
         let bound = domain.config.close_kind?;
         let repository = domain.forge.repository(row.repository)?;
-        let task = domain.engine.core().tasks.task(task)?;
-        let command = close::command(domain, repository.project, close::hook(&task.spec.parameters))?;
+        let fallback = domain.forge.close_job(repository.project);
         return Some(super::Delegate {
             executor: tasks::Executor::Job { kind: forge::CLOSE_KIND },
             spec: tasks::Spec {
                 job: Some(Box::new(tasks::JobSpec {
-                    bytes: close::spec(&repository.name, command, row.close.as_deref()?, bound.spec)?,
-                    deadline: bound.deadline,
+                    bytes: forge::jobs::close(&repository.name, fallback, row.close.as_deref()?, bound.spec)?,
+                    deadline: skein_lib::Duration::from_secs(u64::from(hook_timeout_max_seconds(
+                        domain,
+                        repository.project,
+                    ))),
                 })),
                 asks: false,
                 words: Box::new([]),
@@ -4038,9 +4139,10 @@ fn delegate_change_step(
     step: u64,
     connector: u16,
     code: u32,
-    offer: &(forge_change::Delegate, Option<forge_change::CloseAt>),
+    offer: &(forge_change::Delegate, Option<forge_change::CloseAt>, Option<skein_forge::api::Commit>),
 ) {
-    let (kind, _) = *offer;
+    let (kind, close_at, catch_up_head) = *offer;
+    let kept = (kind, close_at);
     if relay::continuing_asker(domain, task, kind) {
         let decision = append_change_replies(domain, env, task, ProcedureStep::new(StepEnd::Wait));
         domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
@@ -4051,7 +4153,7 @@ fn delegate_change_step(
         domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
         return;
     }
-    let Some(delegate) = change_delegate(domain, env, task, kind) else {
+    let Some(delegate) = change_delegate(domain, env, task, kind, catch_up_head) else {
         domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
         let held = holds::decision(
             domain,
@@ -4070,13 +4172,13 @@ fn delegate_change_step(
         return;
     };
     if let Some(pending) = domain.forge_delegating.get_mut(&(task, step)) {
-        pending.delegate = Some(*offer);
+        pending.delegate = Some(kept);
     } else {
         domain
             .forge_delegating
             .insert(
                 (task, step),
-                ChangeStep { delegate: Some(*offer), relayed: None, refusal: None, released: false, passing: None },
+                ChangeStep { delegate: Some(kept), relayed: None, refusal: None, released: false, passing: None },
             )
             .expect("one forge procedure delegate");
     }
@@ -4171,6 +4273,7 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
     change_decision_from_read(domain, env, task, choice, None, None, None);
 }
 
+#[expect(clippy::too_many_lines, reason = "keeps the exhaustive decision and its procedure handoff together")]
 fn change_decision_from_read(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -4236,7 +4339,7 @@ fn change_decision_from_read(
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),
         forge_change::Decision::CancelRepair { head } => cancel_change_repair(domain, task, head),
         forge_change::Decision::CancelMovedDelegate { head } => cancel_moved_change_delegate(domain, task, head),
-        forge_change::Decision::RepairEnded { .. } | forge_change::Decision::ReadMerge { .. } => {
+        forge_change::Decision::RepairEnded { .. } => {
             unreachable!("the forge top consumes internal step progress")
         }
         forge_change::Decision::Ready => {
@@ -4257,7 +4360,8 @@ fn change_decision_from_read(
         forge_change::Decision::CancelProducer => cancel_change_producer(domain, task),
         forge_change::Decision::None | forge_change::Decision::Effect(_) => ProcedureStep::new(StepEnd::Wait),
         forge_change::Decision::Delegate(kind) => {
-            delegate_change_step(domain, env, task, step, connector, code, &(kind, close_at));
+            let catch_up_head = if let Some(read) = evidence { Some(read.base_tip) } else { None };
+            delegate_change_step(domain, env, task, step, connector, code, &(kind, close_at, catch_up_head));
             return;
         }
     };
@@ -5163,7 +5267,6 @@ pub(crate) fn outputs(
                     | forge_change::Decision::CancelRepair { .. }
                     | forge_change::Decision::CancelMovedDelegate { .. }
                     | forge_change::Decision::RepairEnded { .. }
-                    | forge_change::Decision::ReadMerge { .. }
                     | forge_change::Decision::Ready
                     | forge_change::Decision::QueueRepair
                     | forge_change::Decision::NoChange

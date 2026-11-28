@@ -368,6 +368,10 @@ pub enum Fact {
 }
 
 #[derive(Hash, Debug)]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(clippy::large_enum_variant, reason = "decoded calls carry LLM choices with inline speed names")
+)]
 pub enum WorkerInput {
     /// A decoded push admission ask from jig's live attempt fence.
     Admit { asking: crate::wire::Asking, tag: u64, branch: Box<[u8]>, expected: Option<[u8; 32]>, commit: [u8; 32] },
@@ -527,6 +531,10 @@ pub enum ForgeReadAnswer {
     },
 }
 #[derive(Hash, Debug)]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(clippy::large_enum_variant, reason = "typed asks carry LLM choices with inline speed names")
+)]
 pub enum PartyInput {
     /// A visitor read (jig/docs/design/domain/people/public-reading.md, 5).
     PublicRead {
@@ -841,6 +849,10 @@ pub enum StoreRequest {
     Engine(engine_store::Out),
 }
 #[derive(PartialEq, Eq, Hash, Debug)]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(clippy::large_enum_variant, reason = "deliveries with a workspace stay inline in the bounded route queue")
+)]
 pub enum WorkerRequest {
     Settings(Box<[core::settings::WorkerSetting]>),
     Host(Box<HostRequest>),

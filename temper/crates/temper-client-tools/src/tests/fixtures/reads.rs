@@ -90,6 +90,7 @@ fn settings_reply(words: &[u8], payloads: bool) -> c::TurnRead {
                 input: text(crate::limits::PART),
                 outcome: Some(text(crate::limits::PART - 16)),
                 failed: false,
+                answer: None,
                 objects: List::with_capacity(EMPTY),
                 parts: List::with_capacity(EMPTY),
             }))
@@ -385,6 +386,7 @@ pub(crate) fn turn_call(path: Option<List<Box<[u8]>>>) -> c::ReadResult {
             input: turn_words(b"request"),
             outcome: Some(turn_words(b"reply")),
             failed: false,
+            answer: Some(b"delegated"),
             objects: List::with_capacity(EMPTY),
             parts,
         }))

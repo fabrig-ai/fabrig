@@ -716,31 +716,75 @@ fn an_ended_changes_hold_round_trips_in_its_state() {
     }
 }
 
+fn change_with_role_choices(speeds: bool) -> temper_engine_domain_forge_vocabulary::ChangeRow {
+    use jig_domain_tasks::{LlmChoice, ModelEffort};
+    fn named_speed(speeds: bool, name: &[u8]) -> Option<skein_lib::Name<32>> {
+        if speeds { Some(skein_lib::Name::from_checked(name).expect("speed fixture fits")) } else { None }
+    }
+    let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: false });
+    row.repairs = Some([28; 32]);
+    row.producing_llm = Some(LlmChoice {
+        later: None,
+        main: ModelEffort { model: 3, effort: Some(1), speed: named_speed(speeds, b"ultrafast") },
+        subagents: Box::new([
+            ModelEffort { model: 0, effort: Some(0), speed: named_speed(speeds, b"fast") },
+            ModelEffort { model: 2, effort: None, speed: None },
+        ]),
+        account: Some(17),
+    });
+    row.review_llm = Some(LlmChoice {
+        later: None,
+        main: ModelEffort { model: 4, effort: Some(2), speed: named_speed(speeds, b"standard") },
+        subagents: Box::new([
+            ModelEffort { model: 1, effort: None, speed: None },
+            ModelEffort { model: 3, effort: Some(1), speed: named_speed(speeds, b"ultrafast") },
+        ]),
+        account: None,
+    });
+    row
+}
+
 #[test]
 fn a_changes_role_choices_round_trip_with_or_without_models() {
-    use jig_domain_tasks::{LlmChoice, ModelEffort};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
-    let producing = LlmChoice {
-        later: None,
-        main: ModelEffort { model: 3, effort: Some(1) },
-        subagents: Box::new([ModelEffort { model: 0, effort: Some(0) }, ModelEffort { model: 2, effort: None }]),
-        account: Some(17),
-    };
-    let review = LlmChoice {
-        later: None,
-        main: ModelEffort { model: 4, effort: Some(2) },
-        subagents: Box::new([ModelEffort { model: 1, effort: None }, ModelEffort { model: 3, effort: Some(1) }]),
-        account: None,
-    };
-    for (producing_llm, review_llm) in [(None, None), (Some(producing), Some(review))] {
-        let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: false });
-        row.repairs = Some([28; 32]);
-        row.producing_llm = producing_llm;
-        row.review_llm = review_llm;
-        let row = fixtures::change_cold(row);
+    let mut no_choices = change_with_role_choices(false);
+    no_choices.producing_llm = None;
+    no_choices.review_llm = None;
+    for change in [no_choices, change_with_role_choices(false), change_with_role_choices(true)] {
+        let row = fixtures::change_cold(change);
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
 }
+
+#[test]
+fn a_changes_previous_role_choice_layout_reads_without_speeds() {
+    use skein_codec::layout::{Mode, Plan, Workspace};
+    let current = crate::OWNER_SET.families.first().expect("store family").current;
+    let prior = current.replace(
+        "record ModelEffort { model: u8 effort: option u8 speed: option bytes 32 = none }",
+        "record ModelEffort { model: u8 effort: option u8 }",
+    );
+    assert_ne!(current, &prior);
+    let new = skein_codec::schema::parse(current.as_bytes()).unwrap();
+    let old = skein_codec::schema::parse(prior.as_bytes()).unwrap();
+    let new_row = new.root(b"Row", None).unwrap();
+    let old_row = old.root(b"Row", None).unwrap();
+    let down = Plan::between(Mode::Read, &new, new_row, &[], &old, old_row, &[]).unwrap();
+    let up = Plan::derive(&old, old_row, &[], &new, new_row, &[]).unwrap();
+    let mut work = Workspace::new();
+    let row = fixtures::change_cold(change_with_role_choices(true));
+    // The previous layout can only write the indices and efforts, not the speed names.
+    let mut earlier = skein_lib::Buffer::with_capacity(131_072);
+    assert!(work.fit(&down));
+    down.convert(&records::encode(&row), &mut earlier, &mut work).unwrap();
+    let mut converted = skein_lib::Buffer::with_capacity(131_072);
+    assert!(work.fit(&up));
+    up.convert(earlier.as_slice(), &mut converted, &mut work).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let expected = fixtures::change_cold(change_with_role_choices(false));
+    assert_eq!(records::decode(converted.as_slice(), &bounds), Ok(expected));
+}
+
 #[test]
 fn verifying_changes_keep_the_first_observation_at_wall_time_extremes() {
     use temper_engine_domain_forge_change::{Cause, State};
@@ -4222,7 +4266,7 @@ fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
             use jig_domain_tasks::{LlmChoice, ModelEffort};
             use temper_engine_domain_forge_change::{Early, Open, Stands, StartedFrom};
             row.room = Some(random.next_u64());
-            let model = ModelEffort { model: 0, effort: None };
+            let model = ModelEffort { model: 0, effort: None, speed: None };
             row.producing_llm =
                 Some(LlmChoice { account: None, main: model, subagents: Box::new([model]), later: None });
             row.review_llm = row.producing_llm.clone();

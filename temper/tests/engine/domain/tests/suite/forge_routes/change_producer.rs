@@ -28,7 +28,7 @@ fn choice(model: u8) -> tasks::LlmChoice {
     tasks::LlmChoice {
         later: None,
         account: None,
-        main: tasks::ModelEffort { model, effort: None },
+        main: tasks::ModelEffort { model, effort: None, speed: None },
         subagents: Box::new([]),
     }
 }

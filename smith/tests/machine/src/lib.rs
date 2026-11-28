@@ -465,7 +465,6 @@ impl skein_world::Machine for Adapter {
             | Ask::Truncate { .. }
             | Ask::Sync { .. }
             | Ask::Stat { .. }
-            | Ask::ReadLink { .. }
             | Ask::HardLink { .. }
             | Ask::Rename { .. }
             | Ask::Remove { .. }
@@ -534,6 +533,7 @@ impl Application {
         component.workspace(&run::Workspace {
             directories: Box::new([run::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"repo".as_slice().into(),
                 root,

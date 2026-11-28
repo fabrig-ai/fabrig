@@ -17,7 +17,9 @@ offered kinds of a run under a charter with no parts are all fourteen. An
 LLM choice, the tasks', the people's and a template's in the settings
 family alike, keeps its optional `later`, a main model with its effort and
 its sub-agents' models with theirs, and no account (`../../domain/tasks/README.md`,
-section 3). The settings family's charter keeps its parts, in order, at
+section 3); each model's speed is kept beside its effort by its name,
+at most 32 bytes, `standard` as written, or none, an added field whose
+default is none, so that a choice stored before it reads with no speed. The settings family's charter keeps its parts, in order, at
 most 8, each its `on` as the same bits and its instructions as text, as
 the charter's own are. It stores a job task (`../../domain/tasks/lifecycle.md`, 3.1): its
 executor `Job { kind }`, its spec's bytes and deadline beside its words,

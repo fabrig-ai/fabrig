@@ -120,6 +120,8 @@ pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
             unit: model.price_unit,
         },
         description: Some(Box::from(b"For scripted work".as_slice())),
+        speeds: Box::default(),
+        speed: None,
     }])
 }
 // Match this world's HTTP intake and the small profile's component bound.
@@ -324,8 +326,8 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // Its loaded row carriers include the saved main endpoint.
 // The task owner's open suspension, accumulated gap and restarted mark occupy 48 inline bytes.
 // The worker proof adds eight bytes to each of Row's two record slots and its charged record carrier.
-// Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 3_072;
+// The 3,089-byte turn with its owner fits; the 3,353-byte activity join does not.
+pub const TURN_OVERLAP_BYTES: u64 = 3_200;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();

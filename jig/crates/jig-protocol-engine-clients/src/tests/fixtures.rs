@@ -88,6 +88,8 @@ pub fn models() -> Box<[crate::Model]> {
             efforts: Box::new([Box::from(b"low".as_slice()), Box::from(b"high".as_slice())]),
             prices: crate::Prices { input: 3, cached: 1, cache_write: Some(5), output: 15, unit: 1_000_000 },
             description: Some(Box::from(b"For careful work".as_slice())),
+            speeds: Box::default(),
+            speed: None,
         },
         crate::Model {
             new_until: None,
@@ -104,6 +106,8 @@ pub fn models() -> Box<[crate::Model]> {
             efforts: Box::new([]),
             prices: crate::Prices { input: 1, cached: 1, cache_write: None, output: 2, unit: 1000 },
             description: None,
+            speeds: Box::default(),
+            speed: None,
         },
     ])
 }

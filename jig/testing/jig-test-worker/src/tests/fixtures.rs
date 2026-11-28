@@ -144,6 +144,7 @@ pub fn start(source: host::Start) -> smith::Start {
         answered: Box::new([]),
         directories: Box::new([smith::Directory {
             results: None,
+            hooks: None,
             root: Token::new(9),
             name: Box::from(&b"workspace"[..]),
             host: Box::from(&b"/test"[..]),

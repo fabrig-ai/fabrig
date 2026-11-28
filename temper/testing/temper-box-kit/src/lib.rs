@@ -23,6 +23,7 @@ pub mod fake_opening;
 pub mod fake_readiness;
 pub mod fetch;
 pub mod first_repository;
+pub mod fixture;
 pub mod github;
 pub mod github_land;
 pub mod held_login;
@@ -258,16 +259,20 @@ use skein_world::{
 #[must_use]
 pub fn serve(directory: &Path) -> Binary {
     limit_settings::install(directory);
+    temper_agent_fixtures::providers::restore(directory);
     Binary::start(serve_command(directory), Mode::Pipes, 65_536).expect("temper serve starts")
 }
+
 fn serve_command(directory: &Path) -> Command {
-    temper_agent_fixtures::providers::restore(directory);
-    Command {
-        program: skein_scratch::paths::built("temper-box", "temper-box"),
-        arguments: std::iter::once("serve".into()).chain(configuration::flags(directory)).collect(),
-        directory: directory.into(),
-        environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
-    }
+    fixture::dying_with_test(
+        Command {
+            program: skein_scratch::paths::built("temper-box", "temper-box"),
+            arguments: std::iter::once("serve".into()).chain(configuration::flags(directory)).collect(),
+            directory: directory.into(),
+            environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
+        },
+        Signal::Kill,
+    )
 }
 /// Serve the cluster fixture's engine directory on the deployment's engine binary (protocol/binaries.md, 2).
 #[must_use]
@@ -275,7 +280,12 @@ pub fn serve_engine(directory: &Path) -> Binary {
     temper_agent_fixtures::providers::restore(&directory.join("data"));
     let engine = skein_scratch::paths::built("temper-box", "temper-box").with_file_name("temper-engine");
     assert!(engine.is_file(), "build the deployment's binary: cargo build -p temper-engine --bin temper-engine");
-    Binary::start(
+    let command = serve_engine_command(directory, engine);
+    Binary::start(command, Mode::Pipes, 65_536).expect("temper-engine serve starts")
+}
+
+fn serve_engine_command(directory: &Path, engine: std::path::PathBuf) -> Command {
+    fixture::dying_with_test(
         Command {
             program: engine,
             arguments: vec![
@@ -290,10 +300,8 @@ pub fn serve_engine(directory: &Path) -> Binary {
             directory: directory.into(),
             environment: Vec::new(),
         },
-        Mode::Pipes,
-        65_536,
+        Signal::Kill,
     )
-    .expect("temper-engine serve starts")
 }
 #[must_use]
 pub fn fake_llm(scripts: Box<[skein_fake_llm_domain::api::Script]>) -> llm::Listening {

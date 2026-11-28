@@ -244,20 +244,19 @@ comes and lands its branch, and the report carries what the run said
   task's number as a change's is, and restored with it (`effects.md`, section 2).
 - **Its steps, in order,** each a change of its own, made as its
   delegate and waited for:
-  1. **Close,** where the goal holds a goal branch whose tip has a close
-     command: its `.temper/hooks/close`, or, where the tip holds no
-     `.temper/hooks/`, its project's `close_job`
+  1. **Close,** where the goal holds a goal branch and the engine
+     declares the close kind: once nothing is pending and the goal's
+     landed changes have not been closed, the closer makes the step,
+     reading nothing of the repository first; its job finds the close
+     command in its checkout of the branch's tip, its `.temper/hooks/close`,
+     or, where the tip holds no `.temper/hooks/`, its project's
+     `close_job`, none there ending the step with no change
      (`../../protocol/hooks.md`, 4.2 and 5;
-     `../../protocol/configuration/engine.md`). Once nothing is pending
-     and the goal's landed changes have not been closed, the closer reads
-     `.temper/hooks/` at the goal's branch's tip, its tip read first; a
-     read with no answer leaves the closer waiting, and it reads again,
-     never skipping the step for it. The step is a change
+     `../../protocol/configuration/engine.md`). The step is a change
      into the goal's branch whose producer is the close job, kind 4
      (`../worker/jobs.md`), as a catch-up's is the merge job: its bytes
-     parameter 17 the close request (`../../protocol/tooling.md`, 4.2),
-     and, where the closer found the hook, its bytes parameter 20 the
-     hook's path (`change/README.md`, 1),
+     parameter 17 the close request (`../../protocol/tooling.md`, 4.2;
+     `change/README.md`, 1),
      naming the goal and each change of the goal's tree whose landing
      branch is the goal's branch, with how each ended, the closer's own
      changes left out; its words `Settle goal G's status.` The change
@@ -268,9 +267,9 @@ comes and lands its branch, and the report carries what the run said
      spent, and a check that found the goal outdated ends it with no
      change (`change/repairs-releases.md`, 1), for the closer to catch
      the goal up from main and close again (*A close found outdated*,
-     below). Where the tip has no close command, or the goal holds no
+     below). Where the engine declares no close kind, or the goal holds no
      goal branch, this step is skipped. A close step superseded by more
-     landed changes reads again for its new change.
+     landed changes is made again for its new change.
   2. **Land,** where the goal holds a goal branch whose tip its base
      does not hold: the goal's landing, a change on the goal's held
      branch into its base, as the goal's `"branch": "mine"` would make
@@ -578,8 +577,10 @@ comes and lands its branch, and the report carries what the run said
     catch-up is (`updates.md`, 1), its commit main's tip as the close's
     change read it (`CloseAt`'s landing commit), its words `Catch goal G
     up from main at M.`, questions `up`, funded as the other steps are,
-    one attempt left. Landed, or ended with no change, it makes the
-    close step again at once, with the same request.
+    one attempt left. The merge job looks for its hook in its checkout
+    (`../../protocol/hooks.md`, 4.2 and 4.3); the closer does not read
+    the hook first. Landed, or ended with no change, the catch-up makes
+    the close step again at once, with the same request.
   - *Held at once,* `ClosingStep` on the step and its change, escalating
     to the goal, its words cut to the hold's bytes, G and M 12 hex
     digits, F the close's finding as its words give it:
@@ -597,7 +598,7 @@ comes and lands its branch, and the report carries what the run said
     - none it can make: `the close step's change TN found the goal's
       branch at G outdated: F; the closer can't catch it up from main:
       WHY. Merge main into the goal's branch and release the closer to
-      close again.`, WHY `the project names no merge_job` or `its
+      close again.`, WHY `the engine declares no merge job kind` or `its
       authority does not delegate to the merge job`.
   - *Released,* the held step's change is made again, after any new
     work: the close, which holds at once again if outdated for a request

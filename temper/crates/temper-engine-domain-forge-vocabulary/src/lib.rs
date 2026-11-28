@@ -26,6 +26,7 @@ pub mod away;
 pub mod boundary;
 pub mod brief;
 pub mod brief_words;
+pub mod change_llm_text;
 pub mod change_words;
 pub mod checks;
 pub mod closer;

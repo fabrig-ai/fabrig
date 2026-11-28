@@ -2145,7 +2145,7 @@ fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
             task.llm = Some(c::LlmChoice {
                 later: None,
                 account: None,
-                main: c::ModelEffort { model: fixtures::first_run::text(b"demo"), effort: None },
+                main: c::ModelEffort { model: fixtures::first_run::text(b"demo"), effort: None, speed: None },
                 subagents: List::with_capacity(0),
             });
             let root = asking_task_root_owned(task, true, if asking { 37 } else { 1 }, owned);

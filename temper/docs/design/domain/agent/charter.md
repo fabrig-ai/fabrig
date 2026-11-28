@@ -205,8 +205,12 @@ checks (`../../protocol/hooks.md`, 4.1 and 5; smith's
   and no bound otherwise, so the agent's `check_timeout` holds. Every
   other run names none. The bound is read when the run's charter is
   written, at each attempt, so a changed setting reaches the next
-  attempt. A check that runs out of time runs once more at twice its
-  bound (smith's `domain/run-delivery.md`, 1.1), so a check that only ran out of
+  attempt. A repository's hooks say their own time in
+  `.temper/hooks/config.toml`, which the worker reads as the run starts
+  and cuts at the project's `hook_timeout_max_seconds`, and a moment the
+  file times runs its hook within that time in place of the bound
+  (`../../protocol/hooks.md`, 2.3 and 4.1). A check that runs out of time runs once more at twice its
+  time (smith's `domain/run-delivery.md`, 1.1), so a check that only ran out of
   time never ends the run's work by itself.
 - **No CI before a goal's branch.** A pull request into a goal's branch
   runs no CI: a change's delivery checks are all it meets before it lands

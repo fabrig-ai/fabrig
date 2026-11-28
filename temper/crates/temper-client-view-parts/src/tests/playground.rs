@@ -14,7 +14,11 @@ fn the_playground_names_default_for_a_resolved_model() {
             Some(c::LlmChoice {
                 later: None,
                 account: None,
-                main: c::ModelEffort { model: c::Text::new(b"selected".as_slice().into(), 32).unwrap(), effort: None },
+                main: c::ModelEffort {
+                    model: c::Text::new(b"selected".as_slice().into(), 32).unwrap(),
+                    effort: None,
+                    speed: None,
+                },
                 subagents: skein_lib::List::with_capacity(0),
             })
         } else {

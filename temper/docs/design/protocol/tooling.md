@@ -21,7 +21,8 @@ what they write, and how they end. temper runs them as jobs on a worker
   goal's branch's repository, run at the branch's tip (4.2). Each of
   these two is the repository's hook, `.temper/hooks/merge` or
   `.temper/hooks/close`, or, in a repository without `.temper/hooks/`,
-  the project's `merge_job` or `close_job` (`hooks.md`, 4.2 and 5).
+  the project's `merge_job` or `close_job`, found in the job's checkout
+  (`hooks.md`, 4.2, 4.3 and 5).
 - **A directory, not a forge.** temper fetches every repository the
   command needs into a directory it gives the command, and pushes what
   the command made. The command holds no credential, reaches no forge,
@@ -53,8 +54,10 @@ what they write, and how they end. temper runs them as jobs on a worker
   (4.2), it adds `TEMPER_CLOSE_OUTDATED=3`. Nothing else: no credential,
   no token, no variable of the worker's.
 - **Its time** is the project's `prepare_timeout`, or for `merge` and
-  `close` its kind's deadline (4.1, 4.2), after which it and its
-  children are killed and the job fails.
+  `close` the hook's time, its `config.toml`'s or ten minutes, cut at
+  the project's `hook_timeout_max_seconds`, which is the job's deadline
+  (`hooks.md`, 2.3), after which it and its children are killed and the
+  job fails as the command's failure.
 - **Its network** is the worker's containment's (`../domain/worker/README.md`,
   section 8), and a command needs none.
 - **Only what its checkout holds.** A hook uses only what its checkout
@@ -220,14 +223,17 @@ The merge job's command (`../domain/forge/change/repairs.md`; `../domain/worker/
 baseline recounted, a generated file made again), with no model.
 
 - **The repository's `merge` hook, or the project's `merge_job`**
-  (`hooks.md`, 4.2 and 5; `configuration/engine.md`): `.temper/hooks/merge`
-  where the head the merge is made on holds `.temper/hooks/`, the
+  (`hooks.md`, 4.2, 4.3 and 5; `configuration/engine.md`): `.temper/hooks/merge`
+  where the merge in progress holds `.temper/hooks/`, the
   project's `merge_job` where it holds none; a path in the repository
   being merged, run from the merge in
   progress, not from the home: the files it settles and the scripts
   that settle them are that repository's. A command file left in
-  conflict, or absent from the merge, is the command's failure, as a
-  hook the worker's check refuses is (`hooks.md`, 4.3).
+  conflict is the command's failure, as a hook the worker's check
+  refuses is, and so is a `merge_job` absent from the merge; where
+  there is no command, the job answers none, its result
+  `{"settled":[],"hook":"none"}`, and the change goes to its resolution
+  at once, a clean merge being delivered as on exit 0 (`hooks.md`, 4.2).
 - **Its directory** holds one repository, the one the job writes, under
   its own name (`<name>/`): checked out at the head being merged into, with the base
   merged in by temper and not committed, git's merge in progress, the
@@ -374,13 +380,16 @@ into its base. fabrig's settles the goal's in-flight status entries
 keeps of a goal's work in its own files.
 
 - **The repository's `close` hook, or the project's `close_job`**
-  (`hooks.md`, 4.2 and 5; `configuration/engine.md`): `.temper/hooks/close`
+  (`hooks.md`, 4.2, 4.3 and 5; `configuration/engine.md`): `.temper/hooks/close`
   where the goal's branch's tip holds `.temper/hooks/`, the project's
   `close_job` where it holds none; a path in the goal's branch's
   repository, as the merge command is: the
   files it settles and the scripts that settle them are that
-  repository's. A command file absent from the branch is the command's
-  failure, as a hook the worker's check refuses is (`hooks.md`, 4.3).
+  repository's. A `close_job` absent from the branch is the command's
+  failure, as a hook the worker's check refuses is; where there is no
+  command, the job answers none, its result
+  `{"settled":[],"hook":"none"}`, which the engine takes as settlement
+  with nothing settled (`hooks.md`, 4.2).
 - **Its directory** holds one repository, the one the job writes, under
   its own name (`<name>/`): checked out at the goal's branch's tip, on
   the close change's own branch made there, clean, nothing staged. That
@@ -451,8 +460,9 @@ keeps of a goal's work in its own files.
   change, for its closer to catch the goal up from main
   (`../domain/forge/change/repairs-releases.md`, 1). A close that sees
   `TEMPER_CLOSE_REFUSAL=3` alone writes no finding: it breaks, as below.
-- **Any other exit,** a signal, the job's deadline, or a result missing
-  or past its bound: the command's failure, the check broke, its stderr's
+- **Any other exit,** a signal, the hook's time or the job's deadline
+  passed, a fault of the hooks' `config.toml` (`hooks.md`, 2.3), or a
+  result missing or past its bound: the command's failure, the check broke, its stderr's
   last `tooling_log_bytes` kept. The job fails in the run's own class and
   is tried again within its tries; past them the close change holds, its
   words naming the check, not the goal's changes, and escalates to the
@@ -475,7 +485,8 @@ keeps of a goal's work in its own files.
   `head` is the commit that job's checkout started at, and nothing was
   pushed; as an outdated finding, only on the same terms with the result
   `outdated`, its `why` one of the two; as settlement it takes only
-  `settled`. Any other finished result is the command's failure. The engine knows the commit, not the
+  `settled`, none's `{"settled":[],"hook":"none"}` among them. Any other
+  finished result is the command's failure. The engine knows the commit, not the
   tree settlement makes of it; the close is deterministic by contract,
   so the commit and the job's fixed request give the tree.
 - **Deterministic by contract,** as `merge`: the same tree and request

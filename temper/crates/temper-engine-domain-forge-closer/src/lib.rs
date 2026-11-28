@@ -9,7 +9,7 @@ pub mod relay;
 mod report;
 mod selection;
 pub use policy::{
-    Child, Closer, Decision, Facts, Hold, ReportCheck, ReportFields, ReportRead, Running, Step, Stepped, step,
+    Child, CloseJob, Closer, Decision, Facts, Hold, ReportCheck, ReportFields, ReportRead, Running, Step, Stepped, step,
 };
 pub use selection::{PullSelection, SELECTION_JOBS, SelectionProgress, selection_answer, selection_read};
 #[cfg(test)]

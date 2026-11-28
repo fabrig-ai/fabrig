@@ -165,6 +165,8 @@ fn answer(world: &mut World, read: reads::Read) -> c::ReadValue {
                 output: model.output_price,
                 unit: model.price_unit,
             },
+            speeds: Box::default(),
+            speed: None,
         })
         .collect();
     let wire = if let reads::Answer::Document(document) = &answer

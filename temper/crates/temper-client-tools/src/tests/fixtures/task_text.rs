@@ -130,6 +130,8 @@ pub(crate) fn source_summary(
                     unit: model.price_unit,
                 },
                 description: None,
+                speeds: Box::default(),
+                speed: None,
             })
             .unwrap();
     }

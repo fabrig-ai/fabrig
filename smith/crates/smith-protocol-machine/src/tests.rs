@@ -33,6 +33,7 @@ fn configured_component(variables: &[crate::Variable]) -> Component {
     component.workspace(&run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: Box::from(&b"code"[..]),
             root: Token::new(10),

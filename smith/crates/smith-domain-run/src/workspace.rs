@@ -9,7 +9,10 @@ use crate::delivery;
 use crate::limits::Limits;
 use alloc::boxed::Box;
 use core::mem::size_of;
-use skein_lib::Token;
+use skein_lib::{Duration, Token};
+
+/// Maximum bytes in the host's diagnostic line for a directory's hook times.
+pub const HOOK_FAULT_BYTES: u32 = 1024;
 
 /// Host-selected directories, moved with Start and retained until the run ends.
 /// None at Start means no workspace; a present empty workspace is refused.
@@ -46,6 +49,24 @@ pub struct Directory {
     pub conflicts: Box<[Box<[u8]>]>,
     /// Checks keep their results here; smith never reads them.
     pub results: Option<Box<[u8]>>,
+    pub hooks: Option<HookTimes>,
+}
+
+/// Times and any read fault supplied by the host for a directory's hooks.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct HookTimes {
+    pub deliver: Option<HookTime>,
+    pub finish: Option<HookTime>,
+    pub ceiling: Duration,
+    /// Empty on success; otherwise one diagnostic line, at most `HOOK_FAULT_BYTES`.
+    pub fault: Box<[u8]>,
+}
+
+/// The host's time for a hook and the directory's request before any ceiling cut.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct HookTime {
+    pub time: Duration,
+    pub asked: Duration,
 }
 
 pub(crate) fn directories(workspace: Option<&Workspace>) -> &[Directory] {
@@ -83,6 +104,11 @@ pub(crate) fn admit(workspace: Option<&Workspace>, limits: &Limits) -> Result<()
         }
         if let Some(results) = &directory.results
             && exceeds(results.len(), 4096)
+        {
+            return Err(Invalid::Workspace);
+        }
+        if let Some(hooks) = &directory.hooks
+            && exceeds(hooks.fault.len(), HOOK_FAULT_BYTES)
         {
             return Err(Invalid::Workspace);
         }
@@ -156,6 +182,9 @@ pub(crate) fn cost(workspace: Option<&Workspace>) -> Option<u64> {
         cost = cost.checked_add(cell)?.checked_add(len(&directory.name)?)?.checked_add(len(&directory.host)?)?;
         if let Some(results) = &directory.results {
             cost = cost.checked_add(len(results)?)?;
+        }
+        if let Some(hooks) = &directory.hooks {
+            cost = cost.checked_add(len(&hooks.fault)?)?;
         }
         for path in &directory.conflicts {
             cost = cost.checked_add(path_cell)?.checked_add(len(path)?)?;

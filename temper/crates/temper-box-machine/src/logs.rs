@@ -505,7 +505,6 @@ fn error_name(error: Error) -> Box<[u8]> {
         Error::NameTooLong => b"NameTooLong",
         Error::Escape => b"Escape",
         Error::NotAFile => b"NotAFile",
-        Error::NotALink => b"NotALink",
         Error::TooManyOpenFiles => b"TooManyOpenFiles",
         Error::NoBufferSpace => b"NoBufferSpace",
         Error::Cancelled => b"Cancelled",

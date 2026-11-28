@@ -451,8 +451,8 @@ fn choice_models(
         Some(_) | None => Err(What::Refers),
     }
 }
-/// One model a template's choice names, with an effort it takes: `null` only for a model that
-/// declares none (protocol/configuration-templates.md, 1, and protocol/configuration.md, 7).
+/// One model a template's choice names, with its effort and optional speed
+/// (jig/docs/design/protocol/configuration-templates.md, 1).
 fn model_effort(
     document: &Document,
     at: u32,
@@ -473,6 +473,7 @@ fn model_effort(
         },
         None => None,
     };
+    let speed = object.member(document, b"speed");
     object.finish(document, path, problems);
     let name = name?;
     let mut configured = None;
@@ -509,7 +510,33 @@ fn model_effort(
             return None;
         }
     };
-    Some(tasks::ModelEffort { model: u8::try_from(index).expect("models bounded by `MODELS`"), effort })
+    let speed = match speed {
+        Some(at) => Some(model_speed(document, at, &path.member(b"speed"), model, problems)?),
+        None => None,
+    };
+    Some(tasks::ModelEffort { model: u8::try_from(index).expect("models bounded by `MODELS`"), effort, speed })
+}
+
+fn model_speed(
+    document: &Document,
+    at: u32,
+    path: &Path,
+    model: &Model,
+    problems: &mut Problems,
+) -> Option<skein_lib::Name<32>> {
+    use jig_domain_core_vocabulary::settings::catalogue::SPEED_NAME_BYTES;
+    let name = match read::text(document, at, SPEED_NAME_BYTES) {
+        Ok(name) => name,
+        Err(what) => {
+            problems.push(path.clone(), what);
+            return None;
+        }
+    };
+    if !model.takes_speed(Some(&name)) {
+        problems.push(path.clone(), What::Refers);
+        return None;
+    }
+    skein_lib::Name::from_checked(&name)
 }
 /// Refuse each model a template's choice names that its charter does not: its main model or one
 /// of its alternatives (protocol/configuration-engine.md, 1, and protocol/configuration-templates.md, 1).

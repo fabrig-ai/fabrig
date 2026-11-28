@@ -67,7 +67,7 @@ fn create() -> w::Ask {
     task.llm = Some(w::LlmChoice {
         later: None,
         account: None,
-        main: w::ModelEffort { model: NEW.into(), effort: None },
+        main: w::ModelEffort { model: NEW.into(), effort: None, speed: None },
         subagents: List::with_capacity(0),
     });
     let task = task;

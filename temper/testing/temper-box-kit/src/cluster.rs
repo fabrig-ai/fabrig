@@ -723,17 +723,24 @@ impl Member {
         }
     }
 }
+pub(super) fn member_fixture(saved: &Command) -> Command {
+    super::fixture::dying_with_test(
+        Command {
+            program: saved.program.clone(),
+            arguments: saved.arguments.clone(),
+            environment: saved.environment.clone(),
+            directory: saved.directory.clone(),
+        },
+        skein_io::kernel::Signal::Kill,
+    )
+}
+
 impl Host for Member {
     fn iterate(&mut self, now: Time, wall: Wall) {
         if self.starting {
             self.starting = false;
             let saved = self.command.as_ref().expect("rendered member command");
-            let command = Command {
-                program: saved.program.clone(),
-                arguments: saved.arguments.clone(),
-                environment: saved.environment.clone(),
-                directory: saved.directory.clone(),
-            };
+            let command = member_fixture(saved);
             let mut binary = Binary::start_with_tree(command, Mode::Pipes, 65_536, Expectation::Supervise, false)
                 .expect("cluster member starts");
             let Streams::Pipes { input, output } = binary.take_streams().expect("cluster pipes") else {

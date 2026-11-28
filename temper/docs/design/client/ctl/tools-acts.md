@@ -102,7 +102,9 @@ agent must name.
   naming them. A member `FIELDS` marks optional may be left out and
   takes the default its row names: a template's model choice is
   `{"main": {"model": M, "effort": E}}` alone, its `account` none and
-  its `subagents` empty; a template's `resources`, the symbols a task
+  its `subagents` empty, and each model may add `"speed": S`, a speed
+  its model declares or `"standard"`, none where left out (jig's
+  `domain/tasks/README.md`, section 3); a template's `resources`, the symbols a task
   filled from it holds, is a list of `{"connector": C, "symbol": S}` as
   jig's format has it (jig's `protocol/configuration-templates.md`, 3), left
   out `[]`, so the reference's goal template names the forge's *its own
@@ -118,7 +120,10 @@ agent must name.
   anything is sent, naming the item. So is a template's or charter's effort
   that its model doesn't offer, where `me` shows that model in any of the
   party's projects: exit 1, nothing sent, `settings file item 1: model M offers
-  no effort xhigh; it offers high, medium`, or `it offers none`. A model
+  no effort xhigh; it offers high, medium`, or `it offers none`; and a
+  template's or charter's speed that its model doesn't declare, nor
+  `standard`, the same way: `settings file item 1: model M declares no
+  speed S; it declares fast, ultrafast`, or `it declares none`. A model
   `me` doesn't show goes to the engine, which refuses it by name (jig's
   `client/domain/contract/answers.md`, 1). jig's kinds are the deployment's; a landing rule names
   its scope, the deployment's or a project's, as a project's policy

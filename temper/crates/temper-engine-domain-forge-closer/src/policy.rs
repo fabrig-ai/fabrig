@@ -88,12 +88,18 @@ pub enum Child {
     Ended { branch: bool },
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CloseJob {
+    Undeclared,
+    Declared,
+}
+
 #[derive(Debug)]
 pub struct Facts {
     pub report: ReportRead,
     pub goal_branch: bool,
-    /// None until the goal branch tip has answered the job-command read.
-    pub close_job: Option<bool>,
+    /// Whether the engine declares the close kind.
+    pub close_job: CloseJob,
     /// The outdated close's request, when the closer can make its catch-up.
     pub catch_up: Option<Box<[u64]>>,
     pub pending: bool,
@@ -112,7 +118,6 @@ pub enum Decision {
     ReadReport,
     HoldReport,
     Check,
-    CheckClose,
     Wait,
     Make(Step),
     Supersede { change: u64 },
@@ -153,7 +158,6 @@ pub fn step(closer: &Closer, facts: &Facts) -> Stepped {
         // An ended landing may still need containment to judge its ending.
         Decision::Check if facts.pending => stepped,
         Decision::Check
-        | Decision::CheckClose
         | Decision::Make(Step::Close | Step::Land | Step::CatchUp)
         | Decision::Supersede { .. }
         | Decision::SkipClose { .. }
@@ -190,16 +194,11 @@ fn closing_step(mut closer: Closer, facts: &Facts) -> Stepped {
                 if running.step == Step::Land
                     && !facts.pending
                     && facts.goal_branch
+                    && facts.close_job == CloseJob::Declared
                     && closer.closed.as_deref() != Some(facts.landed.as_ref())
                 {
-                    match facts.close_job {
-                        None => return Stepped { closer, decision: Decision::CheckClose },
-                        Some(true) => {
-                            closer.running = None;
-                            return Stepped { closer, decision: Decision::Make(Step::Close) };
-                        }
-                        Some(false) => {}
-                    }
+                    closer.running = None;
+                    return Stepped { closer, decision: Decision::Make(Step::Close) };
                 }
                 return Stepped { closer, decision: Decision::Wait };
             }
@@ -207,13 +206,11 @@ fn closing_step(mut closer: Closer, facts: &Facts) -> Stepped {
                 let decision = if facts.pending || running.step != Step::Close {
                     Decision::Wait
                 } else if closer.closed.as_deref() != Some(facts.landed.as_ref()) {
-                    match facts.close_job {
-                        None => Decision::CheckClose,
-                        Some(true) => {
-                            closer.running = None;
-                            Decision::Supersede { change: running.change }
-                        }
-                        Some(false) => Decision::SkipClose { change: running.change },
+                    if facts.close_job == CloseJob::Declared {
+                        closer.running = None;
+                        Decision::Supersede { change: running.change }
+                    } else {
+                        Decision::SkipClose { change: running.change }
                     }
                 } else if held {
                     Decision::Wait
@@ -225,9 +222,6 @@ fn closing_step(mut closer: Closer, facts: &Facts) -> Stepped {
             Child::Outdated => {
                 if facts.pending {
                     return Stepped { closer, decision: Decision::Wait };
-                }
-                if facts.close_job.is_none() {
-                    return Stepped { closer, decision: Decision::CheckClose };
                 }
                 if closer.closed.as_deref() == Some(facts.landed.as_ref()) {
                     let decision = outdated(&mut closer, facts, running);
@@ -251,7 +245,7 @@ fn closing_step(mut closer: Closer, facts: &Facts) -> Stepped {
                 }
             },
             // Retain the catch-up as the running step until its replacement is admitted.
-            Child::Done if running.step == Step::CatchUp && facts.close_job != Some(false) => {
+            Child::Done if running.step == Step::CatchUp && facts.close_job == CloseJob::Declared => {
                 return Stepped { closer, decision: close(facts) };
             }
             Child::Done => closer.running = None,
@@ -260,7 +254,7 @@ fn closing_step(mut closer: Closer, facts: &Facts) -> Stepped {
     let decision = if facts.pending {
         Decision::Wait
     } else if facts.goal_branch
-        && facts.close_job != Some(false)
+        && facts.close_job == CloseJob::Declared
         && closer.closed.as_deref() != Some(facts.landed.as_ref())
     {
         close(facts)
@@ -292,11 +286,7 @@ fn outdated(closer: &mut Closer, facts: &Facts, running: Running) -> Decision {
 }
 
 fn close(facts: &Facts) -> Decision {
-    match facts.close_job {
-        None => Decision::CheckClose,
-        Some(true) => Decision::Make(Step::Close),
-        Some(false) => land(facts),
-    }
+    if facts.close_job == CloseJob::Declared { Decision::Make(Step::Close) } else { land(facts) }
 }
 
 fn land(facts: &Facts) -> Decision {
@@ -329,9 +319,6 @@ fn retry_step(closer: &mut Closer, facts: &Facts, kind: Step) -> Decision {
         Step::Close => close(facts),
         Step::Land => land(facts),
         Step::CatchUp => {
-            if facts.close_job.is_none() {
-                return Decision::CheckClose;
-            }
             if facts.catch_up.is_none() {
                 closer.retry = None;
                 let running = closer.running.expect("a released catch-up still names the failed change");
@@ -341,7 +328,7 @@ fn retry_step(closer: &mut Closer, facts: &Facts, kind: Step) -> Decision {
         }
     };
     match decision {
-        Decision::ReadReport | Decision::HoldReport | Decision::Check | Decision::CheckClose => {}
+        Decision::ReadReport | Decision::HoldReport | Decision::Check => {}
         Decision::Make(Step::Close | Step::Land | Step::CatchUp)
         | Decision::Supersede { .. }
         | Decision::SkipClose { .. }
@@ -382,7 +369,6 @@ fn ended_landing(closer: &mut Closer, facts: &Facts, change: u64, branch: bool) 
         }
         Decision::ReadReport
         | Decision::HoldReport
-        | Decision::CheckClose
         | Decision::Make(Step::Close | Step::CatchUp)
         | Decision::Supersede { .. }
         | Decision::SkipClose { .. }

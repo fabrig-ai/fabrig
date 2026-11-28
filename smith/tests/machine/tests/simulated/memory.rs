@@ -30,6 +30,7 @@ fn saturated_searches_and_pipe_routes_stay_within_the_machine_bound() {
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: Box::from(&b"repo"[..]),
             root: Token::new(1),
@@ -179,6 +180,7 @@ fn saturated_configured_environments_and_command_check_copies_fit_the_machine_bo
         let workspace = run::Workspace {
             directories: Box::new([run::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"repo".as_slice().into(),
                 root: Token::new(1),

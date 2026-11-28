@@ -91,7 +91,7 @@ pub use run::{
     Most, call_turn, completion_waits_for_host, offer_messages, recover_delivery, resume_answer, resume_position,
 };
 pub use schema_costs::SchemaCosts;
-pub use workspace::{Directory, Workspace};
+pub use workspace::{Directory, HOOK_FAULT_BYTES, HookTime, HookTimes, Workspace};
 
 pub use delivery::{
     CallName, Delivered, Delivery, DeliveryFailure, DeliveryReason, DeliveryRefusal, DeliveryStatus, Diagnostic,

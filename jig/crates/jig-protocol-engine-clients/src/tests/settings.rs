@@ -223,11 +223,11 @@ fn values() -> [s::Value; 4] {
             let mut template = f::template();
             template.llm = Some(jig_domain_tasks::LlmChoice {
                 account: Some(21),
-                main: jig_domain_tasks::ModelEffort { model: 0, effort: Some(1) },
+                main: jig_domain_tasks::ModelEffort { model: 0, effort: Some(1), speed: None },
                 subagents: Box::new([]),
                 later: Some(jig_domain_tasks::LlmLater {
-                    main: jig_domain_tasks::ModelEffort { model: 1, effort: None },
-                    subagents: Box::new([jig_domain_tasks::ModelEffort { model: 0, effort: Some(0) }]),
+                    main: jig_domain_tasks::ModelEffort { model: 1, effort: None, speed: None },
+                    subagents: Box::new([jig_domain_tasks::ModelEffort { model: 0, effort: Some(0), speed: None }]),
                 }),
             });
             template

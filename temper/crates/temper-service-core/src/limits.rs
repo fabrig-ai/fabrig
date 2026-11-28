@@ -57,12 +57,30 @@ pub const TOOLING_PATH: &[u8] = b"/usr/local/bin:/usr/bin:/bin";
 pub const MERGE_KIND: u32 = 3;
 pub const MERGE_SPEC_BYTES: u32 = 4_096;
 pub const MERGE_RESULT_BYTES: u32 = 512;
-pub const MERGE_DEADLINE: Duration = Duration::from_secs(600);
+
+/// Time for a merge or close hook when the repository is silent, or for a fallback command.
+/// See temper/docs/design/protocol/hooks.md, 2.3.
+pub const HOOK_TIME: Duration = Duration::from_secs(600);
+/// The default project hook ceiling, in seconds.
+pub const HOOK_TIMEOUT_MAX_DEFAULT: u32 = 3_600;
+/// The greatest project hook ceiling, in seconds.
+pub const HOOK_TIMEOUT_MAX_LIMIT: u32 = 86_400;
+
+/// The declaration's deadline for both hook job kinds, not a job's own deadline.
+#[must_use]
+pub fn hook_job_deadline_limit() -> Duration {
+    Duration::from_secs(u64::from(HOOK_TIMEOUT_MAX_LIMIT))
+}
 
 /// The merge job's kind and bounds (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn merge_bound() -> JobBound {
-    JobBound { kind: JobKind(MERGE_KIND), spec: MERGE_SPEC_BYTES, result: MERGE_RESULT_BYTES, deadline: MERGE_DEADLINE }
+    JobBound {
+        kind: JobKind(MERGE_KIND),
+        spec: MERGE_SPEC_BYTES,
+        result: MERGE_RESULT_BYTES,
+        deadline: hook_job_deadline_limit(),
+    }
 }
 
 /// Declare merge only where the tasks child holds its bounds
@@ -81,7 +99,6 @@ pub fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
 pub const CLOSE_SPEC_BYTES: u32 = 16_384;
 pub use temper_protocol_worker_wire::CLOSE_RESULT_BYTES;
 pub const CLOSE_PLACED_RESULT_BYTES: u32 = temper_protocol_worker_wire::DEFAULT_JOB_RESULT_BYTES;
-pub const CLOSE_DEADLINE: Duration = Duration::from_secs(600);
 
 const CHECKOUT: Checkout = Checkout {
     // Cached workspaces before the worker’s slots derive its places (configuration/derived.md, 5.2).

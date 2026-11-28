@@ -107,9 +107,9 @@ fn configured_read_room_is_smaller_than_the_maximum_frame() {
     // The frame bound is TurnRecord::encoded_bound + 12, including
     // version, optional read, transcript length, checksum and both lengths.
     const MAX_FRAME: u64 = 33_554_496;
-    // The map pages include job specs, task/run revisions and placed references;
-    // transcript framing and direct read room are unchanged.
-    let (request, page) = (262_144, 103_501_859);
+    // The map page holds the largest settings revision and its key;
+    // direct read room is the separately configured resume bound.
+    let (request, page) = (262_144, 103_651_363);
     let configured = crate::stock();
     let codec = jig_protocol_store::codec::limits(&configured.core).expect("profile codec");
     assert_eq!(u64::from(configured.core.resume_bytes), request);
@@ -197,7 +197,7 @@ fn standard_holds_fabrig_scale() {
     assert_eq!(limits.core.documents.segments, profile::name_segments(&tasks, &limits.core.authority));
     assert_eq!(limits.hub.inbox, 82);
     let store = limits.store.store;
-    assert_eq!(store.value, 103_499_780);
+    assert_eq!(store.value, 103_649_284);
     let frame = jig_protocol_store::sizes::frame(&limits.core, 33_554_432).expect("smith's largest turn frame");
     assert_eq!(store.page.bytes, store.key.checked_add(store.value).unwrap().max(frame));
     assert_eq!(Some(store.chunk), skein_kv::chunk_bytes(store.key, store.value));

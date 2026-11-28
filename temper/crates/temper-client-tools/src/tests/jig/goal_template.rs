@@ -229,7 +229,10 @@ fn absent_controls_keep_template_defaults() {
 #[test]
 fn model_and_priority_overrides_keep_subagents() {
     let argv = f::extended(START, &["--model", "chosen-model", "--effort", "high", "--priority", "7"]);
-    let mut root = f::choice_root(goal_me());
+    let mut me = goal_me();
+    me.projects.get_mut(0).unwrap().templates.get_mut(1).unwrap().llm.as_mut().unwrap().main.speed =
+        Some(f::act_text(b"fast"));
+    let mut root = f::choice_root(me);
     let call = root.submit(argv.as_slice());
     let task = f::chat_task(&root, call);
     assert_eq!(task.tracked, Some(7));

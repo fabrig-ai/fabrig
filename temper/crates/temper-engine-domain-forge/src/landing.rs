@@ -618,7 +618,7 @@ impl Domain {
         *command = Some(close_job);
         true
     }
-    /// The project's optional close command (temper/docs/design/domain/forge/change/README.md, 1).
+    /// The project's optional close fallback (temper/docs/design/domain/forge/change/README.md, 1).
     #[must_use]
     pub fn close_job(&self, project: u32) -> Option<&[u8]> {
         let (_, _, _, _, command, _, _) = self.landing.projects.get(&project)?;
@@ -641,7 +641,7 @@ impl Domain {
         }
         None
     }
-    /// The project's optional merge command (temper/docs/design/protocol/configuration/engine.md).
+    /// The project's optional merge fallback (temper/docs/design/protocol/configuration/engine.md).
     #[must_use]
     pub fn merge_job(&self, project: u32) -> Option<&[u8]> {
         let (_, _, _, command, _, _, _) = self.landing.projects.get(&project)?;

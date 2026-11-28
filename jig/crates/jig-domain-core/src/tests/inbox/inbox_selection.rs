@@ -1089,6 +1089,12 @@ fn original_stored_ancestry_fits_at_depth_and_one_under_refuses_the_whole_page()
     assert_eq!(core.tasks.task(1).unwrap().requester, tasks::Party::Person(1));
 }
 
+// Inline names grow ModelEffort from 3 to 37 bytes and grow the complete
+// choice carrier by 64 bytes (first and later main, including alignment).
+const MODEL_EFFORT_BYTES: u64 = 37;
+const MODEL_EFFORT_GROWTH: u64 = MODEL_EFFORT_BYTES - 3;
+const CHOICE_CARRIER_GROWTH: u64 = 64;
+
 fn settings_document_bytes(limits: &Limits) -> u64 {
     const VALUE_SETS: u64 = 2;
     // Both the catalogue row and the charter's inline model carry a 16-byte
@@ -1155,6 +1161,9 @@ fn settings_document_bytes(limits: &Limits) -> u64 {
         + CATALOGUE_ROWS * 88
         + 2 * (16 + 8 * (24 + 24))
         + 2 * 8 * (16 + 8)
+        // Each Template and New grows inline; the New bound prices both
+        // sub-agent arrays, one larger than before and one newly counted.
+        + 2 * 8 * (2 * CHOICE_CARRIER_GROWTH + 64 * (MODEL_EFFORT_GROWTH + MODEL_EFFORT_BYTES))
         + 2 * (256 * (40 + 64 + 120) + 88)
         + NAMED_SETTINGS_BYTES;
     // Each set's one charter reserves the fixture's run bytes and includes
@@ -1185,7 +1194,8 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     // template also carries its 24-byte optional later choice.
     // The closer adds sixteen bytes to each template carrier.
     // Each template name adds a 16-byte carrier and up to 32 bytes of text.
-    const TEMPLATE_ENVELOPES: u64 = 989_184 + 32 * 8 * (16 + 24 + 16 + 16 + 32);
+    const TEMPLATE_ENVELOPES: u64 =
+        989_184 + 32 * 8 * (16 + 24 + 16 + 16 + 32 + CHOICE_CARRIER_GROWTH + 64 * MODEL_EFFORT_GROWTH);
 
     let (mut core, limits) = fixture();
     waiting(

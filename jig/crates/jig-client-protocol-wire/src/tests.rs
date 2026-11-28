@@ -43,6 +43,21 @@ fn kept_holds_the_widest_table_entry_and_round_trips_a_ceiling_request() {
     assert_eq!(TableEntry::decode(&CEILINGS, &mut Reader::new(decoded.record.as_ref())), Ok(table));
 }
 
+#[test]
+fn a_choice_speed_fits_at_32_bytes_and_no_more() {
+    let mut value = ModelEffort { model: b"chosen".as_slice().into(), effort: None, speed: Some(Box::new([b'a'; 32])) };
+    let bytes = fixtures::encoded(&value);
+    assert_eq!(ModelEffort::decode(&CEILINGS, &mut Reader::new(&bytes)), Ok(value.clone()));
+
+    value.speed = Some(Box::new([b'a'; 33]));
+    let problem = paths::MODEL_EFFORT_SPEED.problem(skein_codec::Reason::Bound);
+    assert_eq!(value.measure(&CEILINGS), Err(problem));
+    let narrow = Limits { model_effort_speed_some: 31, ..CEILINGS };
+    assert_eq!(ModelEffort::decode(&narrow, &mut Reader::new(&bytes)), Err(problem));
+    let mut out = skein_lib::Writer::new(bytes.len().saturating_add(1));
+    assert_eq!(value.write(&CEILINGS, &mut out), Err(problem));
+}
+
 fn a_keyed_request_past_its_bound_is_refused_naming_it() {
     let limits = fixtures::limits();
     let request = fixtures::bytes(limits.keyed_request.checked_add(1).expect("small bound"));

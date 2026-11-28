@@ -54,6 +54,7 @@ mod design_delivery;
 #[cfg(test)]
 mod goals;
 mod inspection;
+mod job_io;
 #[cfg(test)]
 mod latched;
 mod link;
@@ -1424,6 +1425,15 @@ impl World {
     }
 
     fn forge(&mut self, call: Token, repository: skein_forge::api::Repository, op: &skein_forge::api::Op) {
+        use skein_forge::api::{Op, Read};
+        if (self.merge_job.is_some() || self.close_job.is_some())
+            && let Op::Read(Read::File { path, .. }) = op
+        {
+            assert!(
+                path.as_ref() != b".temper/hooks" && !path.starts_with(b".temper/hooks/"),
+                "the worker finds hooks in its checkout, not through the forge"
+            );
+        }
         if self.hold_workload_close(call, repository, op) {
             return;
         }
@@ -1917,7 +1927,7 @@ impl World {
             | worker::Request::SourceFault => {
                 panic!("this fixture declares no program sources")
             }
-            worker::Request::Job { owner, op } => self.story_job_operation(owner, op),
+            worker::Request::Job { owner, op } => self.job_operation(owner, op),
             worker::Request::Hello(hello) => {
                 if self.absence.enabled {
                     self.absence.hello_pending = true;

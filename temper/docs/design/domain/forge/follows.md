@@ -422,6 +422,28 @@ every setting is, its decision that project's owners'. Its value, a
 - **A fault** dispatches it again, up to the project's `tier_retries`;
   past them the change holds, `follow check held after N runner faults,
   last: KIND`.
+- **A check whose follow is gone** ends as its follow being gone, as a
+  tier's run whose tier is no longer configured does
+  (`../after-landing-runs.md`, section 2): its setting removed while the
+  check lives, or the follow now under another number, which is a
+  removal and a new follow (section 2), its gate `follow.M`. A check
+  whose follow's `check` is edited while it runs ends so too, the edit
+  naming what its change dispatches after it (section 2). From the first
+  event that finds it so, at a restart or after a settings revision (a
+  step of its change, a read's answer, its effect's outcome or
+  withdrawal), nothing of the check reads its follow's setting and it
+  judges nothing: a read's answer is taken with no verdict, receipt,
+  parity, remarks or fault; an effect it issued before is settled as
+  any, its outcome taken with no fault and no retry; it dispatches
+  nothing more, and its change is woken. That next step drops it, as a
+  gate the change's provenance no longer selects: the follow gate leaves
+  the change's gates with its verdicts; where the follow still stands,
+  edited, a new check starts at the head under the edit. A removed
+  follow's live changes are cancelled with it (section 2), which ends
+  the change. A restart builds such a check no follower, and no start,
+  upgrade check or step panics on it; its change's row restores and
+  reads as any, its `follows` kept, and a receipt the check stored
+  before stays at its key (2026-11-27).
 - **Merged,** the followed commit is the new last, so a verdict at the
   head for an older one no longer counts.
 - **After landing,** the target's tiers follow its branch as any

@@ -299,11 +299,13 @@ The whole-tree empty-overlay rule applies at a goal's close too.
 
 The checker's entry points are `.temper/hooks/deliver`,
 `.temper/hooks/finish`, `.temper/hooks/close`, and the wrappers
-`.temper/pre-pr`, `.temper/close` and `.temper/checked-close`: a delivery that
-changes one runs the checker's own tests, and the gate's scope
-(`.forgejo/scripts/gate_scope.py`) holds the same list, as before. Each
-wrapper only runs its hook, with its arguments, so a build that reads no
-hooks runs the same code (`temper/docs/design/protocol/hooks.md`, 5).
+`.temper/pre-pr`, `.temper/close` and `.temper/checked-close`. The non-executable
+`.temper/hooks/config.toml` sets hook time limits
+(`temper/docs/design/protocol/hooks.md`, 2.3). A delivery that changes an
+entry point or the time file runs the checker's own tests; the gate's
+scope (`.forgejo/scripts/gate_scope.py`) uses the same inputs. Each wrapper
+only runs its hook, with its arguments, so a build that reads no hooks runs
+the same code (`temper/docs/design/protocol/hooks.md`, 5).
 
 ## 3. What it selects
 
@@ -335,7 +337,8 @@ hooks runs the same code (`temper/docs/design/protocol/hooks.md`, 5).
 - **Code inputs:** Rust (`.rs`); Cargo manifests and locks; rustfmt,
   clippy and Rust toolchain configuration, including under `docs/`;
   non-docs paths under a `.cargo/` directory, `.config/` and `tools/`;
-  `.temper/hooks/deliver`, `.temper/hooks/finish` and `.temper/pre-pr`;
+  `.temper/hooks/deliver`, `.temper/hooks/finish`, `.temper/hooks/config.toml`,
+  and `.temper/pre-pr`;
   `skein/scripts/*.sh` (the boundary profile check's
   inputs); each tree's
   `scripts/old_forms.py` and `scripts/old-forms.txt`; and non-docs paths

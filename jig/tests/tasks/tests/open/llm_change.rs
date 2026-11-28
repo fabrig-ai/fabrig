@@ -5,7 +5,7 @@ use jig_domain_tasks::{Change, LlmChoice, ModelEffort, Why};
 const OPEN: Flags = Flags { conversation: true, ended_by: EndedBy::Requester, ..Flags::PLAIN };
 
 fn choice(model: u8, effort: Option<u8>) -> LlmChoice {
-    LlmChoice { later: None, account: None, main: ModelEffort { model, effort }, subagents: Box::new([]) }
+    LlmChoice { later: None, account: None, main: ModelEffort { model, effort, speed: None }, subagents: Box::new([]) }
 }
 
 fn listening(flags: Flags) -> World {
@@ -161,7 +161,7 @@ fn a_new_effort_alone_is_a_new_choice() {
 #[test]
 fn a_subagents_model_is_part_of_the_choice() {
     let mut next = choice(0, Some(0));
-    next.subagents = Box::new([ModelEffort { model: 1, effort: None }]);
+    next.subagents = Box::new([ModelEffort { model: 1, effort: None, speed: None }]);
     changed_choice(next);
 }
 

@@ -20,6 +20,7 @@ pub(crate) fn call_fields(value: &w::Call, limits: &Limits) -> Result<c::Call, w
         input: text(&value.input, limits)?,
         outcome: opt0,
         failed: value.failed,
+        answer: None,
         objects: list1,
         parts: application_part_piece(&value.parts)?,
     })

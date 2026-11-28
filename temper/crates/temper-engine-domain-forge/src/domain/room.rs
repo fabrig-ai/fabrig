@@ -115,7 +115,6 @@ pub(super) fn drop_released(d: &mut Domain, task: u64, parts: bool, out: &mut Qu
     }
     d.stall_words.remove(&task);
     d.merge_withheld.remove(&task);
-    d.merge_hooks.remove(&task);
     d.panel_ci.remove(&task);
     d.settling.remove(&task);
     d.task_holds.remove(&task);

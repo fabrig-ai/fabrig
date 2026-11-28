@@ -15,7 +15,7 @@ pub use ways::ways;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core::{
-    Charter, CharterPart, ConfiguredPolicy, Model, RunPolicy, Template, ToolFamilies,
+    Charter, CharterPart, ConfiguredPolicy, Model, RunPolicy, Speed, Template, ToolFamilies,
     settings::{CatalogueModel, Defaults, ModelSource, Setting},
 };
 use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
@@ -176,6 +176,15 @@ struct StockModel {
     cache_write: Option<u64>,
     output: u64,
     unit: u32,
+    speeds: &'static [StockSpeed],
+}
+struct StockSpeed {
+    name: &'static [u8],
+    also: &'static [&'static [u8]],
+    input: u64,
+    cached: u64,
+    cache_write: u64,
+    output: u64,
 }
 const MODELS: &[StockModel] = &[
     StockModel {
@@ -190,6 +199,14 @@ const MODELS: &[StockModel] = &[
         cache_write: Some(5_000),
         output: 20_000,
         unit: 1_000_000,
+        speeds: &[StockSpeed {
+            name: b"fast",
+            also: &[],
+            input: 8_000,
+            cached: 400,
+            cache_write: 10_000,
+            output: 40_000,
+        }],
     },
     StockModel {
         number: 2,
@@ -203,6 +220,7 @@ const MODELS: &[StockModel] = &[
         cache_write: Some(2_500),
         output: 10_000,
         unit: 1_000_000,
+        speeds: &[],
     },
     StockModel {
         number: 3,
@@ -216,6 +234,7 @@ const MODELS: &[StockModel] = &[
         cache_write: Some(12_500),
         output: 50_000,
         unit: 1_000_000,
+        speeds: &[],
     },
     StockModel {
         number: 4,
@@ -229,6 +248,7 @@ const MODELS: &[StockModel] = &[
         cache_write: None,
         output: 10_000,
         unit: 1_000_000,
+        speeds: &[],
     },
     StockModel {
         number: 5,
@@ -242,6 +262,7 @@ const MODELS: &[StockModel] = &[
         cache_write: None,
         output: 50_000,
         unit: 1_000_000,
+        speeds: &[],
     },
     StockModel {
         number: 6,
@@ -255,6 +276,7 @@ const MODELS: &[StockModel] = &[
         cache_write: None,
         output: 5_000,
         unit: 1_000_000,
+        speeds: &[],
     },
     StockModel {
         number: 7,
@@ -268,6 +290,7 @@ const MODELS: &[StockModel] = &[
         cache_write: None,
         output: 500,
         unit: 1_000_000,
+        speeds: &[],
     },
     StockModel {
         number: 8,
@@ -281,10 +304,67 @@ const MODELS: &[StockModel] = &[
         cache_write: None,
         output: 1,
         unit: 1_000,
+        speeds: &[],
+    },
+    StockModel {
+        number: 9,
+        provider: 1,
+        name: b"gpt-6.2-sol",
+        shown: Some(b"GPT-6.2 Sol"),
+        effort: Some(b"high"),
+        efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
+        input: 2_000,
+        cached: 100,
+        cache_write: Some(2_500),
+        output: 10_000,
+        unit: 1_000_000,
+        speeds: &[
+            StockSpeed {
+                name: b"fast",
+                also: &[b"priority"],
+                input: 4_000,
+                cached: 200,
+                cache_write: 5_000,
+                output: 20_000,
+            },
+            StockSpeed {
+                name: b"ultrafast",
+                also: &[],
+                input: 12_000,
+                cached: 600,
+                cache_write: 15_000,
+                output: 60_000,
+            },
+        ],
     },
 ];
 
-/// Seven stock models in every deployment, and the scripted model where its provider runs.
+fn boxed_names(names: &[&[u8]]) -> Box<[Box<[u8]>]> {
+    let mut values = List::with_capacity(u32::try_from(names.len()).expect("stock names"));
+    for name in names {
+        values.push(bytes::copy_of(name)).expect("stock name count");
+    }
+    values.into_boxed()
+}
+
+fn speeds(rows: &[StockSpeed]) -> Box<[Speed]> {
+    let mut values = List::with_capacity(u32::try_from(rows.len()).expect("stock speeds"));
+    for row in rows {
+        values
+            .push(Speed {
+                name: bytes::copy_of(row.name),
+                also: boxed_names(row.also),
+                input_price: row.input,
+                cached_price: row.cached,
+                cache_write_price: Some(row.cache_write),
+                output_price: row.output,
+            })
+            .expect("stock speed count");
+    }
+    values.into_boxed()
+}
+
+/// Eight stock models in every deployment, and the scripted model where its provider runs.
 #[must_use]
 pub fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
     let mut models = List::with_capacity(u32::try_from(MODELS.len()).expect("stock model count"));
@@ -316,10 +396,6 @@ pub fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
                 if provider.endpoint.as_deref() != Some(endpoint.name.as_ref()) {
                     continue;
                 }
-                let mut efforts = List::with_capacity(u32::try_from(row.efforts.len()).expect("stock efforts"));
-                for effort in row.efforts {
-                    efforts.push(bytes::copy_of(effort)).expect("stock effort count");
-                }
                 models
                     .push(CatalogueModel {
                         first_read: None,
@@ -342,8 +418,8 @@ pub fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
                                 Some(effort) => Some(bytes::copy_of(effort)),
                                 None => None,
                             },
-                            efforts: efforts.into_boxed(),
-                            speeds: Box::default(),
+                            efforts: boxed_names(row.efforts),
+                            speeds: speeds(row.speeds),
                             speed: None,
                         },
                         shown: match row.shown {

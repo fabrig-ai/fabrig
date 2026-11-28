@@ -50,7 +50,7 @@ fn landing() -> s::ProjectLanding {
                 budget: 20,
                 llm: Some(s::NamedLlm {
                     account: None,
-                    main: s::NamedModel { model: b"scripted".as_slice().into(), effort: None },
+                    main: s::NamedModel { model: b"scripted".as_slice().into(), effort: None, speed: None },
                     subagents: Box::new([]),
                     later: None,
                 }),

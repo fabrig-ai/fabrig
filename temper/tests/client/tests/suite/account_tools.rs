@@ -124,7 +124,7 @@ fn a_tools_chat_choice_reaches_its_task_document() {
     call(&mut front, &mut root, 2, &[b"task", b"show", task.to_string().as_bytes(), b"--json"], None);
     let printed = root.agent().printed(2).expect("task document");
     let text = std::str::from_utf8(&printed.stdout).expect("JSON");
-    assert!(text.contains("\"main\":{\"model\":\"scripted\",\"effort\":null}"), "{text}");
+    assert!(text.contains("\"main\":{\"model\":\"scripted\",\"effort\":null,\"speed\":null}"), "{text}");
 }
 
 #[test]
@@ -153,7 +153,7 @@ fn a_tools_chat_effort_reaches_its_task_document() {
     call(&mut front, &mut root, 2, &[b"task", b"show", task.to_string().as_bytes(), b"--json"], None);
     let printed = root.agent().printed(2).expect("task document");
     let text = std::str::from_utf8(&printed.stdout).expect("JSON");
-    assert!(text.contains("\"main\":{\"model\":\"effort-model\",\"effort\":\"high\"}"), "{text}");
+    assert!(text.contains("\"main\":{\"model\":\"effort-model\",\"effort\":\"high\",\"speed\":null}"), "{text}");
 }
 
 #[test]

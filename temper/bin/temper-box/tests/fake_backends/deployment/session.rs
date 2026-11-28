@@ -219,12 +219,15 @@ impl Referee<Root> for Judge<'_> {
 
 pub(super) fn run(place: &Place, arguments: Vec<String>, drive: bool, old: &[super::Identity]) -> Vec<String> {
     let mut binary = Binary::start_with_tree(
-        Command {
-            program: place.bin.join("temper-client-journeys"),
-            arguments: arguments.into_iter().map(Into::into).collect(),
-            directory: place.root.path().into(),
-            environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
-        },
+        crate::support::fixture::dying_with_test(
+            Command {
+                program: place.bin.join("temper-client-journeys"),
+                arguments: arguments.into_iter().map(Into::into).collect(),
+                directory: place.root.path().into(),
+                environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
+            },
+            skein_io::kernel::Signal::Kill,
+        ),
         Mode::Pipes,
         262_144,
         // Supervision retains the leader-exit evidence checked after settlement.

@@ -1259,7 +1259,7 @@ fn ask_root(offers: &[(u32, &[u32])], held: &[u32], preview: &[u8]) -> d::Domain
             choice: c::LlmChoice {
                 later: None,
                 account: None,
-                main: c::ModelEffort { model: f::first_run::text(b"ordinary-chat"), effort: None },
+                main: c::ModelEffort { model: f::first_run::text(b"ordinary-chat"), effort: None, speed: None },
                 subagents: List::with_capacity(0),
             },
         },
@@ -1268,7 +1268,11 @@ fn ask_root(offers: &[(u32, &[u32])], held: &[u32], preview: &[u8]) -> d::Domain
             choice: c::LlmChoice {
                 later: None,
                 account: None,
-                main: c::ModelEffort { model: f::first_run::text(preview), effort: Some(f::first_run::text(b"high")) },
+                main: c::ModelEffort {
+                    model: f::first_run::text(preview),
+                    effort: Some(f::first_run::text(b"high")),
+                    speed: None,
+                },
                 subagents: List::with_capacity(0),
             },
         },
@@ -1341,7 +1345,7 @@ fn asking_chat_picker_applies_to_its_next_run() {
     task.llm = Some(c::LlmChoice {
         later: None,
         account: None,
-        main: c::ModelEffort { model: f::first_run::text(b"chosen"), effort: None },
+        main: c::ModelEffort { model: f::first_run::text(b"chosen"), effort: None, speed: None },
         subagents: List::with_capacity(0),
     });
     let mut acts = task.acts.as_slice().to_vec();

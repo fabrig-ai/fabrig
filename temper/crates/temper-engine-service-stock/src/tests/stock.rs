@@ -697,7 +697,7 @@ fn the_standing_role_talks_keeps_a_session_line_and_sets_its_weekly_report() {
 #[test]
 fn stock_models_keep_a_five_minute_cache_except_the_scripted_one() {
     let models = crate::stock::models(&with_scripted(engine(&generated()).llm));
-    assert_eq!(models.len(), 8);
+    assert_eq!(models.len(), 9);
     for model in models {
         assert_eq!(model.model.cache_life_ms, if model.model.name.as_ref() == b"demo" { 0 } else { 300_000 });
     }
@@ -1128,6 +1128,7 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
                 "gpt-6-astra",
                 "gpt-6.1-terra",
                 "gpt-6-luna",
+                "gpt-6.2-sol",
             ],
             vec![
                 "claude-opus-5-5",
@@ -1137,6 +1138,7 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
                 "claude-fable-5-1",
                 "gpt-6.1-terra",
                 "gpt-6-luna",
+                "gpt-6.2-sol",
             ],
         ),
         (
@@ -1149,6 +1151,7 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
                 "gpt-6-astra",
                 "gpt-6.1-terra",
                 "gpt-6-luna",
+                "gpt-6.2-sol",
             ],
             vec![
                 "claude-opus-5-5",
@@ -1158,12 +1161,13 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
                 "claude-fable-5-1",
                 "gpt-6.1-terra",
                 "gpt-6-luna",
+                "gpt-6.2-sol",
             ],
         ),
         (
             unnamed.llm,
-            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna"],
-            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna"],
+            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna", "gpt-6.2-sol"],
+            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna", "gpt-6.2-sol"],
         ),
     ] {
         let defaults = crate::stock::checked_with(llm.models.clone(), 10_660).expect("representable stock");
@@ -2373,7 +2377,7 @@ fn stock_numbers_each_model_for_good() {
     // A typed caller's leftover table cannot replace the binary's catalogue.
     llm.models = Box::new([fixtures::small_model()]);
     let models = crate::stock::models(&llm);
-    assert_eq!(models.len(), 8);
+    assert_eq!(models.len(), 9);
     for (entry, (number, provider, name, cached, cache_write)) in models.iter().zip([
         (1, 2, "claude-opus-5-5", 200, Some(5_000)),
         (2, 2, "claude-sonnet-5-5", 200, Some(2_500)),
@@ -2383,6 +2387,7 @@ fn stock_numbers_each_model_for_good() {
         (6, 1, "gpt-6.1-terra", 1_000, None),
         (7, 1, "gpt-6-luna", 100, None),
         (8, 3, "demo", 1, None),
+        (9, 1, "gpt-6.2-sol", 100, Some(2_500)),
     ]) {
         assert_eq!(
             (entry.number, entry.model.provider, entry.model.name.as_ref()),
@@ -2402,14 +2407,62 @@ fn stock_numbers_each_model_for_good() {
 }
 
 #[test]
-fn all_deployments_keep_seven_models_and_the_boxs_default_is_scripted() {
+fn the_stock_declares_faster_speeds_without_choosing_them() {
+    use jig_domain_core::settings::{catalogue, charters};
+    type SpeedRow<'a> = (&'a [u8], &'a [&'a [u8]], u64, u64, u64, u64);
+
+    let engine = engine(&generated());
+    let llm = with_scripted(engine.llm);
+    let defaults = crate::stock::checked(&llm, engine.limits.core.tasks.result_bytes).unwrap();
+    let sol = defaults.models.iter().find(|entry| entry.number == 9).expect("GPT-6.2 Sol at stock number 9");
+    assert_eq!(sol.shown.as_deref(), Some(b"GPT-6.2 Sol".as_slice()));
+    assert_eq!(sol.model.effort.as_deref(), Some(b"high".as_slice()));
+    assert!(sol.model.efforts.iter().map(Box::as_ref).eq([b"low".as_slice(), b"medium", b"high", b"xhigh", b"max"]));
+    assert_eq!((sol.model.price_unit, sol.model.input_price, sol.model.output_price), (1_000_000, 2_000, 10_000));
+
+    for entry in &defaults.models {
+        let model = &entry.model;
+        assert!(catalogue::speeds_fit(model));
+        assert!(catalogue::fits(entry, entry.number));
+        assert_eq!(model.speed, None);
+        let speeds: &[SpeedRow<'_>] = match model.name.as_ref() {
+            b"claude-opus-5-5" => &[(b"fast", &[], 8_000, 400, 10_000, 40_000)],
+            b"gpt-6.2-sol" => &[
+                (b"fast", &[b"priority"], 4_000, 200, 5_000, 20_000),
+                (b"ultrafast", &[], 12_000, 600, 15_000, 60_000),
+            ],
+            _ => &[],
+        };
+        assert_eq!(model.speeds.len(), speeds.len(), "model {}", entry.number);
+        for (speed, &(name, aliases, input, cached, cache_write, output)) in model.speeds.iter().zip(speeds) {
+            assert_eq!(speed.name.as_ref(), name);
+            assert!(speed.also.iter().map(Box::as_ref).eq(aliases.iter().copied()));
+            assert_eq!(
+                (speed.input_price, speed.cached_price, speed.cache_write_price, speed.output_price),
+                (input, cached, Some(cache_write), output)
+            );
+        }
+    }
+    for charter in &defaults.charters {
+        let resolved = charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();
+        assert!(
+            core::iter::once(&resolved.policy.model)
+                .chain(&resolved.policy.alternatives)
+                .all(|model| model.speed.is_none())
+        );
+    }
+    assert!(defaults.templates.iter().all(|template| template.llm.is_none()));
+}
+
+#[test]
+fn all_deployments_keep_eight_models_and_the_boxs_default_is_scripted() {
     let bare = engine(&temper_config_shell::init_document(false));
     let models = crate::stock::models(&bare.llm);
-    assert_eq!(models.iter().map(|entry| entry.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 5, 6, 7]);
+    assert_eq!(models.iter().map(|entry| entry.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 5, 6, 7, 9]);
     let mut llm = with_scripted(engine(&generated()).llm);
     llm.providers = llm.providers.into_vec().into_iter().filter(|provider| provider.number == 3).collect();
     let models = crate::stock::models(&llm);
-    assert_eq!(models.len(), 8);
+    assert_eq!(models.len(), 9);
     assert_eq!((models[7].number, models[7].model.provider, models[7].model.name.as_ref()), (8, 3, b"demo".as_slice()));
     let defaults = crate::stock::checked(&llm, 10_660).unwrap();
     for charter in &defaults.charters {

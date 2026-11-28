@@ -31,7 +31,7 @@
     given none and keeping no account would take now
     (`../../../domain/accounts-uses.md`, 1.3): the first model in charter order with
     an account usable now, at its default
-    effort, under the effective creating authority and the current receiving
+    effort and naming no speed, under the effective creating authority and the current receiving
     party as payer (`../../../domain/engine/views.md`, 1), so that it is one of
     the project's offer (below) where that authority's models are. An
     explicit choice previews itself; an omitted choice with no usable model
@@ -53,7 +53,12 @@
     provider, window and output, the efforts it takes, low to high, the
     default among them that a task given none takes (`effort`), its prices
     (amounts per `unit` tokens in the deployment's spend unit; cache writes
-    are priced at input when no separate price is given), its optional
+    are priced at input when no separate price is given), the faster
+    speeds it is served at, in the model's order, each its name, its
+    `also` names and its prices in the same unit (`speeds`), and its
+    default speed (`speed`, none for the provider's standard;
+    `../../../domain/engine/settings-catalogue.md`, 1), so that a picker
+    can offer a speed and a client can word a refused one, its optional
     description and shown name, its setting's `number`
     (`../../../domain/engine/settings-catalogue.md`, 1), where it came from (`source`: the
     binary's, a provider's list or a person's), whether its prices are

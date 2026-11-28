@@ -8,13 +8,15 @@ use skein_lib::length::len_u64;
 /// The most sub-agent models one choice names, the tasks child's `MODELS`.
 pub const MODELS: u32 = 64;
 
-/// One configured model and one of its efforts.
+/// One configured model with its effort and speed.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ModelEffort {
     /// The configured model, in configuration's order.
     pub model: u8,
     /// One of the efforts the model declares, in its order; `None` is its LLM provider's default.
     pub effort: Option<u8>,
+    /// A speed the model declares, `standard`, or `None` for the charter's resolution.
+    pub speed: Option<skein_lib::Name<32>>,
 }
 
 /// What an agent task's runs' LLMs are: its main model and those its sub-agents may use.
@@ -52,6 +54,8 @@ pub enum LlmWhy {
     Procedure,
     /// The sub-agents name the model twice.
     Repeated,
+    /// The speed is not one the model declares, nor `standard`.
+    Speed,
 }
 
 /// Checked deep-byte size of an optional choice: both choices' sub-agents.

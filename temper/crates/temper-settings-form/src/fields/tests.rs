@@ -533,6 +533,7 @@ fn optional_setting_name(field: &Field) -> bool {
 
 fn optional_model_speed(field: &Field) -> bool {
     (field.shape == Shape::Model && [b"speeds".as_slice(), b"speed"].contains(&field.name))
+        || (field.shape == Shape::ModelEffort && field.name == b"speed")
         || (field.shape == Shape::SettingSpeed && [b"also".as_slice(), b"cache_write_price"].contains(&field.name))
 }
 
@@ -648,6 +649,7 @@ fn a_path_resolves_through_its_shapes() {
         (b"charter.parts[].instructions", Shape::CharterPart, b"instructions"),
         (b"template.llm.later.main.model", Shape::ModelEffort, b"model"),
         (b"template.llm.later.subagents[].effort", Shape::ModelEffort, b"effort"),
+        (b"template.llm.later.subagents[].speed", Shape::ModelEffort, b"speed"),
         (b"model.name", Shape::Model, b"name"),
         (b"model.speeds[].cache_write_price", Shape::SettingSpeed, b"cache_write_price"),
         (b"template.resources[].connector", Shape::Symbol, b"connector"),

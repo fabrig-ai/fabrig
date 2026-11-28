@@ -43,10 +43,10 @@ LastExact: ceilings encoded=4100 decoded=4096; at_most(3) encoded=7 decoded=3
 LastOpen: ceilings encoded=4100 decoded=4096; at_most(3) encoded=7 decoded=3
 LimitsValue: ceilings encoded=51204 decoded=57344; at_most(3) encoded=70 decoded=138
 ListDecider: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
-LlmChoice: ceilings encoded=404 decoded=384; at_most(3) encoded=38 decoded=18
-LlmLater: ceilings encoded=199 decoded=192; at_most(3) encoded=16 decoded=9
+LlmChoice: ceilings encoded=5214 decoded=7232; at_most(3) encoded=102 decoded=168
+LlmLater: ceilings encoded=2604 decoded=3616; at_most(3) encoded=48 decoded=84
 Model: ceilings encoded=5436 decoded=5824; at_most(3) encoded=295 decoded=456
-ModelEffort: ceilings encoded=3 decoded=0; at_most(3) encoded=3 decoded=0
+ModelEffort: ceilings encoded=40 decoded=32; at_most(3) encoded=11 decoded=3
 ModelName: ceilings encoded=4680 decoded=4864; at_most(3) encoded=32 decoded=60
 ModelNumber: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 ModelSource: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
@@ -104,7 +104,7 @@ SizedSet: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 Span: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 Speed: ceilings encoded=145 decoded=128; at_most(3) encoded=58 decoded=41
 Symbol: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
-Template: ceilings encoded=8454915 decoded=8454944; at_most(3) encoded=192 decoded=141
+Template: ceilings encoded=8459725 decoded=8461792; at_most(3) encoded=256 decoded=291
 TemplateBudget: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
 TemplateCharter: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 TemplateDeadline: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0

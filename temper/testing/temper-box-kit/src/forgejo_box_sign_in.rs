@@ -53,17 +53,17 @@ fn story(root: &Path) -> io::Result<()> {
     assert_eq!(fs::metadata(root)?.permissions().mode() & 0o777, 0o700);
     let mut kept_setup = None;
     for round in ["first", "second"] {
+        let mut command = Command::new(skein_scratch::paths::built("temper-box", "temper-box"));
+        command
+            .args(["--echo", "steps"])
+            .args(configuration::flags(root))
+            .current_dir(root)
+            .process_group(0)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(fs::File::create(root.join(format!("story-box-{round}.log")))?);
         let mut running = Serve {
-            child: Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
-                .args(["--echo", "steps"])
-                .args(configuration::flags(root))
-                .current_dir(root)
-                .process_group(0)
-                .stdin(Stdio::null())
-                .stdout(Stdio::piped())
-                .stderr(fs::File::create(root.join(format!("story-box-{round}.log")))?)
-                .spawn()
-                .expect("sign-in box"),
+            child: super::fixture::spawn(&mut command, skein_io::kernel::Signal::Terminate).expect("sign-in box"),
             reaped: false,
         };
         let stdout = running.child.stdout.take().expect("printed link pipe");

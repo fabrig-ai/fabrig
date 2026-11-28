@@ -1,5 +1,6 @@
 //! A moved pin ends an idle resolution (temper/docs/design/domain/forge/change/repairs.md).
 use super::light_rules::{change_row, pushed_change_in};
+use super::merge_job::{NONE, find_spec, finish_job, next_job};
 use super::*;
 use temper_engine_domain_forge_change::{Cause, Delegate, State};
 
@@ -39,7 +40,11 @@ fn moved_head(conflict: bool) {
     let retry = tasks::Retry { retries: 1, base: Duration::from_secs(5), max: Duration::from_secs(5) };
     let configured = super::merge_job::world(false, true, true).with_transient_retry(retry);
     let (mut world, change, head, base) = pushed_change_in(configured, true, b"temper/goal");
+    let job = next_job(&mut world, change, false);
+    find_spec(&job, false);
+    finish_job(&mut world, &job, NONE);
     let resolution = idle_resolution(&mut world, change);
+    assert_eq!(ended(&world, job.run.raw()).expect("merge job ended").tries, tasks::Tries::NONE);
     let branch = change_row(&world, change).branch.clone();
     let before_move = world.env.wall;
     let moved = if conflict {

@@ -814,6 +814,7 @@ fn a_start_waits_at_the_watermark_before_attaching_its_roots() {
         Input::Host(channel::Heard::Start {
             start: decoded_start(Box::new([smith_protocol_translate::Mount {
                 results: None,
+                hooks: None,
                 name: Box::from(b"work".as_slice()),
                 path: Box::from(b"/work".as_slice()),
                 writable: false,

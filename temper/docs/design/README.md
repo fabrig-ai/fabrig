@@ -232,6 +232,7 @@ forge, temper adds:
   - `testing/worker.md`: the worker's inspection adapter, the faults of its disk and workspaces, and their sweeps.
   - `testing/box/README.md`: where the box's own checks run, the facts they are handed at the shell's boundary, and what its slow binaries keep.
   - `testing/shells.md`: where temper's shells' own checks run, the facts they are handed at the shell's boundary, and what their slow binaries keep.
+  - `testing/fixture-lifetime.md`: how each process a test or a journey starts ends with it however the test ends, and the starts left as they are.
   - `testing/qa/README.md`: QA after landing, beside the deployment: its
     tool, home and loop; its ledger (`testing/qa/ledger.md`), the
     watcher on main (`testing/qa/landings.md`), kept builds

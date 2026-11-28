@@ -600,7 +600,7 @@ fn render_agents(text: &mut Text, models: &[Llm]) {
         return;
     }
     text.host = true;
-    text.put(b"run's main LLM unless you name one of these: ");
+    text.put(b"run's main LLM, or pick from: ");
     let mut rest = models.len();
     for llm in models {
         text.put(b"`");
@@ -703,7 +703,7 @@ fn render_checkout(
     let mut index: u32 = 0;
     let mut merging = false;
     let mut checked = 0_usize;
-    for Directory { name, host: _, root: _, writable, git, conflicts, results: _ } in repositories {
+    for Directory { name, host: _, root: _, writable, git, conflicts, .. } in repositories {
         if repositories.len() == 1 {
             text.put(b"- The working directory");
         } else {

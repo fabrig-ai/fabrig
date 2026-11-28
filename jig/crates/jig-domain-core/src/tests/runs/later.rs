@@ -5,7 +5,7 @@ use tasks::{LlmChoice, LlmLater, ModelEffort, Reasons};
 fn first() -> LlmChoice {
     LlmChoice {
         account: Some(0),
-        main: ModelEffort { model: 0, effort: Some(1) },
+        main: ModelEffort { model: 0, effort: Some(1), speed: None },
         subagents: Box::new([]),
         later: None,
     }
@@ -14,8 +14,8 @@ fn first() -> LlmChoice {
 fn later() -> LlmChoice {
     LlmChoice {
         later: Some(LlmLater {
-            main: ModelEffort { model: 0, effort: Some(0) },
-            subagents: Box::new([ModelEffort { model: 0, effort: Some(1) }]),
+            main: ModelEffort { model: 0, effort: Some(0), speed: None },
+            subagents: Box::new([ModelEffort { model: 0, effort: Some(1), speed: None }]),
         }),
         ..first()
     }
@@ -24,8 +24,8 @@ fn later() -> LlmChoice {
 #[test]
 fn next_run_and_document_take_later_after_the_first_activation() {
     let flattened = LlmChoice {
-        main: ModelEffort { model: 0, effort: Some(0) },
-        subagents: Box::new([ModelEffort { model: 0, effort: Some(1) }]),
+        main: ModelEffort { model: 0, effort: Some(0), speed: None },
+        subagents: Box::new([ModelEffort { model: 0, effort: Some(1), speed: None }]),
         ..first()
     };
     let default = LlmChoice { account: None, subagents: Box::new([]), ..flattened.clone() };
@@ -50,17 +50,20 @@ fn next_run_and_document_take_later_after_the_first_activation() {
 }
 
 #[test]
-fn a_partys_choice_carries_its_later_models_and_efforts() {
+fn a_partys_choice_carries_its_models_efforts_and_speeds() {
+    let fast = Some(skein_lib::Name::from_checked(b"fast").unwrap());
+    let standard = Some(skein_lib::Name::from_checked(tasks::STANDARD_SPEED).unwrap());
     let given = people::LlmChoice {
         account: Some(0),
-        main: people::ModelEffort { model: 0, effort: Some(1) },
+        main: people::ModelEffort { model: 0, effort: Some(1), speed: fast },
         subagents: Box::new([]),
         later: Some(people::LlmLater {
-            main: people::ModelEffort { model: 0, effort: Some(0) },
-            subagents: Box::new([people::ModelEffort { model: 1, effort: None }]),
+            main: people::ModelEffort { model: 0, effort: Some(0), speed: None },
+            subagents: Box::new([people::ModelEffort { model: 1, effort: None, speed: standard }]),
         }),
     };
     let mut expected = later();
-    expected.later.as_mut().unwrap().subagents = Box::new([ModelEffort { model: 1, effort: None }]);
+    expected.main.speed = fast;
+    expected.later.as_mut().unwrap().subagents = Box::new([ModelEffort { model: 1, effort: None, speed: standard }]);
     assert_eq!(crate::runs::llm::choice(Some(&given)), Some(expected));
 }

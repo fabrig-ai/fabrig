@@ -431,6 +431,7 @@ impl Host {
         let writable = self.rng.chance(script.writable);
         let mut repositories = vec![Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: Box::from(&b"temper"[..]),
             root: self.name(),
@@ -441,6 +442,7 @@ impl Host {
         if self.rng.chance(500) {
             repositories.push(Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: Box::from(&b"docs"[..]),
                 root: self.name(),

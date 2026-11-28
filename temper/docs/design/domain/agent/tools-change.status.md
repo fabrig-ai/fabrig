@@ -3,6 +3,7 @@
 2026-11-27. Where the tree's code lags or departs from [tools-change.md](tools-change.md).
 
 
+
 `tools-change.md`, section 1 has no known implementation gap in whole-goal child isolation:
 words-only calls and batch members use the nearest held goal branch,
 including callers in its subtree; an explicit destination outside it is

@@ -1,6 +1,6 @@
 //! A close change's job through both roots (temper/docs/design/domain/worker/jobs.md;
 //! temper/docs/design/protocol/tooling.md, 4.2).
-use super::{Duration, Script, Token, World, call, engine, host, link, tasks, worker};
+use super::{Duration, Script, Token, World, call, engine, host, job_io::disk_path, link, tasks, worker};
 use jig_domain_link::JobBound;
 use temper_fake_checkout::git::Remote;
 use temper_worker_domain::tooling;
@@ -19,6 +19,7 @@ pub enum Row {
 
 pub(super) struct Story {
     row: Row,
+    fallback: &'static [u8],
     job: Option<u64>,
     hello: Vec<JobBound>,
     pushes: u32,
@@ -71,7 +72,9 @@ fn config(seed: u64) -> engine::Config {
     let mut jig = jig_protocol_config_fixtures::small();
     jig.core.tasks = temper_engine_domain_world::forge_routes::box_limits().tasks;
     config.core.jobs = temper_engine_service_vocabulary::limits::jobs(&jig);
-    assert!(config.core.jobs.contains(&temper_engine_service_vocabulary::limits::close_bound()));
+    let bound = temper_engine_service_vocabulary::limits::close_bound();
+    assert!(config.core.jobs.contains(&bound));
+    assert_eq!(bound.deadline, Duration::from_secs(86_400));
     let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
     let mut extended = kinds.to_vec();
     let close = jig_domain_authority::Executor::Job(temper_engine_domain_forge::CLOSE_KIND);
@@ -110,8 +113,15 @@ impl World {
         world.scripts.push_back(goal);
         world.forge.advance(REMOTE, b"main", temper_engine_domain_forge::CLOSE_HOOK, COMMAND);
         world.forge.advance(REMOTE, b"main", b"status.md", b"in flight\n");
-        world.close_job =
-            Some(Story { row: Row::Settled, job: None, hello: Vec::new(), pushes: 0, tip: None, spawn: None });
+        world.close_job = Some(Story {
+            row: Row::Settled,
+            fallback: b"",
+            job: None,
+            hello: Vec::new(),
+            pushes: 0,
+            tip: None,
+            spawn: None,
+        });
         world
     }
 
@@ -130,7 +140,15 @@ impl World {
         world.scripts.push_back(goal);
         world.forge.advance(REMOTE, b"main", b".temper/close", COMMAND);
         world.forge.advance(REMOTE, b"main", b"status.md", b"in flight\n");
-        world.close_job = Some(Story { row, job: None, hello: Vec::new(), pushes: 0, tip: None, spawn: None });
+        world.close_job = Some(Story {
+            row,
+            fallback: b"repo/.temper/close",
+            job: None,
+            hello: Vec::new(),
+            pushes: 0,
+            tip: None,
+            spawn: None,
+        });
         world
     }
 
@@ -274,7 +292,7 @@ impl World {
         let Some(story) = &mut self.close_job else { return self.assigned_job(channel, job, workspace) };
         assert_eq!(channel, super::CHANNEL);
         assert_eq!(job.kind.0, temper_engine_domain_forge::CLOSE_KIND);
-        assert_eq!(job.deadline, Duration::from_secs(600));
+        assert_eq!(job.deadline, Duration::from_secs(3_600));
         story.job = Some(job.run.raw());
         if story.tip.is_none() {
             let task = job.workspace.as_ref().expect("job workspace").workstream;
@@ -286,7 +304,13 @@ impl World {
             &temper_worker_service::worker_settings::Limits::shared(own),
         )
         .expect("worker payload limits");
-        self.lanes[0].worker_events.push_back(link::job(job, workspace, &limits));
+        self.lanes[0].worker_events.push_back(link::hook_job(
+            job,
+            workspace,
+            &limits,
+            b"repo/.temper/hooks/close",
+            story.fallback,
+        ));
     }
 
     pub(super) fn observe_close_io(&mut self, op: &worker::checkout::git::Op) {
@@ -297,19 +321,7 @@ impl World {
         }
     }
 
-    pub(super) fn story_job_operation(&mut self, owner: Token, op: tooling::Request) {
-        if self.close_job.is_none() {
-            return self.job_operation(owner, op);
-        }
-        if let tooling::Request::Spawn { owner: inner, program, args, dir, .. } = op {
-            assert_eq!(owner, inner);
-            self.play_close_command(owner, &program, &args, &dir);
-        } else {
-            self.job_operation(owner, op);
-        }
-    }
-
-    fn play_close_command(&mut self, owner: Token, program: &[u8], args: &[Box<[u8]>], directory: &[u8]) {
+    pub(super) fn play_close_command(&mut self, owner: Token, program: &[u8], args: &[Box<[u8]>], directory: &[u8]) {
         assert_eq!(self.lanes[0].disk.content(&disk_path(program)), Some(COMMAND), "command read from goal's tree");
         let dir = disk_path(directory);
         let repo = [dir.as_slice(), b"/repo"].concat();
@@ -342,8 +354,4 @@ impl World {
             self.lanes[0].worker_events.push_back(worker::Event::Job { owner, event });
         }
     }
-}
-
-fn disk_path(path: &[u8]) -> Vec<u8> {
-    [b"ws/".as_slice(), path.strip_prefix(b"workspaces/").expect("job workspace path")].concat()
 }

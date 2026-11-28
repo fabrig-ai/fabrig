@@ -224,6 +224,9 @@ Each list has one entry per line; `#` starts a comment line.
 - **`.temper/hooks/close`:** fabrig's close command, which settles status with
   `tools/close/close.py` and then checks the goal
   (`temper/docs/design/protocol/tooling.md`, 4.2).
+- **`.temper/hooks/config.toml`:** the non-executable hook time file, which sets
+  the `close` timeout to 1,800 seconds (`temper/docs/design/protocol/hooks.md`, 2.3).
+  A change to it takes the same Gate route as a change to `deliver` or `finish`.
 - **Compatibility wrappers:** `.temper/pre-pr` runs `deliver`, `.temper/merge`
   runs `merge`, and `.temper/close` and `.temper/checked-close` run `close`.
 - **`.config/fixture-readers.toml`:** the readers and generators of every tracked

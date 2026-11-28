@@ -85,7 +85,7 @@ Once dev.fabrig.ai, its engine and its workers' agents run a build that reads ho
 
 - **temper stops reading the old ones.** It no longer reads `.temper/pre-pr`, `merge_job`, `close_job` or `check_timeout_ms`, which `config.toml` replaces (3.4): a stored one reads as none (`../protocol/wires.md`), and `temper ctl` refuses either by name. Section 4's rule goes with them: every repository runs hooks alone, and one without `.temper/hooks/` has none.
 - **fabrig's wrappers go:** `.temper/pre-pr`, `merge`, `close` and `checked-close`.
-- **`goal-pre-pr` and `goal-child-pre-pr` aren't this draft's:** nothing calls them any more, and a goal of their own removes them, with their workflows and pre-PR's `--goal` and `--child` modes (the user, 2026-11-27). So `.temper/` holds only what temper runs.
+- **`goal-pre-pr` and `goal-child-pre-pr` aren't this draft's:** nothing called them any more, and a goal of their own removed them, with their workflows and pre-PR's `--goal` and `--child` modes (the user, 2026-11-27). So `.temper/` holds only what temper runs.
 
 ## 6. fabrig and dev.fabrig.ai
 

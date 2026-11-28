@@ -189,7 +189,9 @@ fn a_template_span_is_kept_in_the_ask() {
 }
 fn choice(model: &[u8], effort: Option<&[u8]>) -> LlmChoice {
     let mut subagents = List::with_capacity(1);
-    subagents.push(ModelEffort { model: Text::new(b"quick".as_slice().into(), 32).unwrap(), effort: None }).unwrap();
+    subagents
+        .push(ModelEffort { model: Text::new(b"quick".as_slice().into(), 32).unwrap(), effort: None, speed: None })
+        .unwrap();
     LlmChoice {
         later: None,
         account: None,
@@ -199,6 +201,7 @@ fn choice(model: &[u8], effort: Option<&[u8]>) -> LlmChoice {
                 Some(effort) => Some(Text::new(effort.into(), 32).unwrap()),
                 None => None,
             },
+            speed: None,
         },
         subagents,
     }

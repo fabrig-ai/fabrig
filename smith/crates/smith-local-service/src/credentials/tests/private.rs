@@ -273,7 +273,6 @@ impl Private {
                 }
                 skein_sim::Ask::Write { .. } => self.story == Story::KeepFailed,
                 skein_sim::Ask::Spawn { .. }
-                | skein_sim::Ask::ReadLink { .. }
                 | skein_sim::Ask::HardLink { .. }
                 | skein_sim::Ask::Lock { .. }
                 | skein_sim::Ask::Open { .. }

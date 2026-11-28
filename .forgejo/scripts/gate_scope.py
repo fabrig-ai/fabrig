@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 
 HOOKS = {'.temper/hooks/deliver', '.temper/hooks/finish', '.temper/hooks/close',
          '.temper/pre-pr', '.temper/close', '.temper/checked-close'}
+HOOK_INPUTS = HOOKS | {'.temper/hooks/config.toml'}
 PYTHON = ['python3', '-I', '-B']
 SCRIPTS = Path(__file__).resolve().parent
 WORKFLOW = '.forgejo/workflows/gate.yml'
@@ -34,7 +35,7 @@ def tool_suites(work, paths):
 def route(paths):
     if not paths:
         return 'full'
-    checker = {path for path in paths if path in HOOKS or
+    checker = {path for path in paths if path in HOOK_INPUTS or
                path.startswith('tools/pre-pr/') and path.endswith(('.py', '.md'))}
     gate = paths & (REPORTING | ROUTING | {WORKFLOW})
     if gate:
@@ -67,7 +68,7 @@ def checks(work, base, head, reports, execute=subprocess.run):
         if paths & ROUTING or workflow_exec:
             commands.append(('routing', [*PYTHON, str(SCRIPTS / 'gate_validate.py'), str(work), 'routing']))
     if scope in ('checker', 'mixed') or (scope.startswith('gate') and
-            any(p in HOOKS or p.startswith('tools/pre-pr/') for p in paths)):
+            any(p in HOOK_INPUTS or p.startswith('tools/pre-pr/') for p in paths)):
         commands.append(('checker', [*PYTHON, 'tools/pre-pr/test_pre_pr.py']))
     if scope == 'tooling':
         # A tool that tests read, or one with no suite beside it, takes the regular route.

@@ -1,5 +1,5 @@
 //! Hold the reading story's serve without stopping its browser (temper/docs/design/client/web/testing.md, 6).
-use skein_fake_person_browser::{Play, Script, Setup, Step};
+use skein_fake_person_browser::{Play, Script, Step};
 use skein_io::kernel::Signal;
 use temper_client_browser_world::Tier;
 
@@ -35,15 +35,12 @@ impl<'a> ReadingSteps<'a> {
         self.browser.extend(pkill(self.tier, signal));
     }
 
-    pub fn player(self, setup: &Setup<'_>) -> impl Play + use<> {
+    pub fn player(self) -> impl Play + use<> {
         let script = Script::new(self.browser.into_boxed_slice());
         #[cfg(target_os = "linux")]
-        return linux::Reading::new(script, self.switches, setup, self.tier);
+        return linux::Reading::new(script, self.switches, self.tier);
         #[cfg(not(target_os = "linux"))]
-        {
-            let _ = setup;
-            script
-        }
+        script
     }
 }
 

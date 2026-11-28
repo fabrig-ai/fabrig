@@ -64,6 +64,7 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
                 close_job: Some(b"tools/close".as_slice().into()),
                 landing_attempts: 7,
                 check_timeout_ms: Some(60000),
+                hook_timeout_max_seconds: 1_800,
                 flakes: Some(d::Flakes::Rerun(3)),
                 gate_retries: 3,
                 gate_timeout_ms: 70000,
@@ -535,8 +536,13 @@ fn agents_setting_round_trips_and_accounts_for_owned_bytes() {
 
 #[test]
 fn repair_settings_with_the_whole_named_llm_round_trip() {
-    let main = d::NamedModel { model: b"catalogue-model".as_slice().into(), effort: Some(b"high".as_slice().into()) };
-    let subagent = d::NamedModel { model: b"helper".as_slice().into(), effort: None };
+    let main = d::NamedModel {
+        model: b"catalogue-model".as_slice().into(),
+        effort: Some(b"high".as_slice().into()),
+        speed: Some(b"fast".as_slice().into()),
+    };
+    let subagent =
+        d::NamedModel { model: b"helper".as_slice().into(), effort: None, speed: Some(b"standard".as_slice().into()) };
     let landing = d::ProjectLanding {
         wait: temper_engine_domain_forge_change::Wait::Landed,
         flakes: Some(d::Flakes::Never),
@@ -568,7 +574,30 @@ fn repair_settings_with_the_whole_named_llm_round_trip() {
         }),
     });
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row.clone()));
+
+    let current = fixtures::layouts::BINARY;
+    let previous = current.replace(
+        "record NamedModel { model: bytes 4096 effort: option bytes 32 speed: option bytes 32 = none }",
+        "record NamedModel { model: bytes 4096 effort: option bytes 32 }",
+    );
+    assert_ne!(current, previous);
+    let mut earlier = super::dev_layouts::Dev::with_layout(&previous);
+    let old = earlier.row(&row, "setting");
+    let restored = earlier.read(&old, "setting");
+    let named = |row: forge::Stored| {
+        let forge::Stored::Setting(row) = row else { panic!("setting row") };
+        let d::Edit::Set(set) = row.edit else { panic!("set") };
+        let d::Value::Landing(landing) = set.value else { panic!("landing settings") };
+        landing.repairs.unwrap().goal.llm.unwrap()
+    };
+    let mut expected = named(row);
+    expected.main.speed = None;
+    expected.subagents[0].speed = None;
+    let later = expected.later.as_mut().unwrap();
+    later.main.speed = None;
+    later.subagents[0].speed = None;
+    assert_eq!(named(restored), expected);
 }
 
 #[test]

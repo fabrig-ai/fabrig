@@ -81,6 +81,7 @@ fn assignment(decoded: bool, writable: bool) -> Event {
             refusal: false,
             result: 512,
             outdated: false,
+            fallback: None,
         })
     } else {
         Err(wire::Undecodable)

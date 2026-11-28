@@ -142,7 +142,7 @@ fn charter(
     let documents = documents(&mut object, document, path, problems);
     let parts = parts(&mut object, document, path, limits.core.tasks.charter_parts, directories, problems);
     object.finish(document, path, problems);
-    let charter = Charter {
+    let mut charter = Charter {
         name,
         parts: parts?,
         rest,
@@ -170,7 +170,12 @@ fn charter(
             tools: RunPolicy::EVERY_FAMILY,
         },
     };
+    // Price the inherited catalogue speed, but keep these document names without an override.
     validate(&charter, path, problems);
+    charter.policy.model.speed = None;
+    for alternative in &mut charter.policy.alternatives {
+        alternative.speed = None;
+    }
     Some(charter)
 }
 

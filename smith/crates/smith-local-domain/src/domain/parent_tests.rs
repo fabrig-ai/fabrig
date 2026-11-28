@@ -29,6 +29,7 @@ fn plain_delivery_config() -> Config {
     config.workspace = Some(run::Workspace {
         directories: Box::from([run::Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: b"work".as_slice().into(),
             root: Token::new(9),

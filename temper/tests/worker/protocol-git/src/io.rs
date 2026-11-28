@@ -615,7 +615,6 @@ impl Below {
             }
             Op::List { fd, entries, names } => Ok(self.listing(*fd, entries, names)),
             other @ (Op::HardLink { .. }
-            | Op::ReadLink { .. }
             | Op::Lock { .. }
             | Op::Socket { .. }
             | Op::Bind { .. }

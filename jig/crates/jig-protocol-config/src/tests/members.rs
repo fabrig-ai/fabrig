@@ -133,7 +133,7 @@ const EXTRAS: &[(&str, &str, &[u8])] = &[
     ("templates.0", "ended_by", br#""requester""#),
     ("templates.0", "resources", br#"[{"connector":1,"symbol":1}]"#),
     ("templates.0", "deadline", br#"{"span_ms":1000}"#),
-    ("templates.0", "llm", br#"{"main":{"model":"small","effort":"medium"},"sub_agents":[{"model":"small","effort":"medium"}]}"#),
+    ("templates.0", "llm", br#"{"main":{"model":"small","effort":"medium","speed":"fast"},"sub_agents":[{"model":"small","effort":"medium","speed":"standard"}]}"#),
     ("templates.0.llm", "later", br#"{"main":{"model":"small","effort":"medium"},"sub_agents":[{"model":"small","effort":"medium"}]}"#),
     ("projects.0", "name", br#""Project One""#),
     ("projects.0.policy", "templates", br#"[{"template":1,"executor":{"charter":1},"budget":{"amount":10},"deadline":{"span_ms":1000},"priority":5}]"#),

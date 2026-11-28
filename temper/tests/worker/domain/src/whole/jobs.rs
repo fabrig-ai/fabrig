@@ -270,6 +270,7 @@ impl World {
                 refusal: false,
                 result: 512,
                 outdated: false,
+                fallback: None,
             })
         } else {
             Err(wire::Undecodable)
@@ -284,7 +285,7 @@ impl World {
                 grants: Box::new([]),
                 workspace: Some(host::Workspace { workstream: 81, items: Token::new(0) }),
             },
-            items: Ok(wire::Workspace { rerun: None, repositories }),
+            items: Ok(wire::Workspace { hook_timeout_max_seconds: 3600, rerun: None, repositories }),
             spec,
         })?;
         Ok(())
@@ -307,7 +308,9 @@ impl World {
         let Written { owner, path, directory } = self.written()?;
         let (spawn_owner, op) = self.operations.pop_front().expect("spawn after write");
         assert_eq!(spawn_owner, owner);
-        let tooling::Request::Spawn { owner: inner, program, args, env, dir, deadline } = op else { panic!("spawn") };
+        let tooling::Request::Spawn { owner: inner, program, args, env, dir, deadline, .. } = op else {
+            panic!("spawn")
+        };
         assert_eq!(inner, owner);
         assert_eq!(dir.as_ref(), directory);
         assert_eq!(program.as_ref(), [directory.as_slice(), b"/", command].concat());
@@ -331,6 +334,21 @@ impl World {
         assert!(self.disk.exists(&[translate::dir(workspace).as_slice(), b"/", command].concat()));
         self.event(Event::Job { owner, event: tooling::Event::Spawned { owner } })?;
         Ok(owner)
+    }
+
+    pub(super) fn absent(&mut self, command: &[u8], deliver: bool) -> Result<(), String> {
+        let owner = self.spawning(command)?;
+        // Discovery drains without a Spawned event or a result file.
+        self.event(Event::Job {
+            owner,
+            event: tooling::Event::Exited { owner, exit: tooling::Exit::Absent, tail: Box::new([]) },
+        })?;
+        assert!(self.operations.is_empty());
+        if deliver {
+            self.pushed(false)?;
+        }
+        assert!(self.report.answer.is_none(), "the discovery must drain before the answer");
+        self.event(Event::Job { owner, event: tooling::Event::Gone { owner } })
     }
 
     fn finish(&mut self, owner: Token, gone_first: bool) -> Result<(), String> {

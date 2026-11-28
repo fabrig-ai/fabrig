@@ -176,3 +176,36 @@ fn stored_setting_names_default_to_none_at_the_previous_layout_and_round_trip_no
         assert_eq!(codec::settings::decode(&named.key(), converted.as_slice(), limits, &catalogue), Ok(unnamed));
     }
 }
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "a layout test compares the former schema fixtures with their current family"
+)]
+fn a_model_choice_at_the_previous_layout_has_no_speed() {
+    use skein_codec::layout::{Mode, Plan, Workspace};
+    use skein_codec::schema;
+    use skein_lib::Buffer;
+
+    const OLD: &[u8] = &[7, 1, 2]; // Model seven, effort Some(two).
+    const CURRENT: &[u8] = &[7, 1, 2, 0]; // The extra zero is the absent speed.
+    for (family, old) in [
+        ("jig-store-tasks", include_str!("fixtures/dev-tasks-v13.schema")),
+        ("jig-store-people", include_str!("fixtures/dev-people-v17.schema")),
+        ("jig-store-settings", include_str!("fixtures/dev-settings-v3.schema")),
+    ] {
+        let latest = crate::STORE_FAMILIES.iter().find(|found| found.name == family).unwrap();
+        let old = schema::parse(old.as_bytes()).unwrap();
+        let current = schema::parse(latest.current.as_bytes()).unwrap();
+        let root = b"ModelEffort";
+        let old_root = old.root(root, None).unwrap();
+        let current_root = current.root(root, None).unwrap();
+        let read = Plan::between(Mode::Keep, &old, old_root, &[], &current, current_root, &[]).unwrap();
+        let mut workspace = Workspace::new();
+        let mut converted = Buffer::with_capacity(u32::try_from(CURRENT.len()).unwrap());
+        assert!(workspace.fit(&read));
+        read.convert(OLD, &mut converted, &mut workspace).unwrap();
+        assert_eq!(converted.as_slice(), CURRENT, "{family}");
+    }
+}

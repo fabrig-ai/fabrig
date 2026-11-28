@@ -16,6 +16,7 @@ temper-engine-domain-forge-closer.workspace = true
 temper-protocol-reaches.workspace = true
 temper-protocol-member-message.workspace = true
 temper-client-protocol-wire.workspace = true
+temper-protocol-worker-wire.workspace = true
 temper-engine-domain-forge-tiers.workspace = true
 jig-domain-core-vocabulary.workspace = true
 jig-domain-tasks.workspace = true

@@ -122,6 +122,8 @@ impl Composition {
                         unit: model.price_unit,
                     },
                     description: None,
+                    speeds: Box::default(),
+                    speed: None,
                 })
                 .collect(),
             key_bytes: driver.key_bytes,

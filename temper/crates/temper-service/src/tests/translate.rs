@@ -324,7 +324,7 @@ fn a_repositorys_account_reaches_the_workers_domain() {
     let mut repositories = List::with_capacity(1);
     let repository = original.repositories.get(0).unwrap().clone();
     repositories.push(wire::Repository { account: Some(19), ..repository }).unwrap();
-    let items = wire::Items { repositories, rerun: None };
+    let items = wire::Items { repositories, rerun: None, hook_timeout_max_seconds: 3600 };
     let bytes = temper_protocol_worker_wire::items(&items);
     let decoded = wire::Items::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
     assert_eq!(translate::workspace(Some(&decoded)), expected);

@@ -326,6 +326,60 @@ fn refuses_choice(alternatives: &[u8], llm: &[u8], path: crate::Path, what: What
     let problems = fixtures::engine(&with_models(alternatives, llm)).expect_err("refused choice");
     assert_eq!(problems.problems.get(0), Some(&crate::Problem { path, what }));
 }
+fn with_template_speed(llm: &[u8]) -> Box<[u8]> {
+    let document = with_models(br#""alternatives": ["large"]"#, llm);
+    fixtures::with(
+        &document,
+        br#""efforts": ["low", "high"],"#,
+        br#""efforts": ["low", "high"],
+           "speeds": [{"name":"fast","also":["priority"],"prices":{"input":2,"cached":2,"output":2}}],"#,
+    )
+}
+
+#[test]
+fn a_templates_llm_choice_reads_declared_standard_and_omitted_speeds() {
+    let document = with_template_speed(
+        br#""grace_ms": 5000, "llm": {"main": {"model": "small", "effort": "high", "speed": "fast"},
+            "sub_agents": [{"model": "large", "effort": null, "speed": "standard"}],
+            "later":{"main":{"model":"large","effort":null},"sub_agents":[{"model":"small","effort":"low","speed":"fast"}]}}"#,
+    );
+    let engine = fixtures::engine(&document).expect("template speeds");
+    let choice = engine.templates[0].llm.as_ref().expect("template choice");
+    let later = choice.later.as_ref().expect("later choice");
+    assert_eq!(choice.main.speed.unwrap().as_bytes(), b"fast");
+    assert_eq!(choice.subagents[0].speed.unwrap().as_bytes(), jig_domain_tasks::STANDARD_SPEED);
+    assert_eq!(later.main.speed, None);
+    assert_eq!(later.subagents[0].speed.unwrap().as_bytes(), b"fast");
+}
+
+#[test]
+fn undeclared_template_speeds_are_refused_at_their_member_paths() {
+    let llm = chat_llm();
+    for (choice, member) in [
+        (
+            br#""grace_ms":5000,"llm":{"main":{"model":"small","effort":"low","speed":"priority"},"sub_agents":[]}"#.as_slice(),
+            llm.member(b"main"),
+        ),
+        (
+            br#""grace_ms":5000,"llm":{"main":{"model":"small","effort":"low"},"sub_agents":[{"model":"large","effort":null,"speed":"fast"}]}"#,
+            llm.member(b"sub_agents").child(Segment::Index(0)),
+        ),
+        (
+            br#""grace_ms":5000,"llm":{"main":{"model":"small","effort":"low"},"sub_agents":[],
+               "later":{"main":{"model":"small","effort":"low","speed":"ultrafast"},"sub_agents":[]}}"#,
+            llm.member(b"later").member(b"main"),
+        ),
+        (
+            br#""grace_ms":5000,"llm":{"main":{"model":"small","effort":"low"},"sub_agents":[],
+               "later":{"main":{"model":"small","effort":"low"},"sub_agents":[{"model":"small","effort":"low","speed":"default"}]}}"#,
+            llm.member(b"later").member(b"sub_agents").child(Segment::Index(0)),
+        ),
+    ] {
+        let problems = fixtures::engine(&with_template_speed(choice)).expect_err("undeclared speed");
+        assert_eq!(problems.problems.get(0), Some(&crate::Problem { path: member.member(b"speed"), what: What::Refers }));
+    }
+}
+
 #[test]
 fn a_templates_llm_choice_names_configured_models_and_their_efforts() {
     let document = with_models(
@@ -340,12 +394,12 @@ fn a_templates_llm_choice_names_configured_models_and_their_efforts() {
         chat.llm,
         Some(LlmChoice {
             later: Some(jig_domain_tasks::LlmLater {
-                main: ModelEffort { model: 1, effort: None },
-                subagents: Box::new([ModelEffort { model: 0, effort: Some(0) }])
+                main: ModelEffort { model: 1, effort: None, speed: None },
+                subagents: Box::new([ModelEffort { model: 0, effort: Some(0), speed: None }])
             }),
             account: None,
-            main: ModelEffort { model: 0, effort: Some(1) },
-            subagents: Box::from([ModelEffort { model: 1, effort: None }]),
+            main: ModelEffort { model: 0, effort: Some(1), speed: None },
+            subagents: Box::from([ModelEffort { model: 1, effort: None, speed: None }]),
         })
     );
 }
@@ -502,7 +556,7 @@ fn a_seeded_executor_override_keeps_a_compatible_choice() {
         Some(LlmChoice {
             later: None,
             account: None,
-            main: ModelEffort { model: 0, effort: Some(1) },
+            main: ModelEffort { model: 0, effort: Some(1), speed: None },
             subagents: Box::new([])
         })
     );

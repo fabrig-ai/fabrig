@@ -1,5 +1,6 @@
 //! A task's LLM choice and `me`'s models: the core names a model and its effort by index in
-//! configuration's order, the client by name (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1; domain/tasks/README.md, 3).
+//! configuration's order, the client by name. Both keep the speed by name
+//! (client/domain/contract/requests.md, 2; client/domain/contract/documents.md, 1; domain/tasks/README.md, 3).
 use super::w;
 use crate::Model;
 use crate::generated::client as mapped;
@@ -37,6 +38,8 @@ pub fn catalogue(models: &[jig_domain_core_vocabulary::settings::CatalogueModel]
             description: None,
             shown: None,
             picker: false,
+            speeds: Box::default(),
+            speed: None,
         })
         .expect("one row per catalogue position");
     }
@@ -73,6 +76,8 @@ pub fn catalogue(models: &[jig_domain_core_vocabulary::settings::CatalogueModel]
             description: row.description.clone(),
             shown: row.shown.clone(),
             picker: row.picker,
+            speeds: model.speeds.clone(),
+            speed: model.speed.clone(),
         };
     }
     rows.into_boxed()
@@ -165,6 +170,7 @@ pub(crate) fn fits(models: &[Model], limits: &w::Limits) -> bool {
             || name > skein_lib::length::usize_of(limits.refusal_llm_model)
             || model.efforts.len() > skein_lib::length::usize_of(jig_domain_core_vocabulary::EFFORTS)
             || model.efforts.len() > skein_lib::length::usize_of(limits.me_model_efforts)
+            || !speeds_fit(model, limits)
             || model.prices.unit == 0
             || model.prices.input == 0
             || model.prices.cached == 0
@@ -235,6 +241,7 @@ pub fn models(offer: &[jig_domain_core_vocabulary::Offered], models: &[Model]) -
         for effort in &model.efforts {
             efforts.push(bytes::copy_of(effort)).expect("same capacity");
         }
+        let speeds = offered_speeds(model)?;
         rows.push(w::MeModel {
             new_until: match model.new_until {
                 Some(at) => Some(at.as_nanos()),
@@ -252,12 +259,51 @@ pub fn models(offer: &[jig_domain_core_vocabulary::Offered], models: &[Model]) -
             shown: model.shown.clone(),
             accounts: offered.accounts.clone(),
             picker: model.picker,
+            speeds,
+            speed: model.speed.clone(),
             prices: mapped::me_prices_to_record(&model.prices),
             description: model.description.clone(),
         })
         .expect("same capacity");
     }
     Ok(rows)
+}
+
+fn speeds_fit(model: &Model, limits: &w::Limits) -> bool {
+    if model.speeds.len() > skein_lib::length::usize_of(limits.me_model_speeds) {
+        return false;
+    }
+    if let Some(speed) = &model.speed
+        && (speed.len() > skein_lib::length::usize_of(limits.me_model_speed_some) || !has_speed(&model.speeds, speed))
+    {
+        return false;
+    }
+    for speed in &model.speeds {
+        let Ok(record) = mapped::setting_speed_to_record(speed) else { return false };
+        if speed.name.len() > skein_lib::length::usize_of(limits.model_effort_speed_some)
+            || record.measure(limits).is_err()
+        {
+            return false;
+        }
+    }
+    true
+}
+
+fn offered_speeds(model: &Model) -> Result<List<w::SettingSpeed>, w::Problem> {
+    let mut speeds = List::with_capacity(u32::try_from(model.speeds.len()).expect("checked speeds"));
+    for speed in &model.speeds {
+        speeds.push(mapped::setting_speed_to_record(speed)?).expect("same capacity");
+    }
+    Ok(speeds)
+}
+
+fn has_speed(speeds: &[jig_domain_core_vocabulary::Speed], name: &[u8]) -> bool {
+    for speed in speeds {
+        if speed.name.as_ref() == name {
+            return true;
+        }
+    }
+    false
 }
 
 /// A kept choice by its names; a model or effort past configuration is a problem, as the core
@@ -302,7 +348,11 @@ fn model_effort(value: t::ModelEffort, models: &[Model]) -> Result<w::ModelEffor
         },
         None => None,
     };
-    Ok(w::ModelEffort { model: bytes::copy_of(&model.name), effort })
+    let speed = match value.speed {
+        Some(name) => Some(bytes::copy_of(name.as_bytes())),
+        None => None,
+    };
+    Ok(w::ModelEffort { model: bytes::copy_of(&model.name), effort, speed })
 }
 
 /// A choice naming a model or an effort configuration lacks is refused before the core sees the
@@ -502,7 +552,11 @@ fn indices(value: &w::ModelEffort, models: &[Model]) -> Result<p::ModelEffort, w
         }
         None => None,
     };
-    Ok(p::ModelEffort { model: u8::try_from(at).expect("checked models"), effort })
+    let speed = match &value.speed {
+        Some(name) => Some(skein_lib::Name::from_checked(name).ok_or(w::LlmWhy::Speed)?),
+        None => None,
+    };
+    Ok(p::ModelEffort { model: u8::try_from(at).expect("checked models"), effort, speed })
 }
 
 /// A model the core refused, by its configured name; an index past configuration is a problem,
@@ -514,7 +568,15 @@ pub(crate) fn refusal(model: u8, why: p::LlmWhy, models: &[Model]) -> Result<w::
     if model.name.is_empty() {
         return Err(w::Problem { path: w::paths::REFUSAL_LLM_MODEL, reason: skein_codec::Reason::Bound });
     }
-    let why = crate::generated::client::llm_why_to_record(&why);
+    let why = match why {
+        p::LlmWhy::Unconfigured => w::LlmWhy::Unconfigured,
+        p::LlmWhy::Effort => w::LlmWhy::Effort,
+        p::LlmWhy::Speed => w::LlmWhy::Speed,
+        p::LlmWhy::Charter => w::LlmWhy::Charter,
+        p::LlmWhy::Authority => w::LlmWhy::Authority,
+        p::LlmWhy::Procedure => w::LlmWhy::Procedure,
+        p::LlmWhy::Repeated => w::LlmWhy::Repeated,
+    };
     Ok(w::Refusal::Llm(w::RefusalLlm { model: bytes::copy_of(&model.name), why }))
 }
 

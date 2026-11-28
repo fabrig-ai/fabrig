@@ -1891,6 +1891,22 @@ class Gate(unittest.TestCase):
                 self.assertEqual(GATE.checks(root, 'base', 'head', root, execute), 0)
             execute.assert_called_once_with(['python3', '-I', '-B', 'tools/pre-pr/test_pre_pr.py'], cwd=root, timeout=600)
 
+    def test_hook_config_selects_checker_tests(self):
+        path = '.temper/hooks/config.toml'
+        with tempfile.TemporaryDirectory() as tmp, redirect_stdout(io.StringIO()):
+            root = Path(tmp)
+            self.assertEqual(PRE.code_inputs([path], {'packages': [], 'workspace_members': []}, root), [path])
+            with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
+                 mock.patch.object(PRE, 'outward', return_value=(0, [])):
+                PRE.workspace_checks(root, [path], 'tree', {}, [], {})
+            self.assertEqual([call.args[0][3] for call in run.call_args_list],
+                             ['tools/pre-pr/test_pre_pr.py', 'tools/citations/citations.py'])
+            self.assertEqual(GATE.route({path}), 'checker')
+            execute = mock.Mock(return_value=subprocess.CompletedProcess([], 0))
+            with mock.patch.object(subprocess, 'check_output', return_value=os.fsencode(path) + b'\0'):
+                self.assertEqual(GATE.checks(root, 'base', 'head', root, execute), 0)
+            execute.assert_called_once_with(['python3', '-I', '-B', 'tools/pre-pr/test_pre_pr.py'], cwd=root, timeout=600)
+
     def test_preflight_runs_tests_and_writes_real_outcome(self):
         for paths, status, expected in [(b'tools/pre-pr/pre_pr.py\0', 0, 0),
                                         (b'tools/pre-pr/pre_pr.py\0', 1, 2),

@@ -48,7 +48,7 @@ fn choice() -> tasks::LlmChoice {
     tasks::LlmChoice {
         later: None,
         account: Some(ACCOUNT),
-        main: tasks::ModelEffort { model: 0, effort: Some(0) },
+        main: tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
         subagents: Box::new([]),
     }
 }

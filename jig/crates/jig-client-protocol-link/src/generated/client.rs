@@ -2368,6 +2368,7 @@ pub fn llm_why_to_domain(record: jig_client_protocol_wire::v44::LlmWhy) -> jig_c
         jig_client_protocol_wire::v44::LlmWhy::Authority => jig_client_domain::contract::LlmWhy::Authority,
         jig_client_protocol_wire::v44::LlmWhy::Procedure => jig_client_domain::contract::LlmWhy::Procedure,
         jig_client_protocol_wire::v44::LlmWhy::Repeated => jig_client_domain::contract::LlmWhy::Repeated,
+        jig_client_protocol_wire::v44::LlmWhy::Speed => jig_client_domain::contract::LlmWhy::Speed,
     }
 }
 

@@ -302,7 +302,7 @@ pub fn field_rule_to_domain(record: crate::tasks_v13::FieldRule) -> jig_domain_t
 
 #[must_use]
 pub fn model_effort_to_record(value: &jig_domain_tasks::ModelEffort) -> crate::tasks_v13::ModelEffort {
-    let jig_domain_tasks::ModelEffort { model: field_000000, effort: field_000001 } = value;
+    let jig_domain_tasks::ModelEffort { model: field_000000, effort: field_000001, speed: field_000002 } = value;
     crate::tasks_v13::ModelEffort {
         model: *field_000000,
         effort: match field_000001 {
@@ -311,14 +311,20 @@ pub fn model_effort_to_record(value: &jig_domain_tasks::ModelEffort) -> crate::t
                 Some(converted)
             }
             None => None,
+        },
+        speed: match field_000002 {
+            Some(item) => {
+                let converted = crate::codec::convert::speed_name_to_record(item);
+                Some(converted)
+            }
+            None => None,
         }
     }
 }
 
-#[must_use]
-pub fn model_effort_to_domain(record: crate::tasks_v13::ModelEffort) -> jig_domain_tasks::ModelEffort {
-    let crate::tasks_v13::ModelEffort { model: field_000000, effort: field_000001 } = record;
-    jig_domain_tasks::ModelEffort {
+pub fn model_effort_to_domain(record: crate::tasks_v13::ModelEffort) -> Result<jig_domain_tasks::ModelEffort, crate::tasks_v13::Problem> {
+    let crate::tasks_v13::ModelEffort { model: field_000000, effort: field_000001, speed: field_000002 } = record;
+    Ok(jig_domain_tasks::ModelEffort {
         model: field_000000,
         effort: match field_000001 {
             Some(item) => {
@@ -326,8 +332,15 @@ pub fn model_effort_to_domain(record: crate::tasks_v13::ModelEffort) -> jig_doma
                 Some(converted)
             }
             None => None,
+        },
+        speed: match field_000002 {
+            Some(item) => {
+                let converted = match crate::codec::convert::speed_name_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::MODEL_EFFORT_SPEED.problem(reason)) };
+                Some(converted)
+            }
+            None => None,
         }
-    }
+    })
 }
 
 pub fn llm_later_to_record(value: &jig_domain_tasks::LlmLater) -> Result<crate::tasks_v13::LlmLater, crate::tasks_v13::Problem> {
@@ -347,22 +360,21 @@ pub fn llm_later_to_record(value: &jig_domain_tasks::LlmLater) -> Result<crate::
     })
 }
 
-#[must_use]
-pub fn llm_later_to_domain(record: crate::tasks_v13::LlmLater) -> jig_domain_tasks::LlmLater {
+pub fn llm_later_to_domain(record: crate::tasks_v13::LlmLater) -> Result<jig_domain_tasks::LlmLater, crate::tasks_v13::Problem> {
     let crate::tasks_v13::LlmLater { main: field_000000, subagents: field_000001 } = record;
-    jig_domain_tasks::LlmLater {
-        main: model_effort_to_domain(field_000000),
+    Ok(jig_domain_tasks::LlmLater {
+        main: model_effort_to_domain(field_000000)?,
         subagents: {
             let source = field_000001;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = model_effort_to_domain(item);
+                let converted = model_effort_to_domain(item)?;
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
-    }
+    })
 }
 
 pub fn llm_choice_to_record(value: &jig_domain_tasks::LlmChoice) -> Result<crate::tasks_v13::LlmChoice, crate::tasks_v13::Problem> {
@@ -396,24 +408,23 @@ pub fn llm_choice_to_record(value: &jig_domain_tasks::LlmChoice) -> Result<crate
     })
 }
 
-#[must_use]
-pub fn llm_choice_to_domain(record: crate::tasks_v13::LlmChoice) -> jig_domain_tasks::LlmChoice {
+pub fn llm_choice_to_domain(record: crate::tasks_v13::LlmChoice) -> Result<jig_domain_tasks::LlmChoice, crate::tasks_v13::Problem> {
     let crate::tasks_v13::LlmChoice { main: field_000000, subagents: field_000001, later: field_000002, account: field_000003 } = record;
-    jig_domain_tasks::LlmChoice {
-        main: model_effort_to_domain(field_000000),
+    Ok(jig_domain_tasks::LlmChoice {
+        main: model_effort_to_domain(field_000000)?,
         subagents: {
             let source = field_000001;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = model_effort_to_domain(item);
+                let converted = model_effort_to_domain(item)?;
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         later: match field_000002 {
             Some(item) => {
-                let converted = llm_later_to_domain(item);
+                let converted = llm_later_to_domain(item)?;
                 Some(converted)
             }
             None => None,
@@ -425,7 +436,7 @@ pub fn llm_choice_to_domain(record: crate::tasks_v13::LlmChoice) -> jig_domain_t
             }
             None => None,
         }
-    }
+    })
 }
 
 #[must_use]
@@ -1857,7 +1868,7 @@ pub fn amendment_to_domain(record: crate::tasks_v13::Amendment, context: &crate:
         },
         llm: match field_000008 {
             Some(item) => {
-                let converted = llm_choice_to_domain(item);
+                let converted = llm_choice_to_domain(item)?;
                 Some(converted)
             }
             None => None,
@@ -2111,7 +2122,7 @@ pub fn settings_to_domain(record: crate::tasks_v13::Settings, context: &crate::c
         authority: crate::codec::tasks::authority_to_domain(field_000007, context)?,
         llm: match field_000008 {
             Some(item) => {
-                let converted = llm_choice_to_domain(item);
+                let converted = llm_choice_to_domain(item)?;
                 Some(converted)
             }
             None => None,
@@ -4790,6 +4801,7 @@ pub fn llm_fault_to_record(value: &jig_domain_tasks::LlmFault) -> crate::tasks_v
         jig_domain_tasks::LlmFault::Authority => crate::tasks_v13::LlmFault::Authority,
         jig_domain_tasks::LlmFault::Procedure => crate::tasks_v13::LlmFault::Procedure,
         jig_domain_tasks::LlmFault::Repeated => crate::tasks_v13::LlmFault::Repeated,
+        jig_domain_tasks::LlmFault::Speed => crate::tasks_v13::LlmFault::Speed,
     }
 }
 
@@ -4802,6 +4814,7 @@ pub fn llm_fault_to_domain(record: crate::tasks_v13::LlmFault) -> jig_domain_tas
         crate::tasks_v13::LlmFault::Authority => jig_domain_tasks::LlmFault::Authority,
         crate::tasks_v13::LlmFault::Procedure => jig_domain_tasks::LlmFault::Procedure,
         crate::tasks_v13::LlmFault::Repeated => jig_domain_tasks::LlmFault::Repeated,
+        crate::tasks_v13::LlmFault::Speed => jig_domain_tasks::LlmFault::Speed,
     }
 }
 

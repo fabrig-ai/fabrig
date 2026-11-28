@@ -77,7 +77,12 @@ within the deployment's parameters per spec (jig's `tasks.parameters`,
 empty where the change names none. A choice is spelled as jig keeps
 it, by configured index (jig's `domain/tasks/README.md`, section 3): its main,
 then each sub-agent, separated by one space, each `M` or `M.E`, the
-model's index and its effort's, in decimal (`6;3.1 0.0 2;3.0`). A
+model's index and its effort's, in decimal, then, where it names a
+speed, `@` and the speed by its name, `standard` included, since jig
+keeps a speed by name (`6;3.1@ultrafast 0.0 2;3.0`). An entry with no
+`@` names no speed, so a parameter 11 spelled before speeds reads as it
+did, and a follow's producer, spelled the same (`../follows.md`), reads
+the speed too. A
 change without parameter 11, or with an empty part, runs its producer
 under the forge's change charter, or leaves that role to its charter's
 default; a parameter 11 that does not spell them refuses the change's
@@ -185,22 +190,15 @@ request's exact text form (`../../../protocol/tooling.md`, 4.2), within the clos
 kind's spec bound less the command's path; a value in another form, beside
 parameter 16 or on a change with a branch of its own pushed or handed,
 refuses the change's start as a malformed parameter. Its start is refused,
-naming the setting, where it carries no parameter 20 and the change's
-project names no `close_job`, and
-naming the kind where its authority does not delegate to kind 4. Like a
+naming the kind, where its authority does not delegate to kind 4. Like a
 catch-up's, its producer is the job: the change makes its own branch at its
 landing branch's tip, the job's checkout, and a job that pushed nothing ends
 the change with no change, as a catch-up already contained does (`../branches.md`, 2).
-
-The close hook a goal's close step found is bytes parameter 20: the
-hook's path in the repository, `.temper/hooks/close` as the closer
-writes it, within `close_job`'s bounds (relative, no NUL, no `..`
-segment, at most 4,096 bytes), and only beside parameter 17; another
-value, or one without parameter 17, refuses the start as a malformed
-parameter. With it, the change's job runs that path and the project's
-`close_job` is not read; without it, the project's `close_job`, as
-before, so a close change an earlier engine made runs as it did
-(`../../../protocol/hooks.md`, 4.2).
+Its job finds the close command in its checkout, `.temper/hooks/close`
+or, where it holds no `.temper/hooks/`, the project's `close_job`
+(`../../../protocol/hooks.md`, 4.2 and 4.3). Bytes parameter 20, the
+hook's path an earlier engine's closer wrote where its read found one,
+is read as no parameter and never written.
 
 The red landing a change repairs is carried as bytes parameter 12, its merge
 commit as 40 or 64 lowercase hexadecimal digits. The start keeps it with the

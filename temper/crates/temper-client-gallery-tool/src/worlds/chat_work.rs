@@ -57,6 +57,7 @@ fn call(number: u64, tool: &str, input: &str, outcome: &str, failed: bool) -> c:
         input: text(input),
         outcome: Some(text(outcome)),
         failed,
+        answer: None,
         objects: List::with_capacity(0),
         parts: List::with_capacity(0),
     })

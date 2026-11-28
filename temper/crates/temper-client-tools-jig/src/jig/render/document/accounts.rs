@@ -587,6 +587,20 @@ fn model_rows(held: &c::MeProject, provider: Option<u32>, out: &mut Encoder, cut
             Some(effort) => cut.words(effort.bytes(), out),
             None => out.null(),
         }
+        out.key(b"speeds");
+        out.array_start();
+        for speed in &item.speeds {
+            if !window.take(32) {
+                break;
+            }
+            cut.words(speed.name.bytes(), out);
+        }
+        out.array_end();
+        out.key(b"speed");
+        match &item.speed {
+            Some(speed) => cut.words(speed.bytes(), out),
+            None => out.null(),
+        }
         out.key(b"accounts");
         out.array_start();
         for account in &item.accounts {

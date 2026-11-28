@@ -52,6 +52,8 @@ pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
             unit: model.price_unit,
         },
         description: None,
+        speeds: Box::default(),
+        speed: None,
     }])
 }
 

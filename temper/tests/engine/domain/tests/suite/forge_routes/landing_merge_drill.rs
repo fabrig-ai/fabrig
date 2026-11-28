@@ -153,7 +153,9 @@ fn drill_16_a_batch_four_conflict_is_settled_by_the_merge_job_without_an_agent()
         &mut skein_lib::Reader::new(&merge.spec),
     )
     .expect("merge spec");
-    assert_eq!(spec.command.as_ref(), b"repo/.temper/merge");
+    assert_eq!(spec.command.as_ref(), b"repo/.temper/hooks/merge");
+    assert!(spec.find);
+    assert_eq!(spec.fallback.as_ref(), b"repo/.temper/merge");
     let row = super::super::goal_landing::row(&world, conflicted);
     let branch = row.branch.clone();
     let head = fake::commit_count(&row.change.last_head.expect("member head")).expect("head");

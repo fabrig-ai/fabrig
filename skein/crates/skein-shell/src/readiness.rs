@@ -460,7 +460,6 @@ fn retry_interrupted(kind: &Op) -> bool {
         | Op::Sync { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
-        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
@@ -496,7 +495,6 @@ fn side(kind: &Op) -> Option<(Fd, Side)> {
         | Op::Lock { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
-        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
@@ -551,7 +549,6 @@ fn perform(kind: &mut Op, resumed: bool, nonblocking: bool, listing: &mut system
         | Op::Sync { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
-        | Op::ReadLink { .. }
         | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
@@ -603,7 +600,6 @@ fn perform_call(kind: &mut Op, resumed: bool, nonblocking: bool, listing: &mut s
             system::close(*fd).map(|()| Done::Nothing)
         }
         Op::Read { fd, buf, at } => system::files::read(*fd, buf, *at).map(Done::Count),
-        Op::ReadLink { dir, name, buf } => crate::posix::links::read_target(dir.raw(), name, buf).map(Done::Count),
         Op::Write { fd, bytes, from, at } => system::files::write(*fd, remaining(bytes, *from), *at).map(Done::Count),
         Op::Append { fd, bytes, from } => system::write(*fd, remaining(bytes, *from)).map(Done::Count),
         Op::Truncate { fd, length } => system::files::truncate(*fd, *length).map(|()| Done::Nothing),

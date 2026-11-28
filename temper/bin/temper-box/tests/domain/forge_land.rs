@@ -999,6 +999,7 @@ fn referee_turn() -> jig_client::contract::TurnRead {
                 input: text(b"request"),
                 outcome: outcome.map(text),
                 failed,
+                answer: None,
                 objects: List::with_capacity(0),
                 parts: List::with_capacity(0),
             }))
@@ -1766,7 +1767,7 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
 }
 
 #[test]
-fn stock_charters_keep_seven_models_and_choose_the_boxs_scripted_default() {
+fn stock_charters_keep_eight_models_and_choose_the_boxs_scripted_default() {
     use std::path::Path;
     use support::forge_land::{LiveModel, LiveProfile};
 
@@ -1781,7 +1782,7 @@ fn stock_charters_keep_seven_models_and_choose_the_boxs_scripted_default() {
         .filter(|entry| entry.number != 8)
         .map(|entry| (entry.model.name.as_ref(), entry.model.endpoint))
         .collect();
-    assert_eq!(ordinary.len(), 7);
+    assert_eq!(ordinary.len(), 8);
     ordinary.sort();
     for charter in &defaults.charters {
         assert_eq!((charter.policy.model.name.as_ref(), charter.policy.model.endpoint), (b"demo".as_slice(), 3));

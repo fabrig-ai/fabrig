@@ -27,7 +27,7 @@ pub(crate) fn judged(row: &mut ChangeRow, pushed: bool) -> Option<Box<[u8]>> {
         return None;
     }
     match result(&row.report, row.close_at, pushed) {
-        Some(Verdict::Settled) => {}
+        Some(Verdict::Settled) => clear_findings(row),
         Some(Verdict::Outdated(finding)) => {
             // No landing judgement was made. Leave the job passed so the change can end without a hold.
             let at = row.close_at.as_mut().expect("an outdated finding names its attempt");
@@ -120,6 +120,7 @@ fn result(raw: &[u8], at: Option<change::CloseAt>, pushed: bool) -> Option<Verdi
         let start = typed_start(&document, object, at?, pushed)?;
         return refusal(&document, object, start);
     }
+    // A found-hook job that answers none still reports settlement: an empty `settled` array.
     strings(&document, document.member(0, b"settled")?)?;
     Some(Verdict::Settled)
 }
@@ -366,6 +367,19 @@ mod tests {
             assert_eq!(row.delegate_status, change::Status::Failed);
             assert_eq!(row.close_at.unwrap().failed_cause(), cause);
             assert_eq!(row.close_at.unwrap().outdated, None);
+        }
+    }
+
+    #[test]
+    fn a_finished_close_accepts_settlement_with_or_without_a_found_hook() {
+        let at = change::CloseAt { outdated: Some(change::CloseOutdated::Window), ..AT };
+        for result in [br#"{"settled":[]}"#.as_slice(), br#"{"settled":[],"hook":"none"}"#.as_slice()] {
+            let row = finished(at, result, false);
+            assert_eq!(row.delegate_status, change::Status::Passed);
+            let at = row.close_at.unwrap();
+            assert!(at.refused.is_none());
+            assert!(at.outdated.is_none());
+            assert_eq!(row.report.as_ref(), result);
         }
     }
 

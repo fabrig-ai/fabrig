@@ -41,6 +41,8 @@ fn model(name: &str, provider: u32, shown: &str) -> c::MeModel {
         picker: true,
         description: None,
         prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 5, unit: 1000 },
+        speeds: List::with_capacity(0),
+        speed: None,
     }
 }
 fn fixture(openai: bool) -> (d::Domain, Token, Token) {
@@ -83,7 +85,7 @@ fn fixture(openai: bool) -> (d::Domain, Token, Token) {
             choice: c::LlmChoice {
                 later: None,
                 account: None,
-                main: c::ModelEffort { model: text("claude-sonnet-5-5"), effort: Some(text("low")) },
+                main: c::ModelEffort { model: text("claude-sonnet-5-5"), effort: Some(text("low")), speed: None },
                 subagents: List::with_capacity(0),
             },
         },
@@ -92,7 +94,7 @@ fn fixture(openai: bool) -> (d::Domain, Token, Token) {
             choice: c::LlmChoice {
                 later: None,
                 account: None,
-                main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("low")) },
+                main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("low")), speed: None },
                 subagents: List::with_capacity(0),
             },
         },

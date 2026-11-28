@@ -141,14 +141,15 @@ pub fn settings_values() -> List<SettingValue> {
             grace: Some(Duration::from_secs(18)),
             llm: Some(LlmChoice {
                 later: Some(LlmLater {
-                    main: ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
+                    main: ModelEffort { model: text(b"model"), effort: Some(text(b"high")), speed: None },
                     subagents: List::from_boxed(Box::new([ModelEffort {
                         model: text(b"model"),
                         effort: Some(text(b"high")),
+                        speed: None,
                     }])),
                 }),
                 account: Some(21),
-                main: ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
+                main: ModelEffort { model: text(b"model"), effort: Some(text(b"high")), speed: None },
                 subagents: List::with_capacity(0),
             }),
         })))

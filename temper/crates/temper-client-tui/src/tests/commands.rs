@@ -24,6 +24,8 @@ pub(super) fn model() -> c::MeModel {
         shown: None,
         accounts: List::from_boxed(Box::new([1])),
         picker: true,
+        speeds: List::with_capacity(0),
+        speed: None,
     }
 }
 fn template(number: u32) -> c::Template {
@@ -66,7 +68,7 @@ fn root(project: bool, picker: bool, chat: bool, delegate: bool, draft: bool, ef
                 template: d::pages::chats::ASKING_TEMPLATE,
                 choice: c::LlmChoice {
                     account: Some(1),
-                    main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
+                    main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")), speed: None },
                     subagents: List::with_capacity(0),
                     later: None,
                 },
@@ -146,7 +148,7 @@ fn root(project: bool, picker: bool, chat: bool, delegate: bool, draft: bool, ef
         ]));
         task.llm = Some(c::LlmChoice {
             account: Some(1),
-            main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
+            main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")), speed: None },
             subagents: List::with_capacity(0),
             later: None,
         });

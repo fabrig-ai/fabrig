@@ -33,7 +33,13 @@ fn exponential_equal_jitter_saturates_without_overflow_and_replays() {
 
 /// One configured charter, number 1, with the one configured model, which declares no effort.
 pub(crate) fn charters() -> Box<[crate::CharterModels]> {
-    Box::new([crate::CharterModels { resumes: false, number: 1, revision: 1, models: Some(Box::new([0])) }])
+    Box::new([crate::CharterModels {
+        resumes: false,
+        number: 1,
+        revision: 1,
+        models: Some(Box::new([0])),
+        speeds: Box::default(),
+    }])
 }
 
 mod attempts;

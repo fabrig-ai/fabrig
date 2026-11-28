@@ -162,7 +162,7 @@ fn an_unconfigured_model_is_answered_immediately() {
     tasks.get_mut(0).expect("one chat").llm = Some(c::LlmChoice {
         later: None,
         account: None,
-        main: c::ModelEffort { model: text(b"missing"), effort: None },
+        main: c::ModelEffort { model: text(b"missing"), effort: None, speed: None },
         subagents: skein_lib::List::with_capacity(0),
     });
     let attempt = Token::new(91);

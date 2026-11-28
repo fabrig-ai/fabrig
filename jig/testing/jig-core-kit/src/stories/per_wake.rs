@@ -8,8 +8,8 @@ use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
 
-pub const M1: tasks::ModelEffort = tasks::ModelEffort { model: 0, effort: Some(0) };
-pub const M2: tasks::ModelEffort = tasks::ModelEffort { model: 1, effort: Some(1) };
+pub const M1: tasks::ModelEffort = tasks::ModelEffort { model: 0, effort: Some(0), speed: None };
+pub const M2: tasks::ModelEffort = tasks::ModelEffort { model: 1, effort: Some(1), speed: None };
 
 #[must_use]
 pub fn world(seed: u64, parts: bool) -> World {

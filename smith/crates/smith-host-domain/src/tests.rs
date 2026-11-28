@@ -182,6 +182,7 @@ fn mount(name: &[u8], writable: bool, git: bool, conflicts: &[&[u8]]) -> crate::
     }
     crate::Directory {
         results: None,
+        hooks: None,
         host: Box::from(b"/host".as_slice()),
         root: Token::new(1),
         name: Box::from(name),

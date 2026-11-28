@@ -97,7 +97,7 @@ fn amend_model(driver: &mut Driver, task: u64) {
     amendment.llm = Some(people::LlmChoice {
         later: None,
         account: None,
-        main: people::ModelEffort { model: 0, effort: Some(0) },
+        main: people::ModelEffort { model: 0, effort: Some(0), speed: None },
         subagents: Box::new([]),
     });
     ask(driver, AMENDMENT_KEY, people::Ask::Amend { project: PROJECT, task, revision, amendment, release: None });

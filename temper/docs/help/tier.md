@@ -125,7 +125,9 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   producers, repairs and resolutions, including goal landings; absent,
   the agent's bound applies. Other runs keep the agent's bound. Each
   attempt uses that start's value; it need not fit the reserve, and a
-  check is cut at the run's end.
+  check is cut at the run's end. Set optional `hook_timeout_max_seconds`
+  beside `by` to cap the project's hooks and set its merge and close jobs'
+  deadlines at the next start: 1 to 86,400 seconds, 3,600 when absent.
 - **The report format:** set `format` to `junit` for JUnit reports or
   `lines` for one failing test id per line.
 - **The workflow** is dispatch-only and takes the inputs

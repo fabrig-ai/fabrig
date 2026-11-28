@@ -99,6 +99,14 @@ pub fn resolution(charter: &Charter, models: &[CatalogueModel], limits: &Limits)
                     {
                         model.effort = Some(effort.clone());
                     }
+                    if let Some(speed) = &named.speed {
+                        if speed.as_ref() == tasks::STANDARD_SPEED {
+                            model.speed = None;
+                        } else if model.speed_named(speed).is_some() {
+                            model.speed = Some(speed.clone());
+                        }
+                        // Before admission, an invalid override leaves the catalogue default in place.
+                    }
                     break;
                 }
             }

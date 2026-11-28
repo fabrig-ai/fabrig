@@ -38,12 +38,41 @@ pub(crate) fn head_to_domain(head: Box<[u8]>) -> Result<Box<[u8]>, Reason> {
 /// The worker's decoded workspace with per-repository saved-work branches (protocol/channel.md, 7).
 pub type Assigned = worker::Workspace;
 
-/// Copy every workspace field from its channel record, or an empty workspace.
+#[must_use]
+pub(crate) fn items_to_domain(items: v1::Items) -> worker::Workspace {
+    let mut repositories = List::with_capacity(items.repositories.len());
+    for repository in items.repositories.into_boxed() {
+        repositories.push(worker_wire::repository_to_domain(repository)).expect("one output per repository");
+    }
+    worker::Workspace {
+        hook_timeout_max_seconds: items.hook_timeout_max_seconds,
+        repositories: repositories.into_boxed(),
+        rerun: items.rerun,
+    }
+}
+
+#[must_use]
+pub(crate) fn job_spec_to_domain(spec: v1::JobSpec) -> worker::JobSpec {
+    worker::JobSpec {
+        command: spec.command,
+        request: spec.request,
+        refusal: spec.refusal,
+        result: spec.result,
+        outdated: spec.outdated,
+        fallback: if spec.find { Some(spec.fallback) } else { None },
+    }
+}
+
+/// Copy the workspace from its channel record, or give an empty workspace.
 #[must_use]
 pub fn workspace(items: Option<&v1::Items>) -> Assigned {
     match items {
-        Some(items) => worker_wire::items_to_domain(items.clone()),
-        None => worker::Workspace { rerun: None, repositories: Box::new([]) },
+        Some(items) => items_to_domain(items.clone()),
+        None => worker::Workspace {
+            hook_timeout_max_seconds: temper_service_core::limits::HOOK_TIMEOUT_MAX_DEFAULT,
+            rerun: None,
+            repositories: Box::new([]),
+        },
     }
 }
 
@@ -150,7 +179,7 @@ mod tests {
         };
         let mut repositories = List::with_capacity(1);
         repositories.push(repository).expect("fixture repository");
-        v1::Items { repositories, rerun: None }
+        v1::Items { repositories, rerun: None, hook_timeout_max_seconds: 3600 }
     }
 
     #[test]

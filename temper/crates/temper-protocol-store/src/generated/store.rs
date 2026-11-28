@@ -2493,36 +2493,6 @@ pub fn change_result_to_domain(record: crate::v25::ChangeResult) -> temper_engin
 }
 
 #[must_use]
-pub fn model_effort_to_record(value: &jig_domain_tasks::ModelEffort) -> crate::v25::ModelEffort {
-    let jig_domain_tasks::ModelEffort { model: field_000000, effort: field_000001 } = value;
-    crate::v25::ModelEffort {
-        model: *field_000000,
-        effort: match field_000001 {
-            Some(item) => {
-                let converted = *item;
-                Some(converted)
-            }
-            None => None,
-        }
-    }
-}
-
-#[must_use]
-pub fn model_effort_to_domain(record: crate::v25::ModelEffort) -> jig_domain_tasks::ModelEffort {
-    let crate::v25::ModelEffort { model: field_000000, effort: field_000001 } = record;
-    jig_domain_tasks::ModelEffort {
-        model: field_000000,
-        effort: match field_000001 {
-            Some(item) => {
-                let converted = item;
-                Some(converted)
-            }
-            None => None,
-        }
-    }
-}
-
-#[must_use]
 pub fn open_to_record(value: &temper_engine_domain_forge_change::Open) -> crate::v25::Open {
     let temper_engine_domain_forge_change::Open { asker: field_000000, number: field_000001, line: field_000002, words: field_000003, stands: field_000004 } = value;
     crate::v25::Open {
@@ -6020,10 +5990,17 @@ pub fn settings_combine_to_domain(record: crate::v25::SettingsCombine) -> temper
 
 #[must_use]
 pub fn named_model_to_record(value: &temper_engine_domain_forge_vocabulary::settings::NamedModel) -> crate::v25::NamedModel {
-    let temper_engine_domain_forge_vocabulary::settings::NamedModel { model: field_000000, effort: field_000001 } = value;
+    let temper_engine_domain_forge_vocabulary::settings::NamedModel { model: field_000000, effort: field_000001, speed: field_000002 } = value;
     crate::v25::NamedModel {
         model: field_000000.clone(),
         effort: match field_000001 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        speed: match field_000002 {
             Some(item) => {
                 let converted = item.clone();
                 Some(converted)
@@ -6035,10 +6012,17 @@ pub fn named_model_to_record(value: &temper_engine_domain_forge_vocabulary::sett
 
 #[must_use]
 pub fn named_model_to_domain(record: crate::v25::NamedModel) -> temper_engine_domain_forge_vocabulary::settings::NamedModel {
-    let crate::v25::NamedModel { model: field_000000, effort: field_000001 } = record;
+    let crate::v25::NamedModel { model: field_000000, effort: field_000001, speed: field_000002 } = record;
     temper_engine_domain_forge_vocabulary::settings::NamedModel {
         model: field_000000,
         effort: match field_000001 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        speed: match field_000002 {
             Some(item) => {
                 let converted = item;
                 Some(converted)
@@ -6201,7 +6185,7 @@ pub fn repair_settings_to_domain(record: crate::v25::RepairSettings) -> temper_e
 }
 
 pub fn project_landing_to_record(value: &temper_engine_domain_forge_vocabulary::settings::ProjectLanding) -> Result<crate::v25::ProjectLanding, crate::v25::Problem> {
-    let temper_engine_domain_forge_vocabulary::settings::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014 } = value;
+    let temper_engine_domain_forge_vocabulary::settings::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014, hook_timeout_max_seconds: field_000015 } = value;
     Ok(crate::v25::ProjectLanding {
         by: settings_landing_way_to_record(field_000000),
         batch: *field_000001,
@@ -6247,13 +6231,14 @@ pub fn project_landing_to_record(value: &temper_engine_domain_forge_vocabulary::
                 Some(converted)
             }
             None => None,
-        }
+        },
+        hook_timeout_max_seconds: *field_000015
     })
 }
 
 #[must_use]
 pub fn project_landing_to_domain(record: crate::v25::ProjectLanding) -> temper_engine_domain_forge_vocabulary::settings::ProjectLanding {
-    let crate::v25::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014 } = record;
+    let crate::v25::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014, hook_timeout_max_seconds: field_000015 } = record;
     temper_engine_domain_forge_vocabulary::settings::ProjectLanding {
         by: settings_landing_way_to_domain(field_000000),
         batch: field_000001,
@@ -6299,7 +6284,8 @@ pub fn project_landing_to_domain(record: crate::v25::ProjectLanding) -> temper_e
                 Some(converted)
             }
             None => None,
-        }
+        },
+        hook_timeout_max_seconds: field_000015
     }
 }
 

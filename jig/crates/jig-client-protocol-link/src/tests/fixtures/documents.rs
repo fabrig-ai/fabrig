@@ -288,6 +288,7 @@ pub fn decoded_live_call_expected() -> c::LiveCall {
         input: text(b"x"),
         outcome: Some(text(b"yes")),
         failed: false,
+        answer: None,
         objects: List::with_capacity(0),
         parts: List::with_capacity(0),
     })

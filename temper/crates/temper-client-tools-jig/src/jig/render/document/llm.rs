@@ -82,6 +82,11 @@ fn model(value: &c::ModelEffort, out: &mut Encoder, cut: &mut Cut) {
         Some(effort) => cut.words(effort.bytes(), out),
         None => out.null(),
     }
+    out.key(b"speed");
+    match &value.speed {
+        Some(speed) => cut.words(speed.bytes(), out),
+        None => out.null(),
+    }
     out.object_end();
 }
 fn wait(value: c::TaskWaitWhy, out: &mut Encoder) {
@@ -141,7 +146,7 @@ fn deadline(label: &[u8], until: Option<skein_lib::Wall>, out: &mut Encoder) {
     out.object_end();
     out.object_end();
 }
-/// Print the supplied main and ordered sub-agent choices, with their optional efforts.
+/// Print the supplied main and ordered sub-agent choices, with their optional efforts and speeds.
 pub(super) fn text_choice(choice: Option<&c::LlmChoice>, out: &mut Text) {
     let Some(choice) = choice else { return };
     out.put(b"\nmain model: ");
@@ -156,6 +161,10 @@ fn text_model(value: &c::ModelEffort, out: &mut Text) {
     if let Some(effort) = &value.effort {
         out.put(b"/");
         out.words(effort.bytes());
+    }
+    if let Some(speed) = &value.speed {
+        out.put(b" at ");
+        out.words(speed.bytes());
     }
 }
 /// Whether no account serves the next run (client/ctl/results.md, 1).

@@ -9,6 +9,8 @@ const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 1000;
 const REQUEST: &[u8] = br#"{"version":1,"goal":7,"changes":[{"task":9,"landed":true}]}"#;
 const COMMAND: &[u8] = b".temper/close";
+const CUSTOM_CEILING: u32 = 1_800;
+const DEFAULT_CEILING: u32 = 3_600;
 
 fn goal_world(command: bool, authority: bool) -> (World, engine::Assignment, Box<[u8]>, u64) {
     goal_world_with_worker(command, authority, true)
@@ -19,14 +21,15 @@ fn goal_world_with_worker(
     authority: bool,
     close_worker: bool,
 ) -> (World, engine::Assignment, Box<[u8]>, u64) {
-    goal_world_with_flakes(command, authority, close_worker, None)
+    goal_world_with_landing_settings(command, authority, close_worker, None, None)
 }
 
-fn goal_world_with_flakes(
+fn goal_world_with_landing_settings(
     command: bool,
     authority: bool,
     close_worker: bool,
     flakes: Option<forge_top::settings::Flakes>,
+    hook_ceiling: Option<u32>,
 ) -> (World, engine::Assignment, Box<[u8]>, u64) {
     let landing_deployment = Box::new([engine::LandingRule {
         sets: Box::new([]),
@@ -58,6 +61,9 @@ fn goal_world_with_flakes(
     );
     if let Some(flakes) = flakes {
         world = world.with_flakes(flakes);
+    }
+    if let Some(ceiling) = hook_ceiling {
+        world = world.with_hook_ceiling(ceiling);
     }
     world.adopt();
     if close_worker {
@@ -93,7 +99,7 @@ fn close_bound() -> jig_domain_link::JobBound {
         kind: jig_domain_link::JobKind(forge_top::CLOSE_KIND),
         spec: 16_384,
         result: 512,
-        deadline: Duration::from_secs(600),
+        deadline: Duration::from_secs(86_400),
     }
 }
 
@@ -196,14 +202,21 @@ fn refusal_commit(commit: [u8; 32]) -> String {
 }
 
 #[test]
-fn run_and_close_workspace_items_carry_the_restored_rerun_bound() {
+fn run_and_close_workspace_items_carry_restored_project_bounds() {
     use forge_top::settings::Flakes;
-    for (flakes, expected) in [(Some(Flakes::Never), Some(0)), (Some(Flakes::Rerun(3)), Some(3)), (None, None)] {
-        let (mut world, goal, branch, _) = goal_world_with_flakes(true, true, true, flakes);
+    for (flakes, expected, ceiling, expected_ceiling) in [
+        (Some(Flakes::Never), Some(0), Some(CUSTOM_CEILING), CUSTOM_CEILING),
+        (Some(Flakes::Rerun(3)), Some(3), Some(CUSTOM_CEILING), CUSTOM_CEILING),
+        (None, None, None, DEFAULT_CEILING),
+    ] {
+        let (mut world, goal, branch, _) = goal_world_with_landing_settings(true, true, true, flakes, ceiling);
         let change = make_change(&mut world, &goal, &branch, REQUEST, None);
         let job = next_job(&mut world, change);
         let items = world.job_workspaces.get(&job.run.raw()).expect("close job items");
         assert_eq!((goal.workspace.rerun, items.rerun), (expected, expected), "flakes {flakes:?}");
+        assert_eq!(goal.workspace.hook_timeout_max_seconds, expected_ceiling);
+        assert_eq!(items.hook_timeout_max_seconds, expected_ceiling);
+        assert_eq!(job.deadline, Duration::from_secs(u64::from(expected_ceiling)));
         finish_job(&mut world, &job);
         world.close();
     }
@@ -225,10 +238,12 @@ fn a_close_job_starts_at_the_tip_read_before_assignment() {
     hello_close_worker(&mut world);
     let job = next_job(&mut world, task);
     assert_eq!(job.kind, jig_domain_link::JobKind(forge_top::CLOSE_KIND));
-    assert_eq!(job.deadline, Duration::from_secs(600));
+    assert_eq!(job.deadline, Duration::from_secs(u64::from(DEFAULT_CEILING)));
     assert_eq!(live_task(&world, job.run.raw()).requester, tasks::Party::Task(task));
     let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("close job spec");
-    assert_eq!(decoded.command.as_ref(), b"repo/.temper/close");
+    assert_eq!(decoded.command.as_ref(), b"repo/.temper/hooks/close");
+    assert!(decoded.find && decoded.refusal);
+    assert_eq!(decoded.fallback.as_ref(), b"repo/.temper/close");
     assert_eq!(decoded.request.as_ref(), REQUEST);
     assert_eq!(change_row(&world, task).close.as_deref(), Some(REQUEST));
     let workspace = job.workspace.as_ref().expect("writable workspace");
@@ -330,12 +345,7 @@ fn refused(command: bool, authority: bool, request: &[u8], extra: Option<tasks::
 }
 
 #[test]
-fn a_close_change_is_refused_without_a_close_job() {
-    refused(false, true, REQUEST, None, b"change's close: the project names no close_job.");
-}
-
-#[test]
-fn a_close_change_is_refused_without_the_close_kind() {
+fn a_close_change_is_refused_without_close_job_authority() {
     refused(true, false, REQUEST, None, b"change's close: its authority does not delegate to job kind 4.");
 }
 
@@ -351,32 +361,19 @@ fn a_malformed_close_request_refuses_the_start() {
 }
 
 #[test]
-fn a_close_change_checks_and_uses_its_hook_parameter_without_a_setting() {
-    use temper_protocol_worker_wire::v1::{self, Record};
-    let (mut world, goal, branch, _) = goal_world(false, true);
-    let parameter = tasks::Parameter::Bytes { name: 20, value: forge_top::CLOSE_HOOK.into() };
-    let task = make_change(&mut world, &goal, &branch, REQUEST, Some(parameter));
-    let job = next_job(&mut world, task);
-    let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("close job spec");
-    assert_eq!(spec.command.as_ref(), b"repo/.temper/hooks/close");
-    world.close();
-
-    let long = vec![b'x'; 4097];
-    for (request, path) in [
-        (REQUEST, b"".as_slice()),
-        (REQUEST, b"/close".as_slice()),
-        (REQUEST, b"hooks/../close".as_slice()),
-        (REQUEST, b"close\0more".as_slice()),
-        (REQUEST, long.as_slice()),
-        (b"".as_slice(), forge_top::CLOSE_HOOK),
-    ] {
-        refused(
-            true,
-            true,
-            request,
-            Some(tasks::Parameter::Bytes { name: 20, value: path.into() }),
-            b"malformed close hook parameter 20.",
-        );
+fn a_close_change_ignores_legacy_hook_parameter_twenty() {
+    use temper_protocol_worker_wire::v1;
+    for legacy in [None, Some(forge_top::CLOSE_HOOK), Some(b"/ignored")] {
+        let (mut world, goal, branch, _) = goal_world(false, true);
+        let parameter = legacy.map(|path| tasks::Parameter::Bytes { name: 20, value: path.into() });
+        let task = make_change(&mut world, &goal, &branch, REQUEST, parameter);
+        let job = next_job(&mut world, task);
+        let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("close job spec");
+        assert_eq!(spec.command.as_ref(), b"repo/.temper/hooks/close");
+        assert_eq!(spec.request.as_ref(), REQUEST);
+        assert!(spec.find && spec.refusal);
+        assert!(spec.fallback.is_empty());
+        world.close();
     }
 }
 

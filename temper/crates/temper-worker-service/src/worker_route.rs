@@ -1,6 +1,5 @@
 //! Smith payloads are translated in the worker layer (jig's
 //! protocol/channel/owners.md, 1.1 and 1.4).
-use crate::generated::worker_wire;
 use alloc::boxed::Box;
 use jig_domain_host as hub;
 use jig_protocol_worker_agents::route;
@@ -105,7 +104,7 @@ pub fn items(
     if !reader.is_empty() {
         return Err(temper_worker_domain::wire::ItemsRefusal::Invalid);
     }
-    Ok(worker_wire::items_to_domain(items))
+    Ok(translate::items_to_domain(items))
 }
 /// A job's workspace uses the run's items family (temper/docs/design/domain/worker/jobs.md).
 pub fn job_items(
@@ -119,7 +118,7 @@ pub fn job_items(
     let bytes = part(workspace.items, parts).ok_or(temper_worker_domain::wire::Undecodable)?;
     let items = temper_protocol_worker_wire::v1::Items::decode(limits, &mut Reader::new(bytes))
         .or(Err(temper_worker_domain::wire::Undecodable))?;
-    Ok(worker_wire::items_to_domain(items))
+    Ok(translate::items_to_domain(items))
 }
 /// Decode the job's spec at the protocol boundary (temper/docs/design/protocol/tooling.md, 2).
 pub fn job_spec(
@@ -128,7 +127,7 @@ pub fn job_spec(
 ) -> Result<temper_worker_domain::wire::JobSpec, temper_worker_domain::wire::Undecodable> {
     let spec = temper_protocol_worker_wire::v1::JobSpec::decode(limits, &mut Reader::new(bytes))
         .or(Err(temper_worker_domain::wire::Undecodable))?;
-    Ok(worker_wire::job_spec_to_domain(spec))
+    Ok(translate::job_spec_to_domain(spec))
 }
 fn part(token: Token, parts: &[jig_protocol_worker_wire::Part]) -> Option<&[u8]> {
     for part in parts {
@@ -250,6 +249,7 @@ pub fn fit_start(mut start: smith::Start, limits: &smith_domain_run::Limits, cha
                     git: directory.git,
                     conflicts: directory.conflicts.clone(),
                     results: None,
+                    hooks: directory.hooks.clone(),
                 })
                 .expect("one entry per prepared directory");
         }

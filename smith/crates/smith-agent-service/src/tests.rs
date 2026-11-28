@@ -725,6 +725,7 @@ fn a_small_window_lowers_the_guide_bound_and_admits_the_run() {
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             name: b"work".as_slice().into(),
             host: b"/workspace".as_slice().into(),
             root: Token::new(1),
