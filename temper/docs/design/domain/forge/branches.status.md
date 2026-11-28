@@ -3,16 +3,6 @@
 2026-11-27. Where the tree's code lags or departs from [branches.md](branches.md).
 
 
-- **Design departs:** 2, *A close found outdated*, *Kept*: the request of 2026-11-27 asks for the catch-up once per goal tip; the closer asks it once per close request, since its own catch-up moves the goal's branch's tip, so a rule by tip would catch up again after it. The intent, one catch-up for the goal's work and none in a loop, is kept. Decided by the goal's designer, 2026-11-27.
-
-
-
-
-
-
-
-
-
 `change/repairs.md` has no known implementation gap in a resolution's files:
 its pull section carries a file whole, both sides, where it fits the
 room the section has left, and names one that doesn't, with its sides'

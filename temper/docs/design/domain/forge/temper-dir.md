@@ -136,7 +136,7 @@ files, and the judgement made of them, is
 
   A change into any other branch isn't covered either: a goal's branch
   lands whole as the change that lands it into the landing branch
-  (`branches.md`, section 2), and is checked then.
+  (`branches-closer.md`, section 1), and is checked then.
 - **Probe before comparing:** the step that could decide a queue merge
   or admit the change to a turn reads whether the change's head or its
   base's tip holds method, pinned to those commits. It keeps the result

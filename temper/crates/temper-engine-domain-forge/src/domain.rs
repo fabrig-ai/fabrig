@@ -1842,7 +1842,7 @@ impl Domain {
         None
     }
 
-    /// Retained changes in task order (temper/docs/design/domain/forge/branches.md, 2).
+    /// Retained changes in task order (temper/docs/design/domain/forge/branches-closer.md, 1).
     #[must_use]
     pub fn change_tasks(&self) -> Box<[u64]> {
         let mut tasks = List::with_capacity(self.changes.len());

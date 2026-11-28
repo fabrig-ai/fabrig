@@ -1,4 +1,4 @@
-//! Inbox fences and admitted messages for the closer's relay (temper/docs/design/domain/forge/branches.md, 2).
+//! Inbox fences and admitted messages for the closer's relay (temper/docs/design/domain/forge/branches-closer.md, 1).
 use super::{Box, Domain, Env, Limits, List, ProcedureStep, StepEnd, c, forge, tasks};
 use c::relay::Form;
 use jig_domain_core::StepMessage;

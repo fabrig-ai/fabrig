@@ -1,6 +1,6 @@
 # A check's judgement
 
-How temper judges what a check ended with, at a change's CI, a landing's gate and a goal's close: one function reads what the check showed of a verdict and its run's facts, and gives one of four classes. Only a refusal is the change's: the runner's fault and a check that broke never ask a repair. A delivery's check is smith's to judge, by the same rule (3). Whether a project's checks can flake at all is the project's to say (4). Written from `../../draft/whose-red.md`, 3, and 8's receipts bullet.
+How temper judges what a check ended with, at a change's CI, a landing's gate and a goal's close: one function reads what the check showed of a verdict and its run's facts, and gives one of four classes. Only a refusal is the change's: the runner's fault and a check that broke never ask a repair. A delivery's check is smith's to judge, by the same rule (3). Whether a project's checks can flake at all is the project's to say (4). Written from `../../draft/archive/whose-red.md`, 3, and 8's receipts bullet.
 
 ## 1. What a check shows
 
@@ -48,7 +48,7 @@ What follows:
 ## 5. Across builds
 
 - **A retained failed receipt that names nothing,** its report read with no failed test or not read at all, is judged again by 2 before it's reused: it is no verdict, so it is dropped and its key dispatched as a key with no receipt (`../landing-proof.md`, 1.2). A previous build made such receipts.
-- **A previous build's worker** keeps no bound the engine sends, so a project stating `flakes` runs only on workers of this build (`reds.md`, 5.2). The reference deployment's hand-set figure of 0 covers its workers until then (`../../draft/whose-red.execution.md`, 3).
+- **A previous build's worker** keeps no bound the engine sends, so a project stating `flakes` runs only on workers of this build (`reds.md`, 5.2). The reference deployment's hand-set figure of 0 covers its workers until then (`../../draft/archive/whose-red.execution.md`, 3).
 
 ## 6. Tests
 

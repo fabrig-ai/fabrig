@@ -1,4 +1,4 @@
-//! Source-line alignment using git's zero-context hunks (temper/docs/design/client/journey-writer.md, 6.2).
+//! Source-line alignment using git's zero-context hunks (temper/docs/design/client/journey-writer-requests.md, 1.2).
 
 use std::path::Path;
 

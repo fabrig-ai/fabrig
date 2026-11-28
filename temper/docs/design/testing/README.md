@@ -10,8 +10,10 @@ fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its ca
 engine's, `engine-checks.md`; blame and tries for gates, `blame.md`; the worker's
 waits, disk and faults, `worker.md`), where the box's own checks run
 (`box/README.md`) and the shells' (`shells.md`), the restarts and stops they inject (`restarts.md`),
-the workloads they draw from the seed and the sweeps that mix every failure (`workloads.md`), the
-kinds the composed sweep adds in a campaign (`composed-catalogue.md`), the
+the workloads their worlds run (`workloads.md`), the seeded draw and outcome
+comparison (`workloads-kit.md`), the sweeps that mix every failure
+(`workloads-sweeps.md`), the kinds the composed sweep adds in a campaign
+(`composed-catalogue.md`), the
 shipped settings checked against themselves (`settings-tests.md`), every commit's store
 checked against a start (`store-check.md`), its
 layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), what
@@ -25,6 +27,9 @@ is still open (`README.md`, section 6).
 - `reference-case.md`: the case library and its opening act.
   - `reference-case-changing-direction.md`: the case's change of direction.
   - `reference-case-milestones.md`: the case's milestones and hand-offs.
+- `workloads.md`: the fault vocabulary, seeded workloads in each world and restart comparisons.
+  - `workloads-kit.md`: the seeded draw, logical names, parties' acts and outcomes.
+  - `workloads-sweeps.md`: per-family and composed sweeps, exclusions and campaigns.
 
 ## 1. In one page
 
@@ -73,10 +78,6 @@ is still open (`README.md`, section 6).
   540 is the tier's 6-minute aim, raised by half by the user's word of
   11-08, for now, to be revisited.
 
-## 2. temper's tiers
-
-Moved to [`tiers.md`](tiers.md), section 1.
-
 ## 3. Neighbours and their faces
 
 ### 3.1 Peers
@@ -107,10 +108,6 @@ searches and the checkout's git operations; its io face, io's records,
 a spawn with an argument vector among them. Every component's files and
 processes go through it: the worker's workspaces and agent processes,
 the agent's tools and checks, and the engine's store.
-
-## 4. Scenarios
-
-Moved to [`scenarios.md`](scenarios.md), section 1.
 
 ## 5. Layout
 
@@ -146,7 +143,7 @@ testing/temper-landing-fixtures     a project's landing settings, typed, for the
 testing/temper-engine-inspect       the engine's inspection adapter, read by its worlds alone (engine-checks.md, 2)
 testing/temper-blame                the check of blame and tries for gates, over a world's fault ledger (blame.md)
 testing/temper-faults               the fault vocabularies every world and sweep names (restarts.md, 2; workloads.md, 2)
-testing/temper-workload             the workload drawn from the seed, the parties' acts and a run's outcome (workloads.md, 3)
+testing/temper-workload             the workload drawn from the seed, the parties' acts and a run's outcome (workloads-kit.md, 1)
 tests/<component>/<child>           a child domain's world, temper-<component>-<child>-world
 tests/<component>/domain            a component's world: the engine's, the worker's
 tests/engine/forge                  the forge connector's world

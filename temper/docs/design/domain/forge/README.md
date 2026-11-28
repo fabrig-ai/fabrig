@@ -102,6 +102,7 @@ Documents:
 - `change/README.md`: the change procedure and its documents.
 - `queues.md`: landing queues.
 - `branches.md`: task branches and held resources.
+- `branches-closer.md`: the goal closer's close, land and report steps.
 - `issues.md`: goals' issues on the forge.
 - `attention.md`: what reaches a person.
 - `follows.md`: following another project's branch.
@@ -272,18 +273,6 @@ The top's vocabulary is a crate of its own, below the top
 - **It has no features** (`skein/docs/foundation/cli.md`, 3): what the
   top's tests need of it is plain public code.
 
-## 4. Effects
-
-Moved to [`effects.md`](effects.md), section 1.
-
-## 5. Topics, and landings as news
-
-Moved to [`topics.md`](topics.md), section 1.
-
-## 6. Updates: lazy and mechanical
-
-Moved to [`updates.md`](updates.md), section 1.
-
 ## 7. Participating objects
 
 Not needed first, and kept possible with one mechanism (jig's
@@ -329,10 +318,6 @@ Not needed first, and kept possible:
 - **Once posted,** its pull request is a participating object
   (section 7): a task reads the maintainers' reviews, updates the
   branch, and drafts replies a person approves.
-
-## 9. Restart
-
-Moved to [`effects.md`](effects.md), section 2.
 
 ## 10. The world
 

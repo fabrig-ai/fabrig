@@ -1,4 +1,4 @@
-//! Durable goal closer progress and fresh containment (temper/docs/design/domain/forge/branches.md, 2).
+//! Durable goal closer progress and fresh containment (temper/docs/design/domain/forge/branches-closer.md, 1).
 use alloc::boxed::Box;
 use temper_engine_domain_forge_closer::{Closer, Step};
 

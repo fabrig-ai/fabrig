@@ -1,4 +1,4 @@
-//! A changed overlay rule touches the elements it styles (temper/docs/design/client/journey-writer.md, 6.2).
+//! A changed overlay rule touches the elements it styles (temper/docs/design/client/journey-writer-requests.md, 1.2).
 
 use std::collections::{BTreeMap, BTreeSet};
 

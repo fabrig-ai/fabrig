@@ -606,7 +606,7 @@ pub(super) fn relations() -> List<Relation> {
             row(
                 "store answer ceiling",
                 HoldsAll,
-                "protocol/store.md, 4; v25 AnswerName",
+                "protocol/store-versions.md, 1; v25 AnswerName",
                 "store.answer_bytes",
                 &["forge.client.answer_bytes"],
                 |p| u64::from(p.own.forge.client.answer_bytes),
@@ -625,7 +625,7 @@ pub(super) fn relations() -> List<Relation> {
             row(
                 "store tier goal ceiling",
                 HoldsAll,
-                "protocol/store.md, 4; v25 TierRow.goals",
+                "protocol/store-versions.md, 1; v25 TierRow.goals",
                 "store.goals",
                 &["forge.holds"],
                 |p| u64::from(p.own.forge.holds),

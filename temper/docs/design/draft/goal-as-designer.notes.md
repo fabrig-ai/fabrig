@@ -1,6 +1,6 @@
 # goal-as-designer: the reasons behind it
 
-This holds the reasons for `goal-as-designer.md`, moved from [`notes.md`](notes.md), section 7.
+This holds the reasons for `goal-as-designer.md`, moved from the shared notes file.
 
 The reasons behind `goal-as-designer.md`, from the user, 2026-11-06.
 

@@ -255,14 +255,6 @@
 
 ## 2. How work runs, and a proposal of settings
 
-### 2.1 How work runs
-
-Moved to [`settings-workflow.md`](settings-workflow.md), section 1.
-
-### 2.2 Proposals of settings
-
-Moved to [`settings-proposals.md`](settings-proposals.md), section 1.
-
 ## 3. Open questions
 
 - **Settings, Models after landing** (`README.md`): temper/ui compares page 07 of

@@ -36,10 +36,6 @@ project the person sees, not only on a change of its needs (jig's
 rows' activity, so on a running project a page's reads answer again every
 few seconds; what they find unchanged moves nothing.
 
-## 5. Address contracts
-
-Moved to [`address-contracts.md`](address-contracts.md), section 1.
-
 ## 6. Words and facts
 
 - **Words and facts:** a chat's status from jig's facts (jig's
@@ -87,10 +83,6 @@ Moved to [`address-contracts.md`](address-contracts.md), section 1.
 - `workers.md`: workers' settings and state.
 
 ## 1. A chat
-
-## 2. Across pages
-
-Moved to [`shared-behaviour.md`](shared-behaviour.md), section 1.
 
 ## 7. Open questions
 

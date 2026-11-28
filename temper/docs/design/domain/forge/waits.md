@@ -162,7 +162,7 @@ words, are `../landing-waits.md`, 3's.
   - delegating its change, at its close or land step, and waiting for
     that change: none (a live delegate);
   - at its land step, reading its goal's and its base's tips and whether
-    the base holds the goal's tip (`branches.md`, 2): `step`, landing,
+    the base holds the goal's tip (`branches-closer.md`, 1): `step`, landing,
     the step figure from its *since*, *hold*;
   - at its land step while the operator holds every landing: `step`,
     landing, none: an operator's hold;
@@ -171,7 +171,7 @@ words, are `../landing-waits.md`, 3's.
   - waiting on its goal branch's making: `step`, its goal branch's making,
     the step figure, *hold*.
 - **At the bound** the closer is held as a closing step's hold is
-  (`branches.md`, 2), with 9's words: `no progress at landing for 30
+  (`branches-closer.md`, 1), with 9's words: `no progress at landing for 30
   minutes: waiting for whether main at 89abcdef0123 holds the goal's tip
   0123456789ab; the last answer: not there yet`.
 

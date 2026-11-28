@@ -70,7 +70,7 @@ landing queue (`../domain/forge/README.md`).
 - **What it holds:** the stories whose behaviour crosses the engine,
   the worker and an agent, each placed here by the design that owns it:
   the composed workload, several goals of two parties on one fake forge,
-  and its sweep of every family of faults (`workloads.md`, 5 and 8.2);
+  and its sweep of every family of faults (`workloads.md`, 5, and `workloads-sweeps.md`, 1.2);
   a change's merge job, from the job made to the engine going on from
   its branch, its command the world's (`../domain/forge/change/repairs.md`;
   `../domain/worker/jobs.md`), its rows of the worker alone the worker's

@@ -64,7 +64,7 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
     charter named NAME (jig's `domain/engine/settings.md`, 1, Names).
     An owner keeps the name as written, never its number: a kind is a
     named charter, and a project's own charter, which has a name and no
-    number (`../draft/ways.md`, 6), is named the same way.
+    number (`../draft/ways-charters.md`), is named the same way.
 - **Where it stands,** each owner gives a holder, a task, a party or a
   role: `task N` while task N is live; `party N` while the party holds a
   role in the project; `role N` always; `charter N` while a live task of

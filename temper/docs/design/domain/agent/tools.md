@@ -13,7 +13,7 @@
   chat's, an advisor's and a reviewer's runs inspect alone, whatever
   their charter's `modify` (a rail, not an instruction). Stock charter 1
   disables `modify`; repository edits, including small fixes, go through
-  `change` (1). The stock coder has read, write, edit and remove: a
+  `change` (`tools-change.md`, 1). The stock coder has read, write, edit and remove: a
   file the change drops is removed once read.
 - **`save`, for a change's producer** (smith's `domain/run-delivery.md`, 1.5; jig's
   `domain/hosts/charters.md`): granted with `deliver` to a finite run with
@@ -119,7 +119,7 @@
   closer, by the number its messages name. The dependencies of the run's
   task's requester, live or retained, are read too, read only: a change's
   coding agent, and a repair or resolution under that change, read the changes
-  its `after` names (1) (jig's `domain/engine/executors-tools.md`, 1).
+  its `after` names (`tools-change.md`, 1) (jig's `domain/engine/executors-tools.md`, 1).
   `field=result` reads kept terminal reports. A live task's `field=result`
   read answers as its specification read does: its header, with its state,
   hold and questions, then the line `Result: none yet; it comes when the task
@@ -168,10 +168,6 @@
   allowance a charter is fitted to, how its brief is cut, what a refusal
   names when the rest alone doesn't fit, and the checks at start and at
   each change of settings.
-## 6. Forge reads
-
-Moved to [`tools-forge.md`](tools-forge.md), section 1.
-
 ## 7. Control and findings
 
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
@@ -358,14 +354,6 @@ Moved to [`tools-forge.md`](tools-forge.md), section 1.
   `temper-engine-smith`'s `turn` takes a turn request alone, and
   answers any other request, a job's included, as not a turn
   (`Problem::Type`).
-
-## 1. A change, in the run's words
-
-Moved to [`tools-change.md`](tools-change.md), section 1.
-
-## 2. A goal, in the run's words
-
-Moved to [`tools-goal.md`](tools-goal.md), section 1.
 
 ## 9. Open questions
 

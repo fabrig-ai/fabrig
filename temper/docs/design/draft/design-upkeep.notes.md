@@ -1,6 +1,6 @@
 # design-upkeep: the reasons behind it
 
-The reasons behind `design-upkeep.md`, from the user, 2026-11-20. They sit beside the draft, since `draft/notes.md` is at the size limit.
+The reasons behind `design-upkeep.md`, from the user, 2026-11-20. They sit beside the draft.
 
 - **The ask:** goal 5993's landing went ahead after the user accepted a repair's recommendation to condense temper's `STATUS.md`, to unblock it. The user was "surprised that we still have STATUS.md at all", having understood that the status had moved to the files beside each document. A "docs/design overhaul and prompt changes" were "supposed to keep docs/design in order, mechanically and by prompting". The user asked whether that overhaul had left leftovers behind, or hadn't had the effect wanted.
 - **The answer:** mostly the second (`design-upkeep.md`, 2). The 11-02 cleanup kept `STATUS.md` on purpose, as an index under a one-paragraph summary. But every goal is asked to write its summaries, and nothing checks the page's shape except the size limit. Documents meet the limit and leave it by the smallest cut. The leftovers are smaller: 13 drafts the design already carries in full.

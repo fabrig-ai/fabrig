@@ -371,14 +371,6 @@ counted at the root, which sees them all.
   person's read meanwhile is answered at once; and nothing deadlocks
   with no worker connected.
 
-## 5. Translation
-
-Moved to [`root-translation.md`](root-translation.md), section 1.
-
-## 6. Putting outputs together
-
-Moved to [`root-translation.md`](root-translation.md), section 2.
-
 ## 7. Its store vocabulary
 
 - **`Key`, `Record`, `Write`** wrap the core's and the forge's, one
@@ -423,10 +415,6 @@ Moved to [`root-translation.md`](root-translation.md), section 2.
   journal. A window whose first turn the store does not find answers
   unread, and one it cannot read, failed; the engine owns the window
   policy (jig's `domain/engine/executors-transcripts.md`, 1).
-
-## 8. Restart and stopping
-
-Moved to [`root-restart.md`](root-restart.md), section 1.
 
 ## 9. Limits and validity
 

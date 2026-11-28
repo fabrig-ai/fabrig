@@ -123,10 +123,6 @@
   failed-copy row and its acts. Disabled primary acts fade and cannot send.
   At 760 px and below the sheet meets the bottom, full width, at most
   92 vh high, with 16 px side padding and a shorter bounded list.
-## 4. The welcome
-
-Moved to [`look-welcome.md`](look-welcome.md), section 1.
-
 ## 5. Task pages
 
 - **The task pages' stylesheet,** `task-pages.css`, comes third, after
@@ -137,10 +133,6 @@ Moved to [`look-welcome.md`](look-welcome.md), section 1.
   under its name, the list's name shown before its items. A goal's page takes
   nothing from it. `scripts/bundle.sh` passes the three to `skein-ui-bundle` in
   that order.
-## 6. Settings and accounts
-
-Moved to [`look-settings.md`](look-settings.md), section 1.
-
 ## 7. The project's frame
 
 - **The project's frame** is the greenfield mock's `home.html`, in
@@ -246,14 +238,6 @@ Moved to [`look-settings.md`](look-settings.md), section 1.
   look request `outside-pages`): a page that is no project's has no
   navigation, switcher or menu, at any width; the top bar is drawn as
   *Outside a project* (below) says.
-## 10. Chats and their documents
-
-Moved to [`look-chats.md`](look-chats.md), section 1.
-
-## 11. Ways of working
-
-Moved to [`look-ways.md`](look-ways.md), section 1.
-
 ## 12. Flows and prints
 
 - **A flow** (`skein/docs/design/ui/scenes.md`, 5) has the look of
@@ -390,10 +374,6 @@ Moved to [`look-ways.md`](look-ways.md), section 1.
     day's, since it draws before the shell reads the kept look. The rest of the
     client takes the tokens as they fall, and no page is left with words in
     the day's ink on the night's ground.
-## 17. Chat interaction
-
-Moved to [`look-chats.md`](look-chats.md), section 2.
-
 ## 18. Outside a project
 
 - **Outside a project** (`../view.md`, 1; the look request

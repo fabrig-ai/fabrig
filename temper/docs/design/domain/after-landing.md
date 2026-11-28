@@ -70,18 +70,6 @@ what waits, `after-landing.md`, section 14.
   `temper/verdict/<tier>`, and a comment on each member's pull request
   (section 9).
 
-## 2. Tiers
-
-Moved to [`after-landing-runs.md`](after-landing-runs.md), section 1.
-
-## 3. Following the mains
-
-Moved to [`after-landing-runs.md`](after-landing-runs.md), section 2.
-
-## 4. What a run reports
-
-Moved to [`after-landing-runs.md`](after-landing-runs.md), section 3.
-
 ## 5. The verdict
 
 ### 5.1 Green
@@ -230,7 +218,7 @@ those IDs is known to be still failing; each is new (2026-11-04).
   branch's hold is released and the branch deleted as it closes, by
   queue and by turn alike (`forge/branches.md`). Its requester hears
   the result as any delegate's, so a goal's closer's *Land* ends at the
-  goal's landing and the goal with it (`forge/branches.md`, section 2),
+  goal's landing and the goal with it (`forge/branches-closer.md`, section 1),
   and a goal that depends on that goal, in a milestone or not, starts
   then (`milestones.md`, section 4; `forge/dependencies.md`). Holding
   them for verification would protect nothing: the change is on its
@@ -487,10 +475,6 @@ Run: URL
   statuses back as a commit's CI unless the landing branch's rule
   requires one (`forge/keeping-up.md`, section 3), so a red verdict on
   main's tip holds no landing (section 7, *Others go on*).
-
-## 10. Effects, reads and the store
-
-Moved to [`after-landing-storage.md`](after-landing-storage.md), section 1.
 
 ## 11. Settings
 

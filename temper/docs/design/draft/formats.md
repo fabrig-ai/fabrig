@@ -15,7 +15,7 @@ Draft, 2026-11-27, from a session with the user that day. On the ways draft's `.
 
 - **`temper.toml`** is read strictly through one table in code (`../protocol/configuration/file.md`, sections 2 and 5): an unknown key refuses the start, naming its line. `temper.json`'s members that no key replaces are refused with words saying where they went (`file.md`, 3.3). The format has no version.
 - **A settings file** is JSON, `{"items": [...]}`, each item a setting's value, an edit or a charter's overlay, its text given literally or by directories of charter files (`../client/ctl/tools-acts.md`, 1; `../client/ctl/overlays.md`). Its items have the store's shapes of the release that reads them, and no version.
-- **The store and the wires** convert values at an older layout as they read them, and keep no code for a layout older than the deployment runs ([layouts-both-ways.md](layouts-both-ways.md)). A person's file isn't the store's: it may sit unread for a year, in a repository or a directory temper doesn't control.
+- **The store and the wires** convert values at an older layout as they read them, and keep no code for a layout older than the deployment runs ([archive/layouts-both-ways.md](archive/layouts-both-ways.md)). A person's file isn't the store's: it may sit unread for a year, in a repository or a directory temper doesn't control.
 
 ## 3. A file's format
 
@@ -59,7 +59,7 @@ Draft, 2026-11-27, from a session with the user that day. On the ways draft's `.
 | `.temper/ways.toml`, `ways/*.toml`, `hooks/config.toml` | `format`, its top table | the engine's read of `.temper/` ([ways-temper-dir.md](ways-temper-dir.md), 5 and 8); the worker for `hooks/config.toml` ([hooks.md](hooks.md), 3.4) |
 | `.temper/charters/*.md` | `format`, its front matter | the engine's read of `.temper/` |
 
-- **A settings file's items** are read at their format's shapes: each format names the kinds' shapes it was written for, and an item at an older shape is converted as the store converts a value it reads ([layouts-both-ways.md](layouts-both-ways.md)), from the shapes the release keeps. So a settings file kept in a repository, as fabrig's charter sets are, keeps applying after a release that reshapes a kind.
+- **A settings file's items** are read at their format's shapes: each format names the kinds' shapes it was written for, and an item at an older shape is converted as the store converts a value it reads ([archive/layouts-both-ways.md](archive/layouts-both-ways.md)), from the shapes the release keeps. So a settings file kept in a repository, as fabrig's charter sets are, keeps applying after a release that reshapes a kind.
 - **What isn't a person's file:** `temper ctl`'s directory, the store, the secrets, and what temper writes for its agents. Each has its own rule.
 
 ## 9. Testing

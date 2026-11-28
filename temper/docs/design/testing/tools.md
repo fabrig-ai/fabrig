@@ -68,12 +68,12 @@ Their forms are today's:
   [--within DURATION]` and `temper-client-journeys look-refresh`, the
   journeys' writer's run and the look requests' refresh, which
   `scripts/journey-pages.sh` and `scripts/look-refresh.sh` run
-  (`../client/journey-writer.md`, 4 and 6); `temper-client-journeys
+  (`../client/journey-writer.md`, 4, and `../client/journey-writer-requests.md`, 1); `temper-client-journeys
   look-compare NAME C`, a look request's comparison, which
-  `scripts/look-compare.sh` runs (`../client/journey-writer.md`, 6.1);
+  `scripts/look-compare.sh` runs (`../client/journey-writer-requests.md`, 1.1);
   `temper-client-journeys look-render NAME C`, a landed request's
   render check in Chromium, which the writer's run asks
-  (`../client/journey-writer.md`, 6.2);
+  (`../client/journey-writer-requests.md`, 1.2);
 - `temper-client-walk print [--out DIR] [NAME]...` and
   `temper-client-walk pages`, the journeys' writer's print
   (`../client/journey-walks.md`, 5; `../client/journey-writer.md`, 3);

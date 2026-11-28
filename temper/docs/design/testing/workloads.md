@@ -14,8 +14,8 @@ smith's (`smith/docs/design/faults.md`), the restarts
 (`restarts.md`), blame (`blame.md`) and the store check
 (`store-check.md`). jig's workloads are jig's
 (`jig/docs/design/domain/testing-workloads.md`). It fixes nothing a sweep
-finds: a finding outside the draft's catalog is held as section 8.3 says
-and repaired as a red.
+finds: a finding outside the draft's catalog is held as `workloads-sweeps.md`,
+section 1.3 says, and repaired as a red.
 
 ## 1. In one page
 
@@ -24,8 +24,8 @@ and repaired as a red.
   kit of the tree whose mechanism it is. The forge's kinds move from the
   forge world's tests into `temper-faults`, and the engine's open
   problems' kinds take the names of the families this goal builds.
-- **The workload kit** (section 3): `temper-workload` draws a workload
-  of goals, a milestone, a landing train and an after-landing tier from
+- **The workload kit** (`workloads-kit.md`, 1): `temper-workload` draws a
+  workload of goals, a milestone, a landing train and an after-landing tier from
   the seed's `Workload` stream, the parties' actions as logical events
   from `Parties`, and gives a run's outcome in logical names, with its
   comparison.
@@ -44,9 +44,9 @@ and repaired as a red.
 - **A restart changes no outcome it shouldn't** (section 7): each seed
   runs twice, without and with its restarts, and the two outcomes are
   equal, goal by goal, but for the goals left out by name.
-- **The sweeps** (section 8): a table of every sweep, the bounds reached
-  as faults that fall, the open problems' exclusions, and room within
-  the user's figures.
+- **The sweeps** (`workloads-sweeps.md`, 1): a table of every sweep, the
+  bounds reached as faults that fall, the open problems' exclusions,
+  and room within the user's figures.
 
 ## 2. The vocabulary
 
@@ -139,7 +139,7 @@ while a child waits for its answer are jig's, in `jig_core_kit::parks`.
 
 ### 2.4 The bounds: a table at its capacity
 
-The draft's 4.7 asks the workload to reach each bound of 3.2's table. A
+The draft's 4.7 asks the workload to reach each bound of its 3.2 table. A
 bound reached is recorded as a fault that falls, so that a sweep's
 `check_fell` holds that each bound it configures was reached in some seed:
 
@@ -187,263 +187,7 @@ works'. P88's scenario runs active with no exclusion (`engine-checks.md`,
 
 ## 3. The workload kit
 
-`temper/testing/temper-workload`, crate `temper-workload`: data and draws
-alone, over `skein_world::streams` and `skein_lib::Rng`, naming no world,
-no kind and no component. Every temper world that runs goals draws its
-workload here, so that the engine's domain world and the composed world
-run the same goals for the same seed, and their outcomes compare in the
-same names. Its modules: `draw` (3.1), `names` (3.2), `parties` (3.3)
-and `outcome` (3.4).
-
-### 3.1 The draw
-
-```rust
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Party { First, Second }
-
-/// The least and the most of a count, inclusive.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Span { pub least: u8, pub most: u8 }
-
-/// What a world draws: each world names its own.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Shape {
-    pub goals: Span,
-    /// Changes of each goal that isn't the train.
-    pub changes: Span,
-    /// Goals in the milestone's chain; 0 and 1 mean none.
-    pub milestone: Span,
-    /// Members of the train goal's landing; 0 and 1 mean no train.
-    pub train: Span,
-    /// An after-landing tier following main.
-    pub tier: bool,
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Workload { pub goals: Vec<Goal>, pub tier: bool }
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Goal {
-    /// `g0`, `g1`, ...
-    pub name: String,
-    pub party: Party,
-    /// The milestone's earlier goal it depends on, if any.
-    pub after: Option<String>,
-    /// Its changes land as one train of several members.
-    pub train: bool,
-    pub changes: Vec<Change>,
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Change {
-    /// `g0.c0`, `g0.c1`, ...
-    pub name: String,
-    /// Changes it builds on: earlier ones of its goal, or the last change
-    /// of the milestone goal its goal depends on.
-    pub after: Vec<String>,
-    pub files: Vec<File>,
-    /// Its producer asks one question before it delivers.
-    pub asks: bool,
-    /// Its first gate is red for its own tree, and one repair makes it green.
-    pub red_once: bool,
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct File { pub path: String, pub text: String }
-
-impl Workload {
-    /// Draws from `Stream::Workload`, part `goals`, alone.
-    pub fn draw(streams: &skein_world::streams::Streams, shape: &Shape) -> Workload;
-    pub fn goal(&self, name: &str) -> Option<&Goal>;
-    /// A change by its name, with its goal.
-    pub fn change(&self, name: &str) -> Option<(&Goal, &Change)>;
-}
-
-/// The engine's domain world's shape (4.1).
-pub const ENGINE: Shape;
-/// The composed world's shape (section 5).
-pub const COMPOSED: Shape;
-```
-
-- **Goals:** a count drawn in `goals`, named `g0` up; each goal's party
-  drawn, both parties holding at least one goal once there are two.
-- **The milestone:** a count `m` drawn in `milestone`; where `m` is 2 or
-  more, the first `m` goals form a chain, each after the one before. Where
-  a goal depends on another, its first change names the earlier goal's
-  last change in its `after` with chance one half, P113's shape. A goal
-  after another starts only once that one has ended (its batch's
-  dependency, `temper/docs/design/domain/milestones.md`, 4), so the earlier goal's change has ended by the time this
-  `after` is made, and the change never waits on it: no world running
-  this draw makes a change wait on another goal (8.1).
-- **The train:** where `train` allows one, the last goal outside the
-  milestone, or the milestone's last where every goal is in it, is the
-  train goal, its changes a count drawn in `train`, at least 2; every
-  other goal's changes are a count drawn in `changes`. The train goal
-  has no branch of its own and no closer: its changes land into main,
-  the one train that takes the project's batch, where a train into any
-  other branch takes one unit (`temper/docs/design/domain/landing-turn.md`,
-  2; `Forge::train_batch`), so on a goal's branch they would land one by
-  one. Every other goal keeps its branch and closer. The train goal's
-  changes name none of one another in their `after`: they share one
-  repository, and a change after another in its own repository waits
-  until that one lands (`forge::joined_changes` joins only dependencies
-  across repositories, `temper/crates/temper-engine-domain-forge/src/landing.rs`),
-  so an `after` among them would land them one by one, never as one
-  train. Their coin is still drawn and its result set aside, so no other
-  draw of the seed moves. The train goal's first change keeps a
-  milestone's `after` on the earlier goal, which has landed before it
-  starts.
-- **Changes:** named `<goal>.c0` up; each after the change before it in
-  its goal with chance one half, but in the train goal; one or two files at
-  `<goal>/c<j>/f<k>.txt`, each text one line naming the change, the file
-  and a drawn `u64` in hex, so no two changes write one path and the
-  workload makes no conflict of its own: conflicts are the forge's and
-  the stale family's to make. `asks` with chance one third; `red_once`
-  with chance one quarter, but in the train goal, where its coin is still
-  drawn and its result set aside: no CI runs on a pushed head, so a
-  train member's first gate is its train's, at the top
-  (`temper/docs/design/domain/landing.md`, 3), and a member red there
-  leaves the train and lands alone after its repair. A red within a
-  train is the faults' to make, never the workload's.
-- **The tier:** `tier` as the shape says; its runs are green.
-- **The shapes:** `ENGINE` is 2 to 4 goals, 1 to 3 changes, a milestone
-  of 0 to 2, a train of 2 to 3, a tier. `COMPOSED` is 3 goals, 1 to 2
-  changes, a milestone of 2, a train of 2 to 3, a tier: every element in
-  every seed, at the fewest goals that hold them all.
-
-### 3.2 Names
-
-```rust
-/// The tasks a world made for the workload's logical names.
-pub struct Names { /* both ways */ }
-
-impl Names {
-    pub fn new() -> Names;
-    /// The task a world made for a goal's or a change's name. A name already
-    /// given another task, or a task already given another name, is refused.
-    pub fn name(&mut self, logical: &str, task: u64) -> Result<(), String>;
-    pub fn task(&self, logical: &str) -> Option<u64>;
-    pub fn logical(&self, task: u64) -> Option<&str>;
-}
-```
-
-A world records each goal's and change's task as the engine answers it.
-Numbers a restart doesn't keep stable (attempts, pulls, landings) are the
-world's to map through these.
-
-### 3.3 The parties' actions
-
-```rust
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Act {
-    CancelGoal, CancelChange, CancelLanding, HoldMember, ReleaseMember,
-    AmendPassedDeadline, AnswerLate, NeverAnswer, AnswerTwice, AnswerEndedRun,
-    WordsToEndedProducer,
-}
-
-/// The logical moment an act waits for, as a world reads it from the durable records.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum When {
-    /// The target goal's task exists.
-    Started,
-    /// The target change's task exists.
-    Opened,
-    /// The target change's producer has a question open.
-    Asked,
-    /// The target change is a member of its goal's live landing.
-    Landing,
-    /// The target change is held as a member of its goal's live landing.
-    Held,
-    /// The target goal is held for its deadline.
-    DeadlinePassed,
-    /// The target change's producer has ended.
-    ProducerEnded,
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Action {
-    pub party: Party,
-    pub act: Act,
-    /// A goal's or a change's logical name.
-    pub target: String,
-    pub when: When,
-    /// The world's driver steps after `when` first holds.
-    pub after: u32,
-}
-
-/// Draws from `Stream::Parties`, each party from its own part, `first` or
-/// `second`, among `acts` alone, over `workload`'s goals and changes.
-pub fn draw(streams: &skein_world::streams::Streams, workload: &Workload, acts: &[Act]) -> Vec<Action>;
-
-/// The most steps an act waits after its moment.
-pub const AFTER_MOST: u32;
-```
-
-| Act | Target | When | Drawn |
-|---|---|---|---|
-| `CancelGoal` | a goal | `Started` | any goal |
-| `CancelChange` | a change | `Opened` | any change |
-| `CancelLanding` | a train member | `Landing` | the train goal's |
-| `HoldMember` | a train member | `Landing` | the train goal's |
-| `ReleaseMember` | the held member | `Held` | only with a `HoldMember` of the same member, which it follows |
-| `AmendPassedDeadline` | a goal | `DeadlinePassed` | any goal, which the world then gives a deadline that passes before its work can end; its party drawn from both, so that the amending party isn't always the goal's starter |
-| `AnswerLate`, `NeverAnswer`, `AnswerTwice` | a change that `asks` | `Asked` | only where a change asks |
-| `AnswerEndedRun` | a change that `asks` | `ProducerEnded` | only where a change asks; the answer to its question, after its run ended |
-| `WordsToEndedProducer` | a change | `ProducerEnded` | any change |
-
-- **Each party draws its own:** for each act of `acts`, with chance one
-  half, one target among those its row allows of the goals the party
-  holds (`AmendPassedDeadline` among every goal); a target takes one act
-  at most, but a held member's release. An act no target allows this seed
-  isn't drawn. `after` is drawn up to `AFTER_MOST`, so that an act falls at
-  any step of its target's life from its moment on. Neither party's draws
-  read the other's, nor the workload's stream.
-- **Logical events:** an act waits for its moment as the world reads it,
-  never for an instant, so a run with restarts and one without take the
-  same acts (the draft, 3.5).
-
-### 3.4 The outcome
-
-```rust
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum End { Landed, Done, Failed, Cancelled, Held(String), Waiting }
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct GoalOutcome {
-    pub end: End,
-    /// Its changes whose files main holds, by name, sorted.
-    pub landed: Vec<String>,
-    /// The kinds of the holds its tasks took, in jig's words, sorted.
-    pub holds: Vec<String>,
-    /// Its tasks' tries, normalized (section 7).
-    pub tries: u64,
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Outcome {
-    pub goals: BTreeMap<String, GoalOutcome>,
-    /// Main's files under the workload's paths at the run's end: path to text.
-    pub main: BTreeMap<String, String>,
-}
-
-/// A goal left out of a comparison, and why, in the design's words.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Left { pub goal: String, pub why: &'static str }
-
-impl Outcome {
-    /// Equal goal by goal, and main equal on each compared goal's paths,
-    /// but for the goals `left` names.
-    pub fn compare(&self, restarted: &Outcome, left: &[Left]) -> Result<(), String>;
-}
-```
-
-- **A finding** names the goal, the field and both values: `compare: g1:
-  end Landed without restarts, Held("deadline") with them`; a goal one
-  outcome has and the other hasn't; a path under a compared goal's
-  directory whose text differs or that one main lacks. A `Left` naming no
-  goal of either outcome is refused, as a finding.
-- **Normalized:** an outcome holds logical names and no number or time the
-  engine gives, so two runs compare whatever ids and clocks they took.
+Moved to [`workloads-kit.md`](workloads-kit.md), section 1.
 
 ## 4. A random workload in each root's world
 
@@ -475,7 +219,7 @@ by hand.
   `Tool::Delegate` carries no branch symbol, its `symbolic_grants` being
   ordinary grants. A milestone's goals are delegated by the same route
   beneath a gathering milestone, each after the one before
-  (`forge_routes/milestones.rs`). The train goal, branchless (3.1), is
+  (`forge_routes/milestones.rs`). The train goal, branchless (`workloads-kit.md`, 1.1), is
   started by the chat's `goal` call where it is independent, and in a
   milestone by the same delegate beneath the gathering milestone with
   its dependency but no branch's symbol or closer. The product's `goal`
@@ -595,7 +339,7 @@ system world (`tiers.md`, 1.1) running `COMPOSED`'s draw.
   dependency; a goal needing no branch of its own by the chat's `goal`
   call), the
   milestone's later goal after the earlier one's landing, the train goal's
-  changes landing as one train into main (3.1), every other goal's
+  changes landing as one train into main (`workloads-kit.md`, 1.1), every other goal's
   closer landing its branch, and the tier following main. The train is the world's to gather, never
   the engine's, by the readiness the product ships: a change kept by a
   dependency is not ready (`temper/docs/design/domain/landing.md`, 3),
@@ -611,7 +355,7 @@ system world (`tiers.md`, 1.1) running `COMPOSED`'s draw.
   enough: members opened at different times are ready at different
   times, and a train forms as soon as it frees. The engine's landings,
   holds and batching run as they ship; a train goal's member is never
-  `red_once` (3.1). smith's activations take turns on the one
+  `red_once` (`workloads-kit.md`, 1.1). smith's activations take turns on the one
   agent world, as the system world runs them; the goals are live at once
   in the engine.
 - **Cued by names and trees:** each activation's script is chosen by the
@@ -677,7 +421,7 @@ system world (`tiers.md`, 1.1) running `COMPOSED`'s draw.
   valid, never failed as the product's:
   - **Each kind strikes a goal eligible for it:** `MOVED_BASE` a train
     goal; `HEAD_BEHIND` and `JOB_LOG` a goal with a `red_once` change;
-    `DELIVERED_THEN_PARKED` a goal with a change that doesn't ask; 8.2's
+    `DELIVERED_THEN_PARKED` a goal with a change that doesn't ask; `workloads-sweeps.md`, 1.2's
     other kinds any goal. The catalogue's kinds name theirs
     (`composed-catalogue.md`, 2).
   - **No goal eligible:** the kind isn't planned for the case, its
@@ -720,7 +464,7 @@ system world (`tiers.md`, 1.1) running `COMPOSED`'s draw.
 
 ### 6.1 At any step
 
-Each act waits for its moment (3.3) and then its `after` steps of the
+Each act waits for its moment (`workloads-kit.md`, 1.3) and then its `after` steps of the
 world's driver, so that over the seeds it falls at every step of its
 target's life. The world records it in its ledger as it fires it,
 `FaultLedger::inject(kind, now, Struck::default())`, an instant, its
@@ -768,11 +512,12 @@ The draft's 3.5, the restart drafts' oracle.
   the composed world over its workload, with `MID_TURN`'s
   (`temper/tests/system/src/composed/restarts.rs`; `restarts.md`, 7).
   Those are the worlds whose restarts strike goals' durable outcomes; a
-  worker world's restarts strike runs, which 3.4 and its own checks hold.
+  worker world's restarts strike runs, which the draft's 3.4 and the
+  world's own checks hold.
 - **Comparable runs:** each seed runs twice from `Streams::new(seed)`:
   once with the restart injector off, once with it on. The workload,
   every other fault and the acts draw the same in both, from their own
-  streams; the acts are replayed by their moments (3.3).
+  streams; the acts are replayed by their moments (`workloads-kit.md`, 1.3).
 - **Each run's outcome,** `temper_engine_domain_world::outcome::read`:
 
 ```rust
@@ -802,226 +547,12 @@ pub fn read(
   with restarts, as `Left { goal, why: "a deadline racing a restart" }`;
   its recovery is `Ends`', which holds on both runs as it does on every
   run. Nothing else is left out.
-- **Both runs** keep every check of the world as it stands: 3.4's
-  openings and goals, 3.7's store check.
+- **Both runs** keep every check of the world as it stands: the draft's
+  3.4 openings and goals and its 3.7 store check.
 
 ## 8. The sweeps
 
-### 8.1 One per family, in the cheapest world
-
-A family whose faults fall in different worlds takes a sweep in each
-world that is cheapest for some of them, as smith's providers take two
-(`smith/docs/design/faults.md`, 5). The sweeps the milestone's other
-goals built stay as they are, each its family's in its world: the
-forge's and stale state's in the forge world (`blame.md`;
-`fakes.md`, 2), the providers' and the worker's in smith's worlds and
-the worker's (`smith/docs/design/faults.md`, 5; `worker.md`, 4), the
-accounts' in the system world (`checks.md`, 6.3), and the restarts' in
-each world (`restarts.md`, 9). This goal adds:
-
-| Sweep | World | Family | Configures | Takes |
-|---|---|---|---|---|
-| `people_act_on_goals_at_any_step` | the engine's domain world | people and parties | `CANCELS_A_GOAL`, `CANCELS_A_CHANGE`, `CANCELS_A_LANDING`, `HOLDS_A_MEMBER`, `RELEASES_A_MEMBER`, `ANSWERS_LATE`, `NEVER_ANSWERS`, `ANSWERS_TWICE`, `ANSWERS_AN_ENDED_RUN`, `WORDS_TO_AN_ENDED_PRODUCER`, jig's `AMENDS_A_PASSED_DEADLINE` | `open::exclude`; jig's S15 exclusion |
-| `people_act_on_the_landing_train` | the engine's forge world | people and parties | `CANCELS_A_LANDING`, `HOLDS_A_MEMBER`, `RELEASES_A_MEMBER`, `CANCELS_A_CHANGE` | `open::exclude` |
-| `the_engines_tables_reach_their_bounds` | the engine's domain world | the engine's own bounds | `FORGE_WRITE_ENTRIES`, `FORGE_READ_ADMISSIONS`, `BRANCH_HOLDS`, `LANDING_ROWS` | `open::exclude` |
-| `a_restart_changes_no_outcome` | the engine's domain world | restarts, compared (section 7) | `temper_faults::restarts::ENGINE` | `open::exclude` |
-| `worker_runs_park_resume_and_move` | the worker's domain world | runs that park, resume and move | `DELIVERED_THEN_PARKED`, `RESUMED_ON_ANOTHER_WORKER` | none |
-| `the_workers_tables_reach_their_bounds` | the worker's domain world | the engine's own bounds | `WORKSPACES`, `PREPARE_PERMITS`, `PER_RUN_SCRATCH`, `RUN_SLOTS`, `BUILD_PLACES` | none |
-| jig's four | jig's core and engine-clients worlds | people and parties; runs that park, resume and move; the engine's own bounds | `jig/docs/design/domain/testing-workloads.md`, 7 | jig's exclusions |
-| `every_family_falls_in_the_composed_workload` | the composed world | every family (8.2) | 8.2 | 8.3 |
-| `a_restart_changes_no_composed_outcome` | the composed world | restarts, compared (section 7) | `temper_faults::restarts::MID_TURN` | none |
-
-- **The loop** is skein's (`skein/docs/design/testing/sweeps.md`, 4): for
-  each seed it writes the seed to stderr, runs the world with
-  `Streams::new(seed)`, folds the run's ledger and returns its findings
-  at once; after the last seed, `check_fell`. A comparison's seed folds
-  the ledger of its run with restarts.
-- **A kind no draw of the world can reach** at its limits is not
-  configured: it is named, with why, in a comment beside its sweep's
-  `configure` calls, as smith's sweeps name theirs
-  (`smith/docs/design/faults.md`, 5), and the design's status says so.
-- **`A_CHANGE_WAITS_ON_ANOTHER_GOAL` takes no sweep:** the workload's
-  milestone starts a goal only once the goal it depends on has ended, so
-  the `after` its first change names on the earlier goal's change never
-  waits (3.1), and a draw that started the later goal while the earlier
-  lives would change what a milestone is. The family's other kinds fall
-  in the worker's sweep and jig's.
-- **A sweep's checks** are its world's as they stand, with `Ends` over
-  every goal where the world runs goals, and its acts' expectations.
-
-### 8.2 The composed sweep mixing every family
-
-`every_family_falls_in_the_composed_workload` configures one kind of each
-family, the one production met most, so that every seed can mix them
-all and the fewest seeds make each fall:
-
-| Family | Kind | Drawn from |
-|---|---|---|
-| busy | `temper_faults::forge::TIMED_OUT` | `Faults`, `forge` |
-| lagging | `temper_faults::forge::HEAD_BEHIND` | `Faults`, `forge` |
-| bounds | `temper_faults::forge::JOB_LOG` | `Faults`, `forge` |
-| refusing | `temper_faults::forge::CLOSED_BY_ANOTHER` | `Faults`, `forge` |
-| ci | `temper_blame::LOST` | `Faults`, `forge` |
-| stale | `temper_faults::stale::MOVED_BASE` | `Faults`, `forge` |
-| provider | `skein_llm_kit::faults::RATE_WINDOW` | `Faults`, `llm` |
-| worker | `temper_worker_inspect::faults::DISK_FULL` | `Faults`, `worker` |
-| people and parties | `HOLDS_A_MEMBER` and `RELEASES_A_MEMBER`, on the train | `Parties` |
-| runs that park, resume and move | `DELIVERED_THEN_PARKED` | `Faults`, `worker` |
-| a session's state at a park | `smith_faults::parks::JOB_RUNNING` | `Faults`, `cells`, armed with the cell |
-| parks against wakes | `jig_core_kit::cells::JOB_RUNNING_PARKS_ON_NOTHING` | `Faults`, `cells` |
-| the engine's own bounds | `FORGE_READ_ADMISSIONS` | observed (2.4) |
-| restarts | `ENGINE_CRASH_MID_TURN` | `Faults`, `restarts` |
-
-- **Each seed** draws every family's kind, its moment a drawn step of the
-  goal it strikes, from its own part, so that dropping a family leaves the
-  others' draws as they were. Each fault stops by a moment the run names,
-  so every goal expects `Ends` past the faults' last moment, but a held
-  member's goal until its release (6.2).
-- **Where the composed world can't make a kind** (its worker keeps no fake
-  disk, say), the sweep takes the family's next kind the world reaches,
-  named in its comment with why: `PLACEMENT_BUSY` for the worker; another
-  table the workload fills for the bounds. Every family keeps one kind.
-  Three of the table's kinds are such replacements: `JOB_LOG` stands for
-  `PULL_FILES`, since the composed workload's repairs read their gate's
-  evidence and never a pull's files; `MOVED_BASE` stands for `SQUASHED`,
-  since a dependent goal starts once its predecessor has landed, so no
-  checkout taken early is left with a squashed parent;
-  `FORGE_READ_ADMISSIONS` stands for `FORGE_WRITE_ENTRIES`, since the
-  composed workload makes too few concurrent writes to fill the stock
-  write table, and its faulted world bounds the read admissions to two,
-  recorded at its quiet points (2.4).
-- **The kinds are a list the caller gives,** and each family's draw keeps
-  a fixed place in its part, so that leaving one kind out moves no other
-  kind's draw.
-- **The two halves' kinds of the cell** are recorded as they fall: smith's
-  `JOB_RUNNING` is its family's kind here, and jig's `PARKS_ON_NOTHING`
-  falls beside `DELIVERED_THEN_PARKED`, which stays its family's kind. The
-  cell is the production incident's (`../draft/misbehaving-agents.notes.md`,
-  *The incident and its fix*), and is configured only where the gate's
-  seed shows it falls (`../draft/misbehaving-agents.execution.md`, 4).
-- **3.3 for runs** holds where the provider's fault falls, by the account
-  runs' judge (`checks.md`, 6.3); 3.3 for gates where CI's falls, by
-  `temper_blame` (`blame.md`).
-
-### 8.3 Exclusions
-
-- **Each sweep takes the exclusions** of the open problems its kinds
-  strike, as their owners give them: the engine's
-  `temper_engine_forge_world::open::exclude` (`engine-checks.md`, 5.2),
-  jig's `jig_core_kit::open::EXCLUSIONS` and
-  `jig_engine_clients_kit::open::EXCLUSIONS`
-  (`jig/docs/design/domain/testing-fakes.md`, 1.3), each acting before its
-  fault falls, its conditions read through the adapters or the world's
-  state at that moment, and nothing broader (the draft, 6).
-- **P124's first combination,** cancelling a landing while its gate's
-  dispatch is in flight, takes no exclusion: its fix landed, and
-  `cancelled_landing_frees_its_write_entries` is active in the forge
-  world's suite (`engine-checks.md`, 5.1).
-- **A finding** fails its sweep, as any red. One that is the sweep's own
-  defect is repaired in its change. One that is the product's and outside
-  the draft's catalog is asked up before anything is written for it; once
-  confirmed, it takes its scenario in its lowest harness, `#[ignore =
-  "failure worlds: <what failed>, repaired as a red"]`, and the narrowest
-  exclusion its world reads, so that the sweep holds everything else and
-  the problem is repaired as a red (the request, *Out*).
-
-### 8.4 Room
-
-- **The user's figures:** each sweep runs in its world's fuzzy suite, in
-  its binary's layer, within `tools/tiers/budgets.toml` as it stands,
-  with the moves the user made from F7's room on 2026-11-22
-  (`../../development/failure-worlds-room.md`, *The moves for the user*).
-  This design raises nothing.
-- **Seeds:** the fewest at which every kind it configures falls, at
-  least one, pinned in the test.
-- **Measured:** each change gives its new sweeps' CPU and instructions
-  from the suites' own reports. A layer its sweeps take over its budget,
-  or past its growth allowance, is red (`tools/tiers/budgets.md`, 8), and
-  is repaired as `skein/docs/foundation/testing-strategy.md`, 8.1 says:
-  the same checks for less where they can be made faster; otherwise the
-  measurements go to the user as a question. No sweep takes fewer seeds
-  or checks to fit.
-
-### 8.5 In a campaign
-
-The engine domain world's walking, opening and follows sweeps, and the
-forge world's sweeps, take their cases from skein's seam,
-`skein_world::sweep::cases` (`skein/docs/design/testing/sweeps.md`, 4.2
-to 4.5), so that a campaign runs them with fresh seeds after landing
-(`temper/docs/design/draft/fuzzy-campaigns.md`, 9). `campaign-temper`
-lists their binaries, `temper-engine-domain-world::suite` and
-`temper-engine-forge-world::suite` (`tools/tiers/layers.md`, 9.3). At the
-gate each does the work it did before:
-
-- **Its identity:** each test passes its own, `this_test!` where it is
-  written, and a shard's is its test's. A test that judges several worlds
-  at each seed, as the CI faults' sweep judges three, gives each world a
-  part and its own `cases` over the same seeds, so that each world's case
-  replays alone.
-- **Its gate seeds** as before, in their order, with the same draws. A
-  sweep that offsets its seed (walking's, opening's and follows') wraps
-  the sum, so that any `u64` draws a case, and its fuzzy module pins the
-  gate seeds' draws by a digest and draws one at `u64::MAX`. A choice
-  made by the seed's value (the CI sweep's `seed == 1`) takes its parity
-  instead, which keeps the gate's choices and gives a campaign both.
-- **Every seed a valid case** (sweeps.md, 4.5): a draw its world can't
-  run at a fresh seed, a push past the fake forge's commit room or a task
-  past the task kit's table, is skipped, and the case goes on. The gate's
-  seeds never reach one, so they draw as before.
-- **Its checks over the loop** wait for `gate()`: what a sweep fills or
-  counts across its seeds, as the opens' mask of what was exercised, the
-  queue histories' kinds of event, the pull cutoff's counts, the forge
-  restarts' gate dispatches and a count an exclusion left out.
-  `check_fell` is skein's, and writes the reach outside the gate. A
-  case's own checks, its referee, its replay's comparison and its
-  invariants, run in every mode.
-- **Its counts:** each case one `seed` check (sweeps.md, 4.2). A sweep
-  that counted its seeds through `each_seed` or `Sweep::ran` counts the
-  same, and one whose loop was its own, counting nothing, gains its
-  cases' count: its binary loses none.
-- **Fixed scenarios keep their seeds** and take no case: the forge
-  world's `people_act_on_the_landing_train`,
-  `answers_past_bounds_leave_repairs_their_evidence` and
-  `refusals_keep_the_batches_invariants` script what their seeds were
-  chosen to show. A campaign runs them as the gate does.
-
-The composed workload's two sweeps, `every_family_falls_in_the_composed_workload`
-and `a_restart_changes_no_composed_outcome`, take their cases from the
-seam too, now that its draws are valid at any seed (section 5), and
-`campaign-temper` lists their binary, `temper-system-world::suite`:
-
-- **Their gate seeds** as before, 6 for the mixed sweep and 0 and 29 for
-  the comparison, each case's checks those of 8.2 and section 7, its
-  `Ends` and its oracle.
-- **More cases in a campaign** (sweeps.md, 4.2), since seeds aren't
-  scarce there (the draft, 6): the mixed sweep asks 16 and the
-  comparison 8, each of the comparison's cases two runs. A count whose
-  cases, at the gate case's measured time, would pass 400 s, half the
-  pair's backstop of 810 s, halves until they fit.
-- **Its catalogue in a campaign:** where `gate()` holds, the mixed sweep
-  configures 8.2's kinds; otherwise those and its catalogue's (8.6).
-- **Its counts:** each case one `seed` check. The mixed sweep counted
-  its seed twice, by `each_seed` and by `Sweep::ran` outside a case, and
-  counts it once: the lost check takes a `duplicate` reason
-  (`tools/tiers/budgets.md`, 13), as smith's run world's did. The
-  comparison counted each seed once, by `Sweep::ran`, and counts the
-  same.
-- **The binary's other fuzzy tests,** the accounts', the seeded system
-  runs', the green light's, the repair's and the mid-turn restarts', take
-  no case yet and run in a round as the gate runs them, each named with
-  its time (`tools/tiers/campaign.md`, 3). The composed sweeps' cases are
-  the bulk of the binary's round; should a round's times show the others
-  outweighing them, those move to the seam or to a binary of their own
-  (section 11).
-
-### 8.6 The composed sweep's catalogue
-
-In a campaign, `every_family_falls_in_the_composed_workload` configures
-more kinds than 8.2's one a family: its catalogue, a kind at a time as
-the composed world learns to inject it, give it an eligible target,
-exclude what its open problems need and say what each goal expects of
-it (the draft, 6). The catalogue, its draws and its kinds are
-`composed-catalogue.md`. The gate's list doesn't change.
+Moved to [`workloads-sweeps.md`](workloads-sweeps.md), section 1.
 
 ## 9. Testing
 
@@ -1052,8 +583,9 @@ Focused and fuzzy suites only.
 - **`Watch` and `read`** (the engine's domain world's focused suite): an
   act due only once its moment holds and its steps have passed, and once;
   an outcome read from a run of one goal that lands, and one cancelled.
-- **Each sweep** of section 8, in its world's fuzzy suite: each kind it
-  configures fell, its world's checks and its goals' expectations held.
+- **Each sweep** (`workloads-sweeps.md`, 1), in its world's fuzzy suite:
+  each kind it configures fell, its world's checks and its goals'
+  expectations held.
   A comparison shows, in its world's focused suite, one control: a run
   whose restarted side is given another outcome is found, naming the
   goal.
@@ -1064,7 +596,7 @@ Focused and fuzzy suites only.
   jig's fuzzy domain, are judged in instructions
   (`tools/tiers/budgets.md`, 1), and the user's moves of 2026-11-22
   carried CPU seconds alone. Whether this goal's sweeps fit their
-  layers' instruction budgets is measured as each lands (8.4); a sweep
+  layers' instruction budgets is measured as each lands (`workloads-sweeps.md`, 1.4); a sweep
   that doesn't fit goes to the user with its figures.
 
 ## 11. Later
@@ -1076,4 +608,4 @@ Focused and fuzzy suites only.
 - The composed workload at more goals than its shape's fewest, as the
   system layer's room allows.
 - The engine domain world's other sweeps, and the system world's other
-  seeded tests, taking their cases from the seam (8.5).
+  seeded tests, taking their cases from the seam (`workloads-sweeps.md`, 1.5).

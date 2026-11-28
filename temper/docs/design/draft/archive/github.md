@@ -251,43 +251,7 @@ is open `github.md`, section 19.
 
 # Part B: GitHub
 
-## 5. temper as a GitHub App
-
-Moved to [`../github-app.md`](../github-app.md), section 1.
-
-## 6. Connecting GitHub: the manifest flow
-
-Moved to [`../github-app.md`](../github-app.md), section 2.
-
-## 7. Hearing changes without a public address
-
-Moved to [`../github-app.md`](../github-app.md), section 3.
-
-## 8. Credentials that expire
-
-Moved to [`../github-app.md`](../github-app.md), section 4.
-
-## 9. The dialect
-
-Moved to [`../github-app.md`](../github-app.md), section 5.
-
-## 10. Adoption and landing on GitHub
-
-Moved to [`../github-app.md`](../github-app.md), section 6.
-
-## 11. What the probes found
-
-Moved to [`../github-app.md`](../github-app.md), section 7.
-
 # Part C: Forgejo on the same footing
-
-## 12. Connected and managed, from the client
-
-Moved to [`github-forgejo.md`](github-forgejo.md), section 1.
-
-## 13. Owned
-
-Moved to [`github-forgejo.md`](github-forgejo.md), section 2.
 
 ## 14. What changes in temper's documents
 

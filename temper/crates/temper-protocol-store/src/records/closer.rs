@@ -1,4 +1,4 @@
-//! Goal closer rows (temper/docs/design/domain/forge/branches.md, 2).
+//! Goal closer rows (temper/docs/design/domain/forge/branches-closer.md, 1).
 use super::{FITS, w};
 use alloc::boxed::Box;
 use skein_lib::List;

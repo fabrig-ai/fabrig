@@ -84,7 +84,7 @@ and no policy. Every type is a plain value.
   attempt's log: `End`, the end of its failed step's log, or of its
   whole log when no step failed; or `Start`, the first bytes of its
   whole log, where a CI's opening lines are, such as the selection line
-  a goal's report quotes (temper's `domain/forge/branches.md`, 2). `File {
+  a goal's report quotes (temper's `domain/forge/branches-closer.md`, 1). `File {
   head, path, max_bytes }` asks for the start of one file at a commit.
   Both are cut to `max_bytes`, or to what the answer has left (`forgejo.md`, 1.3), and
   say when they cut: a `Start` that cut kept the log's first bytes and

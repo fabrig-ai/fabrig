@@ -216,8 +216,8 @@ token makes an App:
   accepted or removed, is a new generation (`archive/github.md`, section 4). The author is
   the bot's noreply address, `<id>+<slug>[bot]@users.noreply.github.com`,
   so GitHub shows its commits as the App's.
-- **../protocol/credentials.md's open question** on short-lived git credentials
-  (section 4) is answered by this.
+- **The open question** on short-lived git credentials
+  (`../protocol/credentials-git-identities.md`, section 1) is answered by this.
 
 ## 5. The dialect
 

@@ -1,4 +1,4 @@
-//! The closer's goal-scope report read (temper/docs/design/domain/forge/branches.md, 2).
+//! The closer's goal-scope report read (temper/docs/design/domain/forge/branches-closer.md, 1).
 use crate::boundary::{Read, Work};
 use crate::{CoreRange, Decision, Delivery, Domain, Key, Limits, Range, Record, Request, loads};
 use alloc::boxed::Box;

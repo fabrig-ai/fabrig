@@ -23,7 +23,7 @@ branch. Its parameters:
   (`../updates.md`, section 1), parameter 16, its producer that job and no agent; or,
   for a goal's close step, the close request (`../../../protocol/tooling.md`,
   4.2), bytes parameter 17, its producer the close job, kind 4, run at
-  a branch made at its landing branch's tip, and no agent (`../branches.md`, 2);
+  a branch made at its landing branch's tip, and no agent (`../branches-closer.md`, 1);
 - **its agents' LLM choices,** by role (jig's `domain/tasks/README.md`, section
   3): the producer's, for its producing task, its repairs, its
   resolutions and its checks' gates; the reviews', for its agents'
@@ -162,14 +162,14 @@ the branch:
   is cut and says that the change's full words are on its task in temper.
 - **Held by its requester, not by the change.** The change takes no
   hold of the branch and hands none: its requester holds it for its own
-  life (`../branches.md`, 1). A goal's landing made by the goal's closer (`../branches.md`, 2) is on
+  life (`../branches.md`, 1). A goal's landing made by the goal's closer (`../branches-closer.md`, 1) is on
   the goal's held branch, its requester's requester's: the goal holds
   it, and the closer, which holds none, makes no other change on it. The change writes it only through its own delegates (its
   repairs and its resolution) and the updates it asks for, each taking
   the branch's writer slot under its requester's hold as it writes
   (jig's `domain/tasks/holds.md`, 3), as a change's delegates write its own
   branch. Its requester's other delegates write it too, a change landing
-  into it among them: each such move is the change's new head (3).
+  into it among them: each such move is the change's new head (`drift.md`, 1).
 - **One at a time:** a second change on the same held branch, while one
   lives, is refused at its batch, naming the first.
 - **Closing deletes nothing:** landed, cancelled or failed, the change
@@ -178,7 +178,7 @@ the branch:
   (4), and its requester may make another.
 - **Beside the run that made it:** the goal's own runs push design to
   the branch while the change lives (`../branches.md`, 3). That doesn't stop the change,
-  which steps at the head it reads (3).
+  which steps at the head it reads (`drift.md`, 1).
 
 The question route is number parameter 14: 2 for `up`; absent means
 `none`. The root writes it only for `up`. Any other value, 1, the retired
@@ -193,7 +193,7 @@ refuses the change's start as a malformed parameter. Its start is refused,
 naming the kind, where its authority does not delegate to kind 4. Like a
 catch-up's, its producer is the job: the change makes its own branch at its
 landing branch's tip, the job's checkout, and a job that pushed nothing ends
-the change with no change, as a catch-up already contained does (`../branches.md`, 2).
+the change with no change, as a catch-up already contained does (`../branches-closer.md`, 1).
 Its job finds the close command in its checkout, `.temper/hooks/close`
 or, where it holds no `.temper/hooks/`, the project's `close_job`
 (`../../../protocol/hooks.md`, 4.2 and 4.3). Bytes parameter 20, the
@@ -290,7 +290,7 @@ it to read afresh, so the reading ends a merge retried in a loop as it
 ends one not yet sent. A failed merge holds the change (`repairs.md`)
 only where that step's reading finds its head not contained, or cannot
 tell. A held change reads it once released, at the step the release
-brings. The pull request merged on the forge (3) stays the landing
+brings. The pull request merged on the forge (`drift.md`, 1) stays the landing
 wherever the forge says so, its merge commit the merge. Under its
 project's turn, the change sends no merge: its landing's merge is the
 landing's (`../../landing.md`, section 3), and a candidate already in
@@ -374,8 +374,8 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    opening's answer names it, in the step that settles it. From then on
    it reads and writes that pull request alone, a restart included, and
    never opens another while it has one: its own found closed is
-   reopened, by a release (3), and its own read as missing holds it as
-   its pull request closed does (3). An uncertain opening found again
+   reopened, by a release (`drift.md`, 1), and its own read as missing holds it as
+   its pull request closed does (`drift.md`, 1). An uncertain opening found again
    by its branches (`../effects.md`, section 1) is the change's only
    where what is found is open; a closed one is no answer to it, and the
    change opens its own. **No step past it without its pull:** CI runs on
@@ -392,7 +392,7 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    up. The change waits for the pull request to name its head, its
    stall counting (`stalls.md`, 1), and goes on from there.
    Only its branch found at another head than the change expects is
-   drift (3).
+   drift (`drift.md`, 1).
 3. **Checking:** CI runs on its head, where its landing branch's rules
    ask CI passed (`gates.md`, 2). A failure is a repair (`repairs.md`): a task given the
    failing output, unless the runner caused it (below). A repository without CI is checked by its checks
@@ -530,10 +530,6 @@ head already behind, it never updates only because its base moved.
 
 A completed change (landed, or ended without landing) cancels its live delegates, its producer, a repair, a resolution or a gate, whose work no longer counts, each with the reason `its change landed` or `its change ended`, in the step that completes it; it offers its result to the core once their terminals are heard, so no run whose change has completed parks in `wait`, and what waits on the change goes on. A delegate's successful result heard before the cancel is kept as any result is (its repair's words in the landed result). A landing observed while a resumed repair's terminal is still on its way leaves the procedure waiting; the delegate's terminal wakes it to offer the landed result.
 
-## 3. Drift
-
-Moved to [`drift.md`](drift.md), section 1.
-
 ## 4. Cancelled
 
 A cancelled change closes as every task does (jig's `domain/tasks/lifecycle.md`,
@@ -587,10 +583,6 @@ forge or a person does to them, a reopen by hand included
 (`../keeping-up.md`, 3), and its history gains no event but those
 `../../landing-history.md`, 2.2, keeps for after an end.
 
-## 5. Its panel
-
-Moved to [`panel.md`](panel.md), section 1.
-
 ## 6. Drained
 
 A drain is jig's (jig's `domain/connectors-procedures.md`, 1.7). A change in a
@@ -599,10 +591,6 @@ landing: under the queue, while its merge is sent and not yet settled;
 under the turn, while its landing has begun its proof and not yet landed
 (`../../landing.md`, 4.2). Its producing, repair or resolution run finishes
 its turn and parks, as every run under a drain does.
-
-## 7. Its room
-
-Moved to [`records.md`](records.md), section 1.
 
 ## 8. Open questions
 

@@ -1,4 +1,4 @@
-//! Close changes use a job producer (temper/docs/design/domain/forge/change/README.md, 1 and temper/docs/design/domain/forge/change/repairs.md and temper/docs/design/domain/forge/branches.md, 2).
+//! Close changes use a job producer (temper/docs/design/domain/forge/change/README.md, 1 and temper/docs/design/domain/forge/change/repairs.md and temper/docs/design/domain/forge/branches-closer.md, 1).
 use super::goal_branch::{branch_tip, goal_request};
 use super::light_rules::change_row;
 use super::*;

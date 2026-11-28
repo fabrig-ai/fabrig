@@ -1,4 +1,4 @@
-//! A look request against the landing's print and stylesheets (temper/docs/design/client/journey-writer.md, 6.1).
+//! A look request against the landing's print and stylesheets (temper/docs/design/client/journey-writer-requests.md, 1.1).
 
 use std::{
     collections::{BTreeMap, BTreeSet},

@@ -378,14 +378,6 @@ configuration/limits.md).
   one that does not decode, which stops the engine (jig's
   `protocol/store/loads.md`, 1).
 
-## 4. Records and the store version
-
-Moved to [`store-versions.md`](store-versions.md), section 1.
-
-## 5. The restart
-
-Moved to [`store-restart.md`](store-restart.md), section 1.
-
 ## 6. Testing
 
 Within the suites' budgets (`../testing/tiers.md`, section 1):

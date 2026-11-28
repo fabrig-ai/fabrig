@@ -8,8 +8,8 @@ repaired and leaves, the green prefix lands in the round's turn, and the
 units above the red one go on in the landing's next round. It is the
 merge queue's search by prefixes (`../draft/merge-queue.md`, 7.2 to
 7.4, its execution's M3), on the landing of `landing.md`, whose words it
-uses: its rounds (5.1), keys and receipts (section 6), proof by dispatch
-(section 7) and the turn (section 8). It replaces M2's fallback, under
+uses: its rounds (`landing-prepare.md`, 1.1), keys and receipts (`landing-proof.md`, 1), proof by dispatch
+(`landing-proof.md`, 2) and the turn (`landing-turn.md`, 1). It replaces M2's fallback, under
 which a red round of several units ended and its units landed one at a
 time. The search is the landing's policy (`landing.md`, section 2): the
 top dispatches, reads and writes for it as for the round's top.

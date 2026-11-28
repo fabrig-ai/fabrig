@@ -1,4 +1,4 @@
-//! The lines from look-render (temper/docs/design/client/journey-writer.md, 6.2, step 8).
+//! The lines from look-render (temper/docs/design/client/journey-writer-requests.md, 1.2, step 8).
 
 use std::fmt::Write as _;
 
