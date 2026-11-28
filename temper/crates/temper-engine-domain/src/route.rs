@@ -36,7 +36,7 @@ pub(crate) mod settings_parts;
 mod tools;
 pub(crate) mod trials;
 pub(crate) mod ways;
-use crate::assemble::{brief_outputs, take_payload};
+use crate::assemble::take_payload;
 use crate::boundary::{
     Call, EscalationChoice, Event, ForgeWorkspace, MessageForm, Payload, PreparedWorkspace, ProposalChoice,
     ProposedAction, Request, Tool, Work,
@@ -60,7 +60,7 @@ use jig_domain_core::{Delegate, ProcedureStep, StepEnd};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 pub use landing::{Approval, Freshness, Gate, LandingRule};
-use skein_lib::{Env, Id, List, Queue, ReplyTo, Token};
+use skein_lib::{Env, List, Queue, ReplyTo, Token};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as forge_change;
 use temper_engine_domain_forge_issues as forge_issues;
@@ -659,10 +659,6 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 let routed = forge_route::step_core(domain, env, core::Event::Fleet(event));
                 route_engine_requests(domain, env, decision, routed);
             }
-            Work::Brief(event) => {
-                let routed = forge_route::step_core(domain, env, core::Event::Brief(event));
-                route_engine_requests(domain, env, decision, routed);
-            }
             Work::ForgeLimitHold { row, words } => {
                 forge_route::limit_holds::apply_hold(domain, env, decision, row, words);
             }
@@ -886,7 +882,7 @@ pub(crate) fn save_connector_answer(domain: &Domain, limits: &Limits, decision: 
 }
 
 /// A connector answer or fact that belongs to the current decision.
-fn forge_up(domain: &mut Domain, up: jig_domain_contract::Up) {
+pub(crate) fn forge_up(domain: &mut Domain, up: jig_domain_contract::Up) {
     domain.work.push(Work::Connector(jig_domain_contract::Connector(domain.config.forge_connector), up));
 }
 

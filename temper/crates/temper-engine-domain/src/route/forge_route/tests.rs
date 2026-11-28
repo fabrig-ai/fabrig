@@ -1329,11 +1329,203 @@ fn change_names(pull: Option<u64>) -> Box<[super::forge::Name]> {
     ])
 }
 
+fn goal_brief_wait() -> (super::Domain, skein_lib::Env<super::Limits>, u64, super::forge::Name) {
+    use super::{forge, tasks};
+    let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
+    assert!(domain.engine.core().charter(1).unwrap().policy.modify);
+    domain.forge.restore_begin(env.wall);
+    fresh_procedure_forge(&mut domain, &env);
+    let mut repository = adopted(1);
+    repository.project = 1;
+    let branch = super::tree_branch(&repository, task, b'g', task, None, env.limits.forge.name_bytes).unwrap();
+    let name = forge::Name {
+        forge: 1,
+        repository: 1,
+        what: super::branch_what(&branch, env.limits.forge.name_bytes).unwrap(),
+    };
+    restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Repository(repository));
+    restore_forge_with_engine_waits(
+        &mut domain,
+        &env,
+        forge::Stored::Hold(forge::Hold {
+            name: name.clone(),
+            task,
+            writer: None,
+            design_writers: Box::new([]),
+            beside: None,
+            drift: None,
+        }),
+    );
+    assert!(domain.forge.goal_workspace_waiting(task, true));
+    (domain, env, task, name)
+}
+
+fn ask_goal_brief(
+    domain: &mut super::Domain,
+    env: &skein_lib::Env<super::Limits>,
+    ask: jig_domain_contract::parts::Ask,
+) {
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::super::asks::ask(
+        domain,
+        env,
+        &mut decision,
+        domain.config.forge_connector,
+        jig_domain_contract::Ask::Parts(ask),
+    );
+    assert!(decision.empty());
+    crate::decision::accept_routed(
+        &mut domain.journal,
+        &mut domain.engine.core_mut().counters,
+        &env.limits.journal,
+        decision,
+        false,
+    )
+    .unwrap();
+}
+
+#[test]
+fn a_modifying_goals_brief_waits_for_its_workspace_before_answering() {
+    use jig_domain_contract::{Up, ops, parts};
+    let (mut domain, env, task, name) = goal_brief_wait();
+    ask_goal_brief(
+        &mut domain,
+        &env,
+        parts::Ask::Plan(Box::new(parts::Preparation {
+            task,
+            project: 1,
+            requester: ops::Party::Deployment { project: 1 },
+            root: task,
+            documents: Box::new([]),
+            slots: env.limits.brief.sections,
+            core: Box::new([]),
+            budget: env.limits.brief.brief_bytes,
+        })),
+    );
+    assert!(domain.work.is_empty(), "plan did not answer while its workspace was waiting");
+    super::super::now::resume_workspaces(&mut domain, &env);
+    assert!(domain.work.is_empty(), "a resume still waits for readiness");
+
+    restore_forge_with_engine_waits(
+        &mut domain,
+        &env,
+        super::forge::Stored::BranchHead(super::forge::BranchHead { name, commit: SHA1, owned: true }),
+    );
+    assert!(!domain.forge.goal_workspace_waiting(task, true));
+    super::super::now::resume_workspaces(&mut domain, &env);
+    let mut answers = 0_u32;
+    while let Some(work) = domain.work.pop() {
+        if let super::Work::Connector(_, Up::Parts(parts::Up::Planned { task: owner, .. })) = work {
+            assert_eq!(owner, task);
+            answers = answers.checked_add(1).unwrap();
+        }
+    }
+    assert_eq!(answers, 1);
+    super::super::now::resume_workspaces(&mut domain, &env);
+    assert!(domain.work.is_empty(), "the plan answers once");
+}
+
+#[test]
+fn abandoning_a_waiting_brief_forgets_its_plan() {
+    use jig_domain_contract::{ops, parts};
+    let (mut domain, env, task, name) = goal_brief_wait();
+    ask_goal_brief(
+        &mut domain,
+        &env,
+        parts::Ask::Plan(Box::new(parts::Preparation {
+            task,
+            project: 1,
+            requester: ops::Party::Deployment { project: 1 },
+            root: task,
+            documents: Box::new([]),
+            slots: env.limits.brief.sections,
+            core: Box::new([]),
+            budget: env.limits.brief.brief_bytes,
+        })),
+    );
+    assert!(domain.work.is_empty());
+    assert!(domain.run_workspaces.contains_key(&task));
+    ask_goal_brief(&mut domain, &env, parts::Ask::Abandon { task });
+    assert!(!domain.run_workspaces.contains_key(&task), "abandon forgets the waiting plan");
+    restore_forge_with_engine_waits(
+        &mut domain,
+        &env,
+        super::forge::Stored::BranchHead(super::forge::BranchHead { name, commit: SHA1, owned: true }),
+    );
+    assert!(!domain.forge.goal_workspace_waiting(task, true));
+    super::super::now::resume_workspaces(&mut domain, &env);
+    assert!(domain.work.is_empty(), "an abandoned plan never answers");
+}
+
+fn ask_repair_brief(
+    domain: &mut super::Domain,
+    env: &skein_lib::Env<super::Limits>,
+    core: &[jig_domain_brief::Planned],
+) {
+    use jig_domain_contract::{Ask, ops, parts};
+    let mut claims = skein_lib::List::with_capacity(u32::try_from(core.len()).unwrap());
+    for section in core {
+        let jig_domain_brief::Planned::Core { text, limit, priority, required, .. } = section else {
+            panic!("core claim")
+        };
+        claims
+            .push(parts::Claim {
+                size: u32::try_from(text.len()).unwrap(),
+                limit: *limit,
+                priority: *priority,
+                required: *required,
+            })
+            .unwrap();
+    }
+    let connector = domain.config.forge_connector;
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::super::asks::ask(
+        domain,
+        env,
+        &mut decision,
+        connector,
+        Ask::Parts(parts::Ask::Plan(Box::new(parts::Preparation {
+            task: 8,
+            project: 1,
+            requester: ops::Party::Task(7),
+            root: 7,
+            documents: Box::new([]),
+            slots: env.limits.brief.sections.checked_sub(claims.len()).unwrap(),
+            core: claims.into_boxed(),
+            budget: env.limits.brief.brief_bytes,
+        }))),
+    );
+}
+
+fn placed_repair_brief(
+    domain: &mut super::Domain,
+    env: &skein_lib::Env<super::Limits>,
+    core: &[jig_domain_brief::Planned],
+) -> Box<[jig_domain_brief::Planned]> {
+    use jig_domain_contract::{Up, parts};
+    ask_repair_brief(domain, env, core);
+    while let Some(work) = domain.work.pop() {
+        if let super::Work::Connector(connector, Up::Parts(parts::Up::Planned { task: 8, sections })) = work {
+            let jig_domain_brief::Placing::Placed { sections, dropped } = jig_domain_brief::place(
+                core,
+                &[],
+                &[jig_domain_brief::ConnectorPlan { connector: connector.0, sections }],
+                env.limits.brief.sections,
+            ) else {
+                panic!("repair sections fit")
+            };
+            assert!(dropped.is_empty());
+            return sections;
+        }
+    }
+    panic!("repair plan");
+}
+
 #[test]
 fn repair_section_order_puts_every_repairs_reason_before_its_pull() {
     use super::forge_change::{Delegate, Repair};
     use crate::boundary::Work;
-    use jig_domain_brief::{GatherEvent, Planned};
+    use jig_domain_contract::{Up, parts};
     use skein_lib::List;
 
     for (why, kinds) in [
@@ -1362,12 +1554,12 @@ fn repair_section_order_puts_every_repairs_reason_before_its_pull() {
         row.change.last_head = Some(SHA1);
         row.delegate = Some((8, Delegate::Repair(why)));
         restore_forge_with_engine_waits(&mut domain, &env, super::forge::Stored::Change(Box::new(row)));
-        crate::assemble::finish_brief_plan(&mut domain, &env, 8, Some(7), List::with_capacity(8), Box::new([]));
+        ask_repair_brief(&mut domain, &env, &[]);
         let mut gathered = None;
         let mut partners = List::with_capacity(2);
         let mut request_source = None;
         while let Some(work) = domain.work.pop() {
-            if let Work::Brief(GatherEvent::Plan { sections, .. }) = work {
+            if let Work::Connector(_, Up::Parts(parts::Up::Planned { task: 8, sections })) = work {
                 gathered = Some(sections);
             } else if let Work::Forge(super::forge::Event::PlanBrief { section, source, partner }) = work {
                 if let super::forge::BriefSource::Request { .. } = source {
@@ -1390,13 +1582,8 @@ fn repair_section_order_puts_every_repairs_reason_before_its_pull() {
         assert_eq!(sections.len(), 2);
         let mut tokens = List::with_capacity(2);
         for (section, expected_kind) in sections.iter().zip(kinds) {
-            let Planned::Connector {
-                section: jig_domain_contract::parts::Section { kind, token, priority, size, limit, .. },
-                ..
-            } = section
-            else {
-                panic!("required forge section")
-            };
+            let parts::Section { kind, token, priority, size, limit, required, .. } = section;
+            assert!(*required);
             assert_eq!(*kind, expected_kind, "{why:?} section order");
             assert_eq!(*priority, if *kind == 1 || *kind == 2 { 5 } else { 6 });
             assert_eq!(*size, 0);
@@ -1423,8 +1610,7 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
 }
 
 fn planned_ci_repair(why: super::forge_change::Repair) -> smith_domain_run::Brief {
-    use crate::boundary::Work;
-    use jig_domain_brief::{Core, GatherEvent, Planned};
+    use jig_domain_brief::{Core, Planned};
     use skein_lib::{List, Writer};
     let (mut domain, mut env) = two_forges();
     domain.limits.brief.sections = 8;
@@ -1451,14 +1637,8 @@ fn planned_ci_repair(why: super::forge_change::Repair) -> smith_domain_run::Brie
         }
         wanted.push(Planned::Core { kind, text: text.finish(), limit: size, priority, required }).unwrap();
     }
-    crate::assemble::finish_brief_plan(&mut domain, &env, 8, Some(7), wanted, Box::new([]));
-    let mut gathered = None;
-    while let Some(work) = domain.work.pop() {
-        if let Work::Brief(GatherEvent::Plan { budget, sections, .. }) = work {
-            gathered = Some((budget, sections));
-        }
-    }
-    let (budget, mut sections) = gathered.expect("repair plan");
+    let mut sections = placed_repair_brief(&mut domain, &env, wanted.as_slice());
+    let budget = env.limits.brief.brief_bytes;
     let mut pull = Writer::new(4608);
     let identity = b"Pull request: #7\nBranch: temper/7\nBase: main\nHead: abcdef0123456789abcdef0123456789abcdef01\nAddress: https://forge.example/org/repo/pulls/7\nTitle: Change\nBody: ";
     pull.put(identity).unwrap();
@@ -1599,9 +1779,8 @@ fn a_landing_repair_charter_fit_cuts_pull_contents_and_keeps_its_whole_ci() {
 
 #[test]
 fn a_github_repair_prepares_when_the_ci_ceiling_fills_the_brief() {
-    use crate::boundary::{ForgeBriefKind, Work};
     use jig_domain_brief::{Core, GatherDomain, GatherEvent, GatherRequest, Planned, gather_step};
-    use skein_lib::{Id, List, Queue};
+    use skein_lib::{List, Queue};
     let (mut domain, mut env) = two_forges();
     domain.limits.brief.sections = 3;
     domain.limits.brief.read_bytes = 512;
@@ -1623,16 +1802,22 @@ fn a_github_repair_prepares_when_the_ci_ceiling_fills_the_brief() {
             required: true,
         })
         .unwrap();
-    crate::assemble::finish_brief_plan(&mut domain, &env, 8, Some(7), wanted, Box::new([]));
+    let sections = placed_repair_brief(&mut domain, &env, wanted.as_slice());
     let limits = crate::limits::brief_limits(&env.limits.brief);
     let gather_env = env.with(limits);
     let mut gather = GatherDomain::new(&limits);
     let mut out = Queue::uncapped();
-    while let Some(work) = domain.work.pop() {
-        if let Work::Brief(plan @ GatherEvent::Plan { .. }) = work {
-            gather_step(&mut gather, &gather_env, plan, &mut out);
-        }
-    }
+    gather_step(
+        &mut gather,
+        &gather_env,
+        GatherEvent::Plan {
+            brief: super::Token::new(8),
+            budget: limits.brief_bytes,
+            deadline: env.now.saturating_add(limits.gather),
+            sections,
+        },
+        &mut out,
+    );
     let pull = b"Pull request: #7\nBranch: temper/7\nBase: main\nHead: abcdef0123456789abcdef0123456789abcdef01\nAddress: https://github.com/org/repo/pull/7\n";
     let ci = b"Failed check: check\nDescription: CI failed\nLink: /actions/runs/2/jobs/1\n[job log could not be read]\nRepair the failed check.\n";
     assert_eq!(out.len(), 2, "gather both required forge sections");
@@ -1640,11 +1825,11 @@ fn a_github_repair_prepares_when_the_ci_ceiling_fills_the_brief() {
         let Some(GatherRequest::Gather { brief, connector, section, budget: 512, .. }) = out.pop() else {
             panic!("bounded forge read")
         };
-        let kind = domain.brief_connectors.get(Id::from_token(section)).unwrap().kind.clone();
+        let kind = domain.brief_connectors.get(&section).unwrap().kind;
         let size = match kind {
-            ForgeBriefKind::Pull => pull.len(),
-            ForgeBriefKind::Ci => ci.len(),
-            ForgeBriefKind::Home | ForgeBriefKind::Reviews | ForgeBriefKind::Document(_) => panic!("pull and CI only"),
+            3 => pull.len(),
+            1 => ci.len(),
+            _ => panic!("pull and CI only"),
         };
         gather_step(
             &mut gather,

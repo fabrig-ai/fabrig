@@ -1,11 +1,9 @@
 //! Route the engine's connector port and temper's application asks
 //! (jig's `domain/root.md`, 5; `examples/ops/domain/src/route.rs`).
 use super::{
-    Decision, Delivery, Domain, Env, Limits, List, Queue, ReplyTo, Work, brief_outputs, emit, forge,
-    forge_release_ending, forge_route,
+    Decision, Delivery, Domain, Env, Limits, List, Queue, ReplyTo, Work, emit, forge, forge_release_ending, forge_route,
 };
 use alloc::boxed::Box;
-use jig_domain_brief as brief;
 use jig_domain_contract::{
     Ask, Connector, Released, Up, effects, lifecycle, parts, procedures, projections, requests, resources, settings,
     topics,
@@ -13,7 +11,6 @@ use jig_domain_contract::{
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Id, Token};
 
 /// Contract cases that need root state stay here; the rest reach the forge unchanged.
 #[expect(clippy::too_many_lines, reason = "root-owned cases of the connector port, grouped by capability")]
@@ -25,6 +22,23 @@ pub(super) fn connector_ask(
     ask: Ask,
 ) {
     match ask {
+        Ask::Parts(parts::Ask::Plan(context)) if connector == domain.config.forge_connector => {
+            super::now::plan_brief(domain, env, context);
+        }
+        Ask::Parts(parts::Ask::Abandon { task }) if connector == domain.config.forge_connector => {
+            super::now::abandon_brief(domain, task);
+        }
+        Ask::Parts(parts::Ask::Gather { task, section, budget, deadline })
+            if connector == domain.config.forge_connector =>
+        {
+            crate::assemble::gather(domain, &env.limits, task, section, budget, deadline);
+        }
+        Ask::Parts(parts::Ask::Cut { task, section, size }) if connector == domain.config.forge_connector => {
+            crate::assemble::cut(domain, task, section, size);
+        }
+        Ask::Parts(parts::Ask::Drop { task, section }) if connector == domain.config.forge_connector => {
+            crate::assemble::drop_section(domain, task, section);
+        }
         Ask::Parts(parts::Ask::Lines(ask)) => {
             super::parts::ask(domain, env, decision, connector, ask);
         }
@@ -498,7 +512,6 @@ pub(super) fn connector_released(
 }
 
 /// Application routes that are not connector capabilities.
-#[expect(clippy::too_many_lines, reason = "one dispatcher for the remaining application hand-offs")]
 pub(super) fn application(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -506,12 +519,11 @@ pub(super) fn application(
     connector: u16,
     ask: core::Ask,
 ) {
-    let request = if let core::Ask::Workers(workers) = ask {
+    if let core::Ask::Workers(workers) = ask {
         assert!(
             super::now(domain, crate::Request::Worker(crate::WorkerRequest::Settings(workers))),
             "worker table door reserved"
         );
-        None
     } else if let core::Ask::Catalogue { models } = ask {
         domain.catalogue_pending = true;
         let names = core::settings::model_names(&core::settings::catalogue::rows(&models));
@@ -523,25 +535,8 @@ pub(super) fn application(
             super::now(domain, crate::Request::Party(crate::PartyRequest::Catalogue { models })),
             "catalogue clients door reserved"
         );
-        None
     } else if let core::Ask::Providers(providers) = ask {
         emit(decision, &env.limits, Delivery::Providers(providers));
-        None
-    } else if let core::Ask::Gather { section, budget } = ask {
-        let Some(row) = domain.brief_connectors.get(Id::from_token(section)) else { return };
-        Some(brief::GatherRequest::Gather {
-            connector,
-            brief: Token::new(row.task),
-            section,
-            budget,
-            deadline: row.deadline,
-        })
-    } else if let core::Ask::CutTo { section, size } = ask {
-        let Some(row) = domain.brief_connectors.get(Id::from_token(section)) else { return };
-        Some(brief::GatherRequest::CutTo { connector, brief: Token::new(row.task), section, size })
-    } else if let core::Ask::Drop { section } = ask {
-        let Some(row) = domain.brief_connectors.get(Id::from_token(section)) else { return };
-        Some(brief::GatherRequest::Drop { connector, brief: Token::new(row.task), section })
     } else if let core::Ask::ClaimDone { task, attempt, kinds, version } = ask {
         if connector == domain.config.forge_connector {
             let workspace = &domain.assignment_parts.get(&task).expect("admitted assignment").workspace;
@@ -568,7 +563,6 @@ pub(super) fn application(
                 emit(decision, &env.limits, Delivery::Fleet(event));
             }
         }
-        None
     } else if let core::Ask::JobClaimed { task, attempt, kind, spec, deadline, result, grants, workspace } = ask {
         if connector == domain.config.forge_connector {
             forge_route::job_history::claimed(domain, task, attempt, kind.0);
@@ -611,14 +605,8 @@ pub(super) fn application(
                 emit(decision, &env.limits, Delivery::Fleet(event));
             }
         }
-        None
     } else {
         unreachable!("the engine separates connector asks from application asks: {ask:?}")
-    };
-    if let Some(request) = request {
-        let mut child = Queue::with_capacity(1);
-        child.push(request);
-        brief_outputs(domain, env, decision, &mut child);
     }
 }
 

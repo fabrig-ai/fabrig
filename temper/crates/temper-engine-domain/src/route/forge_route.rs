@@ -2,7 +2,7 @@
 //! calls cross one root decision; the connector never owns the store.
 //! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use super::{
-    CallAnswer, CallKey, Decision, Delivery, Domain, Env, Family, ForgeWorkspace, Id, Key, Limits, List, ProcedureStep,
+    CallAnswer, CallKey, Decision, Delivery, Domain, Env, Family, ForgeWorkspace, Key, Limits, List, ProcedureStep,
     Queue, Record, ReplyTo, Request, StepEnd, Token, Work, Write, authority, connector_answer, core_call, decide_call,
     emit, forge, forge_change, forge_issues, people, save, save_connector_answer, tasks,
 };
@@ -15,7 +15,6 @@ use forge::change_words::{
 use forge::change_words::{REPAIR_PRESERVATION, context_fixed, repair_words};
 
 use alloc::boxed::Box;
-use jig_domain_brief as brief;
 use temper_engine_domain_forge_landing as landing;
 pub const FOLLOW_CODE: u32 = 7;
 pub(super) const ASKING_TEMPLATE: u32 = 5;
@@ -25,7 +24,7 @@ pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
 pub(crate) const STATUS_CODE: u32 = 5;
 pub(super) const STATUS_CHARTER: u32 = 9;
-use jig_domain_contract::{Connector, Up, effects, lifecycle, projections, resources};
+use jig_domain_contract::{Connector, Up, effects, lifecycle, parts, projections, resources};
 use jig_domain_core::effects::connector::EffectDescription;
 
 pub use forge::routing::adopt_repository_ask;
@@ -825,7 +824,6 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::RepairFindings { .. }
             | Work::People(_)
             | Work::Fleet(_)
-            | Work::Brief(_)
             | Work::Forge(_)
             | Work::ProjectGoal(_)
             | Work::AgreedGoal(_)
@@ -1036,10 +1034,10 @@ fn tracked_ancestor(domain: &Domain, requester: tasks::Party) -> Option<u64> {
 pub(crate) fn unheld_run_branch(
     domain: &Domain,
     limits: &Limits,
+    root: u64,
     task: u64,
     repository: &forge::Repository,
 ) -> Option<bool> {
-    let root = domain.engine.core().tasks.root(task)?;
     let branch = tree_branch(repository, root, b'r', task, None, limits.forge.name_bytes)?;
     let name = forge::Name {
         forge: repository.provider.forge,
@@ -1083,7 +1081,7 @@ pub(crate) fn run_workspace(
     domain: &Domain,
     env: &Env<Limits>,
     context: &tasks::RunContext,
-    _attempt: u64,
+    root: Option<u64>,
 ) -> Option<RunWorkspace> {
     if context.executor == (tasks::Executor::Agent { charter: super::trials::TRIAL_CHARTER }) {
         return Some(status_route::workspace(domain, context));
@@ -1096,7 +1094,10 @@ pub(crate) fn run_workspace(
     {
         return landing_route::prepare_workspace(domain, env, parent, context.project);
     }
-    let root = domain.engine.core().tasks.root(context.task)?;
+    let root = match root {
+        Some(root) => root,
+        None => domain.engine.core().tasks.root(context.task)?,
+    };
     let modify = match context.executor {
         tasks::Executor::Agent { charter } => match domain.engine.core().charter(charter) {
             Some(charter) => {
@@ -1232,7 +1233,7 @@ pub(crate) fn run_workspace(
                     }
                     Some(authority::Writer::Ancestor)
                 }
-                None if !item.delivers && unheld_run_branch(domain, &env.limits, context.task, repository)? => {
+                None if !item.delivers && unheld_run_branch(domain, &env.limits, root, context.task, repository)? => {
                     push = None;
                     None
                 }
@@ -4603,36 +4604,33 @@ pub(crate) fn outputs(
             forge::Request::BriefClient { event } => domain.work.push(Work::Forge(forge::Event::Client(event))),
             forge::Request::BriefReady { .. } => unreachable!("the root uses held forge sections"),
             forge::Request::BriefSized { section, size } => {
-                let Some(row) = domain.brief_connectors.get(Id::from_token(section)) else { continue };
-                let brief = Token::new(row.task);
-                let event = match size {
-                    Ok(size) => {
-                        brief::GatherEvent::Sized { brief, connector: domain.config.forge_connector, section, size }
-                    }
-                    Err(unread) => brief::GatherEvent::Missing {
-                        brief,
-                        connector: domain.config.forge_connector,
+                let Some(row) = domain.brief_connectors.get(&section) else { continue };
+                let task = row.task;
+                let up = match size {
+                    Ok(size) => parts::Up::Sized { task, section, size },
+                    Err(unread) => parts::Up::Failed {
+                        task,
                         section,
-                        why: brief::GatherFailure {
+                        failure: parts::Failure {
                             fate: match unread.fate {
-                                forge::BriefFate::Capacity => brief::GatherFate::Capacity,
-                                forge::BriefFate::Transient => brief::GatherFate::Transient,
-                                forge::BriefFate::Permanent => brief::GatherFate::Permanent,
+                                forge::BriefFate::Capacity => parts::Fate::Capacity,
+                                forge::BriefFate::Transient => parts::Fate::Transient,
+                                forge::BriefFate::Permanent => parts::Fate::Permanent,
                             },
-                            section: crate::assemble::forge_brief_name(&row.kind),
+                            section: crate::assemble::forge_brief_name(row.kind),
                             words: unread.words,
                         },
                     },
                 };
-                domain.work.push(Work::Brief(event));
+                super::forge_up(domain, Up::Parts(up));
             }
             forge::Request::BriefReadRefused { section, stage, reason, heads, error } => {
-                let Some(row) = domain.brief_connectors.get(Id::from_token(section)) else { continue };
+                let Some(row) = domain.brief_connectors.get(&section) else { continue };
                 super::diagnostics::emit(
                     domain,
                     crate::Fact::BriefReadRefused {
                         task: row.task,
-                        section: crate::assemble::forge_brief_name(&row.kind),
+                        section: crate::assemble::forge_brief_name(row.kind),
                         stage,
                         reason,
                         heads,

@@ -862,7 +862,6 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
 
     let (mut domain, env) = resume_fixture::root();
     let fixture = held_assignment();
-    domain.hub_link.keep_brief(fixture.task, Box::new([]));
     domain
         .run_workspaces
         .insert(
@@ -901,6 +900,7 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
         transcript: Box::new([]),
         answered: Box::new([]),
         grants: Box::new([]),
+        brief: Box::new([]),
     })));
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);

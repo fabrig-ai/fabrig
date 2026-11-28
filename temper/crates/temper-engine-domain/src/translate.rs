@@ -238,7 +238,7 @@ pub(crate) fn forge_declaration(connector: u16) -> jig_domain_contract::Declarat
         resources: Box::new([ResourceKind { kind: 1, hold }]),
         effects: effects.into_boxed(),
         projects_goals: true,
-        sections: false,
+        sections: true,
     }
 }
 

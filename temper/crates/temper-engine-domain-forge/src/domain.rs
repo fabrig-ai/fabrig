@@ -1255,8 +1255,9 @@ impl Domain {
             client_out: Queue::uncapped(),
             read_line: read_line::Line::new(l),
             brief_fetches: Map::with_capacity(l.brief_sections),
-            brief_planned: Map::with_capacity(l.brief_sections),
-            brief_documents: Map::with_capacity(l.brief_sections),
+            // Offers follow live preparations, before the engine claims a gathering slot.
+            brief_planned: Map::uncapped(),
+            brief_documents: Map::uncapped(),
             document_fetches: Map::with_capacity(l.brief_sections),
             brief_pending: Map::with_capacity(l.brief_sections),
             brief_held: Map::with_capacity(l.brief_sections),

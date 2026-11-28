@@ -84,7 +84,6 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::RunText { .. }
         | core::Event::Tasks(..)
         | core::Event::StartRecurring { .. }
-        | core::Event::BriefAssembled { .. }
         | core::Event::WorkspacePrepared { .. }
         | core::Event::ClaimPrepared { .. }
         | core::Event::ClaimRefused { .. }
@@ -103,7 +102,6 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::NamedAction { .. }
         | core::Event::Delegate { .. }
         | core::Event::ProcedureStep { .. }
-        | core::Event::Brief(..)
         | core::Event::Account(..)
         | core::Event::View(..)
         | core::Event::Notes(..)
