@@ -14,4 +14,5 @@ The goals that carry [any-project.md](any-project.md) into the design and the co
 ## 2. Order
 
 - **Main stays redeployable to dev.fabrig.ai at every landing** ([ways.execution.md](ways.execution.md), section 2): A1 lands the stock's words and fabrig's in one landing, so dev.fabrig.ai's lean charter, rebuilt from charter 5, reads the same rules as before. A by-hand step it needs is named under `## Dev` in the goal's result.
+- **fabrig runs unchanged** ([any-project.md](any-project.md), section 8): each goal's acceptance includes that fabrig's goals read the same rules as before, from its guide and its overlay, and A2's that its contracts document moves into `.goal/` and nothing else does.
 - A1 and A3 first, side by side. A2 after A1, which its words build on. A4 last, with W10, after the user's UX pass.
