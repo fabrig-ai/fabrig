@@ -160,13 +160,19 @@ class Delivery(unittest.TestCase):
 
     def test_modes_share_the_tree_only_checker(self):
         with mock.patch.object(PRE, 'check', return_value=0) as check:
-            for args, mode in [([], 'delivery'), (['--child'], 'child'), (['--goal'], 'goal'),
-                               (['--child', 'dest'], 'child'), (['--close'], 'close'),
-                               (['--close', 'dest'], 'close'), (['--goal', 'head', 'dest'], 'goal')]:
-                self.assertEqual(PRE.main(args), 0)
-                self.assertEqual(check.call_args.args[0], mode)
-        with self.assertRaises(ValueError):
-            PRE.main(['--goal', 'head'])
+            for args, mode, commits in [([], 'delivery', ()), (['--close'], 'close', []),
+                                        (['--close', 'a' * 40], 'close', ['a' * 40])]:
+                with self.subTest(args=args):
+                    self.assertEqual(PRE.main(args), 0)
+                    self.assertEqual(check.call_args.args, (mode, commits))
+
+    def test_removed_modes_are_rejected_before_checking(self):
+        with mock.patch.object(PRE, 'check') as check:
+            for args in (['--goal'], ['--goal', 'head', 'dest'], ['--child'], ['--child', 'dest']):
+                with self.subTest(args=args):
+                    with self.assertRaisesRegex(ValueError, r'^expected no arguments or --close \[DESTINATION\]$'):
+                        PRE.main(args)
+                    check.assert_not_called()
 
     def test_checker_changes_run_only_python_and_write_local_receipt(self):
         with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
@@ -201,10 +207,7 @@ class Delivery(unittest.TestCase):
             self.assertTrue(err.getvalue().endswith(f'smith-check: not judged\npre-pr: broke: {detail}\n'))
 
     def test_candidate_tool_diagnostics_refuse(self):
-        lint = {'reason': 'compiler-message', 'package_id': 'api', 'message': {
-            'level': 'error', 'code': {'code': 'clippy::rule'}, 'spans': [], 'message': 'lint failed'}}
-        steps = iter([(b'flavor: count 9, baseline 8\n', 1), (b'broken citation\n', 1),
-                      (b'outward path\n', 1), (json.dumps(lint).encode() + b'\n', 101)])
+        steps = iter([(b'flavor: count 9, baseline 8\n', 1), (b'broken citation\n', 1), (b'outward path\n', 1)])
 
         def tool(args, root, env, output=None, stdout=False):
             raw, status = next(steps)
@@ -219,8 +222,6 @@ class Delivery(unittest.TestCase):
                 (lambda: PRE.baselines('skein', self.root, {}), 'old-forms skein flavor'),
                 (lambda: PRE.citations('tree', self.root, {}), 'citations'),
                 (lambda: PRE.outward(self.root, {}), 'test fabrig-boundary::outward no_file_names_the_lab'),
-                (lambda: PRE.clippy(['api'], {'packages': [{'id': 'api', 'name': 'api'}]}, self.root, {}),
-                 'clippy api clippy::rule '),
             ]:
                 with self.subTest(expected=expected):
                     _, errors = run()
@@ -435,11 +436,7 @@ class Delivery(unittest.TestCase):
                 errors.append(PRE.failure('format', 'an earlier failure'))
             return []
 
-        def goal(*args):
-            print('goal checks finished')
-            return [], [], []
-
-        for args in ([], ['--child'], ['--goal'], ['--close']):
+        for args in ([], ['--close']):
             for failed in (False, True):
                 with self.subTest(args=args, failed=failed), contextlib.ExitStack() as stack:
                     out = stack.enter_context(redirect_stdout(io.StringIO()))
@@ -452,14 +449,12 @@ class Delivery(unittest.TestCase):
                     stack.enter_context(mock.patch.object(PRE, 'scope_base', return_value=('b' * 40, 'base', None)))
                     stack.enter_context(mock.patch.object(PRE, 'changed_paths', return_value=[]))
                     stack.enter_context(mock.patch.object(PRE, 'workspace_checks', side_effect=workspace))
-                    stack.enter_context(mock.patch.object(PRE, 'goal_checks', side_effect=goal))
                     errors = [PRE.failure('journeys', 'mixture')] if failed else []
                     stack.enter_context(mock.patch.object(PRE, 'journeys', return_value=errors))
                     self.assertEqual(PRE.main(args), int(failed))
                     log = out.getvalue()
-                    previous = 'goal checks' if args == ['--goal'] and not failed else 'workspace checks'
                     result = 'failed' if failed else 'passed'
-                    self.assertRegex(log, rf'{previous} finished\npre-pr: journeys …\n'
+                    self.assertRegex(log, rf'workspace checks finished\npre-pr: journeys …\n'
                                           rf'pre-pr: journeys: {result}, \d+\.\d{{3}} s\n')
 
     def test_a_checker_exception_breaks_with_a_bounded_stderr_reason(self):
@@ -541,8 +536,6 @@ class Delivery(unittest.TestCase):
             ('hooks/deliver', 'tools/pre-pr/pre_pr.py'),
             ('hooks/merge', '"$(dirname "$0")/../../tools/merge/merge.py" "$@"'),
             ('hooks/close', 'tools/pre-pr/pre_pr.py --close'),
-            ('goal-child-pre-pr', 'tools/pre-pr/pre_pr.py --child "$@"'),
-            ('goal-pre-pr', 'tools/pre-pr/pre_pr.py --goal "$@"'),
         ]:
             with self.subTest(entry=entry):
                 script = temper / entry
@@ -557,56 +550,12 @@ class Delivery(unittest.TestCase):
                 self.assertTrue(script.stat().st_mode & 0o111)
                 self.assertEqual(script.read_text(), f'#!/bin/sh\nexec "$(dirname "$0")/hooks/{hook}" "$@"\n')
 
-    def test_goal_checks_select_merge_tests_when_the_merge_hook_changes(self):
-        with mock.patch.object(PRE, 'metadata', return_value={'packages': [], 'workspace_members': []}), \
-             mock.patch.object(PRE, 'clippy', return_value=(0, [])), \
-             mock.patch.object(PRE, 'test_binaries', return_value={}), \
-             mock.patch.object(PRE, 'run', return_value=(0, '')) as run:
-            PRE.goal_checks(self.root, ['.temper/hooks/merge'], self.env, self.errors, 0)
-        run.assert_called_once_with(['python3', '-I', '-B', 'tools/merge/test_merge.py'],
-                                    self.root, self.env, stdout=True)
-        self.assertEqual(self.errors, [])
-
-    def test_goal_hook_installs_only_a_missing_rerun_marker_before_goal_mode(self):
-        from shutil import copy2
-        checkout = self.root / 'checkout'
-        git_dir = self.root / 'metadata'
-        hooks = checkout / '.temper'
-        hooks.mkdir(parents=True)
-        hook = copy2(HERE.parents[1] / '.temper/goal-pre-pr', hooks)
-        stand_in = checkout / 'tools/pre-pr/pre_pr.py'
-        stand_in.parent.mkdir(parents=True)
-        stand_in.write_text(
-            'import sys\n'
-            'from pathlib import Path\n'
-            'import subprocess\n'
-            'assert sys.argv[1:] == ["--goal", "head", "dest"]\n'
-            'marker = Path(subprocess.check_output(\n'
-            '    ["git", "rev-parse", "--git-path", "temper/rerun"], text=True).strip())\n'
-            'print(marker.read_text(), end="")\n'
-        )
-        with mock.patch.object(subprocess, 'Popen', side_effect=POPEN):
-            subprocess.run(['git', 'init', '-q', '--separate-git-dir', git_dir], cwd=checkout, check=True)
-            marker = checkout / subprocess.check_output(
-                ['git', 'rev-parse', '--git-path', 'temper/rerun'], cwd=checkout, text=True).strip()
-            marker.parent.mkdir()
-            temporary = marker.with_suffix('.tmp')
-            temporary.write_bytes(b'unfinished\n')
-            staged_inode = temporary.stat().st_ino
-            call = [hook, 'head', 'dest']
-            self.assertEqual(subprocess.check_output(call, cwd=self.root), b'temper-rerun 1 0\n')
-            self.assertEqual(marker.stat().st_ino, staged_inode, 'the staged marker was renamed')
-            self.assertFalse(temporary.exists())
-
-            marker.write_bytes(b'temper-rerun 1 4\n')
-            self.assertEqual(subprocess.check_output(call, cwd=self.root), b'temper-rerun 1 4\n')
-            self.assertEqual(marker.stat().st_ino, staged_inode, 'the worker marker was not replaced')
-
     def test_changed_python_module_runs_its_sibling_suite_once(self):
         directory = self.root / 'tools/example'
         directory.mkdir(parents=True)
         (directory / 'test_rules.py').touch()
         with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
+             mock.patch.object(PRE, 'metadata', return_value={'packages': [], 'workspace_members': []}), \
              mock.patch.object(PRE, 'citations', return_value=(0, [])), \
              mock.patch.object(PRE, 'outward', return_value=(0, [])):
             args = (self.root, ['tools/example/rules.py', 'tools/example/test_rules.py'],
@@ -644,7 +593,7 @@ class Delivery(unittest.TestCase):
                  mock.patch.object(PRE, 'citations', return_value=(0, [])), \
                  mock.patch.object(PRE, 'outward', return_value=(0, [])), \
                  mock.patch.object(PRE, 'baselines', return_value=(0, [])):
-                PRE.workspace_checks(self.root, paths, 'tree', {}, self.errors, {}, whole=False)
+                PRE.workspace_checks(self.root, paths, 'tree', {}, self.errors, {})
                 self.assertEqual([call.args[0] for call in run.call_args_list if call.args[0][0] == 'cargo'], expected)
         self.assertEqual(self.errors, [])
 
@@ -655,7 +604,7 @@ class Delivery(unittest.TestCase):
              mock.patch.object(PRE, 'citations', return_value=(0, [])), \
              mock.patch.object(PRE, 'outward', return_value=(0, [])):
             self.assertEqual(PRE.workspace_checks(self.root, ['docs/guide.md', 'temper/docs/design/a.md'], 'tree',
-                                                  {}, self.errors, {}, completed_goal=True, whole=False), [])
+                                                  {}, self.errors, {}, completed_goal=True), [])
         run.assert_not_called()
 
     def test_a_path_without_cargo_gains_the_users_cargo_tools(self):
@@ -678,7 +627,7 @@ class Delivery(unittest.TestCase):
         errors = [PRE.broken('helper', 'not executable'),
                   PRE.failure('test api::suite inherited', 'known', ('api::suite', 'inherited')),
                   PRE.failure('test api::suite new', 'assertion failed', ('api::suite', 'new'))]
-        PRE.inherited({('test', 'api::suite', 'inherited')}, errors)
+        errors[1]['inherited'] = True
         self.assertEqual(PRE.finish('tree', 'base', errors, self.root, {}, 'delivery', (), None), 1)
         self.assertIn('pre-pr: refused', self.log.getvalue())
         receipt = self.receipt('pre-pr-light-failures.json')
@@ -695,7 +644,7 @@ class Delivery(unittest.TestCase):
         cases = [('close', None, [red], 1), ('close', '', [red], 1), ('close', '1', [red], 1),
                  ('close', None, [broke], 1), ('close', '', [broke], 1), ('close', '1', [broke], 1),
                  ('close', '3', [broke], 2), ('close', '3', [], 0)]
-        cases += [(scope, '3', errors, 1) for scope in ('delivery', 'child', 'goal') for errors in ([red], [broke])]
+        cases += [('delivery', '3', errors, 1) for errors in ([red], [broke])]
         for scope, value, errors, status in cases:
             with self.subTest(scope=scope, value=value, errors=errors), redirect_stderr(io.StringIO()) as err:
                 result.write_bytes(settlement)
@@ -714,7 +663,7 @@ class Delivery(unittest.TestCase):
         settlement = b'{"settled":[]}\n'
         env = {'TEMPER_JOB': str(self.root), 'TEMPER_CLOSE_OUTDATED': '3'}
         red = PRE.failure('format', 'diff')
-        for scope in ('delivery', 'child', 'goal', 'close'):
+        for scope in ('delivery', 'close'):
             with self.subTest(scope=scope), redirect_stderr(io.StringIO()):
                 result.write_bytes(settlement)
                 self.assertEqual(PRE.finish('tree', 'base', [red], self.root, env, scope, (), ['head']), 1)
@@ -753,10 +702,8 @@ class Delivery(unittest.TestCase):
                 self.assertEqual(len(exact), bound)
                 self.assertEqual(PRE.refusal_bytes(head, tree, base, counts, names, bound), exact)
         errors = [PRE.failure(first, 'test failed'), PRE.failure('format', 'diff'),
-                  PRE.failure('flakes are omitted', 'flake', ('A::rules', 'flake')),
-                  PRE.failure('inherited are omitted', 'known'), PRE.broken('helper', 'also broke')]
-        errors[2]['flake'] = (1, 0.0)
-        errors[3]['inherited'] = True
+                  PRE.failure('inherited failures are omitted', 'known'), PRE.broken('helper', 'also broke')]
+        errors[2]['inherited'] = True
         errors += [PRE.failure('ñ' * 100, 'too many bytes')] + [PRE.failure(f'test later {i}', 'failed') for i in range(6)]
         env = {'TEMPER_CLOSE_REFUSAL': '3', 'TEMPER_JOB': str(self.root)}
         with redirect_stderr(io.StringIO()) as err:
@@ -852,43 +799,13 @@ class Delivery(unittest.TestCase):
     def test_large_receipt_preserves_every_key_and_bounds_summary(self):
         errors = [PRE.failure(f'test api::suite case_{i}', 'x' * 9000, ('api::suite', f'case_{i}'))
                   for i in range(450)]
-        PRE.inherited({('test', 'api::suite', 'case_0')}, errors)
-        errors[1]['flake'] = (1, 0.1)
-        self.assertEqual(PRE.finish('tree', 'base', errors, self.root, {}, 'goal', ['head', 'dest'], ['head']), 1)
-        receipt = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
-        self.assertEqual(receipt['counts'], {'new': 448, 'flake': 1, 'inherited': 1, 'broke': 0})
+        errors[0]['inherited'] = True
+        with redirect_stderr(io.StringIO()):
+            self.assertEqual(PRE.finish('tree', 'base', errors, self.root, {}, 'close', ['dest'], ['head']), 1)
+        receipt = self.receipt()
+        self.assertEqual(receipt['counts'], {'new': 449, 'flake': 0, 'inherited': 1, 'broke': 0})
         self.assertEqual({entry['key']['test'] for entry in receipt['failures']}, {f'case_{i}' for i in range(450)})
         self.assertLessEqual(len(self.log.getvalue().encode()), 8192)
-
-    def test_diagnostic_cpu_measurements_do_not_enable_budget_refusals(self):
-        for profile in ('default', 'fuzzy'):
-            with mock.patch.object(PRE, 'run', return_value=(2, 'one-process: nextest listing exited with 101')) as run:
-                result, errors, _ = PRE.one_process(['api'], self.root, {}, profile=profile)
-            self.assertEqual(result, 2)
-            self.assertTrue(errors[0]['name'].startswith('build'))
-            cmd = run.call_args.args[0]
-            self.assertNotIn('--ledger', cmd)
-            self.assertNotIn('--gate', cmd)
-
-    def test_diagnostic_preserves_the_failing_case(self):
-        def failing(command, cwd, env, stdout=False):
-            directory = Path(command[command.index('--out') + 1])
-            directory.mkdir()
-            (directory / 'run.json').write_text('{"starved": false}')
-            (directory / 'results.json').write_text(json.dumps({'tests': [
-                {'binary_id': 'api::suite', 'test_name': 'example', 'outcome': 'failed'}], 'unobserved': []}))
-            (directory / 'junit.xml').write_text('<testsuites><testsuite name="api::suite"><testcase name="example">'
-                                                 '<failure>broken</failure></testcase></testsuite></testsuites>')
-            return 100, 'failed'
-        with mock.patch.object(PRE, 'run', side_effect=failing):
-            _, errors, _ = PRE.one_process(['api'], self.root, {})
-        self.assertEqual(errors[0]['key'], ('api::suite', 'example'))
-
-    def test_child_destination_is_only_a_request_label(self):
-        PRE.finish('tree', None, [], self.root, {}, 'child', ['dest'], ['head'])
-        record = json.loads((self.root / 'target/temper/goal-child-pre-pr.json').read_text())
-        self.assertEqual((record['scope'], record['delivery_head'], record['requested_destination'],
-                          record['destination']), ('child', 'head', 'dest', None))
 
 
 class Changes(unittest.TestCase):
@@ -931,7 +848,7 @@ class Changes(unittest.TestCase):
     def test_delivery_checks_only_what_changed_since_the_pin(self):
         self.git('update-ref', 'refs/temper/landing', self.main)
         self.change()
-        self.assertEqual(PRE.change_base(self.root, self.env, 'delivery'),
+        self.assertEqual(PRE.change_base(self.root, self.env),
                          (self.main, 'merge base of refs/temper/landing and HEAD'))
         self.assertEqual(PRE.changed_paths(self.root, self.env, self.main),
                          ['edited.rs', 'gone.md', 'new.md', 'staged.rs', 'unstaged.md'])
@@ -951,33 +868,9 @@ class Changes(unittest.TestCase):
     def check_journeys(self, args):
         with mock.patch.object(Path, 'cwd', return_value=self.root), mock.patch.dict(os.environ, self.env), \
              mock.patch.object(PRE, 'workspace_checks', return_value=[]) as checks, \
-             mock.patch.object(PRE, 'goal_checks', return_value=([], [], [])), redirect_stdout(io.StringIO()) as output:
+             redirect_stdout(io.StringIO()) as output:
             status = PRE.main(args)
         return status, output.getvalue(), checks.call_args.args[1]
-
-    def test_no_base_refuses_unstaged_page_with_untracked_notes(self):
-        page = self.commit_journeys()
-        page.write_text('edited page\n')
-        (self.root / 'notes.txt').write_text('notes\n')
-        status, output, _ = self.check_journeys(['--goal'])
-        self.assertEqual(status, 1)
-        self.assertIn(str(page.relative_to(self.root)), output)
-        self.assertIn('other path: notes.txt', output)
-        self.assertIn('git checkout HEAD -- PATH...', output)
-
-    def test_no_base_passes_a_staged_page_alone(self):
-        page = self.commit_journeys()
-        page.write_text('edited page\n')
-        self.git('add', str(page.relative_to(self.root)))
-        status, output, _ = self.check_journeys(['--goal'])
-        self.assertEqual(status, 0)
-        self.assertIn('pre-pr: journeys: passed,', output)
-
-    def test_no_base_passes_a_clean_tree(self):
-        self.commit_journeys()
-        status, output, _ = self.check_journeys(['--goal'])
-        self.assertEqual(status, 0)
-        self.assertIn('pre-pr: journeys: passed,', output)
 
     def merge_journey_edit(self, *, pending):
         page = self.commit_journeys(recording=True)
@@ -1347,7 +1240,7 @@ class Changes(unittest.TestCase):
         (self.root / 'edited.rs').write_text('saved\n')
         self.git('commit', '-qam', PRE.UNCHECKED_SAVE)
         self.git('update-ref', 'refs/temper/landing', 'HEAD')
-        self.assertEqual(PRE.change_base(self.root, self.env, 'delivery')[0], self.main)
+        self.assertEqual(PRE.change_base(self.root, self.env)[0], self.main)
         self.git('checkout', '-q', '-b', 'side', self.main)
         (self.root / 'side.rs').write_text('side\n')
         self.git('add', 'side.rs')
@@ -1355,17 +1248,16 @@ class Changes(unittest.TestCase):
         side = self.git('rev-parse', 'HEAD')
         self.git('checkout', '-q', '-')
         self.git('update-ref', 'refs/temper/landing', side)
-        self.assertEqual(PRE.change_base(self.root, self.env, 'delivery')[0], self.main)
+        self.assertEqual(PRE.change_base(self.root, self.env)[0], self.main)
         # Merging the moved landing branch in: its own changes aren't the delivery's.
         (self.root / '.git/MERGE_HEAD').write_text(side + '\n')
-        self.assertEqual(PRE.change_base(self.root, self.env, 'delivery')[0], side)
+        self.assertEqual(PRE.change_base(self.root, self.env)[0], side)
 
     def test_without_a_usable_base_the_check_breaks_loudly(self):
-        for scope in ('delivery', 'child'):
-            base, name, why = PRE.scope_base(self.root, self.env, scope, True)
-            self.assertEqual((base, name), (None, None))
-            self.assertIn('sharing history with HEAD', why)
-            self.assertIn('no base', PRE.scope_base(self.root, self.env, scope, False)[2])
+        base, name, why = PRE.scope_base(self.root, self.env, 'delivery', True)
+        self.assertEqual((base, name), (None, None))
+        self.assertIn('sharing history with HEAD', why)
+        self.assertIn('no base', PRE.scope_base(self.root, self.env, 'delivery', False)[2])
         self.git('update-ref', 'refs/remotes/origin/main', 'HEAD')
         self.assertEqual(PRE.scope_base(self.root, self.env, 'delivery', True)[:2],
                          (self.main, 'merge base of refs/remotes/origin/main and HEAD'))
@@ -1425,8 +1317,7 @@ class Changes(unittest.TestCase):
         self.assertTrue(PRE.seed(self.root, work, self.env, work / '.git/index'))
 
     def test_without_a_base_reference_there_is_no_base(self):
-        for scope in ('delivery', 'child', 'goal'):
-            self.assertEqual(PRE.change_base(self.root, self.env, scope), (None, None))
+        self.assertEqual(PRE.change_base(self.root, self.env), (None, None))
 
     def test_the_seeded_snapshot_is_the_fresh_one(self):
         self.change()
@@ -1679,7 +1570,7 @@ class CloseBudgets(unittest.TestCase):
         metadata = dict(packages=packages, workspace_members=list(dependencies), target_directory=str(target))
         errors = []
         with mock.patch.object(PRE, 'run', side_effect=fake_run) as run, \
-             mock.patch.object(PRE, 'format_workspace', return_value=list(formatted)), \
+             mock.patch.object(PRE, 'format_changes', return_value=list(formatted)), \
              mock.patch.object(PRE, 'baselines', return_value=(0, [])), \
              mock.patch.object(PRE, 'metadata', return_value=metadata), \
              mock.patch.object(PRE, 'citations', return_value=(0, [])), \

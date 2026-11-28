@@ -18,11 +18,6 @@ def workspace_filter(packages):
     return ['-E', f'default() & not (package(=fabrig-boundary) & ({cases}))']
 
 
-def owns_package(root, path):
-    return any((directory / 'Cargo.toml').is_file()
-               for directory in (root / path).parents if directory.is_relative_to(root) and directory != root)
-
-
 def package_plan(root, paths, packages, layers, also=()):
     dirs = {Path(package['manifest_path']).parent: name for name, package in packages.items()}
     affected = defaultdict(set)
