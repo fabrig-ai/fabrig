@@ -34,15 +34,15 @@ put it. The kind of each ask: ◆ judgement, · notification, ▷ operation that
 | `effects` | `Describe { owner }` | ◆ `Described`, `Refused` or `Busy` | `E::Describe` |
 | | `DescribeProposal { owner, proposal }` | ◆ the same | `E::DescribeProposal` |
 | | `Judge { owner, judge, state, resources }` | ◆ `Verdict` | `E::Judge` |
-| | `Keep { owner, entry, task, key }` | · | `E::Keep` |
+| | `Keep { owner, entry, task, key, project }` | · | `E::Keep`; `project: Option<u32>` is the task's project as the core reads it when it makes the ask, none where the task's row is gone, so a connector that keeps an entry's project needs nothing of the root's |
 | | `KeepProposal { owner, proposal, task, project }` | · | `E::KeepProposal` |
 | | `Drop { owner, answer, findings, why }` | · | `E::Drop` |
 | | `DropProposal { proposal }` | · | `E::DropProposal` |
 | | `Resolve { entry, again }` | ▷ `Outbox` | `E::ResolveUncertain` |
 | | `Close { task, root, ending }` | ▷ `Closed` | `C::Close` |
 | | `Release { task, root, ending, entry }` | ▷ `Released` | `C::Release` |
-| `topics` | `Subscribed { request, key, subscription }` | · | `C::SubscriptionDone` |
-| | `Unsubscribed { request, key }` | · | `C::UnsubscriptionDone` |
+| `topics` | `Subscribed { request, key, subscription }` | · | `C::SubscriptionDone`; the core asks it, then settles the run's call itself (`Subscribed { subscription }`), as it does for a subscription no connector owns: no call is handed to the application and no root answers it |
+| | `Unsubscribed { request, key }` | · | `C::UnsubscriptionDone`; the same, its call settled `Unsubscribed` |
 | | `Refused { request }` | · | `C::DropSubscription` |
 | | `Ended { task, subscription }` | · | `C::EndTopic` |
 | `parts` | `Document { watcher, scope, subject, party, window }` | ◆ `Made` | `C::Document` |
@@ -50,7 +50,7 @@ put it. The kind of each ask: ◆ judgement, · notification, ▷ operation that
 | | `Read { reply, scope, read, party, window }` | ·, its answer the connector's own held output | `C::Read` |
 | | `Lines(PartsAsk)` | ◆ `Lines` | `C::Parts` |
 | | `Public { reply, kind, version, project, task, public }` | ◆ `Public` | `C::Public` |
-| `procedures` | `Start { context, step }` | · | `C::StartProcedure` |
+| `procedures` | `Start { context, step, chat }` | · | `C::StartProcedure`; `chat: Option<u64>` is the conversation the task serves, as `Tasks::served_chat` gives it when the core makes the ask |
 | | `StepMade { task, step, first, revisions }` | · | `C::StepMade` |
 | | `StepRefused { task, step, why }` | · | `C::StepRefused` |
 | | `WaitsRefused { task, why }` | · | `C::WaitsRefused` |
@@ -116,6 +116,15 @@ Not cased, and gone once no root names them: `E`'s `Names`, `Hold`, `ReleaseHold
 `Adopt` and `Restore` asks, which the core never makes; and `E`'s `Procedure`, `SectionReady`,
 `WorkspaceReady` events, which the core takes in an arm that does nothing.
 
+An effect's owner is a token the core mints (`Core::effect_owner`), its staging flight, which
+`effects::Up::Start` must name. A connector that starts an effect unasked (a procedure's step,
+a projection's entry) can't mint one, and the core can't mint it at an ask, since one step or
+projection may start several or none. So until the engine is the API (`vocabulary.md`, 3), a
+root mints it through its access to the core when its connector asks for one in its own
+vocabulary, and hands it back the same way; the connector keeps its effect under that owner
+and says `effects::Up::Start { owner, origin }` itself. That exchange is among what a root still
+translates, and its report lists it.
+
 ## 2. The declaration
 
 ```rust
@@ -159,6 +168,8 @@ function nor today's variants.
 - The enums: section 1's and 2's types, and each root's declarations with `projects_goals`.
 - The engine port: `In::Connector`, `Out::Ask`, `Peer::Connector`; the core making and taking the
   contract's cases itself; asks only of declarers; the judgements' assertion; the bridge.
+- The core's values for moved connectors: `procedures::Ask::Start`'s `chat`, `effects::Ask::Keep`'s
+  `project`, and the subscribing calls the core settles itself, each root's answer to them gone.
 - One change per root (`ops`, the test root, temper): its connectors speaking the contract, its
   asks routed one arm per connector, and no use of the bridge.
 - The last: today's variants that only the bridge names, the bridge, and this document.
