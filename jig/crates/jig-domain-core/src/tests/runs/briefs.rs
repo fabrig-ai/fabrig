@@ -78,22 +78,22 @@ fn finish_index(engine: &mut Engine, env: &Env<Limits>, task: u64) -> Box<[Out]>
         }),
     );
     for _ in 0..env.limits.notes.scopes {
-        let mut next = None;
-        for request in &out {
-            if let Out::Held(engine::Peer::Store(engine_store::Out::Load {
-                load,
-                range: engine_store::Range::Notes(_),
-            })) = request
-            {
-                next = Some(*load);
-                break;
-            }
-        }
-        let Some(next) = next else { break };
+        let Some(next) = notes_load(&out) else { break };
         assert!(parts_asks(&out).is_empty(), "no ask before the notes index is in");
         out = step(engine, env, In::Store(point_answer(next, None, false)));
     }
     out
+}
+
+fn notes_load(out: &[Out]) -> Option<Token> {
+    for request in out {
+        if let Out::Held(engine::Peer::Store(engine_store::Out::Load { load, range: engine_store::Range::Notes(_) })) =
+            request
+        {
+            return Some(*load);
+        }
+    }
+    None
 }
 
 fn parts_asks(out: &[Out]) -> List<(u16, &parts::Ask)> {
@@ -295,6 +295,38 @@ fn a_child_refusal_drops_sections_not_admitted_to_gathering() {
     assert_eq!(failure.reason().as_ref(), b"brief: no brief slot is free");
     sized(&mut engine, &env, TASK, HOME, 8);
     workspace(&sized(&mut engine, &env, TASK, PULL, 9), TASK);
+}
+
+#[test]
+fn a_notes_index_from_an_abandoned_preparation_cannot_plan_the_replacement_brief() {
+    let (mut engine, env) = agent(&[SERVING], 6);
+    engine.core_mut().opened = true;
+    let context = engine.core().tasks.run_context(TASK).unwrap();
+    let mut out = step(&mut engine, &env, In::Core(Event::Activate { context, ready: true }));
+    assert!(notes_load(&out).is_some(), "the first preparation has a cold index in flight: {out:?}");
+
+    step(&mut engine, &env, In::Core(Event::Tasks(tasks::Event::PreparationWaiting { task: TASK })));
+    assert_eq!(engine.core().tasks.task(TASK).unwrap().phase, tasks::Phase::Active(tasks::Active::Due));
+    let context = engine.core().tasks.run_context(TASK).unwrap();
+    let replacement = step(&mut engine, &env, In::Core(Event::Activate { context, ready: true }));
+    assert!(notes_load(&replacement).is_none(), "the replacement waits for notes to become idle");
+    assert!(parts_asks(&replacement).is_empty());
+    assert_eq!(engine.core().tasks.task(TASK).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
+
+    for _ in 0..env.limits.notes.scopes {
+        let Some(load) = notes_load(&out) else { break };
+        assert!(parts_asks(&out).is_empty(), "no connector plans before the notes index is ready");
+        out = step(&mut engine, &env, In::Store(point_answer(load, None, false)));
+    }
+    let [(SERVING, parts::Ask::Plan(plan))] = parts_asks(&out).as_slice() else {
+        panic!("one plan for the replacement: {out:?}")
+    };
+    assert_eq!(plan.task, TASK);
+    planned(&mut engine, &env, TASK, pair());
+    sized(&mut engine, &env, TASK, HOME, 8);
+    let attempt = workspace(&sized(&mut engine, &env, TASK, PULL, 9), TASK);
+    let out = step(&mut engine, &env, workspace_answer(TASK, attempt, true));
+    let [Now::RunPrepared { task: TASK, .. }] = now(&out).as_slice() else { panic!("replacement run: {out:?}") };
 }
 
 #[test]

@@ -224,7 +224,7 @@ impl Flight {
                     NoteRoute::Brief { task } | NoteRoute::Preferences { task } | NoteRoute::Now { task } => {
                         Some(*task)
                     }
-                    NoteRoute::Deletion { .. } | NoteRoute::Person { .. } => None,
+                    NoteRoute::Deletion { .. } | NoteRoute::Person { .. } | NoteRoute::AbandonedPreparation => None,
                 },
             ),
             Self::SettingsOffering { .. } => ("settings offering", None),

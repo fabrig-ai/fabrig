@@ -306,6 +306,7 @@ pub(crate) enum NoteRoute {
     Brief { task: u64 },
     Preferences { task: u64 },
     Now { task: u64 },
+    AbandonedPreparation,
 }
 
 /// One task's wait within the live-tasks bound (`limits.tasks.tasks`)

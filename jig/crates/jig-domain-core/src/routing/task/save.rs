@@ -393,6 +393,7 @@ fn clear_stale_preparation(
         None => false,
     };
     if stale {
+        crate::routing::effect::note::abandon_preparation(core, task.number);
         crate::routing::run::results::clear(core, task.number);
         drop(core.contexts.remove(&task.number));
         drop(core.dependency_results.remove(&task.number));
