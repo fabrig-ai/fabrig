@@ -42,6 +42,7 @@ pub struct WorkerRuntime {
 pub(crate) const WORKER_PATH_BYTES: usize = 4096;
 /// smith-host-protocol's `Process::new` caps `channel_below` at 16 entries.
 const PROCESS_CHANNEL_REQUESTS: u32 = 16;
+const HOOK_CONFIG_READER: &[u8] = b"temper-worker";
 #[derive(Debug)]
 pub struct Worker {
     pub(super) root: root::Domain,
