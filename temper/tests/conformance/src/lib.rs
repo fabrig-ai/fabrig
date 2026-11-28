@@ -167,6 +167,15 @@ fn env(config: &Config, clock: Clock) -> Env<engine::Limits> {
     Env { now: Time::from_nanos(clock.now), wall: Wall::from_nanos(clock.now), limits: config.limits }
 }
 
+// temper/docs/design/domain/root.md, 4: after an input or Resume, the door
+// pass can be empty while a delivery is ready on the next release pass.
+fn release_ready(domain: &mut Domain, environment: &Env<engine::Limits>) {
+    engine::release(&mut domain.root, environment, &mut domain.outputs);
+    if domain.outputs.is_empty() {
+        engine::release(&mut domain.root, environment, &mut domain.outputs);
+    }
+}
+
 impl Application for Temper {
     type Domain = Domain;
     type Store = Store;
@@ -395,13 +404,10 @@ impl Application for Temper {
     }
     fn release(domain: &mut Domain, config: &Config, clock: Clock) -> Vec<Output<engine::Write, Delivery>> {
         let environment = env(config, clock);
-        engine::release(&mut domain.root, &environment, &mut domain.outputs);
-        if domain.outputs.is_empty() {
-            engine::release(&mut domain.root, &environment, &mut domain.outputs);
-        }
+        release_ready(domain, &environment);
         if domain.outputs.is_empty() {
             engine::step(&mut domain.root, &environment, engine::Event::Resume);
-            engine::release(&mut domain.root, &environment, &mut domain.outputs);
+            release_ready(domain, &environment);
         }
         let mut outputs = Vec::new();
         while let Some(request) = domain.outputs.pop() {

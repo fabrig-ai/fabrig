@@ -1467,6 +1467,9 @@ fn released_into(
             // Repositories and homes arise on adoption, panels on watching.
             // None needs an empty-project row.
         }
+        Delivery::TakeForgeAdoption { repository, request } => {
+            domain.work.push(Work::Forge(forge::Event::TakeAdoption { repository, request }));
+        }
         Delivery::ForgeCommitted { entry } => {
             domain.work.push(Work::Forge(forge::Event::Released(jig_domain_contract::Released::Make { entry })));
         }

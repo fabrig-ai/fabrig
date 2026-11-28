@@ -1557,7 +1557,7 @@ fn github_directory_entries_fill_the_byte_bound_or_are_cut() {
             let entries = [
                 api::Entry { name: Box::from(*b"a"), kind: api::EntryKind::File },
                 api::Entry { name: Box::from(*b"b"), kind: api::EntryKind::Directory },
-                api::Entry { name: Box::from(*b"c"), kind: api::EntryKind::File },
+                api::Entry { name: Box::from(*b"c"), kind: api::EntryKind::Link },
                 api::Entry { name: Box::from(*b"d"), kind: api::EntryKind::Submodule },
             ];
             assert_eq!(

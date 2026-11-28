@@ -99,6 +99,7 @@ fn pending(task: u64) -> PendingStep {
         reviews_complete: true,
         paths: Box::new([]),
         paths_whole: false,
+        temper_dir: temper_dir::Check::new(),
         woken: false,
         retry_at: None,
         read: None,
@@ -474,6 +475,8 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
             let prior = d.changes.get(&OWNER).unwrap().change.clone();
             let entry = p.entry;
             decide_step(d, &env(), p, &mut out);
+            out = fixtures::ordinary_method_probes(d, &env(), out);
+            assert!(d.entries.contains_key(&entry), "there must be a merge to veto");
             veto_change(d, &env(), OWNER, entry, prior, matches!(how, Leave::Veto), &mut out);
             fixtures::assert_write_withdrawn(d, OWNER, entry);
             if matches!(how, Leave::ReviewVeto) {

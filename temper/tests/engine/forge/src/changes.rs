@@ -95,6 +95,7 @@ pub fn change_row() -> top::ChangeRow {
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        temper_dir_fault: None,
         runner_ci: None,
         close_at: None,
         report: Box::new([]),
@@ -229,7 +230,7 @@ fn change_step_options(
         pending: Box::new([]),
         kept,
     });
-    world.run_for(1);
+    world.run_change_step(task);
     let mut decision = None;
     let mut committed = None;
     for event in world.take_seen() {

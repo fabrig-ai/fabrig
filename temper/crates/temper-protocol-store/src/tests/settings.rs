@@ -65,6 +65,7 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
                 landing_attempts: 7,
                 check_timeout_ms: Some(60000),
                 hook_timeout_max_seconds: 1_800,
+                temper_dir_sign_off: true,
                 flakes: Some(d::Flakes::Rerun(3)),
                 gate_retries: 3,
                 gate_timeout_ms: 70000,

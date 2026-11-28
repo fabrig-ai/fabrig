@@ -28,6 +28,93 @@ pub struct PrepareRequest {
     pub members: Box<[PrepareMember]>,
 }
 
+/// Assemble the unprepared suffix of the landing into the job's request.
+#[must_use]
+pub fn request(
+    forge: &forge::Domain,
+    task: u64,
+    limit: u32,
+    head_trailers: &[forge::LandingHeadTrailers],
+) -> Option<PrepareRequest> {
+    let row = forge.landing(task)?;
+    let first = row.landing.members.first()?;
+    let provider = api::Repository { forge: first.repository.forge, repository: first.repository.repository };
+    let repository = forge.repository(provider)?;
+    let mut base = None;
+    for member in &row.landing.members {
+        if member.left.is_none() && member.landed.is_none() {
+            base = member.base;
+            break;
+        }
+    }
+    let base = base?;
+    let main = row.landing.branch == repository.landing;
+    let (combine_main, combine_other) = match forge.landing_settings(row.landing.project) {
+        Some(config) => (config.combine_main, config.combine_other),
+        None => (Combine::Merge, Combine::Squash),
+    };
+    let combine = if main { combine_main } else { combine_other };
+    let mut from = base;
+    let mut members = List::with_capacity(limit);
+    for (index, member) in row.landing.members.iter().enumerate() {
+        if member.left.is_some() || member.landed.is_some() {
+            continue;
+        }
+        if let Some(prefix) = member.candidate {
+            from = prefix;
+            continue;
+        }
+        let change = forge.change(member.change)?;
+        let head = member.head?;
+        let position = u16::try_from(index).expect("bounded members");
+        let mut trailers = b"".as_slice();
+        for read in head_trailers {
+            if read.member == position {
+                trailers = &read.block;
+                break;
+            }
+        }
+        let text = temper_protocol_member_message::Member {
+            title: &change.title,
+            words: &change.report,
+            change: member.change,
+            pull: member.pull,
+            head,
+            goal: change.goal,
+            head_trailers: trailers,
+        };
+        let message = temper_protocol_member_message::commit_message(
+            &text,
+            temper_protocol_member_message::Kind::Merge { into_main: main },
+        );
+        let squash =
+            temper_protocol_member_message::commit_message(&text, temper_protocol_member_message::Kind::Squash);
+        members
+            .push(PrepareMember {
+                number: u64::try_from(index).ok()?.checked_add(1)?,
+                branch: change.branch.clone(),
+                prefix: member.branch.clone(),
+                head,
+                message,
+                squash,
+                head_trailers: combine == Combine::Squash
+                    && temper_protocol_member_message::trailers(&change.report).is_empty(),
+            })
+            .ok()?;
+    }
+    if members.is_empty() {
+        return None;
+    }
+    Some(PrepareRequest {
+        repository: repository.name.clone(),
+        main: base,
+        from,
+        combine,
+        train_upstream: row.landing.round.upstream,
+        members: members.into_boxed(),
+    })
+}
+
 /// Encode the built-in prepare job's bounded spec, with no external command.
 #[must_use]
 pub fn spec(request: &PrepareRequest, bound: u32) -> Option<Box<[u8]>> {

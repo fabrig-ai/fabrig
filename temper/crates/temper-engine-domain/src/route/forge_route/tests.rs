@@ -1187,6 +1187,7 @@ fn passed_evidence(
         readback_owed: false,
         nearest_write: None,
         touched: forge::Touched::UNKNOWN,
+        temper_dir: forge::TemperDirEvidence::Uncovered,
         prior,
         head: Some(head),
         base_tip,

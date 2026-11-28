@@ -77,7 +77,7 @@ setting's value kept over a charter's default, is jig's
   N not a whole number from 1, `...: goal.md: format: a whole number
   from 1`. Its lines are read by their form, in `temper-charter-set`,
   not by a TOML parser, so `temper-config-shell` stays the one crate
-  that parses TOML (`../../protocol/configuration/file.md`, 8). The
+  that depends on the `toml` crate (`../../protocol/configuration/file.md`, 8). The
   stock's set (`../../domain/agent/charter.md`, 1) has none.
 - **Assembled for its charter** by the rule the stock's set is
   (`../../domain/agent/charter.md`, 1): charter 5 takes `common`, `goal`,

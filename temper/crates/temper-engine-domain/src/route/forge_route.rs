@@ -8,11 +8,11 @@ use super::{
 };
 use crate::{PersonForge, commit_text};
 use forge::change_words::{
-    CONTEXT_OPENING, change_context, delegate_amendment_words, delegate_words, landing_words, news_words,
-    parameter_word_room, producer_amendment_words, production_words, repair_flake, repair_no_test,
+    CONTEXT_OPENING, change_context, delegate_amendment_words, delegate_words, news_words, parameter_word_room,
+    producer_amendment_words, production_words, repair_flake, repair_no_test,
 };
 #[cfg(test)]
-use forge::change_words::{REPAIR_PRESERVATION, context_fixed, repair_words};
+use forge::change_words::{REPAIR_PRESERVATION, context_fixed, landing_words, repair_words};
 
 use alloc::boxed::Box;
 use temper_engine_domain_forge_landing as landing;
@@ -2105,6 +2105,7 @@ pub(super) fn start_recovered_change(
                 questions: forge_change::Questions { route, ..forge_change::Questions::default() },
                 effect_account: None,
                 producer_failure: None,
+                temper_dir_fault: None,
                 runner_ci: None,
                 close_at: None,
                 report: Box::new([]),
@@ -3516,81 +3517,25 @@ fn change_landing_words(
     pull: u64,
     bound: u32,
 ) -> Box<[u8]> {
-    let row = domain.forge.change(task).expect("landed change");
-    let mut out = change_landing_identity(domain, task, merge, pull, bound);
-    let digits = commit_text(merge);
-    let number = skein_lib::Decimal::of(pull);
-    let parts: [&[u8]; 7] = [
-        b"Landed: pull request #",
-        number.as_bytes(),
-        b" merged into ",
-        &row.base,
-        b" as ",
-        digits.get(..12).expect("a commit has at least 40 hexadecimal digits"),
-        b".",
-    ];
-    let mut bytes = 1_usize;
-    for part in parts {
-        bytes = bytes.checked_add(part.len()).expect("bounded landing line");
-    }
-    // The line names the landing so that the run that asked hears that the change landed (temper/docs/design/domain/root-translation.md, 1).
-    if skein_lib::bytes::find(out.as_slice(), b"\npull request #").is_some() && bytes <= skein_lib::usize_of(out.room())
-    {
-        append(&mut out, b"\n");
-        for part in parts {
-            append(&mut out, part);
-        }
-    }
-    let Some(head) = row.change.last_head else { return out.into_boxed() };
-    let room = bound.saturating_sub(out.len()).saturating_sub(1);
-    let Some(evidence) = row.result.reported(&row.report, &head, bound).fitted(room) else { return out.into_boxed() };
-    append(&mut out, b"\n");
-    append(&mut out, &evidence);
-    out.into_boxed()
+    temper_engine_domain_translate::landing_result::words(
+        &domain.forge,
+        task,
+        merge,
+        pull,
+        bound,
+        change_cancelled(domain, task),
+    )
 }
 
-/// Put verification inside the task document's window before spending room on the pull.
-fn change_landing_identity(
-    domain: &Domain,
-    task: u64,
-    merge: &skein_forge::api::Commit,
-    pull: u64,
-    bound: u32,
-) -> List<u8> {
-    let row = domain.forge.change(task).expect("landed change");
-    let repository = domain.forge.repository(row.repository);
-    let configured = domain.forge.configured(row.repository.forge);
-    let verification = change_verification_words(domain, task, merge, bound);
-    let reserve = verification.len().saturating_add(1);
-    let digits = commit_text(merge);
-    let keep_verification =
-        !verification.is_empty() && digits.len().saturating_add(reserve) <= skein_lib::usize_of(bound);
-    let identity_bound = if keep_verification {
-        bound.saturating_sub(u32::try_from(reserve).expect("verification within bound"))
-    } else {
-        bound
-    };
-    let identity = landing_words(merge, identity_bound, repository, pull, configured);
-    let mut out = List::with_capacity(bound);
-    let id_end = skein_lib::bytes::find(&identity, b"\n").unwrap_or(identity.len());
-    append(&mut out, identity.get(..id_end).expect("id within landing words"));
-    if keep_verification {
-        append(&mut out, b"\n");
-        append(&mut out, &verification);
-    }
-    append(&mut out, identity.get(id_end..).expect("pull within landing words"));
-    out
-}
-
+#[cfg(test)]
 fn change_verification_words(domain: &Domain, task: u64, merge: &skein_forge::api::Commit, bound: u32) -> Box<[u8]> {
     let row = domain.forge.change(task).expect("landed change");
-    forge::change_words::verification_words(
-        &row.change.state,
-        domain.forge.landing_verification(row.repository, merge),
-        domain.forge.change_ends_at_landing(task),
-        domain.forge.change_waits_landed(task),
-        change_cancelled(domain, task),
+    temper_engine_domain_translate::landing_result::verification_words(
+        &domain.forge,
+        row,
+        merge,
         bound,
+        change_cancelled(domain, task),
     )
 }
 
@@ -4779,6 +4724,20 @@ pub(crate) fn outputs(
                         ) {
                             Ok(seeds) => {
                                 report_adoption(domain, &adopted.repository);
+                                let was_home = match previous {
+                                    Some(previous) => previous.home,
+                                    None => false,
+                                };
+                                if adopted.repository.home || was_home {
+                                    emit(
+                                        decision,
+                                        &env.limits,
+                                        Delivery::TakeForgeAdoption {
+                                            repository: adopted.repository.provider,
+                                            request: reply_to,
+                                        },
+                                    );
+                                }
                                 super::ways::mark(domain, adopted.repository.project);
                                 domain.work.push(Work::People(people::Event::Seed {
                                     project: adopted.repository.project,
@@ -5179,7 +5138,16 @@ pub(crate) fn outputs(
                     landing_decision(domain, env, task, choice, &head_trailers);
                 }
             }
-            forge::Request::Reviewed { task, evidence } => {
+            forge::Request::Reviewed { task, evidence, temper_dir: Some(owner) } => {
+                let reviews = if let Some(row) = domain.forge.change(task) {
+                    landing_reviewers(domain, env, row, &evidence)
+                } else {
+                    None
+                };
+                let reviewers = if let Some(reviews) = &reviews { reviews.reviewers.as_ref() } else { &[] };
+                domain.forge.temper_dir_reviewed(&super::environment_forge(env), owner, reviewers, out);
+            }
+            forge::Request::Reviewed { task, evidence, temper_dir: None } => {
                 retain_review_wait(domain, env, task, &evidence);
                 if let Some(head) = refused_review_request(domain, env, task, &evidence) {
                     domain.work.push(Work::Forge(forge::Event::ReviewRequested { task, head }));

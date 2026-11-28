@@ -228,6 +228,7 @@ pub fn opening_row() -> ChangeRow {
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        temper_dir_fault: None,
         runner_ci: None,
         close_at: None,
         report: Box::new([]),
@@ -312,6 +313,132 @@ pub fn answer_at(
     );
     d.reclaim();
     out
+}
+
+/// Finish the background revision reads before scripting a scenario's own calls.
+/// These homes have no `.temper/`: asking the forge to list it returns Missing.
+pub fn settle_home_reads(d: &mut Domain, clock: &Env<Limits>, tip: skein_forge::api::Commit) {
+    use skein_forge::api::{Answer, Error, Op, Read};
+    while d.temper_revisions.has_pending_read() {
+        assert!(crate::temper_revision::ready(d), "settle home reads before other forge work");
+        let mut out = Queue::uncapped();
+        crate::temper_revision::resume(d, clock, &mut out);
+        assert!(out.is_empty(), "revision read is queued in the forge client: {out:?}");
+        // Send just the queued read; leave procedure wakes and outbox work for the scenario.
+        let mut client = Queue::uncapped();
+        skein_forge_client::resume(&mut d.client, &clock.with(clock.limits.client), &mut client);
+        let Some(skein_forge_client::Request::Call { call, repository, op }) = client.pop() else {
+            panic!("expected a home revision call: {client:?}");
+        };
+        assert!(client.is_empty(), "one home revision call at a time");
+        let home = d.repository(repository).expect("revision reads an adopted repository");
+        assert!(home.home, "only a home has a revision read");
+        let result = match &op {
+            Op::Read(Read::Branch { branch }) => {
+                assert_eq!(*branch, home.landing);
+                Ok(Answer::Commit(tip))
+            }
+            Op::Read(Read::File { head, path, .. }) => {
+                assert_eq!(*head, tip);
+                assert_eq!(path.as_ref(), b".temper");
+                Err(Error::Missing)
+            }
+            other @ (Op::Read(_) | Op::Write(_)) => panic!("unexpected home revision call: {other:?}"),
+        };
+        let mut answered = answer_at(d, clock, call, result);
+        if matches!(op, Op::Read(Read::File { .. })) {
+            assert!(matches!(answered.pop(), Some(Request::Save { record: Stored::DotTemperRevision(row), .. })
+                if row.home == repository && !row.method && row.refused.is_none()));
+        }
+        assert!(answered.is_empty(), "ordinary home read has no other effects: {answered:?}");
+    }
+}
+
+/// Finish a change's path comparison in a fixture that changes no `.temper/` path.
+pub fn ordinary_paths(d: &mut Domain, clock: &Env<Limits>, mut out: Queue<Request>) -> Queue<Request> {
+    for (_, step) in &d.steps {
+        if step.comparing_paths() {
+            let (call, op) = next_at(d, clock);
+            let skein_forge::api::Op::Read(skein_forge::api::Read::Compare { before, after }) = op else {
+                panic!("expected the change's comparison, got {op:?}");
+            };
+            let paths = skein_forge::api::Answer::Compare {
+                before,
+                after,
+                ahead: 1,
+                behind: 0,
+                changed: 0,
+                files: Box::new([]),
+            };
+            let mut finished = answer_at(d, clock, call, Ok(paths));
+            while let Some(request) = finished.pop() {
+                out.push(request);
+            }
+            break;
+        }
+    }
+    out
+}
+
+fn next_method_probe(d: &Domain) -> Option<skein_forge::api::Read> {
+    for (_, step) in &d.steps {
+        if let Some(read) = step.method_probe() {
+            return Some(read.clone());
+        }
+    }
+    None
+}
+
+/// Answer a change's method probes when neither its head nor its base has `.temper/`.
+pub fn ordinary_method_probes(d: &mut Domain, clock: &Env<Limits>, mut out: Queue<Request>) -> Queue<Request> {
+    use skein_forge::api::{Error, Op, Read};
+    while let Some(read) = next_method_probe(d) {
+        assert!(matches!(&read, Read::File { path, .. } if path.as_ref() == b".temper"));
+        let (call, op) = next_at(d, clock);
+        assert_eq!(op, Op::Read(read));
+        let mut answered = answer_at(d, clock, call, Err(Error::Missing));
+        while let Some(request) = answered.pop() {
+            out.push(request);
+        }
+    }
+    out
+}
+
+pub fn answer_ordinary_at(
+    d: &mut Domain,
+    clock: &Env<Limits>,
+    call: Token,
+    result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
+) -> Queue<Request> {
+    let reviewed = matches!(result, Ok(skein_forge::api::Answer::Reviews { .. }));
+    let out = answer_at(d, clock, call, result);
+    if reviewed { ordinary_paths(d, clock, out) } else { out }
+}
+
+pub fn answer_ordinary(
+    d: &mut Domain,
+    call: Token,
+    result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
+) -> Box<[Request]> {
+    collected(answer_ordinary_at(d, &env(), call, result))
+}
+
+pub fn answer_next_ordinary(
+    d: &mut Domain,
+    result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
+) -> Box<[Request]> {
+    let (call, _) = next_call(d);
+    answer_ordinary(d, call, result)
+}
+
+pub fn answer_next_without_method(
+    d: &mut Domain,
+    result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
+) -> Box<[Request]> {
+    let clock = env();
+    let (call, _) = next_call(d);
+    let out = answer_ordinary_at(d, &clock, call, result);
+    collected(ordinary_method_probes(d, &clock, out))
 }
 
 pub fn advance(d: &mut Domain, env: &mut Env<Limits>, by: Duration) -> Queue<Request> {

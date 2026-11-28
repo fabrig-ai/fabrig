@@ -665,6 +665,13 @@ fn finish_adoption(
     stored.contexts = contexts.into_boxed();
     let changed = d.repository(row.provider) != Some(&stored);
     if changed || row.role != Role::Context {
+        let was_home = match d.repository(row.provider) {
+            Some(previous) => previous.home,
+            None => false,
+        };
+        if row.home || (was_home && !stored.home) {
+            crate::temper_revision::provisional(d, row.provider, owner);
+        }
         d.repositories.insert(row.provider, Box::new(stored.clone())).expect("adoption capacity checked");
         d.tier_ops.dirty |= !crate::tiers::configured_all(d, row.provider).is_empty();
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Repository(stored) });
@@ -757,6 +764,7 @@ pub(crate) fn release(d: &mut Domain, env: &Env<Limits>, project: u32, out: &mut
     crate::follows::erase_project(d, project, out_project);
     crate::dismissed::erase_project(d, project, out_project);
     crate::status::erase_project(d, project, out_project);
+    crate::temper_revision::erase_project(d, project, out_project);
     crate::away::erase_project(d, project, out_project);
     crate::findings::erase_project(d, project, out_project);
     crate::drafts::erase_project(d, project, out_project);

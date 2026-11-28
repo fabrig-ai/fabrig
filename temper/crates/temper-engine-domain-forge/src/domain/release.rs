@@ -721,6 +721,7 @@ pub(super) fn retire(d: &mut Domain, repository: Repository) {
     crate::brief_document::release_repository(d, repository);
     crate::held::release_repository(d, repository);
     crate::workflows::release_repository(d, repository);
+    crate::temper_revision::retire(d, repository);
     crate::closer::release_repository(d, repository);
     crate::follows::release_repository(d, repository);
 }

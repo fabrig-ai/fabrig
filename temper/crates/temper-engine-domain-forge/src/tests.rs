@@ -17,6 +17,8 @@ mod catching_up_releases;
 mod catching_up_repositories;
 mod catching_up_state;
 mod change;
+#[path = "tests/temper_dir.rs"]
+mod check_temper_dir;
 #[path = "tests/brief.rs"]
 mod ci_brief;
 mod close_delegate;
@@ -65,6 +67,7 @@ mod seen_closed;
 mod settings;
 mod standing;
 mod stopping;
+pub(crate) mod temper_revision;
 pub(crate) mod tiers;
 mod unpushed;
 mod views;
@@ -986,7 +989,8 @@ fn adoption_without_ci_refuses_an_empty_check_policy() {
 #[test]
 fn restored_ci_subscriptions_are_read_in_the_fresh_step_and_delay_its_completion() {
     let mut d = domain();
-    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let repository = Repository { home: false, ..adopted() };
+    outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
     outputs(
         &mut d,
         Event::Restore {

@@ -149,6 +149,7 @@ fn gathering() -> Domain {
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::CatchUp);
+    fixtures::settle_home_reads(&mut d, &env(), fixtures::BASE);
 
     fixtures::step_change(&mut d);
     d
@@ -399,7 +400,7 @@ fn change_reads_answered_not_connected_wait_and_restart_from_the_branch() {
             fixtures::answer_next(&mut d, Ok(answer));
         }
         let (call, _) = fixtures::next_at(&mut d, &env);
-        let out = fixtures::answer_at(&mut d, &env, call, Err(Error::NotConnected));
+        let out = fixtures::answer_ordinary_at(&mut d, &env, call, Err(Error::NotConnected));
         assert_connection_wait(&out);
         assert!(d.steps.is_empty(), "partial {stage} facts dropped");
         // A wake must not restart even while routing still says Connecting.
@@ -407,19 +408,24 @@ fn change_reads_answered_not_connected_wait_and_restart_from_the_branch() {
         d.wait_change(&env, fixtures::CHANGE, None);
         assert_no_connection_poll(&mut d, &mut env);
         let call = reconnect_change(&mut d, &env);
-        fixtures::answer_at(&mut d, &env, call, Ok(Answer::Commit(fixtures::HEAD)));
+        fixtures::answer_ordinary_at(&mut d, &env, call, Ok(Answer::Commit(fixtures::HEAD)));
         let (call, _) = fixtures::next_at(&mut d, &env);
-        fixtures::answer_at(&mut d, &env, call, Ok(Answer::Commit(fixtures::BASE)));
+        fixtures::answer_ordinary_at(&mut d, &env, call, Ok(Answer::Commit(fixtures::BASE)));
         if catch_up.is_some() {
             let (call, _) = fixtures::next_at(&mut d, &env);
-            fixtures::answer_at(&mut d, &env, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+            fixtures::answer_ordinary_at(
+                &mut d,
+                &env,
+                call,
+                Ok(Answer::Commits { commits: Box::new([]), more: false }),
+            );
         }
         let mut out = Queue::uncapped();
         for answer in
             answers.iter().skip(2).cloned().chain([Answer::Reviews { reviews: Box::new([]), more: false, cut: false }])
         {
             let (call, _) = fixtures::next_at(&mut d, &env);
-            out = fixtures::answer_at(&mut d, &env, call, Ok(answer));
+            out = fixtures::answer_ordinary_at(&mut d, &env, call, Ok(answer));
         }
         let mut decided = false;
         for request in &out {
@@ -441,7 +447,7 @@ fn change_steps_wait_without_reads_until_their_forge_connects() {
         Some(Connection::Connecting),
     ] {
         let mut d = domain();
-        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        outputs(&mut d, Event::Restore { record: Stored::Repository(Repository { home: false, ..adopted() }) });
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(fixtures::opening_row())) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::CatchUp);

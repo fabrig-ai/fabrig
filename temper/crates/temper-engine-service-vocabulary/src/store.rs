@@ -78,8 +78,19 @@ pub fn limits_reusing(
     profile: &protocol::Limits,
     opening: Option<&protocol::Checked>,
 ) -> Option<protocol::Checked> {
-    let limits = admitted_layout(root, forge, profile, None).ok()?;
+    let (limits, _) = admitted_layout(root, forge, profile, None).ok()?;
     protocol::check_reusing(&limits, opening)
+}
+
+/// Admit the store and return the same application sizes used for its commit bounds.
+#[must_use]
+pub fn limits_with_application(
+    root: &root::Limits,
+    forge: &forge::Limits,
+    profile: &protocol::Limits,
+) -> Option<(protocol::Checked, protocol::sizes::Application)> {
+    let (limits, application) = admitted_layout(root, forge, profile, None).ok()?;
+    Some((protocol::check(&limits)?, application))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -97,7 +108,7 @@ pub fn admit(
     profile: &protocol::Limits,
     turn: Option<u32>,
 ) -> Result<protocol::Checked, Refusal> {
-    let limits = admitted_layout(root, forge, profile, turn)?;
+    let (limits, _) = admitted_layout(root, forge, profile, turn)?;
     protocol::check(&limits).ok_or(Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))
 }
 
@@ -106,8 +117,8 @@ fn admitted_layout(
     forge: &forge::Limits,
     profile: &protocol::Limits,
     turn: Option<u32>,
-) -> Result<protocol::Limits, Refusal> {
-    let limits = layout(root, forge, profile)?;
+) -> Result<(protocol::Limits, protocol::sizes::Application), Refusal> {
+    let (limits, application) = layout_with_application(root, forge, profile)?;
     let needs = read_room(&limits, turn).ok_or(Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))?;
     let decoded = decoded_read_room(turn).ok_or(Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))?;
     // The chunk or resume buffer can already cover a page. Only a decoded
@@ -121,7 +132,7 @@ fn admitted_layout(
         Ok(()) => {}
         Err(why) => return Err(Refusal::Map(why)),
     }
-    Ok(limits)
+    Ok((limits, application))
 }
 
 /// The room named by either read refusal: the drivers' encoded page or the
@@ -148,6 +159,15 @@ pub fn layout(
     forge: &forge::Limits,
     profile: &protocol::Limits,
 ) -> Result<protocol::Limits, Refusal> {
+    let (limits, _) = layout_with_application(root, forge, profile)?;
+    Ok(limits)
+}
+
+fn layout_with_application(
+    root: &root::Limits,
+    forge: &forge::Limits,
+    profile: &protocol::Limits,
+) -> Result<(protocol::Limits, protocol::sizes::Application), Refusal> {
     let arithmetic = Refusal::Map(protocol::sizes::SizeRefusal::Ceiling);
     let core = root::core_limits(root);
     let mut kv = settings_room(&core, profile.store).ok_or(arithmetic)?;
@@ -157,9 +177,10 @@ pub fn layout(
     if transcript > ceiling {
         return Err(Refusal::Transcript { bytes: transcript, ceiling });
     }
+    let application = temper_protocol_store::application(forge, root.tasks.spec_bytes).ok_or(arithmetic)?;
     let sizes = match protocol::sizes::check_commits(
         &core,
-        &temper_protocol_store::application(forge, root.tasks.spec_bytes).ok_or(arithmetic)?,
+        &application,
         &protocol::sizes::Commits { in_flight: root.journal.commits, writes: root.journal.writes },
         &kv,
         profile.orphan_erases,
@@ -174,7 +195,7 @@ pub fn layout(
         let frame = protocol::sizes::frame(&core, transcript).ok_or(arithmetic)?;
         return Err(Refusal::Page { transcript, frame, page: kv.page.bytes, ceiling: page_ceiling });
     }
-    Ok(protocol::Limits {
+    let limits = protocol::Limits {
         core,
         store: kv,
         secrets: kv,
@@ -187,7 +208,8 @@ pub fn layout(
         fetch: profile.fetch,
         checkpoints: profile.checkpoints,
         orphan_erases: profile.orphan_erases,
-    })
+    };
+    Ok((limits, application))
 }
 
 // Settings carry a whole revision, including replaced values and model names.

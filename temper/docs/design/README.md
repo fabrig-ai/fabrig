@@ -263,6 +263,7 @@ forge, temper adds:
   - `protocol/store-restart.md`: the store's restart and restore protocol.
   - `protocol/git.md`: git invocation mechanics, processes and testing.
   - `protocol/git-operations.md`: the checkout's git operations.
+  - `protocol/temper-dir.md`: what temper reads of a repository's `.temper/` and the judgement it makes of it.
   - `protocol/configuration/settings-kinds.md`: the settings kinds and their values.
   - `protocol/configuration/settings-output.md`: output-derived bounds for larger models.
   - `protocol/configuration/worker.md`: the worker and agent configuration.

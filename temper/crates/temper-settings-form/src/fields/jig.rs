@@ -1,7 +1,7 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
 pub static FORMS: [Form; 102] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"`settings apply`/`settings propose` file." },
-    Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"A `setting`; exactly one `set`/`edit`/`overlay`." },
+    Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"A `setting` and exactly one `set`/`edit`/`overlay`/`remove`/`reset`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Kind and number, or project for project settings." },
     Form { shape: Shape::Charter, name: b"charter", choice: Choice::Every, line: b"Task-creation revision's run policy." },
     Form { shape: Shape::Overlay, name: b"overlay", choice: Choice::Every, line: b"Optional default replacements/added text: charters or literal instructions/parts, not both." },
@@ -136,7 +136,7 @@ pub static FORMS: [Form; 102] = [
     Form { shape: Shape::TemperLimits, name: b"temper-limits", choice: Choice::List { item: Shape::LimitOverride, bound: Bound::Most(256) }, line: b"Application kind 22; as limits." },
     Form { shape: Shape::LimitOverride, name: b"limit-override", choice: Choice::Every, line: b"Reasoned override." },
 ];
-pub static FIELDS: [Field; 387] = [
+pub static FIELDS: [Field; 388] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -159,19 +159,19 @@ pub static FIELDS: [Field; 387] = [
         value: Value::Shape(Shape::Setting),
         list: None,
         null: false,
-        line: b"setting the item changes.",
+        line: b"Target.",
     },
-    Field { shape: Shape::Item, name: b"overlay", value: Value::Shape(Shape::Overlay), list: None, null: false, line: b"A charter overlay instead of set/edit." },
-    Field { shape: Shape::Item, name: b"remove", value: Value::Boolean, list: None, null: false, line: b"true instead of set/edit/overlay; withdraw." },
-    Field { shape: Shape::Item, name: b"reset", value: Value::Boolean, list: None, null: false, line: b"true instead of set/edit/overlay; follow default." },
+    Field { shape: Shape::Item, name: b"overlay", value: Value::Shape(Shape::Overlay), list: None, null: false, line: b"Charter overlay." },
+    Field { shape: Shape::Item, name: b"remove", value: Value::Boolean, list: None, null: false, line: b"true: withdraw." },
+    Field { shape: Shape::Item, name: b"reset", value: Value::Boolean, list: None, null: false, line: b"true: follow default." },
     Field { shape: Shape::Item, name: b"set", value: Value::Setting, list: None, null: false, line: b"Whole replacement." },
     Field {
         shape: Shape::Item,
         name: b"edit",
-        value: Value::Words(&[Word { word: b"removed", line: b"Withdraw, default included; rules cannot be removed." }, Word { word: b"reset", line: b"Erase change; follow default." }]),
+        value: Value::Words(&[Word { word: b"removed", line: b"Withdraw even a default, except rules." }, Word { word: b"reset", line: b"Erase change; use default." }]),
         list: None,
         null: false,
-        line: b"edit instead of a value.",
+        line: b"Named edit.",
     },
     Field {
         shape: Shape::Setting,
@@ -1476,6 +1476,7 @@ pub static FIELDS: [Field; 387] = [
     Field { shape: Shape::ProjectLanding, name: b"flakes", value: Value::Shape(Shape::LandingFlakes), list: None, null: false, line: b"Optional; default rerun at checkout.rerun_processes." },
     Field { shape: Shape::ProjectLanding, name: b"check_timeout_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Optional; 1000 to 86400000; default none." },
     Field { shape: Shape::ProjectLanding, name: b"hook_timeout_max_seconds", value: Value::Integer(Width::U32), list: None, null: false, line: b"Optional; 1 to 86400; default 3600." },
+    Field { shape: Shape::ProjectLanding, name: b"temper_dir_sign_off", value: Value::Boolean, list: None, null: false, line: b"Optional; default false; true requires an eligible owner on every writable repository's forge." },
     Field { shape: Shape::ProjectLanding, name: b"gate_timeout_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Optional; 60000 to 86400000; default 3600000." },
     Field { shape: Shape::ProjectLanding, name: b"verification_bound_ms", value: Value::Integer(Width::U64), list: None, null: false, line: b"Optional; default 7200000." },
     Field { shape: Shape::ProjectLanding, name: b"merge_job", value: Value::Text(Bound::Most(4096)), list: None, null: false, line: b"Optional; relative, no NUL or .. segments; see merge command in configuration." },

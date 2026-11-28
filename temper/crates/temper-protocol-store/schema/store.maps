@@ -199,7 +199,7 @@ record LandingRepair
 record LandedBelow = c::Landed
 record LandingBelow by hand
 record LandingRepairAt
-enum Repair = c::Repair { gate tuple, review { commit = head } }
+enum Repair = c::Repair { gate tuple, review { commit = head }, temper_dir { commit = head } }
 record RepairValue stands for why
 record DelegateGate
 record MergeDelegate
@@ -666,5 +666,8 @@ enum WriteSender = wr::Sender
 enum WriteState = wr::WriteState
 record Written = wr::Written
 record Writes = wr::Writes { entries slice }
+record DotTemperFile = d::DotTemperFile
+record DotTemperRefusal = d::DotTemperRefusal
+record DotTemperRevision = d::DotTemperRevision { files slice }
 enum Value by hand
 record Row by hand

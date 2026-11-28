@@ -329,10 +329,13 @@ fn status_driver() -> Driver {
     ];
     driver.store.seed(rows.map(|row| root::Record::Forge { row: Box::new(row) }).into(), Box::new([]));
     let limits = driver.env.limits;
+    let forge = driver.forge.take();
     let store = driver.take_store();
     let now =
         Wall::from_nanos(OWN_LATEST.as_nanos().checked_add(forge::SITTING.as_nanos()).expect("the next sitting fits"));
     let mut driver = Driver::from_store_at(store, temper_engine_domain_world::walking::config(71), &limits, now);
+    driver.forge = forge;
+    driver.connect_forges();
     driver.settle();
     driver.sign_in();
     driver.settle();
@@ -470,8 +473,11 @@ fn panel_sign_in(driver: &mut Driver, identity: u64) -> (u64, u64) {
 fn restarted_panels(driver: &mut Driver) -> Driver {
     let limits = driver.env.limits;
     let wall = driver.env.wall;
+    let forge = driver.forge.take();
     let store = driver.take_store();
     let mut driver = Driver::from_store_at(store, temper_engine_domain_world::walking::config(71), &limits, wall);
+    driver.forge = forge;
+    driver.connect_forges();
     driver.settle();
     driver
 }

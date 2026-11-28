@@ -91,6 +91,7 @@ pub(super) fn facts() -> Facts {
         base_read: BASE,
         contains_base: Status::Passed,
         contains_head: Status::Unknown,
+        temper_dir: crate::TemperDir::Uncovered,
         merge_job: false,
         delegate: None,
         catch_up: None,
@@ -2667,5 +2668,41 @@ fn a_green_head_ends_the_runner_hold() {
             state.clone()
         };
         assert_eq!(next.change.state, expected, "{state:?}");
+    }
+}
+
+#[test]
+fn temper_dir_is_a_gate_for_both_ways_and_only_the_queue_updates() {
+    use crate::{TemperDir, Way};
+    let since = at(0);
+    let mut f = facts();
+    let mut c = change(State::First { head: HEAD, ready_since: since });
+    c.owns_turn = true;
+    f.temper_dir = TemperDir::Update;
+    f.contains_base = Status::Failed;
+    assert_eq!(decide(&c, &f, &heard()).decision, Decision::Effect(Effect::Update { head: HEAD, base: BASE }));
+    for (way, state) in [
+        (Way::Queue, State::First { head: HEAD, ready_since: since }),
+        (Way::Turn, State::Gating { head: HEAD, asked: Box::new([]) }),
+    ] {
+        let mut c = change(state);
+        c.way = way;
+        f.contains_base = Status::Passed;
+        f.temper_dir = TemperDir::Pending;
+        let pending = decide(&c, &f, &heard());
+        assert!(matches!(pending.decision, Decision::Wait { .. }));
+        assert_eq!(pending.change.repairs, 0);
+        f.temper_dir = TemperDir::Fault { head: HEAD };
+        let why = Repair::TemperDir { head: HEAD };
+        let faulted = decide(&c, &f, &heard());
+        assert_eq!(faulted.decision, Decision::Delegate(Delegate::Repair(why)));
+        assert_eq!(faulted.change.repairs, 1);
+        assert!(!why.ci());
+        f.temper_dir = TemperDir::Passed;
+        let expected = match way {
+            Way::Queue => Decision::Effect(Effect::Merge { head: HEAD, base: BASE }),
+            Way::Turn => Decision::Ready,
+        };
+        assert_eq!(decide(&c, &f, &heard()).decision, expected);
     }
 }

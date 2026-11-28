@@ -133,6 +133,10 @@ fn a_landing_layout_without_flakes_defaults_it_to_unset() {
 fn a_landing_layout_without_hook_ceiling_defaults_to_an_hour() {
     landing_layout_defaults(" hook_timeout_max_seconds: u32 = 3600");
 }
+#[test]
+fn a_landing_layout_without_temper_dir_sign_off_defaults_to_off() {
+    landing_layout_defaults(" temper_dir_sign_off: bool = false");
+}
 fn landing_layout_defaults(field: &str) {
     use super::fixtures;
     use crate::records;
@@ -925,7 +929,8 @@ fn a_held_answer_in_an_earlier_layout_defaults_to_no_question_or_blocker() {
 }
 
 fn previous_branches_layout(current: &str) -> Box<str> {
-    let before = current.replace(", writes: Writes }", " }");
+    let before =
+        current.replace(", writes: Writes, dot_temper_revision was temper_revision: DotTemperRevision }", " }");
     assert_ne!(before, current);
     before.into_boxed_str()
 }

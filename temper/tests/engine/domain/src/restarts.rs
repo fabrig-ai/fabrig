@@ -305,7 +305,8 @@ impl World {
     }
 
     pub fn open_after_fault(&mut self) {
-        for _ in 0..200 {
+        // Use the opening referee's step bound for the paged restore and sweep.
+        for _ in 0..crate::ends::OPENING.steps {
             assert_eq!(self.root.start_stop(), None, "restart refused");
             if self.root.ready() {
                 return;

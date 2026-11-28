@@ -4282,6 +4282,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-toml"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
+
+[[package]]
+name = "skein-toml-tests"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-toml",
+ "skein-world",
+ "toml",
+]
+
+[[package]]
 name = "skein-ui"
 version = "0.0.0"
 dependencies = [
@@ -6890,7 +6907,6 @@ dependencies = [
  "temper-engine-domain-ways",
  "temper-limits-fixtures",
  "temper-protocol-brief",
- "temper-protocol-member-message",
  "temper-protocol-reaches",
  "temper-protocol-worker-wire",
 ]
@@ -6912,6 +6928,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-tasks-kit",
  "skein-codec",
+ "skein-fake-forge-domain",
  "skein-forge",
  "skein-forge-client",
  "skein-forge-setup",
@@ -6932,6 +6949,7 @@ dependencies = [
  "temper-protocol-member-message",
  "temper-protocol-reaches",
  "temper-protocol-store",
+ "temper-protocol-temper-dir",
  "temper-protocol-worker-wire",
 ]
 
@@ -7075,6 +7093,7 @@ dependencies = [
  "temper-engine-domain-forge-change",
  "temper-engine-domain-room",
  "temper-engine-domain-store",
+ "temper-protocol-member-message",
  "temper-protocol-worker-wire",
 ]
 
@@ -8170,6 +8189,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-protocol-hooks"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
+
+[[package]]
 name = "temper-protocol-member-message"
 version = "0.0.0"
 dependencies = [
@@ -8250,6 +8276,18 @@ version = "0.0.0"
 dependencies = [
  "skein-codec",
  "skein-lib",
+]
+
+[[package]]
+name = "temper-protocol-temper-dir"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-people",
+ "skein-forge",
+ "skein-lib",
+ "skein-toml",
+ "temper-charter-set",
+ "temper-protocol-hooks",
 ]
 
 [[package]]
@@ -8766,6 +8804,7 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-link",
  "skein-lib",
+ "temper-protocol-hooks",
 ]
 
 [[package]]

@@ -367,7 +367,7 @@ ProgramEnvironmentAnswer: ceilings encoded=49222 decoded=49216; at_most(3) encod
 ProjectAreas: ceilings encoded=8916 decoded=9600; at_most(3) encoded=73 decoded=195
 ProjectClasses: ceilings encoded=5866 decoded=6912; at_most(3) encoded=137 decoded=429
 ProjectGates: ceilings encoded=1114244 decoded=1114240; at_most(3) encoded=7 decoded=3
-ProjectLanding: ceilings encoded=550908 decoded=555136; at_most(3) encoded=286 decoded=366
+ProjectLanding: ceilings encoded=550909 decoded=555136; at_most(3) encoded=287 decoded=366
 ProjectQuestions: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 ProjectStatus: ceilings encoded=1899 decoded=1824; at_most(3) encoded=84 decoded=9
 ProjectTriager: ceilings encoded=37 decoded=32; at_most(3) encoded=9 decoded=3

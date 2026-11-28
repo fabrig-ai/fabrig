@@ -1977,6 +1977,22 @@ impl World {
         panic!("world did not reach horizon");
     }
 
+    /// Give a scripted step its usual tick, then let an in-flight decision
+    /// finish if the forge client's call budget put its reads into the next window.
+    pub(crate) fn run_change_step(&mut self, task: u64) {
+        self.run_for(1);
+        let end = self.env.now.saturating_add(self.env.limits.client.window);
+        for _ in 0..20_000 {
+            if self.seen.iter().any(
+                |request| matches!(request, top::Request::ChangeDecision { task: decided, .. } if *decided == task),
+            ) {
+                return;
+            }
+            assert!(self.iterate(end), "change {task} step made no decision before {end:?}");
+        }
+        panic!("change {task} step did not settle");
+    }
+
     /// The scripted root has woken this procedure in the decision that parks or ends a member.
     pub fn wake_landing(&mut self, task: u64) {
         self.landing_steps.insert(task);
@@ -2730,6 +2746,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
         top::Stored::PersonBrief(row) => top::Key::PersonBrief { party: row.party, project: row.project },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
+        top::Stored::DotTemperRevision(row) => top::Key::DotTemperRevision { project: row.project },
         top::Stored::Device(row) => top::Key::Device { party: row.party, number: row.number },
         top::Stored::LandedDraft(row) => top::Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         top::Stored::Away(row) => top::Key::Away { party: row.party, project: row.project },

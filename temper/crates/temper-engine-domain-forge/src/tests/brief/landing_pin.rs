@@ -219,7 +219,7 @@ fn a_landing_repair_that_fails_for_good_names_its_base_in_the_hold_account() {
         fixtures::finish_open(&mut d);
         let (call, op) = fixtures::next_call(&mut d);
         assert_eq!(op, api::Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
-        fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        fixtures::answer_ordinary(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
         let row = d.change(fixtures::CHANGE).expect("held repair");
         assert!(matches!(
             row.change.state,

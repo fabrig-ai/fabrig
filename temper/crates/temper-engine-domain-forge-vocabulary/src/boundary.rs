@@ -1171,6 +1171,7 @@ pub struct ChangeRow {
     pub effect_account: Option<EffectAccount>,
     /// Words of the hold its delegate's end made, within the hold account bound (domain/forge/change/repairs.md).
     pub producer_failure: Option<Box<[u8]>>,
+    pub temper_dir_fault: Option<Box<[u8]>>,
     pub runner_ci: Option<RunnerCi>,
     pub close_at: Option<change::CloseAt>,
     /// Its producing task's last successful result words (domain/forge/change/README.md, 2 step 7)
@@ -1289,6 +1290,7 @@ pub struct ChangeHot {
     pub queue_repairs: u32,
     pub effect_account: Option<EffectAccount>,
     pub producer_failure: Option<Box<[u8]>>,
+    pub temper_dir_fault: Option<Box<[u8]>>,
     pub runner_ci: Option<RunnerCi>,
     pub close_at: Option<change::CloseAt>,
     pub questions: change::Questions,
@@ -1356,6 +1358,7 @@ impl ChangeRow {
             review_llm,
             effect_account,
             producer_failure,
+            temper_dir_fault,
             runner_ci,
             close_at,
             report,
@@ -1432,6 +1435,7 @@ impl ChangeRow {
                 queue_repairs,
                 effect_account,
                 producer_failure,
+                temper_dir_fault,
                 runner_ci,
                 close_at,
                 questions,
@@ -1508,6 +1512,7 @@ impl ChangeRow {
             queue_repairs,
             effect_account,
             producer_failure,
+            temper_dir_fault,
             runner_ci,
             close_at,
             questions,
@@ -1571,6 +1576,7 @@ impl ChangeRow {
             review_llm,
             effect_account,
             producer_failure,
+            temper_dir_fault,
             runner_ci,
             close_at,
             report,
@@ -1933,6 +1939,14 @@ pub struct BehindWait {
     pub evidence: ReadBehind,
 }
 
+/// The `.temper/` check's evidence for a change at the observed head and base.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum TemperDirEvidence {
+    Uncovered,
+    Pending,
+    Passed { tree: skein_forge::api::Commit },
+}
+
 /// Coherent provider facts used by the root to check a change effect before
 /// releasing its durable outbox entry.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1941,6 +1955,7 @@ pub struct ChangeEvidence {
     pub readback_owed: bool,
     pub nearest_write: Option<u64>,
     pub touched: crate::Touched,
+    pub temper_dir: TemperDirEvidence,
     /// State to restore if the root does not authorize this effect.
     pub prior: change::Change,
     pub head: Option<skein_forge::api::Commit>,
@@ -1983,6 +1998,33 @@ pub enum CallPayload {
     Refused(skein_forge::api::Error),
     Read(Box<Result<skein_forge::api::Answer, skein_forge::api::Error>>),
     Red(Box<crate::RedReply>),
+}
+
+/// A project's last good repository revision and latest observation
+/// (temper/docs/design/domain/forge/temper-dir.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct DotTemperRevision {
+    pub project: u32,
+    pub number: u64,
+    pub home: skein_forge::api::Repository,
+    pub commit: Option<skein_forge::api::Commit>,
+    pub method: bool,
+    pub files: Box<[DotTemperFile]>,
+    pub observed: u64,
+    pub refused: Option<DotTemperRefusal>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct DotTemperFile {
+    pub path: Box<[u8]>,
+    pub bytes: Box<[u8]>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct DotTemperRefusal {
+    pub commit: Option<skein_forge::api::Commit>,
+    pub observed: u64,
+    pub words: Box<[u8]>,
 }
 
 /// The connector's durable records, wrapped by the root store.
@@ -2082,6 +2124,7 @@ pub enum Stored {
         what: crate::PersonFact,
     },
     ProjectFacts(crate::ProjectFacts),
+    DotTemperRevision(DotTemperRevision),
     PersonBrief(crate::PersonBrief),
     Looked(crate::Looked),
     Away(crate::Away),
@@ -2194,6 +2237,8 @@ pub enum Key {
     Milestone(u64),
     PersonBrief { party: u64, project: u32 },
     Writes(Name),
+    // Store family 53 follows Writes in the startup walk.
+    DotTemperRevision { project: u32 },
     HistoryProject { project: u32 },
     HistoryEvent { project: u32, number: u64 },
     HistoryChange { project: u32, change: u64, number: u64 },
@@ -2650,6 +2695,11 @@ pub enum Event {
     },
     /// Read current permissions, settings, protection and collaborators.
     Adopt {
+        request: Token,
+    },
+    /// The root has committed the adoption and its role seed.
+    TakeAdoption {
+        repository: skein_forge::api::Repository,
         request: Token,
     },
     /// Withdraw a just-adopted repository when its parent cannot commit the role seed.
@@ -3430,6 +3480,8 @@ pub enum Request {
     Reviewed {
         task: u64,
         evidence: ChangeEvidence,
+        /// The pending step, when it needs the root’s mapped owner reviews.
+        temper_dir: Option<Token>,
     },
     /// A change policy step and its checked effect entry, when any.
     ChangeDecision {

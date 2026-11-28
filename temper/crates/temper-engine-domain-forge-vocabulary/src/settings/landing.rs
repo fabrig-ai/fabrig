@@ -36,6 +36,7 @@ pub struct ProjectLanding {
     pub landing_attempts: u8,
     pub check_timeout_ms: Option<u64>,
     pub hook_timeout_max_seconds: u32,
+    pub temper_dir_sign_off: bool,
     /// Unset is `rerun` at the deployment's figure.
     pub flakes: Option<Flakes>,
     pub gate_retries: u8,
@@ -57,6 +58,7 @@ impl Default for ProjectLanding {
             landing_attempts: 3,
             check_timeout_ms: None,
             hook_timeout_max_seconds: 3_600,
+            temper_dir_sign_off: false,
             flakes: None,
             gate_retries: 2,
             gate_timeout_ms: 3_600_000,

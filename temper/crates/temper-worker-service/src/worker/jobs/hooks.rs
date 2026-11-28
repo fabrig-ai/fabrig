@@ -1,4 +1,5 @@
 //! Find, check and time the job's own hook (temper/docs/design/protocol/hooks.md, 2.2, 2.3 and 4.3).
+use crate::worker::HOOK_CONFIG_READER;
 use alloc::boxed::Box;
 use skein_io::kernel::{self, Complete, Done, Fd, Kind, Op, OpenHow, Spawn};
 use skein_lib::{Buffer, Time, Token};
@@ -311,7 +312,7 @@ impl Check {
                                     _ => None,
                                 })
                             }
-                            Err(fault) => Outcome::Failed(fault.text()),
+                            Err(fault) => Outcome::Failed(fault.text(HOOK_CONFIG_READER)),
                         },
                         Ok(Done::Count(count)) => {
                             let Op::Read { buf, .. } = answer.kind else { unreachable!("time file read") };
@@ -374,7 +375,7 @@ fn config_read_bound() -> u32 {
 }
 
 fn config_fault(why: &[u8]) -> Outcome {
-    Outcome::Failed(Fault { line: 0, why: why.into() }.text())
+    Outcome::Failed(Fault::Line { line: 0, why: why.into() }.text(HOOK_CONFIG_READER))
 }
 
 fn failed(outcome: &Outcome) -> bool {

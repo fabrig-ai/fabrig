@@ -1,5 +1,6 @@
 //! Front matter of an overlay's charter files (temper/docs/design/client/ctl/overlays.md, 2).
 use crate::{File, Refusal, Set};
+use alloc::boxed::Box;
 
 impl Set<'_> {
     /// Read the format of every file, including files the selected charter does not take.
@@ -57,29 +58,49 @@ fn opening(text: &str) -> Option<&str> {
 
 fn body(file: File, text: Option<&str>) -> Result<Option<&str>, Refusal> {
     let Some(text) = text else { return Ok(None) };
-    let Some(rest) = opening(text) else { return Ok(Some(text)) };
-    let malformed = Refusal::FrontMatter { file };
-    let Some((format, rest)) = rest.split_once('\n') else { return Err(malformed) };
-    let (close, text) = rest.split_once('\n').unwrap_or((rest, ""));
-    if close.strip_suffix('\r').unwrap_or(close) != "+++" {
-        return Err(malformed);
+    match read_file(text) {
+        Ok(text) => Ok(Some(text)),
+        Err(FormatFault::FrontMatter { .. }) => Err(Refusal::FrontMatter { file }),
+        Err(FormatFault::BadFormat) => Err(Refusal::BadFormat { file }),
+        Err(FormatFault::NewerFormat { number }) => Err(Refusal::NewerFormat { file, number }),
     }
+}
+
+/// A refusal of one file's front matter, independent of the file's name.
+#[derive(Debug, PartialEq, Eq)]
+pub enum FormatFault {
+    FrontMatter { line: u32 },
+    BadFormat,
+    NewerFormat { number: Box<str> },
+}
+
+/// Read a charter file's format and return its text without front matter.
+/// # Errors
+/// Refuses malformed front matter and formats other than 1.
+pub fn read_file(text: &str) -> Result<&str, FormatFault> {
+    let Some(rest) = opening(text) else { return Ok(text) };
+    let malformed = FormatFault::FrontMatter { line: 2 };
+    let (format, rest) = rest.split_once('\n').unwrap_or((rest, ""));
+    let (close, text) = rest.split_once('\n').unwrap_or((rest, ""));
     let format = format.strip_suffix('\r').unwrap_or(format);
     let Some(key) = format.strip_prefix("format") else { return Err(malformed) };
     let Some(value) = key.trim_start_matches(' ').strip_prefix('=') else { return Err(malformed) };
+    if close.strip_suffix('\r').unwrap_or(close) != "+++" {
+        return Err(FormatFault::FrontMatter { line: 3 });
+    }
     let number = value.trim_start_matches(' ').trim_start_matches('0');
     if number.is_empty() {
-        return Err(Refusal::BadFormat { file });
+        return Err(FormatFault::BadFormat);
     }
     for byte in number.bytes() {
         if !byte.is_ascii_digit() {
-            return Err(Refusal::BadFormat { file });
+            return Err(FormatFault::BadFormat);
         }
     }
     if number != "1" {
-        return Err(Refusal::NewerFormat { file, number: number.into() });
+        return Err(FormatFault::NewerFormat { number: number.into() });
     }
-    Ok(Some(text))
+    Ok(text)
 }
 
 #[cfg(test)]

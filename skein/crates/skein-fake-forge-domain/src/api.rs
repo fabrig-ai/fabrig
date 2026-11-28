@@ -1058,11 +1058,12 @@ pub struct Entry {
     pub name: Box<[u8]>,
     pub kind: EntryKind,
 }
-/// Kinds represented by the fake's paths to bytes.
+/// Kinds represented in a fake directory listing.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EntryKind {
     File,
     Directory,
+    Link,
 }
 /// A workflow run only when dispatched (testing/fakes/forge.md, 2.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

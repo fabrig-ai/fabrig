@@ -170,6 +170,7 @@ impl Domain {
             change::State::First { .. } => PanelStep::First,
             change::State::Updating { .. } => PanelStep::Updating,
             change::State::Resolving { .. } => PanelStep::Resolving,
+            change::State::Repairing { why: change::Repair::TemperDir { .. }, .. } => PanelStep::Gating,
             change::State::Repairing { why, .. } => PanelStep::Repairing(*why),
             change::State::Landing { .. } => PanelStep::Landing,
             change::State::Landed { merge, .. } => match self.verifications.get(&(row.repository, *merge)) {

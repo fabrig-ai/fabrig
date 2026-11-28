@@ -1079,6 +1079,9 @@ pub(super) fn step_at_head_for(d: &mut Domain, task: u64, head: skein_forge::api
             }),
             Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
             Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            Op::Read(Read::Compare { before, after }) => {
+                Answer::Compare { before, after, ahead: 1, behind: 0, changed: 0, files: Box::new([]) }
+            }
             Op::Read(_) | Op::Write(_) => panic!("head step: {op:?}"),
         };
         requests = fixtures::answer(d, call, Ok(answer));

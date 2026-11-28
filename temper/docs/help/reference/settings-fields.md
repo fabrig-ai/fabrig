@@ -12,13 +12,13 @@ JSON types, bounds and effects for settings files and `settings show`.
 - format:u64;? min 1, default 1.
 
 ## item
-A `setting`; exactly one `set`/`edit`/`overlay`.
-- setting:setting;setting the item changes.
-- overlay:overlay;charter overlay instead of set/edit.
-- remove:bool;true instead of set/edit/overlay; withdraw.
-- reset:bool;true instead of set/edit/overlay; follow default.
+A `setting` and exactly one `set`/`edit`/`overlay`/`remove`/`reset`.
+- setting:setting;Target.
+- overlay:overlay;Charter overlay.
+- remove:bool;true: withdraw.
+- reset:bool;true: follow default.
 - set:the value for `setting.kind`;Whole replacement.
-- edit:choice;edit instead of a value. `removed`: Withdraw, default included; rules cannot be removed. `reset`: Erase change; follow default.
+- edit:choice;Named edit. `removed`: Withdraw even a default, except rules. `reset`: Erase change; use default.
 
 ## setting
 Kind and number, or project for project settings.
@@ -590,6 +590,7 @@ Landing at the next start.
 - flakes:landing-flakes;? default rerun at checkout.rerun_processes.
 - check_timeout_ms:u64;? 1000 to 86400000; default none.
 - hook_timeout_max_seconds:u32;? 1 to 86400; default 3600.
+- temper_dir_sign_off:bool;? default false; true requires an eligible owner on every writable repository's forge.
 - gate_timeout_ms:u64;? 60000 to 86400000; default 3600000.
 - verification_bound_ms:u64;? default 7200000.
 - merge_job:t[4096];? relative, no NUL or .. segments; see merge command in configuration.

@@ -385,6 +385,8 @@ pub(super) fn read_failed(
         | StepStage::CatchUp
         | StepStage::Reviews(_)
         | StepStage::FollowCheck(_)
+        | StepStage::TemperProbe
+        | StepStage::TemperDir
         | StepStage::Paths => {
             return false;
         }

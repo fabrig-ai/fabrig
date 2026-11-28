@@ -419,6 +419,7 @@ fn worker_delivery(engine: &mut Engine, delivery: root::Delivery) {
         | root::Delivery::MoveStanding { .. }
         | root::Delivery::FindingsOwned { .. }
         | root::Delivery::ForgeCommitted { .. }
+        | root::Delivery::TakeForgeAdoption { .. }
         | root::Delivery::ForgeCall { .. }
         | root::Delivery::Bound { .. }
         | root::Delivery::Relay { .. }

@@ -18,7 +18,7 @@ use crate::{
 };
 use crate::{adoption, brief, held, topics};
 
-mod admission;
+pub(crate) mod admission;
 #[path = "catching_up.rs"]
 mod catching_up;
 mod change_reads;
@@ -54,6 +54,7 @@ mod restart_wait;
 #[path = "restore.rs"]
 mod restore;
 mod room;
+pub(crate) mod temper_dir;
 pub use restore::{RestoreFit, RestoreRow, RestoreSet, StartLink, adoption_up};
 #[path = "design.rs"]
 mod design;
@@ -66,6 +67,7 @@ pub(crate) struct PendingLanding {
     topic: Topic,
     before: skein_forge::api::Commit,
     after: skein_forge::api::Commit,
+    read_temper: bool,
 }
 #[derive(Hash, Debug)]
 pub(crate) struct PendingLost {
@@ -116,6 +118,8 @@ enum StepStage {
     Reviews(u32),
     FollowCheck(crate::follow_check::ReadKind),
     Paths,
+    TemperProbe,
+    TemperDir,
 }
 
 /// One sequence of fresh reads before a level-triggered change step.
@@ -153,11 +157,28 @@ pub(crate) struct PendingStep {
     reviews_complete: bool,
     paths: Box<[Box<[u8]>]>,
     paths_whole: bool,
+    temper_dir: temper_dir::Check,
     woken: bool,
     retry_at: Option<skein_lib::Time>,
     read: Option<(skein_forge::api::Repository, skein_forge::api::Read)>,
     progress: List<(change::Change, change::Change)>,
 }
+#[cfg(test)]
+impl PendingStep {
+    pub(crate) fn comparing_paths(&self) -> bool {
+        self.stage == StepStage::Paths
+    }
+
+    pub(crate) fn method_probe(&self) -> Option<&skein_forge::api::Read> {
+        if self.stage == StepStage::TemperProbe
+            && let Some((_, read)) = &self.read
+        {
+            return Some(read);
+        }
+        None
+    }
+}
+
 /// Comparison at its head and the first time the last judged reviews were kept.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) struct ReviewHead {
@@ -320,6 +341,8 @@ pub struct Domain {
     pull_mergeable: Map<Name, bool>,
     /// Last judged reviews per live change, unsaved: a restart reads them afresh.
     pub(crate) review_facts: Map<u64, crate::ReviewFacts>,
+    temper_dir_passes: Map<u64, temper_dir::Pass>,
+    temper_dir_probes: Map<u64, temper_dir::Probed>,
     /// Comparison and review time per live change, unsaved and bounded like review facts.
     pub(crate) review_heads: Map<u64, ReviewHead>,
     ci: Map<(skein_forge::api::Repository, skein_forge::api::Commit), CiState>,
@@ -384,6 +407,7 @@ pub struct Domain {
     /// and fetch with (protocol/credentials.md).
     pub(crate) identities: Map<u16, u32>,
     pub(crate) workflows: crate::workflows::State,
+    pub(crate) temper_revisions: crate::temper_revision::State,
     pub(crate) capabilities: Map<Token, crate::capabilities::Pending>,
     pub(crate) stopping: bool,
     pub(crate) landing: crate::landing::State,
@@ -1154,6 +1178,8 @@ impl Domain {
             pulls: Map::with_capacity(l.client.resources),
             pull_mergeable: Map::with_capacity(l.client.resources),
             review_facts: Map::with_capacity(l.changes),
+            temper_dir_passes: Map::with_capacity(l.changes),
+            temper_dir_probes: Map::with_capacity(l.changes),
             review_heads: Map::with_capacity(l.changes),
             ci: Map::with_capacity(l.subscriptions),
             entries: Map::with_capacity(l.entries),
@@ -1218,6 +1244,7 @@ impl Domain {
             application: adoption::State::new(l),
             capabilities: Map::with_capacity(l.repositories),
             workflows: crate::workflows::State::new(l),
+            temper_revisions: crate::temper_revision::State::new(l),
             writers,
             identities: credentials,
             stopping: false,
@@ -1379,6 +1406,7 @@ impl Domain {
             for at in &[
                 ci_news::deadline(self),
                 crate::follows::deadline(self),
+                crate::temper_revision::deadline(self),
                 outage::deadline(self),
                 crate::unmade::deadline(self),
                 crate::landing::read_deadline(self),
@@ -1439,6 +1467,27 @@ impl Domain {
         next
     }
 
+    pub(crate) fn room_for_revision_read(&self) -> bool {
+        self.client.has_room() && !self.client.is_ready() && !self.read_line.waiting()
+    }
+
+    /// Let all changes already checking their final pair on this train finish
+    /// before forming. A failed read ends its gather and does not hold the train.
+    #[must_use]
+    pub fn probing_train(&self, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
+        for (_, pending) in &self.steps {
+            if pending.temper_dir.in_flight()
+                && let Some(row) = self.changes.get(&pending.task)
+                && row.repository == repository
+                && row.base.as_ref() == branch
+                && row.change.way == change::Way::Turn
+            {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Whether a child call or a newly committed entry may be sent.
     #[must_use]
     pub fn is_ready(&self) -> bool {
@@ -1456,6 +1505,7 @@ impl Domain {
             || crate::room::waiting(self)
             || self.client.is_ready()
             || read_line::askable(self)
+            || crate::temper_revision::ready(self)
     }
 
     fn next_handoff(&self) -> Option<u64> {
@@ -2401,21 +2451,27 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
             brief::drop_section(d, section);
         }
         Event::Adopt { request } => adoption::adopt(d, env, request, out),
-        Event::ForgetAdoption { repository, restore } => match restore {
-            Some(mut previous) => {
-                if let Some(current) = d.repository(repository)
-                    && current.project == previous.project
-                {
-                    previous.refusals.clone_from(&current.refusals);
+        Event::TakeAdoption { repository, request } => {
+            crate::temper_revision::adopted(d, env, repository, request);
+        }
+        Event::ForgetAdoption { repository, restore } => {
+            crate::temper_revision::forget(d, repository);
+            match restore {
+                Some(mut previous) => {
+                    if let Some(current) = d.repository(repository)
+                        && current.project == previous.project
+                    {
+                        previous.refusals.clone_from(&current.refusals);
+                    }
+                    d.repositories
+                        .insert(repository, Box::new(previous.clone()))
+                        .expect("restores an admitted repository");
+                    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Repository(previous) });
+                    emit(out, Request::MarkedForges);
                 }
-                d.repositories.insert(repository, Box::new(previous.clone())).expect("restores an admitted repository");
-                emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Repository(previous) });
-                emit(out, Request::MarkedForges);
+                None => release::repository(d, env, repository, out),
             }
-            None => {
-                release::repository(d, env, repository, out);
-            }
-        },
+        }
         Event::Names { task, resources } => {
             if !d.kept.contains_key(&task) {
                 names(d, env, task, resources, out);
@@ -2731,6 +2787,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
                 }
             }
             ci_hint(d, env, &hint, out);
+            crate::temper_revision::hinted(d, env, &hint);
             child(d, env, skein_forge_client::Event::Hint { hint }, out);
         }
         Event::RoomUnavailable { task } => crate::room::pass(d, task),
@@ -2802,6 +2859,7 @@ fn drive(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         // to the line, too, before resuming the client's polls.
         return;
     }
+    let before = out.len();
     writes::readback::drive(d, env, out);
     let child_env = child_env(env);
     skein_forge_client::resume(&mut d.client, &child_env, &mut d.client_out);
@@ -2813,6 +2871,9 @@ fn drive(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         let (task, wake) = (*task, *wake);
         d.procedure_wakes.remove(&task);
         emit(out, if wake { Request::WakeProcedure { task } } else { Request::StepDependents { task } });
+    }
+    if out.len() == before && out.room() > 0 {
+        crate::temper_revision::resume(d, env, out);
     }
 }
 
@@ -2848,6 +2909,7 @@ fn expire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
     crate::follows::fire(d, env.now);
+    crate::temper_revision::fire(d, env);
     read_line::prune_makings(d);
     crate::closer::fire(d, env, out);
     release_reads::fire(d, env, out);
@@ -3195,6 +3257,8 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     step_read(d, env, owner, result, out);
                 } else if d.pending_ci.contains_key(&owner) {
                     ci_read(d, env, owner, result, out);
+                } else if d.temper_revisions.reading(owner) {
+                    crate::temper_revision::answered(d, env, owner, result, out);
                 } else if d.workflows.reading(owner) {
                     crate::workflows::answered(d, env, owner, result, out);
                 } else if crate::is_root_read(owner) {
@@ -5278,6 +5342,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         reviews_complete: true,
         paths: Box::new([]),
         paths_whole: false,
+        temper_dir: temper_dir::Check::new(),
         woken: false,
         retry_at: None,
         read: None,
@@ -5415,6 +5480,7 @@ fn step_verified(
         reviews_complete: true,
         paths: Box::new([]),
         paths_whole: false,
+        temper_dir: temper_dir::Check::new(),
         woken: false,
         retry_at: None,
         read: None,
@@ -5511,6 +5577,21 @@ fn step_read(
         }
         return;
     }
+    if (pending.stage == StepStage::TemperProbe || pending.stage == StepStage::TemperDir)
+        && result == Err(skein_forge::api::Error::Busy)
+    {
+        pending.retry_at = Some(env.now.saturating_add(Duration::from_secs(1)));
+        d.steps.insert(owner, pending).expect("capacity retry keeps the gather");
+        return;
+    }
+    if pending.stage == StepStage::TemperProbe {
+        temper_dir::probe_answered(d, env, owner, pending, &result, out);
+        return;
+    }
+    if pending.stage == StepStage::TemperDir {
+        temper_dir::answered(d, env, owner, pending, &result, out);
+        return;
+    }
     if pending.stage == StepStage::Taking {
         taking::answered(d, env, pending, result, out);
         return;
@@ -5594,7 +5675,12 @@ fn step_read(
         pull_ci = required.is_empty();
     }
     let next = match pending.stage {
-        StepStage::Taking | StepStage::StallChecks | StepStage::StallJobs | StepStage::FollowCheck(_) => {
+        StepStage::Taking
+        | StepStage::StallChecks
+        | StepStage::StallJobs
+        | StepStage::FollowCheck(_)
+        | StepStage::TemperProbe
+        | StepStage::TemperDir => {
             unreachable!("special reads handled above")
         }
         StepStage::Branch => {
@@ -5936,9 +6022,13 @@ fn step_read(
                 pending.paths_whole = Some(before) == pending.base_tip
                     && Some(after) == pending.branch
                     && skein_lib::len_u64(files.len()) == changed;
+                if Some(before) == pending.base_tip && Some(after) == pending.branch {
+                    pending.temper_dir.touch = temper_protocol_temper_dir::touched(&files, pending.paths_whole);
+                }
                 pending.paths = files;
             }
-            finish_step(d, env, pending, out);
+            pending.temper_dir.compared = true;
+            temper_dir::after_paths(d, env, owner, pending, out);
             return;
         }
         StepStage::Reviews(page) => match result {
@@ -6048,24 +6138,34 @@ fn next_execution(pending: &mut PendingStep) -> Option<skein_forge::api::Read> {
 }
 
 fn step_paths(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: PendingStep, out: &mut Queue<Request>) {
+    if pending.woken {
+        finish_step(d, env, pending, out);
+        return;
+    }
     let Some(row) = d.changes.get(&pending.task) else { return };
     if let (Some(before), Some(after), Some(repository)) =
         (pending.base_tip, pending.branch, d.repositories.get(&row.repository))
     {
+        let mut compare = false;
         for held in &d.landing_rules(repository.project) {
-            if !held.rule.sets.is_empty() && crate::covers_branch(&held.rule.pattern, repository, &row.base) {
-                let repository = row.repository;
-                pending.stage = StepStage::Paths;
-                d.steps.insert(owner, pending).expect("replaces step");
-                gather_read(d, env, owner, repository, skein_forge::api::Read::Compare { before, after }, out);
-                return;
-            }
+            compare |= !held.rule.sets.is_empty() && crate::covers_branch(&held.rule.pattern, repository, &row.base);
+        }
+        if compare {
+            pending.stage = StepStage::Paths;
+            let repository = row.repository;
+            d.steps.insert(owner, pending).expect("replaces step");
+            gather_read(d, env, owner, repository, skein_forge::api::Read::Compare { before, after }, out);
+            return;
         }
     }
     finish_step(d, env, pending, out);
 }
 
 fn step_touched(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> crate::Touched {
+    // An incomplete comparison covers all classes, regardless of their path sets.
+    if !pending.paths_whole {
+        return crate::Touched::UNKNOWN;
+    }
     match d.repositories.get(&row.repository) {
         Some(repository) => crate::touched(&d.project_classes(repository.project), &pending.paths, pending.paths_whole),
         None => crate::Touched::UNKNOWN,
@@ -6404,6 +6504,7 @@ fn hold_read_session(
             readback_owed: read_session::readback_owed(d, task),
             nearest_write: None,
             touched: crate::Touched::UNKNOWN,
+            temper_dir: temper_dir::unread(d, &row),
             prior,
             head: row.change.last_head,
             base_tip: [0; 32],
@@ -6427,6 +6528,50 @@ fn hold_read_session(
             decision: change::Decision::Hold(change::Cause::Stalled),
             entry: None,
             evidence: Some(evidence),
+            close_at: None,
+            close_refusal: None,
+        },
+    );
+}
+
+pub(crate) fn hold_candidate_member(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    words: &[u8],
+    out: &mut Queue<Request>,
+) {
+    let Some(mut row) = d.changes.get(&task).cloned() else { return };
+    let before = crate::panel::ready(&row);
+    let cause = change::Cause::Failed;
+    if !relay_hold(&mut row.change.state, cause, env.wall) {
+        return;
+    }
+    let change::State::Held { hold, .. } = &mut row.change.state else { unreachable!("held member") };
+    hold.words = Box::from(words);
+    row.change.released = None;
+    let owned = row.change.owns_turn;
+    row.change.owns_turn = false;
+    if let Some(owner) = step_owner(d, task) {
+        d.steps.remove(&owner);
+    }
+    d.change_due.remove(&task);
+    d.read_sessions.remove(&task);
+    d.fresh_steps.remove(&task);
+    d.fresh_waits.remove(&task);
+    d.procedure_wakes.remove(&task);
+    d.merge_withheld.remove(&task);
+    connection_wait::take(d, task);
+    crate::room::pass(d, task);
+    wake_after_turn(d, &row, owned);
+    save_queue_change(d, env, before, row, out);
+    emit(
+        out,
+        Request::ChangeDecision {
+            task,
+            decision: change::Decision::Hold(cause),
+            entry: None,
+            evidence: None,
             close_at: None,
             close_refusal: None,
         },
@@ -6675,7 +6820,11 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         if !reviewed && in_queue(&row.change.state) && !d.panel_approvals(&row).is_empty() {
             emit(
                 out,
-                Request::Reviewed { task: row.task, evidence: step_evidence(d, &row, &pending, row.change.clone()) },
+                Request::Reviewed {
+                    task: row.task,
+                    evidence: step_evidence(d, &row, &pending, row.change.clone()),
+                    temper_dir: None,
+                },
             );
             reviewed = true;
         }
@@ -6686,6 +6835,10 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             && effect_prior.state == (change::State::Producing { requested: false })
         {
             row.producer_failure = Some(catch_up_job_failure(d, pending.merge_job));
+        }
+        if temper_dir::needs_probe(d, &row, &pending, stepped.decision) {
+            temper_dir::probe(d, env, pending, out);
+            return;
         }
         d.merge_withheld.remove(&row.task);
         if d.landing.held
@@ -6782,7 +6935,9 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                 crate::recheck::hold_words(&row, measured)
             };
         }
-        if let change::Decision::Delegate(change::Delegate::Repair(_)) = stepped.decision {
+        if let change::Decision::Delegate(change::Delegate::Repair(why)) = stepped.decision {
+            row.temper_dir_fault =
+                if let change::Repair::TemperDir { .. } = why { pending.temper_dir.fault.take() } else { None };
             row.regate = None;
             row.ci_recheck = None;
         }
@@ -6792,7 +6947,8 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         // If the landing tip changed, the update's containment cannot serve Checking.
         let reread_base = matches_updating(&effect_prior.state)
             && !matches_updating(&row.change.state)
-            && updating_base(&effect_prior.state) != Some(facts.base_tip)
+            && (updating_base(&effect_prior.state) != Some(facts.base_tip)
+                || facts.temper_dir == change::TemperDir::Pending)
             && decision == change::Decision::None;
         let decision = if reread_base { change::Decision::Wait { until: Some(env.wall) } } else { decision };
         match decision {
@@ -7356,6 +7512,8 @@ fn change_facts(
         Some(repository) => d.requires(repository, &row.base, step_touched(d, row, pending)),
         None => crate::Requires { ci: true, up_to_date: true },
     };
+    let temper_dir = temper_dir::fact(d, row, pending);
+    let updates = requires.up_to_date || temper_dir == change::TemperDir::Update;
     let window = crate::settle::window(d, row.task);
     change::Facts {
         release_blocked: d.task_holds.get(&row.task) == Some(&TaskHold::Blocked),
@@ -7400,9 +7558,10 @@ fn change_facts(
         },
         base_tip,
         base_read: pending.base_read.unwrap_or(base_tip),
-        contains_base: if requires.up_to_date { pending.contains_base } else { change::Status::Passed },
+        contains_base: if updates { pending.contains_base } else { change::Status::Passed },
         contains_head: pending.contains_head,
-        updates: requires.up_to_date,
+        updates,
+        temper_dir,
         merge_job: pending.merge_job && d.merge_kind.is_some(),
         delegate: match row.delegate {
             Some((_, kind)) => Some(kind),
@@ -7477,6 +7636,7 @@ fn step_evidence(d: &Domain, row: &ChangeRow, pending: &PendingStep, prior: chan
             None => None,
         },
         touched: step_touched(d, row, pending),
+        temper_dir: temper_dir::evidence(d, row, pending),
         prior,
         head: pending.branch,
         // An unfinished gather supplies evidence only to name its read stall.
@@ -10285,7 +10445,7 @@ fn branch_changed(
     record_branch_tip(d, env, name, &resource, commit, out);
 }
 
-fn record_branch_tip(
+pub(crate) fn record_branch_tip(
     d: &mut Domain,
     env: &Env<Limits>,
     name: Name,
@@ -10324,20 +10484,31 @@ fn record_branch_tip(
     if before == commit || completed_branch(d, resource.repository, &branch) {
         return;
     }
+    let read_temper = d.restore_phase == RestorePhase::Active
+        && d.restart_fresh.is_none()
+        && crate::temper_revision::watches_branch(d, resource.repository, &branch);
     let topic = Topic::Landings { repository: resource.repository, branch: branch.clone() };
     if d.landings.len() >= env.limits.landings.max(env.limits.client.resources) {
         crate::workflows::landed(d, env, resource.repository, &branch, commit, None, out);
+        if read_temper {
+            crate::temper_revision::landed(d, env, resource.repository, &branch, Some(commit));
+        }
         publish(d, topic, News::Landing { before, after: commit, files: None }, out);
         return;
     }
     let Some(sequence) = d.sequence.checked_add(1) else {
         crate::workflows::landed(d, env, resource.repository, &branch, commit, None, out);
+        if read_temper {
+            crate::temper_revision::landed(d, env, resource.repository, &branch, Some(commit));
+        }
         publish(d, topic, News::Landing { before, after: commit, files: None }, out);
         return;
     };
     d.sequence = sequence;
     let owner = Token::new(sequence | (1_u64 << 63));
-    d.landings.insert(owner, PendingLanding { topic, before, after: commit }).expect("landing capacity preflighted");
+    d.landings
+        .insert(owner, PendingLanding { topic, before, after: commit, read_temper })
+        .expect("landing capacity preflighted");
     child(
         d,
         env,
@@ -10363,17 +10534,24 @@ fn landing_read(
     {
         return;
     }
-    let files = match result {
-        Ok(skein_forge::api::Answer::Compare { before, after, files, changed, .. })
+    let (files, behind) = match result {
+        Ok(skein_forge::api::Answer::Compare { before, after, files, changed, behind, .. })
             if before == pending.before && after == pending.after && skein_lib::len_u64(files.len()) == changed =>
         {
-            Some(files)
+            (Some(files), behind > 0)
         }
-        Ok(_) | Err(_) => None,
+        Ok(_) | Err(_) => (None, false),
     };
     match &pending.topic {
         Topic::Landings { repository, branch } => {
             crate::workflows::landed(d, env, *repository, branch, pending.after, files.as_deref(), out);
+            if pending.read_temper && crate::temper_revision::touched(files.as_deref(), behind) {
+                // An older comparison can answer after a newer tip was observed. Its paths
+                // still trigger a read, but not of the now superseded tip.
+                let name = crate::tiers::name(*repository, branch);
+                let tip = if d.branch_head(&name) == Some(pending.after) { Some(pending.after) } else { None };
+                crate::temper_revision::landed(d, env, *repository, branch, tip);
+            }
         }
         Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => {
             unreachable!("landing comparison belongs to a landing")
@@ -10907,6 +11085,9 @@ pub(super) fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::PersonBrief(row) => {
             d.person_briefs.insert((row.party, row.project), row).expect("restored person brief room checked");
         }
+        Stored::DotTemperRevision(row) => {
+            d.temper_revisions.rows.insert(row.project, row).expect("restored revision room checked");
+        }
         Stored::ProjectFacts(row) => {
             d.project_facts.insert(row.project, row).expect("restored project facts room checked");
         }
@@ -11320,6 +11501,7 @@ fn read_afresh_complete(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
         writes::readback::restart(d, out);
         emit(out, Request::Up(jig::Up::Lifecycle(jig::lifecycle::Up::Done { stage: RestartStage::ReadAfresh })));
         read_session::fresh(d, env);
+        crate::temper_revision::restart(d, env);
     }
     if d.restart_reads_started {
         repository_reads::wake(d, env, out);
@@ -11480,6 +11662,8 @@ fn retain_terminal_ci(d: &mut Domain, row: &mut ChangeRow) {
     }
     d.review_requests.remove(&row.task);
     d.review_facts.remove(&row.task);
+    d.temper_dir_passes.remove(&row.task);
+    d.temper_dir_probes.remove(&row.task);
     d.review_heads.remove(&row.task);
     let read = match d.panel_ci.get(&row.task) {
         Some(read) if Some(read.head) == row.change.last_head => Some(*read),
@@ -11943,6 +12127,7 @@ impl Domain {
             | RecordKind::Milestone
             | RecordKind::HistoryProject
             | RecordKind::PersonBrief
+            | RecordKind::DotTemperRevision
             | RecordKind::ProjectFacts
             | RecordKind::Device
             | RecordKind::LandedDraft

@@ -582,6 +582,7 @@ fn landing_criteria_wait_until_rebuild_and_the_fresh_reads() {
         readback_owed: false,
         nearest_write: None,
         touched: Touched::UNKNOWN,
+        temper_dir: TemperDirEvidence::Uncovered,
         size: None,
         prior: change.change.clone(),
         head: Some(fixtures::HEAD),

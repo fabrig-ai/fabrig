@@ -26,6 +26,7 @@ pub(crate) use read_wait::unavailable as read_unavailable;
 mod saved_follow;
 pub(crate) use saved_follow::rebuild;
 pub(crate) mod members;
+mod temper_dir;
 
 #[derive(Clone, Copy, Hash, Debug)]
 pub(crate) enum GateProblem {
@@ -122,9 +123,18 @@ pub(crate) struct Pending {
     cleaned: bool,
     upstream: Option<api::Commit>,
     paths: Box<[Paths]>,
+    temper_dir: Option<Box<temper_dir::Check>>,
     reads: Map<(api::Repository, GatherRead), Result<api::Answer, api::Error>>,
     stall: Option<crate::stall::Report>,
 }
+#[cfg(test)]
+impl Pending {
+    #[expect(clippy::match_like_matches_macro, reason = "the step's fixture uses the stage pattern")]
+    pub(crate) fn checking_temper_dir(&self) -> bool {
+        if let Stage::TemperDir = self.stage { true } else { false }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Retry {
     None,
@@ -136,6 +146,7 @@ enum Retry {
 struct Paths {
     files: Box<[Box<[u8]>]>,
     whole: bool,
+    comparison: Option<temper_dir::Comparison>,
 }
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 enum GatherRead {
@@ -161,6 +172,7 @@ enum Stage {
     Pull(u16),
     Reviews(u16, u32),
     Paths(u16),
+    TemperDir,
     Collect,
     CleanupPull,
     CleanupBranch(u16),
@@ -1342,6 +1354,7 @@ fn unread_evidence(member: u64, change: &crate::ChangeRow) -> crate::LandingEvid
             readback_owed: false,
             nearest_write: None,
             touched: crate::Touched::UNKNOWN,
+            temper_dir: crate::TemperDirEvidence::Uncovered,
             prior: change.change.clone(),
             head: None,
             base_tip: [0; 32],
@@ -1526,7 +1539,7 @@ pub(crate) fn step(
         let change = d.changes.get(&member.change).expect("member change");
         evidence.push(unread_evidence(member.change, change)).expect("bounded evidence");
         facts.push(fresh(d.train_gates(&row, repository(member)))).expect("admitted members");
-        paths.push(Paths { files: Box::new([]), whole: false }).expect("admitted members");
+        paths.push(Paths { files: Box::new([]), whole: false, comparison: None }).expect("admitted members");
     }
     let Some(first) = row.landing.members.first() else {
         return;
@@ -1562,6 +1575,7 @@ pub(crate) fn step(
                 woken: false,
                 evidence: evidence.into_boxed(),
                 paths: paths.into_boxed(),
+                temper_dir: None,
                 opened: None,
                 closed: policy::Status::Unknown,
                 round_pull: policy::RoundPull::Unread,
@@ -2134,6 +2148,7 @@ fn advance(
                 }
                 Stage::Reviews(_, _)
                 | Stage::Paths(_)
+                | Stage::TemperDir
                 | Stage::Collect
                 | Stage::Round { .. }
                 | Stage::StallRun
@@ -2202,6 +2217,9 @@ fn advance(
         Stage::Paths(index) => {
             let fact = p.facts.get(usize::from(index)).expect("member fact");
             let paths = p.paths.get_mut(usize::from(index)).expect("member paths");
+            if let api::Read::Compare { before, after } = p.read {
+                paths.comparison = Some(temper_dir::Comparison::new(before, after, &answer));
+            }
             if let Ok(api::Answer::Compare { before, after, files, changed, .. }) = answer {
                 paths.whole = before == fact.main
                     && Some(after) == path_candidate(&row, index)
@@ -2210,6 +2228,7 @@ fn advance(
             }
             next_member(d, env, owner, p, &row, index, out);
         }
+        Stage::TemperDir => temper_dir::answered(d, env, owner, p, &row, &answer, out),
         Stage::TurnPull => {
             let Ok(api::Answer::Pull(pull)) = answer else {
                 read_failed(d, &row, &p, error, out);
@@ -3097,6 +3116,36 @@ fn cleanup_branch(
     p.cleaned = true;
     collect(d, env, owner, p, out);
 }
+/// Rebind a member's pass to the merge's target, not to that member's own prefix.
+pub(crate) fn temper_dir_tree(row: &LandingRow, prefix: api::Commit, tip: api::Commit) -> Option<api::Commit> {
+    if let policy::Phase::Turn { .. } = row.landing.phase
+        && row.landing.round.ending.is_none()
+    {
+        if row.landing.round.branch.is_empty() {
+            for member in &row.landing.members {
+                if member.left.is_none()
+                    && member.landed.is_none()
+                    && member.candidate == Some(prefix)
+                    && member.base == Some(tip)
+                {
+                    return Some(prefix);
+                }
+            }
+        } else {
+            let top = turn_top(row)?;
+            for member in row.landing.members.iter().take(usize::from(top).saturating_add(1)) {
+                if member.left.is_none() && member.landed.is_none() && member.candidate == Some(prefix) {
+                    let target = row.landing.members.get(usize::from(top))?;
+                    if target.base == Some(tip) {
+                        return target.candidate;
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 fn turn_top(row: &LandingRow) -> Option<u16> {
     if let policy::Phase::Turn { .. } = row.landing.phase
         && !row.landing.round.branch.is_empty()
@@ -3632,7 +3681,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
         Some((_, _, _, _, _, settings, _)) => *settings,
         None => policy::Project::DEFAULT,
     };
-    let stepped = policy::step(
+    let mut stepped = policy::step(
         &row.landing,
         &facts,
         &project,
@@ -3647,6 +3696,19 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
         },
         env.wall,
     );
+    let mut candidate_fault = None;
+    if let policy::Decision::Merge { member, candidate } = stepped.decision {
+        let target = temper_dir::Target::new(&row, &p, member, candidate);
+        if let Some(check) = temper_dir::checked(&p, target) {
+            if let temper_dir::Judgement::Fault(fault) = check {
+                stepped = policy::candidate_fault(row.landing.clone(), &facts, &fault.covered);
+                candidate_fault = Some(temper_dir::take_fault(&mut p));
+            }
+        } else {
+            temper_dir::start(d, env, owner, p, &row, target, out);
+            return;
+        }
+    }
     let writing = write_member(stepped.decision);
     if let Some((member, on)) = writing
         && !admit_entry(
@@ -3819,6 +3881,9 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
                 evidence.facts.size = None;
             }
             evidence.facts.head = Some(candidate);
+            if !recording {
+                evidence.facts.temper_dir = temper_dir::evidence(&p, position);
+            }
             let paths = p.paths.get(usize::from(position)).expect("member paths");
             let classes = d.project_classes(row.landing.project);
             evidence.facts.touched = crate::touched(&classes, &paths.files, paths.whole);
@@ -4282,6 +4347,9 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
     }
     if crate::views::matches_turn(&row.landing.phase) && !crate::views::matches_turn(&prior.landing.phase) {
         row.turn_since = Some(env.wall);
+    }
+    if let Some(fault) = candidate_fault {
+        temper_dir::hold_members(d, env, &row, fault, out);
     }
     save(d, env, row, out);
     if let Some(step) = news {
@@ -6064,7 +6132,11 @@ impl Domain {
         let (gate, candidate) = match why {
             change::Repair::LandingAt { gate, candidate, .. } => (gate, Some(candidate)),
             change::Repair::Landing { gate } => (gate, None),
-            change::Repair::Ci | change::Repair::Semantic | change::Repair::Gate(_) | change::Repair::Review { .. } => {
+            change::Repair::Ci
+            | change::Repair::Semantic
+            | change::Repair::Gate(_)
+            | change::Repair::Review { .. }
+            | change::Repair::TemperDir { .. } => {
                 return None;
             }
         };

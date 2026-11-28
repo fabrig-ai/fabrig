@@ -410,18 +410,19 @@ pub enum Answer {
 pub struct Entry {
     /// The child's name, without its parent's path.
     pub name: Box<[u8]>,
-    /// Symlinks have file kind.
     pub kind: EntryKind,
 }
 /// The kinds exposed by directory reads.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EntryKind {
-    /// A file or symlink.
+    /// A regular file.
     File,
     /// A directory.
     Directory,
     /// A git submodule.
     Submodule,
+    /// A symbolic link. The listing does not give its target.
+    Link,
 }
 /// What a refused call or answer passed (forge/vocabulary.md, 1.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

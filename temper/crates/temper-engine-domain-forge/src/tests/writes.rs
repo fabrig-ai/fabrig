@@ -465,6 +465,7 @@ fn the_outbox_line_waits_for_a_branch_record_then_asks_its_write_again() {
     use jig_domain_core_vocabulary::waits::{WaitKind, WaitObject};
     use temper_client_protocol_wire::waits::{THING_WRITE_ENTRY, THING_WRITE_RECORD};
     let mut d = refusals::adopted_domain();
+    fixtures::settle_home_reads(&mut d, &env(), fixtures::BASE);
     let branch = name(BRANCH);
     head(&mut d, &branch, HEAD);
     let mut out = Queue::uncapped();

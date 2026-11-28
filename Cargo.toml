@@ -51,6 +51,7 @@ members = [
     "skein/crates/skein-sim",
     "skein/crates/skein-sim-world",
     "skein/crates/skein-tls",
+    "skein/crates/skein-toml",
     "skein/crates/skein-rustls-std",
     "skein/crates/skein-ui",
     "skein/crates/skein-ui-bundle",
@@ -115,6 +116,7 @@ members = [
     "skein/tests/readiness",
     "skein/tests/sim",
     "skein/tests/tls",
+    "skein/tests/toml",
     "skein/tests/ui-text",
     "skein/tests/ui-screen",
     "skein/tests/ui",
@@ -405,7 +407,9 @@ members = [
     "temper/crates/temper-protocol-store",
     "temper/crates/temper-protocol-store-codec",
     "temper/crates/temper-protocol-brief",
+    "temper/crates/temper-protocol-hooks",
     "temper/crates/temper-protocol-member-message",
+    "temper/crates/temper-protocol-temper-dir",
     "temper/crates/temper-charter-set",
     "temper/crates/temper-engine-domain",
     "temper/crates/temper-engine-domain-see",
@@ -537,6 +541,7 @@ skein-fake-push = { path = "skein/crates/skein-fake-push" }
 skein-push = { path = "skein/crates/skein-push" }
 skein-fake-oauth = { path = "skein/crates/skein-fake-oauth" }
 skein-tls = { path = "skein/crates/skein-tls" }
+skein-toml = { path = "skein/crates/skein-toml" }
 skein-rustls-std = { path = "skein/crates/skein-rustls-std" }
 skein-shell = { path = "skein/crates/skein-shell" }
 skein-fail-stop = { path = "skein/crates/skein-fail-stop" }
@@ -813,6 +818,7 @@ temper-protocol-worker-wire = { path = "temper/crates/temper-protocol-worker-wir
 temper-protocol-store = { path = "temper/crates/temper-protocol-store" }
 temper-protocol-store-codec = { path = "temper/crates/temper-protocol-store-codec" }
 temper-protocol-brief = { path = "temper/crates/temper-protocol-brief" }
+temper-protocol-hooks = { path = "temper/crates/temper-protocol-hooks" }
 temper-protocol-member-message = { path = "temper/crates/temper-protocol-member-message" }
 temper-charter-set = { path = "temper/crates/temper-charter-set" }
 temper-engine-domain = { path = "temper/crates/temper-engine-domain" }

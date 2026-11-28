@@ -196,6 +196,9 @@ fn answer_for(op: Op, base: api::Commit, run: Option<&api::Run>) -> Result<Answe
             assert_eq!(id, run.id);
             Ok(Answer::Run(run.clone()))
         }
+        Op::Read(Read::Compare { before, after }) => {
+            Ok(Answer::Compare { before, after, ahead: 1, behind: 0, changed: 0, files: Box::new([]) })
+        }
         Op::Read(_) | Op::Write(_) => panic!("unexpected landing read {op:?}"),
     }
 }

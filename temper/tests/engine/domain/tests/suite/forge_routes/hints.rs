@@ -408,7 +408,13 @@ fn two_change_hint_request_profile() {
         // Keep reads may interleave with the landing's fresh reads and merge.
         // Bound their total; their order is not the hint-wake contract
         // (temper/docs/design/domain/forge/keeping-up.md, 2 and 3).
-        let count = world.take_calls().len();
+        let calls = world.take_calls();
+        let probes = calls
+            .iter()
+            .filter(|op| matches!(op, Op::Read(Read::File { path, .. }) if path.as_ref() == b".temper"))
+            .count();
+        assert_eq!(probes, if task == 51 { 2 } else { 0 }, "only a real landing pair needs a method probe");
+        let count = calls.len() - probes;
         assert!(
             count <= LANDING_REQUEST_BOUND,
             "landing {task}: {count} requests exceeds bound {LANDING_REQUEST_BOUND}"

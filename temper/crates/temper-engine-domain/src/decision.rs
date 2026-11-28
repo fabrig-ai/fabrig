@@ -132,6 +132,11 @@ pub enum Delivery {
     ForgeCommitted {
         entry: u64,
     },
+    /// Let the forge read an adoption only once its role seed is committed.
+    TakeForgeAdoption {
+        repository: skein_forge::api::Repository,
+        request: Token,
+    },
     /// One bounded connector call after all preceding progress commits.
     ForgeCall {
         call: Token,
@@ -602,6 +607,7 @@ impl Decision {
             | Delivery::MoveStanding { .. }
             | Delivery::ProjectReleased { .. }
             | Delivery::ForgeCommitted { .. }
+            | Delivery::TakeForgeAdoption { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }
             | Delivery::Procedure { .. }

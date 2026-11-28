@@ -10,7 +10,7 @@ use skein_lib::{Duration, List, Wall, bytes::copy_of};
 use crate::{
     Ask, AuthorityHold, AuthorityLack, Cause, Change, CloseOutdated, Decision, Delegate, Early, Effect, EffectResult,
     Facts, Freshness, Gate, GateFailure, GateKind, Handed, Heard, Hold, Judged, Limits, PendingKind, Pull, Recheck,
-    Repair, Replay, StartedFrom, State, Status, Stepped, Took, Verification, Wait, Way,
+    Repair, Replay, StartedFrom, State, Status, Stepped, TemperDir, Took, Verification, Wait, Way,
 };
 
 /// Decide one change from current forge and task facts, independent of its wake.
@@ -148,7 +148,8 @@ fn moved_delegate_base(change: &Change, facts: &Facts) -> Option<[u8; 32]> {
             | Repair::Landing { .. }
             | Repair::LandingAt { .. }
             | Repair::Gate(_)
-            | Repair::Review { .. } => Some(facts.base_tip),
+            | Repair::Review { .. }
+            | Repair::TemperDir { .. } => Some(facts.base_tip),
         },
         State::Taking { .. }
         | State::Producing { .. }
@@ -1583,6 +1584,32 @@ fn gate_verdict(
     }
 }
 
+// The queue's update is still serialized by First. The turn checks its own head
+// before the change joins, and checks again if its pair changes while ready.
+fn temper_gate(change: &Change, head: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Option<Stepped> {
+    let until = match facts.temper_dir {
+        TemperDir::Uncovered | TemperDir::Passed | TemperDir::Update => return None,
+        TemperDir::Fault { head } => {
+            return Some(repair_due(change.clone(), Repair::TemperDir { head }, facts, now, limits));
+        }
+        TemperDir::OwnerRequested { head } => {
+            return Some(repair_due(change.clone(), Repair::Review { head }, facts, now, limits));
+        }
+        TemperDir::Pending => Some(Wall::from_nanos(now.as_nanos().saturating_add(Duration::from_secs(1).as_nanos()))),
+        TemperDir::AwaitingOwner { until } => Some(until),
+    };
+    let mut change = change.clone();
+    change.owns_turn = false;
+    if let (Way::Queue, TemperDir::AwaitingOwner { .. }) = (change.way, facts.temper_dir) {
+        if let State::First { ready_since, .. } = change.state {
+            change.state = State::Queued { head, ready_since };
+        }
+    } else if let State::Queued { .. } | State::First { .. } | State::Ready { .. } = change.state {
+        change.state = State::Gating { head, asked: Box::new([]) };
+    }
+    Some(Stepped { took: None, change, decision: Decision::Wait { until } })
+}
+
 fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
     if facts.branch.is_none() {
         return waiting(change, facts, now, limits);
@@ -1657,6 +1684,12 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
         change.owns_turn = false;
         return Stepped { took: None, change, decision: Decision::Wait { until: None } };
     }
+    if let (Way::Queue, TemperDir::AwaitingOwner { .. }) = (change.way, facts.temper_dir) {
+        // Keep its first ready time while it waits out of the queue.
+        change.owns_turn = false;
+    } else if let Some(stepped) = temper_gate(&change, head, facts, now, limits) {
+        return stepped;
+    }
     let since = match change.ready_since {
         Some(since) => since,
         None => {
@@ -1715,6 +1748,9 @@ fn queued(
     }
     if let Some(reviewed) = standing.review_request {
         return repair_due(change, Repair::Review { head: reviewed }, facts, now, limits);
+    }
+    if let Some(stepped) = temper_gate(&change, head, facts, now, limits) {
+        return stepped;
     }
     if facts.kept
         || facts.ci.head != head
@@ -1794,6 +1830,9 @@ fn first(
     }
     if let Some(reviewed) = standing.review_request {
         return repair_due(change, Repair::Review { head: reviewed }, facts, now, limits);
+    }
+    if let Some(stepped) = temper_gate(&change, head, facts, now, limits) {
+        return stepped;
     }
     if facts.kept
         || facts.ci.head != head
@@ -1985,7 +2024,12 @@ fn repair_due(mut change: Change, why: Repair, facts: &Facts, now: Wall, limits:
     change.repairs = change.repairs.checked_add(1).expect("repair count below limit");
     match why {
         Repair::Semantic => {}
-        Repair::Ci | Repair::Gate(_) | Repair::LandingAt { .. } | Repair::Landing { .. } | Repair::Review { .. } => {
+        Repair::Ci
+        | Repair::Gate(_)
+        | Repair::LandingAt { .. }
+        | Repair::Landing { .. }
+        | Repair::Review { .. }
+        | Repair::TemperDir { .. } => {
             change.clean = Box::new([]);
         }
     }
@@ -2494,6 +2538,9 @@ fn ready(
     }
     if facts.branch.is_none() {
         return waiting(change, facts, now, limits);
+    }
+    if let Some(stepped) = temper_gate(&change, head, facts, now, limits) {
+        return stepped;
     }
     let dropped = dropped_ask(head, facts);
     let ask = if dropped.is_some() { None } else { facts.ask.as_ref() };

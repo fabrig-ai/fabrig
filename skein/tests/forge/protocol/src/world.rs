@@ -416,6 +416,12 @@ impl World {
     /// Seeds a visible commit without changing either world's default repository.
     #[must_use]
     pub fn tree(&mut self, tree: Box<[raw::File]>) -> skein_forge::api::Commit {
+        self.tree_with_links(tree, &[])
+    }
+
+    /// Seeds a visible commit with symbolic links in its contents listings.
+    #[must_use]
+    pub fn tree_with_links(&mut self, tree: Box<[raw::File]>, links: &[&[u8]]) -> skein_forge::api::Commit {
         let raw::Answer::Commit(parent) = self
             .joint
             .direct(raw::Op::Read(raw::Read::Branch { branch: Box::from(b"main".as_slice()) }))
@@ -423,7 +429,7 @@ impl World {
         else {
             panic!("branch head")
         };
-        let head = self.joint.commit_tree(parent, tree);
+        let head = self.joint.commit_tree(parent, tree, links);
         self.joint
             .direct(raw::Op::Git(raw::Git::Push {
                 branch: Box::from(b"main".as_slice()),

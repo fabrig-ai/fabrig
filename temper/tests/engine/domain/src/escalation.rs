@@ -933,6 +933,7 @@ impl World {
             | Delivery::MoveStanding { .. }
             | Delivery::FindingsOwned { .. }
             | Delivery::ForgeCommitted { .. }
+            | Delivery::TakeForgeAdoption { .. }
             | Delivery::PartLoad { .. }
             | Delivery::EngineStore(_)
             | Delivery::Public { .. }

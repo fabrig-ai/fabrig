@@ -192,6 +192,16 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
         RecordKind::PersonBrief => {
             Stored::PersonBrief(PersonBrief { party: n, project: 0, brief: None, running: None, unpaid: None })
         }
+        RecordKind::DotTemperRevision => Stored::DotTemperRevision(DotTemperRevision {
+            project: u32::try_from(n).unwrap(),
+            number: 1,
+            home: REPO,
+            commit: Some([1; 32]),
+            method: false,
+            files: Box::new([]),
+            observed: 1,
+            refused: None,
+        }),
         RecordKind::ProjectFacts => Stored::ProjectFacts(ProjectFacts {
             project: u32::try_from(n).unwrap(),
             landed: 0,

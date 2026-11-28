@@ -1023,6 +1023,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::FindingsOwned { .. }
         | Delivery::PublicWait { .. }
         | Delivery::ForgeCommitted { .. }
+        | Delivery::TakeForgeAdoption { .. }
         | Delivery::Fleet(_)
         | Delivery::Relay { .. }
         | Delivery::Resume(_)

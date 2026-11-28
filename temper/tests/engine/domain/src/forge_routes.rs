@@ -3496,8 +3496,8 @@ impl World {
             && self.fake_out.is_empty()
             && self.store.idle()
             && !self.fake.is_due(self.env.now)
-            && self.root.next_deadline(&self.env).is_none_or(|due| due > self.env.now)
             && self.root.quiescent()
+            && self.root.next_deadline(&self.env).is_none_or(|due| due > self.env.now)
     }
 
     fn check_quiet(&mut self) {
@@ -4451,7 +4451,7 @@ impl World {
             ));
         }
         self.oracle_settle();
-        snapshot.compare_rows(&self.store.rows).unwrap_or_else(|finding| panic!("{finding}"));
+        snapshot.compare_rows_after_restart(&self.store.rows).unwrap_or_else(|finding| panic!("{finding}"));
         crate::oracle::compare_forges(forges, self.root.forges()).unwrap_or_else(|finding| panic!("{finding}"));
         for (index, (sign_in, read)) in snapshot.queries.iter().enumerate() {
             let answer = self.oracle_read(*sign_in, read.clone());

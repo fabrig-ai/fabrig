@@ -356,6 +356,7 @@ fn judge(row: &JobRow, present: &Present, bounds: &Bounds) -> Result<Judged, Job
         | Stored::Dismissed { .. }
         | Stored::PersonBrief(_)
         | Stored::ProjectFacts(_)
+        | Stored::DotTemperRevision(_)
         | Stored::Looked(_)
         | Stored::Away(_)
         | Stored::Decided(_)

@@ -32,6 +32,7 @@ fn world(head: Commit) -> (Domain, Env<Limits>) {
     let mut out = Queue::uncapped();
     step(&mut d, &e, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }, &mut out);
     step(&mut d, &e, Event::CatchUp, &mut out);
+    fixtures::settle_home_reads(&mut d, &e, fixtures::BASE);
 
     let mut row = fixtures::opening_row();
     row.pending = None;

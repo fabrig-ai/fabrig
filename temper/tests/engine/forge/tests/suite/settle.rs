@@ -54,10 +54,13 @@ fn a_pull_forgejo_is_checking_waits_by_doubling_reads_then_merges() {
 #[test]
 fn a_pull_checking_past_poll_is_read_every_poll_then_merges() {
     // Settlement advances the shared head from the answer (temper/docs/design/domain/forge/writes.md, 3).
-    const CALLS_THROUGH_LANDING_NEWS: u32 = 49;
+    const CALLS_THROUGH_LANDING_NEWS: u32 = 49 + 2;
     let mut world = first_on_a_checked_pull(World::new(5), Duration::from_secs(11));
+    let head = translate::commit(world.branch(b"temper/51"));
+    let base = translate::commit(world.branch(b"main"));
     let t0 = world.wall();
     let calls = world.calls();
+    world.take_calls();
     let mut asked = Vec::new();
     for entry in 1..=5 {
         let at = world.wall();
@@ -69,7 +72,8 @@ fn a_pull_checking_past_poll_is_read_every_poll_then_merges() {
     assert_eq!(
         world.calls() - calls,
         37,
-        "five steps of seven fresh reads and two workflow directories at the first landing tip"
+        "five steps of seven fresh reads and two workflow directories at the first landing tip; \
+         no .temper/ probe on unsettled polls (temper/docs/design/domain/forge/temper-dir.md, 4)"
     );
     assert_eq!(seconds(world.wall(), t0), 13);
     let merged = change_step(&mut world, 6, change::Status::Passed, Box::new([]));
@@ -78,7 +82,22 @@ fn a_pull_checking_past_poll_is_read_every_poll_then_merges() {
         world.calls() - calls,
         CALLS_THROUGH_LANDING_NEWS,
         "six steps of seven fresh reads, two workflow directories, four calls to land the merge, \
-         and one post-merge Compare for landing paths (temper/docs/design/domain/forge/topics.md, 1.3)"
+         and one post-merge Compare for landing paths (temper/docs/design/domain/forge/topics.md, 1.3); \
+         plus one .temper/ listing at the head and one at the base for the merge-step probe \
+         (temper/docs/design/domain/forge/temper-dir.md, 4)"
+    );
+    let probes: Vec<_> = world
+        .take_calls()
+        .into_iter()
+        .filter_map(|op| match op {
+            client::Op::Read(client::Read::File { head, path, .. }) if path.as_ref() == b".temper" => Some(head),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        probes,
+        [head, base],
+        "only one .temper/ listing per endpoint (temper/docs/design/domain/forge/temper-dir.md, 4)"
     );
     assert_eq!(world.writes(), 1, "never resolved");
 }

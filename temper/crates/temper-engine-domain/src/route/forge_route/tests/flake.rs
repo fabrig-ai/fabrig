@@ -129,7 +129,8 @@ fn only_landing_repairs_with_named_failed_tests_offer_the_flake_choice() {
                     change::Repair::Ci
                     | change::Repair::Semantic
                     | change::Repair::Gate(_)
-                    | change::Repair::Review { .. },
+                    | change::Repair::Review { .. }
+                    | change::Repair::TemperDir { .. },
                 )
                 | change::Delegate::Produce
                 | change::Delegate::Close

@@ -108,6 +108,7 @@ impl Failure {
             | Stage::CleanupPull
             | Stage::StallRun
             | Stage::StallJobs
+            | Stage::TemperDir
             | Stage::Round { stage: RoundRead::Pull | RoundRead::Upstream, .. }
             | Stage::Tree { main: true, .. } => None,
         };

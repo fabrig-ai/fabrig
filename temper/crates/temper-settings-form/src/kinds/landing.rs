@@ -81,6 +81,7 @@ pub(super) fn landing(d: &Decoder<'_>, at: u32) -> Result<w::ProjectLanding, Err
             b"landing_attempts",
             b"check_timeout_ms",
             b"hook_timeout_max_seconds",
+            b"temper_dir_sign_off",
             b"flakes",
             b"gate_retries",
             b"gate_timeout_ms",
@@ -124,6 +125,7 @@ pub(super) fn landing(d: &Decoder<'_>, at: u32) -> Result<w::ProjectLanding, Err
             landing_attempts: u8::try_from(number(d, &f, b"landing_attempts", 3)?)
                 .or(Err(error(b"landing_attempts", b"u8 bound")))?,
             check_timeout_ms,
+            temper_dir_sign_off: boolean(d, &f, b"temper_dir_sign_off", false)?,
             hook_timeout_max_seconds: u32::try_from(number(
                 d,
                 &f,
@@ -349,6 +351,10 @@ pub(super) fn render_landing(v: &w::ProjectLanding, out: &mut Encoder) {
     }
     if v.hook_timeout_max_seconds != HOOK_TIMEOUT_MAX_DEFAULT {
         uint(out, b"hook_timeout_max_seconds", u64::from(v.hook_timeout_max_seconds));
+    }
+    if v.temper_dir_sign_off {
+        out.key(b"temper_dir_sign_off");
+        out.boolean(true);
     }
     match &v.flakes {
         None => {}

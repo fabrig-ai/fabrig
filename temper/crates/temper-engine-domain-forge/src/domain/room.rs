@@ -124,6 +124,8 @@ pub(super) fn drop_released(d: &mut Domain, task: u64, parts: bool, out: &mut Qu
     d.change_due.remove(&task);
     d.goal_files.remove(&task);
     d.review_facts.remove(&task);
+    d.temper_dir_passes.remove(&task);
+    d.temper_dir_probes.remove(&task);
     d.review_heads.remove(&task);
     d.review_requests.remove(&task);
     connection_wait::take(d, task);

@@ -605,6 +605,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
             None => None,
         },
         producer_failure: value.producer_failure.clone(),
+        temper_dir_fault: value.temper_dir_fault.clone(),
         questions: map::questions_to_record(&value.questions).expect(FITS),
         follow_check: match &value.follow_check {
             Some(value) => Some(map::follow_check_progress_to_record(value).expect(FITS)),
@@ -728,6 +729,7 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
             None => None,
         },
         producer_failure: value.producer_failure,
+        temper_dir_fault: value.temper_dir_fault,
         questions: map::questions_to_domain(value.questions).or(Err(super::Undecodable::Malformed))?,
         follow_check: match value.follow_check {
             Some(value) => Some(map::follow_check_progress_to_domain(value)),

@@ -339,7 +339,7 @@ fn unread_comparisons_make_an_untouching_change_wait_for_approval() {
     world.close();
 }
 
-fn seed_signers(world: &mut World) {
+pub(super) fn seed_signers(world: &mut World) {
     let mut holdings = world
         .store
         .rows
