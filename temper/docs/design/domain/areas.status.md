@@ -2,7 +2,6 @@
 
 2026-11-27. Where temper's code lags or departs from [areas.md](areas.md).
 
-- **Not yet:** 3: an owner's `charter NAME`, kept as written, where it stands and judged when saved [in flight: change 21929].
 
 
 - **Not yet:** 2, 3 and 6: kinds 14 and 15, a project's areas and its triager, as settings: their values, judged by the forge and by the root from the core, kept, erased with their project, named in settings files and a run's tools [in flight: change 733].

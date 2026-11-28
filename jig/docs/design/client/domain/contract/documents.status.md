@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [documents.md](documents.md).
 
-- **Not yet:** 1: `me`'s templates' names and its `charters`, and the settings' inventory's names [in flight: change 21926].
 
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings-catalogue.status.md`, 2.

@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [stock.md](stock.md).
 
-- **Not yet:** 1, *The stock's names*: the stock's templates, charters and policy carry no name [in flight: change 21924].
 
 
 

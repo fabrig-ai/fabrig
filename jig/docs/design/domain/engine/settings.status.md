@@ -2,7 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [settings.md](settings.md).
 
-- **Not yet:** 1, *Names*: a charter's, template's and policy's name, the defaults' names, the check's *shape* and *name*, the start's warning, `Core::charter_named` and the store's names [in flight: change 21924].
 
 
 - **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `vocabulary.status.md`, 1.2, and `decisions.status.md`, 1.3.
