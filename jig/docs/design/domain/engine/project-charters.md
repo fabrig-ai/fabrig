@@ -102,6 +102,14 @@ through it is temper's `temper/docs/design/domain/agent/project-charters.md`.
   so too (6). Both are refused before authority is checked, as a
   charter not offered is (`settings.md`, 3), so the run or the party
   reads the true cause.
+- **Bound again at admission:** a creation whose checks wait on a
+  connector's answer (its inputs, its holdings) is bound again when it
+  is admitted, against the newest settings and set then. Where the bound
+  charter is the one its checks judged, the task is made with the newest
+  set and settings; where it differs, the creation is refused as not
+  offered, and a new request is checked against the charter it now
+  binds. The checks are never replayed against a replacement: a
+  connector's answer stands for the charter it was asked for.
 - **Unbound:** a creation naming a charter that has no name, or whose
   name the project's newest set lacks, makes its task as before, under
   its charter's own words.
