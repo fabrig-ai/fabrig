@@ -12,6 +12,11 @@ test = false
 doctest = false
 
 [dependencies]
+jig-domain-core.workspace = true
+jig-protocol-store.workspace = true
+skein-codec.workspace = true
+skein-kv.workspace = true
+skein-lib.workspace = true
 temper-config-shell.workspace = true
 temper-agent-fixtures.workspace = true
 skein-scratch.workspace = true

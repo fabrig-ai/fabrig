@@ -1,5 +1,4 @@
 //! Root obligations pass unchanged to the native client shell (client/line.md, 2).
-use jig_client::contract::VersionRange;
 use jig_client_protocol_link as link;
 use skein_lib::Secret;
 use temper_client_domain as client;
@@ -11,7 +10,7 @@ pub enum Notice {
     Credential { party: u64, credential: Secret },
     Dropped { count: u32 },
     Unread,
-    Served { family: u16, versions: Option<VersionRange> },
+    Served { family: u16, served: bool },
     Unasked,
     Leave { to: Box<[u8]> },
     Fact(link::Fact),

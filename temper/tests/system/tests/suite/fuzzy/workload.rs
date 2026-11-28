@@ -51,7 +51,8 @@ fn a_restart_changes_no_composed_outcome() -> Result<(), String> {
 fn every_family_falls_in_the_composed_workload() -> Result<(), String> {
     const CAMPAIGN_CASES: u64 = 16;
     const SWEEP: &str = "every_family_falls_in_the_composed_workload";
-    // Seed 6 draws a hold with its release and a red gate to read.
+    // Seed 6 draws a hold with its release, a red gate to read, and a
+    // producer that parks on nothing with a running job.
     let campaign_kinds;
     let (seeds, kinds) = if gate() {
         (6..7, GATE_KINDS)

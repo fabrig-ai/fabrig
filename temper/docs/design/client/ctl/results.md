@@ -99,6 +99,17 @@ digest: task 7c1e09a2b44f0d13
   `nothing` among them. Its `chip.phase` stays `due` and its `run_wait` as jig
   gives it, a wait's `phase:due` still holds, and `task list`'s lines, which
   carry no next-run wait, keep their word.
+  Any other task that awaits nothing else, but whose document names a
+  first wait, prints that wait as `waits:` prints its KIND and OBJECT
+  (below): `dependency task 1` for a goal behind its `--after`
+  dependency, `step at ready: pull request #2` for a change at its
+  procedure's step. jig's word is *nothing* beside such a wait (a task
+  its phase keeps behind its dependencies, a next run's account or host,
+  a procedure's step), and `Nothing awaited` beside that wait's *since*
+  and bound would deny the `waits:` lines below it. `--json` keeps that
+  one's `waits_on` `nothing`, its `wait` naming the wait. So `Nothing
+  awaited` prints only for a task with no hold, no account to wait for
+  and no first wait.
   Where the task's document names a first wait, as its line does (jig's
   `domain/engine/waits.md`, 4), the line goes on, whatever it printed
   before, with ` · since WALL`, that wait's *since*, then ` · ` and its

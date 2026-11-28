@@ -59,7 +59,8 @@ impl World {
         let workload = Workload::draw(&streams, &COMPOSED);
         let scheduling = streams.seed_of(Stream::Scheduling, "system");
         let draw = (!kinds.is_empty()).then(|| faults::FaultDraw::for_workload(seed, &workload, kinds));
-        let mut config = setup::config(scheduling, &workload);
+        let park_cell = draw.as_ref().is_some_and(faults::FaultDraw::has_park_cell);
+        let mut config = setup::config(scheduling, &workload, park_cell);
         if draw.as_ref().is_some_and(|draw| draw.plans(temper_blame::SILENT)) {
             // Let the real timeout hold the landing within the workload's bound.
             temper_engine_domain_world::oracle::config::landing(&mut config, 1).gate_timeout_ms = 60_000;
@@ -331,8 +332,11 @@ impl World {
                 "{name} starts after {after} lands"
             );
         }
-        self.workload_choose_park(assignment);
-        let script = scripts::assigned(self, assignment);
+        if !self.workload_park_deferred() {
+            self.workload_choose_park(assignment);
+        }
+        let mut script = scripts::assigned(self, assignment);
+        let park_cell_job = self.workload_cell_script(assignment, &mut script);
         let mut process = if self.lanes[0].assignment.as_ref().is_some_and(|previous| previous.task == assignment.task)
         {
             if self.lanes[0].process.answered.is_some() {
@@ -352,6 +356,7 @@ impl World {
                 .then(|| self.workload.as_ref().expect("workload").producer_seeds);
             let mut process = Process::new(self.seed, script);
             process.draw = draw;
+            process.park_cell_job = park_cell_job;
             process
         };
         process.configure_settings = Some(|settings| {

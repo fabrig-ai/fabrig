@@ -31,7 +31,7 @@ impl fmt::Display for Refusal {
 }
 impl std::error::Error for Refusal {}
 
-fn diagnostic(key: &str, line: Option<usize>, words: &str, default: bool) -> String {
+pub(crate) fn diagnostic(key: &str, line: Option<usize>, words: &str, default: bool) -> String {
     let mut text = FILE.to_owned();
     if let Some(line) = line {
         write!(text, ":{line}").expect("string");
@@ -155,6 +155,18 @@ impl Keys {
 }
 fn ancestor(parent: &str, child: &str) -> bool {
     child == parent || child.strip_prefix(parent).is_some_and(|rest| rest.starts_with('.') || rest.starts_with('['))
+}
+
+/// Index line breaks once; reading a span does not scan the file again.
+pub(crate) struct Lines(Vec<usize>);
+impl Lines {
+    pub(crate) fn new(text: &str) -> Self {
+        Self(text.match_indices('\n').map(|(offset, _)| offset).collect())
+    }
+
+    pub(crate) fn at(&self, offset: usize) -> usize {
+        self.0.partition_point(|newline| *newline < offset) + 1
+    }
 }
 
 pub(crate) fn at(text: &str, offset: usize) -> usize {

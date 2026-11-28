@@ -19,18 +19,36 @@ pub fn read_with(
     read: Result<temper_config_shell::Read, temper_config_shell::Refusal>,
     open: impl FnOnce() -> Result<(), String>,
 ) -> Result<Read, String> {
-    let read = read.map_err(|why| why.to_string())?;
+    let read = report(read)?;
     open()?;
     Ok(Read::from(read))
 }
 
 /// Offline readers do not create or open data directories.
 pub fn read_only(directories: &Directories, shape: Shape) -> Result<Read, String> {
-    temper_config_shell::read(directories, shape).map(Read::from).map_err(|why| why.to_string())
+    report(temper_config_shell::read(directories, shape)).map(Read::from)
+}
+
+/// Report notices for offline commands that need the file reader's full result.
+pub fn report(
+    read: Result<temper_config_shell::Read, temper_config_shell::Refusal>,
+) -> Result<temper_config_shell::Read, String> {
+    report_to(read, std::io::stderr())
+}
+
+fn report_to(
+    read: Result<temper_config_shell::Read, temper_config_shell::Refusal>,
+    mut log: impl std::io::Write,
+) -> Result<temper_config_shell::Read, String> {
+    let read = read.map_err(|why| why.to_string())?;
+    for notice in &read.notices {
+        writeln!(log, "{notice}").map_err(|why| format!("configuration notices: {why}"))?;
+    }
+    Ok(read)
 }
 
 impl From<temper_config_shell::Read> for Read {
-    fn from(temper_config_shell::Read { file, document, keys }: temper_config_shell::Read) -> Self {
+    fn from(temper_config_shell::Read { file, document, keys, .. }: temper_config_shell::Read) -> Self {
         Self { file, document, keys }
     }
 }
@@ -100,5 +118,24 @@ impl Read {
 
     pub fn prepare<T>(&self, prepare: impl FnOnce(&[u8]) -> Result<T, String>) -> Result<T, String> {
         prepare(&self.document).map_err(|why| self.problems(&why))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use temper_config_shell::{FILE, Facts};
+
+    #[test]
+    fn configuration_notices_write_one_line_each_in_order() {
+        let facts = Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: false };
+        let mut read = temper_config_shell::parse(b"", Shape::Standalone, &facts).expect("fixture file");
+        let first = format!("{FILE}:2: earlier: ignored; test release took it away");
+        let second = format!("{FILE}:3: later: moved: fixture settings");
+        read.notices = vec![first.clone(), second.clone()];
+        let mut stderr = Vec::new();
+        let read = report_to(Ok(read), &mut stderr).expect("notices reported");
+        assert_eq!(stderr, format!("{first}\n{second}\n").into_bytes());
+        assert_eq!(read.notices, [first, second]);
     }
 }

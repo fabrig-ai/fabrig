@@ -33,14 +33,6 @@ pub(crate) fn restore(bytes: &[u8], limits: &w::Limits) -> Result<(c::Scope, Box
     let value = w::FamilyRequest::decode(limits, &mut Reader::new(bytes))?;
     Ok((read_scope(&value.scope), value.record))
 }
-pub(crate) fn versions(value: &w::NotServed) -> Option<c::VersionRange> {
-    for range in &value.served {
-        if range.owner == value.owner {
-            return Some(c::VersionRange { first: range.first, last: range.last });
-        }
-    }
-    None
-}
 pub(crate) fn family(owner: &w::Owner) -> Option<u16> {
     match owner {
         w::Owner::Jig => None,

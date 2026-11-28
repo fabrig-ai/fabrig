@@ -1,9 +1,8 @@
 //! Task logs travel with their generation (protocol/store/logs.md, 7).
 use jig_protocol_store::{Event, Request, codec, keys};
 use jig_store_world::{
-    World,
-    patches::{self, BASE, Records, SETS},
-    root,
+    World, root,
+    upgrade_fixtures::{self, BASE, Records, SETS},
 };
 use skein_fake_machine::Item;
 use skein_io::kernel::Error;
@@ -53,7 +52,7 @@ fn source_with(seed: u64, logs: &[u64]) -> World {
         .max()
         .expect("source segment");
     let mut frames = Vec::new();
-    let limits = patches::limits();
+    let limits = upgrade_fixtures::limits();
     for (offset, rows) in rows.chunks(31).enumerate() {
         let position = 2 + u64::try_from(offset).expect("fixture commits");
         let header = root::header(position);
@@ -144,7 +143,7 @@ fn rehearsal_copies_task_logs_privately_and_empties_the_deep_scratch() {
     for (sets, pending) in [(BASE, false), (SETS, true)] {
         let mut world = source(SEED);
         world.owner_sets(sets);
-        // Also exercise a patch inside the scratch on a file system without links.
+        // Also exercise an upgrade inside the scratch on a file system without links.
         if pending {
             world.refuse_links(Some(Error::Other(18)));
         }

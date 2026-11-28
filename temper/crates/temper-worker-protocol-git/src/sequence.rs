@@ -59,6 +59,7 @@ pub fn first(op: &git::Op) -> Next {
         git::Op::CheckOut { commit, .. } => Command::CheckOut { commit: *commit },
         git::Op::Brings { head, upstream, .. } => Command::MergeBases { head: *head, upstream: *upstream },
         git::Op::IsAncestor { ancestor, commit, .. } => Command::IsAncestor { expected: *ancestor, commit: *commit },
+        git::Op::Message { commit, .. } => Command::ReadMessage { commit: *commit },
         git::Op::DiffPaths { before, after, .. } => Command::DiffPaths { before: *before, after: *after },
         git::Op::Merge { theirs, .. } => Command::Merge { theirs: *theirs },
         git::Op::Commit { snapshot: Some(_), .. } => Command::SnapshotHead,
@@ -112,6 +113,14 @@ pub fn after(
             }
         }
         Command::Reds(_) => unreachable!("reds handled above"),
+        Command::ReadMessage { .. } => {
+            if code == 0
+                && let Some(message) = output::commit_message(stdout)
+            {
+                return Next::End(git::Done::Message { message: Some(Box::from(message)) });
+            }
+            return failed(git::Fault::Broken, tail, cut);
+        }
         Command::MergeBases { .. } => return merge_bases(op, code, stdout, tail, cut),
         Command::BringsList { .. } => {
             if code == 0 && (stdout.is_empty() || id(stdout).is_some()) {
@@ -141,6 +150,7 @@ pub fn after(
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
             | git::Op::DiffPaths { .. }
+            | git::Op::Message { .. }
             | git::Op::Brings { .. }
             | git::Op::IsAncestor { .. }
             | git::Op::Merge { .. }
@@ -251,6 +261,7 @@ pub fn after(
             | git::Op::CheckOut { .. }
             | git::Op::Look { .. }
             | git::Op::DiffPaths { .. }
+            | git::Op::Message { .. }
             | git::Op::Brings { .. }
             | git::Op::IsAncestor { .. }
             | git::Op::Merge { .. }
@@ -301,6 +312,7 @@ pub fn after(
                 _ => {}
             },
             git::Op::Brings { .. }
+            | git::Op::Message { .. }
             | git::Op::DiffPaths { .. }
             | git::Op::Look { .. }
             | git::Op::Store { .. }
@@ -412,6 +424,7 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
+        | git::Op::Message { .. }
         | git::Op::Brings { .. }
         | git::Op::IsAncestor { .. }
         | git::Op::Push { .. } => None,
@@ -437,6 +450,7 @@ fn commit_tree(op: &git::Op, stdout: &[u8]) -> Option<Command> {
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
+        | git::Op::Message { .. }
         | git::Op::Brings { .. }
         | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. }
@@ -461,6 +475,7 @@ fn checked_out(op: &git::Op) -> Next {
         | git::Op::Create { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
+        | git::Op::Message { .. }
         | git::Op::Brings { .. }
         | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. }
@@ -504,6 +519,7 @@ fn remote(command: &Command) -> bool {
         | Command::WriteTree
         | Command::CommitTree { .. }
         | Command::MergeBases { .. }
+        | Command::ReadMessage { .. }
         | Command::BringsList { .. }
         | Command::IsAncestor { .. } => false,
     }
@@ -554,6 +570,7 @@ pub(crate) fn view_place(op: &git::Op) -> Option<&git::Place> {
         | git::Op::Create { .. }
         | git::Op::Push { .. }
         | git::Op::IsAncestor { .. }
+        | git::Op::Message { .. }
         | git::Op::Brings { .. }
         | git::Op::DiffPaths { .. }
         | git::Op::Reds { .. } => None,
@@ -568,6 +585,7 @@ pub(crate) fn views(op: &git::Op, done: &git::Done) -> bool {
         | git::Done::ParentUnreachable { .. }
         | git::Done::Looked { .. }
         | git::Done::IsAncestor { .. }
+        | git::Done::Message { .. }
         | git::Done::Brings { .. }
         | git::Done::Merged
         | git::Done::Conflicted { .. }
@@ -638,6 +656,7 @@ pub(crate) fn after_view(
         | Command::WriteTree
         | Command::CommitTree { .. }
         | Command::MergeBases { .. }
+        | Command::ReadMessage { .. }
         | Command::BringsList { .. }
         | Command::IsAncestor { .. }
         | Command::Push { .. } => {}

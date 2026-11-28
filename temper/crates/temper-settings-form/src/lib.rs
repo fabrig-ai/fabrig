@@ -13,6 +13,8 @@ mod generated {
 mod classes;
 pub mod fields;
 pub mod file;
+#[cfg(test)]
+mod fuzzy;
 mod json;
 mod kinds;
 pub mod overlay;

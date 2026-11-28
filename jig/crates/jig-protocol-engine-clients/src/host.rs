@@ -269,10 +269,7 @@ pub fn ending(key: &domain::Key) -> Option<u64> {
 #[must_use]
 pub fn served(application: kit::Served) -> List<kit::Served> {
     use jig_client_protocol_wire::{LAYOUT, VERSION};
-    List::from_boxed(Box::new([
-        kit::Served { family: None, first: VERSION, last: VERSION, layout: LAYOUT },
-        application,
-    ]))
+    List::from_boxed(Box::new([kit::Served { family: None, version: VERSION, layout: LAYOUT }, application]))
 }
 
 #[cfg(test)]

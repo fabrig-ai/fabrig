@@ -235,7 +235,12 @@ fn ending(ending: host::Ending, parts: &[Part]) -> Option<wire::Ending> {
             let value = match refusal {
                 host::Refusal::Untranslated(_) => return None,
                 host::Refusal::Busy => wire::Refusal::Busy,
-                host::Refusal::Version(value) => wire::Refusal::Version(mapped::mismatch_to_record(&value)),
+                host::Refusal::Version(value) => wire::Refusal::Version(wire::Mismatch {
+                    wire: value.wire,
+                    version: value.version,
+                    lowest: value.worker_version,
+                    highest: value.worker_version,
+                }),
                 host::Refusal::Invalid(invalid) => {
                     let value = mapped::invalid_to_record(&invalid);
                     let value = wire::InvalidValue { value };

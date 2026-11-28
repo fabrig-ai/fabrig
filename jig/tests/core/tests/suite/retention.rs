@@ -13,9 +13,13 @@ use skein_lib::{Duration, Time, Wall};
 
 pub(super) const DAY: u64 = 86_400_000_000_000;
 pub(super) fn world(seed: u64, forgotten: bool) -> World {
+    world_with_sign_in(seed, forgotten, Duration::from_nanos(800 * DAY))
+}
+
+pub(super) fn world_with_sign_in(seed: u64, forgotten: bool, lifetime: Duration) -> World {
     let (mut config, mut limits) = fixture(seed, false);
     limits.core.documents.rows = 1;
-    limits.core.people.sign_in_lifetime = Duration::from_secs(800 * 86_400);
+    limits.core.people.sign_in_lifetime = lifetime;
     limits.core.people.requests = 16;
     config.core.grants = Box::new([people::ActGrant { connector: 1, may: Box::new([people::ActKind::RemoveProject]) }]);
     let initial = forgotten.then(jig_test_profile::fixtures::forgettable_conversation);

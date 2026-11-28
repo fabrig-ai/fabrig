@@ -272,17 +272,17 @@ no credential's keeping: jig mints, verifies, expires and revokes them.
   (`../client/domain/client/small-store.md`, section 1).
 - **jig's messages are the exception:** they are versioned per owner,
   jig's by jig and the application's by the application, each message
-  naming its owner and its version, and the engine serves a range of
-  versions, so a client that does not come from the engine may lag it
+  naming its owner and its version, and the engine serves one layout
+  of each owner, at its one frozen version, so a client that does not
+  come from the engine may lag it, its layout judged at the hello
   (`../client/domain/contract/README.md`, section 6).
   - *A version not served* is answered with a typed refusal, *version
-    not served*, naming the owner and the ranges served, never a bare
-    failure of the transport (`client/versions.md`, section 1).
+    not served*, naming the owner, never a bare failure of the
+    transport (`client/versions.md`, section 1).
   - *One jig pin:* an application takes `jig-client` and the engine's
-    components from one revision of jig. Every served range is one
-    version, frozen; a change to jig's operations moves its wire's
-    layout, which the stream's hello names and the client judges
-    (`client/versions.md`, section 1).
+    components from one revision of jig. A change to jig's operations
+    moves its wire's layout, which the stream's hello names and the
+    client judges (`client/versions.md`, section 1).
   - *How jig itself is released and pinned* is open (`../README.md`,
     section 14).
 - **Configuration** has no version: unknown fields refuse the start

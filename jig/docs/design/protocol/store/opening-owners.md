@@ -6,7 +6,7 @@
   beside the limits and its build's name, a `&'static str` the floor row
   records (`records.md`, 3): for each owner whose records it keeps, its
   families, their value types, its jobs and its level, and for a
-  frames' family its frames' root, number and texts, the generated
+  frames' family its frames' root and number, the generated
   modules' constants (skein's `data/codec/README.md`, section 4), no
   function. A set carries no older text of a map family, no fresh mark
   and no effects in flight (temper's `draft/archive/store-floor.md`, 4.1 and
@@ -36,7 +36,6 @@ pub struct KeptFamily {
 pub struct Frames {
     pub root: &'static str,               // the declaration it is in transcripts' frames: its frames' value type's root
     pub number: u16,                      // its frames' value type's number in the registry's keys (`layouts.md`, 2, 3), never reused
-    pub texts: &'static [&'static str],   // the texts frames were written at before the registry, in version order, the last at `current`'s version (`transcripts.md`, 6)
 }
 pub struct Keys {
     pub from: &'static [u8],              // inclusive
@@ -75,19 +74,16 @@ impl OwnerSets {
   section 7).
 - **The frames' families** (`transcripts.md`, 6) are the two whose
   `frames` is set: in jig's set, the core's, whose `TurnRecord` is a
-  frame's body, its `texts` the core's `current` alone; in smith's,
-  smith-transcript, whose `Turn` the body's `transcript` holds, with
-  no `keys`, since none of its records is a map's, its `texts`
-  smith-transcript's `SEED` (smith's `protocol/transcript.md`, section
-  12). Every other family's is
-  `None`. A set with a frames' family in another slot, or two in one,
-  is refused, `Set`; so is a body whose held turn names a family other
-  than smith's frames' one, judged from the frames' texts, at every
-  open before its layouts are planned (`transcripts.md`, 6). A frames'
-  family's `texts` must keep one version after another, each spelling
-  the family's name, its last at `current`'s version, and its `number`
-  must be none of its family's value types' or retired ones'
-  (`layouts.md`, 2), checked where the set is admitted.
+  frame's body; in smith's, smith-transcript, whose `Turn` the body's
+  `transcript` holds, with no `keys`, since none of its records is a
+  map's (smith's `protocol/transcript.md`, section 12). Every other
+  family's is `None`. A set with a frames' family in another slot, or
+  two in one, is refused, `Set`; so is a body whose held turn names a
+  family other than smith's frames' one, judged from the frames'
+  families' `current` texts, at every open before its layouts are
+  planned (`transcripts.md`, 6). A frames' family's `number` must be
+  none of its family's value types' or retired ones' (`layouts.md`,
+  2), checked where the set is admitted.
 - **Levels.** A set's level is its `level`, held explicitly: jig's 6,
   temper's 14, skein's and smith's 0, which no binary moves
   (`records.md`, 3). Every writer and reader of a level (the first
@@ -126,8 +122,8 @@ impl OwnerSets {
   to it), and each range's root a declaration of the family's
   `current`; its value types (`layouts.md`, 2) and its jobs (`jobs.md`,
   1); the frames' families (above); and the holds: the plan refuses
-  sets whose texts' held families (each family's `current` and each
-  frames' family's `texts`) close a cycle. A set that fails is refused,
+  sets whose texts' held families (each family's `current`) close a
+  cycle. A set that fails is refused,
   `Set` with its owner, before anything is written. That each record of
   the map lies in one family's range takes a walk, which a rehearsal
   makes (`opening-rehearsal.md`, 1), not every open.
@@ -135,7 +131,7 @@ impl OwnerSets {
   that open alone. A shell may supply immutable parsed schemas through
   `Store::prepared_schemas(&'static [Schema])` before open, made by
   `OwnerSets::prepare`: each distinct text the sets' families name, each
-  `current` and each frames' `texts` entry, parsed once, in the sets'
+  `current`, parsed once, in the sets'
   order, a text that does not parse left out for the open to refuse as
   it does. Wherever an open reads a text it takes a supplied schema whose
   whole text equals that text byte for byte, and parses one that no
@@ -178,7 +174,7 @@ impl OwnerSets {
   derives is a written job's, at open (`jobs.md`, 4).
 
 - **A job's other stored inputs:** while a job's page is outstanding
-  (`jobs.md`, 3), `Store::patch_page` reads a bounded page of public
+  (`jobs.md`, 3), `Store::job_read` reads a bounded page of public
   application rows from the copy's map, with relative keys and an
   exclusive cursor, for the shell answering the page. No secrets are
   read, no serving codec is selected by the component, and no input is

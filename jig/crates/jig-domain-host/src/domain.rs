@@ -140,6 +140,34 @@ impl Hub {
         None
     }
 
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    /// Returns the next slot cursor, the run and attempt, and whether a terminal is retained.
+    #[must_use]
+    pub fn inspection_slot(&self, from: u32) -> Option<(u32, Token, Token, bool)> {
+        let (next, _, entry) = self.hosted.live_from(from)?;
+        Some((next, entry.run, entry.attempt, entry.answer.is_some()))
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_relay(&self, mut from: u32) -> Option<(u32, Token, Token, &[u8])> {
+        for _ in 0..self.calls.len() {
+            let (next, _, call) = self.calls.live_from(from)?;
+            from = next;
+            match call.state {
+                call::State::Relayed { .. } | call::State::Settling => {
+                    if let Some(name) = call.name.as_deref()
+                        && let Some(hosted) = self.hosted.get(call.hosted)
+                    {
+                        return Some((next, hosted.run, hosted.attempt, name));
+                    }
+                }
+                call::State::Delivering { .. } | call::State::JobDelivering | call::State::Closed => {}
+            }
+        }
+        None
+    }
+
     /// Runs that have not answered yet: those hosted, closed ones aside.
     #[must_use]
     pub fn unanswered(&self) -> u32 {

@@ -2,51 +2,15 @@
 use skein_lib::Rng;
 use skein_world::sweep::cases;
 use std::convert::Infallible;
-use temper_engine_domain_forge::{
-    commit_text,
-    member_message::{Kind, Member, commit_message, names_head, trailers},
-};
+use temper_engine_domain_forge::commit_text;
+use temper_protocol_member_message::{Kind, Member, commit_message, names_head, trailers, with_head_trailers};
 
 #[test]
 fn arbitrary_member_words_preserve_message_bounds_and_trailers() {
     cases(skein_world::this_test!("arbitrary_member_words_preserve_message_bounds_and_trailers"), 0..256, |seed| {
         let mut rng = Rng::new(seed);
-        let mut words = Vec::new();
-        let length = rng.below(8193);
-        let mode = rng.below(4);
-        for _ in 0..length {
-            match mode {
-                0 => words.push(rng.next_u64().to_le_bytes()[0]),
-                1 => words.extend_from_slice(match rng.below(8) {
-                    0 => b"\n\n",
-                    1 => b"\n## Summary\n",
-                    2 => b" \t\0\x7f",
-                    3 => "é\u{85}\u{2003}".as_bytes(),
-                    4 => b"\xff",
-                    _ => b"word ",
-                }),
-                2 => words.push(b'a'),
-                _ => words.extend_from_slice("é".as_bytes()),
-            }
-        }
-        let mut title = Vec::new();
-        for _ in 0..rng.below(257) {
-            title.push(if seed % 2 == 0 {
-                rng.next_u64().to_le_bytes()[0]
-            } else {
-                // Valid UTF-8 titles as well as arbitrary bytes: controls and
-                // long runs must not split the subject into paragraphs.
-                u8::try_from(rng.below(128)).expect("ASCII byte")
-            });
-        }
-        let mut head = [0; 32];
-        for byte in &mut head {
-            *byte = rng.next_u64().to_le_bytes()[0];
-        }
-        if seed % 2 == 0 {
-            head[20..].fill(0);
-        }
-        let goal = if seed % 3 == 0 { None } else { Some(rng.next_u64()) };
+        let (words, title, head) = member_text(&mut rng, seed);
+        let goal = goal(&mut rng, seed);
         let member = Member {
             title: &title,
             words: &words,
@@ -58,8 +22,7 @@ fn arbitrary_member_words_preserve_message_bounds_and_trailers() {
         };
         check_merge(seed, &member);
 
-        let mut head_message = b"Subject\n\n".to_vec();
-        head_message.extend_from_slice(&trailer_like(&mut rng));
+        let head_message = head_message(&mut rng);
         let head_trailers = trailers(&head_message);
         let mut squash_words = words.clone();
         if rng.below(3) != 0 {
@@ -71,6 +34,84 @@ fn arbitrary_member_words_preserve_message_bounds_and_trailers() {
         Ok::<(), Infallible>(())
     })
     .unwrap_or_else(|case| panic!("{case}"));
+}
+
+#[test]
+fn arbitrary_checkout_trailers_match_composed_squashes() {
+    cases(skein_world::this_test!("arbitrary_checkout_trailers_match_composed_squashes"), 0..256, |seed| {
+        let mut rng = Rng::new(seed);
+        let (mut words, title, head) = member_text(&mut rng, seed);
+        if !trailers(&words).is_empty() {
+            words.extend_from_slice(b"\n\nSome account.");
+        }
+        let member = Member {
+            title: &title,
+            words: &words,
+            head,
+            goal: goal(&mut rng, seed),
+            change: rng.next_u64(),
+            pull: rng.next_u64(),
+            head_trailers: &[],
+        };
+        let head_message = head_message(&mut rng);
+        let head_trailers = trailers(&head_message);
+        let with_trailers = Member { head_trailers: &head_trailers, ..member };
+        let expected = commit_message(&with_trailers, Kind::Squash);
+        let original = commit_message(&member, Kind::Squash);
+        assert_eq!(with_head_trailers(&original, &head_message), expected, "seed {seed}: from empty");
+        assert_eq!(with_head_trailers(&expected, &head_message), expected, "seed {seed}: from already present");
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+}
+
+fn member_text(rng: &mut Rng, seed: u64) -> (Vec<u8>, Vec<u8>, skein_forge::api::Commit) {
+    let mut words = Vec::new();
+    let length = rng.below(8193);
+    let mode = rng.below(4);
+    for _ in 0..length {
+        match mode {
+            0 => words.push(rng.next_u64().to_le_bytes()[0]),
+            1 => words.extend_from_slice(match rng.below(8) {
+                0 => b"\n\n",
+                1 => b"\n## Summary\n",
+                2 => b" \t\0\x7f",
+                3 => "é\u{85}\u{2003}".as_bytes(),
+                4 => b"\xff",
+                _ => b"word ",
+            }),
+            2 => words.push(b'a'),
+            _ => words.extend_from_slice("é".as_bytes()),
+        }
+    }
+    let mut title = Vec::new();
+    for _ in 0..rng.below(257) {
+        title.push(if seed % 2 == 0 {
+            rng.next_u64().to_le_bytes()[0]
+        } else {
+            // Valid UTF-8 titles as well as arbitrary bytes: controls and
+            // long runs must not split the subject into paragraphs.
+            u8::try_from(rng.below(128)).expect("ASCII byte")
+        });
+    }
+    let mut head = [0; 32];
+    for byte in &mut head {
+        *byte = rng.next_u64().to_le_bytes()[0];
+    }
+    if seed % 2 == 0 {
+        head[20..].fill(0);
+    }
+    (words, title, head)
+}
+
+fn goal(rng: &mut Rng, seed: u64) -> Option<u64> {
+    if seed % 3 == 0 { None } else { Some(rng.next_u64()) }
+}
+
+fn head_message(rng: &mut Rng) -> Vec<u8> {
+    let mut message = b"Subject\n\n".to_vec();
+    message.extend_from_slice(&trailer_like(rng));
+    message
 }
 
 fn check_merge(seed: u64, member: &Member<'_>) {

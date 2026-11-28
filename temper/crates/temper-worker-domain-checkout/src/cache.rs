@@ -559,6 +559,7 @@ impl Cache {
             | Op::Point { .. }
             | Op::Create { .. }
             | Op::IsAncestor { .. }
+            | Op::Message { .. }
             | Op::Brings { .. }
             | Op::DiffPaths { .. }
             | Op::Commit { snapshot: None, .. }

@@ -933,7 +933,7 @@ fn referee_json(argv: &[&str], page: &jig_client::contract::ActivityPage) -> Val
     let mut pending = std::collections::VecDeque::from([
         root::Event::Client { event: Event::StartUnlinked { kept: List::with_capacity(0) } },
         root::Event::Client { event: Event::SignIn { with: jig_client::With::Transport } },
-        root::Event::Client { event: Event::Up { up: Up::Served { served: true, versions: None } } },
+        root::Event::Client { event: Event::Up { up: Up::Served { served: true } } },
         root::Event::Client {
             event: Event::Up {
                 up: Up::Watched {

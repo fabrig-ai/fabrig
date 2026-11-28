@@ -13,7 +13,7 @@ use core::{cell::Cell, convert::Infallible};
 use skein_lib::{Duration, Rng, Time, Token};
 use skein_world::{
     domain::{Referee, Span, assert_replays},
-    sweep::{Case, cases, gate},
+    sweep::{Case, Sweep, cases, gate},
 };
 use smith_agent_world::{
     Job, Settings, World,
@@ -347,6 +347,13 @@ fn bounded_message_schedules_replay_with_every_required_class() -> Result<(), Ca
 #[test]
 fn empty_brief_jobs_replay_first_work_before_or_after_preparation_and_idle_or_wall_parking()
 -> Result<(), Case<Infallible>> {
+    let mut sweep = Sweep::new("empty brief jobs and parked sessions");
+    // empty_brief_jobs_replay_first_work_before_or_after_preparation_and_idle_or_wall_parking:
+    // The same held seeds drive two session-bearing park placements beside the
+    // empty-brief chronology. All six kinds fall in both columns.
+    for kind in smith_faults::parks::KINDS {
+        sweep.configure(kind);
+    }
     let mut shapes =
         Sample::new("empty_brief_jobs_replay_first_work_before_or_after_preparation_and_idle_or_wall_parking");
     cases(
@@ -357,11 +364,13 @@ fn empty_brief_jobs_replay_first_work_before_or_after_preparation_and_idle_or_wa
         |seed| {
             let mut reached = Reached::new();
             empty_brief_case(seed, Some(&mut reached));
+            sweep.ran(&super::parks::run(seed, &mut reached));
             shapes.ran(&reached).expect("valid completion shapes");
             Ok(())
         },
     )?;
     shapes.write();
+    sweep.check_fell().expect("every configured park kind fell");
     Ok(())
 }
 

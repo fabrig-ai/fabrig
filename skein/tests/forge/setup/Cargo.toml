@@ -41,3 +41,4 @@ disallowed_methods = "deny"
 
 [dev-dependencies]
 skein-rows.workspace = true
+skein-world.workspace = true

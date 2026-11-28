@@ -2404,11 +2404,9 @@ fn a_read_ended_or_done_says_so() {
 }
 #[test]
 fn a_limit_leaves_it_unknown() {
-    for page in [
-        Readout::Limit,
-        Readout::NotServed { family: None, served: None },
-        Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)),
-    ] {
+    for page in
+        [Readout::Limit, Readout::NotServed { family: None }, Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown))]
+    {
         let mut f = enter_skipped();
         let read = task_reads(&decisions(&mut f, &[decision(1, 10)]))[0].1;
         up(&mut f.root, Up::ReadDone { read, result: page });

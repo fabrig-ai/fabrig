@@ -20,8 +20,8 @@ pub mod convert;
 mod kinds;
 pub mod layouts;
 mod spoken;
-pub use application::{Application, Carried, Root};
-pub use spoken::{Spoken, spoken};
+pub use application::{Application, Carried, Root, Written, convert, written, written_present};
+pub use spoken::{Spoken, owns, spoken};
 mod loss;
 pub use loss::Loss;
 pub mod sizes;
@@ -37,7 +37,7 @@ pub use v22::Record;
 
 pub use v22::{ModelEvidence, ModelFailure, ModelFailureKind};
 
-pub use kinds::{KINDS, Kind, KindRule, Overflow, schema, schema_and_spoken, terms_gap, terms_gap_at};
+pub use kinds::{KINDS, Kind, KindRule, Overflow, schema, schema_and_spoken, terms_gap};
 pub use v22::Draining;
 pub use v22::Restarting;
 pub use v22::{

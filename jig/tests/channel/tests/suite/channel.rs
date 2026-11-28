@@ -60,9 +60,8 @@ fn a_wrong_secret_is_refused_as_not_admitted() {
 }
 
 #[test]
-fn openings_with_another_family_version_wires_or_terms_are_refused() {
+fn openings_with_another_family_wires_or_terms_are_refused() {
     for (label, case, expected) in [
-        ("version", Opening::Version, Some(1)),
         ("wires", Opening::Wires, Some(257)),
         ("terms", Opening::Terms, Some(2)),
         ("family", Opening::Family, Some(3)),

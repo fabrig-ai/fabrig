@@ -2,6 +2,7 @@
 
 2026-11-27. Where the tree's code lags or departs from [updates.md](updates.md).
 
+
 - **Not yet:**
   - 1: no supplied result shows the three-thread real-process trial
     passing after update recovery. Both styles' lost answers, retries,

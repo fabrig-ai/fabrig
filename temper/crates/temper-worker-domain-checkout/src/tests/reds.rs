@@ -42,6 +42,7 @@ fn prepare_marker(rerun: Option<u32>, expected: u32) {
             | Op::Point { .. }
             | Op::Create { .. }
             | Op::IsAncestor { .. }
+            | Op::Message { .. }
             | Op::Brings { .. }
             | Op::DiffPaths { .. }
             | Op::Merge { .. }

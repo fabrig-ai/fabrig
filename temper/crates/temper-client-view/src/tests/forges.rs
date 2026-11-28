@@ -778,9 +778,7 @@ fn no_forge_is_a_quiet_band_and_an_unread_watch_claims_nothing() {
             kept: List::with_capacity(0),
             with: Some(jig_client::With::Transport),
         },
-        d::Event::Client {
-            event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
-        },
+        d::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
     ] {
         d::step(&mut unknown, &env, event, &mut out);
     }

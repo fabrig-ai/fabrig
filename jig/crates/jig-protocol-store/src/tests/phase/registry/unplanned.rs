@@ -1,7 +1,8 @@
 //! Written jobs over every underived layout (protocol/store/jobs.md, 4 and 6).
 use super::*;
-use crate::{Converts, Job, JobAnswer, JobWrite, Layouts};
+use crate::{Converts, Job, JobAnswer, JobWrite, Layouts, Refusals};
 use jig_test_layouts::layouts::WIDE;
+use skein_codec::layout::Refused;
 
 fn written_job(from: Layouts) -> Job {
     Job {
@@ -153,7 +154,10 @@ fn an_unplanned_job_without_underived_layouts_has_one_empty_end_page_without_a_l
 }
 
 #[test]
-fn a_done_unplanned_job_does_not_exempt_a_later_underived_layout() {
+fn a_done_unplanned_job_does_not_exempt_a_later_refused_layout() {
+    const LAYOUT_ID: u16 = 5;
+    const WIDE_N: u32 = 70_000; // Fits WIDE's u32 but not WRITTEN's u16.
+    const VALUES: u64 = 1; // Only a/0 holds this layout.
     let mut disk = Disk::new(&base(false));
     let set = with_job(written_set());
     let mut store = store(&disk, set);
@@ -161,28 +165,35 @@ fn a_done_unplanned_job_does_not_exempt_a_later_underived_layout() {
     let events = drive_empty(&mut disk, &mut store, events);
     assert_opened_pending(&events);
     switch(&mut disk, &mut store);
+    let value = [LAYOUT_ID.to_be_bytes().as_slice(), &WIDE_N.to_be_bytes(), &[8]].concat().into_boxed_slice();
     raw(
         &mut disk,
         &mut store,
         vec![
-            layout_row(WIDE, 5, FAMILY.name, 0),
+            layout_row(WIDE, LAYOUT_ID, FAMILY.name, 0),
             layout_text(WIDE),
-            skein_kv::Op::Put { key: b"\x02a/0".as_slice().into(), value: Box::from([0, 5, 0, 0, 0, 42, 8]) },
+            skein_kv::Op::Put { key: b"\x02a/0".as_slice().into(), value },
         ],
     );
     let before = snapshot(&mut disk);
     let mut store = self::store(&disk, set);
     let events = disk.open(&mut store);
-    let [
-        Event::OpenRefused {
-            why: OpenRefusal::Layout { family, value_type: 0, id: 5, values: Some(1), why: Unplanned::Underived(_), .. },
-            ..
-        },
-    ] = events.as_ref()
-    else {
-        panic!("{events:?}")
-    };
-    assert_eq!(family.as_ref(), FAMILY.name);
+    let [Event::OpenRefused { why, .. }] = events.as_ref() else { panic!("{events:?}") };
+    assert_eq!(
+        *why,
+        OpenRefusal::Layout {
+            family: FAMILY.name.into(),
+            value_type: 0,
+            id: LAYOUT_ID,
+            values: Some(VALUES),
+            why: Unplanned::Unread(Refusals {
+                refused: VALUES,
+                why: Refused::Narrowed,
+                declaration: "Growing".into(),
+                part: "n".into(),
+            }),
+        }
+    );
     assert_eq!(snapshot(&mut disk), before);
 }
 

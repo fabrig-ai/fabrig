@@ -199,6 +199,7 @@ pub struct World {
     restart_config: engine::Config,
     seed: u64,
     checks: Checks,
+    inspections: inspection::Scratch,
     pub ends: Ends,
     iteration: u64,
     finding: Option<String>,
@@ -616,6 +617,7 @@ impl World {
             restart_config: temper_engine_domain_world::oracle::config::copy(&config),
             seed,
             checks: Checks::new(seed),
+            inspections: inspection::Scratch::default(),
             ends,
             iteration: 0,
             finding: None,
@@ -2300,6 +2302,7 @@ fn forge_operation(mut op: worker::checkout::git::Op, git_base: &[u8]) -> worker
         | Op::CheckOut { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
+        | Op::Message { .. }
         | Op::Brings { .. }
         | Op::IsAncestor { .. }
         | Op::Merge { .. }

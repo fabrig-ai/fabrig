@@ -4,7 +4,6 @@ use skein_lib::{Env, List, Map, Queue, RequestTable, Rng, Time, Token};
 #[derive(Debug)]
 pub(crate) struct Owner {
     pub spoken: crate::Spoken,
-    pub versions: Option<crate::contract::VersionRange>,
     pub served: bool,
 }
 #[derive(Debug)]
@@ -30,7 +29,6 @@ pub struct Domain {
     pub(crate) requests: Map<crate::Key, crate::requests::PendingRequest>,
     pub(crate) owners: List<Owner>,
     pub(crate) not_served: List<u16>,
-    pub(crate) jig_versions: Option<crate::contract::VersionRange>,
     pub(crate) blocked: List<Token>,
     pub(crate) carried: Map<crate::Key, crate::carried::Carrying>,
     // Attempts of requests carrying a value, apart from the table's, which count from 1.
@@ -43,12 +41,11 @@ impl Domain {
         let bound = u32::try_from(limits.owners.len()).expect("bounded owners");
         let mut owners = List::with_capacity(bound);
         for spoken in limits.owners {
-            owners.push(Owner { spoken: *spoken, versions: None, served: true }).expect("declared owner");
+            owners.push(Owner { spoken: *spoken, served: true }).expect("declared owner");
         }
         Self {
             owners,
             not_served: List::with_capacity(bound),
-            jig_versions: None,
             blocked: List::with_capacity(limits.requests.requests),
             handles: Map::with_capacity(limits.handles),
             watches: Map::with_capacity(limits.watches),
@@ -107,13 +104,7 @@ impl Domain {
     pub fn not_served(&self) -> &[u16] {
         self.not_served.as_slice()
     }
-    fn family_served(
-        &mut self,
-        family: u16,
-        versions: Option<crate::contract::VersionRange>,
-        served: bool,
-        out: &mut Queue<Request>,
-    ) {
+    fn family_served(&mut self, family: u16, served: bool, out: &mut Queue<Request>) {
         let mut index = None;
         for i in 0..self.owners.len() {
             if self.owners.get(i).expect("owner index").spoken.family == family {
@@ -122,7 +113,6 @@ impl Domain {
         }
         let Some(index) = index else { return };
         let owner = self.owners.get_mut(index).expect("declared owner");
-        owner.versions = versions;
         owner.served = served;
         self.not_served.clear();
         for owner in &self.owners {
@@ -131,7 +121,7 @@ impl Domain {
             }
         }
         if !served {
-            self.refuse_reads(Some(family), versions, out);
+            self.refuse_reads(Some(family), out);
             for _ in 0..self.watches.len() {
                 let mut found = None;
                 for (id, w) in &self.watches {
@@ -291,17 +281,16 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::Up::SignedIn => domain.signed_in(out),
             crate::Up::SignedOut => domain.signed_out(out),
             crate::Up::NotKept { key } => domain.not_kept(key, out),
-            crate::Up::FamilyServed { family, versions, served } => domain.family_served(family, versions, served, out),
+            crate::Up::FamilyServed { family, served } => domain.family_served(family, served, out),
             crate::Up::Unreadable => {
                 domain.unreadable = true;
                 domain.set_link(crate::Link::OutOfDate, out);
-                domain.refuse_reads(None, domain.jig_versions, out);
+                domain.refuse_reads(None, out);
             }
-            crate::Up::Served { served, versions } => {
-                domain.jig_versions = versions;
+            crate::Up::Served { served } => {
                 if !served {
                     domain.set_link(crate::Link::OutOfDate, out);
-                    domain.refuse_reads(None, versions, out);
+                    domain.refuse_reads(None, out);
                     domain.up(
                         env,
                         crate::Up::WatchEnded { watch: Token::new(0), end: crate::contract::WatchEnd::NotServed },

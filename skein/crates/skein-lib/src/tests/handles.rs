@@ -109,6 +109,24 @@ fn a_slab_walks_its_entities_in_slot_order_retired_ones_until_reclaimed() {
 }
 
 #[test]
+fn reading_live_slots_skips_vacant_and_retired_entries() {
+    let mut slab = Slab::with_capacity(4);
+    let first = slab.insert('a').expect("room");
+    let second = slab.insert('b').expect("room");
+    let third = slab.insert('c').expect("room");
+    let fourth = slab.insert('d').expect("room");
+    slab.retire(second);
+    slab.reclaim();
+    slab.retire(third);
+    let (next, id, value) = slab.live_from(0).expect("first live slot");
+    assert_eq!((id, value), (first, &'a'));
+    let (next, id, value) = slab.live_from(next).expect("next live slot");
+    assert_eq!((id, value), (fourth, &'d'));
+    assert_eq!(slab.live_from(next), None);
+    assert_eq!(slab.get(third), Some(&'c'), "the read did not reclaim a retired entry");
+}
+
+#[test]
 fn each_lifecycle_state_is_its_own_value() {
     let states = [Lifecycle::Live, Lifecycle::Closing, Lifecycle::Aborting, Lifecycle::Closed];
     for (index, state) in states.iter().enumerate() {

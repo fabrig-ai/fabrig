@@ -33,7 +33,7 @@ pub fn merged(patches: &[&Json]) -> Option<Json> {
 }
 #[must_use]
 pub fn patches(seed: u64, depth: u32) -> (Json, Json) {
-    let mut rng = Rng::new(SEED + seed);
+    let mut rng = Rng::new(SEED.wrapping_add(seed));
     (json::generate(&mut rng, depth), json::generate(&mut rng, depth))
 }
 pub fn cases(mut check: impl FnMut(u64, Json, Json)) {

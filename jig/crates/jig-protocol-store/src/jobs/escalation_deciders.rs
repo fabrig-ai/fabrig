@@ -82,7 +82,7 @@ fn ancestor(
             store.limits.store.key,
         )
         .expect("admitted hot key length");
-        let Ok(read) = store.patch_page(skein_kv::Range::prefix(&key), None, 1) else {
+        let Ok(read) = store.job_read(skein_kv::Range::prefix(&key), None, 1) else {
             return Err(refusal(&key, "cannot read escalation decider ancestor"));
         };
         let Some(row) = read.rows.into_iter().next() else { return Ok(false) };

@@ -12,6 +12,7 @@ S: `temper-box`; E: `temper-engine`; W: `temper-worker`. Help lists public keys 
 
 | Key | Shapes | Set | Form and bound | Default | What it says |
 |---|---|---|---|---|---|
+| `format` | S E W | public | a whole number from 1 to the newest format | 1 | the format the file is written in (written only above 1) |
 | `listen` | S E | public | a socket address on loopback, such as "127.0.0.1:7100" | 127.0.0.1:7100 | where the client connects |
 | `public` | S E | public | an origin within 267 bytes; the start checks its form | the listener's origin | where people reach it |
 | `webhooks` | S E | public | a socket address on loopback, such as "127.0.0.1:7100" | listen's next port (0 stays 0) | the forge's webhooks' listener |
@@ -138,6 +139,14 @@ S: `temper-box`; E: `temper-engine`; W: `temper-worker`. Help lists public keys 
 - `workers[].slots`: a worker's places are its setting's; temper ctl worker places NAME N.
 - `workers[].secret`: a worker's secret is secrets/worker.secret in the data directory.
 - `workers[].agent`: temper writes the agent's configuration from the engine's figures.
+
+## Formats
+
+Format 1 is the newest temper-box reads; a file without format is format 1.
+
+Format 1 is the newest temper-engine reads; a file without format is format 1.
+
+Format 1 is the newest temper-worker reads; a file without format is format 1.
 
 ## The merge command
 

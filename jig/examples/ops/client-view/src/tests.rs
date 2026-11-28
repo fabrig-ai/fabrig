@@ -60,10 +60,7 @@ fn ready() -> Domain {
         },
     ));
     let watch = skein_lib::Token::new(0);
-    drive(
-        &mut root,
-        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
-    );
+    drive(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } });
     // Explicit synthetic identity and empty offers, supplied independently of the party's display name.
     let frame = Me {
         charters: List::with_capacity(0),

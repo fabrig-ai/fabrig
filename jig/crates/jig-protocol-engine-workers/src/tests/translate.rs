@@ -888,21 +888,22 @@ fn an_empty_draining_record_becomes_the_hubs_draining_notice() {
 }
 
 #[test]
-fn a_version_refusal_decodes_its_wire_and_range_without_parts() {
+fn a_version_refusal_reads_only_highest_as_the_worker_version() {
     use jig_protocol_worker_wire as wire;
-    let mismatch = wire::Mismatch { wire: b"smith-charter".as_slice().into(), version: 5, lowest: 4, highest: 4 };
-    let refusal = wire::RefusalValue { value: wire::Refusal::Version(mismatch) };
-    let mut fields = fixtures::answer_record();
-    fields.ending = wire::Ending::Refused(refusal);
-    let (answer, parts) = answer(fields);
-    assert!(parts.is_empty());
-    assert_eq!(
-        answer.ending,
-        jig_domain_host::Ending::Refused(jig_domain_host::Refusal::Version(jig_domain_host::Mismatch {
-            wire: b"smith-charter".as_slice().into(),
-            version: 5,
-            lowest: 4,
-            highest: 4,
-        }))
-    );
+    for lowest in [4, 6] {
+        let mismatch = wire::Mismatch { wire: b"smith-charter".as_slice().into(), version: 5, lowest, highest: 4 };
+        let refusal = wire::RefusalValue { value: wire::Refusal::Version(mismatch) };
+        let mut fields = fixtures::answer_record();
+        fields.ending = wire::Ending::Refused(refusal);
+        let (answer, parts) = answer(fields);
+        assert!(parts.is_empty());
+        assert_eq!(
+            answer.ending,
+            jig_domain_host::Ending::Refused(jig_domain_host::Refusal::Version(jig_domain_host::Mismatch {
+                wire: b"smith-charter".as_slice().into(),
+                version: 5,
+                worker_version: 4,
+            }))
+        );
+    }
 }

@@ -209,7 +209,11 @@ pub fn settings_note(call: engine::Call, bytes: &[u8], configured: &[s::Catalogu
     let engine::Tool::ProposeSettingsNote { against, reason, .. } = call.tool else {
         return Err(Problem::Range(b"note"));
     };
-    let items = settings_form::file::decode(bytes, &settings_form::Limits::standard());
+    // A successful call has no diagnostic text channel; a refused file answers with its words.
+    let items = match settings_form::file::read(bytes, &settings_form::Limits::standard()) {
+        Ok(read) => Ok(read.items),
+        Err(why) => Err(why),
+    };
     proposal_items(call.completion, call.position, against, reason, items, configured, false)
 }
 

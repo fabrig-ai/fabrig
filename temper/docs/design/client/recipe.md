@@ -227,7 +227,10 @@ temper-client-journeys recipe walk NAME --bin DIR [--bundle DIR] --scratch DIR [
   (section 2), never from another recipe's or a `--files` directory.
 - **Its output:** each answer of the session, every line of it prefixed
   `NAME:N `, the recipe and the line of its file that gave it, or
-  `walk:` for the walk's own `web reload "/"` and `tui stop`.
+  `walk:` for the walk's own `web reload "/"` and `tui stop`. Nothing
+  comes before the first answer, so a walk whose session ended before
+  any prints its exit's lines alone, which a place reads as a start
+  that failed (`../testing/qa/places.md`, 4).
 - **Stopped at the first failed line:** the session ended at once, its
   box stopped (`drive.md`, 2.4), the last stdout line `stopped at
   NAME:N: WHY`, exit 5. Whether the recipe is the one to follow or

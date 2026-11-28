@@ -133,6 +133,28 @@ agent must name.
   temper's settings with jig's, by the names above, and no project's
   policy, which is no setting (`project show` prints its roles and
   spends).
+- **A settings file's format** (`../../protocol/configuration/file-formats.md`):
+  `"format": N` beside `items`, absent 1; this client reads format 1
+  alone. A newer format is refused before anything else in the file is
+  read or anything sent, `settings file: format 2; this temper ctl reads
+  format 1: upgrade it, or write the file at format 1`, and a `format`
+  that isn't a whole number from 1 as `settings file: format: a whole
+  number from 1`, the file named before its words as `overlays.md`, 3
+  names it with several. An older format's members are moved to the
+  newest as they are read, by the moves recorded by `FIELDS`' shape and
+  member (`../../protocol/configuration/file-formats.md`, 3 and 4), each
+  noted on stderr before anything is sent, `settings file item 2:
+  charter.PATH: format 1; format 2 writes it as WORDS`; with none in this
+  release, the decoder's tests read through moves of their own, a format
+  2 over `FIELDS`' members. `FIELDS` holds the file's `format` row, and
+  the `settings-fields` page ends with the file's formats and each
+  move, as `help config` lists `temper.toml`'s
+  (`../../protocol/configuration/file.md`, 7). The engine host's read of
+  a settings file takes its `format` as ctl does and returns the read's
+  notices to the agent with its result, one line each in the file's form
+  (`../../protocol/configuration/file-formats.md`, 4). A proposal's inline
+  items, an agent's, take no `format`. `settings upgrade` prints a file
+  at the newest format (`tools-reads.md`, 1).
 - **A goal template's work** (`../../protocol/configuration/settings-kinds.md`, 1, kind
   11): its SETTING `{"kind": "template-goal", "number": N}`, N the
   template's, the deployment's as a template is, and its VALUE

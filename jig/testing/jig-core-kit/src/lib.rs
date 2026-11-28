@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 pub mod bounds;
+pub mod cells;
 mod charters;
 pub mod lists;
 pub mod open;

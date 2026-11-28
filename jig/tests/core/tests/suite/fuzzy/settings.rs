@@ -8,6 +8,10 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{Duration, Rng, length::len_u64};
+use skein_world::{
+    sweep::{cases, gate},
+    this_test,
+};
 use support::*;
 
 #[test]
@@ -231,14 +235,13 @@ fn draw_change(
 }
 
 #[test]
-#[expect(clippy::disallowed_methods, reason = "the test run selects replay seeds and their count from the environment")]
+#[expect(clippy::disallowed_methods, reason = "the test run selects the gate seeds from the environment")]
 fn random_small_settings_changes_and_stale_requests_survive_restarts() {
     let count =
         std::env::var("JIG_CORE_SETTINGS_SEEDS").ok().map_or(24, |value| value.parse::<u64>().expect("seed count"));
     let prepared = configuration();
     let mut coverage = [false; 8];
-    for seed in 713..713 + count {
-        eprintln!("settings replay seed {seed}");
+    cases(this_test!("random_small_settings_changes_and_stale_requests_survive_restarts"), 713..713 + count, |seed| {
         let reached = {
             let mut reached = [false; 8];
             let mut rng = Rng::new(seed);
@@ -307,11 +310,15 @@ fn random_small_settings_changes_and_stale_requests_survive_restarts() {
         for at in 0..coverage.len() {
             coverage[at] |= reached[at];
         }
+        Ok::<(), String>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if gate() {
+        assert_eq!(
+            coverage, [true; 8],
+            "stale, reset, template, charter, restart, Moves with old holders MoveToNewest with old holders, and overlays all reached"
+        );
     }
-    assert_eq!(
-        coverage, [true; 8],
-        "stale, reset, template, charter, restart, Moves with old holders MoveToNewest with old holders, and overlays all reached"
-    );
 }
 
 fn pending_settings(world: &jig_core_world::world::World) -> Vec<(u64, u32, settings::Proposal)> {
@@ -385,7 +392,7 @@ fn proposal_sets_agree(world: &mut jig_core_world::world::World, signed: u64) {
     }
 }
 #[test]
-#[expect(clippy::disallowed_methods, reason = "the test run selects replay seeds and their count from the environment")]
+#[expect(clippy::disallowed_methods, reason = "the test run selects the gate seeds from the environment")]
 fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agreement() {
     const SEEDS: u64 = 8;
     const STEPS: u8 = 32;
@@ -395,93 +402,109 @@ fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agr
         std::env::var("JIG_CORE_SETTINGS_SEEDS").ok().map_or(SEEDS, |value| value.parse::<u64>().expect("seed count"));
     let first = std::env::var("JIG_SETTINGS_PROPOSALS_SEED")
         .map_or(713, |value| value.parse::<u64>().expect("settings proposal seed"));
-    for seed in first..first.checked_add(count).expect("settings seed range") {
-        eprintln!("settings proposal replay seed {seed}");
-        let reached = {
-            let mut reached = [false; 6];
-            let mut rng = Rng::new(seed);
-            let mut world = start_with(4, jig_core_world::clone_configuration(&prepared.0), prepared.1);
-            let signed = sign_in(&mut world);
-            for step in 0..STEPS {
-                let operation = usize::try_from(rng.below(6)).expect("six operations");
-                reached[operation] = true;
-                let pending = pending_settings(&world).first().cloned();
-                let key = 20 + step;
-                match operation {
-                    0 => {
-                        let choice = rng.below(3);
-                        let item = if choice == 2 {
-                            worker_item(step)
-                        } else if choice == 0 {
-                            overlay_item(format!("proposed overlay {seed} {step}").as_bytes())
-                        } else {
-                            template_edit(&world, 6 + rng.below(10))
-                        };
-                        let against = world.domain.settings().newest();
-                        propose(&mut world, signed, key, against, Box::new([item]));
-                    }
-                    1 => {
-                        if let Some((person, proposal, _)) = pending {
-                            decide(
-                                &mut world,
-                                signed,
-                                key,
-                                person,
-                                u64::from(proposal),
-                                people::ProposalDecision::Accept,
-                                Some(people::Running::Stays),
-                            );
+    let seeds = first..first.checked_add(count).expect("settings seed range");
+    cases(
+        this_test!("random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agreement"),
+        seeds,
+        |seed| {
+            let reached = {
+                let mut reached = [false; 6];
+                let mut rng = Rng::new(seed);
+                let mut world = start_with(4, jig_core_world::clone_configuration(&prepared.0), prepared.1);
+                let signed = sign_in(&mut world);
+                for step in 0..STEPS {
+                    let operation = usize::try_from(rng.below(6)).expect("six operations");
+                    reached[operation] = true;
+                    let pending = pending_settings(&world).first().cloned();
+                    let key = 20 + step;
+                    match operation {
+                        0 => {
+                            let choice = rng.below(3);
+                            let item = if choice == 2 {
+                                worker_item(step)
+                            } else if choice == 0 {
+                                overlay_item(format!("proposed overlay {seed} {step}").as_bytes())
+                            } else {
+                                template_edit(&world, 6 + rng.below(10))
+                            };
+                            let against = world.domain.settings().newest();
+                            propose(&mut world, signed, key, against, Box::new([item]));
                         }
-                    }
-                    2 => {
-                        if let Some((person, proposal, _)) = pending {
-                            decide(
-                                &mut world,
-                                signed,
-                                key,
-                                person,
-                                u64::from(proposal),
-                                people::ProposalDecision::Reject { reason: b"random rejection".as_slice().into() },
-                                None,
-                            );
+                        1 => {
+                            if let Some((person, proposal, _)) = pending {
+                                decide(
+                                    &mut world,
+                                    signed,
+                                    key,
+                                    person,
+                                    u64::from(proposal),
+                                    people::ProposalDecision::Accept,
+                                    Some(people::Running::Stays),
+                                );
+                            }
                         }
-                    }
-                    3 => {
-                        if let Some((_, proposal, _)) = pending {
-                            ask(
-                                &mut world,
-                                signed,
-                                key,
-                                people::Ask::Withdraw { project: 0, proposal: u64::from(proposal) },
-                            );
+                        2 => {
+                            if let Some((person, proposal, _)) = pending {
+                                decide(
+                                    &mut world,
+                                    signed,
+                                    key,
+                                    person,
+                                    u64::from(proposal),
+                                    people::ProposalDecision::Reject { reason: b"random rejection".as_slice().into() },
+                                    None,
+                                );
+                            }
                         }
+                        3 => {
+                            if let Some((_, proposal, _)) = pending {
+                                ask(
+                                    &mut world,
+                                    signed,
+                                    key,
+                                    people::Ask::Withdraw { project: 0, proposal: u64::from(proposal) },
+                                );
+                            }
+                        }
+                        4 => {
+                            let item = template_edit(&world, 6 + rng.below(10));
+                            let against = world.domain.settings().newest();
+                            change(&mut world, signed, key, against, Box::new([item]));
+                        }
+                        5 => {
+                            restart_default(&mut world, &prepared.0, &mut rng);
+                        }
+                        _ => unreachable!(),
                     }
-                    4 => {
-                        let item = template_edit(&world, 6 + rng.below(10));
-                        let against = world.domain.settings().newest();
-                        change(&mut world, signed, key, against, Box::new([item]));
-                    }
-                    5 => {
-                        restart_default(&mut world, &prepared.0, &mut rng);
-                    }
-                    _ => unreachable!(),
+                    agree(&world);
+                    proposal_sets_agree(&mut world, signed);
                 }
-                agree(&world);
-                proposal_sets_agree(&mut world, signed);
+                reached
+            };
+            for (covered, reached) in coverage.iter_mut().zip(reached) {
+                *covered |= reached;
             }
-            reached
-        };
-        for (covered, reached) in coverage.iter_mut().zip(reached) {
-            *covered |= reached;
-        }
+            Ok::<(), String>(())
+        },
+    )
+    .unwrap_or_else(|case| panic!("{case}"));
+    if gate() {
+        assert_eq!(coverage, [true; 6]);
     }
-    assert_eq!(coverage, [true; 6]);
 }
 
 #[test]
 fn sorted_bounded_limit_overrides_pass_and_a_mutation_fails_at_its_position() {
+    cases(this_test!("sorted_bounded_limit_overrides_pass_and_a_mutation_fails_at_its_position"), [71_393], |seed| {
+        check_limit_overrides(seed);
+        Ok::<(), String>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+}
+
+fn check_limit_overrides(seed: u64) {
     use settings::{OVERRIDE_NAME_BYTES, OVERRIDE_REASON_BYTES, OVERRIDES, Override, OverrideFault, check_overrides};
-    let mut rng = Rng::new(71_393);
+    let mut rng = Rng::new(seed);
     for _ in 0..512 {
         let count = usize::try_from(rng.below(u64::from(OVERRIDES) + 1)).expect("bounded list");
         let mut values = Vec::new();
@@ -507,7 +530,8 @@ fn sorted_bounded_limit_overrides_pass_and_a_mutation_fails_at_its_position() {
                     OverrideFault::Name { at: u32::try_from(at).expect("position") }
                 }
                 1 if at != 0 => {
-                    values[at].name = values[at - 1].name.clone();
+                    let (previous, current) = values.split_at_mut(at);
+                    current[0].name.clone_from(&previous[at - 1].name);
                     OverrideFault::Order { at: u32::try_from(at).expect("position") }
                 }
                 _ => {
@@ -536,7 +560,7 @@ fn worker_item(digest: u8) -> settings::Item {
 #[test]
 fn provider_sets_withdrawals_and_returns_survive_random_restarts() {
     let mut coverage = [false; 2];
-    for seed in 907..915 {
+    cases(this_test!("provider_sets_withdrawals_and_returns_survive_random_restarts"), 907..915, |seed| {
         let mut rng = Rng::new(seed);
         let mut world = start(2);
         let mut signed = sign_in(&mut world);
@@ -567,6 +591,10 @@ fn provider_sets_withdrawals_and_returns_survive_random_restarts() {
                 agree(&world);
             }
         }
+        Ok::<(), String>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if gate() {
+        assert_eq!(coverage, [true; 2]);
     }
-    assert_eq!(coverage, [true; 2]);
 }

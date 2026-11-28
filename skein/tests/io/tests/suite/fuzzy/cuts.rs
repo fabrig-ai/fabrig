@@ -1,14 +1,22 @@
-//! Seeded crash choices and every submission cut replay through one scheduler.
+//! Seeded crash choices and every submission cut replay through one scheduler
+//! (`skein/docs/design/testing/sweeps.md`, 4.2).
+
+use std::convert::Infallible;
+
 use skein_io_world::cuts::world;
 use skein_lib::Duration;
 use skein_sim::{Config, Faults};
-use skein_world::Cut;
+use skein_world::sweep::{cases, gate};
+use skein_world::{Cut, this_test};
+
+const SEEDS: u64 = 64;
 
 #[test]
 fn every_file_cut_replays_across_seeded_power_losses() {
     let mut runs = 0;
-    for private in [false, true] {
-        for seed in 0..64 {
+    let test = this_test!("every_file_cut_replays_across_seeded_power_losses");
+    cases::<_, Infallible, _>(test, 0..SEEDS, |seed| {
+        for private in [false, true] {
             let config = Config {
                 faults: Faults {
                     latency: 600,
@@ -40,6 +48,10 @@ fn every_file_cut_replays_across_seeded_power_losses() {
                 }
             }
         }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if gate() {
+        eprintln!("file cut replay: {runs} memory-checked runs, {SEEDS} crash seeds");
     }
-    eprintln!("file cut replay: {runs} memory-checked runs, 64 crash seeds");
 }

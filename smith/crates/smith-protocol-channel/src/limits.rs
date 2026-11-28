@@ -76,16 +76,12 @@ pub fn schema_for_start(
     start_bytes: u32,
 ) -> Result<skein_channel::Schema, smith_channel::Overflow> {
     let mut schema = smith_channel::schema(bodies)?;
-    for version_index in 0..schema.versions.len() {
-        let version = schema.versions.get_mut(version_index).expect("indexed version");
-        for kind_index in 0..version.kinds.len() {
-            let kind = version.kinds.get_mut(kind_index).expect("indexed kind");
-            if kind.kind == smith_channel::kind::START {
-                if start_bytes == 0 || start_bytes > kind.largest {
-                    return Err(smith_channel::Overflow::Frame);
-                }
-                kind.largest = start_bytes;
+    for kind in schema.kinds.iter_mut() {
+        if kind.kind == smith_channel::kind::START {
+            if start_bytes == 0 || start_bytes > kind.largest {
+                return Err(smith_channel::Overflow::Frame);
             }
+            kind.largest = start_bytes;
         }
     }
     Ok(schema)

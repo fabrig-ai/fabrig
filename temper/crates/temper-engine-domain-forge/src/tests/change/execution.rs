@@ -106,6 +106,7 @@ fn checking_reads_execution_once_and_caps_its_next_poll() {
                     entry: None,
                     evidence: None,
                     close_at: None,
+                    close_refusal: None,
                 }),
                 "poll cap: {done:?}"
             );

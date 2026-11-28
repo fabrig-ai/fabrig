@@ -11,7 +11,7 @@ mod stopped;
 use crate::world::Proc;
 /// Hosted process records used by the composition regressions.
 pub(crate) use agent::Record as AgentRecord;
-pub(crate) use agent::Wire;
+pub(crate) use agent::{RunFrame, Wire};
 use jig_conformance::referee as rules;
 use jig_domain_core as core;
 use skein_lib::Time;

@@ -7362,6 +7362,7 @@ pub fn closing_step_to_record(value: &temper_engine_domain_forge_closer::Step) -
     match value {
         temper_engine_domain_forge_closer::Step::Close => crate::v25::ClosingStep::Close,
         temper_engine_domain_forge_closer::Step::Land => crate::v25::ClosingStep::Land,
+        temper_engine_domain_forge_closer::Step::CatchUp => crate::v25::ClosingStep::CatchUp,
     }
 }
 
@@ -7370,6 +7371,7 @@ pub fn closing_step_to_domain(record: crate::v25::ClosingStep) -> temper_engine_
     match record {
         crate::v25::ClosingStep::Close => temper_engine_domain_forge_closer::Step::Close,
         crate::v25::ClosingStep::Land => temper_engine_domain_forge_closer::Step::Land,
+        crate::v25::ClosingStep::CatchUp => temper_engine_domain_forge_closer::Step::CatchUp,
     }
 }
 
@@ -9744,8 +9746,24 @@ pub fn close_refused_to_domain(record: crate::v25::CloseRefused) -> temper_engin
 }
 
 #[must_use]
+pub fn close_outdated_to_record(value: &temper_engine_domain_forge_change::CloseOutdated) -> crate::v25::CloseOutdated {
+    match value {
+        temper_engine_domain_forge_change::CloseOutdated::Window => crate::v25::CloseOutdated::Window,
+        temper_engine_domain_forge_change::CloseOutdated::Ancestry => crate::v25::CloseOutdated::Ancestry,
+    }
+}
+
+#[must_use]
+pub fn close_outdated_to_domain(record: crate::v25::CloseOutdated) -> temper_engine_domain_forge_change::CloseOutdated {
+    match record {
+        crate::v25::CloseOutdated::Window => temper_engine_domain_forge_change::CloseOutdated::Window,
+        crate::v25::CloseOutdated::Ancestry => temper_engine_domain_forge_change::CloseOutdated::Ancestry,
+    }
+}
+
+#[must_use]
 pub fn close_at_to_record(value: &temper_engine_domain_forge_change::CloseAt) -> crate::v25::CloseAt {
-    let temper_engine_domain_forge_change::CloseAt { branch: field_000000, landing: field_000001, asked: field_000002, refused: field_000003 } = value;
+    let temper_engine_domain_forge_change::CloseAt { branch: field_000000, landing: field_000001, asked: field_000002, refused: field_000003, outdated: field_000004 } = value;
     crate::v25::CloseAt {
         branch: *field_000000,
         landing: *field_000001,
@@ -9756,13 +9774,20 @@ pub fn close_at_to_record(value: &temper_engine_domain_forge_change::CloseAt) ->
                 Some(converted)
             }
             None => None,
+        },
+        outdated: match field_000004 {
+            Some(item) => {
+                let converted = close_outdated_to_record(item);
+                Some(converted)
+            }
+            None => None,
         }
     }
 }
 
 #[must_use]
 pub fn close_at_to_domain(record: crate::v25::CloseAt) -> temper_engine_domain_forge_change::CloseAt {
-    let crate::v25::CloseAt { branch: field_000000, landing: field_000001, asked: field_000002, refused: field_000003 } = record;
+    let crate::v25::CloseAt { branch: field_000000, landing: field_000001, asked: field_000002, refused: field_000003, outdated: field_000004 } = record;
     temper_engine_domain_forge_change::CloseAt {
         branch: field_000000,
         landing: field_000001,
@@ -9770,6 +9795,13 @@ pub fn close_at_to_domain(record: crate::v25::CloseAt) -> temper_engine_domain_f
         refused: match field_000003 {
             Some(item) => {
                 let converted = close_refused_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        outdated: match field_000004 {
+            Some(item) => {
+                let converted = close_outdated_to_domain(item);
                 Some(converted)
             }
             None => None,

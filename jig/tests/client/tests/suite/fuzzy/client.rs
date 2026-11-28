@@ -1,97 +1,119 @@
 //! Replayable random people over every story start and seeded random documents.
 use jig_client_world::random::{self, Start};
 use skein_lib::Rng;
-use skein_world::domain::Verdict;
+use skein_world::{
+    domain::Verdict,
+    sweep::{Test, cases, gate},
+    this_test,
+};
+use std::convert::Infallible;
 // Every first dedicated seed reached 8 faults in the unchanged 16-seed inventory.
 // Two keep drawn slack. Chat retains 16: the 32 worlds never opened its original address.
 const FIRST_START_SEED: u64 = 100;
 const SHORT_START_SEEDS: u64 = 2;
 const CHAT_START_SEEDS: u64 = 16;
-fn sweep(start: Start) {
+fn sweep(test: Test, start: Start) {
     let mut faults = 0;
     let count = if start == Start::Chat { CHAT_START_SEEDS } else { SHORT_START_SEEDS };
-    for seed in FIRST_START_SEED..FIRST_START_SEED + count {
-        eprintln!("{start:?} seed {seed}");
+    cases(test, FIRST_START_SEED..FIRST_START_SEED + count, |seed| {
         let outcome = random::story_without_heap(seed, start);
-        assert_eq!(outcome.verdict, Verdict::Passed, "{start:?} seed {seed}");
+        assert_eq!(outcome.verdict, Verdict::Passed, "{start:?}");
         faults += outcome.faults;
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if gate() {
+        assert!(faults > 0);
     }
-    assert!(faults > 0);
 }
 #[test]
 fn random_people_in_new_chat_starts() {
-    sweep(Start::NewChat);
+    sweep(this_test!("random_people_in_new_chat_starts"), Start::NewChat);
 }
 #[test]
 fn random_people_in_chat_starts() {
-    sweep(Start::Chat);
+    sweep(this_test!("random_people_in_chat_starts"), Start::Chat);
 }
 #[test]
 fn random_people_in_held_chat_starts() {
-    sweep(Start::Held);
+    sweep(this_test!("random_people_in_held_chat_starts"), Start::Held);
 }
 #[test]
 fn random_people_in_proposal_starts() {
-    sweep(Start::Proposal);
+    sweep(this_test!("random_people_in_proposal_starts"), Start::Proposal);
 }
 #[test]
 fn random_people_in_goal_starts() {
-    sweep(Start::Goal);
+    sweep(this_test!("random_people_in_goal_starts"), Start::Goal);
 }
 #[test]
 fn random_people_in_incident_starts() {
-    sweep(Start::Incident);
+    sweep(this_test!("random_people_in_incident_starts"), Start::Incident);
 }
-// Split only the schedule: every seed in the original 200..232 range runs
-// through the unchanged world exactly once. Its first draw assigns its actual
-// story fixture, and the returned reach independently checks that assignment.
-fn truth_sweep(start: Start) {
+// The gate partitions 200..232 by each seed's first draw. A campaign keeps
+// the test's named fixture, even when a fresh seed would draw another start.
+fn truth_sweep(test: Test, start: Start) {
+    let seeds = (200..232).filter(|&seed| Start::draw(&mut Rng::new(seed)) == start);
     let mut counts = (0, 0, 0);
-    for seed in 200..232 {
-        let mut rng = Rng::new(seed);
-        let assigned = Start::ALL[usize::try_from(rng.below(6)).expect("six starts")];
-        if assigned != start {
-            continue;
-        }
-        eprintln!("random truth {start:?} seed {seed}");
-        let (outcome, reach) = random::world_with_coverage(seed);
-        assert_eq!(reach.start, start, "seed {seed} keeps its actual fixture");
+    cases(test, seeds, |seed| {
+        let (outcome, reach) = random::world_with_coverage(seed, start);
+        assert_eq!(reach.start, start, "the world keeps its named fixture");
         counts.0 += 1;
         counts.1 += outcome.faults;
         if reach.original_address {
             counts.2 += outcome.faults;
         }
-        assert_eq!(outcome.verdict, Verdict::Passed, "seed {seed}");
-    }
-    // These are the original per-start aggregate assertions. Checking faults
-    // for every start also retains the former whole-sweep positive-fault check.
-    assert!(counts.0 > 0 && counts.1 > 0, "{start:?} truth reach {counts:?}");
-    if start != Start::Chat {
-        assert!(counts.2 > 0, "shrunk {start:?} retains original-address fault reach: {counts:?}");
+        assert_eq!(outcome.verdict, Verdict::Passed, "{start:?}");
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if gate() {
+        assert!(counts.0 > 0 && counts.1 > 0, "{start:?} truth reach {counts:?}");
+        if start != Start::Chat {
+            assert!(counts.2 > 0, "{start:?} retains original-address fault reach: {counts:?}");
+        }
     }
     eprintln!("coverage truth {start:?}={counts:?}");
 }
 #[test]
 fn random_truth_worlds_in_new_chat_sweep_documents_addresses_and_persons_with_faults() {
-    truth_sweep(Start::NewChat);
+    truth_sweep(
+        this_test!("random_truth_worlds_in_new_chat_sweep_documents_addresses_and_persons_with_faults"),
+        Start::NewChat,
+    );
 }
 #[test]
 fn random_truth_worlds_in_chat_sweep_documents_addresses_and_persons_with_faults() {
-    truth_sweep(Start::Chat);
+    truth_sweep(
+        this_test!("random_truth_worlds_in_chat_sweep_documents_addresses_and_persons_with_faults"),
+        Start::Chat,
+    );
 }
 #[test]
 fn random_truth_worlds_in_held_chat_sweep_documents_addresses_and_persons_with_faults() {
-    truth_sweep(Start::Held);
+    truth_sweep(
+        this_test!("random_truth_worlds_in_held_chat_sweep_documents_addresses_and_persons_with_faults"),
+        Start::Held,
+    );
 }
 #[test]
 fn random_truth_worlds_in_proposal_sweep_documents_addresses_and_persons_with_faults() {
-    truth_sweep(Start::Proposal);
+    truth_sweep(
+        this_test!("random_truth_worlds_in_proposal_sweep_documents_addresses_and_persons_with_faults"),
+        Start::Proposal,
+    );
 }
 #[test]
 fn random_truth_worlds_in_goal_sweep_documents_addresses_and_persons_with_faults() {
-    truth_sweep(Start::Goal);
+    truth_sweep(
+        this_test!("random_truth_worlds_in_goal_sweep_documents_addresses_and_persons_with_faults"),
+        Start::Goal,
+    );
 }
 #[test]
 fn random_truth_worlds_in_incident_sweep_documents_addresses_and_persons_with_faults() {
-    truth_sweep(Start::Incident);
+    truth_sweep(
+        this_test!("random_truth_worlds_in_incident_sweep_documents_addresses_and_persons_with_faults"),
+        Start::Incident,
+    );
 }

@@ -1040,6 +1040,17 @@ pub const PROPOSE_SETTINGS: Tool = Tool {
     area: 1,
     notes: b"The file is settings apply's. Read the proposal with proposal show\nPROPOSAL.\n",
 };
+pub const UPGRADE_SETTINGS_AT: u8 = 123;
+pub const UPGRADE_SETTINGS: Tool = Tool {
+    name: b"settings upgrade",
+    line: b"Print a settings file at the newest format",
+    prints: b"The settings file as JSON on stdout and any format notices on stderr",
+    result: b"settings_file",
+    forms: &[&[positional(b"items", b"FILE", Kind::File, Required, b"The settings file, JSON, or -")]],
+    keyed: Keyed::Never,
+    area: 1,
+    notes: b"Reads no charter directory named in the file, writes no file, and\nneeds no sign-in. A refused file names what it could not read (exit 1).\n",
+};
 pub const PROPOSAL: Tool = Tool {
     name: b"proposal show",
     line: b"Read a proposal; for settings, what each item would change",

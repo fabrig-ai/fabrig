@@ -14,6 +14,7 @@ use temper_workload::parties::{Act, Action};
 mod actions;
 mod blame;
 mod branch_holds;
+mod cells;
 mod draw;
 pub use draw::FaultDraw;
 mod forge;
@@ -22,7 +23,7 @@ mod runs;
 mod tests;
 mod worker;
 
-/// The composed mixed sweep's thirteen kinds at the gate.
+/// The composed mixed sweep's kinds at the gate.
 // The workload's repairs carry gate evidence, not a PullFiles read: the
 // bounds family's next reachable kind is the failed job's bounded log.
 // Its dependent goal starts after the predecessor landed, so it has no
@@ -44,6 +45,8 @@ pub const GATE_KINDS: &[Kind] = &[
     people::RELEASES_A_MEMBER,
     parks::DELIVERED_THEN_PARKED,
     bounds::FORGE_READ_ADMISSIONS,
+    cells::JOB_RUNNING,
+    cells::CELL,
 ];
 
 /// Additional kinds configured in a campaign or replay, in family order.
@@ -136,6 +139,7 @@ pub(in crate::composed) struct Faults {
     watch: Watch,
     disk: worker::Disk,
     fetch_cut: Option<worker::FetchCut>,
+    cell: Option<cells::Driver>,
     park: Option<(String, u64, u64)>,
     parked: bool,
     read_latency: skein_lib::Duration,
@@ -146,6 +150,7 @@ impl Faults {
     pub(super) fn new(seed: u64, draw: FaultDraw) -> Self {
         let FaultDraw {
             plans,
+            cell,
             actions,
             ineligible,
             bounds,
@@ -172,6 +177,7 @@ impl Faults {
             actions,
             disk,
             fetch_cut: None,
+            cell: cell.map(cells::Driver::new),
             park: None,
             parked: false,
             read_latency,
@@ -289,6 +295,9 @@ impl World {
 
     pub(super) fn retire_workload_plans(&mut self) {
         if let Some(f) = &mut self.workload_faults {
+            if let Some(cell) = &mut f.cell {
+                cell.retire(&mut f.ledger);
+            }
             for plan in &mut f.plans {
                 // With all goals ended, no new target can reach a planned moment.
                 if !plan.fired {
@@ -315,13 +324,11 @@ impl World {
         }
     }
 
-    pub(in crate::composed) fn workload_bounds(&mut self) {
+    pub(in crate::composed) fn workload_bounds(&mut self, inspection: &Inspection) {
         let Some(f) = &self.workload_faults else { return };
         if f.bounds.is_empty() {
             return;
         }
-        let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
-        temper_engine_inspect::inspect(&self.root, &mut inspection);
         let landing_rows = bounds::LANDING_ROWS;
         let settled = f.bounds.contains(&landing_rows)
             && self.workload_goals_ended()
@@ -329,7 +336,7 @@ impl World {
                 table.name == landing_rows.name && table.entries.iter().all(|entry| entry.release == Release::Kept)
             });
         let f = self.workload_faults.as_mut().expect("faulted workload");
-        f.ledger.saturation(&f.bounds, &[&inspection], self.env.now).expect("quiet-point bounds");
+        f.ledger.saturation(&f.bounds, &[inspection], self.env.now).expect("quiet-point bounds");
         if settled {
             // Terminal rows keep their places until another admission. Retire
             // only this observation once those places can all be reclaimed.
@@ -344,6 +351,7 @@ impl World {
     /// Judge runs and gates once, after the ordinary workload's checks.
     pub fn judge_workload_faults(&mut self) -> Result<(), String> {
         self.judge_workload_park()?;
+        self.judge_workload_cell()?;
         self.count_provider_tries();
         let f = self.workload_faults.as_mut().expect("faulted workload");
         super::super::accounts::judge_account_runs(&mut f.ledger, &mut f.runs)?;
@@ -419,7 +427,10 @@ impl World {
         self.observe_workload_runs(&mut f);
         self.workload_forge_tick(&mut f);
         self.workload_provider_tick(&mut f);
-        let acts = self.workload_worker_tick(&mut f).and_then(|()| self.workload_actions_tick(&mut f));
+        let acts = self
+            .workload_cell_tick(&mut f)
+            .and_then(|()| self.workload_worker_tick(&mut f))
+            .and_then(|()| self.workload_actions_tick(&mut f));
         if let Err(finding) = acts {
             self.workload_faults = Some(f);
             return Err(finding);

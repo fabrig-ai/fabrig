@@ -58,6 +58,7 @@ pub use usage::{UsageState, UsageWindow};
 pub use boundary::{Answered, AnsweredCall, Below, Event, Grant, GrantName, Lower, Operation, Request, Start, Window};
 pub use config::{Config, EndpointLimits, Program};
 pub use domain::{Domain, fire, resume, step};
+pub use domain::{Flight as InspectionFlight, IssuedCompletion as InspectionCompletion};
 pub use facts::{Content, Fact, Opening};
 
 pub use feedback::{Feedback, FeedbackRefusal, feedback, feedback_bound};

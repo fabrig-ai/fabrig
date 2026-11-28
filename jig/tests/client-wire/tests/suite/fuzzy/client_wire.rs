@@ -1,7 +1,13 @@
 //! Arbitrary and mutated client bytes (skein's data/codec/golden.md, section 1).
 //! Job arms follow jig/docs/design/client/domain/contract/documents.md, 7.
+//! Cases follow jig/docs/design/domain/testing-workloads.md, section 7.
 use jig_client_protocol_wire::*;
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
+use skein_world::{
+    sweep::{Case, cases},
+    this_test,
+};
+use std::convert::Infallible;
 
 macro_rules! check {
     ($record:ident, $bytes:expr) => {
@@ -748,8 +754,11 @@ fn mutated(rng: &mut Rng) {
 }
 
 #[test]
-fn client_wire_decoders_never_panic_and_reencode_the_same() {
-    let mut rng = Rng::new(0xc11e_0030);
-    arbitrary(&mut rng);
-    mutated(&mut rng);
+fn client_wire_decoders_never_panic_and_reencode_the_same() -> Result<(), Case<Infallible>> {
+    cases(this_test!("client_wire_decoders_never_panic_and_reencode_the_same"), [0xc11e_0030], |seed| {
+        let mut rng = Rng::new(seed);
+        arbitrary(&mut rng);
+        mutated(&mut rng);
+        Ok(())
+    })
 }
