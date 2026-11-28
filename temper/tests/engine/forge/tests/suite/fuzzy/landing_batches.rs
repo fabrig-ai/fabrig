@@ -1,5 +1,5 @@
 //! Seeded batch turns on the independent forge (domain/landing.md, 16;
-//! temper/docs/design/testing/workloads.md, 8.5).
+//! temper/docs/design/testing/workloads-sweeps.md, 1.5).
 use super::super::landing_batches::{heard, workflow};
 use core::convert::Infallible;
 use skein_fake_forge_domain::api as raw;

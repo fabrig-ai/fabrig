@@ -71,7 +71,7 @@ Each owner is read against 3.1, and an assertion is added where a use of a reser
 - **An agent's draws are a part of `Parties`,** `agent/NAME` (`skein/docs/design/testing/sweeps.md`, 2). The fake's failures draw from `Faults` (`llm`), and its cache routing and latency from `Scheduling`.
 - **A named draw for each request.** The answer to a request is drawn from the agent's part, keyed by its conversation, its logical turn and the request's attempt. So the same request draws the same answer whatever the faults. A fault that prevents a request or adds a retry changes which requests are made, not what any one of them draws.
 - **A world not yet on streams** derives the three seeds from its own seed, as it now derives one.
-- **The move changes every random-mode world's draws once.** Before it, each world's cases pinned on a behaviour are listed and kept as scenarios, or their draw is kept by name. Then each world runs at its gate seeds. Where a reach check then misses a kind, its seeds are picked again by the rule they were picked by (`temper/docs/design/testing/workloads.md`, 8.4). Each affected binary's seed and check counts, CPU and instructions are given before and after the move.
+- **The move changes every random-mode world's draws once.** Before it, each world's cases pinned on a behaviour are listed and kept as scenarios, or their draw is kept by name. Then each world runs at its gate seeds. Where a reach check then misses a kind, its seeds are picked again by the rule they were picked by (`temper/docs/design/testing/workloads-sweeps.md`, 1.4). Each affected binary's seed and check counts, CPU and instructions are given before and after the move.
 
 ### 4.4 A drawn agent is captured as it plays
 
@@ -121,7 +121,7 @@ Each owner is read against 3.1, and an assertion is added where a use of a reser
 - **Its expectation is the table's row,** under its column's outcome. A pair that can't occur is listed with its reason.
 - **The cells are kinds of a third family,** one kind per cell. A driver in each world that runs both halves chooses an eligible target and arms both halves for it. It keys the park by its task, its attempt and the park's number, and injects the cell's kind once per park, when it has seen both halves fall for that key. The fault ledger records what it is given and keeps sets of kinds, with no run identity (`skein/docs/design/testing/sweeps.md`, 3), so the pairing is the driver's.
 - **Its tests:** two tasks that hit opposite halves in one seed make no cell, and neither do two parks of one task, each with one half.
-- **Where they're drawn:** the worlds that run real smith under jig's wakes, which are jig's one-process world and temper's one-process and system worlds. At the gate a sweep configures a cell only where its held seeds show it falls within their sample. One kind per family is drawn in the composed sweep (`temper/docs/design/testing/workloads.md`, 8.2). The rest wait for a sweep adopted by the fresh-seed campaigns draft, which counts them as any kind.
+- **Where they're drawn:** the worlds that run real smith under jig's wakes, which are jig's one-process world and temper's one-process and system worlds. At the gate a sweep configures a cell only where its held seeds show it falls within their sample. One kind per family is drawn in the composed sweep (`temper/docs/design/testing/workloads-sweeps.md`, 1.2). The rest wait for a sweep adopted by the fresh-seed campaigns draft, which counts them as any kind.
 
 ## 7. Relations across components, at quiet points
 

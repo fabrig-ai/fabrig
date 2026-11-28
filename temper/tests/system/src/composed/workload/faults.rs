@@ -1,4 +1,4 @@
-//! Mixed finite faults over the composed draw (temper/docs/design/testing/workloads.md, 8.2).
+//! Mixed finite faults over the composed draw (temper/docs/design/testing/workloads-sweeps.md, 1.2).
 use super::World;
 use skein_lib::Time;
 use skein_world::{

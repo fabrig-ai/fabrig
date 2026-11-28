@@ -1,4 +1,4 @@
-//! Workload data and its independent draw (`temper/docs/design/testing/workloads.md`, 3.1).
+//! Workload data and its independent draw (`temper/docs/design/testing/workloads-kit.md`, 1.1).
 
 use skein_lib::Rng;
 use skein_world::streams::{Stream, Streams};

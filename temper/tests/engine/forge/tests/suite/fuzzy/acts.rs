@@ -1,4 +1,4 @@
-//! People act on a seeded train (testing/workloads.md, 4.2, 6, 8.1).
+//! People act on a seeded train (testing/workloads.md, 4.2, 6, testing/workloads-sweeps.md, 1.1).
 use jig_domain_contract as contract;
 use std::collections::{BTreeMap, BTreeSet};
 

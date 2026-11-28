@@ -578,7 +578,7 @@ own change.
 | `a_goal_cancelled_while_its_branch_is_being_made_ends_cancelled` | `temper_faults::people::CANCELS_A_GOAL` | `a goal branch making in flight` |
 
 - **The sweeps that draw these combinations** are the workloads'
-  (`workloads.md`, 8), and each takes them through `exclude`. A sweep
+  (`workloads-sweeps.md`, 1), and each takes them through `exclude`. A sweep
   that draws one, and whose checks find it, configures the fault it
   draws, takes `exclude`, and asks `leaves_out` before the draw.
 - **The branch-holds exclusion** is read before the workload starts a

@@ -229,6 +229,9 @@ forge, temper adds:
   - `testing/reference-case.md`: the case library and its opening act.
   - `testing/reference-case-changing-direction.md`: the case's change of direction.
   - `testing/reference-case-milestones.md`: the case's milestones and hand-offs.
+  - `testing/workloads.md`: the fault vocabulary, seeded workloads in each world and restart comparisons.
+  - `testing/workloads-kit.md`: the seeded draw, logical names, parties' acts and outcomes.
+  - `testing/workloads-sweeps.md`: per-family and composed sweeps, exclusions and campaigns.
   - `testing/worker.md`: the worker's inspection adapter, the faults of its disk and workspaces, and their sweeps.
   - `testing/box/README.md`: where the box's own checks run, the facts they are handed at the shell's boundary, and what its slow binaries keep.
   - `testing/shells.md`: where temper's shells' own checks run, the facts they are handed at the shell's boundary, and what their slow binaries keep.
