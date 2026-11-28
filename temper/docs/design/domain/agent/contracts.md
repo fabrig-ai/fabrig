@@ -42,8 +42,9 @@ In `jig-domain-core-vocabulary` and `jig-domain-core`:
   `settings` names (`jig-domain-people`'s `is_name`), `instructions` text,
   `parts` a list of the vocabulary's `CharterPart`. The root steps it as
   a core event, `Event::ProjectCharters`, in the decision it makes; the
-  core's refusal comes back to the root as an output naming the project,
-  the revision and the fault (jig's design, 6).
+  core's refusal comes back to the root as a direct core output,
+  `Now::ProjectChartersRefused { project, revision, fault }` (jig's
+  design, 6), which the root logs.
 - **The newest:** `Core::project_charters(project: u32) -> u64`, the
   revision of the project's newest set, 0 where it has none.
 - **A task's fields,** in `jig-domain-tasks`' `TaskRecord`: `charters: u64`,

@@ -10,8 +10,8 @@ per-account provider-list narrowing, list history or new-label deadlines.
 times reach the accounts watch without marking an unchanged offer.
 
 - **Not yet:** 1: a deleted project's read answers unknown, not gone [in flight: change 629].
-- **Not yet:** 1: a setting's read names no project.
-- **Not yet:** 1: an attempt's line carries no sources.
+- **Not yet:** 1: a setting's read names no project. [in flight: change 22686]
+- **Not yet:** 1: an attempt's line carries no sources. [in flight: change 22684]
 - **Not yet:** 1: an `inbox` read of needs past the engine's cached prefix goes to the store, which holds none [in flight: change 7577].
 
 - **Not yet:** 1: a party's correction of their own scope past

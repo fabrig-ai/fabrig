@@ -5,10 +5,10 @@
 
 - **Not yet:** 1: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].
-- **Not yet:** 1: `task runs`, absent from the table.
+- **Not yet:** 1: `task runs`, absent from the table. [in flight: change 22684]
 - **Not yet:** 1: `settings show charter` takes no `--project` or
-  `--reason`.
-- **Not yet:** 1: `charter copy`, absent from the table.
+  `--reason`. [in flight: change 22687]
+- **Not yet:** 1: `charter copy`, absent from the table. [in flight: change 22685]
 
 
 - **Not yet:** 1: `role list` and `role show`; 3: `role start` (`../../domain/agent/standing.md`, section 6).

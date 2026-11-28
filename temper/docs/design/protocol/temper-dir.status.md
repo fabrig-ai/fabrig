@@ -4,7 +4,7 @@
 
 - **Not yet:** 3.3: `temper-charter-set` reads a charter's file's
   front matter as `format` alone, and neither reads its parts nor writes
-  one.
+  one. [in flight: change 22674]
 - **Not yet:** 3.3 and 8: the judgement reads no charter's `settings`
   or parts, is given no deployment's charters, and judges no charter's
-  settings charter, room or count (8.1).
+  settings charter, room or count (8.1). [in flight: change 22678]

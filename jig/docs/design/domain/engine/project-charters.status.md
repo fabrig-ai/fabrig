@@ -4,7 +4,9 @@
 
 - **Not yet:** 2, 3, 6 and 8: no project's set is taken, held,
   bounded at its entrance, stored or restored; 4: no task records its
-  project's set.
+  project's set. [in flight: change 22675]
 - **Not yet:** 4 to 6: no creation is bound by name or asks for the
   deployment's words, and no run's words come from a project's charter.
-- **Not yet:** 7: a setting's read names no project.
+  [in flight: change 22680]
+- **Not yet:** 7: a setting's read names no project. [in flight: change
+  22686]

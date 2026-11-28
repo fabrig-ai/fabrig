@@ -3,9 +3,9 @@
 2026-11-28. Where temper's code lags or departs from [temper-dir.md](temper-dir.md).
 
 - **Not yet:** 2: the read judges no tree against the deployment's
-  charters.
+  charters. [in flight: change 22678]
 - **Not yet:** 3: nothing gives jig's core a project's charters from
-  `files`.
+  `files`. [in flight: change 22679]
 - **Design departs:** 2: a home without method is not watched for moves; a
   first `.temper/ways.toml` added from outside temper is read at the next
   engine start or the next landing temper sees on that home, so a project
