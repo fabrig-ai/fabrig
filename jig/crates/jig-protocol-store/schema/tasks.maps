@@ -131,6 +131,7 @@ enum EndedBy = d::EndedBy { closer tuple }
 record Flags = d::Flags
 record DeadlineSpan stands for value
 enum Deadline = d::Deadline { span tuple }
+enum CharterScope = d::CharterScope
 record Member by hand # one creation without its optional recurring template
 record RecurringTemplate by hand # framed members must not recur
 record Creation by hand # joins a member and its optional recurring template

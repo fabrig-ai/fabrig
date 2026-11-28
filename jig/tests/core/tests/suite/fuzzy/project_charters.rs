@@ -13,6 +13,8 @@ use std::{
     convert::Infallible,
 };
 
+mod binding;
+
 const PROJECT: u32 = 1;
 
 fn set(revision: u64) -> core::ProjectCharters {
@@ -40,6 +42,7 @@ fn make(world: &mut World, template: &tasks::TaskRecord) -> u64 {
         reply_to: ReplyTo::new(Token::new(number)),
         creator: template.requester,
         batch: Box::new([tasks::New {
+            charter_scope: tasks::CharterScope::Project,
             deadline: tasks::Deadline::Named,
             label: 0,
             flags: tasks::Flags::PLAIN,

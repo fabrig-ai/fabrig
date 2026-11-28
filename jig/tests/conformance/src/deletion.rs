@@ -209,6 +209,7 @@ fn task_rows(world: &mut World) {
         to: ReplyTo::new(Token::new(9800)),
         key: core::CallKey { task, attempt, completion: 1, position: 0 },
         batch: Box::new([core::Delegate {
+            charter_scope: tasks::CharterScope::Project,
             deadline: tasks::Deadline::Named,
             label: 0,
             flags: tasks::Flags { listed: true, ..tasks::Flags::PLAIN },

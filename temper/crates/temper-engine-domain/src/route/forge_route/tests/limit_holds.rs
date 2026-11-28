@@ -43,6 +43,7 @@ fn two_tasks_with_fresh_reads(read: bool) -> (crate::Domain, Env<crate::Limits>)
                 reply_to: ReplyTo::new(Token::new(number)),
                 creator: tasks::Party::Deployment { project: 1 },
                 batch: Box::new([tasks::New {
+                    charter_scope: jig_domain_tasks::CharterScope::Project,
                     number,
                     project: 1,
                     label: 0,

@@ -12,25 +12,71 @@ use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Queue, Wall};
 
-use crate::{CallKey, CallPart, Core, translate};
+use crate::{CallKey, CallPart, Core, Limits, settings::binding, translate};
 
 impl Core {
+    pub(crate) fn delegate_executors(
+        &self,
+        limits: &Limits,
+        task: u64,
+        batch: &[Delegate],
+        checked: Option<&[tasks::Executor]>,
+    ) -> Result<Box<[tasks::Executor]>, tasks::Refusal> {
+        let size = u32::try_from(batch.len()).unwrap_or(u32::MAX);
+        if size > limits.tasks.batch {
+            return Err(tasks::Refusal::Batch);
+        }
+        if size == 0 {
+            return Ok(Box::new([]));
+        }
+        let project = self.tasks.task(task).ok_or(tasks::Refusal::Unknown)?.project;
+        let mut executors = List::with_capacity(size);
+        for (at, member) in batch.iter().enumerate() {
+            let Ok(bound) = self.bind_charter(limits, project, member.executor, member.charter_scope) else {
+                return Err(tasks::Refusal::Executor);
+            };
+            let executor = binding::executor(member.executor, bound.as_ref());
+            if let Some(checked) = checked
+                && checked.get(at) != Some(&executor)
+            {
+                return Err(tasks::Refusal::Executor);
+            }
+            executors.push(executor).expect("one executor per delegate");
+        }
+        Ok(executors.into_boxed())
+    }
+
     /// Admit one procedure's delegated batch against its current task authority.
     pub fn procedure_batch_admit(
+        &self,
+        limits: &Limits,
+        task: u64,
+        batch: &[Delegate],
+        decision: Wall,
+    ) -> Result<(), crate::StepRefusal> {
+        let executors = match self.delegate_executors(limits, task, batch, None) {
+            Ok(executors) => executors,
+            Err(why) => return Err(crate::routing::effect::procedure::problem(task, why)),
+        };
+        self.procedure_batch_admit_bound(&limits.tasks, task, batch, &executors, decision)
+    }
+
+    pub(crate) fn procedure_batch_admit_bound(
         &self,
         limits: &tasks::Limits,
         task: u64,
         batch: &[Delegate],
+        executors: &[tasks::Executor],
         decision: Wall,
     ) -> Result<(), crate::StepRefusal> {
         let Some(context) = self.tasks.delegation(task) else {
             return Err(crate::routing::effect::procedure::problem(task, tasks::Refusal::Batch));
         };
-        if batch.is_empty() || batch.len() > skein_lib::length::usize_of(limits.batch) {
+        if batch.is_empty() {
             return Err(crate::routing::effect::procedure::problem(task, tasks::Refusal::Batch));
         }
         let mut asked = List::with_capacity(limits.batch);
-        for member in batch {
+        for (member, &effective) in batch.iter().zip(executors) {
             if missing_closer(member.flags, &member.authority).is_some() {
                 return Err(crate::StepRefusal::Denied {
                     answer: authority::Answer::Refuse,
@@ -45,7 +91,7 @@ impl Core {
             if !member.spec.inputs.is_empty() {
                 return Err(crate::routing::effect::procedure::problem(task, tasks::Refusal::Batch));
             }
-            let Some(executor) = self.delegation_executor(context.project, member.executor) else {
+            let Some(executor) = self.delegation_executor(context.project, effective) else {
                 return Err(crate::routing::effect::procedure::problem(task, tasks::Refusal::Batch));
             };
             let Some(symbolic) = symbolic_grants(&member.symbolic_grants, self.authority.limits().grants) else {
@@ -99,14 +145,30 @@ impl Core {
     /// input load or connector handoff.
     pub fn delegate_preflight(
         &self,
-        limits: &tasks::Limits,
+        limits: &Limits,
         key: CallKey,
         batch: &[Delegate],
         decision: Wall,
-    ) -> Result<(), Box<CallPart>> {
+    ) -> Result<Box<[tasks::Executor]>, Box<CallPart>> {
         if !self.current_proof(key.task, key.attempt) {
             return Err(Box::new(delegate_refused(Some(key.task), tasks::Refusal::State)));
         }
+        let executors = match self.delegate_executors(limits, key.task, batch, None) {
+            Ok(executors) => executors,
+            Err(why) => return Err(Box::new(delegate_refused(None, why))),
+        };
+        self.delegate_preflight_bound(&limits.tasks, key, batch, &executors, decision)?;
+        Ok(executors)
+    }
+
+    pub(crate) fn delegate_preflight_bound(
+        &self,
+        limits: &tasks::Limits,
+        key: CallKey,
+        batch: &[Delegate],
+        executors: &[tasks::Executor],
+        decision: Wall,
+    ) -> Result<(), Box<CallPart>> {
         let Some(context) = self.tasks.delegation(key.task) else {
             return Err(Box::new(delegate_refused(Some(key.task), tasks::Refusal::Unknown)));
         };
@@ -114,7 +176,7 @@ impl Core {
             return Err(Box::new(delegate_refused(None, tasks::Refusal::Batch)));
         }
         let mut asked = List::with_capacity(limits.batch);
-        for member in batch {
+        for (member, &effective) in batch.iter().zip(executors) {
             if missing_closer(member.flags, &member.authority).is_some() {
                 return Err(Box::new(CallPart::DelegationDenied {
                     answer: authority::Answer::Refuse,
@@ -130,11 +192,6 @@ impl Core {
             {
                 return Err(Box::new(delegate_refused(None, tasks::Refusal::Unknown)));
             }
-            if let tasks::Executor::Agent { charter } = member.executor
-                && self.charter(charter).is_none()
-            {
-                return Err(Box::new(delegate_refused(None, tasks::Refusal::Executor)));
-            }
             if let Err(why) = super::account_preference::executor(member.executor, member.llm.as_ref()) {
                 return Err(Box::new(delegate_refused(None, why)));
             }
@@ -148,7 +205,7 @@ impl Core {
                     return Err(Box::new(delegate_refused(None, why)));
                 }
             }
-            let Some(executor) = self.delegation_executor(context.project, member.executor) else {
+            let Some(executor) = self.delegation_executor(context.project, effective) else {
                 return Err(Box::new(delegate_refused(None, tasks::Refusal::Executor)));
             };
             let Some(symbolic) = symbolic_grants(&member.symbolic_grants, self.authority.limits().grants) else {
@@ -288,7 +345,7 @@ pub fn resolved_delegate_authority(
 }
 
 /// One delegation waiting for the task child's durable creation reply.
-pub type Delegating = (CallKey, Box<[tasks::Stub]>, Option<jig_domain_people::Given>);
+pub type Delegating = (CallKey, Box<[tasks::Stub]>, Option<jig_domain_people::Given>, Box<[tasks::Executor]>);
 
 /// A procedure's job takes its application's placement bounds and the connector's result contract
 /// (jig/docs/design/domain/engine/executors.md, 5).

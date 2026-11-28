@@ -4167,6 +4167,7 @@ pub fn change_world_with_result_words(
             position: 1,
             tool: engine::Tool::Delegate {
                 batch: Box::new([engine::Delegate {
+                    charter_scope: tasks::CharterScope::Project,
                     executor: tasks::Executor::Procedure { connector: 0, code: 2 },
                     spec: tasks::Spec {
                         job: None,

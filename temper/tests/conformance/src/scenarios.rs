@@ -404,6 +404,7 @@ impl ScenarioApplication for Temper {
                             key: 1,
                             overlap: tasks::RecurringOverlap::Skip,
                             batch: Box::new([tasks::New {
+                                charter_scope: tasks::CharterScope::Project,
                                 label: 0,
                                 deadline: tasks::Deadline::Named,
                                 flags: tasks::Flags::PLAIN,
@@ -682,6 +683,7 @@ pub(crate) fn change(world: &mut World, completion: u32) -> Result<(), Violation
             position: 1,
             tool: engine::Tool::Delegate {
                 batch: Box::new([engine::Delegate {
+                    charter_scope: tasks::CharterScope::Project,
                     executor: tasks::Executor::Procedure { connector: 0, code: 2 },
                     spec: tasks::Spec {
                         job: None,

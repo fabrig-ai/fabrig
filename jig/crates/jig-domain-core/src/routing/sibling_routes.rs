@@ -360,20 +360,18 @@ impl Core {
                     decision: tasks::ProposalDecision::Accept,
                 }))
             }
-            Some(Flight::Made { request, route: super::Made { first, given, stubs, dependencies: _ } }) => {
-                MadeRoute::Person {
-                    stubs,
-                    event: Box::new(people::Event::Decided {
-                        request,
-                        outcome: people::Outcome::Created {
-                            first,
-                            given,
-                            last: *tasks.last().expect("nonempty created batch"),
-                        },
-                    }),
-                }
-            }
-            Some(Flight::Delegating { request, route: (key, stubs, given) }) => {
+            Some(Flight::Made { request, route: super::Made { first, given, stubs, .. } }) => MadeRoute::Person {
+                stubs,
+                event: Box::new(people::Event::Decided {
+                    request,
+                    outcome: people::Outcome::Created {
+                        first,
+                        given,
+                        last: *tasks.last().expect("nonempty created batch"),
+                    },
+                }),
+            },
+            Some(Flight::Delegating { request, route: (key, stubs, given, _) }) => {
                 MadeRoute::Delegated { request, key, tasks, stubs, given }
             }
             None | Some(_) => MadeRoute::Internal,

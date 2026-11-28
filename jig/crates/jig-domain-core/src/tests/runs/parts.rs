@@ -53,8 +53,12 @@ fn run_parts_follow_reasons_in_order_and_own_instructions_replace_them() {
         ("empty own", parts, Some(b"".as_slice()), Reasons::FIRST, b"", Reasons::ALL),
     ] {
         charter.parts = parts;
-        assert_eq!(run_instructions(&charter, own, reasons, false).as_ref(), instructions, "{name}: instructions");
-        assert_eq!(offered_kinds(&charter, own.is_some(), reasons, false), offered, "{name}: offered");
+        assert_eq!(
+            run_instructions(&charter, None, own, reasons, false).as_ref(),
+            instructions,
+            "{name}: instructions"
+        );
+        assert_eq!(offered_kinds(&charter, None, own.is_some(), reasons, false), offered, "{name}: offered");
     }
 }
 

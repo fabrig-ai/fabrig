@@ -85,6 +85,7 @@ pub(crate) fn translate(
                 authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
                 batch
                     .push(core::Delegate {
+                        charter_scope: tasks::CharterScope::Project,
                         deadline: tasks::Deadline::Named,
                         label: 0,
                         flags: tasks::Flags::PLAIN,
@@ -206,6 +207,7 @@ fn job(context: &StepContext, kind: u32, spec: Box<[u8]>, deadline: skein_lib::D
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     core::ProcedureStep {
         batch: Box::new([core::Delegate {
+            charter_scope: tasks::CharterScope::Project,
             deadline: tasks::Deadline::Named,
             label: 0,
             flags: tasks::Flags::PLAIN,

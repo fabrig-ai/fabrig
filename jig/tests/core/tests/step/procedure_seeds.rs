@@ -181,6 +181,7 @@ fn a_zero_budget_procedure_cannot_delegate_a_run_that_spends() {
     given.budget.spend = EFFECT_PRICE;
     given.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     let member = core::Delegate {
+        charter_scope: tasks::CharterScope::Project,
         executor: tasks::Executor::Agent { charter: CHARTER },
         spec: spec(),
         contract: tasks::Contract::Report { words: env.limits.tasks.result_bytes },

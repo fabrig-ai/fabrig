@@ -450,6 +450,7 @@ pub fn task_bytes(task: &TaskRecord) -> Option<u64> {
     }
     // The inline record includes Spec::asks and the durable asked_requester latch.
     bytes(size_of::<TaskRecord>())?
+        .checked_add(bytes(task.scope.as_deref().unwrap_or_default().len())?)?
         .checked_add(match &task.open_attempt {
             Some(open) => run_sources_bytes(open.sources.as_ref())?,
             None => 0,

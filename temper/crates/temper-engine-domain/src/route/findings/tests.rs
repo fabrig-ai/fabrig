@@ -19,6 +19,7 @@ fn add(domain: &mut Domain, env: &Env<Limits>, number: u64, charter: u32, label:
             reply_to: ReplyTo::new(Token::new(1000_u64.checked_add(number).expect("fixture token"))),
             creator: tasks::Party::Deployment { project: 1 },
             batch: Box::new([tasks::New {
+                charter_scope: jig_domain_tasks::CharterScope::Project,
                 number,
                 project: 1,
                 label,

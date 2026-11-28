@@ -15,12 +15,24 @@ impl Core {
         if let Err(problem) = self.make_room(limits, *creator, &batch) {
             return Err(problem.why);
         }
-        if let Err(problem) = self.admit_batch(*creator, &mut batch) {
+        let bindings = match self.bind_batch(limits, &batch, None) {
+            Ok(bindings) => bindings,
+            Err(problem) => return Err(problem.why),
+        };
+        if let Err(problem) = self.admit_batch(limits, *creator, &batch, &bindings) {
             return Err(problem.why);
         }
         crate::effects::resources::check_make(self, &limits.tasks, *creator, &mut batch)?;
         let reads_project = maker.is_none() && self.creator_reads_project(*creator);
-        match self.tasks.check_make(&limits.tasks, *creator, *maker, &batch, places, reads_project) {
+        match self.tasks.check_make_with_charters(
+            &limits.tasks,
+            *creator,
+            *maker,
+            &batch,
+            places,
+            reads_project,
+            &bindings,
+        ) {
             Ok(()) => Ok(()),
             Err(problem) => Err(problem.why),
         }
@@ -57,7 +69,13 @@ impl Core {
         Ok(())
     }
 
-    pub(crate) fn admit_batch(&self, creator: tasks::Party, batch: &mut [tasks::New]) -> Result<(), tasks::Problem> {
+    pub(crate) fn admit_batch(
+        &self,
+        limits: &crate::Limits,
+        creator: tasks::Party,
+        batch: &[tasks::New],
+        bindings: &[Option<tasks::CharterBinding>],
+    ) -> Result<(), tasks::Problem> {
         if let tasks::Party::Person(person) = creator
             && self.people.identity(person).is_none()
         {
@@ -68,7 +86,7 @@ impl Core {
             return Err(tasks::Problem::new(task, tasks::Refusal::Unknown));
         }
         self.batch_people(batch)?;
-        self.resolve_llm(batch)
+        self.resolve_llm(limits, batch, bindings)
     }
 
     pub(crate) fn batch_people(&self, batch: &[tasks::New]) -> Result<(), tasks::Problem> {

@@ -393,6 +393,7 @@ fn recurring_lifetime_allotments_are_not_simultaneous_live_capacity() {
 fn member() -> tasks::New {
     let row = task();
     tasks::New {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         deadline: tasks::Deadline::Named,
         label: row.label,
         flags: row.flags,

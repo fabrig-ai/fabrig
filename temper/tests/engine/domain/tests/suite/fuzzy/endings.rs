@@ -78,6 +78,7 @@ fn chat(seed: u64, child: bool) -> (Driver, engine::Assignment) {
 
 fn delegate_child(driver: &mut Driver, assignment: &engine::Assignment) {
     let child = engine::Delegate {
+        charter_scope: tasks::CharterScope::Project,
         executor: tasks::Executor::Agent { charter: 1 },
         spec: tasks::Spec {
             job: None,

@@ -160,6 +160,7 @@ pub(crate) fn workspace_prepared(
         && core.charter_of(task).policy.resume
         && transcript.bytes <= u64::from(core.settings.resume_bytes);
     let charter = core.charter_of(task);
+    let project_words = super::parts::project_words(core, task);
     let row = core.tasks.task(task).expect("live task");
     let standing = row.flags.ended_by == tasks::EndedBy::Standing;
     let own = row.instructions.as_deref();
@@ -178,7 +179,13 @@ pub(crate) fn workspace_prepared(
                         bytes: transcript.bytes,
                         bound: tasks::context_bound(model.window),
                         kinds: context.session_kinds,
-                        offered: super::parts::offered_kinds(charter, own.is_some(), session.reasons, true),
+                        offered: super::parts::offered_kinds(
+                            charter,
+                            project_words,
+                            own.is_some(),
+                            session.reasons,
+                            true,
+                        ),
                         resumable: resume && transcript.last.is_some(),
                     },
                 );
@@ -211,8 +218,8 @@ pub(crate) fn workspace_prepared(
         Some(tasks::Fresh::Session)
     };
     let conversation = if resume && transcript.last.is_some() { transcript.from } else { attempt };
-    let instructions = super::parts::run_instructions(charter, own, reasons, standing);
-    let offered = super::parts::offered_kinds(charter, own.is_some(), reasons, standing);
+    let instructions = super::parts::run_instructions(charter, project_words, own, reasons, standing);
+    let offered = super::parts::offered_kinds(charter, project_words, own.is_some(), reasons, standing);
     let messages = start_messages(context.inbox, env.limits.tasks.run_inbox, offered);
     let mut proof = start_proof(core, task, attempt, conversation, &messages);
     proof.host = allowance.choice.placement.kind;

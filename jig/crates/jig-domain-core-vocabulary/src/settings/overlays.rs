@@ -112,27 +112,38 @@ pub fn overlaid(default: &Charter, overlay: &Overlay) -> Charter {
         value.documents.clone_from(field);
     }
     if !overlay.instructions.is_empty() {
-        let length = default
-            .policy
-            .instructions
-            .len()
-            .checked_add(overlay.instructions.len())
-            .expect("admitted instruction lengths")
-            .checked_add(if default.policy.instructions.is_empty() { 0 } else { 2 })
-            .expect("joining blank line");
-        let mut instructions = Writer::new(length);
-        instructions.put(&default.policy.instructions).expect("default counted");
-        if !default.policy.instructions.is_empty() {
-            instructions.put(b"\n\n").expect("blank line counted");
-        }
-        instructions.put(&overlay.instructions).expect("overlay counted");
-        value.policy.instructions = instructions.finish();
+        value.policy.instructions = joined_instructions(&default.policy.instructions, &overlay.instructions);
     }
-    let count = default.parts.len().checked_add(overlay.parts.len()).expect("admitted part counts");
+    value.parts = joined_parts(&default.parts, &overlay.parts);
+    value
+}
+
+/// The bytes that join nonempty charter instructions.
+#[must_use]
+pub fn instruction_join(base: &[u8], added: &[u8]) -> &'static [u8] {
+    if base.is_empty() || added.is_empty() { b"" } else { b"\n\n" }
+}
+
+/// Join a charter's base and overlay instructions without changing either's bytes.
+#[must_use]
+pub fn joined_instructions(base: &[u8], added: &[u8]) -> Box<[u8]> {
+    let join = instruction_join(base, added);
+    let length = base.len().checked_add(join.len()).expect("joining blank line");
+    let length = length.checked_add(added.len()).expect("admitted instruction lengths");
+    let mut instructions = Writer::new(length);
+    instructions.put(base).expect("base counted");
+    instructions.put(join).expect("blank line counted");
+    instructions.put(added).expect("overlay counted");
+    instructions.finish()
+}
+
+/// Keep the base parts followed by the overlay's parts.
+#[must_use]
+pub fn joined_parts(base: &[CharterPart], added: &[CharterPart]) -> Box<[CharterPart]> {
+    let count = base.len().checked_add(added.len()).expect("admitted part counts");
     let mut parts = List::with_capacity(u32::try_from(count).expect("admitted parts"));
-    for part in default.parts.iter().chain(overlay.parts.iter()) {
+    for part in base.iter().chain(added) {
         parts.push(part.clone()).expect("parts counted");
     }
-    value.parts = parts.into_boxed();
-    value
+    parts.into_boxed()
 }

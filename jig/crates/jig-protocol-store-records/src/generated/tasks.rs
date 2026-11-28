@@ -1086,6 +1086,22 @@ pub fn deadline_to_domain(record: crate::tasks_v13::Deadline) -> jig_domain_task
 }
 
 #[must_use]
+pub fn charter_scope_to_record(value: &jig_domain_tasks::CharterScope) -> crate::tasks_v13::CharterScope {
+    match value {
+        jig_domain_tasks::CharterScope::Project => crate::tasks_v13::CharterScope::Project,
+        jig_domain_tasks::CharterScope::Deployment => crate::tasks_v13::CharterScope::Deployment,
+    }
+}
+
+#[must_use]
+pub fn charter_scope_to_domain(record: crate::tasks_v13::CharterScope) -> jig_domain_tasks::CharterScope {
+    match record {
+        crate::tasks_v13::CharterScope::Project => jig_domain_tasks::CharterScope::Project,
+        crate::tasks_v13::CharterScope::Deployment => jig_domain_tasks::CharterScope::Deployment,
+    }
+}
+
+#[must_use]
 pub fn result_field_to_record(value: &jig_domain_tasks::ResultField) -> crate::tasks_v13::ResultField {
     let jig_domain_tasks::ResultField { name: field_000000, value: field_000001 } = value;
     crate::tasks_v13::ResultField {

@@ -15,6 +15,7 @@ fn bound() -> JobBound {
 
 fn member() -> Delegate {
     Delegate {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         executor: tasks::Executor::Job { kind: 7 },
         spec: tasks::Spec {
             words: Box::new([]),

@@ -118,6 +118,7 @@ fn review_tree() -> (tasks_domain::Domain, Env<tasks_domain::Limits>) {
         (case::REVIEW, Party::Task(case::DESIGN), Executor::Agent { charter: super::REVIEW_CHARTER }),
     ] {
         let task = New {
+            charter_scope: jig_domain_tasks::CharterScope::Project,
             number,
             project: 1,
             executor,

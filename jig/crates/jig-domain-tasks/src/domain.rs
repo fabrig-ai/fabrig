@@ -631,8 +631,19 @@ impl Domain {
 /// Reply-bearing inputs produce one terminal reply; notifications may emit no output.
 /// Root checks authority, fences exact transport replay and commits saves/erases with resulting
 /// effects before external replies.
-#[expect(clippy::too_many_lines, reason = "the closed task event vocabulary dispatches to focused handlers")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    step_with_charters(domain, env, event, &[], out);
+}
+
+/// Admit an event with the core's resolved charter bindings, in its batch order.
+#[expect(clippy::too_many_lines, reason = "the closed task event vocabulary dispatches to focused handlers")]
+pub fn step_with_charters(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    event: Event,
+    bindings: &[Option<crate::CharterBinding>],
+    out: &mut Queue<Request>,
+) {
     let output_start = out.len();
     let held = crate::settings::before(domain);
     match event {
@@ -679,11 +690,21 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::TickRecurring { task, period } => crate::recurring::tick(domain, env, task, period, out),
         Event::RenewStanding { task, period } => crate::standing::renew(domain, env, task, period, out),
         Event::RecurringBatch { task, period, numbers } => {
-            crate::recurring::make_batch(domain, env, task, period, &numbers, out);
+            crate::recurring::make_batch(domain, env, task, period, &numbers, bindings, out);
         }
         Event::CloserBatch { task, number } => crate::closer::make(domain, env, task, number, out),
         Event::Procedure { reply_to, task, step, read, decision, reads_project } => {
-            crate::procedure::stepped(domain, env, reply_to, task, (step, read), decision, reads_project, out);
+            crate::procedure::stepped(
+                domain,
+                env,
+                reply_to,
+                task,
+                (step, read),
+                decision,
+                reads_project,
+                bindings,
+                out,
+            );
         }
         Event::TakePerson { reply_to, task, person } => {
             crate::person::take(domain, env, reply_to, task, person, out);
@@ -813,12 +834,22 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::Make { reply_to, creator, maker, batch, places, reads_project } => {
             let owner = reply_to.into_token();
-            make(domain, env, ReplyTo::new(owner), creator, maker, batch, &places, reads_project, out);
+            make(domain, env, ReplyTo::new(owner), creator, maker, batch, &places, reads_project, bindings, out);
             domain.unpin_reports(owner);
         }
         Event::MakeResultFollowups { reply_to, proposer, proposal, batch, reads_project } => {
             let owner = reply_to.into_token();
-            make_result_followups(domain, env, ReplyTo::new(owner), proposer, proposal, batch, reads_project, out);
+            make_result_followups(
+                domain,
+                env,
+                ReplyTo::new(owner),
+                proposer,
+                proposal,
+                batch,
+                reads_project,
+                bindings,
+                out,
+            );
             domain.unpin_reports(owner);
         }
         Event::Message { reply_to, project, operation } => {
@@ -935,6 +966,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                     crate::run::Ended { number: task, attempt, end, saved, park: false },
                     cumulative,
                     reads_project,
+                    bindings,
                     out,
                 );
             }
@@ -942,7 +974,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 let ended = crate::run::Ended { number: task, attempt, end: crate::End::Parked, saved, park: true };
                 match cumulative {
                     Some(cumulative) => {
-                        crate::admission::activation(domain, env, reply_to, ended, cumulative, false, out);
+                        crate::admission::activation(domain, env, reply_to, ended, cumulative, false, &[], out);
                     }
                     None => crate::run::activation(domain, env, reply_to, ended, out),
                 }
@@ -1540,12 +1572,15 @@ pub(crate) fn make(
     batch: Box<[New]>,
     places: &[crate::DependencyPlace],
     reads_project: bool,
+    bindings: &[Option<crate::CharterBinding>],
     out: &mut Queue<Request>,
 ) {
-    if let Err(problem) = domain.check_make(&env.limits, creator, maker, &batch, places, reads_project) {
+    if let Err(problem) =
+        domain.check_make_with_charters(&env.limits, creator, maker, &batch, places, reads_project, bindings)
+    {
         return crate::capacity::refused(domain, env, to, problem, out);
     }
-    let numbers = make_admitted(domain, env, creator, batch, out);
+    let numbers = make_admitted(domain, env, creator, batch, bindings, out);
     if let Some(person) = maker {
         for &number in &numbers {
             crate::control::history(domain, number, env.wall, Party::Person(person), crate::Change::Made, &[], out);
@@ -1576,6 +1611,7 @@ fn make_result_followups(
     proposal: u64,
     batch: Box<[New]>,
     reads_project: bool,
+    bindings: &[Option<crate::CharterBinding>],
     out: &mut Queue<Request>,
 ) {
     if !domain.ready() {
@@ -1588,11 +1624,12 @@ fn make_result_followups(
         proposal,
         &batch,
         reads_project,
+        bindings,
     ) {
         return crate::capacity::refused(domain, env, to, problem, out);
     }
     remember_result_followups(domain, &env.limits, proposer, &batch);
-    let numbers = make_admitted(domain, env, Party::Task(proposer), batch, out);
+    let numbers = make_admitted(domain, env, Party::Task(proposer), batch, bindings, out);
     out.push(Request::Made { reply_to: to, tasks: numbers });
 }
 
@@ -1614,6 +1651,7 @@ pub(crate) fn make_admitted(
     env: &Env<Limits>,
     creator: Party,
     batch: Box<[New]>,
+    bindings: &[Option<crate::CharterBinding>],
     out: &mut Queue<Request>,
 ) -> Box<[u64]> {
     if let Some(row) = crate::closer::with_work(domain, &env.limits, creator, &batch, env.wall)
@@ -1731,7 +1769,7 @@ pub(crate) fn make_admitted(
             crate::funders::save_funding(domain, funder, out);
         }
     }
-    for new in batch {
+    for (at, new) in batch.into_iter().enumerate() {
         let number = new.number;
         let mut waiting = List::with_capacity(env.limits.dependencies);
         for dependency in &new.dependencies {
@@ -1758,6 +1796,10 @@ pub(crate) fn make_admitted(
             placed: None,
             settings: crate::SettingsRevision { task: domain.newest, run: None },
             charters: domain.newest_project_charters(new.project),
+            scope: match bindings.get(at) {
+                Some(Some(binding)) => Some(binding.scope.clone()),
+                Some(None) | None => None,
+            },
             label: new.label,
             flags: new.flags,
             last_activity: env.wall,
@@ -1798,7 +1840,7 @@ pub(crate) fn make_admitted(
             run_reserved: 0,
             root: root.unwrap_or(number),
             depth,
-            executor: new.executor,
+            executor: crate::bound_executor(new.executor, bindings, at),
             taken_by: None,
             person_answer: None,
             person_wait: None,

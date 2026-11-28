@@ -172,9 +172,10 @@ pub(crate) fn begin_creation(
         return;
     }
     let first = creating.members.first().expect("nonempty creation").clone();
+    let executor = creation_executor(&creating.kind, 0, first.executor);
     let first_symbols = creating.symbols.first().expect("one symbol list per member").clone();
     let request = core.fly(crate::routing::flight::Flight::Creating { request, route: creating });
-    creation_holdings(core, &mut routed.out, request, root.unwrap_or(first.number), &first, &first_symbols);
+    creation_holdings(core, &mut routed.out, request, root.unwrap_or(first.number), (&first, executor), &first_symbols);
 }
 
 pub(crate) fn created_holdings(
@@ -218,8 +219,9 @@ pub(crate) fn created_holdings(
         creating.answered.clear();
         let member = member.clone();
         let root = creating.root.unwrap_or(member.number);
+        let executor = creation_executor(&creating.kind, creating.at, member.executor);
         let symbols = creating.symbols.get(creating.at).expect("one symbol list per member").clone();
-        creation_holdings(core, &mut routed.out, request, root, &member, &symbols);
+        creation_holdings(core, &mut routed.out, request, root, (&member, executor), &symbols);
         return;
     }
     let (request, creating) = core.take_creation(request).expect("completed creation flight");
@@ -253,7 +255,7 @@ fn finish_creation(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, requ
                 super::propose::Proposal { request, person, reason, to, batch: creating.members, stubs },
             );
         }
-        CreationKind::Batch { beneath, person, given, stubs } => {
+        CreationKind::Batch { beneath, person, given, stubs, executors } => {
             let first = creating.members.first().expect("nonempty batch").number;
             let project = creating.members.first().expect("nonempty batch").project;
             if beneath.is_none() {
@@ -271,6 +273,7 @@ fn finish_creation(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, requ
                     first,
                     given,
                     stubs,
+                    executors,
                     dependencies: Some(super::batch_reads::Admission::new(person, project, &env.limits)),
                 },
             });
@@ -524,12 +527,19 @@ pub(crate) fn change_policy_request(
     }
 }
 
+fn creation_executor(kind: &CreationKind, at: usize, requested: tasks::Executor) -> tasks::Executor {
+    match kind {
+        CreationKind::Batch { executors, .. } => *executors.get(at).expect("checked executor for every member"),
+        CreationKind::Propose { .. } => requested,
+    }
+}
+
 fn creation_holdings(
     core: &Core,
     out: &mut Queue<Request>,
     request: Token,
     root: u64,
-    new: &tasks::New,
+    (new, executor): (&tasks::New, tasks::Executor),
     symbols: &[people::Symbol],
 ) {
     for &connector in core.connector_recipients.resources.as_ref() {
@@ -546,7 +556,7 @@ fn creation_holdings(
                 project: new.project,
                 root,
                 number: new.number,
-                executor: new.executor,
+                executor,
                 spec: new.spec.clone(),
                 tracked: new.tracked.is_some(),
                 symbols: named.into_boxed(),

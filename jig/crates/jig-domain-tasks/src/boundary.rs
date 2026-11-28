@@ -12,9 +12,9 @@ use crate::{Authority, Class, Funder, Numbers, Tries};
 use crate::{HoldKind, ResourceKind};
 use alloc::boxed::Box;
 pub use jig_domain_contract::ops::{
-    Active, Bound, ChangeTitle, Circle, Closing, Contract, Deadline, Ending, Exceeded, Executor, FieldRule, Hold,
-    HoldSource, JobSpec, Message, MessageKind, New, NoticeState, Parameter, Party, PersonAddress, Phase,
-    RecurringOverlap, RecurringTemplate, ResultField, ResultKind, ResultsWake, Spec, Stage, TaskResult, Verdict,
+    Active, Bound, ChangeTitle, CharterScope, Circle, Closing, Contract, Deadline, Ending, Exceeded, Executor,
+    FieldRule, Hold, HoldSource, JobSpec, Message, MessageKind, New, NoticeState, Parameter, Party, PersonAddress,
+    Phase, RecurringOverlap, RecurringTemplate, ResultField, ResultKind, ResultsWake, Spec, Stage, TaskResult, Verdict,
     WakePolicy, WakeRule, Was, Word,
 };
 pub use jig_domain_contract::procedures::{ProcedureDecision, ProcedureEnd, ProcedureMessage};
@@ -287,6 +287,8 @@ pub struct TaskRecord {
     /// Settings read by this task and its run (domain/engine/settings.md, 3).
     pub settings: SettingsRevision,
     pub charters: u64,
+    /// The name of the charter in that set, if this task was bound.
+    pub scope: Option<Box<[u8]>>,
     /// Opaque application label, immutable after creation.
     pub label: u32,
     /// Immutable engine flags.

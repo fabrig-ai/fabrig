@@ -97,11 +97,13 @@ enum EndedBy { result, requester, closer: Closer, standing }
 record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
 record DeadlineSpan { value: duration }
 enum Deadline { named, span: DeadlineSpan }
+enum CharterScope { project, deployment }
 record Member { deadline: Deadline
     label: u32 flags: Flags
     number: u64 project: u32 executor: Executor llm: option LlmChoice spec: Spec contract: Contract
     authority: Authority numbers: Numbers funder: Funder
     dependencies: list 64 Number holdings: list 64 Holding wake: WakePolicy tracked: option u32
+    charter_scope: CharterScope = project
 }
 record RecurringTemplate { key: u32 batch: bytes 67108864 pieces Member overlap: RecurringOverlap }
 record Creation { member: Member recurring: option RecurringTemplate }
@@ -292,6 +294,7 @@ record TaskHistory {
     grace: option Grace
     settings: SettingsRevision
     charters: u64 = 0
+    scope: option bytes 32 = none
     revisions: Revisions
     created_at: u64
     changed: u64
@@ -394,6 +397,7 @@ record HotHistory {
     grace: option Grace
     settings: SettingsRevision
     charters: u64 = 0
+    scope: option bytes 32 = none
     revisions: Revisions
     created_at: u64
     changed: u64

@@ -970,6 +970,7 @@ mod tests {
     fn report_delegate(core: &mut Core, limits: &Limits, number: u64, requester: u64, contract: tasks::Contract) {
         let source = core.tasks.task(DELEGATE_TEMPLATE).expect("delegate template");
         let new = tasks::New {
+            charter_scope: tasks::CharterScope::Project,
             number,
             project: source.project,
             executor: source.executor,

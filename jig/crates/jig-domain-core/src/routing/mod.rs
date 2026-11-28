@@ -111,8 +111,19 @@ pub(crate) struct PersonEscalation {
 
 #[derive(Hash, Debug)]
 pub(crate) enum CreationKind {
-    Batch { beneath: Option<u64>, person: u64, given: Option<people::Given>, stubs: Box<[tasks::Stub]> },
-    Propose { person: u64, reason: Box<[u8]>, to: u32, stubs: Box<[tasks::Stub]> },
+    Batch {
+        beneath: Option<u64>,
+        person: u64,
+        given: Option<people::Given>,
+        stubs: Box<[tasks::Stub]>,
+        executors: Box<[tasks::Executor]>,
+    },
+    Propose {
+        person: u64,
+        reason: Box<[u8]>,
+        to: u32,
+        stubs: Box<[tasks::Stub]>,
+    },
 }
 
 /// A party's batch waiting for the task child's make result.
@@ -122,6 +133,7 @@ pub(crate) struct Made {
     pub given: Option<people::Given>,
     pub stubs: Box<[tasks::Stub]>,
     pub dependencies: Option<party::batch_reads::Admission>,
+    pub executors: Box<[tasks::Executor]>,
 }
 
 /// One person task pending all numbered connector holdings in this decision.
@@ -152,7 +164,7 @@ pub(crate) struct DelegateCreation {
 
 #[derive(Hash, Debug)]
 enum BatchKind {
-    Delegation { stubs: Box<[tasks::Stub]>, given: Option<people::Given> },
+    Delegation { stubs: Box<[tasks::Stub]>, given: Option<people::Given>, checked: Box<[tasks::Executor]> },
     Proposal { reason: Box<[u8]>, as_holder: bool },
 }
 
@@ -160,6 +172,7 @@ enum BatchKind {
 pub(crate) struct ProcedureCreation {
     decision: tasks::ProcedureDecision,
     members: Box<[tasks::New]>,
+    checked: Box<[tasks::Executor]>,
     remaining: u32,
     answered: List<u16>,
     failed: bool,

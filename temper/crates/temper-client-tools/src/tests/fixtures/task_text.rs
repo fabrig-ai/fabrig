@@ -69,6 +69,7 @@ pub(crate) fn source_task(words: &[u8]) -> (core::engine::Engine, core::Limits, 
 
 fn new_task(authority: tasks::Authority, words: &[u8]) -> tasks::New {
     tasks::New {
+        charter_scope: tasks::CharterScope::Project,
         deadline: tasks::Deadline::Named,
         label: 0,
         flags: tasks::Flags::PLAIN,

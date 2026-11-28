@@ -3,6 +3,7 @@
 pub use jig_domain_core_vocabulary::settings::*;
 
 pub mod application;
+pub(crate) mod binding;
 pub mod change;
 pub mod charters;
 pub mod check;

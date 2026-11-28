@@ -371,6 +371,7 @@ fn a_refused_procedure_batch_sends_its_findings_to_its_connector() {
     let mut authority = child.authority;
     authority.budget.spend = u64::MAX;
     let delegate = Delegate {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         executor: child.executor,
         spec: child.spec,
         contract: child.contract,

@@ -469,6 +469,7 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
             reply_to: skein_lib::ReplyTo::new(Token::new(u64::MAX - 3)),
             creator: tasks::Party::Deployment { project: 1 },
             batch: Box::new([tasks::New {
+                charter_scope: tasks::CharterScope::Project,
                 number: goal,
                 project: 1,
                 label: 0,

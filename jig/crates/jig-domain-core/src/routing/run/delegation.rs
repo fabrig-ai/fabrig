@@ -63,10 +63,13 @@ pub(crate) fn delegate(
         call_decision(core, &mut out, to, key, part);
         return out;
     }
-    if let Err(part) = core.delegate_preflight(&env.limits.tasks, key, &batch, env.wall) {
-        call_decision(core, &mut out, to, key, *part);
-        return out;
-    }
+    let checked = match core.delegate_preflight(&env.limits, key, &batch, env.wall) {
+        Ok(checked) => checked,
+        Err(part) => {
+            call_decision(core, &mut out, to, key, *part);
+            return out;
+        }
+    };
     let (project, ids) = match core.delegate_inputs(&env.limits.tasks, key, &batch) {
         Ok(value) => value,
         Err(part) => {
@@ -75,11 +78,11 @@ pub(crate) fn delegate(
         }
     };
     if ids.is_empty() {
-        return delegate_validated(core, env, work, to, key, batch, Box::new([]));
+        return delegate_validated(core, env, work, to, key, batch, checked, Box::new([]));
     }
     let stubs = List::with_capacity(u32::try_from(ids.len()).expect("bounded input IDs"));
     core.handoff_call(key, CallHolder::Routed, CallHolder::DelegateInput);
-    load_input(core, env, DelegateInput { to, key, batch, ids, at: 0, project, stubs })
+    load_input(core, env, DelegateInput { to, key, batch, checked, ids, at: 0, project, stubs })
 }
 
 #[derive(Hash, Debug)]
@@ -87,6 +90,7 @@ pub(crate) struct DelegateInput {
     pub to: ReplyTo,
     pub key: CallKey,
     pub batch: Box<[Delegate]>,
+    pub checked: Box<[tasks::Executor]>,
     pub ids: Box<[u64]>,
     pub at: usize,
     pub project: u32,
@@ -135,12 +139,13 @@ pub(crate) fn input_loaded(
         load_input(core, env, read)
     } else {
         core.handoff_call(read.key, CallHolder::DelegateInput, CallHolder::Routed);
-        delegate_validated(core, env, work, read.to, read.key, read.batch, read.stubs.into_boxed())
+        delegate_validated(core, env, work, read.to, read.key, read.batch, read.checked, read.stubs.into_boxed())
     }
 }
 
 #[expect(
     clippy::too_many_lines,
+    clippy::too_many_arguments,
     reason = "one bounded delegated batch receives task identities and connector handoffs"
 )]
 fn delegate_validated(
@@ -150,6 +155,7 @@ fn delegate_validated(
     to: ReplyTo,
     key: CallKey,
     mut batch: Box<[Delegate]>,
+    checked: Box<[tasks::Executor]>,
     stubs: Box<[tasks::Stub]>,
 ) -> Queue<Request> {
     assert!(core.pending_calls.get(&key) == Some(&CallHolder::Routed), "delegation holds the routed call {key:?}");
@@ -158,12 +164,15 @@ fn delegate_validated(
         call_decision(core, &mut out, to, key, part);
         return out;
     }
+    if let Err(why) = core.delegate_executors(&env.limits, key.task, &batch, Some(&checked)) {
+        return delegate_refused(core, to, key, None, why);
+    }
     core.take_models(key.task, &mut batch);
     core.take_deadline(key.task, &mut batch);
     if let Err(why) = core.task_as_allowed(key.task, &mut batch) {
         return delegate_refused(core, to, key, None, why);
     }
-    if let Err(part) = core.delegate_preflight(&env.limits.tasks, key, &batch, env.wall) {
+    if let Err(part) = core.delegate_preflight_bound(&env.limits.tasks, key, &batch, &checked, env.wall) {
         let mut out = Queue::uncapped();
         call_decision(core, &mut out, to, key, *part);
         return out;
@@ -179,7 +188,7 @@ fn delegate_validated(
     }
     let mut given = None;
     let mut created = List::with_capacity(env.limits.tasks.batch);
-    for (index, member) in batch.into_iter().enumerate() {
+    for (index, (member, effective)) in batch.into_iter().zip(checked.iter()).enumerate() {
         let index = u32::try_from(index).expect("batch length fits u32");
         let mut dependencies = List::with_capacity(env.limits.tasks.dependencies);
         for dependency in member.dependencies {
@@ -216,6 +225,7 @@ fn delegate_validated(
         };
         created
             .push(tasks::New {
+                charter_scope: member.charter_scope,
                 deadline: member.deadline,
                 label: member.label,
                 flags: member.flags,
@@ -235,7 +245,7 @@ fn delegate_validated(
                 funder: tasks::Funder::Task(key.task),
                 dependencies: dependencies.into_boxed(),
                 holdings: Box::new([]),
-                wake: member.wake.unwrap_or(crate::admission::amendments::default_wake(core, &member.executor)),
+                wake: member.wake.unwrap_or(crate::admission::amendments::default_wake(core, effective)),
                 recurring: None,
                 tracked: member.tracked,
             })
@@ -247,7 +257,7 @@ fn delegate_validated(
         u32::try_from(core.connector_recipients.resources.len()).expect("configured connector count fits u32");
     let route = DelegateCreation {
         key,
-        kind: BatchKind::Delegation { stubs, given },
+        kind: BatchKind::Delegation { stubs, given, checked },
         members,
         remaining,
         answered: List::with_capacity(remaining),
@@ -257,7 +267,8 @@ fn delegate_validated(
     if remaining == 0 {
         return finish_delegate_holdings(core, env, work, request, route);
     }
-    let asked = holdings_need(root, &route.members, env.limits.tasks.batch);
+    let BatchKind::Delegation { checked, .. } = &route.kind else { unreachable!("delegation route") };
+    let asked = holdings_need(root, &route.members, checked, env.limits.tasks.batch);
     let request = core.fly(crate::routing::flight::Flight::CreatingDelegates { request, route });
     let mut out = Queue::uncapped();
     for &connector in core.connector_recipients.resources.as_ref() {
@@ -343,10 +354,12 @@ fn finish_delegate_holdings(
         };
     }
     match flight.kind {
-        BatchKind::Delegation { stubs, given } => {
+        BatchKind::Delegation { stubs, given, checked } => {
             crate::admission::deadlines::resolve(&mut flight.members, env.wall);
-            let request =
-                core.fly(crate::routing::flight::Flight::Delegating { request, route: (flight.key, stubs, given) });
+            let request = core.fly(crate::routing::flight::Flight::Delegating {
+                request,
+                route: (flight.key, stubs, given, checked),
+            });
             work.push(Work::Event(Event::Tasks(tasks::Event::Make {
                 reads_project: false,
                 maker: None,
@@ -417,6 +430,7 @@ pub(crate) fn propose_batch(
         let number = *numbers.get(u32::try_from(index).expect("batch index")).expect("one ID per member");
         created
             .push(tasks::New {
+                charter_scope: member.charter_scope,
                 deadline: member.deadline,
                 label: member.label,
                 flags: member.flags,
@@ -458,7 +472,7 @@ pub(crate) fn propose_batch(
     if remaining == 0 {
         return finish_delegate_holdings(core, env, work, request, route);
     }
-    let asked = holdings_need(root, &route.members, env.limits.tasks.batch);
+    let asked = holdings_need(root, &route.members, &[], env.limits.tasks.batch);
     let request = core.fly(crate::routing::flight::Flight::CreatingDelegates { request, route });
     let mut out = Queue::uncapped();
     for &connector in core.connector_recipients.resources.as_ref() {
@@ -495,6 +509,17 @@ pub(crate) fn procedure_step(
         }
         return Queue::uncapped();
     }
+    let checked = match core.delegate_executors(&env.limits, task, &decision.batch, None) {
+        Ok(checked) => checked,
+        Err(why) => {
+            return crate::routing::effect::procedure::refused(
+                core,
+                task,
+                step,
+                crate::routing::effect::procedure::problem(task, why),
+            );
+        }
+    };
     core.take_models(task, &mut decision.batch);
     core.take_deadline(task, &mut decision.batch);
     if let Err(why) = core.task_as_allowed(task, &mut decision.batch) {
@@ -533,7 +558,7 @@ pub(crate) fn procedure_step(
             })));
         }
         [_, ..] => {
-            if let Err(why) = core.procedure_batch_admit(&env.limits.tasks, task, &batch, env.wall) {
+            if let Err(why) = core.procedure_batch_admit_bound(&env.limits.tasks, task, &batch, &checked, env.wall) {
                 return crate::routing::effect::procedure::refused(core, task, step, why);
             }
             let context = core.tasks.delegation(task).expect("admitted procedure owner");
@@ -551,7 +576,7 @@ pub(crate) fn procedure_step(
                 numbers.push(number).expect("bounded procedure task IDs");
             }
             let mut created = List::with_capacity(env.limits.tasks.batch);
-            for (index, member) in batch.into_iter().enumerate() {
+            for (index, (member, effective)) in batch.into_iter().zip(checked.iter()).enumerate() {
                 let at = u32::try_from(index).expect("bounded batch index");
                 let mut dependencies = List::with_capacity(env.limits.tasks.dependencies);
                 for dependency in member.dependencies {
@@ -594,6 +619,7 @@ pub(crate) fn procedure_step(
                 };
                 created
                     .push(tasks::New {
+                        charter_scope: member.charter_scope,
                         deadline: member.deadline,
                         label: member.label,
                         flags: member.flags,
@@ -613,30 +639,35 @@ pub(crate) fn procedure_step(
                         funder: tasks::Funder::Task(task),
                         dependencies: dependencies.into_boxed(),
                         holdings: Box::new([]),
-                        wake: member.wake.unwrap_or(crate::admission::amendments::default_wake(core, &member.executor)),
+                        wake: member.wake.unwrap_or(crate::admission::amendments::default_wake(core, effective)),
                         recurring: None,
                         tracked: member.tracked,
                     })
                     .expect("bounded procedure batch");
             }
-            let mut members = created.into_boxed();
-            if let Err(problem) = core.resolve_llm(&mut members) {
+            let members = created.into_boxed();
+            let bindings = match core.bind_batch(&env.limits, &members, Some(&checked)) {
+                Ok(bindings) => bindings,
+                Err(problem) => {
+                    return crate::routing::effect::procedure::refused(core, task, step, StepRefusal::Refused(problem));
+                }
+            };
+            if let Err(problem) = core.resolve_llm(&env.limits, &members, &bindings) {
                 return crate::routing::effect::procedure::refused(core, task, step, StepRefusal::Refused(problem));
             }
             let remaining =
                 u32::try_from(core.connector_recipients.resources.len()).expect("configured connector count fits u32");
             if remaining == 0 {
-                finish_procedure_holdings(core, env, work, task, step, parts, members);
-                return out;
+                return finish_procedure_holdings(core, env, work, task, step, parts, members, &checked);
             }
             let mut asked = List::with_capacity(u32::try_from(members.len()).expect("bounded procedure batch"));
-            for member in &members {
+            for (member, &executor) in members.iter().zip(checked.iter()) {
                 asked
                     .push(HoldingsNeed {
                         project: member.project,
                         root,
                         number: member.number,
-                        executor: member.executor,
+                        executor,
                         spec: member.spec.clone(),
                         tracked: member.tracked.is_some(),
                         symbols: Box::new([]),
@@ -650,6 +681,7 @@ pub(crate) fn procedure_step(
                 route: ProcedureCreation {
                     decision: parts,
                     members,
+                    checked,
                     remaining,
                     answered: List::with_capacity(remaining),
                     failed: false,
@@ -728,11 +760,21 @@ pub(crate) fn procedure_holdings(
                 crate::routing::effect::procedure::problem(task, tasks::Refusal::Holds),
             );
         }
-        finish_procedure_holdings(core, env, work, task, step, flight.decision, flight.members);
+        return finish_procedure_holdings(
+            core,
+            env,
+            work,
+            task,
+            step,
+            flight.decision,
+            flight.members,
+            &flight.checked,
+        );
     }
     out
 }
 
+#[expect(clippy::too_many_arguments, reason = "keep the procedure fence and its checked members together")]
 fn finish_procedure_holdings(
     core: &mut Core,
     env: &Env<Limits>,
@@ -741,7 +783,17 @@ fn finish_procedure_holdings(
     step: u64,
     mut decision: tasks::ProcedureDecision,
     members: Box<[tasks::New]>,
-) {
+    checked: &[tasks::Executor],
+) -> Queue<Request> {
+    let bindings = match core.bind_batch(&env.limits, &members, Some(checked)) {
+        Ok(bindings) => bindings,
+        Err(problem) => {
+            return crate::routing::effect::procedure::refused(core, task, step, StepRefusal::Refused(problem));
+        }
+    };
+    if let Err(problem) = core.resolve_llm(&env.limits, &members, &bindings) {
+        return crate::routing::effect::procedure::refused(core, task, step, StepRefusal::Refused(problem));
+    }
     decision.batch = members;
     crate::admission::deadlines::resolve(&mut decision.batch, env.wall);
     work.push(Work::Event(Event::Tasks(tasks::Event::Procedure {
@@ -752,6 +804,7 @@ fn finish_procedure_holdings(
         read: core.tasks.procedure_offered(task),
         decision,
     })));
+    Queue::uncapped()
 }
 
 pub(crate) fn start_recurring(
@@ -787,6 +840,7 @@ pub(crate) fn start_recurring(
         reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Admission)),
         creator: tasks::Party::Deployment { project },
         batch: Box::new([tasks::New {
+            charter_scope: tasks::CharterScope::Project,
             deadline: jig_domain_tasks::Deadline::Named,
             label: 0,
             flags: jig_domain_tasks::Flags::PLAIN,
@@ -864,15 +918,15 @@ pub(crate) fn route_start_recurring(
     Queue::uncapped()
 }
 
-fn holdings_need(root: u64, members: &[tasks::New], capacity: u32) -> List<HoldingsNeed> {
+fn holdings_need(root: u64, members: &[tasks::New], checked: &[tasks::Executor], capacity: u32) -> List<HoldingsNeed> {
     let mut asked = List::with_capacity(capacity);
-    for member in members {
+    for (at, member) in members.iter().enumerate() {
         asked
             .push(HoldingsNeed {
                 project: member.project,
                 root,
                 number: member.number,
-                executor: member.executor,
+                executor: checked.get(at).copied().unwrap_or(member.executor),
                 spec: member.spec.clone(),
                 tracked: member.tracked.is_some(),
                 symbols: Box::new([]),

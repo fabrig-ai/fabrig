@@ -337,6 +337,7 @@ impl Continuation {
                             to: ReplyTo::new(Token::new(8000 + u64::from(completion))),
                             key: core::CallKey { task, attempt, completion, position: 0 },
                             batch: Box::new([core::Delegate {
+                                charter_scope: tasks::CharterScope::Project,
                                 deadline: jig_domain_tasks::Deadline::Named,
                                 label: 0,
                                 flags: jig_domain_tasks::Flags::PLAIN,
@@ -483,6 +484,7 @@ impl Continuation {
                             key: 1,
                             overlap: tasks::RecurringOverlap::Skip,
                             batch: Box::new([tasks::New {
+                                charter_scope: tasks::CharterScope::Project,
                                 deadline: jig_domain_tasks::Deadline::Named,
                                 label: 0,
                                 flags: jig_domain_tasks::Flags::PLAIN,

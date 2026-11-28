@@ -118,6 +118,7 @@ pub fn domain(limits: &Limits, seed: u64) -> Domain {
 #[must_use]
 pub fn task(number: u64, dependencies: &[u64]) -> New {
     New {
+        charter_scope: tasks::CharterScope::Project,
         deadline: jig_domain_tasks::Deadline::Named,
         label: 0,
         flags: jig_domain_tasks::Flags::PLAIN,

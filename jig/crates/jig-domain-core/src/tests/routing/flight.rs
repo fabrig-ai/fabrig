@@ -143,7 +143,13 @@ fn person_task_move_and_make_replies_return_the_original_keyed_outcome() {
             _ => (
                 Flight::Made {
                     request,
-                    route: crate::routing::Made { first: 6, given: None, stubs: Box::new([]), dependencies: None },
+                    route: crate::routing::Made {
+                        first: 6,
+                        given: None,
+                        stubs: Box::new([]),
+                        dependencies: None,
+                        executors: Box::new([]),
+                    },
                 },
                 people::Outcome::Created { first: 6, last: 7, given: None },
             ),

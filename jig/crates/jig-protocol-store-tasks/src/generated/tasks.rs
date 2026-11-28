@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 13;
 pub const LAYOUT: [u8; 32] = [
-    0x70, 0xc3, 0x5f, 0xcb, 0xe5, 0x7a, 0x04, 0xac, 0xed, 0x77, 0xb6, 0x06, 0x4a, 0x17, 0x62, 0xbd, 0xfd, 0x74, 0x05,
-    0x88, 0xd0, 0xb2, 0x46, 0xfa, 0x16, 0x6a, 0x4a, 0x3e, 0xfa, 0x50, 0x1e, 0xe5,
+    0x8e, 0xdd, 0x0f, 0x6c, 0xdc, 0x69, 0xfc, 0x40, 0xa6, 0xda, 0x5a, 0x01, 0x2f, 0x81, 0xab, 0xe4, 0x34, 0x64, 0x6b,
+    0x62, 0xdd, 0xe0, 0x61, 0x81, 0xb8, 0x9d, 0x91, 0x4a, 0xf3, 0x05, 0xc7, 0x7c,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -96,6 +96,7 @@ pub struct Limits {
     pub task_history_proposal_rows: u32,
     pub task_history_instructions_some: u32,
     pub task_history_refused: u32,
+    pub task_history_scope_some: u32,
     pub task_run_replies: u32,
     pub task_definition_dependencies: u32,
     pub task_definition_waiting_on: u32,
@@ -112,6 +113,7 @@ pub struct Limits {
     pub hot_history_question_lines: u32,
     pub hot_history_proposal_rows: u32,
     pub hot_history_refused: u32,
+    pub hot_history_scope_some: u32,
     pub hot_definition_dependencies: u32,
     pub hot_definition_waiting_on: u32,
     pub hot_definition_added: u32,
@@ -210,6 +212,7 @@ pub const CEILINGS: Limits = Limits {
     task_history_proposal_rows: 128,
     task_history_instructions_some: 524_288,
     task_history_refused: 128,
+    task_history_scope_some: 32,
     task_run_replies: 128,
     task_definition_dependencies: 64,
     task_definition_waiting_on: 64,
@@ -226,6 +229,7 @@ pub const CEILINGS: Limits = Limits {
     hot_history_question_lines: 128,
     hot_history_proposal_rows: 128,
     hot_history_refused: 128,
+    hot_history_scope_some: 32,
     hot_definition_dependencies: 64,
     hot_definition_waiting_on: 64,
     hot_definition_added: 64,
@@ -324,6 +328,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "task_history_proposal_rows",
     "task_history_instructions_some",
     "task_history_refused",
+    "task_history_scope_some",
     "task_run_replies",
     "task_definition_dependencies",
     "task_definition_waiting_on",
@@ -340,6 +345,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "hot_history_question_lines",
     "hot_history_proposal_rows",
     "hot_history_refused",
+    "hot_history_scope_some",
     "hot_definition_dependencies",
     "hot_definition_waiting_on",
     "hot_definition_added",
@@ -442,6 +448,7 @@ impl Limits {
             self.task_history_proposal_rows,
             self.task_history_instructions_some,
             self.task_history_refused,
+            self.task_history_scope_some,
             self.task_run_replies,
             self.task_definition_dependencies,
             self.task_definition_waiting_on,
@@ -458,6 +465,7 @@ impl Limits {
             self.hot_history_question_lines,
             self.hot_history_proposal_rows,
             self.hot_history_refused,
+            self.hot_history_scope_some,
             self.hot_definition_dependencies,
             self.hot_definition_waiting_on,
             self.hot_definition_added,
@@ -561,6 +569,7 @@ impl Limits {
             task_history_proposal_rows: self.task_history_proposal_rows.min(most),
             task_history_instructions_some: self.task_history_instructions_some.min(most),
             task_history_refused: self.task_history_refused.min(most),
+            task_history_scope_some: self.task_history_scope_some.min(most),
             task_run_replies: self.task_run_replies.min(most),
             task_definition_dependencies: self.task_definition_dependencies.min(most),
             task_definition_waiting_on: self.task_definition_waiting_on.min(most),
@@ -577,6 +586,7 @@ impl Limits {
             hot_history_question_lines: self.hot_history_question_lines.min(most),
             hot_history_proposal_rows: self.hot_history_proposal_rows.min(most),
             hot_history_refused: self.hot_history_refused.min(most),
+            hot_history_scope_some: self.hot_history_scope_some.min(most),
             hot_definition_dependencies: self.hot_definition_dependencies.min(most),
             hot_definition_waiting_on: self.hot_definition_waiting_on.min(most),
             hot_definition_added: self.hot_definition_added.min(most),
@@ -677,6 +687,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::TASK_HISTORY_PROPOSAL_ROWS,
     paths::TASK_HISTORY_INSTRUCTIONS,
     paths::TASK_HISTORY_REFUSED,
+    paths::TASK_HISTORY_SCOPE,
     paths::TASK_RUN_REPLIES,
     paths::TASK_DEFINITION_DEPENDENCIES,
     paths::TASK_DEFINITION_WAITING_ON,
@@ -693,6 +704,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::HOT_HISTORY_QUESTION_LINES,
     paths::HOT_HISTORY_PROPOSAL_ROWS,
     paths::HOT_HISTORY_REFUSED,
+    paths::HOT_HISTORY_SCOPE,
     paths::HOT_DEFINITION_DEPENDENCIES,
     paths::HOT_DEFINITION_WAITING_ON,
     paths::HOT_DEFINITION_ADDED,
@@ -947,6 +959,7 @@ pub mod paths {
     pub const DEADLINE_SPAN_VALUE: Path = Path::new("DeadlineSpan.value");
     pub const DEADLINE_SPAN_TAIL: Path = Path::new("DeadlineSpan (tail)");
     pub const DEADLINE_TAG: Path = Path::new("Deadline (tag)");
+    pub const CHARTER_SCOPE_TAG: Path = Path::new("CharterScope (tag)");
     pub const MEMBER_DEADLINE: Path = Path::new("Member.deadline");
     pub const MEMBER_LABEL: Path = Path::new("Member.label");
     pub const MEMBER_FLAGS: Path = Path::new("Member.flags");
@@ -963,6 +976,7 @@ pub mod paths {
     pub const MEMBER_HOLDINGS: Path = Path::new("Member.holdings");
     pub const MEMBER_WAKE: Path = Path::new("Member.wake");
     pub const MEMBER_TRACKED: Path = Path::new("Member.tracked");
+    pub const MEMBER_CHARTER_SCOPE: Path = Path::new("Member.charter_scope");
     pub const MEMBER_TAIL: Path = Path::new("Member (tail)");
     pub const RECURRING_TEMPLATE_KEY: Path = Path::new("RecurringTemplate.key");
     pub const RECURRING_TEMPLATE_BATCH: Path = Path::new("RecurringTemplate.batch");
@@ -1494,6 +1508,7 @@ pub mod paths {
     pub const TASK_HISTORY_GRACE: Path = Path::new("TaskHistory.grace");
     pub const TASK_HISTORY_SETTINGS: Path = Path::new("TaskHistory.settings");
     pub const TASK_HISTORY_CHARTERS: Path = Path::new("TaskHistory.charters");
+    pub const TASK_HISTORY_SCOPE: Path = Path::new("TaskHistory.scope");
     pub const TASK_HISTORY_REVISIONS: Path = Path::new("TaskHistory.revisions");
     pub const TASK_HISTORY_CREATED_AT: Path = Path::new("TaskHistory.created_at");
     pub const TASK_HISTORY_CHANGED: Path = Path::new("TaskHistory.changed");
@@ -1622,6 +1637,7 @@ pub mod paths {
     pub const HOT_HISTORY_GRACE: Path = Path::new("HotHistory.grace");
     pub const HOT_HISTORY_SETTINGS: Path = Path::new("HotHistory.settings");
     pub const HOT_HISTORY_CHARTERS: Path = Path::new("HotHistory.charters");
+    pub const HOT_HISTORY_SCOPE: Path = Path::new("HotHistory.scope");
     pub const HOT_HISTORY_REVISIONS: Path = Path::new("HotHistory.revisions");
     pub const HOT_HISTORY_CREATED_AT: Path = Path::new("HotHistory.created_at");
     pub const HOT_HISTORY_CHANGED: Path = Path::new("HotHistory.changed");
@@ -6592,6 +6608,63 @@ impl Record for Deadline {
     }
 }
 
+// Type: CharterScope.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum CharterScope {
+    Project,
+    Deployment,
+}
+
+// Record: CharterScope.
+impl CharterScope {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
+impl Record for CharterScope {
+    type Limits = Limits;
+    const TAIL: Path = paths::CHARTER_SCOPE_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "CharterScope")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "CharterScope")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Project => field::put(out, &[0], paths::CHARTER_SCOPE_TAG),
+            Self::Deployment => field::put(out, &[1], paths::CHARTER_SCOPE_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::CHARTER_SCOPE_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Project),
+            1 => Ok(Self::Deployment),
+            2..=u8::MAX => Err(Problem { path: paths::CHARTER_SCOPE_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
 // Type: Member.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Member {
@@ -6611,6 +6684,7 @@ pub struct Member {
     pub holdings: List<Holding>,
     pub wake: WakePolicy,
     pub tracked: Option<u32>,
+    pub charter_scope: CharterScope,
 }
 
 // Record: Member.
@@ -6636,11 +6710,12 @@ impl Member {
         skein_codec::bounds::Node::Named("WakePolicy"),
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Option { item: 18 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14, 16, 17, 19] },
+        skein_codec::bounds::Node::Named("CharterScope"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14, 16, 17, 19, 20] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 283;
+    pub const ENCODED_AT_ZERO: u64 = 284;
 }
 
 impl Record for Member {
@@ -6681,6 +6756,7 @@ impl Record for Member {
         field::write(field::Sequence { limit: limits.member_holdings.min(CEILINGS.member_holdings), minimum: 9, item: field::Nested }, &self.holdings, limits, out, paths::MEMBER_HOLDINGS)?;
         field::write(field::Nested, &self.wake, limits, out, paths::MEMBER_WAKE)?;
         field::write(field::Optional { item: field::U32 }, &self.tracked, limits, out, paths::MEMBER_TRACKED)?;
+        field::write(field::Nested, &self.charter_scope, limits, out, paths::MEMBER_CHARTER_SCOPE)?;
         Ok(())
     }
 
@@ -6702,6 +6778,7 @@ impl Record for Member {
             holdings: field::read(field::Sequence { limit: limits.member_holdings.min(CEILINGS.member_holdings), minimum: 9, item: field::Nested }, limits, reader, paths::MEMBER_HOLDINGS)?,
             wake: field::read(field::Nested, limits, reader, paths::MEMBER_WAKE)?,
             tracked: field::read(field::Optional { item: field::U32 }, limits, reader, paths::MEMBER_TRACKED)?,
+            charter_scope: field::read(field::Nested, limits, reader, paths::MEMBER_CHARTER_SCOPE)?,
         })
     }
 }
@@ -6781,7 +6858,7 @@ impl Creation {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 293;
+    pub const ENCODED_AT_ZERO: u64 = 294;
 }
 
 impl Record for Creation {
@@ -16899,6 +16976,7 @@ pub struct TaskHistory {
     pub grace: Option<Grace>,
     pub settings: SettingsRevision,
     pub charters: u64,
+    pub scope: Option<Box<[u8]>>,
     pub revisions: Revisions,
     pub created_at: u64,
     pub changed: u64,
@@ -16930,22 +17008,24 @@ impl TaskHistory {
         skein_codec::bounds::Node::Option { item: 14 },
         skein_codec::bounds::Node::Named("SettingsRevision"),
         skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, task_history_scope_some) },
+        skein_codec::bounds::Node::Option { item: 18 },
         skein_codec::bounds::Node::Named("Revisions"),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Option { item: 22 },
-        skein_codec::bounds::Node::Named("RetryNotice"),
         skein_codec::bounds::Node::Option { item: 24 },
-        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("RetryNotice"),
         skein_codec::bounds::Node::Option { item: 26 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 5, 7, 9, 11, 13, 15, 16, 17, 18, 19, 20, 21, 23, 25, 27, 28] },
+        skein_codec::bounds::Node::Option { item: 28 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 5, 7, 9, 11, 13, 15, 16, 17, 19, 20, 21, 22, 23, 25, 27, 29, 30] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 203;
+    pub const ENCODED_AT_ZERO: u64 = 208;
 }
 
 impl Record for TaskHistory {
@@ -16982,6 +17062,7 @@ impl Record for TaskHistory {
         field::write(field::Optional { item: field::Nested }, &self.grace, limits, out, paths::TASK_HISTORY_GRACE)?;
         field::write(field::Nested, &self.settings, limits, out, paths::TASK_HISTORY_SETTINGS)?;
         field::write(field::U64, &self.charters, limits, out, paths::TASK_HISTORY_CHARTERS)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.task_history_scope_some.min(CEILINGS.task_history_scope_some) } }, &self.scope, limits, out, paths::TASK_HISTORY_SCOPE)?;
         field::write(field::Nested, &self.revisions, limits, out, paths::TASK_HISTORY_REVISIONS)?;
         field::write(field::U64, &self.created_at, limits, out, paths::TASK_HISTORY_CREATED_AT)?;
         field::write(field::U64, &self.changed, limits, out, paths::TASK_HISTORY_CHANGED)?;
@@ -17007,6 +17088,7 @@ impl Record for TaskHistory {
             grace: field::read(field::Optional { item: field::Nested }, limits, reader, paths::TASK_HISTORY_GRACE)?,
             settings: field::read(field::Nested, limits, reader, paths::TASK_HISTORY_SETTINGS)?,
             charters: field::read(field::U64, limits, reader, paths::TASK_HISTORY_CHARTERS)?,
+            scope: field::read(field::Optional { item: field::Bytes { limit: limits.task_history_scope_some.min(CEILINGS.task_history_scope_some) } }, limits, reader, paths::TASK_HISTORY_SCOPE)?,
             revisions: field::read(field::Nested, limits, reader, paths::TASK_HISTORY_REVISIONS)?,
             created_at: field::read(field::U64, limits, reader, paths::TASK_HISTORY_CREATED_AT)?,
             changed: field::read(field::U64, limits, reader, paths::TASK_HISTORY_CHANGED)?,
@@ -17927,7 +18009,7 @@ impl BeforeTalk {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1394;
+    pub const ENCODED_AT_ZERO: u64 = 1399;
 }
 
 impl Record for BeforeTalk {
@@ -18059,7 +18141,7 @@ impl TaskRecord {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1436;
+    pub const ENCODED_AT_ZERO: u64 = 1441;
 }
 
 impl Record for TaskRecord {
@@ -18113,6 +18195,7 @@ pub struct HotHistory {
     pub grace: Option<Grace>,
     pub settings: SettingsRevision,
     pub charters: u64,
+    pub scope: Option<Box<[u8]>>,
     pub revisions: Revisions,
     pub created_at: u64,
     pub changed: u64,
@@ -18142,22 +18225,24 @@ impl HotHistory {
         skein_codec::bounds::Node::Option { item: 12 },
         skein_codec::bounds::Node::Named("SettingsRevision"),
         skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, hot_history_scope_some) },
+        skein_codec::bounds::Node::Option { item: 16 },
         skein_codec::bounds::Node::Named("Revisions"),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Option { item: 20 },
-        skein_codec::bounds::Node::Named("RetryNotice"),
         skein_codec::bounds::Node::Option { item: 22 },
-        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("RetryNotice"),
         skein_codec::bounds::Node::Option { item: 24 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 5, 7, 9, 11, 13, 14, 15, 16, 17, 18, 19, 21, 23, 25, 26] },
+        skein_codec::bounds::Node::Option { item: 26 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 5, 7, 9, 11, 13, 14, 15, 17, 18, 19, 20, 21, 23, 25, 27, 28] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 198;
+    pub const ENCODED_AT_ZERO: u64 = 203;
 }
 
 impl Record for HotHistory {
@@ -18193,6 +18278,7 @@ impl Record for HotHistory {
         field::write(field::Optional { item: field::Nested }, &self.grace, limits, out, paths::HOT_HISTORY_GRACE)?;
         field::write(field::Nested, &self.settings, limits, out, paths::HOT_HISTORY_SETTINGS)?;
         field::write(field::U64, &self.charters, limits, out, paths::HOT_HISTORY_CHARTERS)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.hot_history_scope_some.min(CEILINGS.hot_history_scope_some) } }, &self.scope, limits, out, paths::HOT_HISTORY_SCOPE)?;
         field::write(field::Nested, &self.revisions, limits, out, paths::HOT_HISTORY_REVISIONS)?;
         field::write(field::U64, &self.created_at, limits, out, paths::HOT_HISTORY_CREATED_AT)?;
         field::write(field::U64, &self.changed, limits, out, paths::HOT_HISTORY_CHANGED)?;
@@ -18217,6 +18303,7 @@ impl Record for HotHistory {
             grace: field::read(field::Optional { item: field::Nested }, limits, reader, paths::HOT_HISTORY_GRACE)?,
             settings: field::read(field::Nested, limits, reader, paths::HOT_HISTORY_SETTINGS)?,
             charters: field::read(field::U64, limits, reader, paths::HOT_HISTORY_CHARTERS)?,
+            scope: field::read(field::Optional { item: field::Bytes { limit: limits.hot_history_scope_some.min(CEILINGS.hot_history_scope_some) } }, limits, reader, paths::HOT_HISTORY_SCOPE)?,
             revisions: field::read(field::Nested, limits, reader, paths::HOT_HISTORY_REVISIONS)?,
             created_at: field::read(field::U64, limits, reader, paths::HOT_HISTORY_CREATED_AT)?,
             changed: field::read(field::U64, limits, reader, paths::HOT_HISTORY_CHANGED)?,
@@ -18402,7 +18489,7 @@ impl LiveHot {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1355;
+    pub const ENCODED_AT_ZERO: u64 = 1360;
 }
 
 impl Record for LiveHot {
@@ -19711,7 +19798,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1437;
+    pub const ENCODED_AT_ZERO: u64 = 1442;
 }
 
 impl Record for Value {
@@ -19863,7 +19950,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1443;
+    pub const ENCODED_AT_ZERO: u64 = 1448;
 }
 
 impl Record for Row {
@@ -23417,6 +23504,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ChangeRecord", nodes: ChangeRecord::SHAPE },
     skein_codec::bounds::Declaration { name: "ChangeResult", nodes: ChangeResult::SHAPE },
     skein_codec::bounds::Declaration { name: "Charter", nodes: Charter::SHAPE },
+    skein_codec::bounds::Declaration { name: "CharterScope", nodes: CharterScope::SHAPE },
     skein_codec::bounds::Declaration { name: "Choices", nodes: Choices::SHAPE },
     skein_codec::bounds::Declaration { name: "Circle", nodes: Circle::SHAPE },
     skein_codec::bounds::Declaration { name: "Class", nodes: Class::SHAPE },
@@ -23783,6 +23871,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.task_history_proposal_rows,
     CEILINGS.task_history_instructions_some,
     CEILINGS.task_history_refused,
+    CEILINGS.task_history_scope_some,
     CEILINGS.task_run_replies,
     CEILINGS.task_definition_dependencies,
     CEILINGS.task_definition_waiting_on,
@@ -23799,6 +23888,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.hot_history_question_lines,
     CEILINGS.hot_history_proposal_rows,
     CEILINGS.hot_history_refused,
+    CEILINGS.hot_history_scope_some,
     CEILINGS.hot_definition_dependencies,
     CEILINGS.hot_definition_waiting_on,
     CEILINGS.hot_definition_added,

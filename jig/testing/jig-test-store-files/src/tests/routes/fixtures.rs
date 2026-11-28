@@ -255,6 +255,7 @@ pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
         placed: None,
         settings: tasks::SettingsRevision { task: 1, run: None },
         charters: 0,
+        scope: None,
         label: 1,
         flags: tasks::Flags { conversation: true, ..tasks::Flags::PLAIN },
         last_activity: Wall::EPOCH,

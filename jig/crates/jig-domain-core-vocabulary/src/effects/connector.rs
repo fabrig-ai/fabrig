@@ -86,6 +86,7 @@ impl RepairSeed {
             reply_to: skein_lib::ReplyTo::new(Token::new(self.number)),
             creator: tasks::Party::Task(task),
             batch: Box::new([tasks::New {
+                charter_scope: tasks::CharterScope::Project,
                 number: self.number,
                 project: self.project,
                 executor: tasks::Executor::Agent { charter: goal.charter },
@@ -141,6 +142,7 @@ impl RepairSeed {
             reply_to: skein_lib::ReplyTo::new(Token::new(self.number)),
             creator: tasks::Party::Task(task),
             batch: Box::new([tasks::New {
+                charter_scope: tasks::CharterScope::Project,
                 number: self.number,
                 project: self.project,
                 executor: tasks::Executor::Procedure { connector, code },

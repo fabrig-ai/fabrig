@@ -738,8 +738,8 @@ fn an_unclaimed_default_rechecks_usable_providers_with_its_first_effort() {
     let (mut core, limits) = ready(false);
     granted(&mut core, &limits, 2);
     account(&mut core, &limits, accounts::Event::Limited { account: 1, reset: None });
-    let mut batch = [new_row(&core, 2, tasks::Funder::Period { project: 1, period: 1 }, None)];
-    core.resolve_llm(&mut batch).unwrap();
+    let batch = [new_row(&core, 2, tasks::Funder::Period { project: 1, period: 1 }, None)];
+    core.resolve_llm(&limits, &batch, &[]).unwrap();
     assert_eq!(batch[0].llm, None);
     fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new(batch));
     assert_eq!(
