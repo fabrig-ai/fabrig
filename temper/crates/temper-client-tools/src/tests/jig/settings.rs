@@ -2294,7 +2294,7 @@ fn unknown_settings_decisions_explain_that_the_proposal_is_not_waiting() {
 
 fn forge_value(kind: u32) -> Box<[u8]> {
     let json = if kind == 4 {
-        br#"{"items":[{"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":4}}]}"#.as_slice()
+        br#"{"items":[{"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":4,"temper_dir_sign_off":true}}]}"#.as_slice()
     } else if kind == 5 {
         br#"{"items":[{"setting":{"kind":"project-gates","project":1},"set":{"repositories":[{"forge":1,"repository":7,"gates":[{"name":"gate","workflow":"gate.yml","blocking":true,"report":{"artifact":"report","format":"lines","fuzzy":"fuzzy_"}}],"tiers":[{"name":"slow","workflow":"slow.yml","artifact":"report","format":"junit","branch":"goal"}]}]}}]}"#.as_slice()
     } else if kind == 8 {
@@ -2468,6 +2468,9 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             let answer = root.answer(call).expect("joined setting");
             assert_eq!(answer.status, 0);
             let text = core::str::from_utf8(&answer.stdout).unwrap();
+            if kind == 4 {
+                assert!(text.contains("\"temper_dir_sign_off\":true"), "{text}");
+            }
             if json {
                 let expected = match kind {
                     3 => "\"value\":6",

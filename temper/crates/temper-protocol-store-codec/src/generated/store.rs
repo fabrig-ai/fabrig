@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x05, 0x68, 0x46, 0xda, 0x0f, 0x5b, 0x19, 0x24, 0x1f, 0x3e, 0x20, 0x1f, 0x1a, 0x37, 0xcb, 0x03, 0xa5, 0x66, 0xf1,
-    0x61, 0x37, 0xf0, 0x8a, 0x30, 0x46, 0x02, 0xb6, 0xe1, 0x75, 0xe3, 0x69, 0x63,
+    0x62, 0x7d, 0x40, 0x94, 0x3d, 0xae, 0x3e, 0xa5, 0xe8, 0xdc, 0x2a, 0x00, 0x81, 0x37, 0x66, 0xf4, 0x23, 0x42, 0xf2,
+    0xea, 0x8f, 0xe4, 0x30, 0x72, 0x08, 0x83, 0x42, 0x6d, 0x43, 0xfc, 0x94, 0xe9,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -3737,6 +3737,7 @@ pub mod paths {
     pub const PROJECT_LANDING_REPAIRS: Path = Path::new("ProjectLanding.repairs");
     pub const PROJECT_LANDING_FLAKES: Path = Path::new("ProjectLanding.flakes");
     pub const PROJECT_LANDING_HOOK_TIMEOUT_MAX_SECONDS: Path = Path::new("ProjectLanding.hook_timeout_max_seconds");
+    pub const PROJECT_LANDING_TEMPER_DIR_SIGN_OFF: Path = Path::new("ProjectLanding.temper_dir_sign_off");
     pub const PROJECT_LANDING_TAIL: Path = Path::new("ProjectLanding (tail)");
     pub const SETTINGS_REPORT_FORMAT_TAG: Path = Path::new("SettingsReportFormat (tag)");
     pub const SETTINGS_GATE_REPORT_ARTIFACT: Path = Path::new("SettingsGateReport.artifact");
@@ -28671,6 +28672,7 @@ pub struct ProjectLanding {
     pub repairs: Option<RepairSettings>,
     pub flakes: Option<SettingsFlakes>,
     pub hook_timeout_max_seconds: u32,
+    pub temper_dir_sign_off: bool,
 }
 
 // Record: ProjectLanding.
@@ -28697,11 +28699,12 @@ impl ProjectLanding {
         skein_codec::bounds::Node::Named("SettingsFlakes"),
         skein_codec::bounds::Node::Option { item: 18 },
         skein_codec::bounds::Node::Scalar(4),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15, 17, 19, 20] },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5, 7, 8, 10, 11, 12, 13, 14, 15, 17, 19, 20, 21] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 124;
+    pub const ENCODED_AT_ZERO: u64 = 125;
 }
 
 impl Record for ProjectLanding {
@@ -28742,6 +28745,7 @@ impl Record for ProjectLanding {
         field::write(field::Optional { item: field::Nested }, &self.repairs, limits, out, paths::PROJECT_LANDING_REPAIRS)?;
         field::write(field::Optional { item: field::Nested }, &self.flakes, limits, out, paths::PROJECT_LANDING_FLAKES)?;
         field::write(field::U32, &self.hook_timeout_max_seconds, limits, out, paths::PROJECT_LANDING_HOOK_TIMEOUT_MAX_SECONDS)?;
+        field::write(field::Boolean, &self.temper_dir_sign_off, limits, out, paths::PROJECT_LANDING_TEMPER_DIR_SIGN_OFF)?;
         Ok(())
     }
 
@@ -28763,6 +28767,7 @@ impl Record for ProjectLanding {
             repairs: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PROJECT_LANDING_REPAIRS)?,
             flakes: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PROJECT_LANDING_FLAKES)?,
             hook_timeout_max_seconds: field::read(field::U32, limits, reader, paths::PROJECT_LANDING_HOOK_TIMEOUT_MAX_SECONDS)?,
+            temper_dir_sign_off: field::read(field::Boolean, limits, reader, paths::PROJECT_LANDING_TEMPER_DIR_SIGN_OFF)?,
         })
     }
 }
@@ -40710,7 +40715,7 @@ impl SettingValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 125;
+    pub const ENCODED_AT_ZERO: u64 = 126;
 }
 
 impl Record for SettingValue {
@@ -40797,7 +40802,7 @@ impl SizedValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 129;
+    pub const ENCODED_AT_ZERO: u64 = 130;
 }
 
 impl Record for SizedValue {
@@ -40853,7 +40858,7 @@ impl SettingEdit {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 130;
+    pub const ENCODED_AT_ZERO: u64 = 131;
 }
 
 impl Record for SettingEdit {
@@ -40918,7 +40923,7 @@ impl SettingRow {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 151;
+    pub const ENCODED_AT_ZERO: u64 = 152;
 }
 
 impl Record for SettingRow {

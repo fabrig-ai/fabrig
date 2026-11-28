@@ -6185,7 +6185,7 @@ pub fn repair_settings_to_domain(record: crate::v25::RepairSettings) -> temper_e
 }
 
 pub fn project_landing_to_record(value: &temper_engine_domain_forge_vocabulary::settings::ProjectLanding) -> Result<crate::v25::ProjectLanding, crate::v25::Problem> {
-    let temper_engine_domain_forge_vocabulary::settings::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014, hook_timeout_max_seconds: field_000015 } = value;
+    let temper_engine_domain_forge_vocabulary::settings::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014, hook_timeout_max_seconds: field_000015, temper_dir_sign_off: field_000016 } = value;
     Ok(crate::v25::ProjectLanding {
         by: settings_landing_way_to_record(field_000000),
         batch: *field_000001,
@@ -6232,13 +6232,14 @@ pub fn project_landing_to_record(value: &temper_engine_domain_forge_vocabulary::
             }
             None => None,
         },
-        hook_timeout_max_seconds: *field_000015
+        hook_timeout_max_seconds: *field_000015,
+        temper_dir_sign_off: *field_000016
     })
 }
 
 #[must_use]
 pub fn project_landing_to_domain(record: crate::v25::ProjectLanding) -> temper_engine_domain_forge_vocabulary::settings::ProjectLanding {
-    let crate::v25::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014, hook_timeout_max_seconds: field_000015 } = record;
+    let crate::v25::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014, hook_timeout_max_seconds: field_000015, temper_dir_sign_off: field_000016 } = record;
     temper_engine_domain_forge_vocabulary::settings::ProjectLanding {
         by: settings_landing_way_to_domain(field_000000),
         batch: field_000001,
@@ -6285,7 +6286,8 @@ pub fn project_landing_to_domain(record: crate::v25::ProjectLanding) -> temper_e
             }
             None => None,
         },
-        hook_timeout_max_seconds: field_000015
+        hook_timeout_max_seconds: field_000015,
+        temper_dir_sign_off: field_000016
     }
 }
 

@@ -700,6 +700,17 @@ fn reader(role: Option<jig_domain_people::Role>) -> (Domain, Env<RootLimits>) {
     reader_in(role, jig_domain_people::DEPLOYMENT)
 }
 fn reader_in(role: Option<jig_domain_people::Role>, project: u32) -> (Domain, Env<RootLimits>) {
+    reader_with_identity(
+        role,
+        project,
+        jig_domain_people::IdentityKey { provider: 0, subject: b"reader".as_slice().into() },
+    )
+}
+fn reader_with_identity(
+    role: Option<jig_domain_people::Role>,
+    project: u32,
+    key: jig_domain_people::IdentityKey,
+) -> (Domain, Env<RootLimits>) {
     use jig_domain_people as people;
     let (mut domain, env) = root();
     domain.engine.core_mut().people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
@@ -709,11 +720,7 @@ fn reader_in(role: Option<jig_domain_people::Role>, project: u32) -> (Domain, En
     for record in [
         people::Stored::Person {
             number: 1,
-            identity: people::Identity {
-                key: people::IdentityKey { provider: 0, subject: b"reader".as_slice().into() },
-                login: Box::new([]),
-                name: Box::new([]),
-            },
+            identity: people::Identity { key, login: Box::new([]), name: Box::new([]) },
         },
         people::Stored::SignIn { number: READ_SIGN_IN, person: 1, expires: Wall::from_nanos(100) },
         people::Stored::Roles {
@@ -2005,6 +2012,80 @@ fn judge_landing_value(
     answer
 }
 #[test]
+fn temper_dir_sign_off_requires_an_eligible_owner_on_each_writable_forge() {
+    use forge::Mode::{Connected, Fake};
+    use jig_domain_people::Role::{Maintainer, Owner};
+    for (mode, role, writable, why) in [
+        (Connected, Owner, false, None),
+        (Connected, Maintainer, false, Some(b"forge.example".as_slice())),
+        (Connected, Owner, true, Some(b"second.example".as_slice())),
+        (Fake, Owner, true, Some(b"the playground's forge has no accounts".as_slice())),
+        (Fake, Owner, false, None),
+    ] {
+        let (mut owner, _) = reader_with_identity(Some(role), PROJECT, forge::user_key(1, 7));
+        let mut config = resume_fixture::config(7);
+        let first = config.forges.first().unwrap().clone();
+        let second = forge::Configured { number: 2, mode, ..first.clone() };
+        config.forges = Box::new([first, second]);
+        let (mut domain, env) = resume_fixture::root_with_config(config);
+        ::core::mem::swap(&mut domain.engine.core_mut().people, &mut owner.engine.core_mut().people);
+        domain.forge.restore_begin(env.wall);
+        for (number, host, push) in [(1, b"forge.example".as_slice(), true), (2, b"second.example", writable)] {
+            let mut repository = owned_repository(number);
+            repository.project = PROJECT;
+            repository.host = host.into();
+            repository.kinds.push = push;
+            forge::step(
+                &mut domain.forge,
+                &env.with(env.limits.forge),
+                forge::Event::Restore { record: forge::Stored::Repository(repository) },
+                &mut Queue::uncapped(),
+            );
+        }
+        let value = settings::Value::Landing(settings::ProjectLanding {
+            temper_dir_sign_off: true,
+            ..settings::ProjectLanding::default()
+        });
+        let judged = judge_landing_value(&mut domain, &env, 4, PROJECT, value);
+        if let Some(reason) = why {
+            let connector::Judged::Refuse { why } = judged else {
+                panic!("an unsignable forge must refuse: {mode:?}, {role:?}")
+            };
+            assert!(why.starts_with(b"temper_dir_sign_off: "));
+            assert!(skein_lib::bytes::find(&why, reason).is_some(), "{why:?}");
+        } else {
+            let connector::Judged::Accept { .. } = judged else { panic!("{judged:?}") };
+        }
+        let judged = judge_landing_value(
+            &mut domain,
+            &env,
+            4,
+            PROJECT,
+            settings::Value::Landing(settings::ProjectLanding::default()),
+        );
+        let connector::Judged::Accept { .. } = judged else { panic!("off is good: {judged:?}") };
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+        judge(
+            &mut domain,
+            &env,
+            &mut decision,
+            None,
+            Box::new([application::Edit::Remove, application::Edit::Reset].map(|edit| application::Item {
+                kind: 4,
+                scope: PROJECT,
+                number: 1,
+                edit,
+            })),
+        );
+        for judgement in &answer(&mut domain) {
+            if let connector::Judged::Refuse { why } = judgement {
+                panic!("removal and reset are good: {why:?}");
+            }
+        }
+        crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+    }
+}
+#[test]
 fn turn_settings_need_the_prepare_jobs_configured_capacity() {
     for (spec, result, field) in [
         (16_383, 4_096, Some(b"tasks.spec_bytes".as_slice())),
@@ -2148,7 +2229,7 @@ fn repair_proposals_check_the_deployments_charter_models_efforts_and_budget() {
         }
     }
 }
-fn start_with_repairs(landing: Option<settings::ProjectLanding>, spec: u32) -> (Domain, Env<RootLimits>) {
+fn start_with_landing(landing: Option<settings::ProjectLanding>, spec: u32) -> (Domain, Env<RootLimits>) {
     let mut limits = resume_fixture::limits();
     limits.tasks.spec_bytes = spec;
     limits.journal.transcript_bytes = limits.journal.transcript_bytes.max(65_536);
@@ -2179,7 +2260,7 @@ fn start_with_repairs(landing: Option<settings::ProjectLanding>, spec: u32) -> (
     assert_eq!(domain.start_stop(), None, "incomplete repairs never stop a start");
     (domain, env)
 }
-fn keep_repairs(domain: &mut Domain, env: &Env<RootLimits>, landing: settings::ProjectLanding) {
+fn keep_landing(domain: &mut Domain, env: &Env<RootLimits>, landing: settings::ProjectLanding) {
     let value = settings::SizedValue {
         size: settings::landing_record(&landing)
             .measure(&temper_client_protocol_wire::v1::CEILINGS)
@@ -2208,7 +2289,7 @@ fn a_start_resolves_repairs_or_keeps_the_first_incomplete_field_without_stopping
         let main = &mut goal.llm.as_mut().unwrap().main;
         main.model = model.into();
         main.speed = Some(b"fast".as_slice().into());
-        let (domain, _) = start_with_repairs(Some(landing.clone()), spec);
+        let (domain, _) = start_with_landing(Some(landing.clone()), spec);
         if let Some(expected) = expected {
             assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), expected);
         } else {
@@ -2221,8 +2302,20 @@ fn a_start_resolves_repairs_or_keeps_the_first_incomplete_field_without_stopping
         }
         assert_eq!(domain.forge.landing_settings(PROJECT), Some(&landing), "taken setting is kept even when off");
     }
-    let (domain, _) = start_with_repairs(None, 8_192);
+    let (domain, _) = start_with_landing(None, 8_192);
     assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), b"repairs are off in project 1");
+}
+#[test]
+fn temper_dir_sign_off_is_taken_only_at_start() {
+    let off = settings::ProjectLanding::default();
+    let on = settings::ProjectLanding { temper_dir_sign_off: true, ..off.clone() };
+    let (mut domain, env) = start_with_landing(Some(off.clone()), 8_192);
+    keep_landing(&mut domain, &env, on.clone());
+    assert!(!domain.forge.landing_settings(PROJECT).unwrap().temper_dir_sign_off);
+    let (mut restarted, env) = start_with_landing(Some(on), 8_192);
+    assert!(restarted.forge.landing_settings(PROJECT).unwrap().temper_dir_sign_off);
+    keep_landing(&mut restarted, &env, off);
+    assert!(restarted.forge.landing_settings(PROJECT).unwrap().temper_dir_sign_off);
 }
 #[test]
 fn accepted_repair_settings_wait_for_the_next_start() {
@@ -2234,13 +2327,13 @@ fn accepted_repair_settings_wait_for_the_next_start() {
     else {
         panic!("whole repairs accepted")
     };
-    keep_repairs(&mut domain, &env, landing.clone());
+    keep_landing(&mut domain, &env, landing.clone());
     assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), b"repairs are off in project 1");
-    let (mut domain, env) = start_with_repairs(Some(landing), 8_192);
+    let (mut domain, env) = start_with_landing(Some(landing), 8_192);
     assert_eq!(domain.forge.project_repairs(PROJECT).unwrap().goal.priority, 42);
     // Saving an off setting does not change this start's resolved repairs either.
-    keep_repairs(&mut domain, &env, settings::ProjectLanding::default());
+    keep_landing(&mut domain, &env, settings::ProjectLanding::default());
     domain.forge.project_repairs(PROJECT).expect("this start still holds its repairs");
-    let (domain, _) = start_with_repairs(Some(settings::ProjectLanding::default()), 8_192);
+    let (domain, _) = start_with_landing(Some(settings::ProjectLanding::default()), 8_192);
     assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), b"repairs are off in project 1");
 }

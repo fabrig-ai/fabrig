@@ -323,9 +323,7 @@ fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u
             if !covers_repository(rule, repository) || !seen.insert(forge).expect("one entry per covered forge") {
                 continue;
             }
-            if let Some(configured) = domain.forge.configured(forge)
-                && configured.mode == temper_engine_domain_forge::Mode::Fake
-            {
+            if fake_forge(domain, forge) {
                 return Some(fake_approval_words(project));
             }
             for approval in &rule.approvals {
@@ -337,6 +335,13 @@ fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u
         }
     }
     None
+}
+
+fn fake_forge(domain: &Domain, forge: u16) -> bool {
+    match domain.forge.configured(forge) {
+        Some(configured) => configured.mode == temper_engine_domain_forge::Mode::Fake,
+        None => false,
+    }
 }
 
 pub(super) fn covers_repository(

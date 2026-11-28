@@ -313,7 +313,7 @@ pub fn repair_settings_to_domain(record: temper_client_protocol_wire::v1::Repair
 }
 
 pub fn project_landing_to_record(value: &crate::settings::ProjectLanding) -> Result<temper_client_protocol_wire::v1::ProjectLanding, temper_client_protocol_wire::v1::Problem> {
-    let crate::settings::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014, hook_timeout_max_seconds: field_000015 } = value;
+    let crate::settings::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014, hook_timeout_max_seconds: field_000015, temper_dir_sign_off: field_000016 } = value;
     Ok(temper_client_protocol_wire::v1::ProjectLanding {
         by: settings_landing_way_to_record(field_000000),
         batch: *field_000001,
@@ -360,13 +360,14 @@ pub fn project_landing_to_record(value: &crate::settings::ProjectLanding) -> Res
             }
             None => None,
         },
-        hook_timeout_max_seconds: *field_000015
+        hook_timeout_max_seconds: *field_000015,
+        temper_dir_sign_off: *field_000016
     })
 }
 
 #[must_use]
 pub fn project_landing_to_domain(record: temper_client_protocol_wire::v1::ProjectLanding) -> crate::settings::ProjectLanding {
-    let temper_client_protocol_wire::v1::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014, hook_timeout_max_seconds: field_000015 } = record;
+    let temper_client_protocol_wire::v1::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013, flakes: field_000014, hook_timeout_max_seconds: field_000015, temper_dir_sign_off: field_000016 } = record;
     crate::settings::ProjectLanding {
         by: settings_landing_way_to_domain(field_000000),
         batch: field_000001,
@@ -413,7 +414,8 @@ pub fn project_landing_to_domain(record: temper_client_protocol_wire::v1::Projec
             }
             None => None,
         },
-        hook_timeout_max_seconds: field_000015
+        hook_timeout_max_seconds: field_000015,
+        temper_dir_sign_off: field_000016
     }
 }
 

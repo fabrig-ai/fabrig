@@ -287,6 +287,16 @@ fn landing_hook_ceiling_round_trips_and_defaults() {
     }
 }
 #[test]
+fn landing_sign_off_round_trips_and_defaults_to_off() {
+    let limits = Limits::standard();
+    assert!(landing_round_trip(br#"{"temper_dir_sign_off":true}"#).temper_dir_sign_off);
+    assert!(!landing_round_trip(b"{}").temper_dir_sign_off);
+    let off = file::decode(&kind_file(LANDING_SETTING, br#"{"temper_dir_sign_off":false}"#), &limits).unwrap();
+    assert_eq!(off, file::decode(&kind_file(LANDING_SETTING, b"{}"), &limits).unwrap());
+    let error = file::decode(&kind_file(LANDING_SETTING, br#"{"temper_dir_sign_off":"true"}"#), &limits).unwrap_err();
+    assert!(skein_lib::bytes::find(&error, b"temper_dir_sign_off: expected boolean").is_some(), "{error:?}");
+}
+#[test]
 fn landing_flakes_round_trip_unset_never_and_rerun() {
     use temper_client_protocol_wire::v1::{SettingsFlakeRerun, SettingsFlakes};
     for (json, expected) in [
