@@ -2,10 +2,6 @@
 
 2026-11-28. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
 
-- **Not yet:** 2.1, 2.2, 2.6: the engine serving the start through its ports: the store's open, its paged loads, the switch, `Write` in the store's port with `Wires` and `Out::Write`, `Fill` and `Census` as the store's inputs, `Resume`, the application's start outputs, a connector's restore by `lifecycle::Ask::Restore` [in flight: change 22485]
-- **Not yet:** 2.6: `ops`'s root and its connectors on the engine's start [in flight: change 22494]
-- **Not yet:** 2.6: the test root, the test connector, the test store's adapter and service on the engine's start [in flight: change 22499]
-- **Not yet:** 2.6: temper's root, its forge, store adapter and service on the engine's start [in flight: change 22501]
 - **Departs:**
   1.2: the optional-answer facts departure remains `jig/docs/design/client/domain/contract/answers.status.md`, 1.
   1: the root interface has no text for public `Core::effect_owner` and

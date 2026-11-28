@@ -2,9 +2,6 @@
 
 2026-11-28. Where jig's code lags or departs from [root.md](root.md).
 
-- **Not yet:** 8, 12: `ops`'s root still serves the start's phases, in `restart.rs` [in flight: change 22494]
-- **Not yet:** 8: the test root still serves the start's phases [in flight: change 22499]
-- **Not yet:** 8: temper's root still serves the start's phases, in `restart.rs` [in flight: change 22501]
 
 - **Departs:** 3, 5, 11: the test root is not in `ops`'s shape: its
   `Domain` keeps `now`, `store_answers`, `busy` and `public_reads` beside
