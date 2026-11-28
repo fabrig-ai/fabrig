@@ -63,7 +63,7 @@ put it. The kind of each ask: ◆ judgement, · notification, ▷ operation that
 | | `DropProposal { proposal }` | · | `E::DropProposalSettings` |
 | | `ForgetReplaced { before }` | · | `E::ForgetReplaced` |
 | | `SaveDefaults { revision }` | · | `E::SaveSettingsDefaults` |
-| `requests` | `Decide { request, token, owner, person, scope, role, retention }` | ◆ `Decided`, or the core part the connector asks first (`C::ApplicationPart`, still `In::Core`) | `C::Application` |
+| `requests` | `Decide { request, token, owner, person, scope, role, retention }` | ▷ `Decided`, whenever its connector has done the held work it needs (a store's load, a setup, a forge read), or the core part the connector asks first (`C::ApplicationPart`, still `In::Core`); the core's pending request waits for it, as today | `C::Application` |
 | | `Drop { owner }` | · | `C::DropApplication` |
 | | `PartAnswered { request, outcome }` | · | `C::ApplicationPartAnswered` |
 
