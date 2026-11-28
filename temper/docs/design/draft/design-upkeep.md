@@ -17,6 +17,7 @@
   - `tools/citations/move.py`.
   - `temper/docs/design/client/web/mockups/STATUS.md`, the mockups' own list of gaps, kept under their README's rules.
 - **After the first passes** (2.5): a draft with only **Design departs** left is done and goes to the archive with them (3.2, section 5). A document keeps its text in numbered sections, and one whose opening passes 8 KB is due to be numbered (4.1, 4.2).
+- **After the third pass** (2.6): each pass removes the earlier passes' "where it went" lines, and the checker refuses a citation to a section that holds only one (4.2). `move.py` carries a literal's exception in `tools/citations/allow.txt` with it, and the roll-up leaves out the pages generated from a table (3.2).
 
 ## 2. What happened
 
@@ -65,6 +66,16 @@ Read at `d50c06b8e3` (2026-11-24 18:27Z), against the first pass's landing, `035
 - **No draft went:** a draft's status counted as done only when every label read none. But a **Design departs** entry never closes, since goals leave a draft's text as it is. Since the first pass the roll-up has listed no draft as done, and none was archived, while 51 of temper's 122 drafts outside `draft/archive/` had only departures left: 751 KB of `draft/`'s 2.4 MB.
 - **Openings that hold the document:** 34 documents' text before their first numbered section is over 8 KB (19 of them temper's, 11 jig's, 3 skein's and 1 hearth's), 20 of them over 16 KB. `checkouts.md` is a 43.7 KB opening list and two sections, and the three goals that grew it since the pass each added an item to that list. `move.py` moves numbered sections, so a split can't take such an opening apart as it stands.
 
+### 2.6 What the third pass left
+
+Read at `2f50ccd03d` (2026-11-28 12:46Z), against the third pass's landing, `c7f89289f6` (2026-11-24 23:28Z), 190 landings apart.
+
+- **Over the mark again:** six files, none on 11-24: temper's `draft/jig-domain-api.md` at 62,359 bytes, `client/journey-writer.md` at 60,764, `testing/workloads.md` at 58,247, `domain/forge/branches.md` at 50,536 and `protocol/configuration/stock.md` at 49,658, and skein's `testing/browser.md` at 53,541. Documents over 40 KB went from 39 to 45.
+- **Where the text went:** the five trees' design documents, drafts and status files aside, grew 616 KB, to 13.8 MB, and gained 18 files. 467 KB went into documents that were already there, and 23 new documents took 255 KB. `journey-writer.md` went from 18,720 to 60,764 bytes in eight landings over two and a half days, as look requests and their render check were designed into its section 6, now 27 KB. jig's `domain/engine/vocabulary.md` went from 9,411 to 42,317 bytes, its section 2, the engine, at 30 KB. The text read is current design, not a log.
+- **Status files held:** 811 KB to 820 KB.
+- **Lines left behind:** 351 "where it went" lines in 92 files. No pass was told to remove the earlier passes' lines, as 4.2 asks.
+- **What the passes don't reach:** a new concept is designed into the nearest document's section, not a document of its own (`DESIGN.md`, 5). Nothing at the writer acts before the limit. A hot document goes from the mark to the limit in a few landings, faster than passes decided at the user's check-ins.
+
 ## 3. STATUS.md, a fixed page
 
 ### 3.1 The page
@@ -94,7 +105,7 @@ Read at `d50c06b8e3` (2026-11-24 18:27Z), against the first pass's landing, `035
 - **What it prints, for each tree:**
   - The open entries counted by label, with how many **Not yet** entries are in flight. A status file under `draft/archive/` counts none: its draft has gone.
   - A line for each status file with an open entry, giving its date and counts.
-  - What's due: the files over the mark (4.1), largest first; the documents whose opening is past 8 KB (4.1), largest opening first; the drafts that are done, outside `draft/archive/` (section 5); and the unread status files.
+  - What's due: the files over the mark (4.1), largest first; the documents whose opening is past 8 KB (4.1), largest opening first; the drafts that are done, outside `draft/archive/` (section 5); and the unread status files. A page generated from a table, whose opening line says so ("Generated from"), isn't listed among the openings: its text is its renderer's, and no goal adds to it by hand (`design-upkeep.status.md`, Design departs, 4.1 and 4.2).
 - **Only a read:** it writes nothing, and no gate runs the roll-up. Its tests sit beside it, as the checker's do.
 
 ### 3.3 The check
@@ -123,10 +134,11 @@ Read at `d50c06b8e3` (2026-11-24 18:27Z), against the first pass's landing, `035
 
 - **Along the document's concepts** (`DESIGN.md`, 5), with `tools/citations/move.py` and its map. Each piece comes out under 40 KB. A concept that can't be brought under 40 KB stays under the mark. One that can't be brought under the mark stays whole, and the change says why.
 - **Text moves unchanged:** a split only moves text. No text is cut just to pass the limit. Text that is wrong, out of date, or not the design's to say (`design-economy.md`, 4.2) is removed for that reason, in a change of its own, so that each change is reviewed as what it is.
-- **What stays keeps its numbers:** the map names no `renumber` for the document left behind. Where a section left, one line names where it went, so a spec or a branch that still cites the old place can find it. The next pass removes those lines.
+- **What stays keeps its numbers:** the map names no `renumber` for the document left behind. Where a section left, one line names where it went, so a spec or a branch that still cites the old place can find it. The next pass removes those lines, under their headings, and points what still cites them at where the text went. Meanwhile the checker refuses a citation to a section that holds only such a line, saying where the text went, so none is written.
+- **Exceptions follow:** a literal's exception in `tools/citations/allow.txt` moves with it. `move.py` rewrites the exception's file to the literal's new place, as it rewrites citations.
 - **A long opening first:** before a document is split, an opening past 8 KB goes into numbered sections under headings of its own, its text unchanged, and a `renumber` entry of the map numbers them with the sections after them, so that every citation follows. Its pieces then move as any section does. A document under the mark with such an opening is numbered and not split.
 - **At the limit too:** a goal that meets the limit splits the same way, and the checker's refusal says so: "over the 65,536-byte limit: split it along its concepts, each piece under 40 KB (DESIGN.md, 5); don't cut text to fit".
-- **`draft/notes.md`:** this one file holds every draft's reasons. It splits into a notes file beside each draft, `<draft>.notes.md`, and `DESIGN.md`, 4, then puts a draft's reasons there and nowhere else. No shared notes file is left to fill up.
+- **`draft/notes.md`:** this one file holds every draft's reasons. It splits into a notes file beside each draft, `<draft>.notes.md`, and `DESIGN.md`, 4, then puts a draft's reasons there and nowhere else. No shared notes file is left to fill up. What the first pass left of it, its headings and their lines, goes with the fourth pass's cleanup of those lines.
 
 ### 4.3 The split pass
 
@@ -136,6 +148,7 @@ Read at `d50c06b8e3` (2026-11-24 18:27Z), against the first pass's landing, `035
 - **Later passes, by hand for now:** when the user checks in, the drafter brings the roll-up's due list for each tree, a document over 56 KB above all, and they decide together whether to run a pass. A pass they decide on starts as a goal on the user's word. Once a few passes have given experience, the passes are automated (7.1).
 - **Goals in flight:** a split moves text that a goal in flight may cite or edit. A citation to a moved section finds its line (4.2). A goal whose branch edited a moved section meets a conflict at its merge. The goal's designer or coordinator resolves it with the map, since a repair may not edit design documents.
 - **The third pass,** 2026-11-24 (2.5): temper's `checkouts.md`, its opening numbered first, then smith's `testing.md`, a goal each. Then a goal that brings the roll-up to 3.2's and 4.1's new readings and acts on what they list: temper's drafts with only departures left archived, and every tree's long openings numbered, one tree a change.
+- **The fourth pass,** 2026-11-28 (2.6): temper's files over the mark, but `draft/jig-domain-api.md`, a draft its drafter is still writing; temper's finished drafts and unread status files; skein's `testing/browser.md`; and in temper and skein, the earlier passes' lines removed (4.2), the first pass's `draft/notes.md` with them. A goal each, skein's after temper's. Then a goal for the tools: the roll-up's generated pages (3.2), the exceptions that follow and the refused citation (4.2), with the other trees' lines removed.
 - **Other trees:** jig's, skein's, smith's and hearth's files over the mark get passes of their own, decided as temper's are. A tree's pass is one goal, and the trees' goals run one after another, since each rewrites citations across the whole repository (7.2).
 
 ## 5. Finished drafts go
@@ -151,12 +164,13 @@ Read at `d50c06b8e3` (2026-11-24 18:27Z), against the first pass's landing, `035
 - **On dev.fabrig.ai,** fabrig's goal charter reaches the goals once its charter set is applied there and the live goals are moved to the new revision. A run already going keeps the revision it started with until it ends.
 - **The split pass after the roll-up,** since the pass works from the roll-up's list of what's due.
 - **The new readings after the third pass** (4.3): archiving drafts and numbering openings rewrite citations across the repository, as the passes' splits do, so they run after them.
+- **The tools after the fourth pass:** its documents are nearest the limit, so they go first. The tools' goal removes the other trees' lines after the passes, and its refused citation then holds what they left.
 
 ## 7. Open questions
 
 ### 7.1 How often split passes run
 
-Decided by the user, 2026-11-21: by hand at first, with no cadence and no standing approval. At the user's check-ins the drafter reminds them of the roll-up's due list, and they decide whether to run a pass (4.3). Once a few passes have given experience, the passes are automated, and their cadence and approval are decided then.
+Decided by the user, 2026-11-21: by hand at first, with no cadence and no standing approval. At the user's check-ins the drafter reminds them of the roll-up's due list, and they decide whether to run a pass (4.3). Once a few passes have given experience, the passes are automated, and their cadence and approval are decided then. Asked again, 2026-11-28, the user would rather know first what would keep documents in shape at the root, without passes (2.6).
 
 ### 7.2 The other trees
 
