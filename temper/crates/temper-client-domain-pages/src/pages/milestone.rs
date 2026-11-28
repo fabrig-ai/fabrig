@@ -148,5 +148,5 @@ fn read(handle: Handle, read: c::Read, out: &mut Queue<Request>) {
 }
 
 fn own_line_query(task: &c::Task) -> c::TaskQuery {
-    c::TaskQuery { tracked: Some(task.priority.is_some()), ..goal::own_line_query(task) }
+    c::TaskQuery { tracked: Some(task.priority.is_some()), ..goal::own_line_keys(task) }
 }

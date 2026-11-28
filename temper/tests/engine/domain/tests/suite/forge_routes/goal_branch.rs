@@ -140,7 +140,7 @@ pub(super) fn adopted_world() -> World {
     world
 }
 
-pub(super) fn goal_request(world: &World, tracked: bool) -> people::Ask {
+pub(crate) fn goal_request(world: &World, tracked: bool) -> people::Ask {
     let people::Ask::Create { project, mut batch } = world.chat(1, b"Make a small fix on my branch") else {
         unreachable!("chat template creates a batch")
     };
@@ -177,7 +177,7 @@ pub(super) fn resource(branch: &[u8]) -> tasks::Name {
     }
 }
 
-pub(super) fn branch_tip(world: &mut World, branch: &[u8]) -> u64 {
+pub(crate) fn branch_tip(world: &mut World, branch: &[u8]) -> u64 {
     let answer = world.external(1, raw::Op::Read(raw::Read::Branch { branch: branch.into() }));
     let raw::Answer::Commit(tip) = answer else { panic!("branch {branch:?}: {answer:?}") };
     tip

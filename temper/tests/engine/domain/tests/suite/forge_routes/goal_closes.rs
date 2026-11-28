@@ -245,7 +245,7 @@ fn start_goal(
     (world, goal, branch, full)
 }
 
-fn goal_world(template: u32) -> (World, engine::Assignment, Box<[u8]>) {
+pub(crate) fn goal_world(template: u32) -> (World, engine::Assignment, Box<[u8]>) {
     goal_world_in(template, true)
 }
 

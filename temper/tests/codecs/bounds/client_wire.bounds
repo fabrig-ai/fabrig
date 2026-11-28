@@ -176,7 +176,7 @@ GateReason: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 GitHubApp: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
 GitHubManifest: ceilings encoded=517 decoded=512; at_most(3) encoded=8 decoded=3
 GoalFrom: ceilings encoded=28 decoded=0; at_most(3) encoded=28 decoded=0
-GoalPart: ceilings encoded=536 decoded=512; at_most(3) encoded=27 decoded=3
+GoalPart: ceilings encoded=537 decoded=512; at_most(3) encoded=28 decoded=3
 GoalReport: ceilings encoded=524 decoded=512; at_most(3) encoded=15 decoded=3
 GroupFailed: ceilings encoded=260 decoded=256; at_most(3) encoded=7 decoded=3
 HandFinding: ceilings encoded=248 decoded=232; at_most(3) encoded=22 decoded=6

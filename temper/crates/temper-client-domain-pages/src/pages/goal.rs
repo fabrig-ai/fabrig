@@ -5,6 +5,7 @@ use crate::{Limits, forge, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Latest, Readable, Readout, Told, contract as c};
 use skein_lib::{Queue, Time, Wall, bytes};
+use temper_client_domain_forge::parts;
 use temper_client_protocol_wire::v1 as w;
 
 /// A goal's direct delegates, cancelled ones left out.
@@ -23,6 +24,7 @@ pub struct Counts {
 pub struct Goal {
     pub report: Option<report::Report>,
     pub line: Option<c::TaskLine>,
+    part: Option<w::GoalPart>,
     pub draft: (Option<Box<[u8]>>, Option<u64>),
     pub reds: Box<[w::FindingRow]>,
     pub reds_cut: bool,
@@ -70,6 +72,7 @@ impl Goal {
             text_bound,
             report: None,
             line: None,
+            part: None,
             reds: Box::default(),
             reds_cut: false,
             findings_handle,
@@ -200,6 +203,9 @@ impl Goal {
                         };
                         for row in page.live.iter().chain(ended) {
                             if row.chip.task == self.number {
+                                if let Some(part) = parts::goal(row) {
+                                    self.part = Some(part);
+                                }
                                 self.line = Some(row.clone());
                                 break;
                             }
@@ -254,6 +260,14 @@ impl Goal {
         let task = requester.document.as_deref()?;
         let template = jig_client::shapes::template(me?, task.project, jig_client::shapes::CHAT)?;
         if task.label == template.label { Some(requester.number) } else { None }
+    }
+    /// Whether the last decoded goal part says this goal holds its own branch.
+    #[must_use]
+    pub fn holds_branch(&self) -> bool {
+        match &self.part {
+            Some(part) => part.own_branch,
+            None => false,
+        }
     }
     #[must_use]
     pub fn counts(&self, task: &c::Task, ended: Option<&c::TaskPage>) -> Counts {
@@ -314,6 +328,10 @@ fn read(handle: Handle, read: c::Read, out: &mut Queue<Request>) {
 /// The goal's own query keys, ordered by task number.
 #[must_use]
 pub fn own_line_query(task: &c::Task) -> c::TaskQuery {
+    c::TaskQuery { parts: goals::query_parts(), ..own_line_keys(task) }
+}
+
+pub(super) fn own_line_keys(task: &c::Task) -> c::TaskQuery {
     c::TaskQuery {
         parts: skein_lib::List::with_capacity(0),
         project: Some(task.project),
@@ -387,24 +405,6 @@ fn decimal(words: &[u8]) -> Option<u64> {
         value = value.checked_mul(10)?.checked_add(u64::from(byte.checked_sub(b'0')?))?;
     }
     Some(value)
-}
-/// Whether a resource's path ends in PREFIX/root/groot, with equal numbers.
-#[must_use]
-pub fn holds_branch(task: &c::Task) -> bool {
-    for resource in &task.resources {
-        if let c::PartKey::Path(path) = &resource.part.key {
-            let mut tail = path.iter().rev();
-            if let (Some(goal), Some(root), Some(prefix)) = (tail.next(), tail.next(), tail.next())
-                && prefix.as_ref() == b"temper"
-                && let Some(goal) = goal.strip_prefix(b"g")
-                && let (Some(root), Some(goal)) = (decimal(root), decimal(goal))
-                && root == goal
-            {
-                return true;
-            }
-        }
-    }
-    false
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Line {
@@ -537,7 +537,7 @@ pub enum Landing {
     Each,
 }
 #[must_use]
-pub fn landing(state: goals::State, task: &c::Task, ended_at: Option<Wall>, counts: Counts) -> Landing {
+pub fn landing(state: goals::State, own_branch: bool, ended_at: Option<Wall>, counts: Counts) -> Landing {
     match state {
         goals::State::Landed => Landing::Landed(ended_at),
         goals::State::Closed => Landing::Closed,
@@ -548,7 +548,7 @@ pub fn landing(state: goals::State, task: &c::Task, ended_at: Option<Wall>, coun
         | goals::State::WaitsForRoom
         | goals::State::Planning
         | goals::State::Running => {
-            if holds_branch(task) {
+            if own_branch {
                 Landing::Whole { total: counts.total }
             } else {
                 Landing::Each

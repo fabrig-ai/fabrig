@@ -341,7 +341,7 @@ record MilestoneRead { project: u32 task: u64 }
 record MilestoneLanding { at: u64 goal: u64 change: u64 }
 record MilestoneTotals { task: u64 done: u32 failed: u32 closed: u32 live: u32 ended: option u64 last_landing: option MilestoneLanding spent: u64 reds: u32 }
 record GoalReport { headline: bytes 512 at: u64 }
-versioned record GoalPart { report: option GoalReport milestone: option u64 }
+versioned record GoalPart { report: option GoalReport milestone: option u64 own_branch: bool = false }
 versioned record ChatPart { document: option bytes 512 }
 record MilestoneGoal { line: bytes 16384 headline: option bytes 512 }
 versioned record MilestonePart { whole: option u64 totals: MilestoneTotals goals: list 16 MilestoneGoal more: u32 }

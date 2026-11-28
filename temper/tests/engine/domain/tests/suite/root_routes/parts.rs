@@ -1,9 +1,11 @@
 //! Parts are made by the real root, from the durable note index and entries.
 use super::*;
+use crate::forge_routes::{assigned_chat, goal_branch, goal_closes, live_task, milestones};
 use jig_domain_core::{documents as d, reads};
 use skein_lib::{List, Reader};
 use temper_client_protocol_wire::v1::Record as CodecRecord;
 use temper_client_protocol_wire::{self as wire, v1 as w};
+use temper_engine_domain_world::forge_routes::{Gate, StoryLimits, Until, World};
 
 fn fixture() -> (Driver, engine::Assignment) {
     let mut configs = [note_config(), note_config()];
@@ -142,6 +144,63 @@ fn goal_parts_choose_the_newest_report_and_invalidate_the_kept_entry() {
     assert_eq!(goal(watched(&driver)).report.as_ref().expect("part fixture").headline.as_ref(), b"All landed");
     assert!(driver.loads.len() > loads, "a saved scope note invalidates the entry");
 }
+fn read_goal(world: &mut World, task: u64) -> w::GoalPart {
+    let record = live_task(world, task);
+    let mut query = query(wire::GOAL_PART);
+    query.requester = Some(record.requester);
+    query.label = Some(record.label);
+    query.tracked = Some(true);
+    let answer = world.party_read(reads::Read::Tasks { query, live: None, ended: None });
+    let reads::Answer::Tasks(page) = answer else { panic!("goal query: {answer:?}") };
+    let row = page.live.iter().find(|row| row.chip.number == task).expect("goal's own line");
+    goal(row)
+}
+
+#[test]
+fn a_goal_part_names_its_branch_under_a_milestone() {
+    let mut world = milestones::world();
+    let milestone = milestones::milestone(&mut world, b"Gather the work");
+    let run = milestones::goal_with_budget(&mut world, 181, milestone, true, b"Land the work whole", 300);
+    assert_ne!(milestone, run.task);
+    let branch = format!("temper/{milestone}/g{}", run.task);
+    assert_eq!(goal_branch::branch_tip(&mut world, branch.as_bytes()), 1);
+    let part = read_goal(&mut world, run.task);
+    assert_eq!(part.milestone, Some(milestone));
+    assert!(part.own_branch);
+    milestones::conclude_with_goal(&mut world, milestone, &run);
+    world.close();
+}
+
+#[test]
+fn a_goal_part_names_its_branch_under_a_multi_segment_prefix() {
+    const BRANCH_SEGMENTS: u32 = 9; // forge/host/owner/repo/branch/team/temper/root/goal
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { authority_segments: Some(BRANCH_SEGMENTS), ..StoryLimits::default() },
+    );
+    world.adopt_with_prefix(b"team/temper/");
+    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+    let ask = goal_branch::goal_request(&world, true);
+    let run = assigned_chat(&mut world, 92, ask);
+    world.until(Until::Ready);
+    let branch = format!("team/temper/{0}/g{0}", run.task);
+    assert_eq!(goal_branch::branch_tip(&mut world, branch.as_bytes()), 1);
+    assert!(read_goal(&mut world, run.task).own_branch);
+    world.close();
+}
+
+#[test]
+fn a_template_two_goals_part_has_no_goal_branch() {
+    let (mut world, run, _) = goal_closes::goal_world(2);
+    assert!(!read_goal(&mut world, run.task).own_branch);
+    world.close();
+}
+
 #[test]
 fn chat_parts_keep_the_first_non_work_note_and_follow_its_edits() {
     let (mut driver, run) = fixture();

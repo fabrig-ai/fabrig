@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 47;
 pub const LAYOUT: [u8; 32] = [
-    0xfc, 0xdb, 0xdf, 0x3c, 0x5c, 0xa6, 0xed, 0x59, 0x79, 0xb6, 0x4d, 0x79, 0x3a, 0x03, 0xa0, 0x8e, 0xf1, 0x75, 0x1d,
-    0xb0, 0xf4, 0xa2, 0x39, 0x23, 0x99, 0x7f, 0x83, 0x57, 0xfe, 0x6f, 0xb9, 0x44,
+    0x0f, 0x9e, 0x9f, 0x38, 0x23, 0x4c, 0x02, 0x18, 0x6b, 0x74, 0x8b, 0xea, 0xf0, 0xb8, 0x4c, 0xc9, 0x6b, 0x5d, 0x90,
+    0x47, 0xf7, 0xae, 0xc1, 0xe2, 0xfd, 0x62, 0x3f, 0x65, 0xbb, 0x66, 0x57, 0xc0,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -2873,6 +2873,7 @@ pub mod paths {
     pub const GOAL_REPORT_TAIL: Path = Path::new("GoalReport (tail)");
     pub const GOAL_PART_REPORT: Path = Path::new("GoalPart.report");
     pub const GOAL_PART_MILESTONE: Path = Path::new("GoalPart.milestone");
+    pub const GOAL_PART_OWN_BRANCH: Path = Path::new("GoalPart.own_branch");
     pub const GOAL_PART_VERSION: Path = Path::new("GoalPart (version)");
     pub const GOAL_PART_TAIL: Path = Path::new("GoalPart (tail)");
     pub const CHAT_PART_DOCUMENT: Path = Path::new("ChatPart.document");
@@ -21621,6 +21622,7 @@ impl Record for GoalReport {
 pub struct GoalPart {
     pub report: Option<GoalReport>,
     pub milestone: Option<u64>,
+    pub own_branch: bool,
 }
 
 // Record: GoalPart.
@@ -21630,11 +21632,12 @@ impl GoalPart {
         skein_codec::bounds::Node::Option { item: 0 },
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 2 },
-        skein_codec::bounds::Node::Record { prefix: 2, fields: &[1, 3] },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[1, 3, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 24;
+    pub const ENCODED_AT_ZERO: u64 = 25;
 }
 
 impl Record for GoalPart {
@@ -21662,6 +21665,7 @@ impl Record for GoalPart {
         field::put(out, &VERSION.to_be_bytes(), paths::GOAL_PART_VERSION)?;
         field::write(field::Optional { item: field::Nested }, &self.report, limits, out, paths::GOAL_PART_REPORT)?;
         field::write(field::Optional { item: field::U64 }, &self.milestone, limits, out, paths::GOAL_PART_MILESTONE)?;
+        field::write(field::Boolean, &self.own_branch, limits, out, paths::GOAL_PART_OWN_BRANCH)?;
         Ok(())
     }
 
@@ -21670,6 +21674,7 @@ impl Record for GoalPart {
         Ok(Self {
             report: field::read(field::Optional { item: field::Nested }, limits, reader, paths::GOAL_PART_REPORT)?,
             milestone: field::read(field::Optional { item: field::U64 }, limits, reader, paths::GOAL_PART_MILESTONE)?,
+            own_branch: field::read(field::Boolean, limits, reader, paths::GOAL_PART_OWN_BRANCH)?,
         })
     }
 }

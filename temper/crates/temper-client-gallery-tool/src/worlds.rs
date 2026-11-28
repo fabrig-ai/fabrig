@@ -2711,24 +2711,6 @@ impl GoalPage {
             task.chip.details.details.ended_at = Some(task.changed);
             task.acts.clear();
         }
-        if self.whole {
-            let number = self.facts.number.to_string();
-            task.resources = List::with_capacity(1);
-            task.resources
-                .push(c::ResourceLine {
-                    part: c::Part {
-                        connector: FORGE,
-                        kind: c::PartKind::Resource,
-                        key: c::PartKey::Path(path(&[b"temper", number.as_bytes(), format!("g{number}").as_bytes()])),
-                    },
-                    kind: 1,
-                    taken: true,
-                    holder: Some(self.facts.number),
-                    writer: None,
-                    writer_lost: false,
-                })
-                .expect("goal branch");
-        }
         task
     }
     fn delegate(&self, w: World, index: usize) -> c::TaskLine {
@@ -2814,6 +2796,11 @@ impl GoalPage {
                 let mut line = task_line(self.document(w));
                 line.delegates_done = self.facts.done;
                 line.delegates_total = self.facts.total;
+                line.parts = List::from_boxed(Box::new([documents::goal_part_with_branch(
+                    self.facts.headline.map(|headline| (headline.as_bytes(), goal_wall(w, self.facts.at))),
+                    None,
+                    self.whole,
+                )]));
                 let rows = List::from_boxed(Box::new([line]));
                 let page = if goal_ended(&self.facts) {
                     c::TaskPage {

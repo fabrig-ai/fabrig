@@ -262,7 +262,7 @@ fn a_tracked_task_reads_its_report_and_line_and_opens_its_inbox() {
         read,
         c::Read::Tasks {
             query: c::TaskQuery {
-                parts: List::with_capacity(0),
+                parts: List::from_boxed(Box::new([temper_client_domain_forge::parts::asks(wire::GOAL_PART)])),
                 project: Some(task.project),
                 requester: Some(task.requester),
                 label: Some(task.label),
@@ -582,10 +582,10 @@ fn draft_of_reads_a_lines_start_alone() {
     assert_eq!(goal::file_of(b"away.md"), b"away.md");
     assert_eq!(goal::file_of(b""), b"");
 }
-fn branch(task: &mut c::Task, parts: &[&[u8]]) {
-    let mut path = List::uncapped();
-    for part in parts {
-        path.push(Box::from(*part)).unwrap();
+fn branch(task: &mut c::Task) {
+    let mut path = List::with_capacity(3);
+    for part in [b"temper".as_slice(), b"12", b"g12"] {
+        path.push(Box::from(part)).unwrap();
     }
     task.resources = List::from_boxed(Box::new([c::ResourceLine {
         part: c::Part { connector: fixtures::FORGE, kind: c::PartKind::Resource, key: c::PartKey::Path(path) },
@@ -596,22 +596,45 @@ fn branch(task: &mut c::Task, parts: &[&[u8]]) {
         writer_lost: false,
     }]));
 }
+fn line_with_part(part: c::RowPart) -> c::ReadValue {
+    let mut line = row(f::TASK);
+    line.parts = List::from_boxed(Box::new([part]));
+    task_page(&[line], false, &[], false)
+}
+
+fn goal_part(own_branch: bool) -> c::RowPart {
+    temper_fixtures::client_documents::goal_part_with_branch(None, None, own_branch)
+}
+
 #[test]
-fn holds_branch_requires_equal_goal_numbers() {
+fn a_matching_resource_path_does_not_make_a_goal_land_whole() {
     let mut task = tracked();
-    task.resources.clear();
-    assert!(!goal::holds_branch(&task));
-    for (root, goal, expected) in [
-        (b"12".as_slice(), b"g12".as_slice(), true),
-        (b"12", b"g13", false),
-        (b"x", b"gx", false),
-        (b"012", b"g012", false),
-    ] {
-        branch(&mut task, &[b"forge", b"host", b"repo", b"branch", b"temper", root, goal]);
-        assert_eq!(goal::holds_branch(&task), expected);
-    }
-    branch(&mut task, &[b"temper", b"12", b"c12"]);
-    assert!(!goal::holds_branch(&task));
+    branch(&mut task);
+    let mut h = Harness::new(task);
+    let (handle, _) = line_read(&h.take()).unwrap();
+    assert_eq!(goal::landing(State::Running, h.goal().holds_branch(), None, COUNTS), Landing::Each);
+    h.answer(handle, line_with_part(goal_part(false)));
+    assert_eq!(goal::landing(State::Running, h.goal().holds_branch(), None, COUNTS), Landing::Each);
+}
+
+#[test]
+fn an_unmade_own_line_part_keeps_the_last_decoded_part() {
+    let mut task = tracked();
+    let mut h = Harness::new(task.clone());
+    let (handle, _) = line_read(&h.take()).unwrap();
+    h.answer(handle, line_with_part(goal_part(true)));
+    assert!(h.goal().holds_branch());
+    task.changed = LATER;
+    h.deliver(task.clone());
+    assert!(line_read(&h.take()).is_some());
+    assert!(h.goal().holds_branch(), "the fact stays while the line is being read");
+    h.answer(handle, line_with_part(c::RowPart::Failed(c::PartFailure::Busy)));
+    assert!(h.goal().holds_branch(), "a busy part does not replace the decoded part");
+    task.changed = Wall::from_nanos(20);
+    h.deliver(task);
+    assert!(line_read(&h.take()).is_some());
+    h.answer(handle, line_with_part(goal_part(false)));
+    assert!(!h.goal().holds_branch(), "a new decoded part replaces the old one");
 }
 #[test]
 fn line_uses_the_notes_precedence_in_every_case() {
@@ -717,25 +740,30 @@ fn fallback_in_each_state() {
 }
 #[test]
 fn landing_in_each_state() {
-    let mut task = tracked();
-    task.resources.clear();
-    for state in
-        [State::Needs { funds: false }, State::Needs { funds: true }, State::Paused, State::Planning, State::Running]
-    {
-        assert_eq!(goal::landing(state, &task, Some(LATER), COUNTS), Landing::Each);
-        branch(&mut task, &[b"temper", b"12", b"g12"]);
-        assert_eq!(goal::landing(state, &task, None, COUNTS), Landing::Whole { total: COUNTS.total });
-        assert_eq!(goal::landing(state, &task, None, Counts { done: 0, total: 0 }), Landing::Whole { total: 0 });
-        task.resources.clear();
+    for (own_branch, expected) in [(false, Landing::Each), (true, Landing::Whole { total: COUNTS.total })] {
+        let mut h = Harness::new(tracked());
+        let (handle, _) = line_read(&h.take()).unwrap();
+        assert_eq!(goal::landing(State::Running, h.goal().holds_branch(), None, COUNTS), Landing::Each);
+        h.answer(handle, line_with_part(goal_part(own_branch)));
+        for state in [
+            State::Needs { funds: false },
+            State::Needs { funds: true },
+            State::Paused,
+            State::Planning,
+            State::Running,
+        ] {
+            assert_eq!(goal::landing(state, h.goal().holds_branch(), None, COUNTS), expected);
+        }
     }
     for (state, expected) in [
         (State::Landed, Landing::Landed(Some(LATER))),
         (State::Closed, Landing::Closed),
         (State::Failed, Landing::Failed),
     ] {
-        assert_eq!(goal::landing(state, &task, Some(LATER), COUNTS), expected);
+        assert_eq!(goal::landing(state, true, Some(LATER), COUNTS), expected);
     }
-    assert_eq!(goal::landing(State::Landed, &task, None, COUNTS), Landing::Landed(None));
+    assert_eq!(goal::landing(State::Landed, false, None, COUNTS), Landing::Landed(None));
+    assert_eq!(goal::landing(State::Running, true, None, Counts { done: 0, total: 0 }), Landing::Whole { total: 0 });
 }
 
 fn with_offer(kind: c::ActKind) -> c::Task {
