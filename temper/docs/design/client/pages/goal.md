@@ -140,9 +140,11 @@ an open need on it, whether it has a report, and its direct delegates' total.
     live, holding a goal branch, "Lands whole once all nine are checked.", the
     delegates' total in words through nine, then a digit, or "Lands whole once
     all its tasks are checked." with no tasks yet; live with no branch, "Each
-    task lands on its own once checked." A goal branch is a resource of the task
-    whose path ends in the name `temper/<root>/g<root>`, `../../domain/forge/branches.md`,
-    1's. The mock's "last updated from main" is not drawn: no read says it.
+    task lands on its own once checked." A goal holds a goal branch where its
+    own line's goal part says so, `own_branch` (`../forge/parts.md`, 3 and 5):
+    the engine's fact, whatever its adoption's prefix, its tree's root and its
+    number (`../../domain/forge/branches.md`, 1), never read from a resource's
+    path. The mock's "last updated from main" is not drawn: no read says it.
   - **Reds after landing** (`.section-title`), drawn only while its
     `findings` watch has delivered rows: the findings blamed on the goal,
     the uncleared first, each group newest first, each a `p.task-line`:
