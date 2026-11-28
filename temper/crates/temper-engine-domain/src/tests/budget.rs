@@ -245,6 +245,7 @@ fn turn_root() -> (Domain, Env<Limits>) {
             reply_to: ReplyTo::new(Token::new(3)),
             creator: tasks::Party::Deployment { project: 1 },
             batch: Box::new([tasks::New {
+                charter_scope: tasks::CharterScope::Project,
                 number: 1,
                 project: 1,
                 label: 0,

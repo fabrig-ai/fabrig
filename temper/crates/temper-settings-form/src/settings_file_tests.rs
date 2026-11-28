@@ -209,6 +209,7 @@ fn charter_owners_keep_names_and_numbers_in_the_settings_form() {
                 value: Some(set.value.clone()),
                 application: None,
                 proposed: None,
+                project: None,
             }));
             assert_eq!(
                 shown(&document),
@@ -260,6 +261,7 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
             value: Some(set.value.clone()),
             application: None,
             proposed: None,
+            project: None,
         }));
         assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
     }
@@ -460,6 +462,7 @@ fn welcome_is_an_unnumbered_deployment_setting_with_a_boolean_value_and_reset() 
         value: Some(set.value.clone()),
         application: None,
         proposed: None,
+        project: None,
     }));
     assert_eq!(shown(&document).as_ref(), br#"{"setting":{"kind":"welcome"},"revision":1,"value":{"shown":true}}"#);
     let reset =
@@ -501,6 +504,7 @@ fn landing_sets_default_empty_and_round_trip_in_number_order_given() {
             value: Some(set.value.clone()),
             application: None,
             proposed: None,
+            project: None,
         }));
         assert_eq!(
             shown(&document),
@@ -1121,6 +1125,7 @@ fn the_settings_form_round_trips_a_model() {
         value: Some(set.value.clone()),
         application: None,
         proposed: None,
+        project: None,
     }));
     assert_eq!(
         shown(&document),
@@ -1177,6 +1182,7 @@ fn the_settings_form_round_trips_declared_speeds_and_the_default() {
         value: Some(set.value.clone()),
         application: None,
         proposed: None,
+        project: None,
     }));
     let printed = shown(&document);
     let prefix = joined(&[br#"{"setting":"#, MODEL_SETTING, br#","revision":2,"value":"#]);
@@ -1303,6 +1309,7 @@ fn follows_use_the_binding_json_form_and_default_optional_members() {
             value: Some(set.value.clone()),
             application: None,
             proposed: None,
+            project: None,
         }));
         let text = shown(&document);
         if !optional {
@@ -1340,6 +1347,7 @@ fn follow_owners_accept_one_person_or_task_and_render_the_same_variant() {
             value: Some(set.value.clone()),
             application: None,
             proposed: None,
+            project: None,
         })));
         assert!(skein_lib::bytes::find(&text, &joined(&[br#""owner":"#, owner])).is_some());
     }
@@ -1371,6 +1379,7 @@ fn dependencies_round_trip_and_require_a_numeric_project() {
         value: Some(set.value.clone()),
         application: None,
         proposed: None,
+        project: None,
     }));
     assert_eq!(shown(&document), joined(&[br#"{"setting":"#, selector, br#","revision":1,"value":"#, json, b"}"]));
     for (json, reason) in
@@ -1428,6 +1437,7 @@ fn agents_form_round_trips_named_maps_and_reports_duplicates() {
         value: Some(set.value.clone()),
         application: None,
         proposed: None,
+        project: None,
     }));
     assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
     for (from, to, name) in [
@@ -1475,6 +1485,7 @@ fn both_limit_kinds_use_a_whole_list_of_named_values_and_reasons() {
             overlay: None,
             application: None,
             proposed: None,
+            project: None,
         })));
         assert!(skein_lib::bytes::find(&shown, list).is_some(), "{shown:?}");
         assert!(file::decode(&kind_file(kind, b"{}"), &limits).is_err(), "requires list");
@@ -1514,6 +1525,7 @@ fn provider_files_proposals_and_reads_keep_the_whole_value_and_number() {
         overlay: None,
         application: None,
         proposed: None,
+        project: None,
     })));
     assert!(skein_lib::bytes::find(&shown, VALUE).is_some());
     let proposal = joined(&[
@@ -1576,6 +1588,7 @@ fn worker_files_proposals_and_reads_keep_the_digest_as_lowercase_hex() {
             value: Some(set.value.clone()),
             application: None,
             proposed: None,
+            project: None,
         })));
         assert!(skein_lib::bytes::find(&shown, SETTING).is_some());
         assert_eq!(skein_lib::bytes::find(&shown, DIGEST).is_some(), digest.is_some());

@@ -382,7 +382,7 @@ fn core_fit(failure: &core::start::Failure) -> Option<(&'static [u8], u64, u64)>
                 LiveSet::RunProofs | LiveSet::Census => Some(b"tasks.tasks".as_slice()),
                 LiveSet::Parts | LiveSet::Calls => Some(b"core.call_records".as_slice()),
                 LiveSet::Projections => Some(b"tasks.project_goals".as_slice()),
-                LiveSet::ReadResults | LiveSet::Conversations => None,
+                LiveSet::ProjectCharters | LiveSet::ReadResults | LiveSet::Conversations => None,
                 LiveSet::WorkerClaims => Some(b"fleet.attempts".as_slice()),
                 LiveSet::TasksBound(bound) => task_bound(bound),
                 LiveSet::PeopleBound(bound) => people_bound(bound),
@@ -611,6 +611,7 @@ fn jig_list(row: Option<jig_protocol_store::Row>) -> Option<Box<[Override]>> {
         core::settings::Record::Default { .. }
         | core::settings::Record::Application { .. }
         | core::settings::Record::Revision { .. }
+        | core::settings::Record::ProjectCharters(_)
         | core::settings::Record::Extent { .. }
         | core::settings::Record::Charter { .. }
         | core::settings::Record::Proposal { .. } => return None,

@@ -86,6 +86,7 @@ fn a_delegate_preflight_uses_the_parents_financial_payer() {
     core.proofs.insert(1, RunProof::claimed(1, 1, 1, None, fleet::HostKind::Worker)).unwrap();
     let member = new_row(&core, 3, tasks::Funder::Task(1), None);
     let delegate = Delegate {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         deadline: tasks::Deadline::Named,
         executor: member.executor,
         spec: member.spec,
@@ -102,7 +103,7 @@ fn a_delegate_preflight_uses_the_parents_financial_payer() {
     };
     let key = CallKey { task: 1, attempt: 1, completion: 1, position: 0 };
     assert_eq!(
-        core.delegate_preflight(&limits.tasks, key, &[delegate], Wall::from_nanos(0)),
+        core.delegate_preflight(&limits, key, &[delegate], Wall::from_nanos(0)),
         Err(Box::new(CallPart::DelegationRefused(tasks::Problem::new(
             None,
             tasks::Refusal::Account { account: ACCOUNT, why: tasks::AccountWhy::Uses }
@@ -128,14 +129,14 @@ fn an_accepter_can_fund_the_proposed_private_account() {
         state: tasks::PersonProposalState::Pending { since: Wall::EPOCH },
     };
     assert_eq!(
-        core.goal_accept_allowed(&proposal, 1, 1, people::Role::Owner, limits.tasks.tasks, Wall::EPOCH),
+        core.goal_accept_allowed(&limits, &proposal, 1, 1, people::Role::Owner, limits.tasks.tasks, Wall::EPOCH),
         Ok(tasks::Funder::Pool { project: 1, person: 1, period: 1 })
     );
 }
 
 #[test]
 fn a_non_agent_executor_refuses_an_explicit_account() {
-    let (core, _) = family();
+    let (core, limits) = family();
     for executor in
         [tasks::Executor::Procedure { connector: 1, code: 1 }, tasks::Executor::Person(tasks::PersonAddress::Person(1))]
     {
@@ -143,7 +144,7 @@ fn a_non_agent_executor_refuses_an_explicit_account() {
         member.executor = executor;
         member.llm = Some(choice());
         assert_eq!(
-            core.resolve_llm(&mut [member]),
+            core.resolve_llm(&limits, &[member], &[]),
             Err(tasks::Problem::new(Some(3), tasks::Refusal::Llm { model: 0, why: tasks::LlmFault::Procedure }))
         );
     }
@@ -151,7 +152,7 @@ fn a_non_agent_executor_refuses_an_explicit_account() {
 
 #[test]
 fn a_recurring_hint_uses_the_project_payer() {
-    let (core, _) = family();
+    let (core, limits) = family();
     let mut member = new_row(&core, 1, tasks::Funder::Pool { project: 1, person: 1, period: 1 }, None);
     member.llm = Some(choice());
     let mut parent = new_row(&core, 3, tasks::Funder::Period { project: 1, period: 1 }, None);
@@ -162,7 +163,7 @@ fn a_recurring_hint_uses_the_project_payer() {
         overlap: tasks::RecurringOverlap::Skip,
     }));
     assert_eq!(
-        core.resolve_llm(&mut [parent]),
+        core.resolve_llm(&limits, &[parent], &[]),
         Err(tasks::Problem::new(Some(3), tasks::Refusal::Account { account: ACCOUNT, why: tasks::AccountWhy::Uses }))
     );
 }
@@ -190,7 +191,7 @@ fn narrowed_recurring() -> (Core, Limits, u64) {
         batch: Box::new([member]),
         overlap: tasks::RecurringOverlap::Skip,
     }));
-    core.resolve_llm(core::slice::from_mut(&mut parent)).unwrap();
+    core.resolve_llm(&limits, core::slice::from_ref(&parent), &[]).unwrap();
     send_task(
         &mut core,
         &limits,

@@ -1,7 +1,11 @@
 //! Client settings views adapt to the neutral settings renderer.
 use super::Text;
 use crate::jig::render::Parts;
-use crate::jig::{Limits, settings_adapter as a};
+use crate::jig::{
+    Limits,
+    call::{Call, Project, Value, value as argument},
+    rows, settings_adapter as a, settings_file,
+};
 use jig_client::contract as c;
 use skein_json::writer::Encoder;
 pub(crate) fn setting_text(setting: c::Setting, vocabulary: &dyn Parts, out: &mut Text) {
@@ -19,13 +23,19 @@ pub(super) fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
 pub(crate) fn proposal_text(proposal: c::ProposalKey, out: &mut Text) {
     settings_form::render::proposal_text(a::form_proposal_key(&proposal), out);
 }
-pub(crate) fn text(
-    value: &c::ReadValue,
-    call: &crate::jig::call::Call,
-    limits: &Limits,
-    vocabulary: &dyn Parts,
-    out: &mut Text,
-) {
+pub(crate) fn text(value: &c::ReadValue, call: &Call, limits: &Limits, vocabulary: &dyn Parts, out: &mut Text) {
+    if let c::ReadValue::Setting(document) = value
+        && let Some(Project::Number(project)) = settings_file::preview_project(call)
+        && let c::Setting::Charter(setting) = document.setting
+        && let Some(c::SettingValue::Charter(charter)) = &document.value
+    {
+        let reason = match argument(call, usize::from(rows::CHARTER_PREVIEW_REASON)) {
+            Some(Value::Word(index)) => 1_u32.checked_shl(u32::from(*index)),
+            Some(_) | None => None,
+        };
+        preview_text(document, charter, setting.number, *project, reason, vocabulary.project_charter_directory(), out);
+        return;
+    }
     if let c::ReadValue::Settings(document) = value {
         inventory_text(document, vocabulary, out);
         return;
@@ -53,7 +63,7 @@ pub(crate) fn text(
             None => out.put(b"none"),
         }
         out.put(b"\n");
-        if call.tool != crate::jig::rows::SETTING_AT || crate::jig::settings_file::revision(call).is_none() {
+        if call.tool != rows::SETTING_AT || settings_file::revision(call).is_none() {
             settings_form::render::stock_text(&a::form_read_value(value), out);
         }
         if let c::Setting::Application { kind: 9, .. } = document.setting
@@ -69,6 +79,133 @@ pub(crate) fn text(
         return;
     }
     settings_form::render::text(&a::form_read_value(value), crate::jig::call::number(call, 0), &a::limits(limits), out);
+}
+
+// jig/docs/design/domain/engine/project-charters.md, 5 and 7: the returned
+// deployment value is effective, with the overlay also provided separately.
+fn preview_text(
+    document: &c::SettingDocument,
+    charter: &c::Charter,
+    number: u32,
+    project: u32,
+    reason: Option<u32>,
+    directory: &[u8],
+    out: &mut Text,
+) {
+    let overlay = document.overlay.as_deref();
+    out.put(b"charter ");
+    if let Some(bound) = &document.project {
+        out.put(&bound.name);
+    } else {
+        charter_identity(number, charter.name.as_deref(), out);
+    }
+    out.put(b" for project ");
+    out.number(u64::from(project));
+    out.put(b", as a new task would run by it\n");
+    let (parts, source) = if let Some(bound) = &document.project {
+        out.put(b"-- the project's ");
+        out.put(directory);
+        out.put(&bound.name);
+        out.put(b".md, revision ");
+        out.number(bound.revision);
+        out.put(b", ");
+        out.put(&bound.source);
+        out.put(b", run by charter ");
+        out.number(u64::from(number));
+        out.put(b"'s settings");
+        charter_words(bound.instructions.bytes(), out);
+        (bound.parts.as_slice(), b"the project's".as_slice())
+    } else {
+        let Some((instructions, parts)) = base_charter_words(charter, overlay) else { return };
+        out.put(b"-- charter ");
+        charter_identity(number, charter.name.as_deref(), out);
+        // Revision 1 holds the first start's defaults (jig/docs/design/domain/engine/settings-store.md, 1).
+        let source = if overlay.is_some() || document.revision == 1 {
+            out.put(b", the stock's");
+            b"the stock's".as_slice()
+        } else if number > settings_form::view::STOCK_NUMBERS {
+            out.put(b", set whole");
+            b"the charter set whole".as_slice()
+        } else {
+            b"the charter's own".as_slice()
+        };
+        charter_words(instructions, out);
+        (parts, source)
+    };
+    if let Some(overlay) = overlay {
+        out.put(b"-- the deployment's lines, charter ");
+        out.number(u64::from(number));
+        out.put(b"'s overlay");
+        charter_words(overlay.instructions.bytes(), out);
+    }
+    preview_parts(parts, reason, source, out);
+    if let Some(overlay) = overlay {
+        preview_parts(overlay.parts.as_slice(), reason, b"the deployment's overlay", out);
+    }
+}
+
+pub(in crate::jig::render) fn valid_preview(document: &c::SettingDocument) -> bool {
+    let c::Setting::Charter(_) = document.setting else { return false };
+    let Some(c::SettingValue::Charter(charter)) = &document.value else { return false };
+    document.project.is_some() || base_charter_words(charter, document.overlay.as_deref()).is_some()
+}
+
+fn base_charter_words<'a>(
+    charter: &'a c::Charter,
+    overlay: Option<&c::Overlay>,
+) -> Option<(&'a [u8], &'a [c::CharterPart])> {
+    let instructions = charter.instructions.bytes();
+    let parts = charter.parts.as_slice();
+    match overlay {
+        Some(overlay) => {
+            settings_file::without_overlay(instructions, parts, overlay.instructions.bytes(), overlay.parts.as_slice())
+        }
+        None => Some((instructions, parts)),
+    }
+}
+
+fn charter_identity(number: u32, name: Option<&[u8]>, out: &mut Text) {
+    out.number(u64::from(number));
+    if let Some(name) = name {
+        out.put(b" ");
+        out.put(name);
+    }
+}
+
+fn charter_words(words: &[u8], out: &mut Text) {
+    out.put(b": ");
+    out.number(skein_lib::len_u64(words.len()));
+    out.put(b" bytes\n");
+    out.put(words);
+    if !words.is_empty() && !words.ends_with(b"\n") {
+        out.put(b"\n");
+    }
+}
+
+fn preview_parts(parts: &[c::CharterPart], reason: Option<u32>, source: &[u8], out: &mut Text) {
+    for part in parts {
+        if let Some(reason) = reason
+            && part.on & reason == 0
+        {
+            continue;
+        }
+        out.put(b"-- part on ");
+        let mut bit = 1_u32;
+        let mut first = true;
+        for name in c::REASON_NAMES {
+            if part.on & bit != 0 {
+                if !first {
+                    out.put(b", ");
+                }
+                out.put(name.as_bytes());
+                first = false;
+            }
+            bit = bit.checked_shl(1).expect("known reasons");
+        }
+        out.put(b"; ");
+        out.put(source);
+        charter_words(part.instructions.bytes(), out);
+    }
 }
 
 pub(super) fn provider_marks(value: &c::ReadValue, reading: &crate::jig::runner::reads::Reading, out: &mut Text) {

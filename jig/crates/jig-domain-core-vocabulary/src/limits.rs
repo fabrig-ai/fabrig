@@ -341,6 +341,7 @@ fn checked_valid(limits: &Limits) -> Option<()> {
     crate::documents::document_with_context_bound(limits, &[])?;
     crate::settings::current_bound(limits)?;
     crate::settings::revision_bound(limits)?;
+    crate::settings::project_charters::memory_bound(limits)?;
     crate::reads::query_bound(limits)?;
     crate::reads::answer_bound(limits, &[])?;
     task_carrier(limits)?;

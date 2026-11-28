@@ -133,6 +133,7 @@ fn reading(out: &Queue<crate::Request>, revision: u32) -> Token {
             assert_eq!(
                 *what,
                 c::ReadSetting {
+                    project: None,
                     setting: c::Setting::Application { kind: 14, scope: PROJECT, number: 1 },
                     revision,
                     proposal: None
@@ -161,6 +162,7 @@ fn deliver_record(f: &mut Reads, read: Token, revision: u32, value: Option<w::Pr
         jig_client::Up::ReadDone {
             read,
             result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                project: None,
                 overlay: None,
                 setting: c::Setting::Application { kind: 14, scope: PROJECT, number: 1 },
                 revision,

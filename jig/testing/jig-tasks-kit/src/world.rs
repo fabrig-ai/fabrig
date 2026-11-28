@@ -118,6 +118,7 @@ pub fn domain(limits: &Limits, seed: u64) -> Domain {
 #[must_use]
 pub fn task(number: u64, dependencies: &[u64]) -> New {
     New {
+        charter_scope: tasks::CharterScope::Project,
         deadline: jig_domain_tasks::Deadline::Named,
         label: 0,
         flags: jig_domain_tasks::Flags::PLAIN,
@@ -481,6 +482,7 @@ impl World {
         tasks::step(&mut self.domain, &self.env, Event::PersonStallNotice { task, message, offer }, &mut self.out);
     }
 
+    #[expect(clippy::too_many_lines, reason = "the task world classifies every child output")]
     fn route_hint(&mut self, request: &Request) {
         match request {
             Request::PersonStallDue { task } => self.person_stall_due(*task),
@@ -580,6 +582,7 @@ impl World {
             | Request::Erase { .. }
             | Request::MovedToNewest { .. }
             | Request::Released { .. }
+            | Request::ReleasedProjectCharters { .. }
             | Request::RestoreRefused { .. } => {}
         }
     }
@@ -664,6 +667,7 @@ impl World {
             | Event::Prepare { .. }
             | Event::Claim { .. }
             | Event::Started { .. }
+            | Event::RunGuides { .. }
             | Event::NowWritten { .. }
             | Event::RecordWords { .. }
             | Event::Refusals { .. }
@@ -785,6 +789,7 @@ impl World {
             | Event::Prepare { .. }
             | Event::Claim { .. }
             | Event::Started { .. }
+            | Event::RunGuides { .. }
             | Event::NowWritten { .. }
             | Event::RecordWords { .. }
             | Event::Refusals { .. }
@@ -963,6 +968,7 @@ impl World {
                 | Request::Release { .. }
                 | Request::MovedToNewest { .. }
                 | Request::Released { .. }
+                | Request::ReleasedProjectCharters { .. }
                 | Request::RestoreRefused { .. }
                 | Request::EscalationNeeded { .. }
                 | Request::EscalationsInspected { .. }
@@ -1094,6 +1100,7 @@ impl World {
                 | Request::ResolveUncertain { .. }
                 | Request::MovedToNewest { .. }
                 | Request::Released { .. }
+                | Request::ReleasedProjectCharters { .. }
                 | Request::Release { .. } => {}
                 Request::EndTopic { task, subscription, connector } => {
                     self.ended_topics.push((task, subscription, connector));
@@ -1374,6 +1381,17 @@ impl World {
     }
 
     pub fn claim_budget_writing(&mut self, task: u64, attempt: u64, budget: u64, writes: Box<[tasks::Name]>) -> Reply {
+        self.claim_prepared(task, attempt, budget, writes, None)
+    }
+
+    pub fn claim_prepared(
+        &mut self,
+        task: u64,
+        attempt: u64,
+        budget: u64,
+        writes: Box<[tasks::Name]>,
+        sources: Option<tasks::ClaimSources>,
+    ) -> Reply {
         assert!(self.activations.remove(&task), "activated before preparation");
         let context = &self.contexts[&task];
         let record = self.record(task);
@@ -1385,6 +1403,7 @@ impl World {
         let reply_to = self.to();
         let call = self.call;
         self.send(Event::Claim {
+            sources,
             fresh: None,
             session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,

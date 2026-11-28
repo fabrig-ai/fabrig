@@ -43,6 +43,7 @@ pub enum Kind {
     Part,
     PartKept,
     PartBusy,
+    Guides,
 }
 
 impl Kind {
@@ -94,7 +95,8 @@ impl Kind {
             | Self::Usage
             | Self::UsageRead
             | Self::Paused
-            | Self::Part => false,
+            | Self::Part
+            | Self::Guides => false,
         }
     }
 }
@@ -127,6 +129,7 @@ pub const KINDS: &[KindRule] = &[
     KindRule { kind: 0x010f, direction: Direction::FromInitiator, body: Kind::UsageRead },
     KindRule { kind: 0x0110, direction: Direction::FromInitiator, body: Kind::Paused },
     KindRule { kind: 0x0111, direction: Direction::FromInitiator, body: Kind::Part },
+    KindRule { kind: 0x0112, direction: Direction::FromInitiator, body: Kind::Guides },
     KindRule { kind: 0x0180, direction: Direction::FromResponder, body: Kind::Assignment },
     KindRule { kind: 0x0181, direction: Direction::FromResponder, body: Kind::Message },
     KindRule { kind: 0x0182, direction: Direction::FromResponder, body: Kind::Relayed },

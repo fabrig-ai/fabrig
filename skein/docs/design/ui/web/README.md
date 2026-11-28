@@ -283,14 +283,6 @@ loop breaks them; the reference documents the rest.
   nothing of the loop but to be used. Documented order alone would leave
   an application's code ordering what the parts promise.
 
-## 5. Patches and acts
-
-Moved to [`patches.md`](patches.md), section 1.
-
-## 6. Scenes as SVG
-
-Moved to [`svg.md`](svg.md), section 1.
-
 ## 7. Addresses and history
 
 - **The application's paths:** its codec parses and prints every path
@@ -329,14 +321,6 @@ Moved to [`svg.md`](svg.md), section 1.
   drops what it drops when the person leaves a place; another takes it
   as the page resumed, its work in flight still the page's. A page the
   browser did not keep reports nothing.
-
-## 8. Fetch, the small store and the transport
-
-Moved to [`effects.md`](effects.md), section 1.
-
-## 9. Effects in a browser
-
-Moved to [`effects.md`](effects.md), section 2.
 
 ## 10. The stylesheet
 

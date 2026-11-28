@@ -108,3 +108,47 @@ fn opened_keeps_its_tag_and_layout_head_bytes() {
     );
     assert_eq!(event.encode(&w::CEILINGS).expect("Opened fits").as_ref(), bytes);
 }
+
+#[test]
+fn a_previous_layout_defaults_the_project_charter_fields_to_none() {
+    use jig_client_protocol_wire as w;
+    use skein_codec::{layout, schema};
+    use skein_lib::Buffer;
+
+    let text = w::CLIENT_SCHEMA;
+    let mut without_project = text.to_owned();
+    for record in ["record ReadSetting {", "record SettingDocument {"] {
+        let (_, rest) = text.split_once(record).expect("setting record declaration");
+        let (line, _) = rest.split_once('\n').expect("end of setting record");
+        let (fields, project) = line.rsplit_once(" project: ").expect("project is the last field");
+        assert!(project.ends_with(" = none }"), "{record} explicitly defaults project to none");
+        without_project = without_project.replace(line, &format!("{fields} }}"));
+    }
+    let previous = schema::parse(without_project.as_bytes()).expect("previous setting layout");
+    let current = schema::parse(text.as_bytes()).expect("current setting layout");
+    let read = w::ReadSetting { setting: w::Setting::Rules, revision: 2, proposal: None, project: None };
+    let answer = w::SettingDocument {
+        setting: w::Setting::Rules,
+        revision: 2,
+        value: None,
+        overlay: None,
+        application: None,
+        proposed: None,
+        project: None,
+    };
+    for (name, encoded) in [
+        (b"ReadSetting".as_slice(), read.encode(&w::CEILINGS).unwrap()),
+        (b"SettingDocument".as_slice(), answer.encode(&w::CEILINGS).unwrap()),
+    ] {
+        let from = previous.root(name, None).expect("previous root");
+        let to = current.root(name, None).expect("current root");
+        let plan = layout::Plan::derive(&previous, from, &[], &current, to, &[]).expect("project defaults to none");
+        let (present, prior) = encoded.split_last().expect("encoded setting record");
+        assert_eq!(*present, 0, "the new option is absent");
+        let mut output = Buffer::with_capacity(u32::try_from(encoded.len()).unwrap());
+        let mut work = layout::Workspace::new();
+        assert!(work.fit(&plan));
+        plan.convert(prior, &mut output, &mut work).expect("convert a setting record without project");
+        assert_eq!(output.as_slice(), encoded.as_ref());
+    }
+}

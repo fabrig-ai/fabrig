@@ -13,6 +13,7 @@ fn attempts_holds_and_open_attempts_round_trip() {
         let end = known.then_some(d::EndKind::Failed { class: d::Class::Run, invalid_result: None });
         let rows = [
             d::Stored::Attempt(d::AttemptRow {
+                sources: None,
                 task: 11,
                 attempt: 3,
                 claimed: at,
@@ -39,21 +40,33 @@ fn attempts_holds_and_open_attempts_round_trip() {
             assert_eq!(saved_tasks(&row), Ok(row));
         }
         let mut record = fixtures::task_record();
-        record.open_attempt = known.then_some(d::OpenAttempt { attempt: 3, claimed: at, started: at, from: 4, end });
+        record.open_attempt = known.then_some(d::OpenAttempt {
+            sources: None,
+            guide_limit: 0,
+            attempt: 3,
+            claimed: at,
+            started: at,
+            from: 4,
+            end,
+        });
         let row = d::Stored::Live(Box::new(record));
         assert_eq!(saved_tasks(&row), Ok(row));
     }
 }
 
-#[test]
-fn task_runs_written_without_open_attempt_read_with_none() {
+fn tasks_schema() -> &'static str {
     let mut text = None;
     for family in crate::JIG_STORE_SET.families {
         if family.name == "jig-store-tasks" {
             text = Some(family.current);
         }
     }
-    let text = text.unwrap();
+    text.expect("tasks schema")
+}
+
+#[test]
+fn task_runs_written_without_open_attempt_read_with_none() {
+    let text = tasks_schema();
     let old_text = text
         .replace("    open_attempt: option OpenAttempt = none\n", "")
         .replace("    open_attempt: OpenAttempt\n", "");
@@ -81,6 +94,41 @@ fn task_runs_written_without_open_attempt_read_with_none() {
     let read = wire::TaskRun::decode(&limits, &mut Reader::new(out.as_slice())).unwrap();
     assert_eq!(read, record);
     assert!(read.open_attempt.is_none());
+}
+
+#[test]
+fn attempts_from_the_previous_layout_have_no_sources() {
+    let current = tasks_schema();
+    let previous = current.replace(" sources: option RunSources = none", "").replace(" sources: RunSources", "");
+    let previous = skein_codec::schema::parse(previous.as_bytes()).unwrap();
+    let current = skein_codec::schema::parse(current.as_bytes()).unwrap();
+    let plan = skein_codec::layout::Plan::derive(
+        &previous,
+        previous.root(b"AttemptRow", None).unwrap(),
+        &[],
+        &current,
+        current.root(b"AttemptRow", None).unwrap(),
+        &[],
+    )
+    .unwrap();
+    let limits = tasks_limits();
+    let row = wire::AttemptRow {
+        task: 11,
+        attempt: 3,
+        claimed: Some(17),
+        started: None,
+        ended: None,
+        end: None,
+        phases: None,
+        sources: None,
+    };
+    let current_bytes = row.encode(&limits).unwrap();
+    let previous_bytes = current_bytes.get(..current_bytes.len().checked_sub(1).unwrap()).unwrap();
+    let mut out = Buffer::with_capacity(u32::try_from(current_bytes.len()).unwrap());
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    plan.convert(previous_bytes, &mut out, &mut work).unwrap();
+    assert_eq!(wire::AttemptRow::decode(&limits, &mut Reader::new(out.as_slice())).unwrap(), row);
 }
 
 #[test]
@@ -126,13 +174,7 @@ fn deployment_keeps_distinct_wait_floors() {
 
 #[test]
 fn change_contracts_written_without_choices_read_with_an_empty_list() {
-    let mut text = None;
-    for family in crate::JIG_STORE_SET.families {
-        if family.name == "jig-store-tasks" {
-            text = Some(family.current);
-        }
-    }
-    let text = text.unwrap();
+    let text = tasks_schema();
     let old_text = text
         .replace(" words: u32 choices: list 64 Verdict = []", " words: u32")
         .replace(" words: u32 choices: list 64 Verdict", " words: u32");

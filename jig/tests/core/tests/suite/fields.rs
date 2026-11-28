@@ -152,6 +152,7 @@ fn propose_member_batch(world: &mut World) -> u64 {
     given.delegation.tasks = 0;
     given.delegation.depth = 0;
     let delegate = core::Delegate {
+        charter_scope: tasks::CharterScope::Project,
         deadline: jig_domain_tasks::Deadline::Named,
         label: 0,
         flags: jig_domain_tasks::Flags::PLAIN,

@@ -591,8 +591,12 @@ fn party_read(bytes: u64) -> Request {
 fn party_turn_too_large_names_the_converted_charge() {
     let expected = frame_reads::turn(2, b"said", &[], 0);
     let charge = len_u64(frames::frame(6, &expected).len());
-    // This admitted request has no room for the turn after its owner's join.
-    let bound = u64::from(upgrade_fixtures::limits().store.page.bytes);
+    let jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Live(owner)) = root::live_task(frames::TASK) else {
+        panic!("turn fixture's owner record");
+    };
+    // Admit the failure and its owner, but not a joined turn. The KV page bound
+    // limits storage reads, not the owned bytes in a party response.
+    let bound = jig_domain_core::reads::TurnFailure::owned_bytes(&owner).expect("turn failure fits");
     for transcript in [frame_reads::turn(1, b"said", b"x", 0), expected] {
         let mut world = fixture(frame_reads::SETS, &transcript);
         let events = world.request(party_read(bound));

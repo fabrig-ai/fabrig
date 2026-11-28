@@ -287,6 +287,7 @@ fn shown_overlay_marks_and_literal_json_apply_back_and_inventory_origin() {
         [c::CharterPart { on: 1, instructions: words("default part") }].into_iter().chain(v.parts.iter().cloned()),
     );
     let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        project: None,
         setting,
         revision: 5,
         value: Some(c::SettingValue::Charter(charter)),

@@ -394,6 +394,13 @@ impl EngineWire {
             {
                 self.derivations = self.derivations.checked_add(1).expect("test derivations fit");
             }
+            if need.value == Value::Part(Nested::Carried(crate::Carried::Guides)) {
+                let engine = self.schema.find(need.declaration.as_bytes()).expect("checked application root");
+                if other_root(&self.schema, engine, &worker).is_none() {
+                    // Workers before guide reports cannot send this optional part.
+                    continue;
+                }
+            }
             let pass = self.between(&worker, *need)?;
             if let Passing::Written { .. } = pass.passing {
                 has_written = true;

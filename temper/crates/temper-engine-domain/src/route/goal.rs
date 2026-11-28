@@ -102,6 +102,7 @@ pub(crate) fn goal(
         (template.label, template.flags)
     };
     Ok(Delegate {
+        charter_scope: tasks::CharterScope::Project,
         executor: tasks::Executor::Agent { charter },
         spec: tasks::Spec { job: None, asks: agree, words, parameters: Box::new([]), inputs: Box::new([]) },
         contract: tasks::Contract::Report { words: env.limits.tasks.result_bytes },

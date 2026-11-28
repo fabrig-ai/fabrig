@@ -48,7 +48,7 @@ pub(crate) fn create_request(core: &mut Core, env: &Env<Limits>, routed: &mut Ro
         }
     }
     match checked(core, env, &mut creation, false) {
-        Ok((members, given)) => {
+        Ok(Checked { members, given, executors }) => {
             party_inputs::begin(
                 core,
                 env,
@@ -61,6 +61,7 @@ pub(crate) fn create_request(core: &mut Core, env: &Env<Limits>, routed: &mut Ro
                     symbols: symbols(&creation.batch),
                     members,
                     given,
+                    executors,
                     proposal: None,
                     ids: Box::new([]),
                     at: 0,
@@ -73,16 +74,23 @@ pub(crate) fn create_request(core: &mut Core, env: &Env<Limits>, routed: &mut Ro
         Err(why) => pool_refused(&mut routed.work, request, why),
     }
 }
+pub(crate) struct Checked {
+    pub members: Box<[tasks::New]>,
+    pub given: Option<people::Given>,
+    pub executors: Box<[tasks::Executor]>,
+}
+
 #[expect(clippy::too_many_lines, reason = "one party batch is checked whole before any connector ask")]
 pub(crate) fn checked(
     core: &mut Core,
     env: &Env<Limits>,
     creation: &mut Creation,
     proposing: bool,
-) -> Result<(Box<[tasks::New]>, Option<people::Given>), people::Refusal> {
+) -> Result<Checked, people::Refusal> {
+    well_formed(&creation.batch)?;
+    let executors = offered(core, env, creation, proposing)?;
     let allowed = if proposing { None } else { budget(core, creation)? };
     let Creation { person, project, role, batch, .. } = &*creation;
-    well_formed(batch)?;
     if creation.beneath.is_some() {
         for (at, member) in batch.iter().enumerate() {
             if member.flags.conversation {
@@ -105,20 +113,20 @@ pub(crate) fn checked(
     }
     let mut delegates = List::with_capacity(env.limits.people.batch);
     let mut members = List::with_capacity(env.limits.people.batch);
-    for member in batch {
+    for (member, &effective) in batch.iter().zip(executors.iter()) {
         for symbol in &member.symbols {
             if !core.connector_recipients.resources.contains(&symbol.connector) {
                 return Err(people::Refusal::Limit { which: people::LimitKind::HoldKind });
             }
         }
-        let mut new = new_task(core, env, creation, member, first, members.len(), proposing)?;
+        let mut new = new_task(core, env, creation, member, first, members.len(), proposing, effective)?;
         if let Some(task) = creation.beneath
             && new.deadline == tasks::Deadline::Named
             && new.authority.budget.deadline.is_none()
         {
             new.authority.budget.deadline = core.tasks.task(task).expect("admitted parent").authority.budget.deadline;
         }
-        let executor = core.delegation_executor(*project, new.executor).ok_or(people::Refusal::Unknown)?;
+        let executor = core.delegation_executor(*project, effective).ok_or(people::Refusal::Unknown)?;
         let mut asked =
             crate::admission::amendments::granted(member.authority.clone(), new.authority.models, &env.limits.tasks)
                 .expect("member authority checked");
@@ -202,9 +210,13 @@ pub(crate) fn checked(
     if let Some((at, amount)) = allowed {
         given = Some(people::Given { task: first.checked_add(u64::from(at)).expect("admitted task number"), amount });
     }
-    Ok((members, given))
+    Ok(Checked { members, given, executors })
 }
-#[expect(clippy::too_many_lines, reason = "one member translates its complete creation shape and dependency reach")]
+#[expect(
+    clippy::too_many_lines,
+    clippy::too_many_arguments,
+    reason = "one member translates its complete creation shape and dependency reach"
+)]
 fn new_task(
     core: &Core,
     env: &Env<Limits>,
@@ -213,9 +225,10 @@ fn new_task(
     first: u64,
     at: u32,
     proposing: bool,
+    effective: tasks::Executor,
 ) -> Result<tasks::New, people::Refusal> {
     let Creation { person, project, role, batch, .. } = creation;
-    let executor = executor(core, member.executor)?;
+    let executor = executor(member.executor);
     let models = given_models(core, *project, *role);
     let Some(given) = crate::admission::amendments::granted(member.authority.clone(), models, &env.limits.tasks) else {
         return Err(people::Refusal::Limit { which: people::LimitKind::Authority });
@@ -294,6 +307,7 @@ fn new_task(
         });
     }
     Ok(tasks::New {
+        charter_scope: tasks::CharterScope::Project,
         deadline: match member.deadline {
             people::Deadline::Named => tasks::Deadline::Named,
             people::Deadline::Span(span) => tasks::Deadline::Span(span),
@@ -311,7 +325,7 @@ fn new_task(
         holdings: Box::new([]),
         wake: match member.wake {
             Some(wake) => crate::admission::amendments::wake(wake),
-            None => crate::admission::amendments::default_wake(core, &executor),
+            None => crate::admission::amendments::default_wake(core, &effective),
         },
         recurring: None,
         tracked: member.tracked,
@@ -449,28 +463,60 @@ pub(crate) fn well_formed(batch: &[people::Member]) -> Result<(), people::Refusa
     }
     Ok(())
 }
-fn executor(core: &Core, executor: people::TaskExecutor) -> Result<tasks::Executor, people::Refusal> {
-    Ok(match executor {
-        people::TaskExecutor::Agent { charter } => {
-            if core.charter(charter).is_none() {
-                return Err(people::Refusal::NotOffered);
+fn offered(
+    core: &Core,
+    env: &Env<Limits>,
+    creation: &Creation,
+    proposing: bool,
+) -> Result<Box<[tasks::Executor]>, people::Refusal> {
+    let mut checked = List::with_capacity(env.limits.people.batch);
+    for member in &creation.batch {
+        let executor = executor(member.executor);
+        let effective = match executor {
+            tasks::Executor::Agent { charter } if proposing => {
+                if core.charter(charter).is_none() {
+                    return Err(people::Refusal::NotOffered);
+                }
+                executor
             }
-            tasks::Executor::Agent { charter }
-        }
-        people::TaskExecutor::Procedure { connector, code } => {
-            if code == 0
-                || !(core.connectors.contains(&connector) || connector == crate::RECURRING && code == crate::GATHERING)
-            {
-                return Err(people::Refusal::NotOffered);
+            tasks::Executor::Agent { .. } => {
+                let Ok(binding) =
+                    core.bind_charter(&env.limits, creation.project, executor, tasks::CharterScope::Project)
+                else {
+                    return Err(people::Refusal::NotOffered);
+                };
+                crate::settings::binding::executor(executor, binding.as_ref())
             }
-            tasks::Executor::Procedure { connector, code }
+            tasks::Executor::Procedure { connector, code } => {
+                if code == 0
+                    || !(core.connectors.contains(&connector)
+                        || connector == crate::RECURRING && code == crate::GATHERING)
+                {
+                    return Err(people::Refusal::NotOffered);
+                }
+                executor
+            }
+            tasks::Executor::Person(_) => executor,
+            tasks::Executor::Job { .. } => unreachable!("party cannot name a job"),
+        };
+        if checked.push(effective).is_err() {
+            return Err(people::Refusal::Limit { which: people::LimitKind::Batch });
         }
+    }
+    Ok(checked.into_boxed())
+}
+
+fn executor(executor: people::TaskExecutor) -> tasks::Executor {
+    match executor {
+        people::TaskExecutor::Agent { charter } => tasks::Executor::Agent { charter },
+        people::TaskExecutor::Procedure { connector, code } => tasks::Executor::Procedure { connector, code },
         people::TaskExecutor::Person(address) => tasks::Executor::Person(match address {
             people::PersonAddress::Person(person) => tasks::PersonAddress::Person(person),
             people::PersonAddress::Role(role) => tasks::PersonAddress::Role(role),
         }),
-    })
+    }
 }
+
 /// The models a party's created task takes: its creator's role's in the project, whatever runs it
 /// (domain/authority.md, sections 3 and 6). A procedure keeps them too, though it names no model,
 /// so that its agent delegates may: as with tools, only the goal judge empties a procedure's.

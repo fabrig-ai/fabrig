@@ -28,6 +28,7 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
     for number in core::iter::once(LATCH).chain(changes.iter().copied()) {
         batch
             .push(tasks::New {
+                charter_scope: jig_domain_tasks::CharterScope::Project,
                 number,
                 project: 1,
                 label: 0,

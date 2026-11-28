@@ -21,6 +21,7 @@ macro_rules! encode {
 }
 mod batch;
 pub mod changes;
+pub mod charter;
 pub mod chat;
 pub mod local;
 pub mod moves;
@@ -43,6 +44,7 @@ pub const PARTIAL: usize = 3; // More than one short write is needed for every h
 pub const FULL_STREAMS: u32 = 2; // A small engine bound shared by the full-stream stories.
 #[expect(clippy::struct_excessive_bools, reason = "independent scripted file and network facts")]
 pub struct Frame {
+    pub charter: Option<charter::Case>,
     pub asked_answers: VecDeque<w::LinkAskAnswer>,
     pub asked_attempts: Vec<Time>,
     pub asked_bearers: Vec<Box<[u8]>>,
@@ -179,6 +181,7 @@ impl Frame {
         )
         .expect("native limits");
         Self {
+            charter: None,
             asked_answers: VecDeque::new(),
             asked_attempts: Vec::new(),
             asked_bearers: Vec::new(),
@@ -458,6 +461,9 @@ impl Frame {
     }
     fn open_file(&mut self, root: Fd, path: &[u8], how: OpenHow) -> Result<Done, Error> {
         self.opened.push(path.into());
+        if let Some(opened) = self.open_charter(root, path, how) {
+            return opened;
+        }
         if self.service_mode && path == b"record" && how == OpenHow::ReadNoFollow && !self.record_exists {
             return Err(Error::NotFound);
         }
@@ -573,7 +579,10 @@ impl Frame {
                 file[at..].copy_from_slice(bytes);
                 Ok(Done::Count(u32::try_from(bytes.len()).expect("written size")))
             }
-            Op::Rename { from, to, .. } => self.rename_file(from, to),
+            Op::Rename { from, to, to_dir, no_replace, .. } => {
+                self.charter_rename(*to_dir, to, *no_replace)?;
+                self.rename_file(from, to)
+            }
             Op::Stat { fd } => Ok(self.stat(*fd)),
             Op::Read { fd, buf, at } => {
                 if *fd == Fd::new(25) {
@@ -641,13 +650,13 @@ impl Frame {
                 self.input = &self.input[count..];
                 Ok(Done::Count(u32::try_from(count).expect("input count")))
             }
+            Op::MakeDirectory { dir, name, .. } => self.make_charter_directory(*dir, name),
             Op::HardLink { .. }
             | Op::Bind { .. }
             | Op::Listen { .. }
             | Op::Accept { .. }
             | Op::Append { .. }
             | Op::Truncate { .. }
-            | Op::MakeDirectory { .. }
             | Op::List { .. }
             | Op::Spawn { .. }
             | Op::Wait { .. }
@@ -836,6 +845,7 @@ impl Frame {
                 }
             }
             b"/jig/v1/read" if self.chat.is_some() => self.read_chat_activity(fd),
+            b"/jig/v1/read" if self.charter.is_some() => self.read_charter_setting(fd),
             b"/jig/v1/read" => self.read_setup_or_task(fd),
             b"/jig/v1/sign-out" => {
                 self.hold_stores = Some(());

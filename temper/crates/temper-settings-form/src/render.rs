@@ -522,6 +522,10 @@ pub fn encode(value: &c::ReadValue, out: &mut Encoder) {
                 out.key(b"proposed");
                 encode_sized_edit(edit, out);
             }
+            if let Some(project) = &document.project {
+                out.key(b"project");
+                values::encode_project_charter(project, out);
+            }
         }
         c::ReadValue::Revision(answer) => encode_revision(answer, out),
         c::ReadValue::Revisions(page) => {

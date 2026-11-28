@@ -135,6 +135,8 @@ enum FactKind {
     tool_started, tool_finished, check_started, check_finished, text_arrived
 }
 record Fact { kind: FactKind elapsed: duration count: u64 }
+record Guide { directory: u32 path: bytes 1024 digest: fixed 32 bytes: u32 whole: bool }
+record Guides { guides: list 64 Guide }
 
 enum ReceivingLimit { input, output, cache_read, cache_write }
 enum Overflow { spend, usage }

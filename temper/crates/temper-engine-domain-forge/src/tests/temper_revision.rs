@@ -68,7 +68,7 @@ impl World {
             if let Request::Call { call, repository, op: Op::Read(read) } = request {
                 self.seen.push(read.clone());
                 self.calls.push((call, repository, read));
-            } else if let Request::Save { record: Stored::DotTemperRevision(row), .. } = request {
+            } else if let Request::SaveTemperRevision { row, .. } = request {
                 self.saved.push(row);
             } else if let Request::Erase { key } = request {
                 self.erased.push(key);
@@ -453,6 +453,42 @@ fn revision_keeps_last_good_and_retries_only_unread_trees() {
     assert_eq!(
         (hooks_only.revision().number, hooks_only.revision().method, hooks_only.revision().refused.as_ref()),
         (1, false, None)
+    );
+}
+
+#[test]
+fn a_charter_settings_change_waits_for_the_next_home_read() {
+    const CHARTER: &[u8] = b".temper/charters/careful.md";
+    let mut w = World::new(17, vec![file(CHARTER, b"+++\nsettings = 'careful-impl'\n+++\nFollow the brief.\n")]);
+    w.d.give_deployment_charters(DeploymentCharters {
+        offered: Box::new([CharterRoom { name: b"careful-impl".as_slice().into(), bytes: Some(100), parts: 8 }]),
+        limit: 32,
+    });
+    w.restore_home();
+    w.trigger(None);
+    w.settle();
+    let good = w.revision().clone();
+    assert_eq!((good.number, good.commit, good.refused.as_ref()), (1, Some(w.tip()), None));
+    let reads = w.root_reads();
+    let saves = w.saved.len();
+    w.d.give_deployment_charters(DeploymentCharters {
+        offered: Box::new([CharterRoom { name: b"implementer".as_slice().into(), bytes: Some(100), parts: 8 }]),
+        limit: 32,
+    });
+    w.tick(w.env.limits.client.backoff);
+    w.settle();
+    assert_eq!((w.root_reads(), w.saved.len(), w.revision()), (reads, saves, &good));
+
+    let changed = w.advance(CHARTER, b"+++\nsettings = 'careful-impl'\n+++\nFollow the new brief.\n");
+    w.trigger(Some(changed));
+    w.settle();
+    let revision = w.revision();
+    assert_eq!((revision.number, revision.commit, &revision.files), (good.number, good.commit, &good.files));
+    let refusal = revision.refused.as_ref().expect("the next read judges against the new settings");
+    assert_eq!(refusal.commit, Some(changed));
+    assert_eq!(
+        refusal.words.as_ref(),
+        b".temper/charters/careful.md:2: `settings` names `careful-impl`, which this deployment's settings don't offer"
     );
 }
 

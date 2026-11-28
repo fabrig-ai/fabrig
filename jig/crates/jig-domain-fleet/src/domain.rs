@@ -487,6 +487,12 @@ impl Domain {
     pub const fn hello_history_lost(&self) -> u64 {
         self.hello_history_lost
     }
+    /// Whether this channel holds the named live attempt.
+    #[must_use]
+    pub fn owns_attempt(&self, channel: Token, run: Token, attempt: Token) -> bool {
+        call::owns_attempt(self, channel, run, attempt)
+    }
+
     /// Last best-effort observation of this current claim and channel, borrowed
     /// without cloning its bounded names. None after loss, replacement or answer.
     #[must_use]

@@ -105,6 +105,13 @@ pub(crate) fn apply(
     decision: tasks::ProcedureDecision,
 ) -> Queue<Request> {
     let token = reply_to.into_token();
+    let bindings = match core.bind_batch(&env.limits, &decision.batch, None) {
+        Ok(bindings) => bindings,
+        Err(problem) => {
+            drop(core.land(token));
+            return refused(core, task, step, StepRefusal::Refused(problem));
+        }
+    };
     let mut revised = List::with_capacity(env.limits.tasks.batch.checked_mul(2).expect("step revision room"));
     let mut first = None;
     for member in &decision.batch {
@@ -119,7 +126,7 @@ pub(crate) fn apply(
         }
     }
     let mut child = Queue::uncapped();
-    crate::routing::step::step_tasks(
+    crate::routing::step::step_tasks_with_charters(
         core,
         env,
         tasks::Event::Procedure {
@@ -130,6 +137,7 @@ pub(crate) fn apply(
             read,
             decision,
         },
+        &bindings,
         &mut child,
     );
     let refusal = take_refusal(&mut child);

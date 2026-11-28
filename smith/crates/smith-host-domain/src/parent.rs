@@ -112,6 +112,8 @@ pub enum Request {
     Limited { client: Token, account: u32, reset: Option<Duration> },
     /// The provider refused a known account, retaining its diagnostic fields.
     Refused { client: Token, account: u32, code: Box<[u8]>, reason: Box<[u8]> },
+    /// Metadata about the guides this run read, once at preparation.
+    Prepared { client: Token, guides: Box<[smith_domain::run::facts::Guide]> },
     /// Best-effort fact moved to parent.
     Told {
         client: Token,

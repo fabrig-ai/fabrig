@@ -134,7 +134,15 @@ pub fn parse(table: &[&Tool], words: &[&[u8]], limits: &Limits) -> Result<Parsed
                     }
                 }
                 Err(failed) => {
+                    // The other settings forms do not take --reason. Keep the
+                    // preview form's value diagnostic, not their syntax errors.
                     if error == Usage::Tool {
+                        error = failed.at(tool, form);
+                    } else if tool == super::rows::SETTING_AT
+                        && let Usage::Kind { argument, .. } = failed
+                        && let Some(spec) = arguments.get(usize::from(argument))
+                        && spec.name == b"reason"
+                    {
                         error = failed.at(tool, form);
                     }
                 }

@@ -320,6 +320,7 @@ impl StockWays {
             out.push(Request::Client(jig_client::Event::Read {
                 handle: self.policy,
                 read: Readable::Jig(c::Read::Setting(c::ReadSetting {
+                    project: None,
                     setting: c::Setting::ProjectPolicy { project: self.project },
                     revision: settings.newest,
                     proposal: None,

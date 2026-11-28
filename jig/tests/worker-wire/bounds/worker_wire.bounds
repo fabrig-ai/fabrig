@@ -42,6 +42,7 @@ FromWorker: ceilings encoded=288227333 decoded=290914304; at_most(3) encoded=270
 Grant: ceilings encoded=8218 decoded=8192; at_most(3) encoded=29 decoded=3
 GrantValue: ceilings encoded=8198 decoded=8192; at_most(3) encoded=9 decoded=3
 Granted: ceilings encoded=8234 decoded=8192; at_most(3) encoded=45 decoded=3
+Guides: ceilings encoded=1048596 decoded=1048576; at_most(3) encoded=23 decoded=3
 Header: ceilings encoded=8200 decoded=8192; at_most(3) encoded=14 decoded=6
 Hello: ceilings encoded=1644630 decoded=2104320; at_most(3) encoded=269 decoded=216
 HostAnswer: ceilings encoded=1048581 decoded=1048576; at_most(3) encoded=8 decoded=3

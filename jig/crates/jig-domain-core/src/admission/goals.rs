@@ -59,8 +59,10 @@ impl Core {
     }
 
     /// Recheck authentic pool funding before a goal proposal is accepted.
+    #[expect(clippy::too_many_arguments, reason = "goal acceptance checks the held policy and deployment bounds")]
     pub fn goal_accept_allowed(
         &self,
+        limits: &crate::Limits,
         proposal: &tasks::PersonProposal,
         project: u32,
         person: u64,
@@ -68,6 +70,20 @@ impl Core {
         tasks_left: u32,
         decision: skein_lib::Wall,
     ) -> Result<tasks::Funder, people::Refusal> {
+        let bindings = if let tasks::PersonAction::Batch(batch) = &proposal.action {
+            match self.bind_batch(limits, batch, None) {
+                Ok(bindings) => bindings,
+                Err(problem) => {
+                    return Err(if problem.why == tasks::Refusal::Executor {
+                        people::Refusal::NotOffered
+                    } else {
+                        people::Refusal::Limit { which: people::LimitKind::Batch }
+                    });
+                }
+            }
+        } else {
+            Box::new([])
+        };
         let (source, numbers) = self.person_pool(project, person);
         match &proposal.action {
             tasks::PersonAction::Settings { .. } => return Ok(source),
@@ -87,11 +103,11 @@ impl Core {
             tasks::PersonAction::Batch(batch) => {
                 let mut members =
                     skein_lib::List::with_capacity(u32::try_from(batch.len()).expect("bounded party batch"));
-                for member in batch {
+                for (at, member) in batch.iter().enumerate() {
                     members
                         .push(authority::Delegate {
                             executor: self
-                                .delegation_executor(project, member.executor)
+                                .delegation_executor(project, tasks::bound_executor(member.executor, &bindings, at))
                                 .ok_or(people::Refusal::Unknown)?,
                             authority: super::deadlines::authority(&member.authority, member.deadline, decision),
                             symbolic: Box::new([]),

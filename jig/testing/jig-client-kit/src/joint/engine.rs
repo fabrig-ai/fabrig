@@ -261,6 +261,7 @@ pub fn now_event(now: core::Now) -> Option<Event> {
         | core::Now::BriefFailed { .. }
         | core::Now::RunPrepared { .. }
         | core::Now::PartBusy { .. }
+        | core::Now::ProjectChartersRefused { .. }
         | core::Now::RestoreRefused => return None,
     })
 }

@@ -232,6 +232,7 @@ fn delegate(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::supe
     authority.notes = tasks::Scopes(0);
     authority.note_resources = Box::new([]);
     Some(super::super::Delegate {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         executor: tasks::Executor::Agent { charter: super::STATUS_CHARTER },
         spec: tasks::Spec {
             job: None,

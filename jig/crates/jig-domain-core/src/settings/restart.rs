@@ -99,6 +99,7 @@ impl Core {
                 self.settings_restore.extent = true;
                 true
             }
+            Record::ProjectCharters(set) => self.restore_project_charters(limits, set),
             Record::Charter { charter, revision, value } => self.restore_charter(charter, revision, value, limits),
             Record::Proposal { proposer, proposal, value } => {
                 self.restore_settings_proposal(proposer, proposal, value, limits)

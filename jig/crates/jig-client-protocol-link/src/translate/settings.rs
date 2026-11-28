@@ -470,8 +470,15 @@ pub fn restore_setting_document(value: &w::SettingDocument, limits: &Limits) -> 
             Some(v) => Some(restore_sized_edit(v)),
             None => None,
         },
+        project: match &value.project {
+            Some(project) => Some(Box::new(client::project_charter_document_to_domain(project.clone())?)),
+            None => None,
+        },
     })
 }
+
+pub use client::project_charter_document_to_record as wire_project_charter_document;
+
 #[must_use]
 pub fn restore_size(value: &w::Size) -> c::Size {
     client::size_to_domain(value.clone())
@@ -678,6 +685,16 @@ fn item_count(values: &[u8], limits: &Limits) -> Result<u32, w::Problem> {
         }
     }
     Err(super::too_large())
+}
+
+pub(crate) fn charter_words_to_domain(value: Box<[u8]>) -> Result<c::Text, skein_codec::Reason> {
+    match c::Text::new(value, w::CEILINGS.charter_part_instructions) {
+        Ok(value) => Ok(value),
+        Err(bytes) if len_u64(bytes.len()) > u64::from(w::CEILINGS.charter_part_instructions) => {
+            Err(skein_codec::Reason::Bound)
+        }
+        Err(_) => Err(skein_codec::Reason::Utf8),
+    }
 }
 
 fn text(value: &[u8], bound: u32) -> Result<c::Text, w::Problem> {

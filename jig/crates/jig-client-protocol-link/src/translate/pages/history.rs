@@ -173,7 +173,7 @@ pub(crate) fn history_line_fields(value: w::HistoryLine, limits: &Limits) -> Res
 
 #[cfg(test)]
 pub(crate) fn attempt_line_fields(value: &w::AttemptLine) -> c::AttemptLine {
-    client::attempt_line_to_domain(value.clone())
+    client::attempt_line_to_domain(value.clone()).expect("valid attempt fixture")
 }
 
 pub(crate) fn history_row_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<List<c::HistoryRow>, w::Problem> {

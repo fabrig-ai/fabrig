@@ -86,6 +86,7 @@ fn registered_value_type_numbers_are_pinned() {
                 (4, "CharterVersion", None, &[1, 0, 8, 3]),
                 (5, "Proposal", None, &[1, 0, 8, 4]),
                 (6, "Extent", None, &[1, 0, 8, 5]),
+                (7, "ProjectCharters", None, &[1, 0, 8, 6]),
             ],
         ),
     ];

@@ -45,7 +45,7 @@
 
 - **Not yet:** `ConnectModel`, *Its end*: no test has a slow sign-in move on once a hidden tab's stream is opened
   again: `skein-ui-web`'s `tests/hidden.rs` holds the letting go natively, and each look of the browser tier's brings
-  the page to the front within the minute (skein's `testing/browser.md`, section 6). On the welcome, no test has a paste's end
+  the page to the front within the minute (skein's `testing/browser-operations.md`, section 1). On the welcome, no test has a paste's end
   move on: `watch_success_replaces_a_pending_paste_with_ready` runs on `ConnectModel`, and `route.rs`'s
   `welcome_model_progress` reads the same for both. Seen by reading.
 

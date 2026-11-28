@@ -112,6 +112,8 @@ pub struct Repository {
     /// (`domain/worker/checkouts.md`), and what the agent calls it: one path
     /// component, unique within the workspace.
     pub name: Box<[u8]>,
+    /// The forge's owner/name for guide reports, when the locator identifies it.
+    pub qualified: Option<Box<str>>,
     /// The forge's address of the repository, never interpreted: the
     /// protocol layer maps it to a URL.
     pub remote: Box<[u8]>,
@@ -223,6 +225,17 @@ pub enum Landing {
     Refused,
     /// It had no change.
     Unchanged,
+}
+
+/// What the run read from one prepared checkout, without the guide's text.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Guide {
+    pub repository: Box<str>,
+    pub commit: [u8; 32],
+    pub path: Box<str>,
+    pub digest: [u8; 32],
+    pub bytes: u32,
+    pub whole: bool,
 }
 
 /// What a run left on the forge: the repositories its pushes landed in, by

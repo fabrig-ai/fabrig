@@ -357,6 +357,7 @@ fn a_projection_feed_then_committed_resume_delivers_the_watch() {
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(u64::MAX - 3)),
             creator: tasks::Party::Deployment { project: 1 },
             batch: Box::new([tasks::New {
+                charter_scope: tasks::CharterScope::Project,
                 number: goal,
                 project: 1,
                 label: 0,
@@ -493,6 +494,7 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(u64::MAX - 3)),
             creator: tasks::Party::Deployment { project: 1 },
             batch: Box::new([tasks::New {
+                charter_scope: tasks::CharterScope::Project,
                 number: goal,
                 project: 1,
                 label: 0,

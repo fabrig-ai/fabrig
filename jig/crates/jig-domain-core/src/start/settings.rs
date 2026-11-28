@@ -19,7 +19,9 @@ impl Core {
 
     pub(super) fn start_settings_commit(&mut self, env: &Env<Limits>, out: &mut Queue<Request>) -> Option<Failure> {
         let room = settings::writes_bound(&env.limits).expect("configured settings writes").saturating_sub(1);
-        let mut writes = self.write_restored_settings(env, room);
+        let mut cleanup = Queue::uncapped();
+        self.prune_project_charters(&mut cleanup);
+        let mut writes = self.write_restored_settings(env, room.saturating_sub(cleanup.len()));
         self.start_collect_failure();
         if self.start_failure().is_some() {
             return self.start_failure();
@@ -27,6 +29,9 @@ impl Core {
         for _ in 0..writes.len() {
             let request = writes.pop().expect("settings release writes");
             out.push(request);
+        }
+        for _ in 0..cleanup.len() {
+            out.push(cleanup.pop().expect("counted project charter erasures"));
         }
         None
     }

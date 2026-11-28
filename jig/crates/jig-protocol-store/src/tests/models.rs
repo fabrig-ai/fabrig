@@ -251,6 +251,58 @@ fn a_choice_keeps_its_model_number_across_a_gapped_restart() {
 }
 
 #[test]
+fn a_stock_name_held_at_another_number_leaves_a_hole_at_open() {
+    const NEW_STOCK: u32 = 9;
+    const STOCK_INDEX: usize = 8;
+    const STORED_ROWS: u32 = 3;
+    let checked = crate::check(&fixtures::store_limits()).expect("fixture store limits");
+    let entries = numbered_catalogue();
+    let (stock, added) = entries.split_at_checked(skein_lib::length::usize_of(STOCK)).expect("seven stock entries");
+    let own = &added[0];
+    let defaults = s::catalogue::rows(stock);
+    let mut release = List::with_capacity(MODELS);
+    for entry in stock {
+        release.push(entry.clone()).expect("stock entries fit");
+    }
+    let mut changed_in_place = release.clone();
+    release
+        .push(s::CatalogueModel { number: NEW_STOCK, source: s::ModelSource::Stock, ..own.clone() })
+        .expect("new stock entry fits");
+    let release = s::catalogue::rows(release.as_slice());
+    let overlay_index = STOCK - 1;
+    let last = changed_in_place.get_mut(overlay_index).expect("last stock model");
+    last.model.efforts.reverse();
+    let overlay = last.clone();
+    let choice = template_choice(ADDED_INDEX);
+    for withdrawn in [false, true] {
+        let mut store = open_with_defaults(&checked, fixtures::stores(), &defaults);
+        let own = s::CatalogueModel { withdrawn, ..own.clone() };
+        let mut effective = changed_in_place.clone();
+        effective.push(own.clone()).expect("held model fits");
+        store.catalogue(s::model_names(&s::catalogue::rows(effective.as_slice())));
+        fixtures::committed(
+            &mut store,
+            Box::new([
+                fixtures::header(1),
+                Write::Save(model_changed(overlay.clone())),
+                Write::Save(model_changed(own.clone())),
+                Write::Save(choice.clone()),
+            ]),
+        );
+        let mut store = open_with_defaults(&checked, store.into_stores(), &release);
+        let rows = restored_settings(&mut store, STORED_ROWS);
+        assert!(rows.contains(&choice), "template keeps m39's index and effort (withdrawn={withdrawn}): {rows:?}");
+        assert_eq!(store.names[STOCK_INDEX], s::ModelName { name: Box::default(), efforts: Box::default() });
+        let held = &store.names[usize::from(ADDED_INDEX)];
+        assert_eq!(held.name.as_ref(), b"m39");
+        assert_eq!(held.efforts, own.model.efforts);
+        let overlaid = &store.names[skein_lib::length::usize_of(overlay_index)];
+        assert_eq!(overlaid.name, overlay.model.name);
+        assert_eq!(overlaid.efforts, overlay.model.efforts);
+    }
+}
+
+#[test]
 fn a_name_that_left_stays_gone() {
     let saved = saved_template();
     let mut store = open(&saved.checked(), saved.into_stores());

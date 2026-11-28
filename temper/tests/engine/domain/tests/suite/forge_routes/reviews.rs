@@ -148,6 +148,77 @@ fn a_change_keeps_its_producing_and_review_charters_after_configuration_changes(
     assert_eq!(change_row(&world, change).review_charter, 4);
 }
 
+/// The floor's reviewer is the deployment's, even in a project with its own reviewer.
+#[test]
+fn a_floor_review_uses_deployment_words_while_its_producer_binds() {
+    use jig_domain_core as core;
+    const PROJECT: u32 = 1;
+    const REVISION: u64 = 9;
+    const PRODUCER: &[u8] = b"Project producer instructions.";
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate { agent: true, ..Gate::default() },
+        None,
+        StoryLimits { forge_charter: Some(2), ..StoryLimits::default() },
+    )
+    .with_settings_owner_configured(&forge_top::user_key(1, 7), |config| {
+        for charter in &mut config.core.defaults.charters {
+            match charter.number {
+                2 => charter.name = Some(b"implementer".as_slice().into()),
+                4 => charter.name = Some(b"reviewer".as_slice().into()),
+                _ => {}
+            }
+        }
+    });
+    // Restore the set as the core would on a start after its project received it.
+    // Supplying sets from the connector is a separate change.
+    let set = core::ProjectCharters {
+        project: PROJECT,
+        revision: REVISION,
+        source: Box::from(b"Project source".as_slice()),
+        charters: Box::new([
+            core::ProjectCharter {
+                name: Box::from(b"implementer".as_slice()),
+                settings: Box::from(b"implementer".as_slice()),
+                instructions: Box::from(PRODUCER),
+                parts: Box::new([]),
+            },
+            core::ProjectCharter {
+                name: Box::from(b"reviewer".as_slice()),
+                settings: Box::from(b"reviewer".as_slice()),
+                instructions: Box::from(b"Project reviewer instructions, not the floor.".as_slice()),
+                parts: Box::new([]),
+            },
+        ]),
+    };
+    world.store.seed(
+        Box::new([Record::Core(core::Record::Core(core::CoreRecord::Settings(
+            core::settings::Record::ProjectCharters(set),
+        )))]),
+        Box::new([]),
+    );
+    world.until(Until::Ready);
+    assert_eq!(world.root.core().project_charters(PROJECT), REVISION);
+    let deployment = world.root.core().charter(4).expect("offered reviewer").policy.instructions.clone();
+    let (mut world, _, producer, branch) = change_world_in(world, Change::default());
+    assert_eq!(producer.charter, 2);
+    let task = live_task(&world, producer.task);
+    assert_eq!(task.scope.as_deref(), Some(b"implementer".as_slice()));
+    assert_eq!(task.charters, REVISION);
+    assert_eq!(producer.run.policy.instructions.as_ref(), PRODUCER);
+    let head = produce(&mut world, &producer, &branch);
+    let reviewer = next_assignment(&mut world, 2);
+    assert_review_head(&world, &reviewer, head);
+    assert_eq!(reviewer.charter, 4);
+    let task = live_task(&world, reviewer.task);
+    assert_eq!(task.scope, None);
+    assert_eq!(task.charters, REVISION);
+    assert_eq!(reviewer.run.policy.instructions, deployment);
+}
+
 /// domain/forge/change/gates.md, 1: the review names its subject before the pull section.
 #[test]
 fn a_gate_reviews_a_named_pull_with_its_whole_section_at_a_sha1_head() {

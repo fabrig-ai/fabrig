@@ -293,6 +293,7 @@ fn worker_completes(worker: &WorkerInput) -> bool {
     match worker {
         WorkerInput::Admit { .. }
         | WorkerInput::CheckResults { .. }
+        | WorkerInput::Guides { .. }
         | WorkerInput::Asked { .. }
         | WorkerInput::Opened { .. }
         | WorkerInput::DecodedHostCall { .. }

@@ -118,6 +118,7 @@ fn review_tree() -> (tasks_domain::Domain, Env<tasks_domain::Limits>) {
         (case::REVIEW, Party::Task(case::DESIGN), Executor::Agent { charter: super::REVIEW_CHARTER }),
     ] {
         let task = New {
+            charter_scope: jig_domain_tasks::CharterScope::Project,
             number,
             project: 1,
             executor,
@@ -177,6 +178,7 @@ fn finish_review(tree: &mut tasks_domain::Domain, env: &Env<tasks_domain::Limits
     for event in [
         Event::Prepare { reply_to: reply_to(), task },
         Event::Claim {
+            sources: None,
             fresh: None,
             reply_to: reply_to(),
             task,

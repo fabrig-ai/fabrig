@@ -138,6 +138,10 @@ impl OneShot {
                     Ok(call)
                 }) {
                 Ok(call) => {
+                    if call.tool == temper_client_tools::table::CHARTER_COPY_AT {
+                        self.fail(b"charter copy takes its destination from command-line arguments, not --call");
+                        return;
+                    }
                     let specs = TOOLS[usize::from(call.tool)].forms[usize::from(call.form)];
                     if specs.iter().zip(call.values.iter()).any(|(spec, value)| {
                         spec.kind == Kind::File && matches!(value, Some(Values::One(Value::File(_) | Value::Stdin)))

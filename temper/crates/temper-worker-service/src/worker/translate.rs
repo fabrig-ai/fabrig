@@ -42,13 +42,53 @@ pub type Assigned = worker::Workspace;
 pub(crate) fn items_to_domain(items: v1::Items) -> worker::Workspace {
     let mut repositories = List::with_capacity(items.repositories.len());
     for repository in items.repositories.into_boxed() {
-        repositories.push(worker_wire::repository_to_domain(repository)).expect("one output per repository");
+        repositories.push(repository_to_domain(repository)).expect("one output per repository");
     }
     worker::Workspace {
         hook_timeout_max_seconds: items.hook_timeout_max_seconds,
         repositories: repositories.into_boxed(),
         rerun: items.rerun,
     }
+}
+
+fn repository_to_domain(repository: v1::Repository) -> worker::Repository {
+    let qualified = qualified_name(&repository.remote, &repository.name);
+    worker::Repository {
+        qualified,
+        tag: repository.tag,
+        name: repository.name,
+        remote: repository.remote,
+        git: repository.git,
+        start: worker_wire::start_to_domain(repository.start),
+        access: worker_wire::access_to_domain(repository.access),
+        identity: repository.identity,
+        account: repository.account,
+        save: repository.save,
+        admit: repository.admit,
+    }
+}
+
+// The application's repository locator is <forge Git base>/<owner>/<name>.git.
+// Its last two components describe the guide source; the full URL never leaves
+// the worker in the report. For an unrecognized locator, report no source.
+#[expect(clippy::disallowed_methods, reason = "validate the exact source text for the guide report")]
+fn qualified_name(remote: &[u8], name: &[u8]) -> Option<Box<str>> {
+    let without_extension = remote.strip_suffix(b".git")?;
+    let owner = without_extension.strip_suffix(name)?.strip_suffix(b"/")?;
+    let mut start = 0_usize;
+    for (index, byte) in owner.iter().enumerate() {
+        if *byte == b'/' {
+            start = index.checked_add(1)?;
+        }
+    }
+    if start == owner.len() {
+        return None;
+    }
+    let qualified = without_extension.get(start..)?;
+    if qualified.len() > 256 {
+        return None;
+    }
+    Some(Box::from(core::str::from_utf8(qualified).ok()?))
 }
 
 #[must_use]
@@ -95,6 +135,27 @@ pub fn work(work: &worker::Work) -> (v1::Left, Option<v1::Saved>) {
         None => None,
     };
     (left, saved)
+}
+
+/// The protocol spells the prepared object id in its full hexadecimal form.
+#[must_use]
+pub fn guides(read: Box<[worker::Guide]>) -> Box<[u8]> {
+    let mut guides = List::with_capacity(u32::try_from(read.len()).expect("bounded guides"));
+    for guide in read {
+        let commit =
+            temper_worker_protocol_git::invocation::hex(temper_worker_domain::checkout::git::Commit::new(guide.commit));
+        guides
+            .push(v1::Guide {
+                repository: guide.repository.into_boxed_bytes(),
+                commit,
+                path: guide.path.into_boxed_bytes(),
+                digest: guide.digest,
+                bytes: guide.bytes,
+                whole: guide.whole,
+            })
+            .expect("one row per guide read");
+    }
+    temper_protocol_worker_wire::guides(&v1::Guides { guides })
 }
 
 pub(crate) fn landing_to_record(landing: &worker::Landing) -> v1::Landing {

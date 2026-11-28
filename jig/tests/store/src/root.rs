@@ -352,6 +352,8 @@ pub fn live_task(number: u64) -> core::Record {
         restarted: false,
         placed: None,
         settings: tasks::SettingsRevision { task: 1, run: None },
+        charters: 0,
+        scope: None,
         added: Box::new([]),
         hold_bound_since: None,
         kept_account: None,
@@ -527,6 +529,7 @@ pub fn history_commit(number: u64) -> Box<[Write]> {
     let mut writes = vec![Write::Save(header(number))];
     for task in [LIVE, LIVE + 1, LIVE + 2] {
         writes.push(Write::Save(core::Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
+            sources: None,
             task,
             attempt: 1,
             claimed: Some(Wall::from_nanos(number)),

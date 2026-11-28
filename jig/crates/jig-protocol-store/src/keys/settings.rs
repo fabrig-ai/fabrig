@@ -48,6 +48,12 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
             writer.tag(8);
             writer.tag(5);
         }
+        Key::ProjectCharters { project, revision } => {
+            writer.tag(8);
+            writer.tag(6);
+            writer.u64(u64::from(*project));
+            writer.u64(*revision);
+        }
     }
 }
 fn setting_write(writer: &mut KeyWriter, setting: Setting) {
@@ -95,6 +101,7 @@ pub(super) fn read(reader: &mut KeyReader<'_>, history: bool) -> Option<Key> {
             Key::Proposal { proposer, proposal: u32::try_from(reader.u64()?).ok()? }
         }
         5 => Key::Extent,
+        6 => Key::ProjectCharters { project: u32::try_from(reader.u64()?).ok()?, revision: reader.u64()? },
         _ => return None,
     })
 }

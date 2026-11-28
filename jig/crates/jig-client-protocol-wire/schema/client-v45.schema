@@ -638,7 +638,9 @@ record ProposalHistory { reason: DocumentText action: RetainedAction number: u64
 record AmendmentState { addressed: option PersonAddress taken_by: option u64 instructions: option DocumentText spec: SpecificationDocument authority: AuthorityDocument wake: WakePolicy dependencies: list 32 u64 cut: bool }
 record HistoryAmendment { before: AmendmentState after: AmendmentState }
 record HistoryLine { task: u64 revision: u64 by: Requester change: HistoryChange reason: DocumentText proposal: option ProposalHistory amendment: option HistoryAmendment at: option u64 }
-record AttemptLine { task: u64 attempt: u64 claimed: option u64 started: option u64 ended: option u64 end: option RunEnd phases: option u32 }
+record Guide { workspace: text 256 commit: text 256 path: text 256 digest: fixed 32 bytes: u32 whole: bool }
+record RunSources { build: text 64 settings: u32 charters: u64 source: bytes 256 guides: option list 64 Guide }
+record AttemptLine { task: u64 attempt: u64 claimed: option u64 started: option u64 ended: option u64 end: option RunEnd phases: option u32 sources: option RunSources = none }
 record HoldLine { task: u64 position: u64 at: u64 before: PriorPhase why: HoldCategory source: option Part ending: option ChipEnding }
 record HistoryRowChange { value: HistoryLine }
 record HistoryRowAttempt { value: AttemptLine }
@@ -1094,7 +1096,7 @@ enum SettingMember { documents, name_segments, name_segment_bytes, path, heading
 enum SettingRule { maximum, minimum, registered }
 record SettingDetail { member: SettingMember document: u32 segment: u32 rule: SettingRule supplied: u32 bound: u32 }
 record MalformedSettings { setting: Setting fault: SettingFault detail: option SettingDetail }
-record ReadSetting { setting: Setting revision: u32 proposal: option ProposalKey }
+record ReadSetting { setting: Setting revision: u32 proposal: option ProposalKey project: option u32 = none }
 record ReadRevision { number: u32 }
 record ReadRevisions { before: option u32 }
 enum SettingFollows { default, change, overlay }
@@ -1111,7 +1113,8 @@ record SettingsProposal { proposer: Proposer number: u32 }
 record SettingsDocument { newest: u32 settings: list 512 SettingLine held: list 32 HeldRevision pending: list 32 SettingsProposal }
 record ApplicationSize { size: u32 }
 enum SizedEdit { set: ApplicationSize, remove, reset }
-record SettingDocument { setting: Setting revision: u32 value: option SettingValue application: option ApplicationState proposed: option SizedEdit overlay: option Overlay }
+record ProjectCharterDocument { name: text 32 revision: u64 source: bytes 256 settings: text 32 instructions: text 1114240 parts: list 8 CharterPart }
+record SettingDocument { setting: Setting revision: u32 value: option SettingValue application: option ApplicationState proposed: option SizedEdit overlay: option Overlay project: option ProjectCharterDocument = none }
 record Size { bytes: u64 }
 record ApplicationEdit { edit: SizedEdit }
 enum RevisionEdit { set: SettingSet, too_large: Size, removed, reset, application: ApplicationEdit }

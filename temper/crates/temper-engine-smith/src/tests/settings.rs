@@ -756,6 +756,7 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
             (s::Setting::Rules, s::Value::Rules(Box::new(rules))),
         ] {
             let document = jig_domain_core::reads::SettingDocument {
+                project: None,
                 overlay: None,
                 setting,
                 revision: 1,
@@ -1312,6 +1313,7 @@ fn ask_temper_proposes_reads_and_words_worker_settings() {
         engine::Tool::Settings { read: SettingsRead::Setting { setting: s::Setting::Worker(2), revision: 0 }, from: 0 }
     );
     let document = jig_domain_core::reads::SettingDocument {
+        project: None,
         overlay: None,
         setting: s::Setting::Worker(2),
         revision: 1,

@@ -29,6 +29,11 @@ pub enum Event {
         attempt: Token,
         bytes: Box<[u8]>,
     },
+    /// A prepared agent's application report, retained with its eventual answer.
+    Guides {
+        owner: Token,
+        bytes: Box<[u8]>,
+    },
     /// The engine link was lost: outstanding reads are refused, not retried.
     LinkLost,
     UsageRead {
@@ -773,6 +778,7 @@ impl Event {
             | Event::Prepared { .. }
             | Event::Unprepared { .. }
             | Event::Delivered { .. }
+            | Event::Guides { .. }
             | Event::Saved { .. } => false,
         }
     }

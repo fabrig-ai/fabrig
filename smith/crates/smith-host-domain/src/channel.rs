@@ -354,6 +354,8 @@ pub enum Up {
         /// Bounded turn metadata and owned transcript body.
         turn: Turn,
     },
+    /// The run finished preparation and told which guides it read.
+    Prepared { guides: Box<[smith_domain::run::facts::Guide]> },
     /// Best-effort observation; valid receipt counts as progress.
     Fact {
         /// Opaque fact bounded by `Limits::fact_bytes`.

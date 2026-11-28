@@ -488,6 +488,7 @@ fn restored_access_controls_workspace_writers_during_start() {
                 &mut h.engine.core_mut().tasks,
                 &env,
                 tasks::Event::Claim {
+                    sources: None,
                     fresh: None,
                     session_end: None,
                     offered: jig_domain_tasks::Reasons::ALL,
@@ -542,6 +543,7 @@ fn loading_slot_reports_keep_the_durable_pool_capacity() {
         let mut authority = holder.authority.clone();
         authority.budget.spend = 1;
         let row = tasks::New {
+            charter_scope: tasks::CharterScope::Project,
             deadline: tasks::Deadline::Named,
             label: holder.label,
             flags: holder.flags,

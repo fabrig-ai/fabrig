@@ -1914,6 +1914,18 @@ fn a_closer_in_a_people_batch_round_trips() {
 }
 
 #[test]
+fn task_and_creation_charter_scopes_are_kept_in_hot_and_ended_rows() {
+    use jig_domain_tasks as t;
+    let mut task = fixtures::task_record();
+    task.scope = Some(b"implementer".as_slice().into());
+    task.charters = 7;
+    task.recurring.as_mut().unwrap().template.batch[0].charter_scope = t::CharterScope::Deployment;
+    for row in [t::Stored::Live(Box::new(task.clone())), t::Stored::Ended(Box::new(task))] {
+        assert_eq!(saved_tasks(&row), Ok(row));
+    }
+}
+
+#[test]
 fn task_talks_and_their_lines_round_trip() {
     use jig_domain_tasks as t;
     use skein_lib::Wall;

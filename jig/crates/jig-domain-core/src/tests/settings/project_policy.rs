@@ -607,7 +607,12 @@ fn read_policy(core: &mut Core, limits: &Limits, sign_in: u64, project: u32, rev
         core,
         limits,
         sign_in,
-        crate::reads::Read::Setting { setting: s::Setting::ProjectPolicy { project }, revision, proposal: None },
+        crate::reads::Read::Setting {
+            project: None,
+            setting: s::Setting::ProjectPolicy { project },
+            revision,
+            proposal: None,
+        },
     );
     let Held::Read { answer, .. } = held else { panic!("setting terminal") };
     answer
@@ -633,6 +638,7 @@ fn current_project_policy_reads_are_whole_only_at_newest() {
         assert_eq!(
             read_policy(&mut core, &limits, SIGN_IN, PROJECT, revision),
             crate::reads::Answer::Setting(Box::new(crate::reads::SettingDocument {
+                project: None,
                 overlay: None,
                 setting: s::Setting::ProjectPolicy { project: PROJECT },
                 revision,

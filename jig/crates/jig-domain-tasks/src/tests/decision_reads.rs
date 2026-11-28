@@ -43,6 +43,7 @@ fn running_holder() -> Harness {
     });
     h.send(Event::Prepare { reply_to: to(), task: HOLDER });
     h.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,

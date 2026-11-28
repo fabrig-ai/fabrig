@@ -18,6 +18,7 @@ pub(crate) struct Inputs {
     pub project: u32,
     pub role: people::Role,
     pub members: Box<[tasks::New]>,
+    pub executors: Box<[tasks::Executor]>,
     pub symbols: Box<[Box<[people::Symbol]>]>,
     pub given: Option<people::Given>,
     pub proposal: Option<(Box<[u8]>, u32)>,
@@ -138,6 +139,12 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, lo
 fn kind(flight: &mut Inputs, stubs: Box<[tasks::Stub]>) -> CreationKind {
     match flight.proposal.take() {
         Some((reason, to)) => CreationKind::Propose { person: flight.person, reason, to, stubs },
-        None => CreationKind::Batch { beneath: flight.beneath, person: flight.person, given: flight.given, stubs },
+        None => CreationKind::Batch {
+            beneath: flight.beneath,
+            person: flight.person,
+            given: flight.given,
+            stubs,
+            executors: core::mem::replace(&mut flight.executors, Box::new([])),
+        },
     }
 }

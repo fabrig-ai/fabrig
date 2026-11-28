@@ -756,6 +756,10 @@ impl Protocol {
                     let key = key(&record);
                     self.stored.insert(key, record).expect("world store capacity");
                 }
+                top::Request::SaveTemperRevision { row, .. } => {
+                    let record = top::Stored::DotTemperRevision(row);
+                    self.stored.insert(key(&record), record).expect("world store capacity");
+                }
                 top::Request::Erase { key } => {
                     self.stored.remove(&key).expect("erased row exists");
                 }

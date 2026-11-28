@@ -64,7 +64,8 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         core::Event::Unwatch { watcher } => root::PartyInput::Unwatch { watcher },
         core::Event::Delivered { watcher } => root::PartyInput::Delivered { watcher },
         core::Event::StreamDelivered { watcher } => root::PartyInput::StreamDelivered { watcher },
-        core::Event::SettingsCommit { .. }
+        core::Event::ProjectCharters(_)
+        | core::Event::SettingsCommit { .. }
         | core::Event::SubscribeTopic { .. }
         | core::Event::Settling
         | core::Event::Stopping
@@ -80,6 +81,7 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::RunCall { .. }
         | core::Event::RunInput { .. }
         | core::Event::RunText { .. }
+        | core::Event::RunGuides { .. }
         | core::Event::Tasks(..)
         | core::Event::StartRecurring { .. }
         | core::Event::WorkspacePrepared { .. }

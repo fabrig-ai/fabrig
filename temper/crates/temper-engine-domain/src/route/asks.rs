@@ -443,7 +443,14 @@ pub(super) fn connector_ask(
             | parts::Ask::Cut { .. }
             | parts::Ask::Drop { .. },
         ) => {}
-        ask @ (Ask::Lifecycle(lifecycle::Ask::CatchUp | lifecycle::Ask::ReleaseProject { .. })
+        Ask::Lifecycle(lifecycle::Ask::CatchUp) => {
+            if connector == domain.config.forge_connector {
+                // The start has restored and switched settings before the forge reads the homes.
+                domain.give_deployment_charters();
+                forward(domain, Ask::Lifecycle(lifecycle::Ask::CatchUp));
+            }
+        }
+        ask @ (Ask::Lifecycle(lifecycle::Ask::ReleaseProject { .. })
         | Ask::Resources(resources::Ask::Hold { .. } | resources::Ask::Unname { .. })
         | Ask::Effects(effects::Ask::Resolve { .. } | effects::Ask::DropProposal { .. })
         | Ask::Topics(topics::Ask::Ended { .. })

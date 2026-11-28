@@ -499,7 +499,9 @@ fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent::Request, o
             hub(domain, env, HubEvent::Agent(FromAgent::Unauthorized { owner: client, account, generation }));
         }
         // A later change of this goal relays usage; the hub has no usage notice yet.
-        smith::parent::Request::Usage { .. } | smith::parent::Request::Signalled { .. } => {}
+        smith::parent::Request::Prepared { .. }
+        | smith::parent::Request::Usage { .. }
+        | smith::parent::Request::Signalled { .. } => {}
         smith::parent::Request::Limited { client, account, reset } => {
             hub(domain, env, HubEvent::Agent(FromAgent::Limited { owner: client, account, reset }));
         }

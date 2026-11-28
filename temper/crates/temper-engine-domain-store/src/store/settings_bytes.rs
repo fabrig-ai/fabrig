@@ -42,6 +42,7 @@ pub(super) fn record(row: &Record) -> Option<u64> {
             }
             Some(bytes)
         }
+        Record::ProjectCharters(set) => set.owned_bytes(),
         Record::Extent { .. } => Some(0),
     }
 }

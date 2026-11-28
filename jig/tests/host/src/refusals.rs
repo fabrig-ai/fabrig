@@ -62,6 +62,7 @@ impl Referee {
             | Event::Ask { .. }
             | Event::LinkLost
             | Event::SourceLost
+            | Event::Guides { .. }
             | Event::Saved { .. } => {}
         }
     }

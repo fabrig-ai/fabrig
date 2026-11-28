@@ -4,13 +4,21 @@ use skein_forge::api::{Answer, Commit, Error, Read, Repository};
 use skein_lib::{Decimal, Env, List, Map, Queue, Set, Time, Token, bytes, len_u64};
 use temper_protocol_temper_dir::{Home, Reading, Touch, Verdict};
 
-use crate::{
-    Domain, DotTemperFile, DotTemperRefusal, DotTemperRevision, Key, Limits, Request, Role, Stored, effect_words,
-};
+use crate::{Domain, DotTemperFile, DotTemperRefusal, DotTemperRevision, Key, Limits, Request, Role, effect_words};
 
 const WORDS: usize = 1024;
 
 impl Domain {
+    /// Replace the volatile bounds used at the next judgement, without triggering a read.
+    pub fn give_deployment_charters(&mut self, charters: crate::DeploymentCharters) {
+        self.deployment_charters = charters;
+    }
+
+    #[must_use]
+    pub const fn deployment_charters(&self) -> &crate::DeploymentCharters {
+        &self.deployment_charters
+    }
+
     /// Each forge the project can push to, in writable repository order,
     /// with the host of its first repository.
     #[must_use]
@@ -110,6 +118,14 @@ impl Domain {
     #[must_use]
     pub fn temper_revision(&self, project: u32) -> Option<&DotTemperRevision> {
         self.temper_revisions.rows.get(&project)
+    }
+
+    /// The next retained revision in project order, for the root's start.
+    #[must_use]
+    pub fn next_temper_revision(&self, after: u32) -> Option<&DotTemperRevision> {
+        let first = after.checked_add(1)?;
+        let (_, row) = self.temper_revisions.rows.range(first..).next()?;
+        Some(row)
     }
 }
 
@@ -334,7 +350,7 @@ pub(crate) fn answered(
                 d.temper_revisions.reads.insert(owner, pending).expect("read retains its place");
                 return;
             }
-            let judged = tree.reading.judge(Home::Here);
+            let judged = tree.reading.judge(Home::Here, d.deployment_charters());
             let tip = tree.commit;
             take(d, &pending, Some(tip), judgement(&tree.reading, &judged), out);
             if judged.method {
@@ -397,6 +413,7 @@ fn take(
         observed: 0,
         refused: None,
     });
+    let previous = row.number;
     row.observed = pending.observed;
     match result {
         Ok(good) => {
@@ -415,7 +432,8 @@ fn take(
         }
     }
     rows.insert(project, row.clone()).expect("one revision per observed project");
-    out.push(Request::Save { record: Stored::DotTemperRevision(row), read_afresh: None, release: None });
+    let moved = row.number != previous;
+    out.push(Request::SaveTemperRevision { row, moved });
 }
 
 // Only a home known to have method has its own branch observer. Its tip

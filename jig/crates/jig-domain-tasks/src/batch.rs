@@ -6,7 +6,10 @@
     reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
 )]
 use crate::domain::{Domain, record};
-use crate::{Authority, Contract, Executor, Last, Limits, New, Parameter, Party, Phase, Problem, Refusal, Spec, Was};
+use crate::{
+    Authority, CharterBinding, Contract, Executor, Last, Limits, New, Parameter, Party, Phase, Problem, Refusal, Spec,
+    Was, bound_executor,
+};
 use skein_lib::bytes::is_utf8;
 
 impl Domain {
@@ -21,10 +24,25 @@ impl Domain {
         places: &[crate::DependencyPlace],
         reads_project: bool,
     ) -> Result<(), Problem> {
+        self.check_make_with_charters(limits, creator, maker, batch, places, reads_project, &[])
+    }
+
+    /// Check a batch against the executors resolved at its current admission.
+    #[expect(clippy::too_many_arguments, reason = "same creation facts as Make, plus its charter bindings")]
+    pub fn check_make_with_charters(
+        &self,
+        limits: &Limits,
+        creator: Party,
+        maker: Option<u64>,
+        batch: &[New],
+        places: &[crate::DependencyPlace],
+        reads_project: bool,
+        bindings: &[Option<CharterBinding>],
+    ) -> Result<(), Problem> {
         if !self.ready() {
             return Err(problem(None, Refusal::NotReady));
         }
-        check_places(self, limits, creator, maker, batch, places, reads_project)
+        check_with_result_proposal(self, limits, creator, batch, None, None, maker, places, reads_project, bindings)
     }
 }
 
@@ -38,21 +56,9 @@ pub(crate) fn check(
     creator: Party,
     batch: &[New],
     reads_project: bool,
+    bindings: &[Option<CharterBinding>],
 ) -> Result<(), Problem> {
-    check_places(domain, limits, creator, None, batch, &[], reads_project)
-}
-
-/// A party's ended dependencies are judged on loaded places (jig/docs/design/domain/tasks/README.md, 4).
-pub(crate) fn check_places(
-    domain: &Domain,
-    limits: &Limits,
-    creator: Party,
-    maker: Option<u64>,
-    batch: &[New],
-    places: &[crate::DependencyPlace],
-    reads_project: bool,
-) -> Result<(), Problem> {
-    check_with_result_proposal(domain, limits, creator, batch, None, None, maker, places, reads_project)
+    check_with_result_proposal(domain, limits, creator, batch, None, None, None, &[], reads_project, bindings)
 }
 
 /// Preflight an agent verdict's own delegates after its current run reservation and charge settle.
@@ -63,6 +69,7 @@ pub(crate) fn check_direct_followups(
     charge: u64,
     batch: &[New],
     reads_project: bool,
+    bindings: &[Option<CharterBinding>],
 ) -> Result<(), Problem> {
     check_with_result_proposal(
         domain,
@@ -74,6 +81,7 @@ pub(crate) fn check_direct_followups(
         None,
         &[],
         reads_project,
+        bindings,
     )
 }
 
@@ -85,8 +93,9 @@ pub(crate) fn check_result_followups(
     proposal: u64,
     batch: &[New],
     reads_project: bool,
+    bindings: &[Option<CharterBinding>],
 ) -> Result<(), Problem> {
-    check_with_result_proposal(domain, limits, creator, batch, Some(proposal), None, None, &[], reads_project)
+    check_with_result_proposal(domain, limits, creator, batch, Some(proposal), None, None, &[], reads_project, bindings)
 }
 
 #[expect(
@@ -104,6 +113,7 @@ fn check_with_result_proposal(
     maker: Option<u64>,
     places: &[crate::DependencyPlace],
     reads_project: bool,
+    bindings: &[Option<CharterBinding>],
 ) -> Result<(), Problem> {
     let size = u32::try_from(batch.len()).unwrap_or(u32::MAX);
     if size == 0 {
@@ -201,7 +211,7 @@ fn check_with_result_proposal(
         }
         Party::Person(_) | Party::Deployment { .. } => None,
     };
-    check_members(domain, limits, creator, batch, parent, maker, places, reads_project)?;
+    check_members(domain, limits, creator, batch, parent, maker, places, reads_project, bindings)?;
     crate::holds::check_batch(domain, limits, creator, batch)?;
     if !crate::funders::can_reserve(domain, creator, batch, result_proposal, direct_finish) {
         return Err(problem(None, Refusal::Funding));
@@ -242,6 +252,7 @@ fn matches_result_action(parent: &crate::TaskRecord, number: u64, batch: &[New])
         if old.number != new.number
             || old.project != new.project
             || old.executor != new.executor
+            || old.charter_scope != new.charter_scope
             || old.spec != new.spec
             || old.contract != new.contract
             || authority != new.authority
@@ -282,6 +293,7 @@ fn check_members(
     maker: Option<u64>,
     places: &[crate::DependencyPlace],
     reads_project: bool,
+    bindings: &[Option<CharterBinding>],
 ) -> Result<(), Problem> {
     for (at, new) in batch.iter().enumerate() {
         assert!(new.deadline == crate::Deadline::Named, "root resolves every made deadline");
@@ -351,7 +363,8 @@ fn check_members(
         if new.spec.job.is_some() && !matches_job(new.executor) {
             return Err(problem(number, Refusal::Executor));
         }
-        match new.executor {
+        let executor = bound_executor(new.executor, bindings, at);
+        match executor {
             Executor::Job { .. } => {
                 if !job_creator(parent) {
                     return Err(problem(number, Refusal::Executor));
@@ -394,7 +407,7 @@ fn check_members(
             return Err(problem(number, Refusal::AuthorityShape));
         }
         if let Some(choice) = &new.llm
-            && let Err(why) = crate::llm::check(domain, new.executor, domain.newest(), &new.authority, choice)
+            && let Err(why) = crate::llm::check(domain, executor, domain.newest(), &new.authority, choice)
         {
             return Err(problem(number, why));
         }

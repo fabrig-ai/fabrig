@@ -49,6 +49,7 @@ pub fn prepare_with_store(
         &service::stock::Given::Stock,
         None,
         sizing,
+        "",
         &[],
         None,
         programs,
@@ -74,6 +75,7 @@ pub fn prepare_with_limits(
     given: &service::stock::Given,
     program: Option<&std::path::Path>,
     sizing: bool,
+    build_name: &'static str,
     projects: &[jig_protocol_config::Project],
     limits: Option<(&jig_protocol_config::Limits, &service::limits::Limits)>,
     programs: &temper_config_shell::Programs,
@@ -198,7 +200,7 @@ pub fn prepare_with_limits(
     );
     let models = jig_protocol_config::core(&engine, seeds.deployment, seeds.seed).settings.models;
     let (mut store, state) =
-        engine::open_limits(inputs, &models, path(&directories.data), &named.deployment, user, "", owned)?;
+        engine::open_limits(inputs, &models, path(&directories.data), &named.deployment, user, build_name, owned)?;
     if part.is_some() {
         let rebuilt = service::startup::box_worker_with_limits(
             bytes,
@@ -244,6 +246,7 @@ pub fn prepare_with_limits(
             return Err(String::from_utf8_lossy(&service::startup::lines(&why)).into_owned());
         }
     };
+    start.engine_mut().build = build_name;
     start.engine_mut().demo = demo.as_ref().map(setup::playground);
     start.engine_mut().owned_forgejo = programs.forgejo.as_ref().map(|path| path.as_os_str().as_bytes().into());
     start.engine_mut().owned_runner = programs.runner.as_ref().map(|path| path.as_os_str().as_bytes().into());
@@ -281,6 +284,7 @@ pub fn prepare_with_limits(
         }
     };
     service.engine_component().take_limit_store(store, state);
+    service.engine_component().build_name(build_name);
     if named.worker.is_some() {
         service.engine_component().keep_agents(copy.as_os_str().as_encoded_bytes().into(), initial);
         service.engine_component().keep_local(local_copy.as_os_str().as_encoded_bytes().into(), local);
@@ -687,6 +691,7 @@ pub fn prepare_in_with_inputs_and_limits(
         given,
         program,
         false,
+        "",
         projects,
         limits,
         &programs,
@@ -773,6 +778,7 @@ pub fn run(
     directories: &Directories,
     boxed: bool,
     record: bool,
+    build_name: &'static str,
 ) -> Result<Exit, String> {
     temper_service_shell::run(
         binary,
@@ -797,6 +803,7 @@ pub fn run(
                 &service::stock::Given::Stock,
                 None,
                 false,
+                build_name,
                 &[],
                 None,
                 programs,

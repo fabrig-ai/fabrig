@@ -5,6 +5,18 @@ use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::{documents as d, reads, settings as s};
 use skein_lib::{List, Reader, Wall};
 
+const PROJECT: u32 = 3;
+const CHARTER: u32 = 2;
+
+fn project_charter_read() -> w::Read {
+    w::Read::Setting(w::ReadSetting {
+        setting: w::Setting::Charter(w::SettingNumber { number: CHARTER }),
+        revision: 0,
+        proposal: None,
+        project: Some(PROJECT),
+    })
+}
+
 fn head() -> s::Head {
     s::Head { number: 6, against: 5, at: Wall::EPOCH, by: s::Decider::Release, proposal: None, moved: false }
 }
@@ -36,8 +48,17 @@ fn settings_reads_enter_the_core_in_its_vocabulary() {
     for (request, expected) in [
         (w::Read::Settings, reads::Read::Settings),
         (
-            w::Read::Setting(w::ReadSetting { setting: w::Setting::Rules, revision: 6, proposal: None }),
-            reads::Read::Setting { setting: s::Setting::Rules, revision: 6, proposal: None },
+            w::Read::Setting(w::ReadSetting { project: None, setting: w::Setting::Rules, revision: 6, proposal: None }),
+            reads::Read::Setting { project: None, setting: s::Setting::Rules, revision: 6, proposal: None },
+        ),
+        (
+            project_charter_read(),
+            reads::Read::Setting {
+                setting: s::Setting::Charter(CHARTER),
+                revision: 0,
+                proposal: None,
+                project: Some(PROJECT),
+            },
         ),
         (w::Read::Revision(w::ReadRevision { number: 5 }), reads::Read::Revision { number: 5 }),
         (w::Read::Revisions(w::ReadRevisions { before: Some(5) }), reads::Read::Revisions { before: Some(5) }),
@@ -47,6 +68,47 @@ fn settings_reads_enter_the_core_in_its_vocabulary() {
         assert_eq!(actual, expected);
     }
 }
+#[test]
+fn a_setting_answer_serves_the_whole_project_charter() {
+    use jig_domain_core_vocabulary::CharterPart;
+    use jig_domain_tasks::Reasons;
+    const SET_REVISION: u64 = 4;
+    const SETTINGS_REVISION: u32 = 7;
+    const PART_WORDS: &[u8] = b"Read the spec.";
+    let project = reads::ProjectCharterDocument {
+        name: b"implementer".as_slice().into(),
+        revision: SET_REVISION,
+        source: Box::from([0xff, 0x00]),
+        settings: b"careful".as_slice().into(),
+        instructions: b"Work carefully.".as_slice().into(),
+        parts: Box::new([CharterPart { on: Reasons::FIRST, instructions: PART_WORDS.into() }]),
+    };
+    let answer = reads::Answer::Setting(Box::new(reads::SettingDocument {
+        overlay: None,
+        setting: s::Setting::Charter(CHARTER),
+        revision: SETTINGS_REVISION,
+        value: None,
+        application: None,
+        proposed: None,
+        project: Some(Box::new(project.clone())),
+    }));
+    let w::ReadValue::Setting(document) = returned(answer, project_charter_read()) else { panic!("setting reply") };
+    assert_eq!(
+        document.project,
+        Some(w::ProjectCharterDocument {
+            name: project.name,
+            revision: SET_REVISION,
+            source: project.source,
+            settings: project.settings,
+            instructions: project.instructions,
+            parts: List::from_boxed(Box::new([w::CharterPart {
+                on: Reasons::FIRST.0,
+                instructions: PART_WORDS.into()
+            }])),
+        })
+    );
+}
+
 #[test]
 fn inventory_reads_and_watch_deliveries_carry_the_same_facts() {
     let document = settings();
@@ -274,6 +336,7 @@ fn whole_setting_kinds_reach_the_clients_as_their_values() {
     let names = [s::Setting::Charter(1), s::Setting::Template(1), s::Setting::Policy(1), s::Setting::Rules];
     for (name, value) in names.into_iter().zip(values()) {
         let document = reads::SettingDocument {
+            project: None,
             overlay: None,
             setting: name,
             revision: 6,
@@ -573,6 +636,7 @@ fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
     let setting = s::Setting::Application { kind: 7, scope: 0, number: 2 };
     let state = State { follows: Follows::Removed { revision: 6 }, size: 0, charters: Box::new([]) };
     let read = reads::SettingDocument {
+        project: None,
         overlay: None,
         setting,
         revision: 6,
@@ -759,6 +823,7 @@ fn overlays_cross_engine_changes_and_setting_reads_without_losing_presence() {
     );
     let s::Value::Overlay(overlay) = value else { panic!("overlay preserved") };
     let document = reads::SettingDocument {
+        project: None,
         overlay: Some(overlay.clone()),
         setting: s::Setting::Charter(2),
         revision: 2,
@@ -871,6 +936,7 @@ fn provider_program_count_refuses_at_the_provider_setting_path() {
     let problem = w::paths::PROVIDER_SETTING_ENDPOINTS.problem(skein_codec::Reason::Bound);
     assert_eq!(translate::value(&value, &[], &limits).unwrap_err(), problem);
     let document = reads::SettingDocument {
+        project: None,
         setting: s::Setting::Provider(1),
         revision: 1,
         value: Some(value),

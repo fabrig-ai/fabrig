@@ -154,6 +154,7 @@ pub enum Read {
         setting: crate::settings::Setting,
         revision: u32,
         proposal: Option<(Proposer, u64)>,
+        project: Option<u32>,
     },
     Revision {
         number: u32,
@@ -625,6 +626,17 @@ pub struct SettingDocument {
     pub value: Option<crate::settings::Value>,
     pub application: Option<crate::settings::application::State>,
     pub proposed: Option<crate::settings::application::SizedEdit>,
+    pub project: Option<Box<ProjectCharterDocument>>,
+}
+/// The whole project charter beside the deployment setting (jig/docs/design/domain/engine/project-charters.md, 7).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProjectCharterDocument {
+    pub name: Box<[u8]>,
+    pub revision: u64,
+    pub source: Box<[u8]>,
+    pub settings: Box<[u8]>,
+    pub instructions: Box<[u8]>,
+    pub parts: Box<[crate::CharterPart]>,
 }
 /// Revision values leave through the protocol's single-value byte admission.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

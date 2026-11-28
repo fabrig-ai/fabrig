@@ -168,6 +168,7 @@ impl Domain {
                         | host::LinkUp::ListRead { .. }
                         | host::LinkUp::Piece { .. }
                         // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+                        | host::LinkUp::Guides { .. }
                         | host::LinkUp::Paused { .. }
                         | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }

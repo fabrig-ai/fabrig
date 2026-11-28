@@ -155,6 +155,7 @@ fn start(world: &mut World, index: usize) {
             key: u32::try_from(index + 1).expect("three templates"),
             overlap: tasks::RecurringOverlap::Skip,
             batch: Box::new([tasks::New {
+                charter_scope: jig_domain_tasks::CharterScope::Project,
                 deadline: tasks::Deadline::Named,
                 label: 0,
                 flags: tasks::Flags::PLAIN,

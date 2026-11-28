@@ -61,7 +61,9 @@ fn derived(profile: Profile) -> &'static Texts {
         );
         let frames = match profile {
             Profile::Derived => frames,
-            Profile::MissingKinds => edit(&edit(&frames, ", part: Part", ""), ", part_busy: PartBusy", ""),
+            Profile::MissingKinds => {
+                edit(&edit(&edit(&frames, ", part: Part", ""), ", part_busy: PartBusy", ""), ", guides: Guides", "")
+            }
             Profile::Written => unreachable!("written profiles use both real codecs"),
         };
         let charter = edit(

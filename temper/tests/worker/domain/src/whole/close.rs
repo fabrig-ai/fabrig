@@ -121,6 +121,7 @@ fn assign(world: &mut World, head: u64, program: &[u8], find: bool) -> Result<()
             rerun: None,
             hook_timeout_max_seconds: 3600,
             repositories: Box::new([wire::Repository {
+                qualified: None,
                 admit: false,
                 tag: 0,
                 name: b"fabrig".as_slice().into(),

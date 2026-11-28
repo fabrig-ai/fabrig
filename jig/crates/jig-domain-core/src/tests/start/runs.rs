@@ -1,7 +1,7 @@
 //! Adoption fits and opening use the same state (domain/engine/restart.md, domain/engine/fleet.md).
 use crate::tests::new_core;
 use crate::{
-    CoreRecord, Event, RunProof, fleet, people,
+    CoreRecord, Event, PendingClaim, RunProof, fleet, people,
     start::{Continuation, LiveSet},
     tests::start::{
         Action, Core, Env, Failure, Key, Phase, Queue, Request, SweepInput, Time, Wall, config, step_phase, tasks,
@@ -188,7 +188,18 @@ fn a_worker_claim_commit_fits_the_next_start_before_its_fleet_handoff() {
         core.proofs
             .insert(DUE, RunProof::claimed(DUE, ATTEMPT, ATTEMPT, None, fleet::HostKind::Worker))
             .expect("pending proof");
-        core.claiming.insert(DUE, (ATTEMPT, tasks::Reasons::ALL, None, None)).expect("pending claim");
+        core.claiming
+            .insert(
+                DUE,
+                PendingClaim {
+                    attempt: ATTEMPT,
+                    offered: tasks::Reasons::ALL,
+                    session_end: None,
+                    fresh: None,
+                    sources: None,
+                },
+            )
+            .expect("pending claim");
         let mut writes = crate::step(
             &mut core,
             &env,

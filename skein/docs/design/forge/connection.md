@@ -300,10 +300,6 @@ refusals are 5.1's.
   and its client refuses a second author too (client-effects.md, 1.1). The
   component never holds an admin's token (setup/README.md, section 3).
 
-## 4. Calls, repositories and users
-
-Moved to [`connection-calls.md`](connection-calls.md), section 1.
-
 ## 5. Credentials and their renewal
 
 - **A kind** says how a credential is made and how long it lasts
@@ -399,18 +395,6 @@ at each mint.
   close the gap, and that is the user's call.
 - **Forgejo has none:** its git token is the owner's, set up beside the
   API's (setup/forgejo.md, section 1.3).
-
-## 6. The webhooks' listener
-
-Moved to [`connection-webhooks.md`](connection-webhooks.md), section 1.
-
-## 7. Entities and limits
-
-Moved to [`connection-machines.md`](connection-machines.md), section 1.
-
-## 8. State machines
-
-Moved to [`connection-machines.md`](connection-machines.md), section 2.
 
 ## 9. What its owner owes it
 

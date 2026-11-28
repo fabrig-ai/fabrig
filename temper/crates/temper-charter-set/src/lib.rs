@@ -7,8 +7,14 @@ use alloc::boxed::Box;
 use core::fmt;
 use skein_lib::{List, Writer};
 
+mod charter;
 mod format;
+pub use charter::{CharterFault, CharterFile, FilePart, WritePart, read_charter, write_charter};
 pub use format::{FormatFault, read_file};
+
+const PART_HEADING: &str = "## part, on:";
+const BLANK_LINE: &str = "\n\n";
+const CHARTER_BYTES: u32 = 65_536;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum File {
@@ -69,6 +75,7 @@ pub enum Refusal {
     FrontMatter { file: File },
     BadFormat { file: File },
     NewerFormat { file: File, number: Box<str> },
+    Settings { file: File, line: u32 },
     BeforeSection { file: File, line: usize },
     EmptyReason { file: File, line: usize },
     RepeatedReason { file: File, line: usize, name: Box<str> },
@@ -87,6 +94,7 @@ impl fmt::Display for Refusal {
                 "{}: format {number}; this temper ctl reads format 1: upgrade it, or write the file at format 1",
                 file.name()
             ),
+            Self::Settings { file, line } => write!(f, "{}:{line}: {}", file.name(), format::SETTINGS_WORDS),
             Self::BeforeSection { file, line } => write!(f, "{}:{line}: text before first section", file.name()),
             Self::EmptyReason { file, line } => write!(f, "{}:{line}: empty reason", file.name()),
             Self::RepeatedReason { file, line, name } => write!(f, "{}:{line}: repeated reason {name}", file.name()),
@@ -119,8 +127,7 @@ pub fn goal_agent<R>(set: &Set<'_>, reason: impl Fn(&str) -> Option<R>) -> Resul
     let mut offset = 0_usize;
     let mut current = None;
     for (index, line) in coordinator.split_inclusive('\n').enumerate() {
-        let heading = line.trim_end_matches('\n').strip_prefix("## part, on:");
-        if let Some(names) = heading {
+        if let Some(names) = heading(line) {
             if let Some(reasons) = current.take() {
                 assert!(parts.push(part(reasons, coordinator, start, offset)).is_ok(), "part count fits u32");
             }
@@ -145,16 +152,12 @@ fn reasons<R>(names: &str, line: usize, reason: &impl Fn(&str) -> Option<R>) -> 
     let mut seen = List::uncapped();
     let mut values = List::uncapped();
     for name in names.split(',') {
-        let name = name.trim_matches(' ');
         let file = File::Coordinator;
-        if name.is_empty() {
-            return Err(Refusal::EmptyReason { file, line });
-        }
-        for earlier in &seen {
-            if *earlier == name {
-                return Err(Refusal::RepeatedReason { file, line, name: name.into() });
-            }
-        }
+        let name = match checked_reason(name, seen.as_slice()) {
+            Ok(name) => name,
+            Err(ReasonFault::Empty) => return Err(Refusal::EmptyReason { file, line }),
+            Err(ReasonFault::Repeated(name)) => return Err(Refusal::RepeatedReason { file, line, name }),
+        };
         let Some(value) = reason(name) else {
             return Err(Refusal::UnknownReason { file, line, name: name.into() });
         };
@@ -164,8 +167,35 @@ fn reasons<R>(names: &str, line: usize, reason: &impl Fn(&str) -> Option<R>) -> 
     Ok(values.into_boxed())
 }
 fn part<R>(reasons: Box<[R]>, text: &str, start: usize, end: usize) -> Part<R> {
-    let text = text.get(start..end).expect("section offsets are line boundaries").trim_matches('\n');
-    Part { reasons, text: text.as_bytes().into() }
+    Part { reasons, text: section_text(text, start, end).as_bytes().into() }
+}
+
+fn heading(line: &str) -> Option<&str> {
+    line.trim_end_matches('\n').strip_prefix(PART_HEADING)
+}
+
+enum ReasonFault {
+    Empty,
+    Repeated(Box<str>),
+}
+
+fn checked_reason<'a>(name: &'a str, seen: &[&str]) -> Result<&'a str, ReasonFault> {
+    let name = name.trim_matches(' ');
+    if name.is_empty() {
+        return Err(ReasonFault::Empty);
+    }
+    if seen.contains(&name) {
+        return Err(ReasonFault::Repeated(name.into()));
+    }
+    Ok(name)
+}
+
+fn section_text(text: &str, start: usize, end: usize) -> &str {
+    trim_text(text.get(start..end).expect("section offsets are line boundaries"))
+}
+
+fn trim_text(text: &str) -> &str {
+    text.trim_matches('\n')
 }
 /// Assemble the implementer's instructions; absent and blank files contribute nothing.
 #[must_use]
@@ -173,12 +203,12 @@ pub fn implementer(set: &Set<'_>) -> Box<[u8]> {
     joined(set.common, set.implementer)
 }
 fn trimmed(text: Option<&str>) -> &str {
-    text.unwrap_or("").trim_matches('\n')
+    trim_text(text.unwrap_or(""))
 }
 fn joined(first: Option<&str>, second: Option<&str>) -> Box<[u8]> {
     let first = trimmed(first);
     let second = trimmed(second);
-    let separator = if first.is_empty() || second.is_empty() { b"".as_slice() } else { b"\n\n" };
+    let separator = if first.is_empty() || second.is_empty() { b"".as_slice() } else { BLANK_LINE.as_bytes() };
     let length = first.len().checked_add(separator.len()).expect("first and separator length");
     let length = length.checked_add(second.len()).expect("joined text length");
     let mut text = Writer::new(length);

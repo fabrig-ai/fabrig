@@ -1736,7 +1736,11 @@ fn ready(
     out: &mut Queue<Request>,
 ) -> State {
     let id = conversations.get(main).expect("pending main retains its run").run;
-    facts.push(FactKind::Prepared { run: id.token(), guides: run.found.guides.len(), checks: run.found.checks.len() });
+    facts.push(FactKind::Prepared {
+        run: id.token(),
+        guides: prepare::report(&run.found, &run.charter),
+        checks: run.found.checks.len(),
+    });
     if prompt::has_brief(&run.charter) || run.inbox.has_queued() || !run.charter.grants.wait {
         return open(run, conversations, reply_to, main, env, out);
     }

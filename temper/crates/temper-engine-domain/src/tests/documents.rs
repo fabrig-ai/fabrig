@@ -36,6 +36,8 @@ fn document(heading: Option<&[u8]>) -> parts::Document {
     }
 }
 
+const BUILD: &str = "1a2b3c4d5e6f";
+
 fn root(sections: u32, documents: Box<[parts::Document]>) -> (Domain, Env<Limits>) {
     use jig_domain_accounts as accounts;
     use jig_domain_people as people;
@@ -45,6 +47,7 @@ fn root(sections: u32, documents: Box<[parts::Document]>) -> (Domain, Env<Limits
     limits.forge.brief_sections =
         limits.brief.briefs.checked_mul(limits.brief.sections).unwrap().checked_mul(2).unwrap();
     let mut config = resume_fixture::config(7);
+    config.core.build = BUILD.into();
     config.core.defaults.charters[0].documents = documents;
     resume_fixture::root_with_records(
         config,
@@ -510,6 +513,7 @@ fn a_repair_replaces_optional_core_sections_and_keeps_both_documents() {
         &mut domain,
         &env,
         In::Core(core::Event::WorkspacePrepared {
+            guide_limit: 0,
             task,
             attempt,
             holds: Box::new([]),
@@ -584,6 +588,11 @@ enum DocumentHandoff {
 }
 
 fn gathered_document(handoff: DocumentHandoff) -> (crate::Assignment, u32) {
+    let (_, _, assignment, size) = prepared_document(handoff);
+    (assignment, size)
+}
+
+fn prepared_document(handoff: DocumentHandoff) -> (Domain, Env<Limits>, crate::Assignment, u32) {
     let (mut domain, env) = root(8, Box::new([document(Some(b"Safety"))]));
     let task = make_agent(&mut domain, &env, tasks::Party::Deployment { project: 1 });
     let plan = plan_from_engine(&mut domain, &env, task);
@@ -634,7 +643,7 @@ fn gathered_document(handoff: DocumentHandoff) -> (crate::Assignment, u32) {
     domain.reclaim();
     assert!(domain.brief_connectors.is_empty());
     assert!(domain.forge.briefs_idle());
-    (assignment, size)
+    (domain, env, assignment, size)
 }
 
 #[test]
@@ -832,4 +841,26 @@ fn two_parties_watching_dismissed_get_their_own_documents() {
     assert!(got.contains(&dismissal_answer()));
     assert!(got.contains(&dismissal_document(first, &[1])));
     assert!(got.contains(&dismissal_document(second, &[2])));
+}
+
+#[test]
+fn a_root_build_is_kept_on_the_claimed_attempt() {
+    let (mut domain, env, assignment, _) = prepared_document(DocumentHandoff::Held);
+    let out = step(
+        &mut domain,
+        &env,
+        In::Core(core::Event::ClaimPrepared {
+            task: assignment.task,
+            attempt: assignment.attempt,
+            budget: assignment.run.budget,
+            writes: Box::new([]),
+        }),
+    );
+    for output in &out {
+        if let Out::Write(core::Write::Save(core::Record::Tasks(tasks::Stored::Attempt(row)))) = output {
+            assert_eq!(row.sources.as_ref().expect("claim sources").build.as_ref(), BUILD);
+            return;
+        }
+    }
+    panic!("claim did not write its attempt: {out:?}");
 }

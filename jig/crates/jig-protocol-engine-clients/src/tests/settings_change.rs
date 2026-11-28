@@ -161,6 +161,7 @@ fn a_model_settings_change_and_read_keep_its_speeds() {
     );
     assert_eq!(model.model.speed.as_deref(), Some(b"ultrafast".as_slice()));
     let read = core::reads::SettingDocument {
+        project: None,
         setting: *setting,
         overlay: None,
         revision: 6,

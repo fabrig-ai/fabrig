@@ -93,6 +93,10 @@ pub(in crate::codec) fn wire_settings_proposal(value: &c::SettingsProposal) -> w
 
 pub fn wire_setting_document(value: &c::SettingDocument, limits: &w::Limits) -> Result<w::SettingDocument, w::Problem> {
     Ok(w::SettingDocument {
+        project: value
+            .project
+            .as_deref()
+            .map(jig_client_protocol_link::translate::settings::wire_project_charter_document),
         overlay: value.overlay.as_deref().map(wire_overlay),
         setting: wire_setting(&value.setting),
         revision: value.revision,

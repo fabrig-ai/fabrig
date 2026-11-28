@@ -60,6 +60,7 @@ pub(crate) fn hello(record: wire::Hello) -> Option<Hello> {
 pub(crate) enum Up {
     Source(host::LinkUp),
     Ask(wire::Ask),
+    Guides(wire::v22::Guides),
     ListRead(wire::ListRead),
     Part(wire::v22::Part),
     Turn(wire::Turn),
@@ -130,6 +131,7 @@ pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v22::Limits) -> Opti
             let result = mapped::sign_out_result_to_domain(record.result);
             Some(Up::Source(host::LinkUp::SignedOut { name, result }))
         }
+        wire::Kind::Guides => Some(Up::Guides(wire::v22::Guides::decode(&wire::sizes::guides(limits), reader).ok()?)),
         wire::Kind::Part => Some(Up::Part(wire::v22::Part::decode(limits, reader).ok()?)),
         wire::Kind::Turn => Some(Up::Turn(wire::Turn::decode(limits, reader).ok()?)),
         wire::Kind::Call => Some(Up::Call(wire::Call::decode(limits, reader).ok()?)),
@@ -164,6 +166,11 @@ pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v22::Limits) -> Opti
 }
 pub(crate) fn up(record: Up, parts: &mut Parts) -> host::LinkUp {
     match record {
+        Up::Guides(record) => host::LinkUp::Guides {
+            run: token_to_domain(record.task),
+            attempt: token_to_domain(record.attempt),
+            bytes: record.bytes.bytes,
+        },
         Up::Ask(record) => host::LinkUp::Ask {
             run: token_to_domain(record.run),
             attempt: token_to_domain(record.attempt),

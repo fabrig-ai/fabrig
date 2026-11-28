@@ -99,6 +99,7 @@ pub(crate) fn make(domain: &mut Domain, env: &Env<Limits>, task: u64, number: u6
     authority.delegation.depth = authority.delegation.depth.saturating_sub(1);
     authority.budget.spend = spend;
     let member = crate::New {
+        charter_scope: crate::CharterScope::Project,
         label: 0,
         flags: crate::Flags::PLAIN,
         number,
@@ -124,13 +125,13 @@ pub(crate) fn make(domain: &mut Domain, env: &Env<Limits>, task: u64, number: u6
         tracked: None,
     };
     let batch: Box<[crate::New]> = Box::new([member]);
-    if let Err(problem) = crate::batch::check(domain, &env.limits, Party::Task(task), &batch, false) {
+    if let Err(problem) = crate::batch::check(domain, &env.limits, Party::Task(task), &batch, false, &[]) {
         let why = if problem.why == crate::Refusal::Funding { Hold::Budget } else { Hold::Failures(Class::Permanent) };
         refused(domain, env, task, why, out);
         return;
     }
     task_mut(domain, task).expect("closer's requester live").record.closer = Some(number);
-    let _made = crate::domain::make_admitted(domain, env, Party::Task(task), batch, out);
+    let _made = crate::domain::make_admitted(domain, env, Party::Task(task), batch, &[], out);
     publish(domain, env, task, out);
 }
 

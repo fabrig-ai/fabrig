@@ -758,7 +758,7 @@ impl Seen {
             parent::Request::Refused { account, code, reason, .. } => {
                 self.account_notices.push(host::Up::Refused { account, code, reason });
             }
-            parent::Request::Long { .. } | parent::Request::LongDone { .. } => {}
+            parent::Request::Prepared { .. } | parent::Request::Long { .. } | parent::Request::LongDone { .. } => {}
         }
         Ok(())
     }

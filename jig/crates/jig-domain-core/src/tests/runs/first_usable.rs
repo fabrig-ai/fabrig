@@ -86,9 +86,9 @@ fn fixture_with_models(named: bool, allowed: tasks::Models, resolve: bool) -> (C
     if named {
         row.llm = Some(named_choice());
     }
-    let mut batch = [row];
+    let batch = [row];
     if resolve {
-        core.resolve_llm(&mut batch).unwrap();
+        core.resolve_llm(&limits, &batch, &[]).unwrap();
     }
     fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), batch.into());
     core.fleet = placement_fleet(&core, &limits);
@@ -163,6 +163,7 @@ fn claim(core: &mut Core, limits: &Limits) {
         core,
         limits,
         tasks::Event::Claim {
+            sources: None,
             fresh: None,
             session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
@@ -512,7 +513,7 @@ fn create_and_amend_refuse_an_authority_with_no_charter_model() {
     let mut row = new_row(&core, 2, FUNDER, None);
     row.authority.models = tasks::Models::NONE;
     assert_eq!(
-        core.resolve_llm(&mut [row]),
+        core.resolve_llm(&limits, &[row], &[]),
         Err(tasks::Problem::new(Some(2), tasks::Refusal::Llm { model: 0, why: tasks::LlmFault::Authority }))
     );
     let mut authority = core.tasks.task(TASK).unwrap().authority.clone();

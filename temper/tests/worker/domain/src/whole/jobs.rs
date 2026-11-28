@@ -232,6 +232,7 @@ impl World {
             | Request::Decode { .. }
             | Request::Encode { .. }
             | Request::Fact { .. }
+            | Request::EncodeGuides { .. }
             | Request::CancelIo { .. } => panic!("unscripted request"),
         }
     }
@@ -241,6 +242,7 @@ impl World {
             .into_iter()
             .enumerate()
             .map(|(index, name)| wire::Repository {
+                qualified: None,
                 admit: false,
                 tag: u64::try_from(index).expect("repository tag"),
                 name: name.into(),

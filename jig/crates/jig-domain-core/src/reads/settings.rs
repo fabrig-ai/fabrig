@@ -7,7 +7,7 @@ use crate::{
         Answer, Range, RevisionAnswer, RevisionEdit, RevisionItemHead, RevisionRow, RevisionsPage, Row, Scope,
         SettingDocument, Why, terminal,
     },
-    settings,
+    settings::{self, binding::BindingFault},
 };
 use alloc::boxed::Box;
 pub use jig_domain_core_vocabulary::reads::settings::*;
@@ -276,6 +276,51 @@ pub(super) fn setting(
     }
     terminal(reply, setting_value(core, setting, revision))
 }
+pub(super) fn project_setting(
+    core: &Core,
+    limits: &Limits,
+    party: u64,
+    setting: settings::Setting,
+    project: u32,
+) -> Answer {
+    let settings::Setting::Charter(number) = setting else { return Answer::None(Why::Malformed) };
+    if core.people.role(party, people::DEPLOYMENT).is_none() {
+        return Answer::None(Why::Unknown);
+    }
+    if core.people.deleted(project) {
+        return Answer::None(Why::Gone);
+    }
+    if !crate::documents::project_readable(core, party, project) {
+        return Answer::None(Why::Unknown);
+    }
+    let newest = core.current.newest();
+    let (effective, name) = match core.bind_charter(
+        limits,
+        project,
+        tasks::Executor::Agent { charter: number },
+        tasks::CharterScope::Project,
+    ) {
+        Ok(Some(binding)) => (binding.charter, binding.scope),
+        Ok(None) | Err(BindingFault::NotOffered) => return setting_value(core, setting, newest),
+        Err(BindingFault::Project { name, .. }) => (number, name),
+    };
+    let revision = core.project_charters(project);
+    let set = core.project_charter_set(project, revision).expect("binding resolved in the newest set");
+    let words = core.project_charter_words(project, revision, &name).expect("binding resolved a charter in the set");
+    let Answer::Setting(mut document) = setting_value(core, settings::Setting::Charter(effective), newest) else {
+        unreachable!("binding uses an offered charter")
+    };
+    document.project = Some(Box::new(super::ProjectCharterDocument {
+        name,
+        revision,
+        source: set.source.clone(),
+        settings: words.settings.clone(),
+        instructions: words.instructions.clone(),
+        parts: words.parts.clone(),
+    }));
+    Answer::Setting(document)
+}
+
 fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answer {
     if !may_read(core, revision) {
         return Answer::None(Why::Unknown);
@@ -288,6 +333,7 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
             }
             return match core.current.applications.get(&setting) {
                 Some(state) => Answer::Setting(Box::new(SettingDocument {
+                    project: None,
                     overlay: None,
                     setting,
                     revision,
@@ -310,6 +356,7 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
     if let settings::Setting::Charter(number) = setting {
         return match core.charter_at(number, revision) {
             Some(charter) => Answer::Setting(Box::new(SettingDocument {
+                project: None,
                 overlay: match core.overlay_at(number, revision) {
                     Some(overlay) => Some(Box::new(overlay.clone())),
                     None => None,
@@ -328,6 +375,7 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
     }
     match core.current.value(setting) {
         Some(value) => Answer::Setting(Box::new(SettingDocument {
+            project: None,
             overlay: None,
             setting,
             revision,
@@ -346,6 +394,7 @@ fn project_policy(core: &Core, project: u32, revision: u32) -> Answer {
     }
     match core.configured_policy(project) {
         Some(value) => Answer::Setting(Box::new(SettingDocument {
+            project: None,
             overlay: None,
             setting: settings::Setting::ProjectPolicy { project },
             revision,
@@ -393,6 +442,7 @@ pub(super) fn proposed_setting(
                 reply,
                 match value {
                     Some(value) => Answer::Setting(Box::new(SettingDocument {
+                        project: None,
                         overlay: None,
                         setting,
                         revision: core.current.newest(),
@@ -452,6 +502,7 @@ fn pending_settings_review(core: &Core, party: u64, proposer: people::Proposer, 
 
 fn application_proposal(core: &Core, setting: settings::Setting, edit: &settings::application::SizedEdit) -> Answer {
     Answer::Setting(Box::new(SettingDocument {
+        project: None,
         overlay: None,
         setting,
         revision: core.current.newest(),
@@ -868,6 +919,7 @@ pub(super) fn from_store(
                     | settings::Record::Changed { .. }
                     | settings::Record::Charter { .. }
                     | settings::Record::Proposal { .. }
+                    | settings::Record::ProjectCharters(_)
                     | settings::Record::Extent { .. },
                 )
                 | CoreRecord::Deployment(_)

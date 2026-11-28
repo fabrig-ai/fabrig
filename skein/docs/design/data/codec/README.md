@@ -513,22 +513,6 @@ pub fn generate(schema: &Schema) -> Output;
   section 1). A test of another layout builds that layout's values from
   its text.
 
-## 6. Golden bytes and tests
-
-Moved to [`golden.md`](golden.md), section 1.
-
-## 7. Schemas at run time
-
-Moved to [`run-time.md`](run-time.md), section 1.
-
-## 8. Generic values
-
-Moved to [`run-time.md`](run-time.md), section 2.
-
-## 9. Fingerprints
-
-Moved to [`fingerprints.md`](fingerprints.md), section 1.
-
 ## 10. Open questions
 
 - **A piece's whole loop:** `piece::split_within` (3) holds the split, the

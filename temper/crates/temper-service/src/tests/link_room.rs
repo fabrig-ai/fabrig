@@ -58,6 +58,7 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
                 | Kind::Pause
                 | Kind::Paused
                 | Kind::Restarting
+                | Kind::Guides
                 | Kind::Asked => false,
             };
             if start {

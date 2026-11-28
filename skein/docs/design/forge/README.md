@@ -99,7 +99,7 @@ fakes, the throwaway Forgejo and the conformance).
 ### 2.1 The crates
 
 ```
-skein-forge                     the vocabulary (api, locate); what the dialects share (4.4); the
+skein-forge                     the vocabulary (api, locate); what the dialects share (dialects.md, 1.4); the
 │                                 dialects: Forgejo's documents, both
 │                                 sides, its call plans, its deliveries, the setup's documents, the
 │                                 pin; GitHub's likewise (forge-github.md); keys' markers;
@@ -186,14 +186,6 @@ setup shell hosts reconcile. The kit reads no file and no configuration
 - **The service's git component,** and that component's fakes.
 - **The service's worlds' stories,** and its cost ceilings. They run on
   the kit's fakes.
-
-## 3. The vocabulary
-
-Moved to [`vocabulary.md`](vocabulary.md), section 1.
-
-## 4. Dialects and their call plans
-
-Moved to [`dialects.md`](dialects.md), section 1.
 
 ## 5. Keys' markers
 

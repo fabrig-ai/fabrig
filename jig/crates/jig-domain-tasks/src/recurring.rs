@@ -76,6 +76,7 @@ pub(crate) fn make_batch(
     task: u64,
     period: u64,
     numbers: &[u64],
+    bindings: &[Option<crate::CharterBinding>],
     out: &mut Queue<Request>,
 ) {
     if !domain.ready() {
@@ -127,7 +128,7 @@ pub(crate) fn make_batch(
     if !crate::funders::carve_recurring(domain, project, task, period, budget, &mut saves) {
         return;
     }
-    if crate::batch::check(domain, &env.limits, Party::Task(task), &batch, false).is_err() {
+    if crate::batch::check(domain, &env.limits, Party::Task(task), &batch, false, bindings).is_err() {
         domain.funding.remove(&funder);
         *domain.funding.get_mut(&Funder::Period { project, period }).expect("period retained") = parent;
         return;
@@ -141,7 +142,7 @@ pub(crate) fn make_batch(
     state.pending_period = None;
     task_mut(domain, task).expect("recurring task live").record.phase = Phase::Active(Active::Idle);
     publish(domain, env, task, out);
-    let _numbers = make_admitted(domain, env, Party::Task(task), batch, out);
+    let _numbers = make_admitted(domain, env, Party::Task(task), batch, bindings, out);
 }
 
 pub(crate) fn valid_template(limits: &Limits, project: u32, budget: u64, batch: &[New]) -> bool {

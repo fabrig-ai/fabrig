@@ -435,6 +435,7 @@ fn make_goal_task(
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(number)),
             creator,
             batch: Box::new([tasks::New {
+                charter_scope: jig_domain_tasks::CharterScope::Project,
                 number,
                 project: GOAL_PROJECT,
                 label: 0,
@@ -3588,6 +3589,12 @@ fn change_delegates_take_their_roles_saved_llm_choice() {
             panic!("delegate {kind:?}")
         };
         assert_eq!(delegate.llm, expected, "{kind:?}");
+        let scope = if let Delegate::Gate { number: AGENT_GATE, .. } = kind {
+            tasks::CharterScope::Deployment
+        } else {
+            tasks::CharterScope::Project
+        };
+        assert_eq!(delegate.charter_scope, scope, "{kind:?}");
     }
 }
 fn choice(model: u8, effort: Option<u8>) -> super::tasks::LlmChoice {
@@ -5270,6 +5277,7 @@ fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
     for number in [8, 7] {
         batch
             .push(tasks::New {
+                charter_scope: jig_domain_tasks::CharterScope::Project,
                 number,
                 project: 1,
                 label: 0,

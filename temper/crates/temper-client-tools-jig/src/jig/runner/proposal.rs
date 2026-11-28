@@ -42,6 +42,7 @@ pub(super) fn next(reading: &Reading) -> Option<(u32, c::Read)> {
                 return Some((
                     local,
                     c::Read::Setting(c::ReadSetting {
+                        project: None,
                         setting: item.setting,
                         revision: if proposed { 0 } else { review.newest },
                         proposal: if proposed { Some(key) } else { None },

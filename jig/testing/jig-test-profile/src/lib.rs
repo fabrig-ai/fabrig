@@ -375,6 +375,7 @@ pub fn config(seed: u64) -> root::Config {
 
             deployment: [31; 16],
             seed,
+            build: "test-build".into(),
             workers_in_process: false,
             hub_turns: 2,
             grants: Box::new([]),

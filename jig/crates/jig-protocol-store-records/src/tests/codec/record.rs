@@ -115,6 +115,8 @@ fn suspended_ends_and_task_gaps_read_back() {
         record.suspended = 17;
         record.restarted = why == domain::SuspendWhy::Restarted;
         record.open_attempt = Some(domain::OpenAttempt {
+            sources: None,
+            guide_limit: 0,
             attempt: 3,
             claimed: Some(Wall::from_nanos(80)),
             started: Some(Wall::from_nanos(90)),
@@ -126,6 +128,7 @@ fn suspended_ends_and_task_gaps_read_back() {
         let row = activity(domain::Line::RunEnded { attempt: 3, end, spent: 7 });
         assert_eq!(saved_tasks(&row), Ok(row));
         let row = domain::Stored::Attempt(domain::AttemptRow {
+            sources: None,
             task: 17,
             attempt: 3,
             claimed: Some(Wall::from_nanos(80)),

@@ -467,6 +467,7 @@ fn a_lost_attempt_names_only_each_declarers_own_writes() {
         core,
         &env.limits,
         tasks::Event::Claim {
+            sources: None,
             reply_to: reply(),
             fresh: None,
             session_end: None,

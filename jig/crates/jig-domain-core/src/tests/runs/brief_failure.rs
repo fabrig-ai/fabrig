@@ -206,6 +206,7 @@ fn a_full_proof_table_pauses_before_claiming_an_agent() {
         &mut core,
         &limits,
         Event::WorkspacePrepared {
+            guide_limit: 0,
             task: 1,
             attempt,
             holds: Box::new([]),

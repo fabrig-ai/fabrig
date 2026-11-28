@@ -203,6 +203,7 @@ fn settings_world() -> (World, u64) {
 fn shown_charter(world: &mut World, number: u32) -> (u32, serde_json::Value) {
     use jig_domain_core::{reads, settings as s};
     let reads::Answer::Setting(document) = world.party_read(reads::Read::Setting {
+        project: None,
         setting: s::Setting::Charter(number),
         revision: temper_engine_domain_world::kinds::revision(&world.store.rows),
         proposal: None,

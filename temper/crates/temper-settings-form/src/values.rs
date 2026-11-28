@@ -219,6 +219,30 @@ fn encode_parts(parts: &skein_lib::List<c::CharterPart>, out: &mut Encoder) {
     }
     out.array_end();
 }
+pub(super) fn encode_project_charter(value: &c::ProjectCharterDocument, out: &mut Encoder) {
+    out.object_start();
+    out.key(b"name");
+    out.string(&value.name);
+    out.key(b"revision");
+    out.unsigned(value.revision);
+    out.key(b"source");
+    if skein_lib::bytes::is_utf8(&value.source) {
+        out.string(&value.source);
+    } else {
+        out.array_start();
+        for &byte in &value.source {
+            out.unsigned(u64::from(byte));
+        }
+        out.array_end();
+    }
+    out.key(b"settings");
+    out.string(&value.settings);
+    out.key(b"instructions");
+    encode_text(&value.instructions, out);
+    out.key(b"parts");
+    encode_parts(&value.parts, out);
+    out.object_end();
+}
 pub(super) fn encode_setting_name(name: Option<&[u8]>, out: &mut Encoder) {
     if let Some(name) = name {
         out.key(b"name");
@@ -281,23 +305,7 @@ pub fn encode_charter(value: &c::Charter, out: &mut Encoder) {
     out.array_end();
     if !value.parts.is_empty() {
         out.key(b"parts");
-        out.array_start();
-        for part in &value.parts {
-            out.object_start();
-            out.key(b"on");
-            out.array_start();
-            for (index, name) in c::REASON_NAMES.iter().enumerate() {
-                let bit = 1_u32.checked_shl(u32::try_from(index).expect("reason index")).expect("reason bit");
-                if part.on & bit != 0 {
-                    out.string(name);
-                }
-            }
-            out.array_end();
-            out.key(b"instructions");
-            encode_text(&part.instructions, out);
-            out.object_end();
-        }
-        out.array_end();
+        encode_parts(&value.parts, out);
     }
     out.object_end();
 }

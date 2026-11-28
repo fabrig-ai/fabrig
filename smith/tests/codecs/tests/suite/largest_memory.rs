@@ -38,6 +38,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             Usage,
             AccountRefused,
             Fact,
+            Guides,
             Answer,
             Live,
             Signalled,

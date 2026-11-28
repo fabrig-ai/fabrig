@@ -33,7 +33,11 @@ A `model` setting's value holds no index, so **at open** the store reads the
 settings family's `model` changes by key range, after the registry's
 commit and the jobs
 and before any family's restore, and takes its names as the given defaults'
-overlaid with them, so that a stored vocabulary's model a person added isn't read as gone; and it
+overlaid with them, so that a stored vocabulary's model a person added isn't read as gone,
+less each given model whose name a stored change holds at another number,
+a withdrawn one's too: the start leaves that model out
+(`../../domain/engine/settings-store.md`, 1), so every row's choice of the
+name goes on naming the deployment's own model; and it
 takes each later catalogue from the root, before the commit that makes it
 (`../../domain/engine/settings-catalogue.md`, 1).
 
@@ -174,7 +178,7 @@ follow from the limits that bound each kind (4).
   and amendment history remap effective masks on load. These are effective
   snapshots; the original keyed ask remains people's.
 - **The codec translates; the domains decide.** What a mask or a
-  template's choice becomes when its model moves or leaves the
+  template's choice, its `later` choice too, becomes when its model moves or leaves the
   catalogue, including the index that says it left, and the fixed words
   a bound is sized from, are the owning domain's functions, which the
   codec calls and whose tests pin them.

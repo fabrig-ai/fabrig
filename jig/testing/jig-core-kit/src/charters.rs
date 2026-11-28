@@ -30,6 +30,7 @@ impl World {
             to: ReplyTo::new(Token::new(201)),
             key: self.call_key(1),
             batch: Box::new([core::Delegate {
+                charter_scope: tasks::CharterScope::Project,
                 deadline: jig_domain_tasks::Deadline::Named,
                 label: 0,
                 flags: jig_domain_tasks::Flags::PLAIN,

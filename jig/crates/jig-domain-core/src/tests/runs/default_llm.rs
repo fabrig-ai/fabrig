@@ -51,8 +51,8 @@ fn with_task(configuration: Config, choice: Option<tasks::LlmChoice>) -> Core {
     );
     let mut row = new_row(&core, TASK, FUNDER, None);
     row.llm = choice;
-    let mut batch = [row];
-    core.resolve_llm(&mut batch).unwrap();
+    let batch = [row];
+    core.resolve_llm(&limits, &batch, &[]).unwrap();
     fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), batch.into());
     core
 }
@@ -173,7 +173,7 @@ fn standard_overrides_fast_and_an_omitted_speed_inherits_it() {
 
 #[test]
 fn members_and_template_members_naming_no_choice_keep_none() {
-    let (core, _) = tree_core();
+    let (core, limits) = tree_core();
     let mut given = new_row(&core, 2, FUNDER, None);
     given.llm = Some(chosen(1));
     let mut procedure = new_row(&core, 3, FUNDER, None);
@@ -183,8 +183,8 @@ fn members_and_template_members_naming_no_choice_keep_none() {
         batch: Box::new([new_row(&core, 4, FUNDER, None)]),
         overlap: tasks::RecurringOverlap::Skip,
     }));
-    let mut batch = [new_row(&core, 1, FUNDER, None), given, procedure];
-    core.resolve_llm(&mut batch).unwrap();
+    let batch = [new_row(&core, 1, FUNDER, None), given, procedure];
+    core.resolve_llm(&limits, &batch, &[]).unwrap();
     let [defaulted, given, procedure] = batch;
     assert_eq!(defaulted.llm, None, "the run check resolves an omitted choice");
     assert_eq!(given.llm, Some(chosen(1)), "a given choice is kept");
@@ -194,12 +194,12 @@ fn members_and_template_members_naming_no_choice_keep_none() {
 
 #[test]
 fn a_member_whose_authority_allows_none_of_its_charter_s_models_is_refused() {
-    let (core, _) = tree_core();
+    let (core, limits) = tree_core();
     let mut barred = new_row(&core, 2, FUNDER, None);
     barred.authority.models = tasks::Models::NONE;
-    let mut batch = [new_row(&core, 1, FUNDER, None), barred];
+    let batch = [new_row(&core, 1, FUNDER, None), barred];
     assert_eq!(
-        core.resolve_llm(&mut batch),
+        core.resolve_llm(&limits, &batch, &[]),
         Err(tasks::Problem::new(Some(2), tasks::Refusal::Llm { model: 0, why: tasks::LlmFault::Authority }))
     );
 }

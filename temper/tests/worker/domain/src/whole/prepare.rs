@@ -162,6 +162,7 @@ pub fn run(seed: u64, case: Case) -> Result<Report, String> {
             rerun: None,
             hook_timeout_max_seconds: 3600,
             repositories: Box::new([wire::Repository {
+                qualified: None,
                 admit: false,
                 tag: 0,
                 name: b"work".as_slice().into(),
@@ -422,6 +423,7 @@ fn run_stack(seed: u64, case: Case) -> Result<Report, String> {
             rerun: None,
             hook_timeout_max_seconds: 3600,
             repositories: Box::new([wire::Repository {
+                qualified: None,
                 admit: false,
                 tag: 0,
                 name: b"work".as_slice().into(),

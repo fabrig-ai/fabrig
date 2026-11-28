@@ -151,6 +151,7 @@ fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
                     }
                     settings::Record::Changed { .. }
                     | settings::Record::Charter { .. }
+                    | settings::Record::ProjectCharters(_)
                     | settings::Record::Proposal { .. } => panic!("unexpected settings release row"),
                 },
                 core::Write::CopySettingsRevision(number) => {

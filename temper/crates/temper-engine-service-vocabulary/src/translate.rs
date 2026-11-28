@@ -2,7 +2,7 @@
 use crate::{generated::worker_wire, settings};
 use alloc::boxed::Box;
 use skein_codec::Reason;
-use skein_lib::{List, Secret, Writer};
+use skein_lib::{List, Reader, Secret, Writer};
 use temper_engine_domain as engine;
 use temper_protocol_worker_wire::{
     self as wire,
@@ -30,7 +30,7 @@ pub fn limits(own: &crate::limits::Limits) -> Option<v1::Limits> {
 /// Decode the whole application ask before the root reads it.
 #[must_use]
 pub fn ask(bytes: &[u8], limits: &v1::Limits) -> Option<engine::wire::Ask> {
-    let mut reader = skein_lib::Reader::new(bytes);
+    let mut reader = Reader::new(bytes);
     let ask = v1::Ask::decode(limits, &mut reader).ok()?;
     if !reader.is_empty() {
         return None;
@@ -235,6 +235,30 @@ pub fn parts(left: Option<v1::Left>, saved: Option<v1::Saved>, preparation: Opti
     engine::Parts { pushed: pushed.into_boxed(), saved, preparation }
 }
 
+/// Decode the worker's bounded guide report independently of its run answer.
+#[must_use]
+#[expect(clippy::disallowed_methods, reason = "validates exact text before giving the root its guide report")]
+pub fn guides(bytes: &[u8], limits: &v1::Limits) -> Option<Box<[jig_domain_tasks::Guide]>> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::Guides::decode(limits, &mut reader).ok()?;
+    if !reader.is_empty() {
+        return None;
+    }
+    let mut rows = List::with_capacity(record.guides.len());
+    for guide in record.guides.into_boxed() {
+        rows.push(jig_domain_tasks::Guide {
+            workspace: Box::from(core::str::from_utf8(&guide.repository).ok()?),
+            commit: Box::from(core::str::from_utf8(&guide.commit).ok()?),
+            path: Box::from(core::str::from_utf8(&guide.path).ok()?),
+            digest: guide.digest,
+            bytes: guide.bytes,
+            whole: guide.whole,
+        })
+        .expect("bounded guide report");
+    }
+    Some(rows.into_boxed())
+}
+
 /// Encode one configured identity as the single secret the table holds.
 pub fn identity(identity: &settings::Identity, limits: &v1::Limits) -> Result<Secret, v1::Problem> {
     let value = v1::Identity {
@@ -354,7 +378,7 @@ mod tests {
             .expect("items within bounds")
             .expect("workspace items");
         let bytes = items.encode(&limits).expect("encode items");
-        let decoded = v1::Items::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("wire items");
+        let decoded = v1::Items::decode(&limits, &mut Reader::new(&bytes)).expect("wire items");
         assert_eq!(decoded.hook_timeout_max_seconds, 1_800);
     }
 
@@ -378,7 +402,7 @@ mod tests {
             repository.delivered = delivered;
             let item = repository_item(&repository, false, &forges, &tokens, &limits).expect("repository item");
             let bytes = item.encode(&limits).expect("repository within bounds");
-            let decoded = v1::Repository::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("wire item");
+            let decoded = v1::Repository::decode(&limits, &mut Reader::new(&bytes)).expect("wire item");
             let v1::Access::Writable(value) = decoded.access else { panic!("writable repository") };
             assert_eq!(value.delivered, delivered);
             assert_eq!(value.expected, None);
@@ -397,7 +421,7 @@ mod tests {
             repository.pin = pin;
             let item = repository_item(&repository, false, &forges, &tokens, &limits).expect("repository item");
             let bytes = item.encode(&limits).expect("repository within bounds");
-            let decoded = v1::Repository::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("wire item");
+            let decoded = v1::Repository::decode(&limits, &mut Reader::new(&bytes)).expect("wire item");
             let v1::Access::Writable(value) = decoded.access else { panic!("writable repository") };
             assert_eq!(value.pin, pin);
             assert_eq!(value.expected, None);

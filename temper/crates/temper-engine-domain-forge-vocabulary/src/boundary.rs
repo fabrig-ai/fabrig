@@ -3399,6 +3399,11 @@ pub enum Request {
         release: Option<u64>,
         read_afresh: Option<Name>,
     },
+    /// Save the whole repository revision. Only a moved number changes what readers take.
+    SaveTemperRevision {
+        row: DotTemperRevision,
+        moved: bool,
+    },
     /// Erase one record atomically with the current decision.
     Erase {
         key: Key,

@@ -67,6 +67,7 @@ fn delegate(world: &mut World) -> (u64, root::Assignment) {
         to: ReplyTo::new(Token::new(501)),
         key,
         batch: Box::new([core::Delegate {
+            charter_scope: tasks::CharterScope::Project,
             deadline: tasks::Deadline::Named,
             label: 0,
             flags: tasks::Flags::PLAIN,

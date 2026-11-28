@@ -124,6 +124,7 @@ fn live_saves_put_cold_only_at_creation_or_a_cold_amendment_and_erase_both_at_en
     let out = h.send(Event::Prepare { reply_to: to(), task: 7 });
     assert_eq!(part_saves(&out, 7), [Key::Live(7)]);
     let out = h.send(Event::Claim {
+        sources: None,
         fresh: None,
         reply_to: to(),
         task: 7,
@@ -229,6 +230,7 @@ fn procedure_words_and_funding_transfers_save_the_cold_part() {
     h.make(vec![task(2, &[])]);
     h.send(Event::Prepare { reply_to: to(), task: 2 });
     h.send(Event::Claim {
+        sources: None,
         fresh: None,
         reply_to: to(),
         task: 2,

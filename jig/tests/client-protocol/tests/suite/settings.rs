@@ -113,7 +113,7 @@ fn settings_reads_and_watch_reach_the_core() {
     let bearer = fixtures::signed_in(&mut peer);
     for read in [
         w::Read::Settings,
-        w::Read::Setting(w::ReadSetting { setting: w::Setting::Rules, revision: 4, proposal: None }),
+        w::Read::Setting(w::ReadSetting { project: None, setting: w::Setting::Rules, revision: 4, proposal: None }),
         w::Read::Revision(w::ReadRevision { number: 4 }),
         w::Read::Revisions(w::ReadRevisions { before: Some(5) }),
     ] {

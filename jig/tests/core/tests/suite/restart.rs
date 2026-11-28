@@ -270,7 +270,18 @@ fn a_refused_claim_keeps_the_conversation_for_the_next_resume() {
     pending.attempt += 1;
     pending.conversation = pending.attempt;
     core.proofs.insert(task, pending.clone()).expect("one pending proof");
-    core.claiming.insert(task, (pending.attempt, tasks::Reasons::ALL, None, None)).expect("one pending claim");
+    core.claiming
+        .insert(
+            task,
+            jig_domain_core::PendingClaim {
+                attempt: pending.attempt,
+                offered: tasks::Reasons::ALL,
+                session_end: None,
+                fresh: None,
+                sources: None,
+            },
+        )
+        .expect("one pending claim");
     let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
     let _decision = core::step(&mut core, &env, core::Event::ClaimRefused { task });
     assert_eq!(core.proofs.get(&task), Some(saved));

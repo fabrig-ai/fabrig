@@ -76,7 +76,7 @@ pub fn proposal_history(
     mapped::proposal_history_to_record(value, &(models, limits))
 }
 /// Retained lifecycle facts (client/domain/contract/reads.md, 1).
-pub fn attempt(value: &d::AttemptLine) -> w::AttemptLine {
+pub fn attempt(value: &d::AttemptLine) -> Result<w::AttemptLine, w::Problem> {
     mapped::attempt_line_to_record(value)
 }
 pub fn hold(value: &d::HoldLine, limits: &w::Limits) -> Result<w::HoldLine, w::Problem> {

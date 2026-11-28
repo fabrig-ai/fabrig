@@ -40,6 +40,12 @@ pub fn remap(value: &mut Value, moved: &[u64; 64], kept: &[ModelName], names: &[
                 for model in &mut choice.subagents {
                     remap_choice(model, moved, kept, names);
                 }
+                if let Some(later) = &mut choice.later {
+                    remap_choice(&mut later.main, moved, kept, names);
+                    for model in &mut later.subagents {
+                        remap_choice(model, moved, kept, names);
+                    }
+                }
             }
         }
         Value::Overlay(_)

@@ -907,3 +907,16 @@ fn a_version_refusal_reads_only_highest_as_the_worker_version() {
         );
     }
 }
+
+#[test]
+fn received_guides_reach_the_application_with_their_attempt() {
+    use jig_protocol_worker_wire::{Kind, sizes, v22};
+    let limits = v22::Limits { ask_bytes_bytes: 1, ..v22::CEILINGS };
+    let record = v22::Guides { task: 7, attempt: 2, bytes: v22::AskBytes { bytes: Box::from([1, 2, 3, 4]) } };
+    let bytes = record.encode(&sizes::guides(&limits)).unwrap();
+    let decoded = translate::decode(Kind::Guides.number(), &bytes, &limits).expect("incoming guide frame");
+    assert_eq!(
+        up(decoded),
+        jig_domain_host::LinkUp::Guides { run: Token::new(7), attempt: Token::new(2), bytes: Box::from([1, 2, 3, 4]) }
+    );
+}

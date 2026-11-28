@@ -12,7 +12,7 @@ fn call(front: &mut Joint, root: &mut Root, number: u32, words: &[&[u8]]) -> tem
     accounts::event(front, root, Event::Call { number, call, json, value: None });
     let printed = root.agent().printed(number).expect("call answered");
     temper_client_tools::jig::runner::Printed {
-        file: printed.file,
+        file: printed.file.clone(),
         status: printed.status,
         stdout: printed.stdout.clone(),
         stderr: printed.stderr.clone(),

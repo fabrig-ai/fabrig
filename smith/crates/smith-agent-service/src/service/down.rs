@@ -41,6 +41,15 @@ pub(super) fn domain_down(service: &mut Stages, mut frame: Option<&mut Frame>) {
         if program::wait_for_close(service) {
             break;
         }
+        if guides_ready(service, frame.as_deref()) {
+            let fact = service.prepared.take().expect("prepared report ready");
+            if !service.host.gone()
+                && let Some(frame) = frame.as_deref_mut()
+            {
+                send_fact(service, frame, &fact);
+            }
+            continue;
+        }
         let Some(request) = service.domain_requests.pop() else { break };
         domain_request(service, frame.as_deref_mut(), request);
         if let Some(frame) = frame.as_deref_mut()
@@ -75,21 +84,25 @@ pub(super) fn drain_facts(service: &mut Stages, mut frame: Option<&mut Frame>) {
             },
             None => break,
         };
-        let token = service.next_send();
-        if !service.host.gone()
-            && let Some(channel) = face::channel_mut(frame.as_deref_mut())
-        {
-            let result = channel.send_fact(
-                &fact,
-                service.run_started,
-                token,
-                &mut service.channel_events,
-                &mut service.channel_below,
-            );
-            super::link::sent(service, result.is_ok());
-        }
         if let Some(events) = &mut service.events {
             events.fact(&fact);
+        }
+        match &fact {
+            domain::Fact::Run { fact: run, .. } => {
+                if run.is_prepared() {
+                    if !service.host.gone() && face::channel(frame.as_deref()).is_some() {
+                        assert!(service.prepared.is_none(), "a run prepares once");
+                        service.prepared = Some(fact);
+                    }
+                    continue;
+                }
+            }
+            domain::Fact::Session { .. } => {}
+        }
+        if !service.host.gone()
+            && let Some(frame) = frame.as_deref_mut()
+        {
+            send_fact(service, frame, &fact);
         }
     }
     let drained = match face::domain(frame.as_deref()) {
@@ -103,6 +116,30 @@ pub(super) fn drain_facts(service: &mut Stages, mut frame: Option<&mut Frame>) {
             }
         }
     }
+}
+
+/// Unlike counts the prepared report waits for authoritative room, and goes
+/// after Admitted even when the Start and preparation shared one step.
+pub(super) fn guides_ready(service: &Stages, frame: Option<&Frame>) -> bool {
+    service.prepared.is_some()
+        && super::channel_room(service, frame)
+        && (service.host.gone()
+            || match face::channel(frame) {
+                Some(channel) => channel.takes_guides(),
+                None => false,
+            })
+}
+
+fn send_fact(service: &mut Stages, frame: &mut Frame, fact: &domain::Fact) {
+    let token = service.next_send();
+    let result = frame.channel.send_fact(
+        fact,
+        service.run_started,
+        token,
+        &mut service.channel_events,
+        &mut service.channel_below,
+    );
+    super::link::sent(service, result.is_ok());
 }
 
 #[expect(clippy::too_many_lines, reason = "bounded lower routing stays in one down-pass stage")]

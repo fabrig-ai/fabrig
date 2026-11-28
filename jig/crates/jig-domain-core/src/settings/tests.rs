@@ -1141,6 +1141,30 @@ fn remap_template_choices_follow_model_and_effort_names_and_mark_departures() {
 }
 
 #[test]
+fn remap_template_later_choices_follow_model_and_effort_names_and_mark_departures() {
+    let kept = [catalogue(b"first", &[b"low", b"high"]), catalogue(b"second", &[b"low", b"high"])];
+    let effort = |model, effort| tasks::ModelEffort { model, effort: Some(effort), speed: None };
+    let moved = [catalogue(b"second", &[b"high", b"low"]), catalogue(b"first", &[b"high", b"low"])];
+    let departed = [catalogue(b"new", &[]), catalogue(b"second", &[b"low"])];
+    let gone = effort(tasks::ModelEffort::GONE, 1);
+    for (names, main, subagent) in [(moved, effort(1, 0), effort(0, 0)), (departed, gone, gone)] {
+        let mut template = template();
+        template.llm = Some(tasks::LlmChoice {
+            later: Some(tasks::LlmLater { main: effort(0, 1), subagents: Box::new([effort(1, 1)]) }),
+            account: None,
+            main: effort(0, 0),
+            subagents: Box::new([]),
+        });
+        let mut value = Value::Template(Box::new(template));
+        remap(&mut value, &moves(&kept, &names), &kept, &names);
+        let Value::Template(template) = value else { panic!("template") };
+        let later = template.llm.unwrap().later.unwrap();
+        assert_eq!(later.main, main);
+        assert_eq!(later.subagents.as_ref(), &[subagent]);
+    }
+}
+
+#[test]
 fn remap_named_masks_follow_names_and_drop_departures_while_all_stays() {
     let kept = [catalogue(b"first", &[]), catalogue(b"left", &[])];
     let names = [catalogue(b"new", &[]), catalogue(b"first", &[])];
