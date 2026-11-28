@@ -634,7 +634,7 @@ its own process.
 - **The gallery's states as walks,** once a world reaches them, their
   answers then the engine's own (`web/gallery.md`).
 - **A recorded file printed across layouts,** by the plans of
-  `../draft/layouts-both-ways.md`, 4, so that printing a person's
+  `../draft/archive/layouts-both-ways.md`, 4, so that printing a person's
   recording needs no build of the deployment's commit.
 - **The writer's future** is `journey-writer.md`, 8: temper running it,
   and the playground's `story-a.log` made by a test rather than kept.

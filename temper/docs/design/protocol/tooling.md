@@ -423,7 +423,7 @@ keeps of a goal's work in its own files.
   does: it settles, then runs pre-PR's close check over the staged tree
   (`tools/pre-pr/design.md`, 4.1). The check's verdict is the close's:
   passed, refused by the goal's own failures, or not judged, the check
-  having broken (`../draft/whose-red.md`, 3.1), or having found the goal
+  having broken (`../draft/archive/whose-red.md`, 3.1), or having found the goal
   outdated for main's published counts.
 - **`result.json`, exit 0:** `{"settled": [PATH]}`, the files it staged,
   in index order, cut to the kind's result bound with `"more": N` as

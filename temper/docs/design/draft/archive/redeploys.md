@@ -1,6 +1,6 @@
 # redeploys: a new build reaches a deployment without stopping its work
 
-Draft, 2026-11-12, with 5.2 and 5.3 amended on 2026-11-15, and its versions and bridges (sections 1, 3, 4, 7, 8, 10, 11 and 12) revised on 2026-11-25 to carry `../layouts-both-ways.md`, sections 3 to 7: frozen versions, layouts by fingerprint, and one conversion, in the engine, either way. How a deployment takes a new build of temper while its work goes on: the engine restarted alone while the workers keep their runs, a worker restarted with its agents resuming where they left off, and each part speaking the previous version of the wires between them. It comes from a session with the user on 2026-11-12, after redeploys of dev.fabrig.ai that each cost minutes of failed preparations and held goals, and from a read of main at `ee03a1159c`. The user's word that day: wire versions are no longer changed in place; the store and the wires upgrade from now on, heading to v0.1.0, and dev.fabrig.ai exercises both. The store's half is `../upgrades.md` and `../staged-upgrades.md`. This draft is the processes' half, and replaces `../upgrades.md`, section 9.
+Draft, 2026-11-12, with 5.2 and 5.3 amended on 2026-11-15, and its versions and bridges (sections 1, 3, 4, 7, 8, 10, 11 and 12) revised on 2026-11-25 to carry `layouts-both-ways.md`, sections 3 to 7: frozen versions, layouts by fingerprint, and one conversion, in the engine, either way. How a deployment takes a new build of temper while its work goes on: the engine restarted alone while the workers keep their runs, a worker restarted with its agents resuming where they left off, and each part speaking the previous version of the wires between them. It comes from a session with the user on 2026-11-12, after redeploys of dev.fabrig.ai that each cost minutes of failed preparations and held goals, and from a read of main at `ee03a1159c`. The user's word that day: wire versions are no longer changed in place; the store and the wires upgrade from now on, heading to v0.1.0, and dev.fabrig.ai exercises both. The store's half is `../upgrades.md` and `../staged-upgrades.md`. This draft is the processes' half, and replaces `../upgrades.md`, section 9.
 
 ## 1. In one page
 
@@ -31,7 +31,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 ### 3.1 No version moves
 
-- **Every wire's version is frozen** at its header's, as the store's families' are (`../layouts-both-ways.md`, 3; `../../protocol/wires.md`, 3.1). A change of layout is made in the wire's current text alone, with no old text kept and no patch; what it costs a deployment is the engine's plans' (4.1).
+- **Every wire's version is frozen** at its header's, as the store's families' are (`layouts-both-ways.md`, 3; `../../protocol/wires.md`, 3.1). A change of layout is made in the wire's current text alone, with no old text kept and no patch; what it costs a deployment is the engine's plans' (4.1).
 - **The wires,** each a schema of its own:
   - jig's worker channel, its kinds' table included: each kind's number, its direction and the record it carries;
   - temper's payloads in it, a git identity's value among them (`../../protocol/channel.md`, section 6);
@@ -40,7 +40,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
   - smith's channel between a worker and its agents, per-build (4.4).
 
   Versioned otherwise: the host tools' contract, each tool's name, its input and what it means, versioned whole by its author's hand (4.2; `../../protocol/wires.md`, 7); and each job kind's request and result, files the worker carries unread, which are no wire between temper's builds (`../../protocol/wires.md`, section 8). Clients' wires are section 8's.
-- **Nothing old in the repository:** no kept text, no patch, no golden file of another version and no list of layouts (`../layouts-both-ways.md`, 5 and 9). `smith-transcript`'s version 7 text stays as the store's seed alone (`../../protocol/wires.md`, 3.1).
+- **Nothing old in the repository:** no kept text, no patch, no golden file of another version and no list of layouts (`layouts-both-ways.md`, 5 and 9). `smith-transcript`'s version 7 text stays as the store's seed alone (`../../protocol/wires.md`, 3.1).
 - **Frozen, not judged by a gate:** each worker wire's crate holds its version equal to its frozen number (`../../protocol/wires.md`, 3.1), and `fabrig-boundary`'s `client_layouts` holds the clients' (jig's `protocol/client/versions.md`, 1). A layout changed in place is the ordinary change, met by the engine's plans.
 - **The churn it meets** (main, 2026-10-15 to 11-12): 29 in-place changes to the schemas of jig's channel (14), temper's payloads (4), smith's charter (4), its turns (2) and its channel (5); 14 of them a field, an option or a variant appended, each of which a plan derives.
 
@@ -56,7 +56,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 ### 3.3 The floor
 
 - **No wire keeps a floor.** A build speaks its own layouts alone, and the engine converts for any worker whose layouts its plans derive from, older or newer.
-- **What no plan derives is kept to the floor of what dev.fabrig.ai runs** (`../layouts-both-ways.md`, 7.4): a tombstone for a dropped field, a written converter for a retype (jig's `protocol/channel/layouts.md`, 6). Each goes once dev.fabrig.ai and every part it runs are at or past the layout that made it needed; a worker still at that layout then has no plan, and is refused at its opening by name.
+- **What no plan derives is kept to the floor of what dev.fabrig.ai runs** (`layouts-both-ways.md`, 7.4): a tombstone for a dropped field, a written converter for a retype (jig's `protocol/channel/layouts.md`, 6). Each goes once dev.fabrig.ai and every part it runs are at or past the layout that made it needed; a worker still at that layout then has no plan, and is refused at its opening by name.
 - **The host tools' contract keeps its floor** (`../../protocol/wires.md`, 7): the engine answers every version from it, so an adopted run's calls are answered as before.
 - **Workers keep up with it:** dev.fabrig.ai's workers are restarted in turn (7.2) before a landing removes what their layouts need, which the check (5.1) says.
 
@@ -72,7 +72,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 ### 4.1 The engine converts
 
 - **In the engine's workers component,** whichever side is newer (jig's `protocol/channel/layouts.md`): what it receives runs through a Read plan from the worker's layout to its own, then its own decoder; what it sends is encoded at its own layout, then runs through a Keep plan to the worker's (skein's `data/codec/layouts.md`, 2). The worker, and the agent its build pins (4.4), speak their own layouts alone and know nothing of other builds.
-- **Why the engine:** it is the one side that holds every connection, and a redeploy restarts it first (7.1). The plans need no age, so a worker newer than the engine converts the same way, and a redeploy's order costs refusals, never correctness (`../layouts-both-ways.md`, 6.1).
+- **Why the engine:** it is the one side that holds every connection, and a redeploy restarts it first (7.1). The plans need no age, so a worker newer than the engine converts the same way, and a redeploy's order costs refusals, never correctness (`layouts-both-ways.md`, 6.1).
 - **Read skips, Keep refuses:** what the engine receives is used as its own, what its layout lacks skipped; what it sends must mean the same at the worker, so what the worker's layout lacks is dropped only at its default or where the engine's text marks it `droppable`, and anything else refuses the value (4.3).
 - **Nothing goes up only to come down again.** Bytes kept at the layout they were written in (a stored turn, a call's name, a delivery's evidence) are converted from that layout, never through the engine's: a stored turn by the layout the store's registry names for it (jig's `protocol/store/transcripts.md`, 6), a call's name and a delivery's evidence not at all (4.2).
 - **What the worker must get back is not dropped.** A field a worker sends and expects to meet again (an identity it echoes, a value it resumes from) keeps a tombstone once dropped, so the engine's Keep plan writes it back (3.3).
@@ -252,10 +252,10 @@ Each part is carried by a goal, across the trees.
 ## 12. Later and open questions
 
 - **Agents outliving their worker** (the user, 2026-11-12: later): a worker's restart adopting its agents still running, which needs their channel over something that outlives the worker, and the worker's state on disk.
-- **Clients converted:** pages and clients of another layout served, the engine converting for them as it does for workers, once their wires settle (`../layouts-both-ways.md`, 10).
+- **Clients converted:** pages and clients of another layout served, the engine converting for them as it does for workers, once their wires settle (`layouts-both-ways.md`, 10).
 - **The drain's bound.** Default: 3 minutes.
 - **The workers' grace.** Default: 5 minutes, with the engine's grace above every worker's enforced stop bound.
 - **The restart wait.** Default: 20 minutes, with room over every window measured so far, 6 minutes on 2026-11-15 and 11½ on 2026-11-13's store patch, not a current upgrade path; a worker gone for good across a restart holds its runs that long and the grace after it. It is the engine's to set and say, so one setting serves every worker.
 - **A run's reports to the engine** kept and sent at the relink, as its turns are, rather than dropped while it waits. Later.
-- **How long a tombstone or a written converter stays** (3.3). Default: until dev.fabrig.ai and every part it runs are past the layout that needed it (`../layouts-both-ways.md`, 7.4).
+- **How long a tombstone or a written converter stays** (3.3). Default: until dev.fabrig.ai and every part it runs are past the layout that needed it (`layouts-both-ways.md`, 7.4).
 - **The policy for infrastructure failures** (section 9). Default: a bound of its own, in jig.

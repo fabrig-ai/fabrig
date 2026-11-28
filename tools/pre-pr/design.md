@@ -1151,7 +1151,7 @@ cause.
     failures line and changes nothing else: the exit, the summary's
     other lines and the results file are as they would have been.
 - **Its outcome,** one of three, so that `refused` always means the
-  change was judged (`temper/docs/design/draft/whose-red.md`, 3.1):
+  change was judged (`temper/docs/design/draft/archive/whose-red.md`, 3.1):
   - **refused** where any failure this delivery made is the candidate's:
     a compiler error, a lint, a test failure, an exceeded count, a
     format, citation, outward-name, budget or journey refusal, a helper

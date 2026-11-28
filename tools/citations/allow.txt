@@ -28,12 +28,12 @@ temper/docs/design/draft/archive/redeploys.execution.md data/codec/bridges.md # 
 temper/docs/design/draft/archive/redeploys.md skein/docs/design/data/codec/command.md 3 # the retired patch machine's design, readable at the commit that removed it
 temper/docs/design/draft/archive/redeploys.md skein/docs/design/data/codec/command.md 7 # the retired patch machine's design, readable at the commit that removed it
 temper/docs/design/draft/archive/codec-shape.md skein/docs/design/data/codec/command.md 2 # the retired patch machine's design, readable at the commit that removed it
-temper/docs/design/draft/layouts-both-ways.md skein/docs/design/data/codec/bridges.md # the retired patch machine's design, readable at the commit that removed it
-temper/docs/design/draft/layouts-both-ways.md skein/docs/design/data/codec/command.md 2 # the retired patch machine's design, readable at the commit that removed it
-temper/docs/design/draft/layouts-both-ways.md skein/docs/design/data/codec/command.md 3 # the retired patch machine's design, readable at the commit that removed it
-temper/docs/design/draft/layouts-both-ways.md skein/docs/design/data/codec/command.md 5 # the retired patch machine's design, readable at the commit that removed it
-temper/docs/design/draft/layouts-both-ways.md skein/docs/design/data/codec/command.md 6 # the retired patch machine's design, readable at the commit that removed it
-temper/docs/design/draft/layouts-both-ways.md skein/docs/design/data/codec/patches.md # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/archive/layouts-both-ways.md skein/docs/design/data/codec/bridges.md # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/archive/layouts-both-ways.md skein/docs/design/data/codec/command.md 2 # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/archive/layouts-both-ways.md skein/docs/design/data/codec/command.md 3 # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/archive/layouts-both-ways.md skein/docs/design/data/codec/command.md 5 # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/archive/layouts-both-ways.md skein/docs/design/data/codec/command.md 6 # the retired patch machine's design, readable at the commit that removed it
+temper/docs/design/draft/archive/layouts-both-ways.md skein/docs/design/data/codec/patches.md # the retired patch machine's design, readable at the commit that removed it
 temper/docs/design/draft/store-shape.md skein/docs/design/data/codec/diff.md # the retired patch machine's design, readable at the commit that removed it
 # The citation README's examples of the forms it describes.
 tools/citations/README.md x.md # an example of a citation form, not a document

@@ -5,7 +5,7 @@ when their layouts of a worker wire differ: the engine converts what it
 receives from the worker's layout to its own and what it sends from its
 own to the worker's, by plans derived from both sides' schema texts
 (skein's `data/codec/layouts.md`), and the worker speaks its own layouts
-alone. It carries temper's `draft/layouts-both-ways.md`, sections 5, 6
+alone. It carries temper's `draft/archive/layouts-both-ways.md`, sections 5, 6
 and 7.3, for jig's channel. The opening that gives the engine the
 worker's texts, and checks them, is `wires.md`'s; what an application
 puts through the channel is its own (temper's `protocol/wires.md`).
@@ -86,7 +86,7 @@ in each direction it crosses, and no other:
   and the worker's lacks is dropped only at the default the way back
   writes (from the engine's field or the worker's tombstone), or where
   the engine's text marks it `droppable`; anything else refuses the value (5).
-- **The modes are temper's draft's** (`draft/layouts-both-ways.md`,
+- **The modes are temper's draft's** (`temper/docs/design/draft/archive/layouts-both-ways.md`,
   4.4): the engine receives through Read plans and sends through Keep
   plans, whichever of the two builds is newer.
 
@@ -224,7 +224,7 @@ for what it receives. Its kind is skein's `Refused`: `variant`, `field`,
   mismatched, so the fleet places nothing more there while what it
   hosts goes on (`wires.md`, 6).
 - **A redeploy's order costs refusals, never correctness**
-  (`draft/layouts-both-ways.md`, 6.1): no gate holds these kinds total
+  (`temper/docs/design/draft/archive/layouts-both-ways.md`, 6.1): no gate holds these kinds total
   across layouts. A change that a running attempt's messages cannot
   carry to the previous build's workers is met by draining them
   (temper's `draft/archive/redeploys.md`, 6.1).
@@ -282,7 +282,7 @@ for what it receives. Its kind is skein's `Refused`: `variant`, `field`,
   written job calls for a stored value of that type (`../store/jobs.md`,
   4). It runs where the value type's plan would, either way, and one way
   may refuse. It goes once dev.fabrig.ai and every part it runs are past
-  the layout that needed it (temper's `draft/layouts-both-ways.md`,
+  the layout that needed it (temper's `draft/archive/layouts-both-ways.md`,
   7.4). The common changes need none: a field added with a default, a
   field dropped with its tombstone (`dropped name: type = default`), a
   variant added, a bound widened (skein's `data/codec/layouts.md`, 2).
@@ -449,12 +449,12 @@ Focused and fuzzy alone; a story through temper's parts is temper's
 
 ## 9. Open questions
 
-- **A plan's cost on a hot path** (`draft/layouts-both-ways.md`, 10): a
+- **A plan's cost on a hot path** (`temper/docs/design/draft/archive/layouts-both-ways.md`, 10): a
   pass is one walk over the bytes with no allocation (skein's
   `data/codec/layouts.md`, 3), and the same layout costs nothing; it is
   not yet measured on dev.fabrig.ai.
 - **`smith-pieces` converted** once the store keeps the layout of the
   pieces it holds.
-- **Clients converted the same way** (`draft/layouts-both-ways.md`, 10).
+- **Clients converted the same way** (`temper/docs/design/draft/archive/layouts-both-ways.md`, 10).
 - **Names at the opening:** should it compare names as well as layouts,
   so a swap of names between kinds of one shape is visible (2.3)?

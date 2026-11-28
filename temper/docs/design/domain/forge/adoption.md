@@ -454,7 +454,7 @@ apart.
   the forge's `name_bytes`, as the adoption's `landing` is. A record
   stored before the field reads it empty, the default its plan gives;
   the store's decoder then takes the record's `settings.default_branch`
-  for it, as the record is read (`../../draft/layouts-both-ways.md`,
+  for it, as the record is read (`../../draft/archive/layouts-both-ways.md`,
   4.2 and 4.4). Since no adoption keeps an empty landing, empty means
   that layout alone, and an existing repository lands where it did. A
   record is written with its landing whole. No version moves, and no

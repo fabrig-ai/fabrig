@@ -204,7 +204,7 @@ Moved to [`stock-settings.md`](stock-settings.md), section 1.
   so that a budget stops early rather than late, where its provider's
   page gives no figure on the stock's terms, which is OpenAI's for all
   but GPT-6.2 Sol, whose page gives both at short context
-  (`../../draft/model-speeds.md`, section 2); and each
+  (`../../draft/archive/model-speeds.md`, section 2); and each
   but the scripted model declares a prompt cache's life
   of five minutes, `cache_life_ms` 300,000, its provider's default, so
   that a standing role's sessions resume within it, the scripted model
@@ -223,7 +223,7 @@ Moved to [`stock-settings.md`](stock-settings.md), section 1.
 - **Two stock models declare faster speeds** (jig's
   `domain/engine/settings-catalogue.md`, 1), at their providers' prices
   for them, in the same unit, read on 2026-11-21 and 2026-11-27
-  (`../../draft/model-speeds.md`, section 2):
+  (`../../draft/archive/model-speeds.md`, section 2):
 
   | Model | Speed | Input, output | Cached, cache write |
   |---|---|---|---|

@@ -253,7 +253,7 @@ Which builder, the envelope and the wall are the user's figures still (status, *
 - **A generated producer for landings and goals,** drawn from a grammar of its own: temper's workload kit already draws goals, trains and parties' acts from the seed (`temper/docs/design/testing/workloads-kit.md`, 1), and neither this draft nor the misbehaving agents draft schedules more yet.
 - **Filing a campaign's findings into temper** by its runner, with a source, a matching rule and a closing rule of their own (7.4).
 - **Coverage-guided fuzzing of decoders** with `cargo fuzz` (the strategy's section 6), which no target does yet. A campaign's runner could host its runs later.
-- **Conversion across two releases under a crash** (`layouts-both-ways.md`), a sweep of its own.
+- **Conversion across two releases under a crash** (`archive/layouts-both-ways.md`), a sweep of its own.
 - **Bisecting a finding** over the landings since the last campaign, and **shrinking** a case.
 - **Shrinking a sweep's sample at the gate** once campaigns cover it: it stays whole (the user, 11-26).
 - **The campaign's runner,** outside this repository: its schedule and its builder (5.5).

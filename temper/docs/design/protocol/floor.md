@@ -236,7 +236,7 @@ start afresh. Staging is made again at dev's build for each drill
   The transcripts' frames are registered and converted as read (jig's
   `protocol/store/transcripts.md`, 6).
 - **No patch history is kept** for any format or wire (temper's
-  `draft/layouts-both-ways.md`, 9): a format outside the registry is
+  `../draft/archive/layouts-both-ways.md`, 9): a format outside the registry is
   held by its byte tests, the schemas' records drift, built-value round
   trips, registry tests, the golden deployment's outcomes and the guard
   below.

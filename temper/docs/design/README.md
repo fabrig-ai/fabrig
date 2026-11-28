@@ -385,7 +385,11 @@ forge, temper adds:
   is made, Apple Silicon's file for the site, and its walk on a fresh
   machine.
 - **`draft/`:** the drafts, the vision this design is written from
-  (the repository's `AGENTS.md`, section 6).
+  (the repository's `AGENTS.md`, section 6). `draft/after-landing-repairs.md`
+  stays here while its reference deployment milestones are still to run.
+- **`draft/archive/`:** finished drafts kept with their design departures,
+  including `draft/archive/layouts-both-ways.md`,
+  `draft/archive/model-speeds.md` and `draft/archive/whose-red.md`.
 - **Status files:** beside each document, `<name>.status.md`, where
   the code lags or departs from it; `STATUS.md` tells how to roll them up.
 

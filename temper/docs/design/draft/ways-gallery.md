@@ -213,7 +213,7 @@ freshness = "exact"
 
 ### 2.3 Hotfix
 
-Straight into main, first among the work waiting in its queue (a turn already running finishes first), at Ultrafast, decided now and told after, with CI still required. Needs gpt-6.2-sol with its Ultrafast speed in the catalogue (`model-speeds.md`).
+Straight into main, first among the work waiting in its queue (a turn already running finishes first), at Ultrafast, decided now and told after, with CI still required. Needs gpt-6.2-sol with its Ultrafast speed in the catalogue (`archive/model-speeds.md`).
 
 ```toml
 # .temper/ways/hotfix.toml

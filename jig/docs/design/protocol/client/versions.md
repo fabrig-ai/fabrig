@@ -6,7 +6,7 @@
   version and layout; every message names its owner and the version of
   its record, and a streamed message's record is in the version its
   watch was opened in.
-- **Versions are frozen** (`temper/docs/design/draft/layouts-both-ways.md`,
+- **Versions are frozen** (`temper/docs/design/draft/archive/layouts-both-ways.md`,
   3). Each client family keeps the version it has, and a layout change
   moves none: jig's `jig-client-wire` and `jig-public-wire`, in
   `jig-client-protocol-wire`; `jig-engine-cursor`, in
@@ -123,7 +123,7 @@
 
 - **Clients bridged:** the engine converting for a client at another
   layout, so that a client outlives a redeploy without reloading
-  (`temper/docs/design/draft/layouts-both-ways.md`, 10).
+  (`temper/docs/design/draft/archive/layouts-both-ways.md`, 10).
 - **The exchanges no hello judges:** signing in and out, approvals and
   the link's asks may reach the engine before any hello, so a client at
   another layout may meet a refusal there that names no layout, where a
