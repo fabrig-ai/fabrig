@@ -437,6 +437,7 @@ fn opening(spec: Spec) -> Box<crate::record::Opening> {
         spec,
         dialect: 1,
         prices: crate::record::Prices { input: 0, cached: 0, cache_write: None, output: 0, unit: 1 },
+        speed: None,
         budget: 100,
         transcript: None,
         answered: Box::default(),
@@ -548,7 +549,13 @@ const USAGE: Usage = Usage {
 };
 
 fn completion(content: Box<[Block]>, stop: Stop) -> Completion {
-    Completion { reasoning_dropped: Box::default(), content, stop, usage: USAGE }
+    Completion {
+        served: crate::llm::ServedSpeed::Unreported,
+        reasoning_dropped: Box::default(),
+        content,
+        stop,
+        usage: USAGE,
+    }
 }
 
 fn done() -> Completion {
@@ -1464,6 +1471,7 @@ fn reserved_recorded_call(harness: &mut Harness) -> Token {
                 spec: spec(),
                 dialect: 1,
                 prices: crate::record::Prices { input: 0, cached: 0, cache_write: None, output: 0, unit: 1 },
+                speed: None,
                 budget: 100,
                 transcript: None,
                 answered: Box::default(),

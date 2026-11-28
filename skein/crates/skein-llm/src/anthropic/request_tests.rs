@@ -31,6 +31,7 @@ fn prompt(role: Role, block: Block) -> Prompt {
         messages: Box::new([Message { role, content: Box::new([block]) }]),
         max_output_tokens: None,
         reasoning_effort: None,
+        speed: None,
         affinity: None,
         choice: crate::ToolChoice::Auto,
     }

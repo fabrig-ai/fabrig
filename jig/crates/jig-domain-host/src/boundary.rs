@@ -568,8 +568,7 @@ pub enum Refusal {
 pub struct Mismatch {
     pub wire: Box<[u8]>,
     pub version: u16,
-    pub lowest: u16,
-    pub highest: u16,
+    pub worker_version: u16,
 }
 
 impl Mismatch {
@@ -577,17 +576,14 @@ impl Mismatch {
     #[must_use]
     pub fn reason(&self) -> Box<[u8]> {
         let version = skein_lib::Decimal::of(u64::from(self.version));
-        let lowest = skein_lib::Decimal::of(u64::from(self.lowest));
-        let highest = skein_lib::Decimal::of(u64::from(self.highest));
-        let parts: [&[u8]; 8] = [
+        let worker_version = skein_lib::Decimal::of(u64::from(self.worker_version));
+        let parts: [&[u8]; 6] = [
             b"version mismatch: ",
             &self.wire,
             b" ",
             version.as_bytes(),
             b", the worker reads ",
-            lowest.as_bytes(),
-            b"..",
-            highest.as_bytes(),
+            worker_version.as_bytes(),
         ];
         let mut length = 0_usize;
         for part in parts {

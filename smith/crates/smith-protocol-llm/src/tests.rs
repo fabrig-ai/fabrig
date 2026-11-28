@@ -326,6 +326,7 @@ fn described_prompt() -> smith_domain::llm::Prompt {
     use smith_domain::llm;
     llm::Prompt {
         effort: None,
+        speed: None,
         purpose: llm::Purpose::Ordinary { guard: None },
         choice: llm::ToolChoice::Auto,
         namespace: tools::Namespace::One,
@@ -1160,6 +1161,7 @@ fn native_text_prompt(messages: Box<[skein_llm::Message]>) -> skein_llm::Prompt 
         choice: skein_llm::ToolChoice::Auto,
         messages,
         reasoning_effort: None,
+        speed: None,
         affinity: Some(skein_llm::Affinity { key: [0; 16], thread: 0 }),
         max_output_tokens: Some(16),
     }

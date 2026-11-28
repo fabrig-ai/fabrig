@@ -579,7 +579,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::SetUp { .. }
                 | top::Request::ChoosePlace { .. }
                 | top::Request::ChangeDecision { .. }
-                | top::Request::CloseDecision { .. }
+                | top::Request::ReplayJudgement { .. }
+                | top::Request::RelayRefusal { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
@@ -954,8 +955,10 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                     }
                     match decision {
                         change::Decision::Failed => panic!("unexpected source failure"),
+                        change::Decision::ReadMerge { head } => panic!("forge domain must handle hook reads: {head:?}"),
                         change::Decision::Wait { until: at } => until = at,
                         change::Decision::Hold(why) => hold_reason = Some(why),
+                        change::Decision::ReplayJudgement(replay) => hold_reason = Some(replay.cause()),
                         change::Decision::Finish { .. } => finished = true,
                         change::Decision::None
                         | change::Decision::CancelProducer
@@ -1275,7 +1278,7 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
                                 }
                                 other => panic!("unexpected delegate: {other:?}"),
                             };
-                            world.event(top::Event::Delegated { task: 51, child, kind });
+                            world.event(top::Event::Delegated { task: 51, child, kind, close_at: None });
                             world.event(top::Event::DelegateResult {
                                 ended_at: None,
                                 task: 51,

@@ -9,10 +9,10 @@ use crate::translate::{Config, RootConfig, environment_forge, forge_declaration}
 use crate::{CallKey, Decision, Delivery, Journal, JournalOutput as Output, Range, Write, loads};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
+use jig_domain_contract::StartProblem;
 use jig_domain_core::Core;
 use jig_domain_core::engine::{self, Admit, Engine};
 use jig_domain_fleet as fleet;
-use jig_domain_link::Problem;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
@@ -313,6 +313,19 @@ impl Domain {
         &self.engine.core().tasks
     }
 
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_forge_call_attempt(&self, owner: Token, task: u64) -> Option<u64> {
+        match self.forge_effects.get(&owner)? {
+            forge_route::EffectFlight::Call { key, .. } if key.task == task => Some(key.attempt),
+            forge_route::EffectFlight::Call { .. }
+            | forge_route::EffectFlight::Projection { .. }
+            | forge_route::EffectFlight::Landing { .. }
+            | forge_route::EffectFlight::Tier { .. }
+            | forge_route::EffectFlight::Procedure { .. } => None,
+        }
+    }
+
     /// The run channel admitted at this worker's configured position.
     #[must_use]
     pub fn worker_channel(&self, position: u32) -> Option<Token> {
@@ -454,9 +467,9 @@ impl Domain {
     /// cross-child limits. Checks bounded authority/bootstrap configuration; issues no request.
     /// Startup pages/account setup begin only on `Event::Restart`.
     /// # Errors
-    /// A configured worker count or name exceeds its priced membership bound.
+    /// The engine refuses its worker membership or connector declarations.
     #[expect(clippy::too_many_lines, reason = "the root allocates every child and bounded handoff table together")]
-    pub fn new(mut config: Config, limits: &Limits) -> Result<Domain, Problem> {
+    pub fn new(mut config: Config, limits: &Limits) -> Result<Domain, StartProblem> {
         assert!(valid(limits), "root limits are valid");
         assert!(
             config.core.settings.deployment_provider != 0,
@@ -572,7 +585,10 @@ impl Domain {
                 prepare_kind = Some(*bound);
             }
             if bound.kind.0 == forge::CLOSE_KIND {
-                close_kind = Some(*bound);
+                close_kind = Some(jig_domain_link::JobBound {
+                    result: temper_protocol_worker_wire::CLOSE_RESULT_BYTES,
+                    ..*bound
+                });
             }
             if bound.kind.0 == forge::MERGE_KIND {
                 merge_kind = Some(*bound);
@@ -1518,7 +1534,7 @@ fn released_into(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Refused {
     /// Configured worker membership exceeds its priced count or name bound.
-    Workers(Problem),
+    Workers(StartProblem),
     /// The charter at this index: its run policy's bytes, `None` past `u64`,
     /// beyond `journal.run_bytes`.
     Run { charter: usize, bytes: Option<u64> },
@@ -1555,7 +1571,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         .saturating_add(7);
     let mut refused = List::with_capacity(room);
     if let Err(problem) = jig_domain_core::worker_membership(&config.core.defaults.workers, &core_limits(limits)) {
-        refused.push(Refused::Workers(problem)).expect("counted refusals");
+        refused.push(Refused::Workers(StartProblem::Membership(problem))).expect("counted refusals");
     }
     for (charter, configured) in config.core.defaults.charters.iter().enumerate() {
         let bytes = run_policy_bound(&configured.policy, limits);

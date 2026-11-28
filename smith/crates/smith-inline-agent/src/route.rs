@@ -196,6 +196,9 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
             smith::Request::Lower(Lower::Probe { owner, at, deadline }) => {
                 crate::workspace::probe(slot, id.token(), owner, at, deadline, out);
             }
+            smith::Request::Lower(Lower::ProbeHooks { owner, at, deadline }) => {
+                crate::workspace::probe_hooks(slot, id.token(), owner, at, deadline, out);
+            }
             smith::Request::Lower(Lower::Check { owner, program, results, bound, cap, tail }) => {
                 crate::workspace::check(slot, id.token(), owner, program, results, bound, cap, tail, out);
             }

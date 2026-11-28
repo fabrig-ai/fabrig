@@ -25,6 +25,7 @@ const REMOTE: &[u8] = b"org/repo";
 
 pub(super) struct Story {
     workload: Workload,
+    producer_seeds: skein_fake_llm_domain::api::Seeds,
     names: Names,
     other: parties::Party,
     replies: BTreeMap<u64, people::Reply>,
@@ -57,17 +58,18 @@ impl World {
         let streams = Streams::new(seed);
         let workload = Workload::draw(&streams, &COMPOSED);
         let scheduling = streams.seed_of(Stream::Scheduling, "system");
-        let config = setup::config(scheduling, &workload);
-        let mut limits: fn(&mut engine::Limits) = setup::limits;
-        if kinds.contains(&temper_faults::bounds::FORGE_READ_ADMISSIONS) {
-            limits = |limits| {
-                setup::limits(limits);
-                // Two admitted reads make COMPOSED reach this table while the
-                // other readers queue; the stock write table does not fill.
-                limits.forge.client.pending = 2;
-            };
+        let draw = (!kinds.is_empty()).then(|| faults::FaultDraw::for_workload(seed, &workload, kinds));
+        let park_cell = draw.as_ref().is_some_and(faults::FaultDraw::has_park_cell);
+        let mut config = setup::config(scheduling, &workload, park_cell);
+        if draw.as_ref().is_some_and(|draw| draw.plans(temper_blame::SILENT)) {
+            // Let the real timeout hold the landing within the workload's bound.
+            temper_engine_domain_world::oracle::config::landing(&mut config, 1).gate_timeout_ms = 60_000;
         }
-        let world = Self::configured_values(scheduling, scripts::idle(), true, config, limits);
+        let planned_bounds = draw.as_ref().map_or(&[][..], faults::FaultDraw::bounds);
+        let close_refusal = draw.as_ref().is_some_and(|draw| draw.plans(temper_faults::forge::CLOSE_REFUSED));
+        let world = Self::configured_values(scheduling, scripts::idle(), true, config, |limits| {
+            setup::limits(limits, planned_bounds, &workload, close_refusal);
+        });
         let mut world = Self::with_two_accounts(world);
         world.account_case.take().expect("two people");
         world.party = setup::party(1);
@@ -75,6 +77,7 @@ impl World {
         let comparison = Some(comparison::Run::new(seed, &workload, points));
         world.workload = Some(Story {
             workload,
+            producer_seeds: setup::producer_seeds(streams),
             comparison,
             named_at: None,
             names: Names::new(),
@@ -94,9 +97,7 @@ impl World {
         setup::forge(&mut world);
         // Both comparison sides use the same worker hello/admission path.
         world.absence.enabled = true;
-        if !kinds.is_empty() {
-            world.workload_faults = Some(faults::Faults::new(seed, world.workload(), kinds));
-        }
+        world.workload_faults = draw.map(|draw| faults::Faults::new(seed, draw));
         world.start_workload();
         world
     }
@@ -195,14 +196,48 @@ impl World {
         }
     }
 
+    pub(super) fn current_workload_request(&mut self, event: engine::Event) -> Option<engine::Event> {
+        let engine::Event::Party(engine::PartyInput::Ask {
+            reply_to,
+            sign_in,
+            key,
+            models,
+            ask: ask @ people::Ask::Release { task, revision, .. },
+        }) = event
+        else {
+            return Some(event);
+        };
+        let token = reply_to.into_token();
+        // Only queued forge recoveries are in pending_asks here. Another
+        // recovery can release or change the hold before this one is consumed.
+        if let Some(story) = &mut self.workload
+            && story.pending_asks.contains(&token.raw())
+            && !self
+                .root
+                .tasks()
+                .task(task)
+                .is_some_and(|row| row.revisions.hold == revision && matches!(row.phase, tasks::Phase::Held { .. }))
+        {
+            story.pending_asks.remove(&token.raw());
+            return None;
+        }
+        Some(engine::Event::Party(engine::PartyInput::Ask {
+            reply_to: skein_lib::ReplyTo::new(token),
+            sign_in,
+            key,
+            models,
+            ask,
+        }))
+    }
+
     pub(super) fn workload_reply(&mut self, to: Token, reply: &people::Reply) -> bool {
         let Some(story) = &mut self.workload else { return false };
         if to.raw() >= REPLY {
-            if story.pending_asks.remove(&to.raw()) {
-                assert!(
-                    !matches!(reply, people::Reply::Outcome(people::Outcome::Refused(_)) | people::Reply::Refused(_)),
-                    "workload action refused: {reply:?}"
-                );
+            if story.pending_asks.remove(&to.raw())
+                && matches!(reply, people::Reply::Outcome(people::Outcome::Refused(_)) | people::Reply::Refused(_))
+                && self.finding.is_none()
+            {
+                self.finding = Some(format!("workload action refused: {reply:?}"));
             }
             story.replies.insert(to.raw(), reply.clone());
             return true;
@@ -229,12 +264,17 @@ impl World {
         self.discover_workload_names();
         self.link_workload_changes();
         self.prepare_workload_questions();
-        // Enqueuing the scripts' requests does not change the task projection.
-        let tasks = self.root.tasks().view_tasks();
-        self.answer_workload_questions(&tasks);
-        self.workload_answer_park(&tasks);
-        self.latch_workload(&tasks);
+        // These scripts enqueue requests without changing the live rows.
+        self.answer_workload_questions();
+        self.workload_answer_park();
+        self.latch_workload();
+        self.release_branch_load();
         self.workload_comparison_tick();
+    }
+
+    fn workload_tasks(&self) -> impl Iterator<Item = &tasks::TaskRecord> {
+        let tasks = self.root.tasks();
+        std::iter::successors(tasks.inspection_task_after(None), |row| tasks.inspection_task_after(Some(row.number)))
     }
 
     fn discover_workload_names(&mut self) {
@@ -292,8 +332,11 @@ impl World {
                 "{name} starts after {after} lands"
             );
         }
-        self.workload_choose_park(assignment);
-        let script = scripts::assigned(self, assignment);
+        if !self.workload_park_deferred() {
+            self.workload_choose_park(assignment);
+        }
+        let mut script = scripts::assigned(self, assignment);
+        let park_cell_job = self.workload_cell_script(assignment, &mut script);
         let mut process = if self.lanes[0].assignment.as_ref().is_some_and(|previous| previous.task == assignment.task)
         {
             if self.lanes[0].process.answered.is_some() {
@@ -309,7 +352,12 @@ impl World {
             }
             parked
         } else {
-            Process::new(self.seed, script)
+            let draw = (!super::stretches::plan(&script).is_empty())
+                .then(|| self.workload.as_ref().expect("workload").producer_seeds);
+            let mut process = Process::new(self.seed, script);
+            process.draw = draw;
+            process.park_cell_job = park_cell_job;
+            process
         };
         process.configure_settings = Some(|settings| {
             settings.provider.accounts = 2;
@@ -343,16 +391,18 @@ impl World {
     }
 
     /// End only after all goals landed and the tier caught main's final head.
-    pub fn run_workload(&mut self) {
+    pub fn run_workload(&mut self) -> Result<(), String> {
         for _ in 0..GOAL_BOUND.steps {
             self.try_move_to(self.env.now.saturating_add(Duration::from_millis(
                 if self.workload_faults.as_ref().is_some_and(faults::Faults::needs_small_steps) { 1 } else { 100 },
             )))
             .and_then(|()| self.tick_at_now())
-            .unwrap_or_else(|finding| panic!("{finding}\n{}", self.workload_state()));
-            if self.workload_finished() && self.workload_faults_stopped() {
-                self.ends.close(self.env.now, &self.store).expect("all goal bounds met");
-                return;
+            .map_err(|finding| format!("{finding}\n{}", self.workload_state()))?;
+            if self.workload_finished() {
+                self.retire_workload_plans();
+                if self.workload_faults_stopped() {
+                    return self.ends.close(self.env.now, &self.store);
+                }
             }
             if self.engine_quiet() && self.lanes[0].worker_events.is_empty() {
                 let next = [
@@ -372,18 +422,38 @@ impl World {
                 .filter(|at| *at > self.env.now)
                 .min()
                 .expect("clock cap");
-                self.try_move_to(next).expect("visit the engine's retained bounds");
+                self.try_move_to(next)?;
             }
         }
-        panic!("workload did not finish: {}", self.workload_state());
+        Err(format!("workload did not finish: {}", self.workload_state()))
     }
 
     fn workload_finished(&self) -> bool {
-        self.workload().goals.iter().all(|goal| {
-            self.workload_names().task(&goal.name).is_some_and(|task| {
-                self.store.rows.contains_key(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task))))
-            })
-        }) && self.workload_tier_green()
+        self.workload_goals_ended() && self.workload_tier_green()
+    }
+
+    fn workload_goals_ended(&self) -> bool {
+        self.workload()
+            .goals
+            .iter()
+            .all(|goal| self.workload_names().task(&goal.name).is_some_and(|task| self.workload_task_ended(task)))
+    }
+
+    fn workload_task_ended(&self, task: u64) -> bool {
+        self.store.rows.contains_key(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task))))
+    }
+
+    fn workload_landings(&self) -> impl Iterator<Item = &temper_engine_domain_forge::LandingRow> {
+        use temper_engine_domain_forge::{Key as ForgeKey, Stored};
+        self.store.rows.range(Key::Forge(ForgeKey::Landing(0))..=Key::Forge(ForgeKey::Landing(u64::MAX))).filter_map(
+            |(_, record)| match record {
+                engine::Record::Forge { row } => match row.as_ref() {
+                    Stored::Landing(row) => Some(row),
+                    _ => None,
+                },
+                engine::Record::Core(_) => None,
+            },
+        )
     }
 
     #[must_use]
@@ -392,9 +462,11 @@ impl World {
     }
 
     /// Judge the durable results, final tree, accounts and the train's membership.
-    pub fn assert_workload(&self) {
-        assert!(self.workload_tier_green(), "the after-landing tier follows main");
-        let main = self.forge.branch(REMOTE, b"main").expect("main");
+    pub fn assert_workload(&self) -> Result<(), String> {
+        if !self.workload_tier_green() {
+            return Err("the after-landing tier did not follow main".into());
+        }
+        let main = self.forge.branch(REMOTE, b"main").ok_or("no main branch")?;
         let tree = self.forge.tree(main);
         let story = self.workload.as_ref().expect("workload");
         for goal in &story.workload.goals {
@@ -403,52 +475,57 @@ impl World {
             let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) =
                 self.store.rows.get(&key)
             else {
-                panic!("goal {} did not end", goal.name)
+                return Err(format!("goal {} did not end", goal.name));
             };
-            assert!(matches!(row.phase, tasks::Phase::Ended(tasks::Ending::Done(_))), "{}: {:?}", goal.name, row.phase);
+            if !matches!(row.phase, tasks::Phase::Ended(tasks::Ending::Done(_))) {
+                return Err(format!("{}: {:?}", goal.name, row.phase));
+            }
             eprintln!(
                 "{} task {task}: ended {:?}; run at {:?}, {} steps; bound {GOAL_BOUND:?}",
                 goal.name, row.ended_at, self.env.now, self.iteration
             );
             for assignment in story.assignments.iter().filter(|assignment| assignment.task == task) {
-                assert_eq!(
-                    assignment.run.accounts.first().expect("account").account,
-                    setup::account(goal.party),
-                    "{} account",
-                    goal.name
-                );
+                let account = assignment.run.accounts.first().map(|account| account.account);
+                let expected = setup::account(goal.party);
+                if account != Some(expected) {
+                    return Err(format!("{}: expected account {expected}, found {account:?}", goal.name));
+                }
             }
-            let changes: Vec<_> =
-                goal.changes.iter().map(|change| self.assert_workload_change(goal, change, &tree)).collect();
+            let changes = goal
+                .changes
+                .iter()
+                .map(|change| self.assert_workload_change(goal, change, &tree))
+                .collect::<Result<Vec<_>, _>>()?;
             if goal.train {
-                self.assert_workload_train(task, &changes);
+                self.assert_workload_train(task, &changes)?;
             }
         }
+        self.observed.stretches.check()
     }
 
-    fn assert_workload_change(&self, goal: &Goal, change: &temper_workload::draw::Change, tree: &super::Tree) -> u64 {
+    fn assert_workload_change(
+        &self,
+        goal: &Goal,
+        change: &temper_workload::draw::Change,
+        tree: &super::Tree,
+    ) -> Result<u64, String> {
         let story = self.workload.as_ref().expect("workload");
-        let task = story.names.task(&change.name).expect("change named");
-        let row = self.store.change(task).expect("change kept");
+        let task = story.names.task(&change.name).ok_or_else(|| format!("change {} was not named", change.name))?;
+        let row = self.store.change(task).ok_or_else(|| format!("change {} was not kept", change.name))?;
         let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task)));
         let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(ended)))) =
             self.store.rows.get(&key)
         else {
-            panic!("ended change")
+            return Err(format!("change {} did not end", change.name));
         };
         for after in &change.after {
-            assert!(
-                ended.dependencies.contains(&story.names.task(after).expect("named dependency")),
-                "{} keeps its after {after}",
-                change.name
-            );
+            if !story.names.task(after).is_some_and(|task| ended.dependencies.contains(&task)) {
+                return Err(format!("{} lost its after {after}", change.name));
+            }
         }
-        assert!(
-            matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. }),
-            "{}: {:?}",
-            change.name,
-            row.change.state
-        );
+        if !matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. }) {
+            return Err(format!("{} did not land: {:?}", change.name, row.change.state));
+        }
         let landing_repairs = story
             .assignments
             .iter()
@@ -466,12 +543,10 @@ impl World {
             .map(|assignment| assignment.task)
             .collect::<BTreeSet<_>>()
             .len();
-        assert_eq!(
-            u64::from(row.change.repairs) + u64::try_from(landing_repairs).expect("bounded repairs"),
-            u64::from(change.red_once),
-            "{} repaired once",
-            change.name
-        );
+        let repairs = u64::from(row.change.repairs) + u64::try_from(landing_repairs).expect("bounded repairs");
+        if repairs != u64::from(change.red_once) {
+            return Err(format!("{} repaired {repairs} times (red once: {})", change.name, change.red_once));
+        }
         if change.asks {
             let questions: Vec<_> = self
                 .store
@@ -486,74 +561,64 @@ impl World {
                     _ => None,
                 })
                 .collect();
-            assert_eq!(questions.len(), 1, "{} asks its party once", change.name);
+            let [question] = &questions[..] else {
+                return Err(format!("{} asked its party {} times", change.name, questions.len()));
+            };
             let person = if goal.party == Party::First { 1 } else { 2 };
-            assert_eq!(questions[0].executor, tasks::Executor::Person(tasks::PersonAddress::Person(person)));
-            assert!(
-                matches!(&questions[0].phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) if words.as_ref() == b"Yes, deliver the named files.")
-            );
+            if question.executor != tasks::Executor::Person(tasks::PersonAddress::Person(person))
+                || !matches!(&question.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) if words.as_ref() == b"Yes, deliver the named files.")
+            {
+                return Err(format!("{}: wrong party or answer to producer's question", change.name));
+            }
         }
         for file in &change.files {
-            assert_eq!(tree.get(file.path.as_bytes()), Some(&file.text.as_bytes().to_vec()), "{} on main", file.path);
+            if tree.get(file.path.as_bytes()).map(Vec::as_slice) != Some(file.text.as_bytes()) {
+                return Err(format!("{} has the wrong text on main", file.path));
+            }
         }
-        task
+        Ok(task)
     }
 
-    fn assert_workload_train(&self, task: u64, changes: &[u64]) {
+    fn assert_workload_train(&self, task: u64, changes: &[u64]) -> Result<(), String> {
+        use temper_engine_domain_forge::LandingLeave;
+        use temper_engine_domain_forge_change::State;
         let story = self.workload.as_ref().expect("workload");
-        let process = self.parked.get(&task).unwrap_or(&self.lanes[0].process);
-        let outputs: Vec<_> = process
-            .agent()
-            .prompts()
-            .last()
-            .into_iter()
-            .flat_map(|p| &p.messages)
-            .flat_map(|m| &m.parts)
-            .filter_map(|part| match part {
-                skein_fake_llm_domain::api::Part::ToolOutput { output, .. } => Some(String::from_utf8_lossy(output)),
-                _ => None,
-            })
-            .collect();
-        assert!(story.latch.is_some(), "the coordinator makes a latch: {outputs:?}");
-        let trains: Vec<_> = self
-            .store
-            .rows
-            .values()
-            .filter_map(|record| match record {
-                engine::Record::Forge { row } => match row.as_ref() {
-                    temper_engine_domain_forge::Stored::Landing(row)
-                        if changes
-                            .iter()
-                            .all(|task| row.landing.members.iter().any(|member| member.change == *task)) =>
-                    {
-                        Some(row)
-                    }
-                    _ => None,
-                },
-                engine::Record::Core(_) => None,
-            })
-            .collect();
-        assert_eq!(
-            trains.len(),
-            1,
-            "all train members land together: {:?}",
-            self.store
-                .rows
-                .values()
-                .filter_map(|record| match record {
-                    engine::Record::Forge { row } => match row.as_ref() {
-                        temper_engine_domain_forge::Stored::Landing(row) => Some((
-                            row.landing.task,
-                            row.last_event,
-                            row.landing.members.iter().map(|member| member.change).collect::<Vec<_>>()
-                        )),
-                        _ => None,
-                    },
-                    engine::Record::Core(_) => None,
-                })
-                .collect::<Vec<_>>()
-        );
-        assert!(trains[0].landing.members.iter().all(|member| member.landed.is_some()), "the complete train landed");
+        if story.latch.is_none() {
+            return Err(format!("train coordinator {task} made no latch"));
+        }
+        let mut trains = self
+            .workload_landings()
+            .filter(|row| changes.iter().all(|task| row.landing.members.iter().any(|member| member.change == *task)));
+        let Some(train) = trains.next() else { return Err(format!("no train gathered {changes:?}")) };
+        if trains.next().is_some() {
+            return Err(format!("more than one train gathered {changes:?}"));
+        }
+        for &change in changes {
+            let mut landed = self.workload_landings().filter(|row| {
+                row.landing.members.iter().any(|member| member.change == change && member.landed.is_some())
+            });
+            let Some(row) = landed.next() else { return Err(format!("train member {change} did not land")) };
+            if landed.next().is_some() {
+                return Err(format!("train member {change} landed more than once"));
+            }
+            let member = train.landing.members.iter().find(|member| member.change == change).expect("train member");
+            if member.left == Some(LandingLeave::Held) {
+                let release = self.workload_faults.as_ref().and_then(|f| f.released_member);
+                let Some((released, at)) = release else {
+                    return Err(format!("held train member {change} had no release"));
+                };
+                let state = self.store.change(change).expect("change kept").change.state;
+                if released != change
+                    || row.landing.task <= train.landing.task
+                    || !matches!(state, State::Landed { since, .. } if since.as_nanos() >= at.as_nanos())
+                {
+                    return Err(format!("held train member {change} did not land later, after release"));
+                }
+            } else if row.landing.task != train.landing.task {
+                return Err(format!("train member {change} split from its train without leaving on hold"));
+            }
+        }
+        Ok(())
     }
 
     fn workload_state(&self) -> String {

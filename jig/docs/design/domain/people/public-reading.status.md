@@ -2,3 +2,4 @@
 
 2026-11-16. Where the tree's code lags or departs from [public-reading.md](public-reading.md).
 
+No gap.

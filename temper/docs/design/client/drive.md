@@ -248,9 +248,12 @@ in their order (`../testing/qa/deployment.md`, 7).
 | 1 | the session's own failure: a refused command line (2.1), a scratch directory it cannot make its own | `failed: WHY`, on stderr |
 
 A place makes a copy refused by its store again from its recipe
-(`../draft/archive/landed-qa.md`, 5): status 3 is that signal. Status 4 on a
-fresh box, or on a copy past its closing check, is a finding against
-temper (`../draft/archive/landed-qa.md`, 7).
+(`../draft/archive/landed-qa.md`, 5): status 3 is that signal, and so is
+status 4 where a walk from a copy the place unpacked answered no line,
+its box failing at its start on what the copy holds
+(`../testing/qa/places.md`, 4). Status 4 on a fresh box, or once a
+walk has answered a line, is a finding against temper
+(`../draft/archive/landed-qa.md`, 7).
 
 ### 2.6 A ctl session
 

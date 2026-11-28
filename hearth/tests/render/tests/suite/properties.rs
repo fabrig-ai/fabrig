@@ -1,6 +1,23 @@
 use hearth_domain_render::vocabulary::Outcome;
 use hearth_render_world::fixtures::properties as inputs;
-use hearth_render_world::{fixtures, repositories::Edit};
+use hearth_render_world::{
+    fixtures,
+    golden::{Kind, Leaf},
+    repositories::{self, Edit, Shape},
+};
+use skein_lib::Rng;
+
+#[test]
+fn repository_draws_wrap_the_full_width_case_seed() {
+    fn leaf_fields(leaf: &Leaf) -> (&[u8], &[u8], Kind) {
+        (&leaf.path, &leaf.bytes, leaf.kind)
+    }
+    // The generated fleet starts at the seed just before the property block.
+    let expected = repositories::generate(&mut Rng::new(0x002f_ffff), Shape::SMALL);
+    let generated = inputs::generated(u64::MAX);
+    assert!(generated.leaves.iter().map(leaf_fields).eq(expected.leaves.iter().map(leaf_fields)));
+}
+
 #[test]
 fn a_generated_repository_renders_without_errors() {
     inputs::cases(|case, generated| {

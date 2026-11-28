@@ -132,7 +132,6 @@ fn opening(driven: &mut Driven, connection: Token, secret: &[u8]) -> (Option<u16
             busy: Duration::from_secs(1),
         })
         .unwrap(),
-        wire::VERSION,
         bytes.finish(),
     )
     .unwrap();
@@ -184,6 +183,7 @@ fn opening(driven: &mut Driven, connection: Token, secret: &[u8]) -> (Option<u16
                 | engine::Request::Up { .. }
                 | engine::Request::Unsent { .. }
                 | engine::Request::Unread { .. }
+                | engine::Request::Convert
                 | engine::Request::Closed
                 | engine::Request::Lower { .. } => {}
             }

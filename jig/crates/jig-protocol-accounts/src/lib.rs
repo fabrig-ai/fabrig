@@ -8,8 +8,8 @@ extern crate alloc;
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
 pub const SCHEMA: &str = include_str!("../schema/moved-v1.schema");
 
-mod patch_set;
-pub use patch_set::JIG_SET;
+mod owner_set;
+pub use owner_set::JIG_SET;
 
 pub use jig_protocol_accounts_codec::v1;
 pub mod finishes;

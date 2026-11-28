@@ -102,7 +102,12 @@ pub struct InvalidInput {
 pub struct Slot {
     pub name: Box<[u8]>,
     pub before: Box<[u8]>,
+    /// Empty to end at a line feed or the end of the part.
     pub after: Box<[u8]>,
+    /// The name of an earlier slot, or empty for an independent draw.
+    pub with: Box<[u8]>,
+    /// Per mille: pick from parts without the value drawn by `with`.
+    pub foreign: u32,
     /// The value the world never issues.
     pub unissued: Box<[u8]>,
     /// Per mille: the never-issued value though candidates exist.
@@ -304,6 +309,8 @@ pub struct Answer {
     ///
     /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub usage: Usage,
+    /// Optional serving-speed report chosen by the script.
+    pub served: Option<Box<[u8]>>,
 }
 
 /// Why the fake provider stopped; the agent translator supplies its own corresponding vocabulary.
@@ -514,6 +521,10 @@ pub struct Turn {
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Line {
+    /// Reports the serving speed for this turn without emitting a part.
+    Served { name: Box<[u8]> },
+    /// A stretch of drawn tool answers (skein/docs/design/testing/fakes/drawn-agent.md, 5).
+    Drawn { rounds: u32, tools: Box<[Box<[u8]>]> },
     /// Cuts the first `times` calls reaching this line; zero is refused.
     Cut { times: u32 },
     /// Binds a conversation value for later text and call arguments; emits no part.

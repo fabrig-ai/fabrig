@@ -3,7 +3,9 @@ use jig_client::contract::{
     self as c, AtBound, EscalationHolder as Holder, Unbounded, WaitKind as Kind, WaitObject as Object, waits::Bound,
 };
 use skein_lib::{List, Wall};
-use temper_client_protocol_wire::waits::{CHANGE_CHECKING, LANDING_ANCESTRY, THING_ENTRY, THING_TASK};
+use temper_client_protocol_wire::waits::{
+    CHANGE_CHECKING, CHANGE_READY, LANDING_ANCESTRY, THING_ENTRY, THING_PULL, THING_TASK,
+};
 
 pub(super) const DESCENDANT_JSON: &[u8] = br#""wait":{"task":44,"kind":"party","object":{"entry":{"kind":"question","number":3,"at":{"person":73}}},"since":1792854120000000000,"bound":{"at":1792882920000000000,"then":"pass_up"},"hears":{"person":73}}"#;
 const SOONER: Wall = Wall::from_nanos(1_792_868_520_000_000_000);
@@ -87,6 +89,53 @@ fn absent_waits_leave_the_text_alone_and_give_empty_json_fields() {
     assert!(!f::has(&text, b"\nwaits:"));
     let json = read(task, true);
     assert!(f::has(&json, br#""waits_on":"nothing","wait":null,"nearest":null,"waits":[],"wait_count":0"#));
+}
+
+const AFTER_TASK: u64 = 1;
+const READY_PULL: u64 = 2;
+
+#[test]
+fn a_goal_behind_its_dependency_names_that_wait() {
+    let task = task_with_first_wait(Kind::Dependency, Object::Task(AFTER_TASK));
+    let text = read(task.clone(), false);
+    let expected = concat!(
+        "\nwaiting on: dependency task 1 · since 2026-10-24 15:02 UTC · holds at 2026-10-24 19:02 UTC\n",
+        "waits: 1\n  dependency task 1 · since 2026-10-24 15:02 UTC · holds at 2026-10-24 19:02 UTC\n",
+    );
+    assert!(f::has(&text, expected.as_bytes()), "{text:?}");
+    assert!(!f::has(&text, b"Nothing awaited"), "{text:?}");
+    let json = read(task, true);
+    assert!(
+        f::has(&json, br#""waits_on":"nothing","wait":{"task":41,"kind":"dependency","object":{"task":1}"#),
+        "{json:?}"
+    );
+}
+
+#[test]
+fn a_procedure_at_ready_names_its_step_and_pull() {
+    let task = task_with_first_wait(
+        Kind::Step,
+        Object::Procedure {
+            step: CHANGE_READY,
+            things: list([c::Thing { what: THING_PULL, number: READY_PULL, owner: None }]),
+        },
+    );
+    let text = read(task, false);
+    let expected = concat!(
+        "\nwaiting on: step at ready: pull request #2 · since 2026-10-24 15:02 UTC · holds at 2026-10-24 19:02 UTC\n",
+        "waits: 1\n  step at ready: pull request #2 · since 2026-10-24 15:02 UTC · holds at 2026-10-24 19:02 UTC\n",
+    );
+    assert!(f::has(&text, expected.as_bytes()), "{text:?}");
+}
+
+fn task_with_first_wait(kind: Kind, object: Object) -> c::Task {
+    let mut task = f::goal(f::TASK, c::WaitsOn::Nothing);
+    let first = wait(kind, object, Bound::At { at: SOONER, then: AtBound::Hold }, None);
+    task.wait = Some(first.clone());
+    task.nearest = Some(c::Nearest { kind, at: SOONER, then: AtBound::Hold });
+    task.waits = list([first]);
+    task.wait_count = task.waits.len();
+    task
 }
 
 #[test]

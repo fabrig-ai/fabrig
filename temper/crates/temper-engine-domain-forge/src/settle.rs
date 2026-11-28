@@ -171,6 +171,7 @@ pub(crate) fn cap(
         | change::Decision::CancelMovedDelegate { .. }
         | change::Decision::EndHold
         | change::Decision::RepairEnded { .. }
+        | change::Decision::ReadMerge { .. }
         | change::Decision::Effect(_)
         | change::Decision::Ready
         | change::Decision::QueueRepair
@@ -178,7 +179,8 @@ pub(crate) fn cap(
         | change::Decision::Cancel
         | change::Decision::Failed
         | change::Decision::NoChange
-        | change::Decision::Hold(_) => decision,
+        | change::Decision::Hold(_)
+        | change::Decision::ReplayJudgement(_) => decision,
     }
 }
 

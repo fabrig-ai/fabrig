@@ -3,11 +3,17 @@ use super::super::standing_lifecycle::{cancel, read, wake, world};
 use jig_domain_tasks::{Active, Cause, End, Event, Funder, Key, Party, Phase, TaskResult};
 use jig_tasks_world::{Reply, task};
 use skein_lib::Rng;
+use skein_world::{
+    sweep::{Case, cases, gate},
+    this_test,
+};
+use std::convert::Infallible;
 
 #[test]
-fn random_standing_periods_runs_finishes_and_delegates_end_only_by_cancel() {
+fn random_standing_periods_runs_finishes_and_delegates_end_only_by_cancel() -> Result<(), Case<Infallible>> {
     let mut renewals = 0;
-    for seed in [871, 877, 881, 883, 887, 907, 911, 919] {
+    let test = this_test!("random_standing_periods_runs_finishes_and_delegates_end_only_by_cancel");
+    cases(test, [871, 877, 881, 883, 887, 907, 911, 919], |seed| {
         let mut rng = Rng::new(seed);
         let mut world = world(seed);
         let mut period = 0;
@@ -87,6 +93,10 @@ fn random_standing_periods_runs_finishes_and_delegates_end_only_by_cancel() {
         // Even a later period cannot revive the cancelled standing task.
         world.send(Event::RenewStanding { task: 1, period: period + 1 });
         assert!(!world.records.contains_key(&Key::Live(1)));
+        Ok(())
+    })?;
+    if gate() {
+        assert!(renewals > 0, "the random stream exercises renewals under the accounting referee");
     }
-    assert!(renewals > 0, "the random stream exercises renewals under the accounting referee");
+    Ok(())
 }

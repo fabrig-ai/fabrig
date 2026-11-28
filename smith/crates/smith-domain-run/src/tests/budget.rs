@@ -298,6 +298,44 @@ fn the_completion_maximum_prices_the_full_window_and_rounds_each_reserved_turn_o
 }
 
 #[test]
+fn the_finishing_reserve_and_entrance_price_mains_selected_speed() {
+    let mut main = Llm {
+        window: 7,
+        output: 4,
+        prices: crate::Prices { input: 2, cached: 3, cache_write: Some(5), output: 3, unit: 10 },
+        ..charter().llm
+    };
+    let reserve = crate::charter::Reserve { turns: 3, time: Duration::from_secs(1) };
+    let budget = Budget { spend: 40, ..BUDGET };
+    assert_eq!(crate::most_costly(&main), Some(5));
+    assert_eq!(crate::reserve_spend(reserve, &main), Some(15));
+    assert_eq!(crate::admit(&budget, reserve, &main, &LIMITS.budget, None), Ok(()));
+
+    main.speed = Some(crate::charter::Speed {
+        name: bytes(b"ultrafast"),
+        also: Box::new([]),
+        prices: crate::Prices { input: 12, cached: 18, cache_write: Some(30), output: 18, unit: 10 },
+    });
+    // (210 + 72) / 10 rounds up to 29 per completion, not 30 or 28.
+    assert_eq!(crate::most_costly(&main), Some(29));
+    assert_eq!(crate::reserve_spend(reserve, &main), Some(87));
+    assert_eq!(
+        crate::admit(&budget, reserve, &main, &LIMITS.budget, None),
+        Err(crate::BudgetRefusal::Reserve(crate::Part::Spend))
+    );
+    assert_eq!(crate::admit(&Budget { spend: 88, ..budget }, reserve, &main, &LIMITS.budget, None), Ok(()));
+    let mut harness = Harness::new(LIMITS);
+    let requests = harness.start(1, Charter { llm: main, budget, reserve, ..charter() });
+    let [Request::Answer { answer, .. }] = requests.as_ref() else {
+        panic!("a refused run does not open a conversation: {requests:?}");
+    };
+    assert_eq!(
+        *answer,
+        Answer::Refused(Refusal::Invalid(Invalid::Budget(crate::BudgetRefusal::Reserve(crate::Part::Spend))))
+    );
+}
+
+#[test]
 fn completion_and_reserve_derivation_refuse_unrepresentable_host_units() {
     let main = Llm {
         window: 1,

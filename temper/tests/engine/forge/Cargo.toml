@@ -36,6 +36,7 @@ temper-blame = { path = "../../../testing/temper-blame" }
 
 
 [dev-dependencies]
+temper-protocol-member-message.workspace = true
 jig-domain-core-vocabulary.workspace = true
 temper-workload.workspace = true
 

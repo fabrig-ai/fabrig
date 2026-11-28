@@ -1,8 +1,17 @@
+//! Builder input sweeps (hearth/docs/design/testing/README.md, 4.5).
+
 use hearth_builder_world::fixtures::inputs;
 use hearth_protocol_builder::store_shape;
+use skein_world::this_test;
+
+#[test]
+fn the_input_stream_wraps_its_offset_at_the_maximum_case_seed() {
+    assert_eq!(inputs::case_rng(u64::MAX).state(), inputs::SEED - 1);
+}
+
 #[test]
 fn store_names_mutated_by_a_byte_shape_as_the_table_says() {
-    inputs::each(|seed, rng| {
+    inputs::each(this_test!("store_names_mutated_by_a_byte_shape_as_the_table_says"), |seed, rng| {
         for row in inputs::NAMES {
             let name = inputs::name(row);
             assert_eq!(store_shape(row.directory, &name, row.kind), row.expected, "seed {seed}: {name:?}");
@@ -11,9 +20,10 @@ fn store_names_mutated_by_a_byte_shape_as_the_table_says() {
         }
     });
 }
+
 #[test]
 fn mutated_argv_gives_the_startup_its_form_asks() {
-    inputs::each(|seed, rng| {
+    inputs::each(this_test!("mutated_argv_gives_the_startup_its_form_asks"), |seed, rng| {
         let input = inputs::invocation(rng);
         for row in inputs::MUTATIONS {
             let args = inputs::mutated(&input, row);
@@ -29,7 +39,7 @@ fn mutated_argv_gives_the_startup_its_form_asks() {
 
 #[test]
 fn drawn_invocations_encode_and_back() {
-    inputs::each(|seed, rng| {
+    inputs::each(this_test!("drawn_invocations_encode_and_back"), |seed, rng| {
         for (row, input) in inputs::invocations(rng).into_iter().enumerate() {
             assert_eq!(inputs::parse(&inputs::arguments(&input)), Ok(input), "seed {seed}, row {row}");
         }

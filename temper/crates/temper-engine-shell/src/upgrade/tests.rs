@@ -69,6 +69,57 @@ fn workers_arguments_are_distinct_and_modes_exclude_each_other() {
 }
 
 #[test]
+fn deployment_copy_commits_both_frame_layouts_with_its_header() {
+    use jig_domain_core::{CoreKey, Key};
+    use jig_protocol_store::{keys, registry_v1};
+    use skein_codec::Record as _;
+    use skein_kv::Op;
+    use skein_lib::Reader;
+    use temper_deployment_fixtures::log;
+
+    const KEY_LIMIT: u32 = 64;
+    // The kept core-6 row's commits field follows its layout, tag, ID, and eight counters.
+    const COMMITS_OFFSET: usize = 83;
+    const FRAME_REGISTRY_WRITES: usize = 3; // Two layouts and the header.
+
+    let (_scratch, directories) = deployment();
+    let state = crate::path(&directories.data).join("state");
+    let active = std::fs::read(state.join("active")).expect("active generation");
+    let bytes = std::fs::read(state.join(log::initial_path(&active))).expect("copied store log");
+    let (commits, used) = log::frames(&bytes, 0);
+    assert_eq!(used, bytes.len(), "the log ends on a complete commit");
+    let [previous, (number, ops)] = commits.last_chunk().expect("at least two commits");
+    let put = |key: &[u8], label| {
+        ops.iter()
+            .find_map(|op| {
+                if let Op::Put { key: written, value } = op
+                    && written.as_ref() == key
+                {
+                    Some(value.as_ref())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| panic!("missing {label} put in the final fixture commit"))
+    };
+
+    for (family, root, number, id) in [("jig-store-core", "TurnRecord", 9, 6), ("smith-transcript", "Turn", 0, 7)] {
+        let key = keys::encode_own(&keys::Own::Layout { family: family.into(), number, id }, KEY_LIMIT)
+            .expect("frame layout key");
+        let value = put(&key, root);
+        let layout =
+            registry_v1::Layout::decode(&registry_v1::CEILINGS, &mut Reader::new(value)).expect("frame layout row");
+        assert_eq!(layout.root.as_ref(), root.as_bytes());
+    }
+    let key = keys::encode(&Key::Core(CoreKey::Deployment), KEY_LIMIT).expect("deployment key");
+    let header = put(&key, "deployment header");
+    let commits = Reader::new(&header[COMMITS_OFFSET..]).u64();
+    assert_eq!(commits, Some(*number), "the header names the final commit");
+    assert_eq!(*number, previous.0 + 1, "the commit is next in sequence");
+    assert_eq!(ops.len(), FRAME_REGISTRY_WRITES);
+}
+
+#[test]
 fn agent_fixture_round_trip_keeps_the_engine_file_and_installs_figures() {
     use temper_config_shell::{FILE, FORMER, Shape, parse, render};
     let (_scratch, directories) = deployment();

@@ -2,6 +2,12 @@ use jig_accounts_world::{ANALYST, World};
 use jig_domain_accounts::{Event, Failure, FromComponent, Place, Request, ToComponent, Unread};
 use jig_domain_link::{Form, Scheme};
 use skein_lib::{Duration, Rng, length::len_u64};
+use skein_world::{
+    sweep::{Case, cases},
+    this_test,
+};
+use std::convert::Infallible;
+
 fn respond(world: &mut World, rng: &mut Rng, requests: Vec<Request>, trace: &mut Vec<Request>) {
     for request in &requests {
         let response = match *request {
@@ -84,10 +90,11 @@ fn run(seed: u64) -> Vec<Request> {
     trace
 }
 #[test]
-fn seeded_account_timers_and_faults_replay() {
-    for seed in 0..64 {
+fn seeded_account_timers_and_faults_replay() -> Result<(), Case<Infallible>> {
+    cases(this_test!("seeded_account_timers_and_faults_replay"), 0..64, |seed| {
         assert_eq!(run(seed), run(seed), "seed {seed}");
-    }
+        Ok(())
+    })
 }
 
 /// Every holder change, interleaved with component answers and source holds.
@@ -253,8 +260,9 @@ fn dense_and_bounded(world: &World) {
     assert!(world.domain.accounts() <= jig_accounts_world::LIMITS.accounts);
 }
 #[test]
-fn seeded_account_changes_replay() {
-    for seed in 0..64 {
+fn seeded_account_changes_replay() -> Result<(), Case<Infallible>> {
+    cases(this_test!("seeded_account_changes_replay"), 0..64, |seed| {
         assert_eq!(changes(seed), changes(seed), "seed {seed}");
-    }
+        Ok(())
+    })
 }

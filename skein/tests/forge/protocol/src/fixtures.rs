@@ -107,12 +107,15 @@ pub fn lost_creation(seed: u64) -> World {
 
 /// Bounded owner reads and durable writes through cuts, reconnect and restart.
 #[must_use]
-pub fn mixed_calls(seed: u64) -> World {
+pub fn mixed_calls(seed: u64, protect_startup: bool) -> World {
     use skein_forge::api::Read;
     use skein_forge_client::Event;
     use skein_lib::Time;
 
     let mut world = World::with(seed, 300, Shape::Hooked);
+    if protect_startup {
+        world.protect_forgejo_startup();
+    }
     world.startup();
     world.reconnect();
     let number = world.person_issue(b"mixed");

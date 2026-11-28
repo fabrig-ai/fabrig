@@ -199,7 +199,7 @@ fn task_text(task: u64, out: &mut Text) {
     out.put(b"task ");
     out.number(task);
 }
-fn object_text(wait: &c::Wait, me: Option<&Me>, vocabulary: &dyn Parts, out: &mut Text) {
+pub(super) fn object_text(wait: &c::Wait, me: Option<&Me>, vocabulary: &dyn Parts, out: &mut Text) {
     if let (c::WaitKind::Account, c::WaitObject::Run(run @ c::TaskRunWait::Account { .. }))
     | (c::WaitKind::Host, c::WaitObject::Run(run @ c::TaskRunWait::Host)) = (wait.kind, &wait.object)
     {

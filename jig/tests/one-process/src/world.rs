@@ -137,10 +137,34 @@ fn service(inherited: &Inherited) -> Proc {
 fn open_service(inherited: &Inherited) -> Proc {
     service_chat(inherited, fixtures::Chat::OpenText)
 }
+fn drawn_service(inherited: &Inherited) -> Proc {
+    service_chat(inherited, fixtures::Chat::Drawn)
+}
+fn park_service(inherited: &Inherited) -> Proc {
+    service_chat(inherited, fixtures::Chat::DelegateWait)
+}
+fn service_factory(chat: fixtures::Chat) -> fn(&Inherited) -> Proc {
+    match chat {
+        fixtures::Chat::Drawn => drawn_service,
+        fixtures::Chat::DelegateWait => park_service,
+        fixtures::Chat::OpenText => open_service,
+        fixtures::Chat::Finite | fixtures::Chat::FiniteText => service,
+    }
+}
 fn service_chat(inherited: &Inherited, chat: fixtures::Chat) -> Proc {
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"state").expect("store root").1;
     let worker = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
-    Proc::Service(Box::new(start_service(root, worker, Some(inherited.signal), &fixtures::document(chat), None)))
+    let agent = match chat {
+        fixtures::Chat::Drawn => fixtures::drawn::worker_agent(),
+        fixtures::Chat::DelegateWait => fixtures::park::worker_agent(),
+        fixtures::Chat::Finite | fixtures::Chat::OpenText | fixtures::Chat::FiniteText => channel::agent(),
+    };
+    let mut host =
+        start_service_with_agent(root, worker, Some(inherited.signal), &fixtures::document(chat), None, &agent);
+    if chat == fixtures::Chat::DelegateWait {
+        host.wire = crate::referee::agent::Wire::for_park();
+    }
+    Proc::Service(Box::new(host))
 }
 pub(super) fn start_service(
     root: skein_io::kernel::Fd,
@@ -149,12 +173,22 @@ pub(super) fn start_service(
     document: &[u8],
     accounts: Option<jig_test_service::AccountsRuntime>,
 ) -> ServiceHost {
+    start_service_with_agent(root, worker, signal, document, accounts, &channel::agent())
+}
+fn start_service_with_agent(
+    root: skein_io::kernel::Fd,
+    worker: skein_io::kernel::Fd,
+    signal: Option<skein_io::kernel::Fd>,
+    document: &[u8],
+    accounts: Option<jig_test_service::AccountsRuntime>,
+    agent: &jig_test_service::Agent,
+) -> ServiceHost {
     let mut roots = List::with_capacity(1);
     roots.push(worker).expect("worker root");
     let mut service = jig_test_service::startup_with_workers(
         document,
         &fixtures::files(),
-        Some(&channel::agent()),
+        Some(agent),
         &channel::seeds(),
         accounts,
         Some(jig_test_service::WorkerRuntime { roots }),
@@ -186,9 +220,15 @@ pub(super) fn start_service(
     }
 }
 pub(super) fn agent(_spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
+    agent_with(inherited, channel::agent_configuration())
+}
+fn drawn_agent(_spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
+    agent_with(inherited, fixtures::drawn::agent_configuration())
+}
+fn agent_with(inherited: &Inherited, configuration: smith_agent_service::Config) -> Proc {
     let stderr = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("agent stderr").1;
     let (errors, capture) = smith_agent_process_world::AgentErrors::pipe(stderr);
-    let host = smith_agent_process_world::configured(channel::agent_configuration(), fixtures::SEED, inherited, errors);
+    let host = smith_agent_process_world::configured(configuration, fixtures::SEED, inherited, errors);
     Proc::Agent { host: Box::new(capture.host(host)) }
 }
 pub(super) struct Machine(pub(super) skein_fake_machine::Machine);
@@ -221,7 +261,7 @@ impl skein_world::Machine for Machine {
 }
 #[must_use]
 pub fn run(settings: Settings, people: Box<[Script]>) -> Outcome {
-    run_phase(settings, people, machine(), Store::new(), crate::referee::conformance(), Scenario::Answer).0
+    run_phase(settings, people, machine(), Store::new(), crate::referee::conformance(settings.chat), Scenario::Answer).0
 }
 #[must_use]
 pub fn drain_mid_run(settings: Settings, restart: bool) -> Outcome {
@@ -230,7 +270,7 @@ pub fn drain_mid_run(settings: Settings, restart: bool) -> Outcome {
         Box::new([Script::start_chat(b"Hello")]),
         machine(),
         Store::new(),
-        crate::referee::conformance(),
+        crate::referee::conformance(settings.chat),
         Scenario::MidRun,
     );
     if restart {
@@ -248,7 +288,7 @@ pub fn crash(settings: Settings, cut: skein_world::Cut, before: u32) -> Outcome 
         Box::new([]),
         machine(),
         Store::new(),
-        crate::referee::conformance(),
+        crate::referee::conformance(settings.chat),
         Scenario::Fault { cut, before },
     )
     .0
@@ -261,7 +301,7 @@ pub fn accounts_mark_gate(settings: Settings) -> Outcome {
         fixtures::one_person_chat(b"Hello"),
         machine(),
         Store::new(),
-        crate::referee::conformance(),
+        crate::referee::conformance(settings.chat),
         Scenario::Answer,
     );
     run_phase(settings, Box::new([]), machine, store, reference, Scenario::MarkGate).0
@@ -275,7 +315,10 @@ fn client(inherited: &Inherited) -> Proc {
     Proc::Client(Box::new(SignalHost::new(client, Some(inherited.signal))))
 }
 fn peer(inherited: &Inherited) -> Proc {
-    Proc::Peer(Box::new(SignalHost::new(fixtures::provider(fixtures::Chat::Finite), Some(inherited.signal))))
+    Proc::Peer(Box::new(SignalHost::new(
+        fixtures::provider(fixtures::Chat::Finite, fixtures::SEED),
+        Some(inherited.signal),
+    )))
 }
 pub(super) fn machine() -> skein_fake_machine::Machine {
     let mut machine = skein_fake_machine::Machine::for_user(1000);
@@ -309,7 +352,7 @@ fn run_phase(
     .with_machine(Machine(machine));
     world.host(skein_world::HostedProgram {
         program: b"agent-program".as_slice().into(),
-        make: agent,
+        make: if settings.chat == fixtures::Chat::Drawn { drawn_agent } else { agent },
         instances: 1,
         operations: smith_agent_process_world::limits().routes.checked_add(2).expect("agent operations"),
     });
@@ -318,7 +361,7 @@ fn run_phase(
             skein_world::StartupRoot { name: b"state".as_slice().into(), path: b"state".as_slice().into() },
             skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b"agent-root".as_slice().into() },
         ],
-        if settings.chat == fixtures::Chat::OpenText { open_service } else { service },
+        service_factory(settings.chat),
     );
     if let Scenario::Fault { cut, before } = scenario {
         world.spawn_restartable(
@@ -335,7 +378,7 @@ fn run_phase(
                 Proc::Client(Box::new(SignalHost::new(client, None)))
             });
         }
-        world.spawn(|| Proc::Peer(Box::new(SignalHost::new(fixtures::provider(settings.chat), None))));
+        world.spawn(|| Proc::Peer(Box::new(SignalHost::new(fixtures::provider(settings.chat, settings.seed), None))));
     }
     let mut outcome = world.run();
     let chats_made = outcome

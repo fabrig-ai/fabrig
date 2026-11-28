@@ -12,13 +12,14 @@ test = false
 doctest = false
 
 [dependencies]
-smith-domain-tools-fixtures.workspace = true
+smith-inspect.workspace = true
 smith-domain-session-fixtures.workspace = true
 skein-llm-kit.workspace = true
 skein-llm.workspace = true
 skein-lib.workspace = true
 smith-domain-session.workspace = true
 smith-domain-tools.workspace = true
+smith-shapes.workspace = true
 skein-json.workspace = true
 smith-tools-world.workspace = true
 skein-fake-checkout.workspace = true
@@ -26,6 +27,9 @@ skein-fake-llm-domain.workspace = true
 skein-world.workspace = true
 smith-domain.workspace = true
 smith-protocol-llm.workspace = true
+
+[dev-dependencies]
+smith-domain-tools-fixtures.workspace = true
 smith-protocol-llm-fixtures.workspace = true
 
 # Ordinary Rust (programming-model.md, section 10.2), so not the step crates' lints.

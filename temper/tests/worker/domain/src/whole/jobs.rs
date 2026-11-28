@@ -38,6 +38,12 @@ pub struct Report {
     pub trace: Vec<String>,
 }
 
+pub(super) struct Written {
+    pub(super) owner: Token,
+    path: Box<[u8]>,
+    directory: Vec<u8>,
+}
+
 pub(super) struct World {
     seed: u64,
     iteration: u64,
@@ -53,6 +59,8 @@ pub(super) struct World {
     pub(super) operations: VecDeque<(Token, tooling::Request)>,
     pub(super) disk: Checkout,
     pub(super) forge: Forge,
+    pub(super) message_reads: Vec<git::Commit>,
+    pub(super) cut_message: bool,
     pub(super) workspace: Option<Token>,
     held_push: Option<(Token, git::Op)>,
     pub(super) report: Report,
@@ -95,6 +103,8 @@ impl World {
             operations: VecDeque::new(),
             disk: Checkout::new(),
             forge,
+            message_reads: Vec::new(),
+            cut_message: false,
             workspace: None,
             held_push: None,
             stops: 0,
@@ -168,6 +178,10 @@ impl World {
                         assert!(self.held_push.replace((owner, op)).is_none());
                         return;
                     }
+                    git::Op::Message { at, commit } => {
+                        assert_eq!(at.repository, self.repository);
+                        self.message_reads.push(*commit);
+                    }
                     git::Op::Keep { .. } | git::Op::Store { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Reds { .. }
@@ -185,6 +199,10 @@ impl World {
                     | git::Op::Merge { .. } => {}
                 }
                 let done = translate::perform(&mut self.forge, &mut self.disk, op);
+                let done = match done {
+                    git::Done::Message { .. } if self.cut_message => git::Done::Message { message: None },
+                    done => done,
+                };
                 self.owed.push_back(Event::Done { owner, done });
             }
             Request::Job { owner, op } => self.operations.push_back((owner, op)),
@@ -250,6 +268,8 @@ impl World {
                 command: b"home/tools/check".as_slice().into(),
                 request: b"request".as_slice().into(),
                 refusal: false,
+                result: 512,
+                outdated: false,
             })
         } else {
             Err(wire::Undecodable)
@@ -270,7 +290,7 @@ impl World {
         Ok(())
     }
 
-    pub(super) fn start(&mut self, command: &[u8]) -> Result<Token, String> {
+    pub(super) fn written(&mut self) -> Result<Written, String> {
         let (owner, op) = self.operations.pop_front().expect("write request");
         let tooling::Request::Write { owner: inner, path, bytes } = op else { panic!("write before spawn") };
         assert_eq!(owner, inner);
@@ -280,6 +300,11 @@ impl World {
         assert_eq!(bytes, self.request);
         self.disk.write(&[translate::dir(workspace).as_slice(), b"/request.json"].concat(), &bytes);
         self.event(Event::Job { owner, event: tooling::Event::Written { owner, written: true } })?;
+        Ok(Written { owner, path, directory })
+    }
+
+    pub(super) fn spawning(&mut self, command: &[u8]) -> Result<Token, String> {
+        let Written { owner, path, directory } = self.written()?;
         let (spawn_owner, op) = self.operations.pop_front().expect("spawn after write");
         assert_eq!(spawn_owner, owner);
         let tooling::Request::Spawn { owner: inner, program, args, env, dir, deadline } = op else { panic!("spawn") };
@@ -297,6 +322,12 @@ impl World {
             ]
         );
         assert_eq!(deadline, self.env.now.saturating_add(Duration::from_secs(5)));
+        Ok(owner)
+    }
+
+    pub(super) fn start(&mut self, command: &[u8]) -> Result<Token, String> {
+        let owner = self.spawning(command)?;
+        let workspace = self.workspace.expect("checkout prepared");
         assert!(self.disk.exists(&[translate::dir(workspace).as_slice(), b"/", command].concat()));
         self.event(Event::Job { owner, event: tooling::Event::Spawned { owner } })?;
         Ok(owner)

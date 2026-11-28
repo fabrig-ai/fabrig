@@ -201,7 +201,7 @@ fn root(input: &Input) -> Domain {
     );
     chat_event(
         &mut root,
-        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
     );
     let mut out = Queue::uncapped();
     let mut me = f::me(&[b"Hello"]);

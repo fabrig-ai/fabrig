@@ -14,8 +14,9 @@ use crate::{CallInfo, Done, JobAct, JobEnd, JobNumber, JobProblem, Limits, Outco
 use alloc::boxed::Box;
 use skein_lib::{Env, Id, Map, Queue, ReplyTo, Set, Time, Token};
 
+/// A kit’s reserved and numbered job cells.
 #[derive(Debug)]
-pub(crate) struct Jobs {
+pub struct Jobs {
     reserved: Set<Id<Flight>>,
     held: Map<u32, Job>,
     reads: Map<u64, JobRead>,
@@ -24,8 +25,9 @@ pub(crate) struct Jobs {
     cancelling: bool,
 }
 
+/// A job kept until its terminal is read or its session closes.
 #[derive(Debug)]
-pub(crate) struct Job {
+pub struct Job {
     owner: Id<Flight>,
     reader: Option<u64>,
     call: Token,
@@ -55,6 +57,18 @@ pub(crate) struct JobRead {
 }
 
 impl Jobs {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_reserved(&self) -> &Set<Id<Flight>> {
+        &self.reserved
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_held(&self) -> &Map<u32, Job> {
+        &self.held
+    }
+
     pub(crate) fn new(limits: &Limits, highest: u32) -> Self {
         Self {
             reserved: Set::with_capacity(limits.jobs),
@@ -177,6 +191,21 @@ impl Jobs {
 }
 
 impl Job {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_ended(&self) -> bool {
+        match self.state {
+            State::Running | State::Cancelling => false,
+            State::Ended { .. } => true,
+        }
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_owner(&self) -> Id<Flight> {
+        self.owner
+    }
+
     fn assert_owner(&self, number: JobNumber, owner: Id<Flight>) {
         assert_eq!(self.owner, owner, "the job's cell belongs to its original command: {number:?}");
     }

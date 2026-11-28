@@ -81,9 +81,9 @@
   (`requests.md`). `me` ends only with the sign-in, or when jig's version
   is not served (below). Its watch refused or ended on the engine ends
   the stream, which the client takes as dropped and opens again after a
-  backoff, the link offline until the next hello. A hello alone whose
-  ranges serve jig's version is a record out of its order: it drops the
-  stream, to open again after its backoff.
+  backoff, the link offline until the next hello. A hello alone is a
+  record out of its order: it drops the stream, to open again after its
+  backoff.
 - **Its states,** told by `Link(state)` and read with `client.link()`:
   - *signed out:* no sign-in is live (`sign-in.md`, section 1);
   - *starting:* signed in, and no hello has come on the stream;
@@ -96,8 +96,8 @@
     jittered.
     The next hello, with `me`, brings the link back, and with it the
     confirmed party's parked requests;
-  - *out of date:* the engine serves no version of jig's that the client
-    speaks, or another layout of jig's wire than the client's
+  - *out of date:* the engine's `Opened` names another layout of jig's
+    wire than the client's, or none
     (below); or it sent a record of jig's this build can't read
     (`unreadable`, below). It sends nothing, and keeps every request.
 
@@ -134,7 +134,7 @@
   nothing again: no stream, no watch, `me`'s included, and no request
   sent, each kept. It holds for the client's life, since no later hello
   comes to lift it; a reload or a restart is a new client. A link out of
-  date by the hello's ranges or layouts has it false. So an application can say which it is: a client of another
+  date by the hello's layouts has it false. So an application can say which it is: a client of another
   version or layout, refused by name, or one that can't read what it was sent.
   Each tells its person to reload or update; neither leaves the person
   offline with no word.
@@ -143,9 +143,10 @@
   a backoff, and does not by itself make the client offline.
 - **Behind is per handle** (1): a presentation that says when what it
   shows may be old reads it from its handles.
-- **Versions and layouts, per owner.** The stream's hello states the ranges the
-  engine serves, jig's and each application owner's, and its `Opened`
-  the layout of each (`../../../protocol/client/versions.md`, section 1). The client speaks the one
+- **Versions and layouts, per owner.** The stream's `Opened` states the
+  layout of each owner the engine serves, jig's and each application
+  owner's; the hello's ranges keep their bytes and no client reads them
+  (`../../../protocol/client/versions.md`, section 1). The client speaks the one
   version and layout of each owner its build holds: jig's, its wire's own; and each
   family owner's, which the application declares as it makes the
   client, with its limits (`README.md`, section 11): each owner whose families it
@@ -154,22 +155,21 @@
   its declared version; any other is the application's mistake, and
   loud, as a key conflict is (`requests.md`).
   - *Judged at each hello, whole.* A declared owner is not served when
-    the hello names no range of it, or one that leaves out its version,
-    or its `Opened` names another layout of it, or none. jig's layout
+    its `Opened` names another layout of it, or none, as a hello alone
+    names none. jig's layout
     judged so makes the link out of date. The judgement holds until the
     next hello, so `client.link()` names
     an owner not served from the hello on, before the application has
     asked anything of it. The client keeps, for each declared owner, its
-    judgement and the range the hello named of it; of an owner it does
-    not declare, nothing.
+    judgement; of an owner it does not declare, nothing.
   - *A read waits for the judgement:* none leaves, alone or in a batch,
     until a hello since the stream last opened has judged its owner
     served, as a watch's opening waits for the stream's name; so a read
     asked while the link is starting or offline leaves with the next
     hello, or is answered as its owner was judged.
-  - *An answer version not served,* naming the owner and the ranges
-    served, says the same of one message.
-  - *Outside a range of a family's owner,* that owner's requests stay
+  - *An answer version not served,* naming the owner, says the same of
+    one message.
+  - *Not served, a family's owner's* requests stay
     kept and unsent, held for its version (`requests.md`); its reads are
     answered at once, unsent (`README.md`, section 6); its watches end, none opened
     again at that hello; each as version not served. Outside jig's, the

@@ -472,12 +472,6 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
     the owner, and once a browser has signed in by it the web's Home, as
     `/open` opens it; with no opener, the link in a note to copy
     (`../box.md`, *`/web`, temper in the browser*).
-  - *`/chats N`,* sent on the launchpad, opens the Nth chat of Where you
-    left off (`launchpad.md`, 4), 1 the newest, whatever its project, as
-    Enter on its row does; no row draws its number (the user's word of
-    2026-11-27); a number with no chat there gives the notice an unknown
-    command gives. `/chats` alone opens the root's list, the project's
-    chats, newest first.
   - *`/talk`* (`../../../draft/surfaces.md`, 11.3), pressed or sent alone,
     opens its list (*A command's list*); sent with words, `/talk WORDS`
     opens the talk with the first of the project's live standing roles,
@@ -541,6 +535,17 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   the notice says "Unknown command /WORDS · /help lists them" (section 1, *The
   notice*), in the TUI's own words, never a note in the conversation.
   So `/font`, which the root knows, is unknown here.
+- **Words after a command that takes none:** the commands that take
+  words are the TUI's own `/draft`, `/change`, `/ask`, `/talk` and
+  `/tell` (*The TUI's own commands*); any other command's name followed
+  by a space and more, `/new WORDS`, `/theme WORDS` or `/chats WORDS`,
+  presses nothing and begins no command: Enter sends the words as the
+  box's other words (section 1, *Enter*). So no command takes a row's
+  number (the user's word of 2026-11-27): Where you left off's rows draw
+  none, and a chat's place among them moves as rows come and go; Up
+  from the box reaches the rows and Enter opens one (`launchpad.md`, 4
+  and 7, *The list*), and `/chats` alone opens the root's list, the
+  project's chats, newest first (*A command's list*).
 - **A command's list,** under the box in the quiet line's place, an
   options menu after it, its head a line of its own at the row's start
   (`tui-list-head`), its choices its items, the current one active;

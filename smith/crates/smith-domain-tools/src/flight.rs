@@ -81,8 +81,9 @@ use crate::limits::Limits;
 use crate::path::Place;
 use crate::window::{self, Span};
 
+/// A kit’s tool operation or a held job’s IO owner.
 #[derive(Debug)]
-pub(crate) struct Flight {
+pub struct Flight {
     /// The kit whose call it runs.
     kit: Id<Kit>,
     /// The tool the call is for, to tell of it.
@@ -91,6 +92,59 @@ pub(crate) struct Flight {
     started: Time,
     interrupted: Option<skein_lib::Duration>,
     state: State,
+}
+
+impl Flight {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_kit(&self) -> Id<Kit> {
+        self.kit
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_terminal(&self) -> bool {
+        match self.state {
+            State::Done => true,
+            State::Reading { .. }
+            | State::Listing { .. }
+            | State::Searching { .. }
+            | State::Editing { .. }
+            | State::Storing { .. }
+            | State::Running { .. }
+            | State::Held { .. } => false,
+        }
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_yielding(&self) -> bool {
+        match self.state {
+            State::Running { after, .. } => after.is_some(),
+            State::Reading { .. }
+            | State::Listing { .. }
+            | State::Searching { .. }
+            | State::Editing { .. }
+            | State::Storing { .. }
+            | State::Held { .. }
+            | State::Done => false,
+        }
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_job(&self) -> Option<crate::JobNumber> {
+        match self.state {
+            State::Held { job, .. } => Some(job),
+            State::Reading { .. }
+            | State::Listing { .. }
+            | State::Searching { .. }
+            | State::Editing { .. }
+            | State::Storing { .. }
+            | State::Running { .. }
+            | State::Done => None,
+        }
+    }
 }
 
 /// The session whose live flight issued the IO token, without exposing flight state.

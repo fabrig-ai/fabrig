@@ -4,6 +4,7 @@
 use alloc::collections::BTreeSet;
 use alloc::string::String;
 use alloc::vec::Vec;
+use core::fmt;
 use skein_lib::Time;
 
 /// When an invariant ran: the run's seed, the world's time, and its iteration.
@@ -19,8 +20,9 @@ pub struct Moment {
 pub struct Inspection {
     component: &'static str,
     kinds: &'static [&'static str],
-    waits: Vec<Wait>,
-    tables: Vec<Table>,
+    waits: Records<Wait>,
+    tables: Records<Table>,
+    relateds: Vec<Related>,
     violation: Option<(String, String)>,
 }
 
@@ -28,7 +30,14 @@ impl Inspection {
     /// `kinds`: the waits its design documents, each in the design's words.
     #[must_use]
     pub fn new(component: &'static str, kinds: &'static [&'static str]) -> Inspection {
-        Inspection { component, kinds, waits: Vec::new(), tables: Vec::new(), violation: None }
+        Inspection {
+            component,
+            kinds,
+            waits: Records::new(),
+            tables: Records::new(),
+            relateds: Vec::new(),
+            violation: None,
+        }
     }
 
     #[must_use]
@@ -36,32 +45,66 @@ impl Inspection {
         self.component
     }
 
+    /// Start a fresh observation of the same component, keeping buffers for its adapter.
+    pub fn reset(&mut self) {
+        self.waits.used = 0;
+        self.tables.used = 0;
+        self.relateds.clear();
+        self.violation = None;
+    }
+
     pub fn wait(&mut self, wait: Wait) {
         self.waits.push(wait);
+    }
+
+    /// Append a wait, letting `fill` reuse its strings and wakes from the last snapshot.
+    /// `fill` overwrites the whole record, including any wakes that no longer apply.
+    pub fn fill_wait<F: FnOnce(&mut Wait)>(&mut self, fill: F) {
+        fill(self.waits.next(|| Wait { waiter: String::new(), kind: String::new(), wakes: Vec::new(), bound: None }));
     }
 
     pub fn table(&mut self, table: Table) {
         self.tables.push(table);
     }
 
+    /// Append a table; overwrite its entries with `fill`, reusing their buffers.
+    pub fn fill_table<F: FnOnce(&mut Entries<'_>)>(&mut self, name: &'static str, capacity: u64, fill: F) {
+        let table = self.tables.next(|| Table { name, capacity, entries: Vec::new(), refused: Vec::new() });
+        table.name = name;
+        table.capacity = capacity;
+        table.refused.clear();
+        let mut entries = Entries { entries: &mut table.entries, used: 0 };
+        fill(&mut entries);
+        entries.entries.truncate(entries.used);
+    }
+
+    pub fn related(&mut self, related: Related) {
+        self.relateds.push(related);
+    }
+
     #[must_use]
     pub fn waits(&self) -> &[Wait] {
-        &self.waits
+        self.waits.active()
     }
 
     #[must_use]
     pub fn tables(&self) -> &[Table] {
-        &self.tables
+        self.tables.active()
+    }
+
+    #[must_use]
+    pub fn relateds(&self) -> &[Related] {
+        &self.relateds
     }
 
     /// Let a harness attach its own wakes to the adapter's observations.
     pub fn waits_mut(&mut self) -> &mut [Wait] {
-        &mut self.waits
+        self.waits.active_mut()
     }
 
     /// Let a harness mark its fixture's entries without copying the table.
     pub fn tables_mut(&mut self) -> &mut [Table] {
-        &mut self.tables
+        self.tables.active_mut()
     }
 
     /// Record the first violation of a component's own invariant, not a wait or table rule.
@@ -89,6 +132,83 @@ impl Inspection {
             moment.iteration,
             self.component,
         )
+    }
+}
+
+/// Only the prefix filled for this observation is visible. Rows outside it
+/// retain allocations, never evidence of this snapshot.
+#[derive(Clone)]
+struct Records<T> {
+    rows: Vec<T>,
+    used: usize,
+}
+
+impl<T> Records<T> {
+    const fn new() -> Self {
+        Self { rows: Vec::new(), used: 0 }
+    }
+
+    fn active(&self) -> &[T] {
+        self.rows.get(..self.used).expect("active records are an initialized prefix")
+    }
+
+    fn active_mut(&mut self) -> &mut [T] {
+        self.rows.get_mut(..self.used).expect("active records are an initialized prefix")
+    }
+
+    fn push(&mut self, record: T) {
+        if let Some(row) = self.rows.get_mut(self.used) {
+            *row = record;
+        } else {
+            self.rows.push(record);
+        }
+        self.used = self.used.saturating_add(1);
+    }
+
+    fn next<F: FnOnce() -> T>(&mut self, vacant: F) -> &mut T {
+        let index = self.used;
+        if index == self.rows.len() {
+            self.rows.push(vacant());
+        }
+        self.used = index.saturating_add(1);
+        self.rows.get_mut(index).expect("the next active record is initialized")
+    }
+}
+
+impl<T: PartialEq> PartialEq for Records<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.active() == other.active()
+    }
+}
+
+impl<T: Eq> Eq for Records<T> {}
+
+impl<T: fmt::Debug> fmt::Debug for Records<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.active().fmt(f)
+    }
+}
+
+/// Rows of one table being filled, without exposing the previous snapshot.
+#[derive(Debug)]
+pub struct Entries<'a> {
+    entries: &'a mut Vec<Entry>,
+    used: usize,
+}
+
+impl Entries<'_> {
+    /// Append an entry, letting `key` write into its cleared identity buffer.
+    pub fn entry<F: FnOnce(&mut String)>(&mut self, rule: &'static str, release: Release, key: F) {
+        let index = self.used;
+        if index == self.entries.len() {
+            self.entries.push(Entry { key: String::new(), rule, release: Release::Pending });
+        }
+        let entry = self.entries.get_mut(index).expect("the next active entry is initialized");
+        entry.key.clear();
+        key(&mut entry.key);
+        entry.rule = rule;
+        entry.release = release;
+        self.used = index.saturating_add(1);
     }
 }
 
@@ -153,6 +273,38 @@ pub struct Refused {
     pub since: Time,
     /// The bound its design gives its admission, where it has one.
     pub bound: Option<Time>,
+}
+
+/// One record of a relation across components, as its component holds it.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Related {
+    pub relation: &'static str,
+    /// The key in the words every inspection of the world gives it.
+    pub key: String,
+    pub holds: &'static str,
+}
+
+/// A relation across components, stated by the kit that may name every side.
+#[derive(Debug)]
+pub struct Relation {
+    pub name: &'static str,
+    /// Every side a record of the relation may be, including skews.
+    pub sides: &'static [Side],
+    pub rules: &'static [Rule],
+}
+
+/// A side: the component, as its inspection names itself, and what it holds.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Side {
+    pub component: &'static str,
+    pub holds: &'static str,
+}
+
+/// Each record of `each` is matched by a record of one of `by` under the same key.
+#[derive(Debug)]
+pub struct Rule {
+    pub each: Side,
+    pub by: &'static [Side],
 }
 
 /// Every wait has a declared kind, a live wake and an unexpired bound (section 4.1).
@@ -274,4 +426,55 @@ pub fn check_tables(inspections: &[&Inspection], moment: Moment) -> Result<(), S
         }
     }
     Ok(())
+}
+
+/// Every related record is matched, or is a skew its relation names (section 4.3).
+pub fn check_relations(inspections: &[&Inspection], relations: &[&Relation], moment: Moment) -> Result<(), String> {
+    let records = || {
+        inspections.iter().flat_map(|&inspection| inspection.relateds().iter().map(move |record| (inspection, record)))
+    };
+    let held: BTreeSet<_> = records()
+        .map(|(inspection, record)| (record.relation, record.key.as_str(), inspection.component(), record.holds))
+        .collect();
+    for relation in relations {
+        for (inspection, record) in records().filter(|(_, record)| record.relation == relation.name) {
+            let side = Side { component: inspection.component(), holds: record.holds };
+            if !relation.sides.contains(&side) {
+                return Err(related_finding(
+                    inspection,
+                    moment,
+                    record,
+                    &format!("undeclared side: holds {}", record.holds),
+                ));
+            }
+            for rule in relation.rules.iter().filter(|rule| rule.each == side) {
+                if !rule
+                    .by
+                    .iter()
+                    .any(|by| held.contains(&(relation.name, record.key.as_str(), by.component, by.holds)))
+                {
+                    let missing: Vec<_> = rule.by.iter().map(describe_side).collect();
+                    let what = format!("holds {}, matched by none of {}", record.holds, missing.join(", "));
+                    return Err(related_finding(inspection, moment, record, &what));
+                }
+            }
+        }
+    }
+    // Undeclared relations have no place in the relations' order.
+    for (inspection, record) in records() {
+        if !relations.iter().any(|relation| relation.name == record.relation) {
+            let what = format!("holds {} for an undeclared relation", record.holds);
+            return Err(related_finding(inspection, moment, record, &what));
+        }
+    }
+    Ok(())
+}
+
+fn related_finding(inspection: &Inspection, moment: Moment, record: &Related, what: &str) -> String {
+    inspection.finding(moment, &format!("{} {}", record.relation, record.key), what)
+}
+
+fn describe_side(side: &Side) -> String {
+    let suffix = if side.component.ends_with('s') { "'" } else { "'s" };
+    format!("{}{suffix} {}", side.component, side.holds)
 }

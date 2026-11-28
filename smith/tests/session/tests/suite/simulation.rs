@@ -77,6 +77,20 @@ fn a_session_runs_its_tool_rounds_and_yields_with_the_providers_answer() {
 }
 
 #[test]
+fn an_opener_does_not_nudge_a_session_whose_kit_is_closing() {
+    const CLOSING_KIT_SEED: u64 = 65_939;
+    let settings = noisy(CLOSING_KIT_SEED);
+    let mut world = World::new(settings);
+    submit_noisily(&mut world, &settings, CLOSING_KIT_SEED);
+    world.run(ITERATIONS);
+    assert!(
+        world
+            .sessions()
+            .any(|(opener, session)| !session.yields.is_empty() && end(&world, opener) == out_of(Dimension::Time))
+    );
+}
+
+#[test]
 fn a_nudged_session_goes_on_until_its_opener_closes_it() {
     // Each of the three messages gets two successful tool rounds.
     const NUDGED_ROUNDS_SEED: u64 = 7;

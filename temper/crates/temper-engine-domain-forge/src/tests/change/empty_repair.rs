@@ -235,6 +235,8 @@ fn decision(d: &Domain, requests: &[Request]) -> Option<change::Decision> {
     for request in requests {
         if let Request::ChangeDecision { decision, .. } = request {
             decided = Some(*decision);
+        } else if let Request::ReplayJudgement { replay, .. } = request {
+            decided = Some(change::Decision::ReplayJudgement(*replay));
         }
         if let Request::Save { record: Stored::ChangeHot(row), .. } = request
             && row.task == fixtures::CHANGE
@@ -364,6 +366,7 @@ fn a_restarted_recheck_waits_for_its_later_ended_attempt_then_holds_and_releases
         }
     );
     assert_eq!(row.change.repairs, 1);
+    let original = row.producer_failure.clone();
     assert_eq!(row.producer_failure.as_deref(), Some(b"its red at 030303030303 stands: repair task 52 changed nothing, and the same content failed again: ci/test, ci/lint; amend this change to ask a fresh repair, measure it again, or cancel it".as_slice()));
 
     let mut released = restored(&d);
@@ -373,16 +376,17 @@ fn a_restarted_recheck_waits_for_its_later_ended_attempt_then_holds_and_releases
     assert!(outputs(&mut released, Event::ReleaseChange { task: fixtures::CHANGE, release: Some(release) }).is_empty());
     assert_eq!(
         read_ci(&mut released, fixtures::HEAD, Ci::Failed, &checks, &ended),
-        change::Decision::Hold(change::Cause::RedStands)
+        change::Decision::ReplayJudgement(change::Replay::RedStands { head: fixtures::HEAD })
     );
     let row = released.change(fixtures::CHANGE).unwrap();
     assert_eq!(row.change.repairs, 1);
     assert!(row.pending.is_none());
     assert_eq!(row.ci_recheck, Some(CiRecheck { job: ATTEMPT, taken: Some(2), semantic: false }));
     let change::State::Held { hold, .. } = &row.change.state else { panic!("red stands again") };
-    assert!(
-        hold.words.starts_with(b"not measured again: its red at 030303030303 stands at the same content and spec; ")
-    );
+    assert_eq!(hold.cause, change::Cause::RedStands);
+    assert_eq!(hold.judged, Some(change::Judged { head: fixtures::HEAD, spec: row.spec_revision }));
+    assert!(hold.words.is_empty());
+    assert_eq!(row.producer_failure, original);
 
     let passed = [ci_check(b"ci/test", Check::Passed, Some(later))];
     let mut green = ended;
@@ -489,6 +493,7 @@ fn a_green_measurement_goes_on_and_ending_or_moving_clears_the_record() {
             task: fixtures::CHANGE,
             child: REPAIR + 1,
             kind: change::Delegate::Repair(change::Repair::Ci),
+            close_at: None,
         },
     );
     assert!(repaired.change(fixtures::CHANGE).unwrap().ci_recheck.is_none());

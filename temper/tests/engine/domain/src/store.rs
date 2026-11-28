@@ -1,5 +1,6 @@
 //! Temper's worlds over jig's real store and the service's store routing.
-use jig_domain_core::engine::store as engine_store;
+use jig_domain_core::{self as jig, engine::store as engine_store};
+use jig_domain_tasks as tasks;
 use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{self as protocol, Below, Event, Io, Limits, Request, Stores};
 use jig_test_store_files::Files;
@@ -68,12 +69,20 @@ pub(crate) struct Image {
 impl Image {
     pub(crate) fn open(self) -> Store {
         let mut store = Store::empty(self.shape, self.models);
-        store.inflight = None;
+        store.mirror = Mirror::Off;
         store.catalogue = self.catalogue;
         store.reopen(self.stores);
         store.page_delay = self.page_delay;
         store
     }
+}
+
+// Only the live world's typed readback needs its writes after translation.
+// The memory component settles one synchronous commit at a time.
+enum Mirror {
+    Off,
+    Idle,
+    Pending { number: u64, writes: Box<[Write]> },
 }
 
 /// Numbered root transactions and, in a live world, their durable typed mirror.
@@ -94,8 +103,7 @@ pub struct Store {
     shape: Shape,
     models: Box<[engine::Model]>,
     catalogue: Option<Box<[jig_domain_core::settings::ModelName]>>,
-    // Only the live world's typed readback needs a copy of its writes.
-    inflight: Option<BTreeMap<u64, Box<[Write]>>>,
+    mirror: Mirror,
     // The forge world submits these during a root pass and drives them on a later tick.
     engine_loads: VecDeque<engine_store::Out>,
     // A drive drains these in order; the next drive reuses their buffers.
@@ -166,7 +174,31 @@ impl jig_conformance::Durable for Store {
         !self.held.is_empty()
     }
 }
+/// Visit only the mirror's named task rows, in their stored order.
+fn live_task_rows(rows: &BTreeMap<Key, Record>) -> impl Iterator<Item = &tasks::TaskRecord> {
+    let key = |task| Key::Core(jig::Key::Tasks(tasks::Key::Live(task)));
+    rows.range(key(0)..=key(u64::MAX)).filter_map(|(_, row)| match row {
+        Record::Core(jig::Record::Tasks(tasks::Stored::Live(row))) => Some(row.as_ref()),
+        _ => None,
+    })
+}
+
+pub(crate) fn task_rows(rows: &BTreeMap<Key, Record>) -> impl Iterator<Item = &tasks::TaskRecord> {
+    let ended = |task| Key::Core(jig::Key::Tasks(tasks::Key::Ended(task)));
+    live_task_rows(rows).chain(rows.range(ended(0)..=ended(u64::MAX)).filter_map(|(_, row)| match row {
+        Record::Core(jig::Record::Tasks(tasks::Stored::Ended(row))) => Some(row.as_ref()),
+        _ => None,
+    }))
+}
+
 impl Store {
+    pub(crate) fn has_due_change(&self) -> bool {
+        live_task_rows(&self.rows).any(|row| {
+            matches!(row.executor, tasks::Executor::Procedure { code: 2, .. })
+                && row.phase == tasks::Phase::Active(tasks::Active::Due)
+        })
+    }
+
     /// Read a durable change as the whole record the domain keeps in memory.
     #[must_use]
     pub fn change(&self, task: u64) -> Option<temper_engine_domain_forge::ChangeRow> {
@@ -245,7 +277,7 @@ impl Store {
             shape,
             models,
             catalogue: None,
-            inflight: Some(BTreeMap::new()),
+            mirror: Mirror::Idle,
             engine_loads: VecDeque::new(),
             requests: VecDeque::new(),
             above: Queue::uncapped(),
@@ -285,7 +317,9 @@ impl Store {
         let previous = self.pending.back().map_or(self.applied, |pending| pending.0);
         assert_eq!(number, previous.checked_add(1).expect("bounded commit"));
         self.pending.push_back((number, writes));
-        self.delays.insert(number, delay);
+        if delay != 0 {
+            self.delays.insert(number, delay);
+        }
     }
     pub fn apply(&mut self) -> u64 {
         let number = self.pending.front().expect("queued transaction").0;
@@ -303,14 +337,14 @@ impl Store {
         let Some((number, _)) = self.pending.front() else {
             return Ok(None);
         };
-        if let Some(delay) = self.delays.get_mut(number)
-            && *delay != 0
-        {
+        if let Some(delay) = self.delays.get_mut(number) {
             *delay -= 1;
+            if *delay == 0 {
+                self.delays.remove(number);
+            }
             return Ok(None);
         }
         let (number, writes) = self.pending.pop_front().expect("checked front");
-        self.delays.remove(&number);
         if self.fail_at == Some(number) {
             self.failed = true;
             self.pending.clear();
@@ -318,8 +352,9 @@ impl Store {
         }
         self.holding = hold || self.hold_next != 0 || !self.held.is_empty();
         self.hold_next = self.hold_next.saturating_sub(1);
-        if let Some(inflight) = &mut self.inflight {
-            inflight.insert(number, writes.clone());
+        if !matches!(self.mirror, Mirror::Off) {
+            assert!(matches!(self.mirror, Mirror::Idle), "only one synchronous commit in flight");
+            self.mirror = Mirror::Pending { number, writes: writes.clone() };
         }
         self.request(engine::StoreRequest::Commit { number, writes });
         if self.failed {
@@ -338,8 +373,8 @@ impl Store {
         self.pending.clear();
         self.delays.clear();
         self.held.clear();
-        if let Some(inflight) = &mut self.inflight {
-            inflight.clear();
+        if matches!(self.mirror, Mirror::Pending { .. }) {
+            self.mirror = Mirror::Idle;
         }
         self.replies.clear();
         self.missing.clear();
@@ -718,22 +753,20 @@ impl Store {
             // This world does not consume the census (jig/docs/design/protocol/store/growth.md, 1.3).
             Event::Census { .. } => {}
             Event::Committed { number, .. } => {
-                let writes = self.inflight.as_mut().map(|inflight| inflight.remove(&number).expect("root commit"));
-                for write in writes.unwrap_or_default() {
+                let writes = match std::mem::replace(&mut self.mirror, Mirror::Idle) {
+                    Mirror::Pending { number: expected, writes } => {
+                        assert_eq!(number, expected);
+                        writes
+                    }
+                    Mirror::Off => {
+                        self.mirror = Mirror::Off;
+                        Box::new([])
+                    }
+                    Mirror::Idle => panic!("root commit has no pending mirror"),
+                };
+                for write in writes {
                     match write {
-                        Write::DropTranscript { task } => {
-                            self.rows.retain(|key, _| {
-                                if let Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
-                                    task: owner,
-                                    ..
-                                })) = key
-                                {
-                                    *owner != task
-                                } else {
-                                    true
-                                }
-                            });
-                        }
+                        Write::DropTranscript { task } => self.drop_transcript(task),
                         Write::DropHistory { .. } | Write::Opening(_) | Write::Wires => {}
                         Write::CopySettingsRevision(number) => {
                             let held = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Settings(
@@ -813,6 +846,13 @@ impl Store {
             | Event::SecretsLoaded { .. }) => self.route(event),
         }
     }
+    fn drop_transcript(&mut self, task: u64) {
+        let bound = |attempt, turn| {
+            Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn { task, attempt, turn }))
+        };
+        self.rows.extract_if(bound(0, 0)..=bound(u64::MAX, u32::MAX), |_, _| true).for_each(drop);
+    }
+
     fn route(&mut self, event: Event) {
         route::up(&mut self.routes, event, &mut self.outputs);
         while let Some(output) = self.outputs.pop() {

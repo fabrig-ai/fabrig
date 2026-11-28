@@ -27,13 +27,9 @@ impl Component {
         for _ in 0_u8..8_u8 {
             let Some(event) = self.events.pop() else { break };
             match event {
-                Event::Opening { credential, lowest: _, highest } => {
+                Event::Opening { credential } => {
                     if credential.is_empty() {
-                        self.machine.down(
-                            Request::Accept { version: highest.min(kind::VERSION) },
-                            &mut self.events,
-                            below,
-                        );
+                        self.machine.down(Request::Accept, &mut self.events, below);
                     } else {
                         self.machine.down(
                             Request::Refuse {
@@ -45,28 +41,26 @@ impl Component {
                         );
                     }
                 }
-                Event::Ready { version, terms } => {
-                    match smith_channel::peer_terms_gap(&self.schema, Role::Responder, version, &terms) {
-                        Some(kind) => self.machine.down(
-                            Request::Refuse { reason: smith_channel::reason::LIMITS, text: kind::text(kind) },
-                            &mut self.events,
-                            below,
-                        ),
-                        None => {
-                            let state = mem::replace(&mut self.state, State::Refused);
-                            self.state = match state {
-                                State::Opening => State::Opened,
-                                State::Opened
-                                | State::Started(_)
-                                | State::Admitted(_)
-                                | State::Answered(_)
-                                | State::Refused => unreachable!("the channel becomes ready once"),
-                            };
-                            to_service.push(Heard::Opened { version });
-                            self.follow(below);
-                        }
+                Event::Ready { terms } => match smith_channel::peer_terms_gap(&self.schema, Role::Responder, &terms) {
+                    Some(kind) => self.machine.down(
+                        Request::Refuse { reason: smith_channel::reason::LIMITS, text: kind::text(kind) },
+                        &mut self.events,
+                        below,
+                    ),
+                    None => {
+                        let state = mem::replace(&mut self.state, State::Refused);
+                        self.state = match state {
+                            State::Opening => State::Opened,
+                            State::Opened
+                            | State::Started(_)
+                            | State::Admitted(_)
+                            | State::Answered(_)
+                            | State::Refused => unreachable!("the channel becomes ready once"),
+                        };
+                        to_service.push(Heard::Opened { version: self.schema.version });
+                        self.follow(below);
                     }
-                }
+                },
                 Event::Body { kind, body } => {
                     let state = mem::replace(&mut self.state, State::Refused);
                     self.state = match self.receive(state, kind, &body, to_service, below) {

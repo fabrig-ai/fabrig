@@ -32,7 +32,7 @@ fn a_no_change_landing_repair_regates_once() {
         changes::change_step_task(&mut world, CHANGE, 300, change::Status::Passed, Box::new([]), false, false),
         change::Decision::Delegate(kind)
     );
-    world.event(top::Event::Delegated { task: CHANGE, child: 91, kind });
+    world.event(top::Event::Delegated { task: CHANGE, child: 91, kind, close_at: None });
     world.event(top::Event::DelegateResult {
         ended_at: None,
         task: CHANGE,

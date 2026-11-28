@@ -168,6 +168,7 @@ pub(crate) fn record(forgejo: &Forgejo, instance: Instance, c: &mut Capture) -> 
     looks(&f, c)?;
     api(&f.instance, "PATCH", "/api/v1/repos/fixture/specimen", &json!({"name":"renamed"}))?;
     fetch(c, Some("fetch-renamed"), &f.store, &url, "refs/heads/main", identity)?;
+    success(&local(c, &f, Some("read-message"), &["cat-file", "commit", &commit])?)?;
     let exit = fs::read(c.out.join("transcripts/fetch-renamed/exit"))?;
     let stderr = fs::read(c.out.join("transcripts/fetch-renamed/stderr"))?;
     let redirected = followed(&exit, &stderr);

@@ -65,16 +65,22 @@ mod settings_change;
 mod finishes;
 
 #[test]
-fn settings_keep_the_declared_client_layouts_in_order() {
-    let application = crate::Served { family: Some(9), first: 2, last: 2, layout: [9; 32] };
+fn settings_keep_one_version_and_layout_per_owner_in_order() {
+    let application = crate::Served { family: Some(9), version: 2, layout: [9; 32] };
     let mut settings = fixtures::settings();
     settings.served = crate::host::served(application);
     let exchange = fixtures::Exchange::configured(fixtures::env(), settings);
     let [jig, owner] = exchange.component.settings.served.as_slice() else {
         panic!("one jig entry and one application entry")
     };
-    assert_eq!((jig.family, jig.layout), (None, jig_client_protocol_wire::LAYOUT));
-    assert_eq!((owner.family, owner.layout), (application.family, application.layout));
+    assert_eq!(
+        (jig.family, jig.version, jig.layout),
+        (None, jig_client_protocol_wire::VERSION, jig_client_protocol_wire::LAYOUT)
+    );
+    assert_eq!(
+        (owner.family, owner.version, owner.layout),
+        (application.family, application.version, application.layout)
+    );
 }
 
 #[test]

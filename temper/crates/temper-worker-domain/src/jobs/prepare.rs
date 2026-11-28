@@ -23,6 +23,7 @@ struct Member {
     prefix: Option<Box<[u8]>>,
     message: Box<[u8]>,
     squash_message: Box<[u8]>,
+    head_trailers: bool,
 }
 
 pub(super) fn decode(bytes: &[u8]) -> Option<Request> {
@@ -65,6 +66,22 @@ pub(super) fn decode(bytes: &[u8]) -> Option<Request> {
             Some(at) => Some(text(&d, at, Kind::String)?.into()),
             None => None,
         };
+        let head_trailers = match optional_field(&d, cursor, b"head_trailers").ok()? {
+            None => false,
+            Some(at) => match d.token(at)?.kind {
+                Kind::True => true,
+                Kind::False => false,
+                Kind::ObjectStart
+                | Kind::ObjectEnd
+                | Kind::ArrayStart
+                | Kind::ArrayEnd
+                | Kind::Key
+                | Kind::String
+                | Kind::Number
+                | Kind::Null
+                | Kind::Long => return None,
+            },
+        };
         members
             .push(Member {
                 number: member_number,
@@ -72,6 +89,7 @@ pub(super) fn decode(bytes: &[u8]) -> Option<Request> {
                 prefix,
                 message: message.into(),
                 squash_message: squash_message.into(),
+                head_trailers,
             })
             .ok()?;
         cursor = skip(&d, cursor)?;
@@ -216,8 +234,9 @@ pub(super) fn start(request: &Request) -> checkout::Start {
             .push(checkout::CandidateMember {
                 number: member.number,
                 head: member.head,
-                message: message(&member.message),
-                squash_message: message(&member.squash_message),
+                message: member.message.clone(),
+                squash_message: member.squash_message.clone(),
+                head_trailers: member.head_trailers,
             })
             .expect("admitted members");
     }
@@ -230,9 +249,6 @@ pub(super) fn start(request: &Request) -> checkout::Start {
             members: members.into_boxed(),
         }),
     }
-}
-fn message(bytes: &[u8]) -> checkout::Message {
-    checkout::Message { title: bytes.into(), body: Box::new([]) }
 }
 
 pub(super) fn result(outcome: &checkout::Candidate, most: u32) -> Option<(Box<[u8]>, u8)> {

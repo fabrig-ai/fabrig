@@ -3,6 +3,7 @@ use alloc::boxed::Box;
 
 mod ask_dropped;
 mod call_room;
+mod close_delegate;
 mod due_ready;
 mod flake;
 mod landing_end;
@@ -39,7 +40,7 @@ fn not_installed_ends_the_roots_adoption_part_as_missing_access() {
     assert_eq!(super::adoption_failure(skein_forge::api::Error::Busy), people::Outcome::Again(people::Again::Busy));
 }
 
-fn adopted(forge: u16) -> super::forge::Repository {
+pub(super) fn adopted(forge: u16) -> super::forge::Repository {
     super::forge::Repository {
         contexts: Box::new([]),
         landing: b"main".as_slice().into(),
@@ -618,6 +619,8 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
                 reviews: Box::new([]),
                 reviews_complete: true,
             }),
+            close_at: None,
+            close_refusal: None,
         },
     );
     assert_eq!(domain.engine.core().tasks.writer(&resource).unwrap().writer, tasks::Writer::Effect { entry: ENTRY });
@@ -1270,6 +1273,8 @@ fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
             decision: change::Decision::Hold(change::Cause::BranchMoved),
             entry: None,
             evidence: Some(evidence),
+            close_at: None,
+            close_refusal: None,
         });
         super::outputs(&mut domain, &env, &mut decision, &mut routed);
         let Some(super::Work::Tasks(super::tasks::Event::HoldFrom { source, .. })) = domain.work.pop() else {
@@ -1571,6 +1576,7 @@ fn a_landing_repair_charter_fit_cuts_pull_contents_and_keeps_its_whole_ci() {
             endpoint: run::charter::Endpoint(0),
             model: b"model".as_slice().into(),
             effort: None,
+            speed: None,
             window: 65_536,
             output: 256,
         },
@@ -1971,7 +1977,7 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
                 },
                 &mut out,
             );
-            let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Cause::Failed, None, None);
+            let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Cause::Failed, None);
             let super::StepEnd::HoldFrom { why: tasks::Hold::Procedure, source } = decision.end else {
                 panic!("cancelled {name} needs a procedure hold with its account")
             };
@@ -1996,6 +2002,14 @@ fn procedure_root() -> (super::Domain, skein_lib::Env<super::Limits>) {
 }
 
 fn procedure_root_with_limits(mut limits: super::Limits) -> (super::Domain, skein_lib::Env<super::Limits>) {
+    procedure_root_with_grants(&mut limits, Box::new([]), &[])
+}
+
+fn procedure_root_with_grants(
+    limits: &mut super::Limits,
+    grants: Box<[super::authority::Grant]>,
+    records: &[crate::Record],
+) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::{authority, forge};
     let mut config = crate::tests::resume_fixture::config(7);
     let kinds = Box::new([
@@ -2008,13 +2022,15 @@ fn procedure_root_with_limits(mut limits: super::Limits) -> (super::Domain, skei
     config.core.defaults.rules.maximum_run_spend = 1000;
     config.core.defaults.rules.ceiling.delegation.kinds = kinds.clone();
     config.core.seed_projects[0].policy.policy.ceiling.delegation.kinds = kinds;
+    config.core.defaults.rules.ceiling.grants = grants.clone();
+    config.core.seed_projects[0].policy.policy.ceiling.grants = grants;
     // The closer procedure and close job add two executor places.
     limits.authority.executors = 5;
     // The closer procedure and close job add two executor places.
     limits.tasks.executor_kinds = 5;
     limits.tasks.parameters = 4;
     limits.tasks.spec_bytes = 256;
-    let (mut domain, env) = crate::tests::resume_fixture::root_with_config_and_limits(config, &limits);
+    let (mut domain, env) = crate::tests::resume_fixture::root_with_records(config, limits, records);
     for event in [
         jig_domain_core::Event::Tasks(super::tasks::Event::Restored),
         jig_domain_core::Event::Period { project: 1, period: 1, budget: 1000, next: None },
@@ -2216,7 +2232,7 @@ fn a_landing_merge_waiting_on_authority_is_deferred_not_vetoed() {
     assert!(domain.work.is_empty(), "waiting does not hold the landing");
 }
 
-fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) {
+fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) -> u64 {
     use super::tasks;
     let seed = domain.engine.core_mut().repair_seed(1).expect("unreserved period can fund an agent");
     let task = seed.number();
@@ -2241,6 +2257,7 @@ fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits
     let funder = tasks::Funder::Period { project: 1, period: domain.engine.core().period(1) };
     let ledger = domain.engine.core().tasks.funding(funder).unwrap();
     assert_eq!(ledger.numbers.reserved, ledger.numbers.budget);
+    task
 }
 
 fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, super::forge::LandingRow) {
@@ -2249,14 +2266,19 @@ fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, sup
 fn reserved_turn_landing_with_limits(
     limits: &super::Limits,
 ) -> (super::Domain, skein_lib::Env<super::Limits>, super::forge::LandingRow) {
-    use super::{Work, forge, forge_change};
     let (mut domain, env) = procedure_root_with_limits(*limits);
     reserve_period(&mut domain, &env);
+    let row = form_turn_landing(&mut domain, &env);
+    (domain, env, row)
+}
+
+fn form_turn_landing(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) -> super::forge::LandingRow {
+    use super::{Work, forge, forge_change};
     let mut row = change_row(Some(7));
     row.repository = adopted(1).provider;
     row.change.way = forge_change::Way::Turn;
     row.change.state = forge_change::State::Ready { head: SHA1, ready_since: env.wall };
-    restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Change(Box::new(row)));
+    restore_forge_with_engine_waits(domain, env, forge::Stored::Change(Box::new(row)));
     assert!(domain.forge.project_landing(
         1,
         forge_change::Way::Turn,
@@ -2271,11 +2293,11 @@ fn reserved_turn_landing_with_limits(
             bound: skein_lib::Duration::from_secs(7200),
         }
     ));
-    super::start_landing(&mut domain, &env, 7);
+    super::start_landing(domain, env, 7);
     let Some(Work::Core(resource)) = domain.work.pop() else { panic!("branch resource") };
-    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(&env), resource));
+    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(env), resource));
     let Some(Work::Core(event)) = domain.work.pop() else { panic!("landing task") };
-    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(&env), event));
+    drop(jig_domain_core::step(domain.engine.core_mut(), &crate::limits::environment_core(env), event));
     let Some(Work::LandingAdmission { row, names }) = domain.work.pop() else { panic!("landing admission") };
     assert_eq!(row.landing.members[0].change, 7);
     for name in names {
@@ -2287,7 +2309,7 @@ fn reserved_turn_landing_with_limits(
         }));
     }
     domain.forge_forming = None;
-    (domain, env, row)
+    row
 }
 
 #[test]
@@ -2690,7 +2712,7 @@ fn branch_moved_and_stalled_holds_keep_the_heads_and_wait_in_their_accounts() {
             }),
         ]);
         env.limits.forge.change_policy.stall = skein_lib::Duration::from_secs(1800);
-        let decision = super::change_hold_step(&domain, &env, 7, why, None, None);
+        let decision = super::change_hold_step(&domain, &env, 7, why, None);
         let category = if why == change::Cause::BranchMoved { tasks::Hold::Drift } else { tasks::Hold::Stalled };
         assert_eq!(
             decision.end,
@@ -2758,7 +2780,7 @@ fn a_record_judged_hold_names_the_deciding_read_and_its_nearest_write() {
             reviews_complete: false,
             size: None,
         };
-        let decision = super::change_hold_step(&domain, &env, 7, why, Some(&evidence), None);
+        let decision = super::change_hold_step(&domain, &env, 7, why, Some(&evidence));
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -2814,6 +2836,8 @@ fn a_restored_hold_keeps_its_deciding_read_account_and_refreshes_its_release_rev
             reviews_complete: false,
             size: None,
         }),
+        close_at: None,
+        close_refusal: None,
     });
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);
@@ -2946,7 +2970,7 @@ fn checking_holds_name_the_bound_the_execution_clock_reached() {
         env.wall = Wall::from_nanos(1_000_000_000);
         env.limits.forge.change_policy.stall = Duration::from_secs(1800);
         env.limits.forge.change_policy.runner_wait = Duration::from_secs(14_400);
-        let decision = super::hold_change_decision(&domain, &env, 7, change::Cause::Stalled, None, None);
+        let decision = super::hold_change_decision(&domain, &env, 7, change::Cause::Stalled, None);
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -2978,7 +3002,7 @@ fn a_hold_past_questions_names_its_bound() {
         row.questions.taken = 4;
         row.questions.open = open.into();
         let (domain, env, _) = restored_change([super::forge::Stored::Change(Box::new(row))]);
-        let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Cause::Questions, None, None);
+        let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Cause::Questions, None);
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -3561,7 +3585,7 @@ fn change_llm_text_refuses_malformed_parts_and_too_many_entries() {
     assert_eq!(super::change_llm::read(text.as_slice()), None);
 }
 
-fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
+pub(super) fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
     use super::{authority, forge, tasks};
     let mut config = crate::tests::resume_fixture::config(7);
     let chat = crate::tests::resume_fixture::charter();
@@ -3854,7 +3878,7 @@ fn jig_admission_refuses_a_procedures_producer_beyond_its_creators_kinds() {
     assert!(lacks.executors);
 }
 
-fn change_start_fixture() -> (super::Domain, skein_lib::Env<super::Limits>, Box<super::tasks::RunContext>) {
+pub(super) fn change_start_fixture() -> (super::Domain, skein_lib::Env<super::Limits>, Box<super::tasks::RunContext>) {
     use super::{forge, tasks};
     let (mut domain, mut env, task) =
         crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
@@ -4799,14 +4823,14 @@ fn the_job_root_names_the_declaration_the_engine_encodes() {
     let root = found.expect("job spec root");
     assert_eq!(root.wire, wire::FAMILY);
     assert_eq!(root.declaration, "JobSpec");
-    for (bytes, refusal) in [
+    for (bytes, asks) in [
         (super::close::spec(b"repo", b"close", b"{}", 4096).expect("close spec"), true),
         (super::merge::spec(b"repo", b"merge", &[3; 32], &[4; 32], 4096).expect("merge spec"), false),
     ] {
         let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("JobSpec bytes");
         assert_ne!(spec.command.as_ref(), []);
         assert_ne!(spec.request.as_ref(), []);
-        assert_eq!(spec.refusal, refusal);
+        assert_eq!((spec.refusal, spec.outdated), (asks, asks));
     }
 }
 
@@ -5425,7 +5449,7 @@ fn every_change_hold_has_words_even_without_an_account() {
         row.effect = change::EffectResult::Failed;
         row.effect_account = Some(forge::EffectAccount { entry: 1, words: Box::new([]) });
         restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
-        let step = super::hold_change_decision(&domain, &env, 7, why, None, None);
+        let step = super::hold_change_decision(&domain, &env, 7, why, None);
         let StepEnd::HoldFrom { source, .. } = step.end else { panic!("wordless hold: {why:?}") };
         let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account: {why:?}") };
         assert!(!words.is_empty(), "empty hold: {why:?}");
@@ -5447,7 +5471,7 @@ fn a_runner_hold_uses_its_own_account() {
     };
     row.runner_ci = Some(forge::RunnerCi::Held { words: WORDS.into() });
     restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
-    let step = super::hold_change_decision(&domain, &env, TASK, change::Cause::Runner, None, None);
+    let step = super::hold_change_decision(&domain, &env, TASK, change::Cause::Runner, None);
     let StepEnd::HoldFrom { why: tasks::Hold::Procedure, source } = step.end else { panic!("runner hold account") };
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
     assert_eq!(words.as_ref(), WORDS);
@@ -5743,56 +5767,6 @@ fn report_tests() -> super::forge::ReceiptReport {
         super::forge::ReceiptTest { key: b"test skein-lib::suite fuzzy::a".as_slice().into(), fuzzy: true },
         super::forge::ReceiptTest { key: b"test skein-lib::suite b".as_slice().into(), fuzzy: false },
     ]))
-}
-
-#[test]
-fn landing_repairs_keep_report_tests_before_jobs_and_a_cut_below_list() {
-    use super::forge_change::{Below, Landed, Repair};
-    use skein_lib::bytes::{concat, find};
-    let mut row = change_row(Some(42));
-    row.change.last_head = Some(SHA1);
-    let why = Repair::LandingAt {
-        gate: 1,
-        candidate: SHA1,
-        below: Some(Below {
-            by_test: false,
-            top: false,
-            green: SHA256,
-            changes: [Some(Landed { change: 2341, pull: 7 }), Some(Landed { change: 2342, pull: 8 }), None, None],
-        }),
-    };
-    let mut failure = repair_failure(SHA1, Some(SHA256));
-    failure.report = report_tests();
-    let whole = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
-    let tests =
-        b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)\nFailed test: test skein-lib::suite b (focused)";
-    let run_at = find(&whole, b"\nGate run: 4211 at ").unwrap();
-    let tests_at = find(&whole, tests).expect("each reported test has its required profile line");
-    let job_at = find(&whole, b"\nFailed job: gate: read_ci what=job commit=").unwrap();
-    assert!(run_at < tests_at && tests_at < job_at);
-    let without_list = u32::try_from(whole.len() - b" Changes landing below it: 2341 (#7), 2342 (#8).".len()).unwrap();
-    let cut = super::repair_words(&row, why, Some(&failure), &[], without_list).unwrap();
-    assert!(find(&cut, b"2341 (#7)").is_none(), "optional below list yields first");
-    assert!(cut.ends_with(&whole[run_at..]), "run, all tests and jobs survive whole");
-    let first_test = b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)";
-    let marker = b"\n[2 more failed tests and jobs: read_ci what=checks names them]";
-    let bound = u32::try_from(
-        usize::try_from(without_list).unwrap() - whole[tests_at..].len() + first_test.len() + marker.len(),
-    )
-    .unwrap();
-    let bounded = super::repair_words(&row, why, Some(&failure), &[], bound).unwrap();
-    assert!(bounded.ends_with(&concat(&[first_test, marker])), "whole test lines precede the combined omitted count");
-    for (report, line) in [
-        (super::forge::ReceiptReport::Many { bound: 16 }, b"\nFailed tests: more than 16".as_slice()),
-        (super::forge::ReceiptReport::Unset, b"\nFailed tests: not known (the gate names no report)".as_slice()),
-        (super::forge::ReceiptReport::Unread, b"\nFailed tests: not known (its report could not be read)".as_slice()),
-    ] {
-        failure.report = report;
-        let words = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
-        let at = find(&words, line).unwrap();
-        assert!(find(&words[..at], b"\nGate run:").is_some());
-        assert!(words[at + line.len()..].starts_with(b"\nFailed job:"));
-    }
 }
 
 /// questions.md, 1, What every delegate is told: the step's retained amendment is visible before admission.

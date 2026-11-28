@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 44;
 pub const LAYOUT: [u8; 32] = [
-    0x9a, 0x46, 0x42, 0xfe, 0xf3, 0x84, 0xfc, 0xdd, 0x6b, 0x64, 0x38, 0xc9, 0x89, 0xbd, 0x69, 0x22, 0xfb, 0x8e, 0x1e,
-    0xb8, 0xff, 0x6a, 0xff, 0x6d, 0x11, 0x70, 0xe2, 0xba, 0xe3, 0x84, 0x21, 0x41,
+    0x30, 0x3f, 0x04, 0x4e, 0x18, 0x6a, 0x7c, 0xd3, 0xe3, 0x6b, 0x0d, 0x27, 0xf3, 0xa1, 0x38, 0x2d, 0xf9, 0x06, 0x20,
+    0xeb, 0x4f, 0x27, 0x2f, 0xcb, 0xdb, 0x62, 0xa1, 0x5d, 0xdb, 0x3e, 0x4f, 0xc2,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -360,11 +360,16 @@ pub struct Limits {
     pub inbox_needs: u32,
     pub inbox_updates: u32,
     pub inbox_selection_some: u32,
+    pub setting_speed_name: u32,
+    pub setting_speed_also: u32,
+    pub setting_speed_also_item: u32,
     pub setting_model_program_some: u32,
     pub setting_model_name: u32,
     pub setting_model_efforts: u32,
     pub setting_model_efforts_item: u32,
     pub setting_model_effort_some: u32,
+    pub setting_model_speeds: u32,
+    pub setting_model_speed_some: u32,
     pub catalogue_entry_shown_some: u32,
     pub catalogue_entry_description_some: u32,
     pub charter_document_name: u32,
@@ -754,11 +759,16 @@ pub const CEILINGS: Limits = Limits {
     inbox_needs: 16_777_216,
     inbox_updates: 16_777_216,
     inbox_selection_some: 16_777_216,
+    setting_speed_name: 32,
+    setting_speed_also: 2,
+    setting_speed_also_item: 32,
     setting_model_program_some: 32,
     setting_model_name: 4_096,
     setting_model_efforts: 16,
     setting_model_efforts_item: 32,
     setting_model_effort_some: 32,
+    setting_model_speeds: 4,
+    setting_model_speed_some: 32,
     catalogue_entry_shown_some: 4_096,
     catalogue_entry_description_some: 512,
     charter_document_name: 32,
@@ -1148,11 +1158,16 @@ pub const LIMIT_NAMES: &[&str] = &[
     "inbox_needs",
     "inbox_updates",
     "inbox_selection_some",
+    "setting_speed_name",
+    "setting_speed_also",
+    "setting_speed_also_item",
     "setting_model_program_some",
     "setting_model_name",
     "setting_model_efforts",
     "setting_model_efforts_item",
     "setting_model_effort_some",
+    "setting_model_speeds",
+    "setting_model_speed_some",
     "catalogue_entry_shown_some",
     "catalogue_entry_description_some",
     "charter_document_name",
@@ -1546,11 +1561,16 @@ impl Limits {
             self.inbox_needs,
             self.inbox_updates,
             self.inbox_selection_some,
+            self.setting_speed_name,
+            self.setting_speed_also,
+            self.setting_speed_also_item,
             self.setting_model_program_some,
             self.setting_model_name,
             self.setting_model_efforts,
             self.setting_model_efforts_item,
             self.setting_model_effort_some,
+            self.setting_model_speeds,
+            self.setting_model_speed_some,
             self.catalogue_entry_shown_some,
             self.catalogue_entry_description_some,
             self.charter_document_name,
@@ -1945,11 +1965,16 @@ impl Limits {
             inbox_needs: self.inbox_needs.min(most),
             inbox_updates: self.inbox_updates.min(most),
             inbox_selection_some: self.inbox_selection_some.min(most),
+            setting_speed_name: self.setting_speed_name.min(most),
+            setting_speed_also: self.setting_speed_also.min(most),
+            setting_speed_also_item: self.setting_speed_also_item.min(most),
             setting_model_program_some: self.setting_model_program_some.min(most),
             setting_model_name: self.setting_model_name.min(most),
             setting_model_efforts: self.setting_model_efforts.min(most),
             setting_model_efforts_item: self.setting_model_efforts_item.min(most),
             setting_model_effort_some: self.setting_model_effort_some.min(most),
+            setting_model_speeds: self.setting_model_speeds.min(most),
+            setting_model_speed_some: self.setting_model_speed_some.min(most),
             catalogue_entry_shown_some: self.catalogue_entry_shown_some.min(most),
             catalogue_entry_description_some: self.catalogue_entry_description_some.min(most),
             charter_document_name: self.charter_document_name.min(most),
@@ -2341,11 +2366,16 @@ const LIMIT_PATHS: &[Path] = &[
     paths::INBOX_NEEDS,
     paths::INBOX_UPDATES,
     paths::INBOX_SELECTION,
+    paths::SETTING_SPEED_NAME,
+    paths::SETTING_SPEED_ALSO,
+    paths::SETTING_SPEED_ALSO,
     paths::SETTING_MODEL_PROGRAM,
     paths::SETTING_MODEL_NAME,
     paths::SETTING_MODEL_EFFORTS,
     paths::SETTING_MODEL_EFFORTS,
     paths::SETTING_MODEL_EFFORT,
+    paths::SETTING_MODEL_SPEEDS,
+    paths::SETTING_MODEL_SPEED,
     paths::CATALOGUE_ENTRY_SHOWN,
     paths::CATALOGUE_ENTRY_DESCRIPTION,
     paths::CHARTER_DOCUMENT_NAME,
@@ -5571,6 +5601,13 @@ pub mod paths {
     pub const INBOX_UPDATES_TIME_COMPLETE: Path = Path::new("Inbox.updates_time_complete");
     pub const INBOX_SELECTION: Path = Path::new("Inbox.selection");
     pub const INBOX_TAIL: Path = Path::new("Inbox (tail)");
+    pub const SETTING_SPEED_NAME: Path = Path::new("SettingSpeed.name");
+    pub const SETTING_SPEED_ALSO: Path = Path::new("SettingSpeed.also");
+    pub const SETTING_SPEED_INPUT_PRICE: Path = Path::new("SettingSpeed.input_price");
+    pub const SETTING_SPEED_CACHED_PRICE: Path = Path::new("SettingSpeed.cached_price");
+    pub const SETTING_SPEED_CACHE_WRITE_PRICE: Path = Path::new("SettingSpeed.cache_write_price");
+    pub const SETTING_SPEED_OUTPUT_PRICE: Path = Path::new("SettingSpeed.output_price");
+    pub const SETTING_SPEED_TAIL: Path = Path::new("SettingSpeed (tail)");
     pub const SETTING_MODEL_PROVIDER: Path = Path::new("SettingModel.provider");
     pub const SETTING_MODEL_DIALECT: Path = Path::new("SettingModel.dialect");
     pub const SETTING_MODEL_ENDPOINT: Path = Path::new("SettingModel.endpoint");
@@ -5585,6 +5622,8 @@ pub mod paths {
     pub const SETTING_MODEL_PRICE_UNIT: Path = Path::new("SettingModel.price_unit");
     pub const SETTING_MODEL_EFFORTS: Path = Path::new("SettingModel.efforts");
     pub const SETTING_MODEL_EFFORT: Path = Path::new("SettingModel.effort");
+    pub const SETTING_MODEL_SPEEDS: Path = Path::new("SettingModel.speeds");
+    pub const SETTING_MODEL_SPEED: Path = Path::new("SettingModel.speed");
     pub const SETTING_MODEL_TAIL: Path = Path::new("SettingModel (tail)");
     pub const CATALOGUE_ENTRY_NUMBER: Path = Path::new("CatalogueEntry.number");
     pub const CATALOGUE_ENTRY_MODEL: Path = Path::new("CatalogueEntry.model");
@@ -67048,6 +67087,78 @@ impl Record for Inbox {
     }
 }
 
+// Type: SettingSpeed.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SettingSpeed {
+    pub name: Box<[u8]>,
+    pub also: List<Box<[u8]>>,
+    pub input_price: u64,
+    pub cached_price: u64,
+    pub cache_write_price: Option<u64>,
+    pub output_price: u64,
+}
+
+// Record: SettingSpeed.
+impl SettingSpeed {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, setting_speed_name) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, setting_speed_also_item) },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, setting_speed_also), item: 1, size: size_of::<Box<[u8]>>() },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 5 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3, 4, 6, 7] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 41;
+}
+
+impl Record for SettingSpeed {
+    type Limits = Limits;
+    const TAIL: Path = paths::SETTING_SPEED_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "SettingSpeed")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "SettingSpeed")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Text { limit: limits.setting_speed_name.min(CEILINGS.setting_speed_name) }, &self.name, limits, out, paths::SETTING_SPEED_NAME)?;
+        field::write(field::Sequence { limit: limits.setting_speed_also.min(CEILINGS.setting_speed_also), minimum: 4, item: field::Text { limit: limits.setting_speed_also_item.min(CEILINGS.setting_speed_also_item) } }, &self.also, limits, out, paths::SETTING_SPEED_ALSO)?;
+        field::write(field::U64, &self.input_price, limits, out, paths::SETTING_SPEED_INPUT_PRICE)?;
+        field::write(field::U64, &self.cached_price, limits, out, paths::SETTING_SPEED_CACHED_PRICE)?;
+        field::write(field::Optional { item: field::U64 }, &self.cache_write_price, limits, out, paths::SETTING_SPEED_CACHE_WRITE_PRICE)?;
+        field::write(field::U64, &self.output_price, limits, out, paths::SETTING_SPEED_OUTPUT_PRICE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            name: field::read(field::Text { limit: limits.setting_speed_name.min(CEILINGS.setting_speed_name) }, limits, reader, paths::SETTING_SPEED_NAME)?,
+            also: field::read(field::Sequence { limit: limits.setting_speed_also.min(CEILINGS.setting_speed_also), minimum: 4, item: field::Text { limit: limits.setting_speed_also_item.min(CEILINGS.setting_speed_also_item) } }, limits, reader, paths::SETTING_SPEED_ALSO)?,
+            input_price: field::read(field::U64, limits, reader, paths::SETTING_SPEED_INPUT_PRICE)?,
+            cached_price: field::read(field::U64, limits, reader, paths::SETTING_SPEED_CACHED_PRICE)?,
+            cache_write_price: field::read(field::Optional { item: field::U64 }, limits, reader, paths::SETTING_SPEED_CACHE_WRITE_PRICE)?,
+            output_price: field::read(field::U64, limits, reader, paths::SETTING_SPEED_OUTPUT_PRICE)?,
+        })
+    }
+}
+
 // Type: SettingModel.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingModel {
@@ -67065,6 +67176,8 @@ pub struct SettingModel {
     pub price_unit: u32,
     pub efforts: List<Box<[u8]>>,
     pub effort: Option<Box<[u8]>>,
+    pub speeds: List<SettingSpeed>,
+    pub speed: Option<Box<[u8]>>,
 }
 
 // Record: SettingModel.
@@ -67088,11 +67201,15 @@ impl SettingModel {
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, setting_model_efforts), item: 14, size: size_of::<Box<[u8]>>() },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, setting_model_effort_some) },
         skein_codec::bounds::Node::Option { item: 16 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 5, 6, 7, 8, 9, 11, 12, 13, 15, 17] },
+        skein_codec::bounds::Node::Named("SettingSpeed"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, setting_model_speeds), item: 18, size: size_of::<SettingSpeed>() },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, setting_model_speed_some) },
+        skein_codec::bounds::Node::Option { item: 20 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 5, 6, 7, 8, 9, 11, 12, 13, 15, 17, 19, 21] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 75;
+    pub const ENCODED_AT_ZERO: u64 = 84;
 }
 
 impl Record for SettingModel {
@@ -67131,6 +67248,8 @@ impl Record for SettingModel {
         field::write(field::U32, &self.price_unit, limits, out, paths::SETTING_MODEL_PRICE_UNIT)?;
         field::write(field::Sequence { limit: limits.setting_model_efforts.min(CEILINGS.setting_model_efforts), minimum: 4, item: field::Text { limit: limits.setting_model_efforts_item.min(CEILINGS.setting_model_efforts_item) } }, &self.efforts, limits, out, paths::SETTING_MODEL_EFFORTS)?;
         field::write(field::Optional { item: field::Text { limit: limits.setting_model_effort_some.min(CEILINGS.setting_model_effort_some) } }, &self.effort, limits, out, paths::SETTING_MODEL_EFFORT)?;
+        field::write(field::Sequence { limit: limits.setting_model_speeds.min(CEILINGS.setting_model_speeds), minimum: 33, item: field::Nested }, &self.speeds, limits, out, paths::SETTING_MODEL_SPEEDS)?;
+        field::write(field::Optional { item: field::Text { limit: limits.setting_model_speed_some.min(CEILINGS.setting_model_speed_some) } }, &self.speed, limits, out, paths::SETTING_MODEL_SPEED)?;
         Ok(())
     }
 
@@ -67150,6 +67269,8 @@ impl Record for SettingModel {
             price_unit: field::read(field::U32, limits, reader, paths::SETTING_MODEL_PRICE_UNIT)?,
             efforts: field::read(field::Sequence { limit: limits.setting_model_efforts.min(CEILINGS.setting_model_efforts), minimum: 4, item: field::Text { limit: limits.setting_model_efforts_item.min(CEILINGS.setting_model_efforts_item) } }, limits, reader, paths::SETTING_MODEL_EFFORTS)?,
             effort: field::read(field::Optional { item: field::Text { limit: limits.setting_model_effort_some.min(CEILINGS.setting_model_effort_some) } }, limits, reader, paths::SETTING_MODEL_EFFORT)?,
+            speeds: field::read(field::Sequence { limit: limits.setting_model_speeds.min(CEILINGS.setting_model_speeds), minimum: 33, item: field::Nested }, limits, reader, paths::SETTING_MODEL_SPEEDS)?,
+            speed: field::read(field::Optional { item: field::Text { limit: limits.setting_model_speed_some.min(CEILINGS.setting_model_speed_some) } }, limits, reader, paths::SETTING_MODEL_SPEED)?,
         })
     }
 }
@@ -67184,7 +67305,7 @@ impl CatalogueEntry {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 93;
+    pub const ENCODED_AT_ZERO: u64 = 102;
 }
 
 impl Record for CatalogueEntry {
@@ -67473,7 +67594,7 @@ impl Charter {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 201;
+    pub const ENCODED_AT_ZERO: u64 = 210;
 }
 
 impl Record for Charter {
@@ -67508,7 +67629,7 @@ impl Record for Charter {
         field::write(field::U32, &self.reserve_turns, limits, out, paths::CHARTER_RESERVE_TURNS)?;
         field::write(field::Span, &self.reserve_time, limits, out, paths::CHARTER_RESERVE_TIME)?;
         field::write(field::Nested, &self.model, limits, out, paths::CHARTER_MODEL)?;
-        field::write(field::Sequence { limit: limits.charter_alternatives.min(CEILINGS.charter_alternatives), minimum: 59, item: field::Nested }, &self.alternatives, limits, out, paths::CHARTER_ALTERNATIVES)?;
+        field::write(field::Sequence { limit: limits.charter_alternatives.min(CEILINGS.charter_alternatives), minimum: 64, item: field::Nested }, &self.alternatives, limits, out, paths::CHARTER_ALTERNATIVES)?;
         field::write(field::Boolean, &self.inspect, limits, out, paths::CHARTER_INSPECT)?;
         field::write(field::Boolean, &self.modify, limits, out, paths::CHARTER_MODIFY)?;
         field::write(field::Boolean, &self.shell, limits, out, paths::CHARTER_SHELL)?;
@@ -67535,7 +67656,7 @@ impl Record for Charter {
             reserve_turns: field::read(field::U32, limits, reader, paths::CHARTER_RESERVE_TURNS)?,
             reserve_time: field::read(field::Span, limits, reader, paths::CHARTER_RESERVE_TIME)?,
             model: field::read(field::Nested, limits, reader, paths::CHARTER_MODEL)?,
-            alternatives: field::read(field::Sequence { limit: limits.charter_alternatives.min(CEILINGS.charter_alternatives), minimum: 59, item: field::Nested }, limits, reader, paths::CHARTER_ALTERNATIVES)?,
+            alternatives: field::read(field::Sequence { limit: limits.charter_alternatives.min(CEILINGS.charter_alternatives), minimum: 64, item: field::Nested }, limits, reader, paths::CHARTER_ALTERNATIVES)?,
             inspect: field::read(field::Boolean, limits, reader, paths::CHARTER_INSPECT)?,
             modify: field::read(field::Boolean, limits, reader, paths::CHARTER_MODIFY)?,
             shell: field::read(field::Boolean, limits, reader, paths::CHARTER_SHELL)?,
@@ -67624,7 +67745,7 @@ impl Overlay {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 172;
+    pub const ENCODED_AT_ZERO: u64 = 181;
 }
 
 impl Record for Overlay {
@@ -67651,7 +67772,7 @@ impl Record for Overlay {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Optional { item: field::Boolean }, &self.rest, limits, out, paths::OVERLAY_REST)?;
         field::write(field::Optional { item: field::Nested }, &self.model, limits, out, paths::OVERLAY_MODEL)?;
-        field::write(field::Optional { item: field::Sequence { limit: limits.overlay_alternatives_some.min(CEILINGS.overlay_alternatives_some), minimum: 59, item: field::Nested } }, &self.alternatives, limits, out, paths::OVERLAY_ALTERNATIVES)?;
+        field::write(field::Optional { item: field::Sequence { limit: limits.overlay_alternatives_some.min(CEILINGS.overlay_alternatives_some), minimum: 64, item: field::Nested } }, &self.alternatives, limits, out, paths::OVERLAY_ALTERNATIVES)?;
         field::write(field::Optional { item: field::Boolean }, &self.inspect, limits, out, paths::OVERLAY_INSPECT)?;
         field::write(field::Optional { item: field::Boolean }, &self.modify, limits, out, paths::OVERLAY_MODIFY)?;
         field::write(field::Optional { item: field::Boolean }, &self.shell, limits, out, paths::OVERLAY_SHELL)?;
@@ -67676,7 +67797,7 @@ impl Record for Overlay {
         Ok(Self {
             rest: field::read(field::Optional { item: field::Boolean }, limits, reader, paths::OVERLAY_REST)?,
             model: field::read(field::Optional { item: field::Nested }, limits, reader, paths::OVERLAY_MODEL)?,
-            alternatives: field::read(field::Optional { item: field::Sequence { limit: limits.overlay_alternatives_some.min(CEILINGS.overlay_alternatives_some), minimum: 59, item: field::Nested } }, limits, reader, paths::OVERLAY_ALTERNATIVES)?,
+            alternatives: field::read(field::Optional { item: field::Sequence { limit: limits.overlay_alternatives_some.min(CEILINGS.overlay_alternatives_some), minimum: 64, item: field::Nested } }, limits, reader, paths::OVERLAY_ALTERNATIVES)?,
             inspect: field::read(field::Optional { item: field::Boolean }, limits, reader, paths::OVERLAY_INSPECT)?,
             modify: field::read(field::Optional { item: field::Boolean }, limits, reader, paths::OVERLAY_MODIFY)?,
             shell: field::read(field::Optional { item: field::Boolean }, limits, reader, paths::OVERLAY_SHELL)?,
@@ -68053,7 +68174,7 @@ impl SettingValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 202;
+    pub const ENCODED_AT_ZERO: u64 = 211;
 }
 
 impl Record for SettingValue {
@@ -68124,7 +68245,7 @@ impl SettingSet {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 202;
+    pub const ENCODED_AT_ZERO: u64 = 211;
 }
 
 impl Record for SettingSet {
@@ -68178,7 +68299,7 @@ impl SettingEdit {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 203;
+    pub const ENCODED_AT_ZERO: u64 = 212;
 }
 
 impl Record for SettingEdit {
@@ -68237,7 +68358,7 @@ impl SettingItem {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 216;
+    pub const ENCODED_AT_ZERO: u64 = 225;
 }
 
 impl Record for SettingItem {
@@ -70075,7 +70196,7 @@ impl SettingDocument {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 413;
+    pub const ENCODED_AT_ZERO: u64 = 431;
 }
 
 impl Record for SettingDocument {
@@ -70243,7 +70364,7 @@ impl RevisionEdit {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 203;
+    pub const ENCODED_AT_ZERO: u64 = 212;
 }
 
 impl Record for RevisionEdit {
@@ -70314,7 +70435,7 @@ impl RevisionReplaced {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 203;
+    pub const ENCODED_AT_ZERO: u64 = 212;
 }
 
 impl Record for RevisionReplaced {
@@ -70381,7 +70502,7 @@ impl RevisionItem {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 419;
+    pub const ENCODED_AT_ZERO: u64 = 437;
 }
 
 impl Record for RevisionItem {
@@ -73650,7 +73771,7 @@ impl ReviewValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 203;
+    pub const ENCODED_AT_ZERO: u64 = 212;
 }
 
 impl Record for ReviewValue {
@@ -73773,7 +73894,7 @@ impl ReviewItem {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 445;
+    pub const ENCODED_AT_ZERO: u64 = 463;
 }
 
 impl Record for ReviewItem {
@@ -74746,6 +74867,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "SettingPolicy", nodes: SettingPolicy::SHAPE },
     skein_codec::bounds::Declaration { name: "SettingRule", nodes: SettingRule::SHAPE },
     skein_codec::bounds::Declaration { name: "SettingSet", nodes: SettingSet::SHAPE },
+    skein_codec::bounds::Declaration { name: "SettingSpeed", nodes: SettingSpeed::SHAPE },
     skein_codec::bounds::Declaration { name: "SettingValue", nodes: SettingValue::SHAPE },
     skein_codec::bounds::Declaration { name: "SettingsAccepted", nodes: SettingsAccepted::SHAPE },
     skein_codec::bounds::Declaration { name: "SettingsDocument", nodes: SettingsDocument::SHAPE },
@@ -75287,11 +75409,16 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.inbox_needs,
     CEILINGS.inbox_updates,
     CEILINGS.inbox_selection_some,
+    CEILINGS.setting_speed_name,
+    CEILINGS.setting_speed_also,
+    CEILINGS.setting_speed_also_item,
     CEILINGS.setting_model_program_some,
     CEILINGS.setting_model_name,
     CEILINGS.setting_model_efforts,
     CEILINGS.setting_model_efforts_item,
     CEILINGS.setting_model_effort_some,
+    CEILINGS.setting_model_speeds,
+    CEILINGS.setting_model_speed_some,
     CEILINGS.catalogue_entry_shown_some,
     CEILINGS.catalogue_entry_description_some,
     CEILINGS.charter_document_name,

@@ -51,7 +51,7 @@ fn names() -> Names {
     Names::new(&Secret::new(Box::new(key)))
 }
 fn read(kind: u16, ids: &[u64]) -> PublicRead {
-    PublicRead { owner: 0, layout: Some(wire::PUBLIC_LAYOUT), kind, ids: Box::from(ids) }
+    PublicRead { owner: 0, layout: wire::PUBLIC_LAYOUT, kind, ids: Box::from(ids) }
 }
 fn admitted(peer: &mut Peer) -> (ReplyTo, core::PublicRead) {
     let Some(core::Event::PublicRead { reply, read }) = peer.take_core() else {
@@ -255,17 +255,21 @@ fn public_reads_with_no_credential_cookie_bearer_and_both_are_answered_alike() {
 }
 
 #[test]
-fn public_reads_at_no_served_layout_never_reach_the_core() {
+fn only_a_well_formed_unserved_layout_gets_not_served() {
     let mut peer = peer(limits());
     let other = projects_target([0; 32]);
-    for target in [other.as_bytes(), b"/jig/v1/public/0/1/1"] {
+    for (target, expected) in [(other.as_bytes(), 200), (b"/jig/v1/public/0/1/1", 404)] {
         let socket = peer.http(Method::Get, target, Box::new([]), headers(None, None));
-        assert!(peer.take_core().is_none(), "unserved layout is not admitted");
+        assert!(peer.take_core().is_none(), "neither request reaches the core");
         let (status, body) = peer.response(socket);
-        assert_eq!(status, Some(200));
+        assert_eq!(status, Some(expected));
         assert!(peer.response_headers(socket).iter().any(|header| {
             header.name.eq_ignore_ascii_case(b"cache-control") && header.value.as_ref() == b"no-store"
         }));
+        if expected == 404 {
+            assert_eq!(body, b"");
+            continue;
+        }
         let mut reader = Reader::new(body);
         let answer = wire::NotServed::decode(&wire::CEILINGS, &mut reader).expect("version not served");
         assert_eq!(answer.owner, wire::Owner::Jig);

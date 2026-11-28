@@ -24,6 +24,10 @@ pub(super) fn encode(row: &CloserRow) -> w::Closer {
         Some(tasks) => Some(w::ClosingTasks { tasks: List::from_boxed(tasks.clone()) }),
         None => None,
     };
+    let caught_up = match &row.closer.caught_up {
+        Some(tasks) => Some(w::ClosingTasks { tasks: List::from_boxed(tasks.clone()) }),
+        None => None,
+    };
     let hold = match row.closer.hold {
         Some(c::Hold::ClosingStep { step, change }) => encode_run(Some(c::Running { step, change })),
         None => None,
@@ -39,6 +43,7 @@ pub(super) fn encode(row: &CloserRow) -> w::Closer {
     w::Closer {
         report_check: crate::generated::store::closing_report_check_to_record(&row.closer.report_check),
         goal_left: row.closer.goal_left.clone(),
+        goal_asked: row.closer.goal_asked.clone(),
         task: row.task,
         goal: row.goal,
         closed,
@@ -53,12 +58,15 @@ pub(super) fn encode(row: &CloserRow) -> w::Closer {
         done: row.done,
         relay: encode_relay(&row.relay),
         superseded: List::from_boxed(row.superseded.clone()),
+        caught_up,
+        catch_up_changes: List::from_boxed(row.catch_up_changes.clone()),
     }
 }
 pub(super) fn decode(row: w::Closer) -> CloserRow {
     let w::Closer {
         report_check,
         goal_left,
+        goal_asked,
         task,
         goal,
         closed,
@@ -73,8 +81,14 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
         done,
         relay,
         superseded,
+        caught_up,
+        catch_up_changes,
     } = row;
     let closed = match closed {
+        Some(tasks) => Some(tasks.tasks.into_boxed()),
+        None => None,
+    };
+    let caught_up = match caught_up {
         Some(tasks) => Some(tasks.tasks.into_boxed()),
         None => None,
     };
@@ -95,6 +109,7 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
         goal,
         closer: c::Closer {
             closed,
+            caught_up,
             running: decode_run(running),
             landing,
             hold,
@@ -102,9 +117,11 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
             selections: decode_selections(selections),
             report_check: crate::generated::store::closing_report_check_to_domain(report_check),
             goal_left,
+            goal_asked,
         },
         making,
         close_changes: close_changes.into_boxed(),
+        catch_up_changes: catch_up_changes.into_boxed(),
         superseded: superseded.into_boxed(),
         landing_changes: landing_changes.into_boxed(),
         relay: decode_relay(relay),

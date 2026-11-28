@@ -188,7 +188,7 @@ fn profile() -> root::Limits {
             },
             connectors: 2,
             resume_bytes: 256,
-            run_bytes: 512,
+            run_bytes: 576, // The stock charter owns 565 bytes with speed fields.
             policy_bytes: 8192,
             escalation_reason_bytes: 128,
             load_slots: 2,
@@ -304,6 +304,8 @@ pub fn scripted_model() -> core::Model {
         price_unit: 1_000_000,
         efforts: Box::new([b"low".as_slice().into(), b"high".as_slice().into()]),
         effort: None,
+        speeds: Box::default(),
+        speed: None,
     }
 }
 
@@ -484,7 +486,7 @@ pub use funding::edit_role;
 ///
 /// # Errors
 /// Configured membership or declarations do not hold.
-pub fn new_core(config: core::Config, limits: &core::Limits) -> Result<core::Core, jig_domain_link::Problem> {
+pub fn new_core(config: core::Config, limits: &core::Limits) -> Result<core::Core, jig_domain_contract::StartProblem> {
     let declarations: Box<[_]> =
         config.connectors.iter().copied().map(jig_domain_contract::Declaration::empty).collect();
     core::Core::new(config, &declarations, limits)

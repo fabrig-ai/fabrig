@@ -691,7 +691,7 @@ fn infrastructure_backs_off_twelve_times_then_holds_with_its_reason() {
 #[test]
 fn a_version_refusal_keeps_tries_and_its_reason_without_a_retry_bound() {
     let mut h = running_job();
-    let reason: Box<[u8]> = b"version mismatch: smith-charter 5, the worker reads 4..4".as_slice().into();
+    let reason: Box<[u8]> = b"version mismatch: smith-charter 5, the worker reads 4".as_slice().into();
     let tries = crate::Tries { transient: 1, lost: 1, ..crate::Tries::NONE };
     for attempt in 1..=5 {
         let row = &mut crate::domain::task_mut(&mut h.domain, 2).unwrap().record;

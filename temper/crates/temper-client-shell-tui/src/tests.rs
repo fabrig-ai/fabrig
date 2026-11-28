@@ -2293,7 +2293,7 @@ fn a_notice_stands_six_seconds_and_a_newer_replaces_it() {
     typed(&mut quiet, b"/zz");
     give(&mut quiet, Event::Send);
     assert_eq!(quiet.deadline(), Some(end));
-    for (words, seconds) in [(b"/chats 9".as_slice(), 6), (b"/zz".as_slice(), 7)] {
+    for (words, seconds) in [(b"/zy".as_slice(), 6), (b"/zz".as_slice(), 7)] {
         let (mut host, _, _) = signed_host(true);
         typed(&mut host, words);
         give(&mut host, Event::Send);
@@ -2501,8 +2501,6 @@ enum LaunchAt {
 enum LaunchWant {
     Started { label: u32, words: &'static [u8], from: Address },
     Place(Own),
-    Chat(u64),
-    Unknown,
     Brief,
     Reply,
     Walk,
@@ -2549,8 +2547,21 @@ fn the_launchpad_takes_its_own_words() {
             LaunchAt::NewChat,
             LaunchWant::Started { label: 7, words: b"What landed?", from: Address::Home { project: 3 } },
         ),
-        (b"/chats 1", LaunchAt::Home, LaunchWant::Chat(NEWEST)),
-        (b"/chats 2", LaunchAt::Home, LaunchWant::Unknown),
+        (
+            b"/chats 1",
+            LaunchAt::Home,
+            LaunchWant::Started { label: 7, words: b"/chats 1", from: Address::Home { project: 3 } },
+        ),
+        (
+            b"/chats 9",
+            LaunchAt::Home,
+            LaunchWant::Started { label: 7, words: b"/chats 9", from: Address::Home { project: 3 } },
+        ),
+        (
+            b"/new 1",
+            LaunchAt::Home,
+            LaunchWant::Started { label: 7, words: b"/new 1", from: Address::Home { project: 3 } },
+        ),
         (b"/br", LaunchAt::Home, LaunchWant::Brief),
         (b"Use a comma", LaunchAt::Aside, LaunchWant::Reply),
         (b"Use a comma", LaunchAt::AsideFromRow, LaunchWant::Reply),
@@ -2581,6 +2592,7 @@ fn the_launchpad_takes_its_own_words() {
         match want {
             LaunchWant::Started { label, words: expected, from } => {
                 assert_eq!(host.root.pages().address(), &from, "{words:?}");
+                assert_eq!(host.state().notice(), None, "{words:?}");
                 let mut duties = admit(&mut host, duties);
                 if sent_ask(&duties).is_empty() {
                     // Returning from New Chat can fill the exchange slots with page reads.
@@ -2607,12 +2619,6 @@ fn the_launchpad_takes_its_own_words() {
                 assert!(host.words().is_empty(), "{words:?}");
                 assert_eq!(host.state().place(), Some(command), "{words:?}");
             }
-            LaunchWant::Chat(task) => assert_eq!(host.root.pages().address(), &Address::Chat { task }, "{words:?}"),
-            LaunchWant::Unknown => assert_eq!(
-                host.state().notice(),
-                Some(&temper_client_tui::Notice::Unknown { words: words.into() }),
-                "{words:?}"
-            ),
             LaunchWant::Brief => assert!(host.state().brief_shown(), "{words:?}"),
             LaunchWant::Walk => {
                 assert!(host.state().walk().is_some_and(|walk| walk.first().is_none()), "{words:?}");
@@ -3710,22 +3716,16 @@ fn start_gives_the_look_then_launchpad_once_but_a_theme_only_gives_the_look() {
 }
 
 #[test]
-fn chats_two_and_a_missing_chat_number_use_the_unnumbered_list() {
+fn bare_chats_opens_the_project_chat_list() {
     let mut host = left_off_host();
-    typed(&mut host, b"/chats 9");
-    give(&mut host, Event::Send);
-    assert_eq!(
-        host.state().notice(),
-        Some(&temper_client_tui::Notice::Unknown { words: b"/chats 9".as_slice().into() })
-    );
-    assert!(!text(&mut host).contains("/chats 2"));
-    typed(&mut host, b"/chats 2");
-    give(&mut host, Event::Send);
-    assert_eq!(host.root.pages().address(), &Address::Chat { task: OLDER });
+    typed(&mut host, b"/chats");
+    host.frame();
+    host.report(Report::Key(Key::Enter));
+    assert_eq!(host.root.pages().listing(), Some(terminal::Listing::Chats));
 }
 
 #[test]
-fn chats_one_and_enter_open_the_newer_chat_of_shop() {
+fn up_and_enter_open_the_newer_chat_of_shop() {
     let mut tasks = home_tasks(false);
     let mut reader = Reader::new(&tasks.rows);
     let mut rows = Vec::new();
@@ -3743,18 +3743,11 @@ fn chats_one_and_enter_open_the_newer_chat_of_shop() {
         rows.push(writer.finish());
     }
     tasks.rows = pieces(&rows);
-    let tasks = tasks;
-    for numbered in [false, true] {
-        let mut host = home_with_brief(&tasks, false);
-        if numbered {
-            typed(&mut host, b"/chats 1");
-        } else {
-            host.frame();
-            host.report(Report::Key(Key::Up));
-            host.frame();
-            assert_eq!(host.state().picked().map(|(row, _)| row), Some(Row::Chat { task: NEWEST }));
-        }
-        host.report(Report::Key(Key::Enter));
-        assert_eq!(host.root.pages().address(), &Address::Chat { task: NEWEST });
-    }
+    let mut host = home_with_brief(&tasks, false);
+    assert!(!text(&mut host).contains("/chats "));
+    host.report(Report::Key(Key::Up));
+    host.frame();
+    assert_eq!(host.state().picked().map(|(row, _)| row), Some(Row::Chat { task: NEWEST }));
+    host.report(Report::Key(Key::Enter));
+    assert_eq!(host.root.pages().address(), &Address::Chat { task: NEWEST });
 }

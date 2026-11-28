@@ -57,6 +57,7 @@ impl Outcome {
                         | git::Done::Looked { .. }
                         | git::Done::Results { .. }
                         | git::Done::Paths { .. }
+                        | git::Done::Message { .. }
                         | git::Done::Brings { .. }
                         | git::Done::IsAncestor { .. }
                         | git::Done::Merged

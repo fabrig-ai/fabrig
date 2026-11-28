@@ -177,6 +177,19 @@ fn an_application_watch_keeps_its_owner_and_rejects_foreign_deliveries() {
     assert_eq!((value.watch, value.document.version, value.document.record.as_ref()), (17, 2, &[88][..]));
 }
 #[test]
+fn a_family_watch_refuses_a_continuation_at_another_layout() {
+    let (mut world, stream) = stream_world();
+    let subject = fixtures::family_owned(Box::new([77]), Some(fixtures::foreign_window_cursor()));
+    let owner = world.open_record(stream, 17, subject);
+    assert!(world.out.is_empty(), "no application watch");
+    let (status, body) = world.response(owner);
+    assert_eq!(status, 200);
+    let unknown = w::OpenAnswer::Refused(w::OpenAnswerRefused { why: w::WatchRefusal::Unknown });
+    assert_eq!(w::OpenAnswer::decode(&fixtures::wire(), &mut Reader::new(body)), Ok(unknown));
+    assert!(world.stream().watches.is_empty());
+}
+
+#[test]
 fn a_watch_admission_or_refusal_cannot_answer_another_exchange() {
     let (mut world, stream) = stream_world();
     let (first, watcher) = request_task(&mut world, stream, 17);
@@ -536,16 +549,16 @@ fn opening_stream_me() -> (fixtures::Exchange, Token, Token) {
     (world, owner, watcher)
 }
 #[test]
-fn opened_names_jig_then_the_application_layouts_in_settings_order() {
+fn opened_keeps_hello_ranges_in_settings_order_and_names_jigs_layout_first() {
     const FIRST: u16 = 9;
     const SECOND: u16 = 2;
     const FIRST_LAYOUT: [u8; 32] = [1; 32];
     const SECOND_LAYOUT: [u8; 32] = [2; 32];
     let mut settings = fixtures::settings();
     settings.served = skein_lib::List::from_boxed(Box::new([
-        crate::Served { family: Some(FIRST), first: 2, last: 2, layout: FIRST_LAYOUT },
-        crate::Served { family: None, first: w::VERSION, last: w::VERSION, layout: w::LAYOUT },
-        crate::Served { family: Some(SECOND), first: 1, last: 1, layout: SECOND_LAYOUT },
+        crate::Served { family: Some(FIRST), version: 2, layout: FIRST_LAYOUT },
+        crate::Served { family: None, version: w::VERSION, layout: w::LAYOUT },
+        crate::Served { family: Some(SECOND), version: 1, layout: SECOND_LAYOUT },
     ]));
     let mut env = fixtures::env();
     env.limits.families = settings.served.len();
@@ -575,6 +588,14 @@ fn opened_names_jig_then_the_application_layouts_in_settings_order() {
     else {
         panic!("Opened on the stream")
     };
+    assert_eq!(
+        opened.hello.served.as_slice(),
+        &[
+            w::Served { owner: w::Owner::Family(w::Family { number: FIRST }), first: 2, last: 2 },
+            w::Served { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION },
+            w::Served { owner: w::Owner::Family(w::Family { number: SECOND }), first: 1, last: 1 },
+        ]
+    );
     assert_eq!(
         opened.layouts.as_slice(),
         &[

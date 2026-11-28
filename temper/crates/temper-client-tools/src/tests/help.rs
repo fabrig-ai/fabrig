@@ -55,6 +55,7 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::REVISIONS_AT), "help_revision_list"),
     (Some(jig::rows::CHANGE_SETTINGS_AT), "help_settings_apply"),
     (Some(jig::rows::PROPOSE_SETTINGS_AT), "help_settings_propose"),
+    (Some(jig::rows::UPGRADE_SETTINGS_AT), "help_settings_upgrade"),
     (Some(jig::rows::PROPOSAL_AT), "help_proposal_show"),
     (Some(jig::rows::MOVE_TO_NEWEST_AT), "help_revision_advance"),
     (Some(jig::rows::RESTORE_AT), "help_revision_restore"),
@@ -292,6 +293,7 @@ const USAGES: &[(u8, &[u8])] = &[
     (jig::rows::PARTY_MAKE_AT, b"party make --project PROJECT --role ROLE --out FILE TEXT [--key KEY]\n"),
     (jig::rows::PARTY_REISSUE_AT, b"party reissue PARTY --out FILE [--key KEY]\n"),
     (jig::rows::HELP_AT, b"help [GROUP [VERB]]\n"),
+    (jig::rows::UPGRADE_SETTINGS_AT, b"settings upgrade FILE\n"),
     (jig::rows::SETTING_AT, b"settings show charter|template|policy|model|worker|provider NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager|project-landing|project-gates PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\nsettings show agents [--revision REVISION]\nsettings show welcome [--revision REVISION]\nsettings show limits\nsettings show temper-limits [--revision REVISION]\n"),
 ];
 #[test]
@@ -307,7 +309,9 @@ fn each_derivation_names_every_tool() {
     let restore: &[&[&str]] = &[&["revision", "restore", "4", "--key", "restore-4"]];
     for words in fixtures::EVERY_TOOL.iter().chain(restore).chain([&super::jig::project_waits::FILTERED]) {
         let mut call = fixtures::call(words);
-        if call.tool == jig::rows::CHANGE_SETTINGS_AT || call.tool == jig::rows::PROPOSE_SETTINGS_AT {
+        if [jig::rows::CHANGE_SETTINGS_AT, jig::rows::PROPOSE_SETTINGS_AT, jig::rows::UPGRADE_SETTINGS_AT]
+            .contains(&call.tool)
+        {
             let value = jig::call::Value::Text(br#"{"items":[]}"#.as_slice().into());
             *call.values.get_mut(0).expect("FILE") = Some(if call.tool == jig::rows::CHANGE_SETTINGS_AT {
                 jig::call::Values::Many(Box::new([value]))

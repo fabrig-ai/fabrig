@@ -300,6 +300,16 @@ change's due step.
 - **Reservations count as entries,** so that a waiter refused while the
   line's room is reserved for another is no finding (skein's
   `testing/inspection.md`, 4.2).
+- **The room's census** (`../draft/misbehaving-agents.md`, 3.2 and 7):
+  the forge room's taken (`../domain/forge/room.md`, 2) is the count of
+  `forge write entries`' entries, its outbox entries and its holders'
+  reservations, each reservation by its holder: an asked waiter, an agent
+  call or a goal projection. A reservation is pending while its owner
+  lives: the asked waiter's task waiting for room, the agent call's run
+  live, the projection's goal live; and due once its owner has ended.
+  Where the taken and the census differ, the adapter's own check finds
+  it, naming the room, both counts and the holders by kind, beside the
+  shared ones, wherever `forge` or `inspect` is called.
 - **Build places** are the worker's, not the engine's
   (`../domain/worker/README.md`; `checks.md`, 6.1, the worker's adapter):
   the engine keeps none.
@@ -482,7 +492,7 @@ wants of that symptom.
 |---|---|---|---|
 | P90 | `a_refused_close_of_an_open_pull_holds_with_words` | `temper-engine-forge-world` | holds already: active |
 | P67 residual | `a_no_change_landing_repair_regates_once` | `temper-engine-forge-world` | a change's reds: active |
-| P37 | `a_starved_gate_is_the_runners` | `temper-engine-forge-world` | a change's reds |
+| P37 | `a_starved_gate_is_the_runners` | `temper-engine-forge-world` | a change's reds: active |
 | S7 | `a_landing_without_its_prepare_task_moves` | `temper-engine-domain-world` | holds already: active |
 | P53 | `a_resolution_keeping_a_deleted_path_is_refused` | `temper-engine-domain-world` | a change's reds |
 | P58 residual | `a_repair_whose_tests_pass_regates_by_itself` | `temper-engine-domain-world` | a change's reds: active |
@@ -522,7 +532,10 @@ wants of that symptom.
   goal's coordinator, 2026-11-22).
 - **P37's report:** a gate red whose report names no failing test; where
   the fake forge and the gate's report reader can say tests went
-  unobserved, it says so too.
+  unobserved, it says so too. It runs active, with no exclusion, fixed
+  by a gate's report that names nothing (`../domain/landing-proof.md`,
+  2.4), as P58's and P67's residuals run, fixed by a repair that
+  changes nothing (*A scenario its work has fixed*, below).
 - **A scenario that passes today** shows its row's handling already
   holds: it runs, not ignored, with no exclusion, and its row is
   reported for the catalog (the draft, 6, *A problem fixed before this
@@ -561,6 +574,7 @@ own change.
 | `a_prepare_is_admitted_when_branch_holds_are_released` | `temper_faults::bounds::BRANCH_HOLDS` | `the holds and pending prepares, including the new change or train, exceed capacity` |
 | `a_starved_gate_is_the_runners` | `temper_blame::STARVED` | `a landing's gate` |
 | `a_resolution_keeping_a_deleted_path_is_refused` | `stale` / `a path deleted on the base` | `a resolution under way` |
+| `a_failed_capability_refresh_reads_again` | `temper_faults::forge::CLOSE_REFUSED` | `the refused close occupies a slot in a full forge client call table` |
 | `a_goal_cancelled_while_its_branch_is_being_made_ends_cancelled` | `temper_faults::people::CANCELS_A_GOAL` | `a goal branch making in flight` |
 
 - **The sweeps that draw these combinations** are the workloads'

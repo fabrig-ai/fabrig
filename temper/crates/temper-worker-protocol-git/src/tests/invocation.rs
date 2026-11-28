@@ -38,11 +38,16 @@ const SETTINGS: &[&[u8]] = &[
 ];
 const ID: &[u8] = b"abababababababababababababababababababab";
 #[expect(clippy::too_many_lines, reason = "the argument table covers both fetch destinations")]
-fn rows() -> [(Command, &'static [&'static [u8]]); 33] {
+fn rows() -> [(Command, &'static [&'static [u8]]); 35] {
     let remote: Box<[u8]> = Box::from(fixtures::REMOTE);
     let branch: Box<[u8]> = Box::from(&b"temper/7"[..]);
     let commit = fixtures::COMMIT;
     [
+        (Command::ReadMessage { commit }, &[b"cat-file", b"commit", ID]),
+        (
+            Command::ReadMessage { commit: fixtures::COMMIT_256 },
+            &[b"cat-file", b"commit", b"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"],
+        ),
         (
             Command::Remote { remote: remote.clone(), format: invocation::Format::Sha1 },
             &[b"remote", b"add", b"origin", b"--", fixtures::REMOTE],
@@ -313,6 +318,7 @@ fn each_command_s_arguments_are_git_md_s_vector() {
             | Command::WriteTree
             | Command::CommitTree { .. }
             | Command::MergeBases { .. }
+            | Command::ReadMessage { .. }
             | Command::BringsList { .. }
             | Command::IsAncestor { .. }
             | Command::Push { .. } => &[b"--git-dir=gitdirs/0/fabrig", b"--work-tree=workspaces/0/fabrig"],
@@ -344,6 +350,8 @@ fn operation(command: &Command) -> git::Op {
         git::Op::Clone { at, store: Token::new(9), remote: Box::from(fixtures::REMOTE) }
     } else if let Command::Merge { theirs } | Command::MergeHistory { theirs } = command {
         git::Op::Merge { at, theirs: *theirs, identity: 1, account: None }
+    } else if let Command::ReadMessage { commit } = command {
+        git::Op::Message { at, commit: *commit }
     } else if let Command::FetchCounts { .. } | Command::UpdateCounts { .. } | Command::DeleteCounts = command {
         git::Op::Counts { at, store: Token::new(9), remote: Box::from(fixtures::REMOTE), identity: 1, account: None }
     } else {
@@ -448,9 +456,14 @@ fn a_commit_is_authored_and_committed_as_the_identity() {
 #[test]
 fn an_operation_naming_no_identity_commits_as_the_placeholder() {
     let identity = fixtures::identity();
-    for kind in
-        [Some(git::Kind::Look), Some(git::Kind::Clone), None, Some(git::Kind::Make), Some(git::Kind::IsAncestor)]
-    {
+    for kind in [
+        Some(git::Kind::Look),
+        Some(git::Kind::Clone),
+        None,
+        Some(git::Kind::Make),
+        Some(git::Kind::IsAncestor),
+        Some(git::Kind::Message),
+    ] {
         let environment = invocation::environment(fixtures::HOME, kind, None);
         let expected = [
             b"HOME=/srv/worker/home".as_slice(),

@@ -154,9 +154,7 @@ fn serve_refusal(files: &[(&str, &[u8])], empty: &[&str]) -> String {
     use temper_config_shell::{Facts, Shape, parse};
     use temper_service_shell::configuration::Read;
     let facts = Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: false };
-    let temper_config_shell::Read { file, document, keys } =
-        parse(CONFIGURED, Shape::Standalone, &facts).expect("configuration file");
-    let read = Read { file, document, keys };
+    let read = Read::from(parse(CONFIGURED, Shape::Standalone, &facts).expect("configuration file"));
     let directories = jig_protocol_config::Directories::given(b"/fixture/config", b"/fixture/data", b"/fixture/cache")
         .expect("configuration directories");
     let named = temper_service::startup::named(&read.document, &directories).expect("named startup inputs");

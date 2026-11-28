@@ -25,10 +25,13 @@ impl Maps {
     }
     pub fn generation(disk: &mut Machine, active: u64) -> Self {
         let root = disk.reopen_root(0);
-        let store = map(disk, root, format!("generations/{active}/store").as_bytes());
+        let store = Self::store(disk, root, active);
         let secrets = map(disk, root, format!("generations/{active}/secrets").as_bytes());
         disk.close(root);
         Self { active, store, secrets }
+    }
+    pub fn store(disk: &mut Machine, root: Opened, active: u64) -> Rows {
+        map(disk, root, format!("generations/{active}/store").as_bytes())
     }
     pub fn deployment(&self) -> Result<jig_domain_core::Deployment, String> {
         use jig_domain_core::{CoreKey, CoreRecord, Key};

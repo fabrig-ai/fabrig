@@ -1,5 +1,10 @@
-//! A stopped deployment copied from the floor store for shell command tests.
+//! Loaded golden deployments for the simulated world and shell command tests.
+mod frame_registry;
+pub mod log;
+
+pub use frame_registry::frame_registry_commit;
 use std::{
+    io::Write as _,
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
     path::Path,
 };
@@ -31,18 +36,26 @@ pub fn deployment() -> (skein_scratch::Scratch, Directories) {
         std::fs::set_permissions(directory, std::fs::Permissions::from_mode(0o700)).expect("private directory");
     }
     let floor = skein_scratch::paths::tree().join("tests/one-process/golden/floor");
-    copy(&floor.join("state"), &data.join("state"));
+    let state = data.join("state");
+    copy(&floor.join("state"), &state);
     // Git omits empty directories; the manifest keeps the deployment's transcripts root.
     for line in std::fs::read_to_string(floor.join("modes.txt")).expect("floor modes").lines() {
         let fields: Vec<_> = line.split(' ').collect();
         if fields[0] == "d"
             && let Some(path) = fields[3].strip_prefix("state/")
         {
-            let path = data.join("state").join(path);
+            let path = state.join(path);
             std::fs::create_dir_all(&path).expect("kept deployment directory");
             std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).expect("private directory");
         }
     }
+    let active = std::fs::read(state.join("active")).expect("active generation");
+    let path = state.join(log::initial_path(&active));
+    let bytes = std::fs::read(&path).expect("copied store log");
+    let commit = frame_registry_commit(&bytes);
+    let mut log = std::fs::OpenOptions::new().append(true).open(path).expect("copied store log");
+    log.write_all(&commit).expect("append frame registry to the copy");
+
     let mut file = temper_config_shell::File {
         listen: Some("127.0.0.1:7100".parse().expect("clients listener")),
         workers: Some("127.0.0.1:7103".parse().expect("workers listener")),

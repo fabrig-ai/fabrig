@@ -22,7 +22,7 @@ impl Source {
                 Err(why) if why.kind() == std::io::ErrorKind::NotFound => Ok(true),
                 Err(why) => Err(format!("source configuration {}: {why}", config.display())),
             },
-            || temper_config_shell::read(dirs, Shape::Standalone).map_err(|why| why.to_string()),
+            || temper_service_shell::configuration::report(temper_config_shell::read(dirs, Shape::Standalone)),
             || public(&config.join(FILE)),
         )
     }

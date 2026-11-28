@@ -140,6 +140,8 @@ Documents:
 
 - `directories.md`: the configuration, data and cache directories.
 - `file.md`: the TOML file and its table.
+- `file-formats.md`: the format of each file a person writes, its moves
+  and how every shipped format keeps reading.
 - `engine.md`: the engine configuration.
 - `figures.md`: the workers' figures.
 - `derived.md`: derived figures and formulas.

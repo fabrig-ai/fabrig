@@ -25,7 +25,7 @@ fn opening(worker: &str, at: u64) -> WorkerOpening {
 }
 fn started() -> World {
     let mut world = World::unopened(SEED);
-    world.owner_sets(jig_store_world::patches::current(SETS));
+    world.owner_sets(jig_store_world::upgrade_fixtures::current(SETS));
     assert_eq!(world.open(), Some(0));
     assert_eq!(world.commit(Box::new([Write::Save(root::header(1)), Write::Wires])), Some(1));
     world
@@ -144,11 +144,11 @@ fn a_store_from_before_the_family_opens_and_rehearses_without_openings() {
         ])),
     };
     let mut world = World::unopened(SEED);
-    world.owner_sets(jig_store_world::patches::current(old));
+    world.owner_sets(jig_store_world::upgrade_fixtures::current(old));
     assert_eq!(world.open(), Some(0));
     assert_eq!(world.commit(Box::new([Write::Save(root::header(1)), Write::Wires])), Some(1));
     world.crash(SEED);
-    world.owner_sets(jig_store_world::patches::current(SETS));
+    world.owner_sets(jig_store_world::upgrade_fixtures::current(SETS));
     assert_eq!(world.open(), Some(1), "the layouts row has no openings field, and needs none");
     rehearse(&mut world, &[]);
 }

@@ -34,12 +34,19 @@ impl std::fmt::Debug for Record {
     }
 }
 
+#[derive(Debug)]
+pub(crate) enum RunFrame {
+    Turn(smith_channel::Turn),
+    Answer(smith_channel::RunResult),
+}
+
 pub(crate) struct Wire {
     pipes: BTreeMap<i32, (bool, i32, Vec<u8>)>,
     limits: smith_channel::Limits,
     store: std::rc::Rc<std::cell::RefCell<super::Store>>,
     runs: BTreeMap<i32, (u64, u64)>,
     keep_starts: bool,
+    run_frames: Option<BTreeMap<(u64, u64), Vec<RunFrame>>>,
     pub events: Vec<Observed>,
 }
 impl Wire {
@@ -50,11 +57,19 @@ impl Wire {
             store,
             runs: BTreeMap::new(),
             keep_starts: false,
+            run_frames: None,
             events: Vec::new(),
         }
     }
     pub(crate) fn keep_starts(&mut self) {
         self.keep_starts = true;
+    }
+    pub(crate) fn keep_run_frames(&mut self) {
+        self.keep_starts();
+        self.run_frames = Some(BTreeMap::new());
+    }
+    pub(crate) fn run_frames(&self, task: u64, attempt: u64) -> Option<&[RunFrame]> {
+        self.run_frames.as_ref()?.get(&(task, attempt)).map(Vec::as_slice)
     }
     pub fn complete(&mut self, complete: &Complete) -> Result<(), String> {
         match (&complete.kind, &complete.result) {
@@ -173,9 +188,16 @@ impl Wire {
             let turn = smith_channel::Turn::decode(limits, &mut Reader::new(bytes))
                 .map_err(|why| format!("agent Turn bytes: {why:?}"))?;
             self.events.push(Observed::Completion { task, attempt, cumulative: turn.spent });
+            if let Some(frames) = &mut self.run_frames {
+                frames.entry((task, attempt)).or_default().push(RunFrame::Turn(turn));
+            }
         } else if !down && kind == 0x0110 {
             let answer = smith_channel::Answer::decode(limits, &mut Reader::new(bytes))
                 .map_err(|why| format!("agent Answer bytes: {why:?}"))?;
+            if let Some(frames) = &mut self.run_frames {
+                let run = *self.runs.get(&identity_fd).ok_or_else(|| String::from("answer after agent Start"))?;
+                frames.entry(run).or_default().push(RunFrame::Answer(answer.result.clone()));
+            }
             if matches!(&answer.result, smith_channel::RunResult::Failed(_) | smith_channel::RunResult::Refused(_)) {
                 let (task, attempt) =
                     *self.runs.get(&identity_fd).ok_or_else(|| String::from("answer after agent Start"))?;

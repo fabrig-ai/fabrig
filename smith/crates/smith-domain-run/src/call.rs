@@ -24,13 +24,24 @@ use crate::run::{Conversation, Run};
 
 /// A call in flight.
 #[derive(Debug)]
-pub(crate) struct Call {
+pub struct Call {
     pub(crate) run: Id<Run>,
     /// The conversation that made it.
     pub(crate) conversation: Id<Conversation>,
     /// The conversation's token for it.
     pub(crate) owner: Token,
     pub(crate) work: Work,
+}
+
+impl Call {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_host_call(&self) -> Option<&crate::CallName> {
+        match &self.work {
+            Work::Host(relay) => relay.inspection_open(),
+            Work::Landing(_) | Work::Child(_) => None,
+        }
+    }
 }
 
 /// What a call is doing.
@@ -68,6 +79,10 @@ pub(crate) struct Calls {
 }
 
 impl Calls {
+    pub(crate) fn inspection_slab(&self) -> &Slab<Call> {
+        &self.slab
+    }
+
     pub(crate) fn with_capacity(capacity: u32) -> Calls {
         Calls { slab: Slab::with_capacity(capacity), named: Map::with_capacity(capacity) }
     }

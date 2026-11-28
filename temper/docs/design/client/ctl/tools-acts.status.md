@@ -6,6 +6,11 @@
 - **Not yet:** 1: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].
 
+- **Not yet:** 1: the engine host's read of a settings file returns no
+  notices: a successful read carries its typed call alone
+  (`temper-engine-smith`'s settings read). Format 1 has no moves, so no
+  notices arise.
+
 
 - **Not yet:** 1: `project delete PROJECT`: the table's tool is `project remove`, its ask built through `me` by `shapes::remove_project` with the chat template's grace, so a number `me` no longer lists sends nothing and a rerun after the deletion never reaches jig's kept answer [in flight: change 634].
 - **Not yet:** 1: a settings file's landing rule has no `sets`, in

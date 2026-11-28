@@ -19,7 +19,7 @@ pub(super) fn drive(root: &mut Domain, event: Event, limits: &jig_client_test_do
                 first::ReadResult::SignedOut => jig_client::Readout::Jig(jig_client::contract::ReadResult::None(
                     jig_client::contract::ReadNone::SignedOut,
                 )),
-                first::ReadResult::Unsupported => jig_client::Readout::NotServed { family: Some(1), served: None },
+                first::ReadResult::Unsupported => jig_client::Readout::NotServed { family: Some(1) },
             },
         },
         Event::First(first::Event::Watch { watch, event: first::WatchEvent::Delivered(value) }) => {

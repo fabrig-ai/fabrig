@@ -62,6 +62,22 @@ fn a_rewrite_stales_a_write_but_an_edit_loads_again() {
 }
 
 #[test]
+fn a_drawn_write_recreates_a_removed_fixture_file() {
+    // Pin the read and write fields of the rewrite-heavy menu's README.md body.
+    const BODY: &[u8] = br#"{"path":"README.md","offset":1,"window":28,"content":"README.md: generated"}"#;
+    let results = scripted_results(
+        &Settings::calm(5),
+        vec![call(b"read", BODY), call(b"remove", BODY), call(b"write", BODY), call(b"write", BODY)],
+    );
+    assert_eq!(results.len(), 4);
+    assert!(!results[0].1 && results[0].0.starts_with(b"1: README.md: hello"));
+    assert_eq!(
+        results[1..],
+        [(bytes(b"removed"), false), (bytes(b"file created"), false), (bytes(b"file written"), false)]
+    );
+}
+
+#[test]
 fn only_inspection_can_use_the_reference_directory() {
     let calm = Settings::calm(1);
     let mut mounted = Settings { reference: true, ..calm };

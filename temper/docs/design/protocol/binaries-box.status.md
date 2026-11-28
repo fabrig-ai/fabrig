@@ -1,6 +1,7 @@
 # binaries-box: status
 
-2026-11-22. Where the tree's code lags or departs from [binaries-box.md](binaries-box.md).
+2026-11-27. Where the tree's code lags or departs from [binaries-box.md](binaries-box.md).
+
 
 - **Not yet:** the whole document: the restored-forge link gap remains `../domain/root-restart.status.md`, 1.1.  the deferred setup-close gap remains `service-routing.status.md`, 1.
 

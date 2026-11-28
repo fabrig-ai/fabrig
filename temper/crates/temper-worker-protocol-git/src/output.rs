@@ -22,6 +22,15 @@ fn split(input: &[u8], delimiter: u8) -> Option<(&[u8], &[u8])> {
     Some((input.get(..at)?, input.get(at.checked_add(1)?..)?))
 }
 
+/// The bytes following the first empty line of a raw commit object.
+pub(crate) fn commit_message(stdout: &[u8]) -> Option<&[u8]> {
+    if let Some(message) = stdout.strip_prefix(b"\n") {
+        return Some(message);
+    }
+    let separator = bytes::find(stdout, b"\n\n")?;
+    stdout.get(separator.checked_add(2)?..)
+}
+
 /// The one decimal packs line from bounded count-objects stdout (protocol/git-operations.md, 1.14).
 #[must_use]
 pub fn packs(stdout: &[u8]) -> Option<u32> {
@@ -277,6 +286,7 @@ fn classify_failure(tail: &[u8], cut: u64, kind: git::Kind) -> Result<(), git::F
         | git::Kind::Clone
         | git::Kind::Look
         | git::Kind::DiffPaths
+        | git::Kind::Message
         | git::Kind::Brings
         | git::Kind::IsAncestor
         | git::Kind::Keep

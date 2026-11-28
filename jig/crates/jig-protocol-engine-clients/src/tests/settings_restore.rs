@@ -74,6 +74,8 @@ fn charter() -> jig_domain_core_vocabulary::Charter {
                 price_unit: 1000,
                 efforts: Box::new([Box::from(b"high".as_slice())]),
                 effort: Some(Box::from(b"high".as_slice())),
+                speeds: Box::default(),
+                speed: None,
             },
             alternatives: Box::new([]),
             inspect: true,

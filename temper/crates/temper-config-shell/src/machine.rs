@@ -1,5 +1,5 @@
 //! Configuration discovery and machine facts (file.md, 6, steps 1–3).
-use crate::{FILE, FILE_BYTES, FORMER, Facts, Read, Refusal, Shape, binary, parse};
+use crate::{FILE, FILE_BYTES, FORMER, Facts, Read, Refusal, Shape, binary, parse::parse_with_facts};
 use std::{io::ErrorKind, os::unix::ffi::OsStrExt, path::Path};
 use temper_shell::directories::{Directories, unread};
 
@@ -44,7 +44,7 @@ pub fn read_with(
         }
         Err(why) => return Err(Refusal::one(format!("{FILE}: {}", unread(why)))),
     };
-    parse(&text, shape, &machine_facts()?)
+    parse_with_facts(&text, shape, machine_facts)
 }
 pub fn facts(directories: &Directories) -> Result<Facts, Refusal> {
     let login = login(skein_shell::effective_user()).map_err(Refusal::one)?;

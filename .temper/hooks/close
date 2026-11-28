@@ -1,0 +1,10 @@
+#!/bin/sh
+# Close: from the job directory, take close <request.json>, settle status, then check the goal.
+# Exit 0 passes, 1 fails; with TEMPER_CLOSE_REFUSAL=3, the check exits 3 for a
+# typed refusal and 2 if not judged. Settlement failure exits 1 without checking.
+# temper/docs/design/protocol/hooks.md, 2; temper/docs/design/protocol/tooling.md, 4.2.
+set -eu
+root=$(cd "$(dirname "$0")/../.." && pwd)
+python3 -I -B "$root/tools/close/close.py" "$@"
+cd "$root"
+exec python3 -I -B tools/pre-pr/pre_pr.py --close

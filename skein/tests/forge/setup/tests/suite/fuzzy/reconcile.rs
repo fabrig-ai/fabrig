@@ -1,3 +1,7 @@
+//! Refusal coverage is checked over the gate seeds (skein/docs/design/testing/sweeps.md, 4.5).
+
+use std::convert::Infallible;
+
 use skein_fake_forge_forgejo::Route;
 use skein_forge::forgejo::request::{Grant, Request};
 use skein_forge_setup::{
@@ -5,10 +9,17 @@ use skein_forge_setup::{
     reconcile::{Stage, Why},
 };
 use skein_forge_setup_world::{Ended, HostWorld, fixtures};
+use skein_world::{
+    sweep::{cases, gate},
+    this_test,
+};
+
 #[test]
 fn random_initial_forges_converge_after_hook_refusals_and_each_further_run_remakes_hooks() {
+    let test = this_test!("random_initial_forges_converge_after_hook_refusals_and_each_further_run_remakes_hooks");
+    let at_gate = gate();
     let mut refused_routes = Vec::new();
-    for seed in 0..32 {
+    cases(test, 0..32, |seed| -> Result<(), Infallible> {
         let mut world = fixtures::random(seed);
         let Hooks { url, expected } = seed_hooks(&mut world, seed);
         let refused = match seed % 3 {
@@ -19,6 +30,7 @@ fn random_initial_forges_converge_after_hook_refusals_and_each_further_run_remak
         };
         if let Some(route) = refused
             && refused_hook_run(&mut world, route, seed)
+            && at_gate
         {
             refused_routes.push(route);
         }
@@ -96,9 +108,13 @@ fn random_initial_forges_converge_after_hook_refusals_and_each_further_run_remak
         assert_eq!(remade, names, "seed {seed}");
         assert!(world.secrets_absent(), "seed {seed}");
         assert_eq!(fixtures::file_writes(&world), files, "seed {seed}");
-    }
-    for route in [Route::DeleteRepoHook, Route::CreateRepoHook] {
-        assert!(refused_routes.contains(&route), "a seed must exercise {route:?}'s refusal");
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if at_gate {
+        for route in [Route::DeleteRepoHook, Route::CreateRepoHook] {
+            assert!(refused_routes.contains(&route), "a seed must exercise {route:?}'s refusal");
+        }
     }
 }
 

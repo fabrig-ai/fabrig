@@ -2,7 +2,12 @@ use crate::{View, landing_ended, task_name};
 use skein_lib::Time;
 use skein_world::inspect::{Entry, Inspection, Refused, Release, Table};
 use std::fmt::Write as _;
-use temper_engine_domain_forge::{LimitSet, What};
+use temper_engine_domain_forge::{LimitSet, RoomReservation, RoomWaiter, What};
+
+const ENTRY_RULE: &str = "the write's settlement, or its owner's end with the entry withdrawn";
+const ASK_RULE: &str = "the end of the asked waiter's turn or its departure from the line";
+const CALL_RULE: &str = "the call's entry or the end of its run";
+const PROJECTION_RULE: &str = "the projection's entry or the end of its goal";
 
 fn writes(view: &View<'_>) -> Table {
     let forge = view.forge;
@@ -16,7 +21,7 @@ fn writes(view: &View<'_>) -> Table {
         let Some(entry) = forge.inspection_entry(number) else { continue };
         writes.entries.push(Entry {
             key: format!("entry {number} (task {})", entry.task),
-            rule: "the write's settlement, or its owner's end with the entry withdrawn",
+            rule: ENTRY_RULE,
             // Before handoff there is no client write to have settled
             // (testing/engine-checks.md, 2.3; domain/forge/room.md, 2).
             release: if view.ended(entry.task)
@@ -29,12 +34,10 @@ fn writes(view: &View<'_>) -> Table {
             },
         });
     }
-    for task in forge.inspection_reservations() {
-        writes.entries.push(Entry {
-            key: format!("reserved for task {task}"),
-            rule: "the write's settlement, or its owner's end with the entry withdrawn",
-            release: if view.ended(task) { Release::Due } else { Release::Pending },
-        });
+    for (holder, (_, task, ended)) in forge.inspection_room_reservations() {
+        if forge.inspection_reservation_held(*holder) {
+            writes.entries.push(reservation(view, *holder, *task, ended.is_some()));
+        }
     }
     for (task, row) in forge.inspection_changes() {
         if row.room.is_some() && refused_room(view, *task) {
@@ -58,6 +61,59 @@ fn writes(view: &View<'_>) -> Table {
     }
 
     writes
+}
+
+fn reservation(view: &View<'_>, holder: RoomReservation, task: u64, ended: bool) -> Entry {
+    let (key, rule, due) = match holder {
+        RoomReservation::Asked(waiter) => {
+            let key = match waiter {
+                RoomWaiter::Change(_) => format!("asked change (task {task})"),
+                RoomWaiter::Landing(_) => format!("asked landing (task {task})"),
+                RoomWaiter::Making(owner) => format!("asked making {} (task {task})", owner.raw()),
+                RoomWaiter::Release(_) => format!("asked release (task {task})"),
+            };
+            // Release cleanup waits in its own right, even with a closing task.
+            let due = !view.forge.inspection_asked_owner_waiting(waiter, task)
+                || (!matches!(waiter, RoomWaiter::Release(_)) && (ended || view.ended(task)));
+            (key, ASK_RULE, due)
+        }
+        RoomReservation::Call(owner) => {
+            let due = view.root.map_or(ended, |root| {
+                let attempt = root.inspection_forge_call_attempt(owner, task);
+                attempt.is_none()
+                    || root.tasks().task(task).and_then(|row| jig_domain_tasks::run_attempt(&row.phase)) != attempt
+            });
+            (format!("agent call {} (task {task})", owner.raw()), CALL_RULE, due)
+        }
+        RoomReservation::Projection(entry) => {
+            (format!("goal projection {entry} (task {task})"), PROJECTION_RULE, ended || view.ended(task))
+        }
+    };
+    Entry { key, rule, release: if due { Release::Due } else { Release::Pending } }
+}
+
+/// Compare the inspected write holders with the number the forge room charges.
+pub fn check_room_census(writes: &Table, taken: usize, into: &mut Inspection) {
+    let census = writes.entries.len();
+    if census == taken {
+        return;
+    }
+    let mut what = format!("census {census}, taken {taken}");
+    for (kind, rule) in [
+        ("outbox entries", ENTRY_RULE),
+        ("asked waiters", ASK_RULE),
+        ("agent calls", CALL_RULE),
+        ("goal projections", PROJECTION_RULE),
+    ] {
+        write!(what, "; {kind}: [").expect("write into a string");
+        let mut separator = "";
+        for entry in writes.entries.iter().filter(|entry| entry.rule == rule) {
+            write!(what, "{separator}{}", entry.key).expect("write into a string");
+            separator = ", ";
+        }
+        what.push(']');
+    }
+    into.violate("forge room".into(), what);
 }
 
 // The line passes over tasks held for something other than this table's room.
@@ -200,6 +256,7 @@ fn landings(view: &View<'_>) -> Table {
 
 pub(super) fn inspect(view: &View<'_>, into: &mut Inspection) {
     let mut writes = writes(view);
+    check_room_census(&writes, view.forge.inspection_room_taken(), into);
     let mut holds = holds(view);
     if let Some(root) = view.root {
         for hold in root.forge_limit_holds() {

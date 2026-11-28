@@ -2,7 +2,7 @@
 //! skein/docs/foundation/testing-strategy.md, 2.2.
 
 //! A scripted parent/provider world for concrete sessions. The
-//! referee observes only requests: provider bytes, turns and spend, never
+//! referee observes only requests: provider bytes, turns, parts and spend, never
 //! session state. The harness separately checks boundary and settle contracts.
 
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -59,6 +59,7 @@ pub fn opening(transcript: Option<record::Transcript>, budget: u64) -> record::O
         },
         dialect: 23,
         prices: PRICES,
+        speed: None,
         budget,
         answered: Box::default(),
         cut: None,
@@ -70,6 +71,7 @@ pub fn opening(transcript: Option<record::Transcript>, budget: u64) -> record::O
 /// Real domain plus scripted typed peers, pending terminals and external observations for this component story.
 pub struct Scripted {
     shapes: Option<ShapeRecord>,
+    record_replay: bool,
     /// Real session state under test, advanced only through its declared boundary.
     pub domain: session::Domain,
     /// Injected monotonic and wall times together with immutable session limits.
@@ -106,6 +108,8 @@ pub struct Scripted {
     pub prompts: Vec<llm::Prompt>,
     /// Concrete transcript turns emitted by the session, in order.
     pub turns: Vec<record::Turn>,
+    /// Answer, result and window parts emitted by the session, in order.
+    pub parts: Vec<record::Part>,
     /// Accepted cumulative integer charges and their overflow flags, in request order.
     pub spend: Vec<u64>,
     /// Cumulative own-completion charges, excluding every delegated bill.
@@ -152,8 +156,15 @@ impl Scripted {
         limits.sessions = 1;
         limits.spend = u64::MAX;
         limits.history_messages = 32;
+        Scripted::with_limits(seed, limits)
+    }
+
+    /// Construct the same scripted driver with the supplied session limits.
+    #[must_use]
+    pub fn with_limits(seed: u64, limits: session::Limits) -> Scripted {
         Scripted {
             shapes: None,
+            record_replay: true,
             domain: session::Domain::new(&limits, seed),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
@@ -172,6 +183,7 @@ impl Scripted {
             snapshots: vec![],
             prompts: vec![],
             turns: vec![],
+            parts: vec![],
             spend: vec![],
             own_spend: vec![],
             used: vec![],
@@ -182,6 +194,11 @@ impl Scripted {
             detail: Box::default(),
             trace: vec![],
         }
+    }
+
+    /// Leave request and state rendering to replay scenarios; keep typed observations and checks.
+    pub fn omit_replay(&mut self) {
+        self.record_replay = false;
     }
 
     /// Delivers one typed terminal or entrance, drains the emitted requests and checks terminal ownership.
@@ -261,7 +278,9 @@ impl Scripted {
 
     fn collect_outputs(&mut self) {
         while let Some(request) = self.out.pop() {
-            self.trace.push(format!("{request:?}"));
+            if self.record_replay {
+                self.trace.push(format!("{request:?}"));
+            }
             self.observe(request);
         }
         while let Some(fact) = self.domain.pop_fact() {
@@ -273,13 +292,18 @@ impl Scripted {
         if self.end.is_some() {
             assert!(self.jobs.is_empty() && self.held.is_empty(), "no job outlives its session");
         }
-        self.snapshots.push(format!("{:?}", self.domain));
+        if self.record_replay {
+            self.snapshots.push(format!("{:?}", self.domain));
+        }
     }
 
     /// Records boundary outputs and checks their single-owner obligations.
     fn observe(&mut self, request: session::Request) {
         match request {
-            session::Request::Part { .. } => panic!("parts not requested"),
+            session::Request::Part { opener, part } => {
+                assert_eq!(opener, Token::new(31));
+                self.parts.push(part);
+            }
             session::Request::JobsCancelled { .. } => self.jobs_cancelled += 1,
             session::Request::Opened { opener, session } => {
                 assert_eq!(opener, Token::new(31));
@@ -383,7 +407,13 @@ impl Scripted {
     pub fn complete(&mut self, content: Box<[llm::Block]>, stop: llm::Stop, usage: llm::Usage) {
         self.step(session::Event::Completed {
             owner: self.completing.expect("a completion is in flight"),
-            completion: llm::Completion { reasoning_dropped: Box::default(), content, stop, usage },
+            completion: llm::Completion {
+                served: smith_domain::llm::ServedSpeed::Unreported,
+                reasoning_dropped: Box::default(),
+                content,
+                stop,
+                usage,
+            },
         });
     }
 

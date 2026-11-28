@@ -208,7 +208,7 @@ enum RoundRead {
     Branch,
     Prefix(u32),
     Head,
-    Contained(u32),
+    Contained,
     Pull,
     Upstream,
 }
@@ -996,7 +996,6 @@ fn joinable(d: &Domain, project: u32, task: u64) -> bool {
 }
 
 /// Formed landings are sealed (domain/landing.md, 4.1).
-pub(crate) fn join(_d: &mut Domain, _task: u64, _member: policy::Member, _after: &[u64], _out: &mut Queue<Request>) {}
 pub(crate) fn order(_d: &mut Domain, _task: u64, _changes: &[u64], _out: &mut Queue<Request>) {}
 
 fn member_position(row: &LandingRow, prior: &LandingRow, old: u16) -> Option<u16> {
@@ -2756,7 +2755,7 @@ fn round_read(
             }
             match candidate {
                 Some(tip) => (RoundRead::Prefix(1), api::Read::Commits { before: below, after: tip, page: 1 }),
-                None => (RoundRead::Contained(1), api::Read::Commits { before: base, after: head, page: 1 }),
+                None => (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 }),
             }
         }
         RoundRead::Prefix(page) => {
@@ -2797,7 +2796,7 @@ fn round_read(
             if merge {
                 (RoundRead::Head, api::Read::Commits { before: candidate.expect("prefix"), after: head, page: 1 })
             } else {
-                (RoundRead::Contained(1), api::Read::Commits { before: base, after: head, page: 1 })
+                (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 })
             }
         }
         RoundRead::Head => {
@@ -2810,39 +2809,28 @@ fn round_read(
                     return;
                 }
             }
-            (RoundRead::Contained(1), api::Read::Commits { before: base, after: head, page: 1 })
+            (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 })
         }
-        RoundRead::Contained(page) => {
-            let (more, trailers) = match &answer {
-                Ok(api::Answer::Commits { commits, more }) => (*more, head_commit_trailers(commits, head)),
-                Err(api::Error::TooLarge(_)) => (false, None),
+        RoundRead::Contained => {
+            let trailers = match &answer {
+                Ok(api::Answer::Commits { commits, .. }) => head_commit_trailers(commits, head),
+                Err(api::Error::TooLarge(_)) => None,
                 Ok(_) | Err(_) => {
                     read_failed(d, row, &p, error, out);
                     return;
                 }
             };
-            // The first page alone tells whether the base contains the head.
-            if page == 1 {
-                fact.contained = if crate::domain::ancestry_status(answer) == change::Status::Passed {
-                    policy::Status::Passed
-                } else {
-                    policy::Status::Failed
-                };
-            }
-            if let Some(block) = trailers {
-                if !block.is_empty() {
-                    p.head_trailers
-                        .push(crate::LandingHeadTrailers { member: index, block })
-                        .expect("one block per member");
-                }
-            } else if more {
-                let Some(page) = page.checked_add(1) else {
-                    read_failed(d, row, &p, None, out);
-                    return;
-                };
-                p.stage = Stage::Round { member: index, stage: RoundRead::Contained(page), candidate };
-                ask(d, env, owner, p, repository(member), api::Read::Commits { before: base, after: head, page }, out);
-                return;
+            fact.contained = if crate::domain::ancestry_status(answer) == change::Status::Passed {
+                policy::Status::Passed
+            } else {
+                policy::Status::Failed
+            };
+            if let Some(block) = trailers
+                && !block.is_empty()
+            {
+                p.head_trailers
+                    .push(crate::LandingHeadTrailers { member: index, block })
+                    .expect("one block per member");
             }
             round_member(d, env, owner, p, row, index.checked_add(1).expect("member bound"), out);
             return;
@@ -2865,7 +2853,7 @@ fn round_read(
 fn head_commit_trailers(commits: &[api::CommitMessage], head: api::Commit) -> Option<Box<[u8]>> {
     for commit in commits {
         if commit.id == head {
-            return Some(crate::member_message::trailers(&commit.message));
+            return Some(temper_protocol_member_message::trailers(&commit.message));
         }
     }
     None
@@ -3054,7 +3042,7 @@ fn upstream_branch(d: &Domain, row: &LandingRow) -> Option<Box<[u8]>> {
 }
 
 fn squash_head(message: &[u8], head: api::Commit) -> bool {
-    crate::member_message::names_head(message, head)
+    temper_protocol_member_message::names_head(message, head)
 }
 
 /// A receipt is shared by project, repository, gate and filtered tree, independent
@@ -6321,8 +6309,8 @@ impl Domain {
             | api::Write::Update { .. }
             | api::Write::CreateBranch { .. } => return None,
         };
-        let (form, recovery) = crate::effect_shape(kind)?;
-        Some((kept.repository, what, crate::AgentEffect { effect: kept.effect.clone(), kind, state, form, recovery }))
+        crate::effect_shape(kind)?;
+        Some((kept.repository, what, crate::AgentEffect { effect: kept.effect.clone(), kind, state }))
     }
 }
 /// Authority's wait is not a refused merge: it spent no send and keeps its turn

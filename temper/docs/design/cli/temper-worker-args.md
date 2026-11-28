@@ -13,6 +13,15 @@ Generated from temper-worker's table (`skein/docs/design/runtime/shell-table.md`
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
 - **Notes:** Its stderr carries its startup notes, its linked and lost lines and the reason of a failure. A first termination signal runs its worker's ending; a second aborts. Exit 0 after its ending, 1 on a refused start or any failure. Refuses an engine alone's document, naming temper-engine serve, or an engine and its worker in one process, naming the box's temper-box serve.
 
+### `temper-worker config upgrade`
+
+- **Set:** public
+- **Forms:** `[DIRECTORIES]`
+- print temper.toml at the newest format
+- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** Prints the configuration on stdout and any notices on stderr. Writes no files and starts nothing.
+
 ### `temper-worker program-login`
 
 - **Set:** public

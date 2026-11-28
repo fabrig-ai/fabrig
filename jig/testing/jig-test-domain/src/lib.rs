@@ -1136,7 +1136,9 @@ fn release_core(domain: &mut Domain, env: &Env<Limits>, held: core::Held, out: &
             let event = relay_message(domain, task, attempt, word);
             step(domain, env, event);
         }
-        core::Held::Store(load) => out.push(Request::Deliver(Delivery::Store(load))),
+        core::Held::Store(_) => {
+            unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
+        }
         other @ (core::Held::Acted { .. }
         | core::Held::Drained
         | core::Held::Restarting { .. }

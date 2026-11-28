@@ -1,4 +1,4 @@
-//! Keep old generation bytes opaque until the patched generation is durably active.
+//! Keep old generation bytes opaque until the upgraded generation is durably active.
 use super::{Commit, Store, codec, core, in_generation, keys, snapshots};
 use std::collections::BTreeMap;
 

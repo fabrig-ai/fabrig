@@ -623,7 +623,12 @@ terminal.
      the same local names in the same order, in each copy, else the page
      is `uncompared`, `its markup doesn't parse as written`. So the k-th
      start tag is the k-th element, and its line is the line it starts
-     on.
+     on. A page whose `Elements` counts any past the kit's
+     `Limits::elements` in either copy (`skein/docs/design/testing/browser.md`,
+     5 and 8), N as the check's browser runs it, 4096 by the kit's
+     default, is `uncompared`, `too large to compare, over N elements`,
+     judged before its names are: its elements past N go unread, so
+     its start tags can't all be matched.
    - **By its edit,** on a journey's page: each element whose start tag
      starts on a line that P's page to C's changes, by `git diff
      --no-index -U0` of their comparable texts (step 6); every element
@@ -693,7 +698,7 @@ terminal.
    | `identical PAGE` | no touched element of PAGE differs at any width |
    | `differs PAGE WIDTH ELEMENT PROPERTY REQUESTED LANDED` | one difference: WIDTH `1440`, `1000` or `420`, and `-` for a pair; PROPERTY a computed property, `box` (each value `X,Y WxH`, or `none`), or `pair` (`present` against `none`) |
    | `more PAGE N` | N of PAGE's differences past its first 50, not listed |
-   | `uncompared PAGE WHY` | `hand-made`, `not the requested look`, `nothing printed beside it`, or `its markup doesn't parse as written` |
+   | `uncompared PAGE WHY` | `hand-made`, `not the requested look`, `nothing printed beside it`, `its markup doesn't parse as written`, or `too large to compare, over N elements` (step 5) |
    | `result RESULT` | last, once: `identical`, `differs`, `not compared` where no page was compared, or `nothing to render` |
 
    PAGE is the page's path below `temper/docs/design/client/`, as 6.1's
@@ -890,7 +895,8 @@ Focused and native: no box, browser or terminal starts.
   differing at each width, three `differs` lines; a box 1 px off equal,
   2 px off differing; a touched element with no pair, `pair`; an element
   touched by a rule's selector, its `:hover` dropped; a page whose
-  elements don't follow its start tags, a hand-made page and a page
+  elements don't follow its start tags, a page with elements past
+  `Limits::elements` in either copy, a hand-made page and a page
   with nothing printed beside it, each `uncompared`; nothing touched,
   `nothing to render`; a value holding a tab and a `\` escaped; past 50
   differences, `more`; the copies' `details` and `dialog` opened and
@@ -912,11 +918,25 @@ Focused and native: no box, browser or terminal starts.
   `block-size`, `transform-origin` and `perspective-origin` differing,
   one `box` row, and those properties differing within a box 1 px off,
   none. No Chromium starts.
-- **The render check's lines, read back,** one step test in the same
-  library: the lines of a printed page and of a page that is no
-  journey's, written by `look-render`'s own writer (6.2, step 8) and
-  read by the writer's reader (6.3), each page and its verdict as
-  written, so that the two forms can't part. It asks no effect.
+- **The render check's lines, read back,** so that the two forms
+  can't part: the two sides were built apart, each on its own canned
+  answers, and a hand-made page's path, printed by one and refused by
+  the other, once stopped the writer's run.
+  - **Listed** in one file of the library's sources, as the look
+    commands' git lists are: each line `look-render` prints in a step
+    test, under that test's name, in the order printed. Each of those
+    step tests checks that the file's lines under its name are
+    exactly its stdout's, and one step test that every name the file
+    holds is one of theirs; a line missing or left over fails, naming
+    it.
+  - **Read** by one step test: each listed stdout, through the
+    writer's reader (6.3), read whole, its pages and result written
+    back as step 8 writes lines are its listed lines byte for byte.
+    Across them it requires each line of step 8's table, each result
+    the reader accepts, each why the render check gives, and a printed
+    page, a page that is no journey's and a page under each root: a
+    form one side adds and the other doesn't read fails it. It asks no
+    effect.
 - **The kit's reads** of Chromium, in skein's browser suite
   (`skein/docs/design/testing/browser.md`, 9), in the session its
   viewport story starts: written and compiled in the plan, run after

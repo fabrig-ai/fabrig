@@ -156,6 +156,7 @@ impl Frame {
         let parsed = arguments::parse(words).expect("fixture call");
         let move_mode = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if call.tool == temper_client_tools::jig::rows::EXPORT_AT || call.tool == temper_client_tools::jig::rows::IMPORT_AT);
         let service_mode = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if matches!(call.tool, temper_client_tools::jig::rows::PARTY_MAKE_AT | temper_client_tools::jig::rows::PARTY_REISSUE_AT) || arguments::class(call) == crate::arguments::Class::Link);
+        let offline = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if arguments::class(call) == arguments::Class::SettingsUpgrade);
         let file_parent = arguments::file_root(&parsed).map(|_| FILE_PARENT);
         let files = arguments::text_files(&parsed)
             .into_iter()
@@ -165,7 +166,7 @@ impl Frame {
         let host = OneShot::with_text_files(
             Invocation { directory: Some(directory.into()), parsed },
             Startup {
-                parent: Some(Fd::new(1)),
+                parent: (!offline).then_some(Fd::new(1)),
                 file_parent,
                 stdin: Fd::new(2),
                 stdout: Fd::new(4),
@@ -485,6 +486,7 @@ impl Frame {
             let mode = match how {
                 OpenHow::Create { mode } | OpenHow::CreateNoFollow { mode } => mode.expect("private file mode"),
                 OpenHow::PathNoFollow
+                | OpenHow::PathSiblingFile
                 | OpenHow::Read
                 | OpenHow::ReadNoFollow
                 | OpenHow::Directory
@@ -640,6 +642,7 @@ impl Frame {
                 Ok(Done::Count(u32::try_from(count).expect("input count")))
             }
             Op::HardLink { .. }
+            | Op::ReadLink { .. }
             | Op::Bind { .. }
             | Op::Listen { .. }
             | Op::Accept { .. }

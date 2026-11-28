@@ -1,4 +1,10 @@
 mod awaiting;
+#[expect(
+    clippy::disallowed_methods,
+    clippy::wildcard_enum_match_arm,
+    reason = "the test driver filters captured effects and rejects unrelated I/O"
+)]
+mod convert;
 mod debug;
 pub(crate) mod fixtures;
 mod opening;

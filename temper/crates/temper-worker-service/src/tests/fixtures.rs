@@ -64,6 +64,7 @@ pub(crate) fn charter() -> smith_domain_run::Charter {
             endpoint: charter::Endpoint(1),
             model: b"model".as_slice().into(),
             effort: None,
+            speed: None,
             window: 8192,
             output: 512,
         },
