@@ -20,6 +20,7 @@ const PROJECT: u32 = 1;
 const REPOSITORY: api::Repository = api::Repository { forge: 1, repository: 7 };
 const PATH: &[u8] = b"docs/design/draft/catch-up.md";
 const TITLE: &[u8] = b"Catch-up barrier";
+const TASK_BY_TASK: u32 = 2;
 const START: &[u8] = b"Start a goal: Task by task";
 
 fn stand() -> ForgeStand {
@@ -59,6 +60,10 @@ fn world() -> (Clients, ClientId) {
     config.core.connectors = Box::new([fixtures::FORGE]);
     config.core.seed_projects[0].policy.permissions = Box::new([]);
     for template in &mut config.core.defaults.templates {
+        if template.number == TASK_BY_TASK {
+            // The draft recommends the stock way, identified by its reserved name.
+            template.name = Some(b"goal".as_slice().into());
+        }
         if template.tracked.is_some() {
             template.deadline = jig_domain_people::TemplateDeadline::None;
         }
@@ -70,7 +75,12 @@ fn world() -> (Clients, ClientId) {
         number: 1,
         value: settings::SizedValue {
             size: 0,
-            value: settings::Value::Ways(settings::ProjectWays { drafts: true, goals: true, changes: true, way: 2 }),
+            value: settings::Value::Ways(settings::ProjectWays {
+                drafts: true,
+                goals: true,
+                changes: true,
+                way: TASK_BY_TASK,
+            }),
         },
     });
     config.kinds_stock = stock.into_boxed_slice();

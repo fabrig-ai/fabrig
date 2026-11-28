@@ -2419,7 +2419,7 @@ const PHRASES: u32 = 2964;
 // Landing waits add 17 literal segments (client/web/public.md, 3).
 const SEGMENTS: u32 = 5525;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 68952;
+const ENGLISH_BYTES: u32 = 68922;
 const ALL: [Word; 2211] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
