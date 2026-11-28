@@ -19,7 +19,7 @@ pub(crate) struct State {
     deployment: [u8; 16],
     reason: Box<[u8]>,
     grace: Duration,
-    typed: Map<Token, Effect>,
+    staged_effects: Map<Token, Effect>,
     procedure_effects: Map<u64, (u64, Effect)>,
     effect_tasks: Map<Token, u64>,
     offers: Map<u64, (u64, u32)>,
@@ -33,7 +33,7 @@ impl State {
             deployment: [0; 16],
             reason: Box::new([]),
             grace: Duration::from_secs(0),
-            typed: Map::uncapped(),
+            staged_effects: Map::uncapped(),
             procedure_effects: Map::uncapped(),
             effect_tasks: Map::uncapped(),
             offers: Map::uncapped(),
@@ -85,12 +85,12 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             }
         },
         Event::StageEffect { owner, effect } => {
-            domain.port.typed.insert(owner, effect).expect("one staged connector input per owner");
+            domain.port.staged_effects.insert(owner, effect).expect("one staged connector input per owner");
         }
         Event::EffectOwner { task, owner } => {
             let (step, effect) = domain.port.procedure_effects.remove(&task).expect("pending procedure effect");
             domain.port.effect_tasks.insert(owner, task).expect("one task per procedure effect owner");
-            domain.port.typed.insert(owner, effect).expect("one payload per owner");
+            domain.port.staged_effects.insert(owner, effect).expect("one payload per owner");
             say_effect(
                 out,
                 effects::Up::Start { owner, origin: effects::EffectOrigin::Procedure { task, step, entry: None } },
@@ -197,7 +197,7 @@ fn effects(
 ) {
     let event = match ask {
         effects::Ask::Describe { owner } => {
-            let Some(effect) = domain.port.typed.remove(&owner) else {
+            let Some(effect) = domain.port.staged_effects.remove(&owner) else {
                 say_effect(out, effects::Up::Refused { owner });
                 return;
             };
@@ -216,7 +216,7 @@ fn effects(
             Event::Keep { token: owner, entry, key: infrastructure_key(key), project }
         }
         effects::Ask::Drop { owner, answer, .. } => {
-            domain.port.typed.remove(&owner);
+            domain.port.staged_effects.remove(&owner);
             if let Some(task) = domain.port.effect_tasks.remove(&owner) {
                 step_system(domain, env, Event::ProcedureAdmission { task, answer: admission(answer) }, system);
             }

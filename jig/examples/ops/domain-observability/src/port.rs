@@ -30,7 +30,7 @@ pub(crate) struct State {
     lead: Map<u16, Box<[procedures::Delegate]>>,
     offers: Map<u64, (u64, u32)>,
     last_question: u64,
-    typed: Map<Token, Effect>,
+    staged_effects: Map<Token, Effect>,
     documents: Map<Token, ClientDocument>,
 }
 
@@ -49,7 +49,7 @@ impl State {
             lead: Map::uncapped(),
             offers: Map::uncapped(),
             last_question: 0,
-            typed: Map::uncapped(),
+            staged_effects: Map::uncapped(),
             documents: Map::uncapped(),
         }
     }
@@ -112,7 +112,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             jig::Released::Answered { .. } => {}
         },
         Event::StageEffect { owner, effect } => {
-            domain.port.typed.insert(owner, effect).expect("one typed input per owner");
+            domain.port.staged_effects.insert(owner, effect).expect("one staged effect per owner");
         }
         Event::WakeReleased { task } => out.push(Out::Up(jig::Up::Procedures(procedures::Up::Wake { task }))),
         system_event @ (Event::DocumentPrepare { .. }
@@ -160,7 +160,7 @@ fn effect(
 ) {
     let event = match ask {
         effects::Ask::Describe { owner } => {
-            let Some(effect) = domain.port.typed.remove(&owner) else {
+            let Some(effect) = domain.port.staged_effects.remove(&owner) else {
                 say_effect(out, effects::Up::Refused { owner });
                 return;
             };
@@ -209,7 +209,7 @@ fn effect(
             Event::Keep { token: owner, entry, key: observability_key(key), project }
         }
         effects::Ask::Drop { owner, .. } => {
-            domain.port.typed.remove(&owner);
+            domain.port.staged_effects.remove(&owner);
             Event::Drop { token: owner }
         }
         effects::Ask::Close { task, .. } => Event::Close { task },
