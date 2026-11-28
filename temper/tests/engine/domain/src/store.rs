@@ -243,11 +243,11 @@ impl Store {
     /// A crash reopens the same stores; a fork copies the setting, not the kept reads.
     #[must_use]
     pub fn with_read_keeping(limits: &engine::Limits, keep: bool) -> Store {
+        let (checked, application) = component_limits(limits);
         let shape = Shape {
             limits: *limits,
-            checked: component_limits(limits),
-            application: temper_protocol_store::application(&limits.forge, limits.tasks.spec_bytes)
-                .expect("checked family sizes"),
+            checked,
+            application,
             route_bounds: temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).expect("family bounds"),
         };
         let mut stores = Stores {
@@ -970,7 +970,7 @@ pub fn widest() -> engine::Limits {
     limits.watermark = engine::default_watermark(&limits.journal);
     limits
 }
-fn component_limits(limits: &engine::Limits) -> protocol::Checked {
+fn component_limits(limits: &engine::Limits) -> (protocol::Checked, protocol::sizes::Application) {
     // These worlds keep the stock's store joins, including the box-allowance
     // stories. Derive that immutable profile once, not its client wire sizes
     // for every new store as well.
@@ -987,7 +987,8 @@ fn component_limits(limits: &engine::Limits) -> protocol::Checked {
         profile.store.page.rows = 8;
         profile
     });
-    temper_engine_service_vocabulary::store::limits(limits, &limits.forge, profile).expect("world sizes fit real store")
+    temper_engine_service_vocabulary::store::limits_with_application(limits, &limits.forge, profile)
+        .expect("world sizes fit real store")
 }
 
 /// The only mirrored row changed by a write-free restart's required start mark.

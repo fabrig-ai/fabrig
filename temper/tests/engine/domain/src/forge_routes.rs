@@ -3496,8 +3496,8 @@ impl World {
             && self.fake_out.is_empty()
             && self.store.idle()
             && !self.fake.is_due(self.env.now)
-            && self.root.next_deadline(&self.env).is_none_or(|due| due > self.env.now)
             && self.root.quiescent()
+            && self.root.next_deadline(&self.env).is_none_or(|due| due > self.env.now)
     }
 
     fn check_quiet(&mut self) {
