@@ -67,12 +67,9 @@ fn a_hangup_stops_a_box_and_leaves_nothing_running() {
 
     // The same retained configuration must bind again, including its owned listener.
     fs::remove_file(boxed.root().join("data/box/logs/serve.log")).expect("remove the old readiness marker");
-    let child = box_link::command(boxed.root(), "")
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("restart box");
+    let mut command = box_link::command(boxed.root(), "");
+    command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    let child = crate::support::fixture::spawn(&mut command, skein_io::kernel::Signal::Terminate).expect("restart box");
     boxed.guard.child = Some(child);
     boxed.wait(|boxed| boxed::serve_listening(&boxed.root().join("data")));
     boxed.stop();

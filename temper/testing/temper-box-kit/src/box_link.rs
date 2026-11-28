@@ -87,7 +87,7 @@ impl Boxed {
             .mode(0o600)
             .open(scratch.path().join("stderr"))
             .expect("private stderr capture");
-        let mut child = command
+        command
             .arg("--config")
             .arg(scratch.path().join("config"))
             .arg("--data")
@@ -96,9 +96,8 @@ impl Boxed {
             .arg(scratch.path().join("cache"))
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
-            .stderr(stderr)
-            .spawn()
-            .expect("real box");
+            .stderr(stderr);
+        let mut child = support::fixture::spawn(&mut command, skein_io::kernel::Signal::Terminate).expect("real box");
         let stdout = child.stdout.take().expect("box stdout");
         Self { scratch, guard: Guard::new(child), stdout, printed: Vec::new() }
     }
