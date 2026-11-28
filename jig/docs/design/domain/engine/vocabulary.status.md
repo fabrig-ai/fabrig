@@ -2,13 +2,6 @@
 
 2026-11-27. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
 
-- **Not yet:** 2.1: `StartProblem`'s connectors as `Connector` [in flight: change 21652].
-  2.5: the connectors' port, `Out::Ask`, `In::Connector` and `Peer::Connector`, and what the
-  core asked of every connector asked only of those declaring the capability
-  [in flight: change 21653]. 2.5: the core making and taking the contract's cases itself, and
-  the judgements' assertion at `finish_decision` [in flight: change 21658]. 2.2, 2.5: the
-  connectors' asks and answers of today still in `Out::Core` and `In::Core`'s vocabulary
-  [in flight: change 21663].
 - **Departs:**
   1.2: the optional-answer facts departure remains `jig/docs/design/client/domain/contract/answers.status.md`, 1.
   1: the root interface has no text for public `Core::effect_owner` and

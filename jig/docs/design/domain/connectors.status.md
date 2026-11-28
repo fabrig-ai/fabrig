@@ -15,14 +15,3 @@ name them in `settings::Up::Defaults`' `dropped`;
 the test connector no longer reports one as a default of size 0
 (`engine/README.status.md`, its 17.5).
 
-- **Not yet:** 3.4: `Unname` at retention's erasure at the deployment's
-  horizon, which is not built (`../protocol/store/growth.md`, 1.1).
-  13: request budgets. 17: the deleted-project restore story remains `engine/settings.status.md`, 10.
-  2: the values the capabilities' asks and answers carry, still defined
-  in the children and the core's vocabulary [in flight: change 21634].
-  2: the capabilities' `Ask` and `Up`, `Released`, `Connector` and the
-  declaration's `projects_goals` [in flight: change 21652].
-  1, 2: `ops`'s connectors speaking the contract [in flight: change 21660].
-  1, 2: the test connector speaking the contract [in flight: change 21661].
-  1, 2: temper's forge taking the contract at its own step's edge
-  [in flight: change 21662].
