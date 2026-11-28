@@ -189,7 +189,7 @@ of domain/host.md, section 2.
   activation it was told in, its `turn`, `thread`, `call` and `kind`, and
   its body's bytes, as the part record had them (section 4). The
   transcript's turns and the parts count together against the resume
-  limit, in turns and bytes (protocol/limits.md, 3.6). A host sends main's
+  limit, in turns and bytes (`limits-derivation.md`, 1.6). A host sends main's
   parts, then each sub-agent's, all of one `call` or none, in call
   order, while they fit; where main's do not, it sends the window alone.
   The agent drops parts past the limit, or that do not decode, and
