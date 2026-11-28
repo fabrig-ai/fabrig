@@ -178,6 +178,14 @@ and no policy. Every type is a plain value.
   follows.
 - **`Pull` answers both `Pull` and `PullFor`;** the `Commit` answer is a
   branch's tip.
+- **`File` at a directory answers `Directory`:** its call's head and
+  path, its immediate entries in the forge's order, each a name and an
+  `EntryKind`, and `truncated` where the answer's bytes left some out.
+  The kinds are `File`, a regular file; `Link`, a symbolic link, whose
+  target the listing doesn't give; `Directory`; and `Submodule`. Both
+  dialects' listings name a link apart (`symlink`), so neither reads it
+  as a file, and a reader that wants a link's bytes or a file's asks for
+  them by kind. An entry of any other kind is left out.
 - **`Compare`** carries `ahead`, the commits `after` has that `before`
   lacks; `behind`, those `before` has that `after` lacks, 0 when `after`
   contains `before`; `files`, the changed paths in the forge's order, as

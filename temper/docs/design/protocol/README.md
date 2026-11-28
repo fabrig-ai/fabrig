@@ -128,6 +128,9 @@ its tests, is `cluster.md`.
       `finish`, `merge` and `close`: how long each may run, how each is
       found, and the rule by repository while the older paths and
       settings stay.
+    - **temper-dir.md:** what temper reads of a repository's
+      `.temper/` and the one judgement it makes of it: entries, each
+      file's form and format, names, links and home.
 17. **floor.md:** the oldest store this build opens: its families and
     versions, the owner sets temper hands jig's store, the golden
     deployment, named refusals and the policy on stored changes.

@@ -41,7 +41,7 @@ members' JSON of `README.md`, section 8.
 | `temper.toml`, each binary's | `format`, a key of its top table | 1 | every command that reads it | `file.md` |
 | a settings file | `"format"`, a member beside `items` | 1 | `temper ctl settings apply`, `propose` and `upgrade` | `../../client/ctl/tools-acts.md`, 1 |
 | a charter file a settings file names | `format = N`, the one line of its `+++` front matter | 1 | the same, with its settings file | `../../client/ctl/overlays.md`, 2 |
-| `.temper/`'s files | `../../draft/ways-temper-dir.md`, 5 and 8 | — | the engine's and the worker's reads of `.temper/` | designed with them (`../../draft/ways.execution.md`, W2) |
+| `.temper/`'s files: `ways.toml`, a way's, a charter's and `hooks/config.toml` | `format`, a key of its top table, or its front matter's line; `hooks/config.toml`'s before any header | 1 | the forge's read and check of `.temper/`; the worker, for `hooks/config.toml` | `../temper-dir.md`, 7; `../hooks.md`, 2.3 |
 
 - **A whole number from 1,** in decimal. Anything else in the place is
   refused alone, naming the file and `format`, since no other key can
