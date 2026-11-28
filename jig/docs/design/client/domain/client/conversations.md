@@ -86,7 +86,9 @@ for any presentation of a chat or of any agent task's activity.
   none where the turn holds no result for the call. `jig-protocol-transcript`
   classes the stored result as it decodes the turn; the wire carries the
   turn's bytes as before. The word stands outside the `turn_text`
-  budget, as `llm` does, and is never cut.
+  budget, as `llm` does, and is never cut. A live call (section 3)
+  carries none: its record on the client wire is as it was, and no
+  version moves.
 - **A turn that does not decode** reaches the application as such, with
   why: another version of smith's transcript (naming the one found),
   malformed, or past the client's bounds (`../../../protocol/client/wire.md`,
