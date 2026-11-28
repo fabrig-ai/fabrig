@@ -267,7 +267,7 @@ pub static FIELDS: [Field; 385] = [
         value: Value::Nanoseconds,
         list: None,
         null: false,
-        line: b"Finish/report reserve from `time`. With `modify`, each applicable current/held charter needs >= check_timeout ms for worker admission. Recovery: settings help.",
+        line: b"Finish/report reserve from `time`. With `modify`, worker admission requires >= check_timeout ms in each applicable current or held charter. Held-revision recovery: settings help.",
     },
     Field {
         shape: Shape::Charter,
@@ -526,7 +526,7 @@ pub static FIELDS: [Field; 385] = [
         value: Value::Shape(Shape::Symbol),
         list: Some(Bound::Limit(Limit::TemplateResources)),
         null: false,
-        line: b"Optional; default []. Distinct pairs resolved at task creation. Forge 1, symbol 1: own goal branch.",
+        line: b"Optional, default []: distinct resource-symbol pairs resolved for new task. Forge connector 1, symbol 1: its own goal branch.",
     },
     Field {
         shape: Shape::Template,

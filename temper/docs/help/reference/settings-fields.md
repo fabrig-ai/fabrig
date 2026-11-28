@@ -37,7 +37,7 @@ Task-creation revision's run policy.
 - turns:u32;Most model turns; more than `reserve_turns`, else `budget` refusal.
 - time:ns;Run cancellation time; more than `reserve_time`, else `budget` refusal.
 - reserve_turns:u32;Of `turns`, finish/report reserve.
-- reserve_time:ns;Finish/report reserve from `time`. With `modify`, each applicable current/held charter needs >= check_timeout ms for worker admission. Recovery: settings help.
+- reserve_time:ns;Finish/report reserve from `time`. With `modify`, worker admission requires >= check_timeout ms in each applicable current or held charter. Held-revision recovery: settings help.
 - model:model;Default: first payable of `model`/`alternatives`.
 - alternatives:[32] model;After `model`, each once; sub-agents may use them.
 - inspect:bool;May read/list/search workspace?
@@ -207,7 +207,7 @@ Message batch waking a task once.
 
 ## template
 Executor and defaults for new tasks.
-- resources:[32] symbol;? default []. Distinct pairs resolved at task creation. Forge 1, symbol 1: own goal branch.
+- resources:[32] symbol;Optional, default []: distinct resource-symbol pairs resolved for new task. Forge connector 1, symbol 1: its own goal branch.
 - number:u32;Match `setting.number`; chat 1, goal 2.
 - name:t[32];? Setting name.
 - shown:text;Display name; plain string or text object.
