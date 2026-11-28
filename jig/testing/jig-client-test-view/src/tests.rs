@@ -57,21 +57,12 @@ fn ready() -> Domain {
         },
     ));
     let watch = Token::new(0);
-    drive(
-        &mut root,
-        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
-    );
+    drive(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } });
     for family in [1, 2] {
         drive(
             &mut root,
             Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::FamilyServed {
-                        family,
-                        versions: Some(VersionRange { first: 2, last: 2 }),
-                        served: true,
-                    },
-                },
+                event: jig_client::Event::Up { up: jig_client::Up::FamilyServed { family, served: true } },
             },
         );
     }

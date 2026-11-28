@@ -76,7 +76,7 @@ fn chosen() -> c::LlmChoice {
     c::LlmChoice {
         later: None,
         account: None,
-        main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")) },
+        main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")), speed: None },
         subagents: List::with_capacity(0),
     }
 }

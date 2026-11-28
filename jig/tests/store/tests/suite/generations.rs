@@ -1,4 +1,4 @@
-use jig_store_world::{World, patches, referee::Referee, root, world::Change};
+use jig_store_world::{World, referee::Referee, root, upgrade_fixtures, world::Change};
 use skein_fake_machine::Item;
 
 fn whole(world: &mut World) {
@@ -32,8 +32,8 @@ fn a_first_start_cut_at_its_first_directory_and_around_its_switch_is_whole_at_th
     let mut completed = World::unopened(18);
     completed.trace_writes();
     assert_eq!(completed.open_switched(), Some(0));
-    let first_directory = patches::first_change(&completed, Change::Make);
-    let rename = patches::last_change(&completed, Change::Rename);
+    let first_directory = upgrade_fixtures::first_change(&completed, Change::Make);
+    let rename = upgrade_fixtures::last_change(&completed, Change::Rename);
     let switch_sync = completed
         .changes()
         .iter()
@@ -92,8 +92,8 @@ fn strays_cut_at_their_first_and_last_removal_are_gone_at_the_next_start() {
     let mut completed = committed(19);
     completed.trace_writes();
     completed.reopen();
-    let first_removal = patches::first_change(&completed, Change::Make);
-    let last_removal = patches::last_change(&completed, Change::Remove);
+    let first_removal = upgrade_fixtures::first_change(&completed, Change::Make);
+    let last_removal = upgrade_fixtures::last_change(&completed, Change::Remove);
     for (why, cut) in [("first stray removal", first_removal), ("last stray removal", last_removal)] {
         eprintln!("{why}: {cut}");
         let mut world = committed(u64::from(cut));

@@ -24,6 +24,11 @@
       "name": "gpt-6-luna",
       "window": 1048576,
       "output": 8192
+    },
+    {
+      "name": "gpt-6.2-sol",
+      "window": 1048576,
+      "output": 8192
     }
   ],
   "cued": [],

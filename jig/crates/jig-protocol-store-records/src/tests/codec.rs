@@ -917,6 +917,7 @@ fn a_refused_llm_choice_reads_back_with_its_model_and_fault() {
         LlmFault::Authority,
         LlmFault::Procedure,
         LlmFault::Repeated,
+        LlmFault::Speed,
     ] {
         let mut problem = fixtures::calls::problem();
         problem.why = jig_domain_tasks::Refusal::Llm { model: 63, why };
@@ -1420,16 +1421,24 @@ fn canonical_tasks_context_reindexes_live_recurring_proposals_and_history() {
 }
 
 #[test]
-fn a_people_choice_keeps_its_explicit_account() {
+fn a_people_choice_keeps_its_account_and_speeds() {
     use jig_domain_people as p;
     let mut member = fixtures::people_member();
     member.llm = Some(p::LlmChoice {
         later: Some(p::LlmLater {
-            main: p::ModelEffort { model: 1, effort: Some(0) },
-            subagents: Box::new([p::ModelEffort { model: 0, effort: None }]),
+            main: p::ModelEffort {
+                model: 1,
+                effort: Some(0),
+                speed: Some(skein_lib::Name::from_checked(b"fast").unwrap()),
+            },
+            subagents: Box::new([p::ModelEffort {
+                model: 0,
+                effort: None,
+                speed: Some(skein_lib::Name::from_checked(b"standard").unwrap()),
+            }]),
         }),
         account: Some(42),
-        main: p::ModelEffort { model: 0, effort: None },
+        main: p::ModelEffort { model: 0, effort: None, speed: None },
         subagents: Box::new([]),
     });
     let ask = p::Ask::Create { project: 1, batch: Box::new([member]) };
@@ -1839,8 +1848,8 @@ fn a_visibility_set_outcome_round_trips_as_kept() {
 /// The three choices bound later sub-agents by MODELS (jig/docs/design/protocol/store/records.md).
 fn later_subagents_obey_the_models_bound_in_every_family() {
     use skein_lib::{Reader, Writer};
-    // ModelEffort is one model byte and one absent-effort tag; a list adds a u32 count.
-    const MODEL_BYTES: usize = 2;
+    // ModelEffort is one model byte and absent-effort and absent-speed tags; a list adds a u32 count.
+    const MODEL_BYTES: usize = 3;
     const COUNT_BYTES: usize = 4;
     let settings = crate::codec::settings::limits(&fixtures::CORE_LIMITS).unwrap();
     let tasks = tasks_limits();
@@ -1857,10 +1866,10 @@ fn later_subagents_obey_the_models_bound_in_every_family() {
             .checked_add(COUNT_BYTES)
             .unwrap();
         let mut writer = Writer::new(capacity);
-        writer.put(&[0, 0]).unwrap();
+        writer.put(&[0; MODEL_BYTES]).unwrap();
         writer.put(&count.to_be_bytes()).unwrap();
         for _ in 0..count {
-            writer.put(&[0, 0]).unwrap();
+            writer.put(&[0; MODEL_BYTES]).unwrap();
         }
         let bytes = writer.finish();
         for (family, decoded) in [
@@ -1944,8 +1953,21 @@ fn rows_stored_before_talk_decode_with_no_talk() {
 #[test]
 fn a_refused_terminal_reads_back_with_its_reason() {
     end_round_trip(jig_domain_tasks::End::RefusedWithReason {
-        reason: b"version mismatch: smith-charter 5, the worker reads 4..4".as_slice().into(),
+        reason: b"version mismatch: smith-charter 5, the worker reads 4".as_slice().into(),
     });
+}
+
+#[test]
+fn a_stored_version_refusal_keeps_its_range_words() {
+    let limits = call_limits();
+    // EndRecord v13, refused_with_reason, then 56 bytes of reason text with a version range.
+    let bytes = b"\0\x0d\x08\0\0\0\x38version mismatch: smith-charter 5, the worker reads 4..4";
+    assert_eq!(
+        crate::codec::tasks::carried::read_end(bytes, &limits.tasks),
+        Ok(jig_domain_tasks::End::RefusedWithReason {
+            reason: b"version mismatch: smith-charter 5, the worker reads 4..4".as_slice().into(),
+        })
+    );
 }
 
 #[test]

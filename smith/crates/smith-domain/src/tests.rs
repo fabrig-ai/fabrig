@@ -71,6 +71,7 @@ fn decoded_batch_reserves_refusal_cells_before_any_payload() {
     };
     let mut peer = crate::peer::Peer::new(Token::new(17), 1, Some(0), 0, offered, &LIMITS.session);
     let completion = Completion {
+        served: crate::llm::ServedSpeed::Unreported,
         reasoning_dropped: Box::default(),
         content: Box::new([
             Said::ToolCall {
@@ -289,6 +290,7 @@ impl Harness {
                     | crate::Lower::CancelIo { .. }
                     | crate::Lower::Read { .. }
                     | crate::Lower::Probe { .. }
+                    | crate::Lower::ProbeHooks { .. }
                     | crate::Lower::Check { .. }
                     | crate::Lower::Abort { .. },
                 )
@@ -344,13 +346,20 @@ impl Harness {
 
     /// The session `owner`'s LLM answers with `content`, stopping for tools.
     fn answer(&mut self, owner: Token, content: Box<[Said]>) -> Box<[Request]> {
-        let completion = Completion { reasoning_dropped: Box::default(), content, stop: Stop::ToolUse, usage: USAGE };
+        let completion = Completion {
+            served: crate::llm::ServedSpeed::Unreported,
+            reasoning_dropped: Box::default(),
+            content,
+            stop: Stop::ToolUse,
+            usage: USAGE,
+        };
         self.step(Event::Below(crate::Below::Completed { owner, completion }))
     }
 
     /// The session `owner`'s LLM ends its turn saying `text`.
     fn says(&mut self, owner: Token, text: &[u8]) -> Box<[Request]> {
         let completion = Completion {
+            served: crate::llm::ServedSpeed::Unreported,
             reasoning_dropped: Box::default(),
             content: Box::new([Said::Text { text: bytes(text), replay: None }]),
             stop: Stop::EndTurn,
@@ -368,6 +377,7 @@ fn workspace() -> Workspace {
     Workspace {
         directories: Box::new([Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: bytes(b"temper"),
             root: Token::new(900),
@@ -412,6 +422,7 @@ fn charter() -> Charter {
         budget: BUDGET,
         llm: Llm {
             effort: None,
+            speed: None,
             prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
             account: Some(0),
             endpoint: Endpoint(1),
@@ -424,6 +435,7 @@ fn charter() -> Charter {
         conventions: Some(smith_domain_run::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: None,
         }),
         resume: false,
         waiting: Duration::from_secs(30),
@@ -840,6 +852,7 @@ fn an_unsafe_workspace_mount_refuses_start_before_discovery() {
     let checkout = Workspace {
         directories: Box::new([Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: bytes(b"ai/temper"),
             root: Token::new(900),
@@ -1120,6 +1133,7 @@ fn assert_no_provider_completion(emitted: &[Request]) {
                 | crate::Lower::CancelIo { .. }
                 | crate::Lower::Read { .. }
                 | crate::Lower::Probe { .. }
+                | crate::Lower::ProbeHooks { .. }
                 | crate::Lower::Check { .. }
                 | crate::Lower::Abort { .. },
             ) => {}
@@ -1174,6 +1188,7 @@ fn the_asks_of_an_answer_that_yields_are_forgotten() {
     let mut h = Harness::new();
     let (_, main, _) = h.admit(7, charter());
     let completion = Completion {
+        served: crate::llm::ServedSpeed::Unreported,
         reasoning_dropped: Box::default(),
         content: Box::new([served(b"f1", verdict(b"approve"))]),
         stop: Stop::MaxTokens,
@@ -1407,6 +1422,7 @@ fn convention_workspace() -> Workspace {
         directories: Box::new([
             Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"work"),
                 root: Token::new(900),
@@ -1416,6 +1432,7 @@ fn convention_workspace() -> Workspace {
             },
             Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"reference"),
                 root: Token::new(901),
@@ -1530,11 +1547,11 @@ fn caller_conventions_select_default_custom_and_explicit_legacy_check_delivery_p
     for (selected, expected_path) in [
         (None, b".smith/check".as_slice()),
         (
-            Some(run::Conventions { guide: bytes(b"docs/WORKFLOW"), checks: bytes(b".ci/check-suite") }),
+            Some(run::Conventions { guide: bytes(b"docs/WORKFLOW"), checks: bytes(b".ci/check-suite"), hooks: None }),
             b".ci/check-suite".as_slice(),
         ),
         (
-            Some(run::Conventions { guide: bytes(b"AGENTS.md"), checks: bytes(b".temper/pre-pr") }),
+            Some(run::Conventions { guide: bytes(b"AGENTS.md"), checks: bytes(b".temper/pre-pr"), hooks: None }),
             b".temper/pre-pr".as_slice(),
         ),
     ] {
@@ -1593,7 +1610,7 @@ fn custom_check_cancellation_waits_for_the_abort_terminal() {
     let mut harness = Harness::new();
     let (run, main, _) = convention_main(
         &mut harness,
-        Some(run::Conventions { guide: bytes(b"docs/WORKFLOW"), checks: bytes(b".ci/check-suite") }),
+        Some(run::Conventions { guide: bytes(b"docs/WORKFLOW"), checks: bytes(b".ci/check-suite"), hooks: None }),
     );
     let emitted = harness.answer(
         main,
@@ -1647,9 +1664,9 @@ fn invalid_conventions_are_refused_at_original_root_start_before_any_effect() {
         for bad_guide in [true, false] {
             let mut harness = Harness::new();
             let conventions = if bad_guide {
-                run::Conventions { guide: bytes(path), checks: bytes(b".ci/check") }
+                run::Conventions { guide: bytes(path), checks: bytes(b".ci/check"), hooks: None }
             } else {
-                run::Conventions { guide: bytes(b"docs/GUIDE"), checks: bytes(path) }
+                run::Conventions { guide: bytes(b"docs/GUIDE"), checks: bytes(path), hooks: None }
             };
             let emitted = harness.step(Event::Start(crate::Start {
                 workspace: Some(workspace()),
@@ -1731,6 +1748,7 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
             Some(run::Conventions {
                 guide: Box::new([b'g'; run::Conventions::PATH_CAPACITY]),
                 checks: Box::new([b'c'; run::Conventions::PATH_CAPACITY]),
+                hooks: None,
             })
         } else {
             None
@@ -1740,6 +1758,7 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
                 directories: Box::new([
                     Directory {
                         results: None,
+                        hooks: None,
                         host: Box::from(b"/host".as_slice()),
                         name: bytes(b"work"),
                         root: Token::new(900),
@@ -1749,6 +1768,7 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
                     },
                     Directory {
                         results: None,
+                        hooks: None,
                         host: Box::from(b"/host".as_slice()),
                         name: bytes(b"reference"),
                         root: Token::new(901),
@@ -1904,6 +1924,7 @@ fn a_provider_charge_above_its_reserved_maximum_fails_without_recording_it() {
     };
     let (_, main, _) = harness.admit(1, selected);
     let completion = Completion {
+        served: crate::llm::ServedSpeed::Unreported,
         reasoning_dropped: Box::new([]),
         content: Box::new([Said::Text { text: bytes(b"overbound"), replay: None }]),
         stop: Stop::EndTurn,
@@ -2170,6 +2191,7 @@ fn missing_provider_usage_settles_the_root_reservation_and_keeps_the_raw_fact() 
                 .step(Event::Below(crate::Below::Completed {
                     owner: main,
                     completion: Completion {
+                        served: crate::llm::ServedSpeed::Unreported,
                         reasoning_dropped: Box::default(),
                         content: Box::new([served(b"finish", verdict(b"approve"))]),
                         stop: Stop::ToolUse,

@@ -1107,30 +1107,33 @@ fn remap_template_choices_follow_model_and_effort_names_and_mark_departures() {
     for (names, expected) in [
         (
             [catalogue(b"new", &[]), catalogue(b"first", &[b"high", b"low"])],
-            tasks::ModelEffort { model: 1, effort: Some(0) },
+            tasks::ModelEffort { model: 1, effort: Some(0), speed: None },
         ),
         (
             [catalogue(b"new", &[]), catalogue(b"other", &[])],
-            tasks::ModelEffort { model: tasks::ModelEffort::GONE, effort: Some(1) },
+            tasks::ModelEffort { model: tasks::ModelEffort::GONE, effort: Some(1), speed: None },
         ),
         (
             [catalogue(b"first", &[b"low"]), catalogue(b"new", &[])],
-            tasks::ModelEffort { model: tasks::ModelEffort::GONE, effort: Some(1) },
+            tasks::ModelEffort { model: tasks::ModelEffort::GONE, effort: Some(1), speed: None },
         ),
     ] {
         let mut template = template();
         template.llm = Some(tasks::LlmChoice {
             later: None,
             account: None,
-            main: tasks::ModelEffort { model: 0, effort: Some(1) },
-            subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
+            main: tasks::ModelEffort { model: 0, effort: Some(1), speed: None },
+            subagents: Box::new([tasks::ModelEffort { model: 1, effort: None, speed: None }]),
         });
         let mut value = Value::Template(Box::new(template));
         remap(&mut value, &moves(&kept, &names), &kept, &names);
         let Value::Template(template) = value else { panic!("template") };
         let choice = template.llm.unwrap();
         assert_eq!(choice.main, expected);
-        assert_eq!(choice.subagents[0], tasks::ModelEffort { model: tasks::ModelEffort::GONE, effort: None });
+        assert_eq!(
+            choice.subagents[0],
+            tasks::ModelEffort { model: tasks::ModelEffort::GONE, effort: None, speed: None }
+        );
     }
 }
 
@@ -1171,7 +1174,10 @@ fn catalogue_fixture() -> (Current, crate::Settings, Limits, CatalogueModel) {
         source: ModelSource::Person,
         estimated: true,
     };
-    (Current::new(config.defaults, &limits(), &[]), settings, limits(), value)
+    let mut limits = limits();
+    // The test exercises model settings, with room for the charter that resolves them.
+    limits.run_bytes = 576;
+    (Current::new(config.defaults, &limits, &[]), settings, limits, value)
 }
 fn catalogue_item(value: CatalogueModel) -> Item {
     Item { setting: Setting::Model(value.number), edit: Edit::Set(Value::Model(Box::new(value))) }
@@ -1208,6 +1214,133 @@ fn a_model_setting_is_checked_whole() {
         );
     }
 }
+fn speed_shape(value: &CatalogueModel, limits: &Limits, result: Result<(), Failure>) {
+    let setting = Setting::Model(value.number);
+    let value = Value::Model(Box::new(value.clone()));
+    assert_eq!(check::shape(setting, &value, limits), result, "{value:?}");
+}
+
+#[test]
+fn a_model_setting_checks_speed_names_and_counts() {
+    let (_, _, limits, mut value) = catalogue_fixture();
+    crate::tests::speed_example(&mut value.model);
+    speed_shape(&value, &limits, Ok(()));
+    let refused = Err(Failure { setting: Setting::Model(value.number), fault: Fault::Shape, detail: None });
+    let mut model = value.clone();
+    for name in [b"standard".as_slice(), b"default", &[b'x'; 33], b"", b"very:fast", b"FAST"] {
+        model.model.speeds[0].name = name.into();
+        speed_shape(&model, &limits, refused);
+        model.model.speeds[0].name = b"fast".as_slice().into();
+        model.model.speeds[0].also[0] = name.into();
+        speed_shape(&model, &limits, refused);
+    }
+    model = value.clone();
+    model.model.speeds[1].name = b"fast".as_slice().into();
+    model.model.speed = None;
+    speed_shape(&model, &limits, refused);
+    for collision in [b"fast".as_slice(), b"ultrafast"] {
+        model = value.clone();
+        model.model.speeds[0].also[0] = collision.into();
+        speed_shape(&model, &limits, refused);
+    }
+    model = value.clone();
+    model.model.speeds[0].also = Box::new([b"a".as_slice().into(), b"b".as_slice().into(), b"c".as_slice().into()]);
+    speed_shape(&model, &limits, refused);
+    model = value.clone();
+    let [fast, ultra] = <&[crate::Speed; 2]>::try_from(&*value.model.speeds).unwrap();
+    model.model.speeds = Box::new([
+        fast.clone(),
+        ultra.clone(),
+        crate::Speed { name: b"third".as_slice().into(), ..ultra.clone() },
+        crate::Speed { name: b"fourth".as_slice().into(), ..ultra.clone() },
+        crate::Speed { name: b"fifth".as_slice().into(), ..ultra.clone() },
+    ]);
+    speed_shape(&model, &limits, refused);
+    model.model.speeds = Box::new([fast.clone()]);
+    speed_shape(&model, &limits, refused);
+}
+
+#[test]
+fn a_model_setting_checks_effective_speed_prices() {
+    let (_, _, limits, mut value) = catalogue_fixture();
+    crate::tests::speed_example(&mut value.model);
+    let refused = Err(Failure { setting: Setting::Model(value.number), fault: Fault::Shape, detail: None });
+    for (input, cached, cache_write, output) in [
+        (0, 200, Some(5_000), 20_000),
+        (1_999, 200, Some(5_000), 20_000),
+        (4_000, 0, Some(5_000), 20_000),
+        (4_000, 99, Some(5_000), 20_000),
+        (4_000, 200, Some(0), 20_000),
+        (4_000, 200, Some(2_499), 20_000),
+        (4_000, 200, Some(5_000), 0),
+        (4_000, 200, Some(5_000), 9_999),
+        (2_000, 100, None, 10_000),
+    ] {
+        let mut model = value.clone();
+        let fast = &mut model.model.speeds[0];
+        fast.input_price = input;
+        fast.cached_price = cached;
+        fast.cache_write_price = cache_write;
+        fast.output_price = output;
+        speed_shape(&model, &limits, refused);
+    }
+    value.model.cache_write_price = None;
+    value.model.speeds[0].cache_write_price = Some(1_999);
+    speed_shape(&value, &limits, refused);
+    value.model.speeds[0].cache_write_price = Some(2_000);
+    speed_shape(&value, &limits, Ok(()));
+    value.model.speeds[0].cache_write_price = None;
+    speed_shape(&value, &limits, Ok(()));
+}
+
+#[test]
+fn a_model_setting_checks_speeds_against_its_route() {
+    let (_, _, limits, mut value) = catalogue_fixture();
+    crate::tests::speed_example(&mut value.model);
+    let refused = Err(Failure { setting: Setting::Model(value.number), fault: Fault::Shape, detail: None });
+    let fast = value.model.speeds[0].clone();
+    let ultra = value.model.speeds[1].clone();
+    for (dialect, program) in [(2, None), (2, Some(b"claude_code".as_slice()))] {
+        value.model.dialect = dialect;
+        value.model.program = match program {
+            Some(name) => Some(name.into()),
+            None => None,
+        };
+        value.model.speeds = Box::new([ultra.clone()]);
+        speed_shape(&value, &limits, refused);
+        value.model.speeds = Box::new([fast.clone()]);
+        value.model.speed = Some(fast.name.clone());
+        speed_shape(&value, &limits, Ok(()));
+        value.model.speed = Some(ultra.name.clone());
+    }
+    value.model.speed = Some(fast.name.clone());
+    value.model.program = Some(b"another-program".as_slice().into());
+    speed_shape(&value, &limits, refused);
+}
+
+#[test]
+fn charter_budget_checks_the_models_default_speed() {
+    let mut config = config(1);
+    let mut model = config.settings.models[0].clone();
+    crate::tests::speed_example(&mut model);
+    let mut catalogue = catalogue::defaults(&config.settings);
+    catalogue[0].model = model;
+    config.defaults.models = catalogue;
+    let mut limits = limits();
+    limits.run_bytes = 1024; // Leave room for the model and both declared speeds.
+    let current = Current::new(config.defaults, &limits, &[]);
+    let mut value = current.value(Setting::Model(1)).unwrap().as_model().unwrap().clone();
+    // 8,192 input tokens and 1,024 output at Ultrafast cost 185 units, per turn.
+    assert_eq!(crate::most_costly(&value.model), Some(185));
+    assert_eq!(
+        check_change(&current, &[catalogue_item(value.clone())], &config.settings, &[1, 2], &limits),
+        Err(Failure { setting: Setting::Charter(1), fault: Fault::Budget, detail: None })
+    );
+    value.model.speed = None;
+    assert_eq!(crate::most_costly(&value.model), Some(31));
+    assert_eq!(check_change(&current, &[catalogue_item(value)], &config.settings, &[1, 2], &limits), Ok(()));
+}
+
 #[test]
 fn a_number_keeps_its_name() {
     let (mut current, settings, limits, value) = catalogue_fixture();

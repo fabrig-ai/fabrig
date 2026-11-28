@@ -1,0 +1,8 @@
+{
+  "items": [
+    {"setting": {"kind": "charter", "number": 7}, "edit": "removed"},
+    {"setting": {"kind": "charter", "number": 8}, "edit": "reset"},
+    {"setting": {"kind": "charter", "number": 5}, "overlay": {"shell": false, "instructions": "Keep the design concise.", "parts": [{"on": ["first"], "instructions": "Read the goal."}]}},
+    {"setting": {"kind": "charter", "number": 2}, "overlay": {"shell": true, "charters": ["../../charters/1"]}}
+  ]
+}

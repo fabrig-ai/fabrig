@@ -9,7 +9,9 @@ publish.workspace = true
 
 [dependencies]
 jig-conformance.workspace = true
+jig-core-kit.workspace = true
 jig-inspect.workspace = true
+smith-inspect.workspace = true
 temper-worker-inspect.workspace = true
 temper-engine-inspect.workspace = true
 temper-workload.workspace = true

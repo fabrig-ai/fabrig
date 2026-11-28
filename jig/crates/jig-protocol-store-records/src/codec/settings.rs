@@ -16,6 +16,7 @@ use settings::application;
 use skein_lib::{List, Reader};
 #[cfg(test)]
 pub(in crate::codec) const EMPTY: wire::Limits = wire::Limits {
+    model_effort_speed_some: 0,
     provider_text_bytes: 0,
     provider_list_keep: 0,
     provider_list_drop: 0,
@@ -60,6 +61,11 @@ pub(in crate::codec) const EMPTY: wire::Limits = wire::Limits {
     model_name: 0,
     model_efforts: 0,
     model_effort_some: 0,
+    speed_name: 0,
+    speed_also: 0,
+    speed_also_item: 0,
+    model_speeds: 0,
+    model_speed_some: 0,
     overlay_instructions: 0,
     overlay_parts: 0,
     overlay_documents_some: 0,

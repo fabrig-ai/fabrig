@@ -1,10 +1,16 @@
 //! Drawn frames cross the worker's layout, or are refused without alteration.
+use core::convert::Infallible;
+
 use jig_protocol_worker_wire as wire;
 use skein_codec::{
     layout::Mode,
     schema::{Shape, VariantIx},
 };
 use skein_lib::{Buffer, List, Rng};
+use skein_world::{
+    sweep::{Case, cases, gate},
+    this_test,
+};
 use wire::layouts::{Cause, Plans};
 
 #[path = "../../../../../crates/jig-protocol-worker-wire/src/tests/layout_samples.rs"]
@@ -12,7 +18,14 @@ mod samples;
 use samples::{DOWN, ROOM, Shim, UP, draw, frame, older, parse, put, richer, stated};
 
 #[test]
-fn fuzzy_every_frame_round_trips_through_the_worker_layout_or_is_refused() {
+fn fuzzy_every_frame_round_trips_through_the_worker_layout_or_is_refused() -> Result<(), Case<Infallible>> {
+    cases(this_test!("fuzzy_every_frame_round_trips_through_the_worker_layout_or_is_refused"), [0x2280_5eed], |seed| {
+        check_round_trips(seed);
+        Ok(())
+    })
+}
+
+fn check_round_trips(seed: u64) {
     let engine = parse(wire::SCHEMA);
     let worker = parse(&richer(&older(wire::SCHEMA)));
     let mut plans = Plans::new(&[wire::SCHEMA], &List::uncapped()).expect("engine text");
@@ -23,7 +36,7 @@ fn fuzzy_every_frame_round_trips_through_the_worker_layout_or_is_refused() {
     let mut body = Buffer::with_capacity(ROOM);
     let mut tagged = Buffer::with_capacity(ROOM);
     let mut returned = Buffer::with_capacity(ROOM);
-    let mut rng = Rng::new(0x2280_5eed);
+    let mut rng = Rng::new(seed);
 
     for rule in wire::KINDS {
         let mut accepted = 0;
@@ -72,7 +85,8 @@ fn fuzzy_every_frame_round_trips_through_the_worker_layout_or_is_refused() {
         }
         if rule.body == wire::Kind::PartBusy {
             assert_eq!((accepted, refused), (0, 48));
-        } else {
+        } else if rule.body != wire::Kind::Assignment || gate() {
+            // Only the gate's batch is pinned to draw both empty and nonempty assignments.
             assert!(accepted > 0, "round trips for {:?}", rule.body);
             if rule.body == wire::Kind::Assignment {
                 assert!(refused > 0, "a nonempty assignment's parts cannot be dropped");
@@ -82,7 +96,14 @@ fn fuzzy_every_frame_round_trips_through_the_worker_layout_or_is_refused() {
 }
 
 #[test]
-fn drawn_worker_frames_arrive_whole_or_are_refused() {
+fn drawn_worker_frames_arrive_whole_or_are_refused() -> Result<(), Case<Infallible>> {
+    cases(this_test!("drawn_worker_frames_arrive_whole_or_are_refused"), [0x2216_0100], |seed| {
+        check_receive(seed);
+        Ok(())
+    })
+}
+
+fn check_receive(seed: u64) {
     let engine = parse(wire::SCHEMA);
     let worker = parse(&richer(wire::SCHEMA));
     let mut peer = Plans::new(&[wire::SCHEMA], &List::uncapped())
@@ -94,7 +115,7 @@ fn drawn_worker_frames_arrive_whole_or_are_refused() {
     let mut expected = Shim::new(Mode::Read, &worker, &engine, "FromWorker");
     let mut bytes = Buffer::with_capacity(ROOM);
     let mut current = Buffer::with_capacity(ROOM);
-    let mut rng = Rng::new(0x2216_0100);
+    let mut rng = Rng::new(seed);
     let mut sampled = 0;
     for tag in 0..count {
         let variant = worker.variant(VariantIx::new(first.index().checked_add(tag).expect("worker variant index")));

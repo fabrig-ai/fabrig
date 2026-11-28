@@ -41,7 +41,7 @@ fn goal(context: &tasks::DelegationContext, budget: u64) -> connector::SeededGoa
         authority: context.authority.clone(),
         llm: Some(tasks::LlmChoice {
             account: None,
-            main: tasks::ModelEffort { model: 0, effort: Some(1) },
+            main: tasks::ModelEffort { model: 0, effort: Some(1), speed: None },
             subagents: Box::new([]),
             later: None,
         }),

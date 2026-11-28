@@ -176,9 +176,9 @@ whose following resolution spends none. A resolution asked again after
 release is a resolution directly, with no repeated merge job before it
 (2026-11-04).
 
-A close job ends one of three ways, as the close check's verdict does
+A close job ends one of four ways, as the close check's verdict does
 (`../../../protocol/tooling.md`, 4.2; `../../../draft/whose-red.md`, 4),
-since 2026-11-25:
+since 2026-11-25, and outdated since 2026-11-27:
 
 - **Settled:** it finished with `settled`. A head pushed opens the pull
   request, and nothing staged ends the change with no change.
@@ -196,13 +196,45 @@ since 2026-11-25:
   name as the refusal lists it, `and N more` present where the refusal
   or the bytes left some out (N the refusal's `more` and those cut).
   The change keeps the refusal's counts beside the tips it read (below).
+  On the fresh refusal it also sends the goal one `Words` message, via
+  its closer's relay where the closer requested the change: `the close
+  check refused the goal's branch at G; every failure its result names,
+  in the check's order: F1, F2, …, F9.` The names are joined by `, `,
+  and ` and N more` comes before the period if the result says `more: N`.
+  The message fits `tasks.message_bytes`, ending in `...` if cut. The
+  hold account remains 512 bytes. Neither a restart nor a release on
+  unchanged tips resends the list. The requester decided on 2026-11-27
+  that the goal should hear all the failures a result can carry for one
+  repair, keeping 512-byte workers eligible and taking up to 8,192 bytes
+  from newer ones.
+- **Outdated:** it finished with the close check's finding that it could
+  not judge the goal against main's published counts: the goal's branch
+  holds none of the commits their window covers (`window`), or its
+  checkout's ancestry was too incomplete to tell (`ancestry`)
+  (`tools/pre-pr/design.md`, 4.1; `../../../protocol/tooling.md`, 4.2).
+  It is taken as one only where its job asked for a typed refusal, its
+  `head` is the commit the job's checkout started at, and nothing was
+  pushed, as a refusal is: every close job this build makes asks for
+  both, and one an earlier build made asked for the refusal alone, its
+  command never told of the finding. The job finishes, spending no try
+  of its class, and the change ends at once with no change, holding and
+  escalating nothing, its words `The close check didn't judge the goal's
+  branch at G: F; it asks for the goal's catch-up from main.`, G the
+  head's first 12 hex digits, F `it holds none of the commits main's
+  published counts cover` or `its ancestry was incomplete`. The change
+  keeps the finding beside the tips it read (below), and its closer,
+  reading its end, catches the goal up from main and closes again, once
+  (`../branches.md`, 2, *A close found outdated*). A close run by a
+  worker that can't carry the ask (`../../../protocol/wires.md`, 8) has
+  its command not told, and breaks as before.
 - **Broke:** the close check didn't judge the goal. A job that fails for
   good, its command having exited otherwise, past its deadline, or
   with a result missing or past its bound, has been tried within the
   run's class by jig; and a job that finished with any other result (one
-  neither `settled` nor this job's refusal, a refusal its job didn't ask
-  for among them) is the command's failure at once, since a finished
-  job has no tries left and the same command gives the same result.
+  neither `settled`, this job's refusal nor its outdated finding, a
+  refusal or a finding its job didn't ask for among them) is the
+  command's failure at once, since a finished job has no tries left and
+  the same command gives the same result.
   Either way the change holds at producing, its cause `failed`, its words `the close check
   broke and didn't judge the goal: R; its release runs it again.`, R the
   job's failure words, or `it finished with ` and the result's first 64
@@ -284,7 +316,12 @@ the refusal's `counts`, none where it named none. A broke end clears
 `refused`. Both fields are added with defaults, so no version moves: a
 `CloseAt` stored before reads as not asked and not refused, so a
 refusal its job made by exit 3 is the command's failure, and its
-release makes a fresh job, which asks.
+release makes a fresh job, which asks. Beside them, `outdated`, an
+`option CloseOutdated` defaulting to none, set when that job's end was
+outdated: `enum CloseOutdated { window, ancestry }`, the finding's
+`why`. An outdated end clears `refused`, and a refused or broke end
+clears `outdated`. It is added with its default, so no version moves,
+and a `CloseAt` stored before reads as not outdated.
 
 *Why* (2026-11-25, `../../../draft/whose-red.md`, 4): goals 15519 and
 15520's close checks refused on test failures and each ran three more
@@ -297,6 +334,21 @@ checks a refusal against its attempt: the engine never sees the tree
 settlement makes. Turned down: a new job kind for the ask, which every
 project's policy would have to grant before any close could run
 (`../../../protocol/wires.md`, 8).
+
+*Why* (2026-11-27, `../../../draft/test-budgets.md`, 3): a goal that
+holds none of main's last twenty landings can't be judged against main's
+published counts, and its close check broke at once asking for an update
+from main, as the draft says it should be asked once. Nothing read the
+ask: the job was tried again in its class, broke the same way, and held
+for a person, as two goals on the reference deployment did at 15:19Z
+and 15:23Z that day. A typed finding lets the closer make the update the
+check asks for. Turned down: reading the check's words, which a
+project's command chooses and no contract fixes; a refusal, which
+judges the goal's own failures and holds until its branch or main moves,
+which here only the catch-up would do; holding for the goal to catch
+up, which is the person's wait again, one level lower; and an ask a
+worker of an earlier build can't keep, whose closes would wait for a
+newer worker rather than run as before.
 
 *Why* (2026-11-24): goals on the lean template spent 28% of their agent
 time closing, seven of them 16 to 52 close jobs each, every one
@@ -396,7 +448,7 @@ One function releases a held change, whatever its cause and whoever releases it:
 
 All in the focused suites, but the property, which is the change policy's fuzzy sweep:
 
-- **The record:** each cause holds with its words and since stored and kept across a restart; a change found held again holds its task with the same words; a cause found while held changes nothing; a close's refusal holds `close_refused` and its broken check `failed`.
+- **The record:** each cause holds with its words and since stored and kept across a restart; a change found held again holds its task with the same words; a cause found while held changes nothing; a close's refusal holds `close_refused` and its broken check `failed`; its outdated finding, asked, unpushed and at its job's head, ends it with no change and keeps the finding, across a restart, and one unasked, pushed or at another head is the command's failure.
 - **One release:** for each cause, a release from each step it can hold at settles what is owed first (a kept result, a landing's ask, an uncertain write read back), re-enters where 3 says and resets its cause's allowance alone; the engine's three releases go through it, and the task's release that follows takes nothing again.
 - **Judgements:** each released with nothing changed holds again at once, saying so; a `red_stands` re-enters at a moved head and asks a fresh repair once amended; a person's rejection survives the forge agreeing and every release while it stands.
 - **A measurement:** refused at a moved revision and to a party who may neither release the task nor decide its escalation; accepted, one check of a red that stands and one close job of a refused close, none again across a restart or a second delivery; on any other cause, a release.

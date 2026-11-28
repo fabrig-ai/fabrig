@@ -18,6 +18,9 @@ use crate::session::{self, Alarm, Ready, Session, ToolCalls};
 #[derive(Debug)]
 pub struct Domain {
     pub(crate) sessions: Slab<Session>,
+    /// The immutable limits behind room and batch admission, for inspection.
+    history_bytes: u64,
+    parallel_tools: u32,
     /// What runs the sessions' tool calls: the tools, which the session owns.
     pub(crate) calls: ToolCalls,
     pub(crate) alarms: Deadlines<Alarm>,
@@ -28,6 +31,48 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_sessions(&self) -> &Slab<Session> {
+        &self.sessions
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_calls(&self) -> &Slab<session::Run> {
+        &self.calls.runs
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_tools(&self) -> &tools::Domain {
+        &self.calls.tools
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_history_bytes(&self) -> u64 {
+        self.history_bytes
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_parallel_tools(&self) -> u32 {
+        self.parallel_tools
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_retry(&self, session: skein_lib::Id<Session>) -> Option<Time> {
+        for (alarm, at) in self.alarms.iter() {
+            match alarm {
+                Alarm::Retry { session: owner } if owner == session => return Some(at),
+                Alarm::Expiry { .. } | Alarm::Retry { .. } => {}
+            }
+        }
+        None
+    }
+
     /// A domain with room for `limits`, drawing randomness from `seed`.
     #[must_use]
     pub fn new(limits: &Limits, seed: u64) -> Domain {
@@ -40,6 +85,8 @@ impl Domain {
         };
         Domain {
             sessions: Slab::with_capacity(limits.sessions),
+            history_bytes: limits.history_bytes,
+            parallel_tools: limits.parallel_tools,
             calls,
             alarms: Deadlines::with_capacity(alarms),
             ready: Ready::with_capacity(limits.sessions),

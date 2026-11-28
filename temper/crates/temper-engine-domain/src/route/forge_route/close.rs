@@ -3,21 +3,6 @@
 //! and failure retirement (temper/docs/design/domain/forge/change/repairs-releases.md, 1).
 use super::{Decision, Domain, Env, Limits, Work, forge, forge_change, tasks};
 use alloc::boxed::Box;
-use skein_lib::{Writer, bytes::copy_of};
-use temper_protocol_worker_wire::v1::{self, Record};
-
-pub(super) fn spec(repository: &[u8], command: &[u8], request: &[u8], bound: u32) -> Option<Box<[u8]>> {
-    let length = repository.len().checked_add(1)?.checked_add(command.len())?;
-    let mut path = Writer::new(length);
-    path.put(repository).ok()?;
-    path.put(b"/").ok()?;
-    path.put(command).ok()?;
-    let spec = v1::JobSpec { command: path.finish(), request: copy_of(request), refusal: true };
-    if spec.measure(&v1::CEILINGS).ok()? > bound {
-        return None;
-    }
-    spec.encode(&v1::CEILINGS).ok()
-}
 
 pub(super) fn refusal(domain: &Domain, context: &tasks::RunContext) -> Option<&'static [u8]> {
     let mut request = None;
@@ -41,9 +26,6 @@ pub(super) fn refusal(domain: &Domain, context: &tasks::RunContext) -> Option<&'
     if branch || catch_up || !request.starts_with(b"{\"version\":1,\"goal\":") {
         return Some(b"malformed close request parameter 17.");
     }
-    let Some(command) = domain.forge.close_job(context.project) else {
-        return Some(b"change's close: the project names no close_job.");
-    };
     let Some(bound) = domain.config.close_kind else {
         return Some(b"change's close: job kind 4 is not declared.");
     };
@@ -51,7 +33,8 @@ pub(super) fn refusal(domain: &Domain, context: &tasks::RunContext) -> Option<&'
         return Some(b"change's close: its authority does not delegate to job kind 4.");
     }
     if let Some(repository) = repository
-        && spec(&repository.name, command, request, bound.spec).is_none()
+        && forge::jobs::close(&repository.name, domain.forge.close_job(repository.project), request, bound.spec)
+            .is_none()
     {
         return Some(b"malformed close request parameter 17.");
     }

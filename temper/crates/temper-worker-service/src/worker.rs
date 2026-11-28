@@ -3,6 +3,7 @@
 pub(crate) mod credentials;
 mod diagnostics;
 mod jobs;
+mod start_hooks;
 #[path = "worker/testing.rs"]
 pub(crate) mod testing;
 #[cfg(test)]
@@ -50,6 +51,7 @@ pub struct Worker {
     agent: Agent,
     sources: crate::program_sources::Component,
     source_files: crate::program_sources::FileStage,
+    start_hooks: start_hooks::Reader,
     link: link::Component,
     figures: Option<jig_protocol_worker_wire::Figures>,
     last_figures: Option<jig_protocol_worker_wire::Figures>,
@@ -179,6 +181,7 @@ impl Worker {
                 host_limits: agent.host_limits,
             },
             source_files: crate::program_sources::FileStage::new(crate::tokens::worker(0).expect("worker prefix")),
+            start_hooks: start_hooks::Reader::new(slots),
             link,
             figures: None,
             last_figures: None,
@@ -793,18 +796,27 @@ impl Worker {
             hub::JobEnding::Refused(reason) => Some(JobEnding::Refused(reason.clone())),
             hub::JobEnding::Finished { .. } => None,
         };
-        if let Some((kind, verb)) = kind
-            && let Some(ending) = ending
-        {
-            let why = why.expect("a failed or refused job keeps its operator evidence until taken");
-            self.notes.push(crate::worker_alone::Note::WorkerJob {
-                run: run.raw(),
-                attempt: attempt.raw(),
-                kind,
-                verb,
-                ending,
-                why,
-            });
+        if let Some((kind, verb)) = kind {
+            if let Some(line) = self.root.job_time_cut(run, attempt) {
+                self.notes.push(crate::worker_alone::Note::JobTimeCut {
+                    run: run.raw(),
+                    attempt: attempt.raw(),
+                    kind,
+                    verb: verb.clone(),
+                    line: line.into(),
+                });
+            }
+            if let Some(ending) = ending {
+                let why = why.expect("a failed or refused job keeps its operator evidence until taken");
+                self.notes.push(crate::worker_alone::Note::WorkerJob {
+                    run: run.raw(),
+                    attempt: attempt.raw(),
+                    kind,
+                    verb,
+                    ending,
+                    why,
+                });
+            }
         }
         let parts = worker_route::job_answer_parts(&answer, work, preparation);
         self.link_down(self.env.now, link::Event::Up { up: hub::LinkUp::JobAnswer { run, attempt, answer }, parts });
@@ -1109,7 +1121,35 @@ impl Worker {
         }
         self.io.push(request);
     }
-    fn process_send(&mut self, owner: Token, mut message: smith::Down) {
+    fn process_send(&mut self, owner: Token, message: smith::Down) {
+        match message {
+            smith::Down::Start { start, window } => {
+                if let Some(workspace) = start.workspace
+                    && let Some(ceiling) = self.root.hook_timeout_ceiling(start.logical_run, workspace)
+                {
+                    self.start_hooks.start(start_hooks::Ready { owner, start, window }, ceiling);
+                } else {
+                    self.send_process_message(owner, smith::Down::Start { start, window });
+                }
+            }
+            other @ (smith::Down::Grant { .. }
+            | smith::Down::Message { .. }
+            | smith::Down::Answer { .. }
+            | smith::Down::PartKept { .. }
+            | smith::Down::Acknowledge { .. }
+            | smith::Down::Cancel
+            | smith::Down::Renewals { .. }
+            | smith::Down::Drain { .. }) => self.send_process_message(owner, other),
+        }
+    }
+
+    fn abandon_start(&mut self, owner: Token) {
+        if self.start_hooks.abandon(owner) && self.aborted.is_none() {
+            self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
+        }
+    }
+
+    fn send_process_message(&mut self, owner: Token, mut message: smith::Down) {
         let values = match &mut message {
             smith::Down::Start { start, .. } => start_values(&self.values, start, &self.path, self.env.now),
             smith::Down::Grant { grant } => grant_value(&self.values, *grant, self.env.now),
@@ -1223,17 +1263,25 @@ impl Worker {
             let event = self.process_events.pop().expect("process events");
             match &event {
                 host::ProcessEvent::Unspawned { agent, .. } | host::ProcessEvent::Reaped { agent, .. } => {
+                    self.abandon_start(*agent);
                     self.retired.push(*agent).expect("retired processes");
                 }
-                host::ProcessEvent::Spawned { .. }
-                | host::ProcessEvent::Exited { .. }
-                | host::ProcessEvent::Channel { .. } => {}
+                host::ProcessEvent::Exited { agent, .. } => self.abandon_start(*agent),
+                host::ProcessEvent::Spawned { .. } | host::ProcessEvent::Channel { .. } => {}
             }
             if self.aborted.is_none()
                 && let Some(event) = worker_route::process(event)
             {
                 self.events.push(event);
             }
+        }
+        if let Some(root) = self.directory
+            && let Some(ready) = self.start_hooks.step(now, root, self.prefix, &mut self.submitted)
+            && self.aborted.is_none()
+            && self.processes.contains_key(&ready.owner)
+            && !self.retired.as_slice().contains(&ready.owner)
+        {
+            self.send_process_message(ready.owner, smith::Down::Start { start: ready.start, window: ready.window });
         }
         if self.aborted.is_some() {
             for _ in 0..self.events.len() {
@@ -1295,7 +1343,7 @@ impl Worker {
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         if !self.started || self.aborted.is_some() {
-            return self.source_files.next_deadline();
+            return [self.source_files.next_deadline(), self.start_hooks.next_deadline()].into_iter().flatten().min();
         }
         let link = if self.git.ready { self.link.next_deadline() } else { None };
         let mut next = [
@@ -1305,6 +1353,7 @@ impl Worker {
             self.git.component.next_deadline(),
             self.sources.next_deadline(),
             self.source_files.next_deadline(),
+            self.start_hooks.next_deadline(),
             self.jobs.deadline(),
         ]
         .into_iter()
@@ -1330,6 +1379,7 @@ impl Worker {
             || !self.process_events.is_empty()
             || !self.submitted.is_empty()
             || self.source_files.work_pending(now)
+            || self.start_hooks.work_pending(now)
             || (self.aborted.is_none() && self.root.is_ready())
             || match self.next_deadline() {
                 Some(at) => at <= now,
@@ -1341,6 +1391,7 @@ impl Worker {
             && self.jobs.empty()
             && self.sources.settled()
             && self.source_files.settled()
+            && self.start_hooks.settled()
             && self.processes.is_empty()
             && self.io.is_empty()
     }
@@ -1365,11 +1416,15 @@ impl Worker {
         }
     }
     pub fn complete(&mut self, now: Time, complete: io::kernel::Complete) -> Result<(), io::kernel::Complete> {
+        let complete = match self.start_hooks.complete(now, self.prefix, complete) {
+            Ok(()) => return Ok(()),
+            Err(complete) => complete,
+        };
         let complete = match self.source_files.complete(complete) {
             Ok(()) => return Ok(()),
             Err(complete) => complete,
         };
-        let complete = match self.job_complete(complete) {
+        let complete = match self.job_complete(now, complete) {
             Ok(()) => return Ok(()),
             Err(complete) => complete,
         };
@@ -1535,7 +1590,7 @@ mod prepared_tests {
         let accept = skein_channel::control_frame(&skein_channel::Control::Accept { version, features: 0 }, &channel)
             .expect("accept frame");
         let mut entries = List::uncapped();
-        for kind in &schema.version(version).expect("current version").kinds {
+        for kind in &schema.kinds {
             if kind.direction == skein_channel::Direction::FromInitiator {
                 entries.push(skein_channel::Term { kind: kind.kind, largest: kind.largest }).expect("uncapped terms");
             }
@@ -1680,10 +1735,7 @@ mod prepared_tests {
         assert_eq!(opening(&mut worker, &link_limits, &table), expected);
 
         let mut prepared = crate::worker_settings::prepare(&settings, &agent, &limits).expect("prepared bounds");
-        let last = prepared.schema.versions.len().checked_sub(1).expect("nonempty table");
-        let current = prepared.schema.versions.get_mut(last).expect("current table");
-        for index in 0..current.kinds.len() {
-            let kind = current.kinds.get_mut(index).expect("kind in table");
+        for kind in prepared.schema.kinds.iter_mut() {
             if kind.direction == skein_channel::Direction::FromResponder {
                 kind.largest = kind.largest.checked_sub(1).expect("nonempty body");
                 break;
@@ -1718,7 +1770,7 @@ mod merge_tests {
             kind: JobKind(3),
             spec: 4_096,
             result: 512,
-            deadline: skein_lib::Duration::from_secs(600)
+            deadline: skein_lib::Duration::from_secs(86_400)
         }));
     }
 
@@ -1731,8 +1783,12 @@ mod merge_tests {
         let temper_worker_domain::Request::Hello(hello) = out.pop().expect("worker hello") else {
             panic!("ready declares capabilities");
         };
-        let close =
-            JobBound { kind: JobKind(4), spec: 16_384, result: 512, deadline: skein_lib::Duration::from_secs(600) };
+        let close = JobBound {
+            kind: JobKind(4),
+            spec: 16_384,
+            result: 8_192,
+            deadline: skein_lib::Duration::from_secs(86_400),
+        };
         assert!(hello.jobs.contains(&close));
         assert_eq!(hello.jobs.len(), 3, "the refusal ask is not a new kind");
         let kinds = crate::worker_settings::job_kinds();

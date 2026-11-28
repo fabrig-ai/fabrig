@@ -231,12 +231,12 @@ impl Setup {
                     if matches!(story, Story::Providers) {
                         let mut subagents = skein_lib::List::with_capacity(1);
                         subagents
-                            .push(c::ModelEffort { model: text(b"other")?, effort: None })
+                            .push(c::ModelEffort { model: text(b"other")?, effort: None, speed: None })
                             .map_err(|why| format!("bounded fixture value: {why:?}"))?;
                         task.llm = Some(c::LlmChoice {
                             later: None,
                             account: None,
-                            main: c::ModelEffort { model: text(b"fake")?, effort: None },
+                            main: c::ModelEffort { model: text(b"fake")?, effort: None, speed: None },
                             subagents,
                         });
                     }

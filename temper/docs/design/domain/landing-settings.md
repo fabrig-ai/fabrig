@@ -33,9 +33,10 @@ Kind 4's members, each with its default and the section it serves:
 | `batch`: the most changes a landing into a repository's main forms with, from 1 to the deployment's `landing_members` | 1 | `landing.md`, 4.1, `landing-turn.md`, section 2 |
 | `combine`: how a train combines its members (`landing-prepare.md`, 1.2), `merge` or `squash`, `main` for the trains into a repository's main and `other` for those into any other branch | `merge`; `squash` | `landing-prepare.md`, 1.2, and `landing-turn.md`, 1 |
 | `prepare`, `key`: paths in the home, or none; `home_revision`; `prepare_timeout` | temper's own prepare and key | `landing-prepare.md`, 1.3, `landing-proof.md`, 1.1 |
-| `merge_job`: a path in each repository it merges, or none | none: a conflict goes to a resolution at once | `forge/change/repairs.md` and `forge/updates.md`, 1 |
-| `close_job`: a path in each repository a goal's branch is in, or none; `landing_attempts`, 1 to 255 | none; 3 | `forge/branches.md`, 2 |
+| `merge_job`: a path in each repository it merges that holds no `.temper/hooks/`, or none; a repository with one runs its `merge` hook and ignores it (`../protocol/hooks.md`, 5) | none: a conflict goes to a resolution at once | `forge/change/repairs.md` and `forge/updates.md`, 1 |
+| `close_job`: a path in each repository a goal's branch is in that holds no `.temper/hooks/`, or none, as `merge_job`; `landing_attempts`, 1 to 255 | none; 3 | `forge/branches.md`, 2 |
 | `check_timeout`: the delivery checks' wall bound in a run delegated for one of the project's changes, or none | none: the agent's own | `../protocol/configuration/engine.md`, `landing` |
+| `hook_timeout_max_seconds`: the ceiling on any of the project's hooks' time, whole seconds from 1 to 86,400, and its merge and close jobs' deadline | 3,600 | `../protocol/hooks.md`, 2.3 |
 | `flakes`: whether the project's checks can flake, `none` or `rerun N`, N from 0 to the deployment's `checkout.rerun_processes` | `rerun` at that figure | `forge/judgement.md`, 4 |
 | `dependencies_join` | yes | `landing.md`, 4.1 |
 | `pins`: each a downstream and an upstream repository; `pins_follow_main` | none; no | `landing.md`, 4.1, `landing-prepare.md`, 1.3 |
@@ -47,7 +48,8 @@ Kind 4's members, each with its default and the section it serves:
 | `questions_on_forge` | off | `forge/issues.md`, 1 |
 
 - **What is built:** kind 4's `by`, `batch`, `combine`, `merge_job`,
-  `close_job`, `landing_attempts`, `check_timeout`, `flakes`,
+  `close_job`, `landing_attempts`, `check_timeout`,
+  `hook_timeout_max_seconds`, `flakes`,
   `gate_retries`, `gate_timeout`, `wait`, `tier_retries`,
   `verification_bound` and `repairs`, and kind 5
   whole. Each field keeps the form, bounds and default

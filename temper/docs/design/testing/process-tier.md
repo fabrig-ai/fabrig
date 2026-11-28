@@ -220,6 +220,11 @@
   other paths of a box's first run
   (`bin/temper-box/tests/suite/box_listeners.rs`).
 
+- **A test process killed,** a story of its own on Linux
+  (`fixture-lifetime.md`, 4): its box with `--fake-backends`, the box's
+  steps and the fixtures it started directly ending with it. It needs a
+  process killed with no cleanup, so it runs in this profile.
+
 ## 5. Restarts on a new build
 
 - **A box at its place restarted with a newer build**

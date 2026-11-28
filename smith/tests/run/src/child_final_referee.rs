@@ -58,7 +58,7 @@ impl Expectations for Meeting {
 pub fn judge(facts: &[Fact]) -> Verdict {
     let mut referee = Referee::new(Meeting::default());
     for fact in facts {
-        referee.observe(fact.at, fact.kind, &mut Vec::new());
+        referee.observe(fact.at, fact.kind.clone(), &mut Vec::new());
     }
     referee.verdict()
 }

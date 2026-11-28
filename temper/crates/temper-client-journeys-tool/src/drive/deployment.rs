@@ -278,7 +278,7 @@ impl Plan {
             }
             self.program(&format!("temper-{name}"), args, Input::Null)
         };
-        [forgejo, model, service("engine"), service("worker")]
+        [forgejo, model, service("engine"), service("worker")].map(|program| self.dying_with_session(program, "kill"))
     }
     #[must_use]
     pub fn deployment_sign_in(&self) -> Program {

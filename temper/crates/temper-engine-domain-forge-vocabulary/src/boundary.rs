@@ -3439,6 +3439,8 @@ pub enum Request {
         evidence: Option<ChangeEvidence>,
         /// For a decision to delegate a close job only, the goal and landing tips, if both were read.
         close_at: Option<change::CloseAt>,
+        /// For a fresh close refusal only, the larger account to send to the goal once.
+        close_refusal: Option<Box<[u8]>>,
     },
     /// A fresh read confirmed the same judgement. Only rejection needs its previous hold's account.
     ReplayJudgement {

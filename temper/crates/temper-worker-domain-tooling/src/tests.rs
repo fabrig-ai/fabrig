@@ -5,7 +5,7 @@ use jig_domain_link::{JobBound, JobKind};
 use skein_lib::bytes::copy_of;
 use skein_lib::{Duration, Env, List, Queue, Time, Token, Wall};
 
-use crate::{Domain, End, Event, Exit, Invalid, Kind, Limits, Request, Spec, step, valid};
+use crate::{Domain, End, Event, Exit, Hooks, Invalid, Kind, Limits, Request, Spec, step, valid};
 
 const OWNER: Token = Token::new(1);
 const NOW: Time = Time::from_nanos(1_000);
@@ -24,7 +24,14 @@ fn kind(number: u32, delivers: bool) -> Kind {
 }
 
 fn spec() -> Spec {
-    Spec { command: copy_of(b"home/bin/tool"), request: copy_of(b"{request}"), refusal: false }
+    Spec {
+        command: copy_of(b"home/bin/tool"),
+        request: copy_of(b"{request}"),
+        refusal: false,
+        result: 512,
+        outdated: false,
+        hooks: Hooks::new(None, 3600),
+    }
 }
 
 fn run(owner: Token, kind: u32) -> Event {
@@ -80,13 +87,20 @@ impl Harness {
         Self::with_kinds(limits(), Box::new([Kind { verb: copy_of(b"close"), ..kind(4, true) }]))
     }
 
-    fn closing(&mut self, refusal: bool) -> Request {
+    fn close_with_bound(result: u32) -> Harness {
+        let mut close = kind(4, true);
+        close.bound.result = result;
+        close.verb = copy_of(b"close");
+        Self::with_kinds(Limits { file_bytes: 16_384, ..limits() }, Box::new([close]))
+    }
+
+    fn closing(&mut self, refusal: bool, result: u32, outdated: bool) -> Request {
         self.start(
             OWNER,
             Event::Run {
                 owner: OWNER,
                 kind: JobKind(4),
-                spec: Spec { command: copy_of(b"fabrig/.temper/close"), refusal, ..spec() },
+                spec: Spec { command: copy_of(b"fabrig/.temper/close"), refusal, result, outdated, ..spec() },
                 deadline: DEADLINE,
                 directory: copy_of(b"/job"),
             },
@@ -136,6 +150,7 @@ fn a_job_runs_its_command_in_its_directory_and_finishes_with_its_result_file() {
                 ]),
                 dir: copy_of(b"/job"),
                 deadline: NOW.saturating_add(DEADLINE),
+                hooks: Hooks::new(None, 3600),
             }
         );
         assert_eq!(
@@ -187,13 +202,21 @@ fn exit_three_finishes_and_never_delivers() {
     h.gone(OWNER, b"stderr");
 }
 
-/// temper/docs/design/protocol/tooling.md, 2: only a spec that asks adds the refusal variable.
+/// temper/docs/design/protocol/tooling.md, 2: only a spec that asks adds the refusal variables.
 #[test]
 fn a_close_adds_the_refusal_variable_only_when_asked() {
-    for refusal in [true, false] {
-        let mut h = Harness::close();
-        let Request::Spawn { env, .. } = h.closing(refusal) else { panic!("close spawns") };
-        let ask = (copy_of(b"TEMPER_CLOSE_REFUSAL"), copy_of(b"3"));
+    for (refusal, result, declared, bound) in [
+        (true, 8192, 8192, b"8192".as_slice()),
+        (true, 512, 8192, b"512"), // The default from an older engine's spec.
+        (true, 8192, 512, b"512"),
+        (false, 8192, 8192, b""),
+    ] {
+        let mut h = Harness::close_with_bound(declared);
+        let Request::Spawn { env, .. } = h.closing(refusal, result, false) else { panic!("close spawns") };
+        let ask = [
+            (copy_of(b"TEMPER_CLOSE_REFUSAL"), copy_of(b"3")),
+            (copy_of(b"TEMPER_CLOSE_RESULT_BYTES"), copy_of(bound)),
+        ];
         let plain = [
             (copy_of(b"PATH"), copy_of(b"/usr/bin:/bin")),
             (copy_of(b"HOME"), copy_of(b"/job")),
@@ -202,7 +225,42 @@ fn a_close_adds_the_refusal_variable_only_when_asked() {
         ];
         let (base, extra) = env.split_at_checked(plain.len()).expect("the base job environment");
         assert_eq!(base, plain);
-        assert_eq!(extra, if refusal { core::slice::from_ref(&ask) } else { &[] }, "refusal={refusal}");
+        assert_eq!(
+            extra,
+            if refusal { ask.as_slice() } else { &[] },
+            "refusal={refusal}, result={result}, declared={declared}"
+        );
+        assert_eq!(h.one(Event::Stop { owner: OWNER }), Request::Kill { owner: OWNER });
+        h.gone(OWNER, b"");
+    }
+}
+
+/// temper/docs/design/protocol/tooling.md, 2: each close variable is set only when asked for.
+#[test]
+fn a_close_adds_each_variable_only_when_asked() {
+    let both = [
+        (copy_of(b"TEMPER_CLOSE_REFUSAL"), copy_of(b"3")),
+        (copy_of(b"TEMPER_CLOSE_RESULT_BYTES"), copy_of(b"512")),
+        (copy_of(b"TEMPER_CLOSE_OUTDATED"), copy_of(b"3")),
+    ];
+    let (refusal_only, outdated_only) = both.split_at_checked(2).expect("refusal and outdated variables");
+    for (refusal, outdated, expected) in [
+        (false, false, &[][..]),
+        (true, false, refusal_only),
+        (false, true, outdated_only),
+        (true, true, both.as_slice()),
+    ] {
+        let mut h = Harness::close_with_bound(512);
+        let Request::Spawn { env, .. } = h.closing(refusal, 512, outdated) else { panic!("close spawns") };
+        let plain = [
+            (copy_of(b"PATH"), copy_of(b"/usr/bin:/bin")),
+            (copy_of(b"HOME"), copy_of(b"/job")),
+            (copy_of(b"TEMPER_JOB"), copy_of(b"/job")),
+            (copy_of(b"LANG"), copy_of(b"C.UTF-8")),
+        ];
+        let (base, extra) = env.split_at_checked(plain.len()).expect("the base job environment");
+        assert_eq!(base, plain);
+        assert_eq!(extra, expected, "refusal={refusal}, outdated={outdated}");
         assert_eq!(h.one(Event::Stop { owner: OWNER }), Request::Kill { owner: OWNER });
         h.gone(OWNER, b"");
     }
@@ -212,9 +270,23 @@ fn a_close_adds_the_refusal_variable_only_when_asked() {
 #[test]
 fn exit_three_of_an_asking_close_finishes_without_delivery() {
     let mut h = Harness::close();
-    h.closing(true);
+    h.closing(true, 512, true);
     assert_eq!(h.exited(Exit::Code(3)), Request::Read { owner: OWNER, path: copy_of(b"/job/result.json"), most: 16 });
     let result = copy_of(b"{\"refused\":{}}");
+    assert_eq!(
+        h.one(Event::Read { owner: OWNER, bytes: Some(result.clone()) }),
+        Request::Ended { owner: OWNER, end: End::Finished { result, deliver: false } }
+    );
+    h.gone(OWNER, b"stderr");
+}
+
+/// temper/docs/design/protocol/tooling.md, 4.2: the larger close result crosses intact without delivery.
+#[test]
+fn exit_three_keeps_the_whole_large_refusal() {
+    let mut h = Harness::close_with_bound(8192);
+    h.closing(true, 8192, false);
+    assert_eq!(h.exited(Exit::Code(3)), Request::Read { owner: OWNER, path: copy_of(b"/job/result.json"), most: 8192 });
+    let result = copy_of(&[b'x'; 900]);
     assert_eq!(
         h.one(Event::Read { owner: OWNER, bytes: Some(result.clone()) }),
         Request::Ended { owner: OWNER, end: End::Finished { result, deliver: false } }

@@ -31,7 +31,7 @@ fn research_choice() -> tasks::LlmChoice {
     tasks::LlmChoice {
         later: None,
         account: None,
-        main: tasks::ModelEffort { model: 1, effort: Some(0) },
+        main: tasks::ModelEffort { model: 1, effort: Some(0), speed: None },
         subagents: Box::new([]),
     }
 }
@@ -78,7 +78,7 @@ fn a_partys_create_is_refused_a_model_outside_its_charter() {
     member.llm = Some(people::LlmChoice {
         later: None,
         account: None,
-        main: people::ModelEffort { model: 1, effort: Some(0) },
+        main: people::ModelEffort { model: 1, effort: Some(0), speed: None },
         subagents: Box::new([]),
     });
     let sign_in = world.sign_in.expect("owner signed in");

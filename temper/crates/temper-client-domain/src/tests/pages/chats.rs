@@ -278,7 +278,7 @@ fn llm(model: &[u8]) -> LlmChoice {
     LlmChoice {
         later: None,
         account: Some(7),
-        main: ModelEffort { model: fixtures::acts::text(model), effort: None },
+        main: ModelEffort { model: fixtures::acts::text(model), effort: None, speed: None },
         subagents: List::with_capacity(0),
     }
 }
@@ -309,6 +309,8 @@ fn a_start_from_ask_keeps_its_templates_models() {
             window: 1024,
             output: 128,
             efforts: List::with_capacity(0),
+            speeds: List::with_capacity(0),
+            speed: None,
         })
         .unwrap();
     me.projects.get_mut(0).expect("project").models = models;
@@ -1416,10 +1418,7 @@ fn documents_arrive_in_both_row_windows_and_leave_with_their_rows() {
 fn unavailable_chat_parts_wait_for_the_next_delivery_without_reads() {
     for part in [
         RowPart::Unknown,
-        RowPart::NotServed(NotServed {
-            owner: Owner::Family(temper_client_protocol_wire::FORGE),
-            served: List::with_capacity(0),
-        }),
+        RowPart::NotServed(NotServed { owner: Owner::Family(temper_client_protocol_wire::FORGE) }),
         RowPart::Failed(PartFailure::Unreadable),
         document_part(None),
     ] {

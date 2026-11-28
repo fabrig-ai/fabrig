@@ -4,6 +4,18 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;
 
+/// A faster speed and its prices in the model's unit (domain/engine/settings-catalogue.md, 1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Speed {
+    pub name: Box<[u8]>,
+    pub also: Box<[Box<[u8]>]>,
+    pub input_price: u64,
+    pub cached_price: u64,
+    /// `None` prices cache writes at the input rate.
+    pub cache_write_price: Option<u64>,
+    pub output_price: u64,
+}
+
 /// One configured model and its deployment-unit prices (domain/agent/charter.md, 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Model {
@@ -33,6 +45,12 @@ pub struct Model {
     /// On a run's charter, its task's choice's (domain/engine/executors.md, 1), or `None` for the LLM
     /// provider's default when the model declares no efforts.
     pub effort: Option<Box<[u8]>>,
+    /// The faster speeds the model declares, at most four, in the order given.
+    pub speeds: Box<[Speed]>,
+    /// On a configured model, its default, or `None` for standard. In a charter's value, the
+    /// chosen speed by name, `standard`, or `None` to inherit the model's default. On a charter's
+    /// resolution or a run's charter, the speed it takes, `None` for standard.
+    pub speed: Option<Box<[u8]>>,
 }
 
 impl Model {
@@ -55,11 +73,52 @@ impl Model {
             price_unit: 0,
             efforts: Box::default(),
             effort: None,
+            speeds: Box::default(),
+            speed: None,
         }
     }
     #[must_use]
     pub fn is_hole(&self) -> bool {
         self.name.is_empty()
+    }
+
+    /// The speed `speed` names among `speeds`; `None` at the standard speed.
+    #[must_use]
+    pub fn run_speed(&self) -> Option<&Speed> {
+        self.speed_named(self.speed.as_deref()?)
+    }
+
+    /// A declared speed by its own name, never by an alias.
+    #[must_use]
+    #[expect(clippy::manual_find, reason = "a bounded search in the step subset, without a closure")]
+    pub fn speed_named(&self, name: &[u8]) -> Option<&Speed> {
+        for speed in &self.speeds {
+            if speed.name.as_ref() == name {
+                return Some(speed);
+            }
+        }
+        None
+    }
+
+    /// A speed a choice may name: a declaration by its own name, `standard`, or no override.
+    #[must_use]
+    pub fn takes_speed(&self, name: Option<&[u8]>) -> bool {
+        match name {
+            Some(name) => name == tasks::STANDARD_SPEED || self.speed_named(name).is_some(),
+            None => true,
+        }
+    }
+
+    /// The explicit name to use if this model runs at standard
+    /// (domain/engine/executors.md, 1). An `OpenAI` project may default to a faster speed.
+    #[must_use]
+    pub fn standard_speed_override(&self) -> Option<&'static [u8]> {
+        const OPENAI: u32 = 3;
+        if self.dialect == OPENAI && self.program.is_none() && !self.speeds.is_empty() {
+            Some(b"default")
+        } else {
+            None
+        }
     }
 
     /// The default effort a task given no LLM choice takes (domain/tasks/README.md, 3).
@@ -136,9 +195,13 @@ pub struct RunCharter {
 /// A completion's maximum price, rounded up once (domain/authority-budgets.md, 1).
 #[must_use]
 pub fn most_costly(model: &Model) -> Option<u64> {
-    let rate = model.input_price.max(model.cached_price).max(model.cache_write_price.unwrap_or(model.input_price));
+    let (input_price, cached_price, cache_write_price, output_price) = match model.run_speed() {
+        Some(speed) => (speed.input_price, speed.cached_price, speed.cache_write_price, speed.output_price),
+        None => (model.input_price, model.cached_price, model.cache_write_price, model.output_price),
+    };
+    let rate = input_price.max(cached_price).max(cache_write_price.unwrap_or(input_price));
     let input = u128::from(model.window).checked_mul(u128::from(rate))?;
-    let output = u128::from(model.output).checked_mul(u128::from(model.output_price))?;
+    let output = u128::from(model.output).checked_mul(u128::from(output_price))?;
     let sum = input.checked_add(output)?;
     let unit = u128::from(model.price_unit);
     let rounded = sum.checked_div(unit)?.checked_add(u128::from(sum.checked_rem(unit)? != 0))?;

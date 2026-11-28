@@ -1,11 +1,15 @@
 //! The worker's host child domain at random: many rough worlds, each settled,
 //! every ending reached among them.
 
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, convert::Infallible};
 
 use jig_domain_host::Limits;
 use jig_host_world::engine::ENDINGS;
 use jig_host_world::{Settings, Span, World};
+use skein_world::{
+    sweep::{cases, gate},
+    this_test,
+};
 
 // With decoded starts, the 2000-seed inventory stops growing at 1496: 20 endings and 23 paths.
 // Keep twice that exact prefix, including the rare agent-start cancellation.
@@ -32,12 +36,17 @@ fn rough(seed: u64) -> Settings {
 
 #[test]
 fn random_worlds_settle_and_reach_every_ending() {
+    let check_coverage = gate();
     let mut reached = BTreeSet::new();
     let mut seen = BTreeSet::new();
     let mut last_growth = 0;
-    for seed in 0..SWEEP_SEEDS {
+    cases(this_test!("random_worlds_settle_and_reach_every_ending"), 0..SWEEP_SEEDS, |seed| {
+        let world = run(&rough(seed));
+        if !check_coverage {
+            return Ok(());
+        }
         let previous = (reached.len(), seen.len());
-        let stats = run(&rough(seed)).stats();
+        let stats = world.stats();
         for ending in stats.endings.keys() {
             reached.insert(*ending);
         }
@@ -69,6 +78,11 @@ fn random_worlds_settle_and_reach_every_ending() {
         if previous != (reached.len(), seen.len()) {
             last_growth = seed + 1;
         }
+        Ok::<(), Infallible>(())
+    })
+    .expect("world checks assert");
+    if !check_coverage {
+        return;
     }
     assert!(last_growth <= COVERAGE_PREFIX, "coverage prefix grew to {last_growth}");
     let missing: Vec<&str> = ENDINGS.iter().copied().filter(|ending| !reached.contains(ending)).collect();
@@ -90,7 +104,7 @@ fn random_worlds_settle_and_reach_every_ending() {
 
 #[test]
 fn random_link_losses_and_hellos_preserve_which_withdrawals_are_unsent() {
-    for seed in 0..128 {
+    cases(this_test!("random_link_losses_and_hellos_preserve_which_withdrawals_are_unsent"), 0..128, |seed| {
         let mut rng = skein_lib::Rng::new(seed);
         let mut world = jig_host_world::turn_world::World::new();
         world.assign(false);
@@ -130,7 +144,9 @@ fn random_link_losses_and_hellos_preserve_which_withdrawals_are_unsent() {
                 }
             }
         }
-        assert!(unsent > 0 && withdrawn > 0, "both withdrawal paths: seed {seed}");
+        if gate() {
+            assert!(unsent > 0 && withdrawn > 0, "both withdrawal paths: seed {seed}");
+        }
         if pending.is_some() {
             world.withdraw_call();
         }
@@ -138,5 +154,7 @@ fn random_link_losses_and_hellos_preserve_which_withdrawals_are_unsent() {
         world.reconnect();
         world.acknowledge_answer();
         world.assert_settled();
-    }
+        Ok::<(), Infallible>(())
+    })
+    .expect("world checks assert");
 }

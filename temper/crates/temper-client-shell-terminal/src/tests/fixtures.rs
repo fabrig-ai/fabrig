@@ -239,9 +239,7 @@ pub fn page(address: &temper_client_domain::Address, signed_out: bool) -> skein_
         client::step(
             &mut root,
             &env,
-            Event::Client {
-                event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
-            },
+            Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
             &mut out,
         );
         populate_page(&mut root, &env, address, &mut out);

@@ -314,9 +314,7 @@ pub fn program_root_with_line(address: d::Address, line: Option<&[u8]>) -> (d::D
     for event in [
         d::Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } },
         d::Event::Start { address, kept: List::with_capacity(0), with: Some(jig_client::With::Transport) },
-        d::Event::Client {
-            event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
-        },
+        d::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
     ] {
         d::step(&mut root, &env, event, &mut out);
     }

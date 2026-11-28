@@ -12,6 +12,7 @@ use temper_shell::{
 };
 mod disk;
 pub use disk::DISK_BUDGET;
+pub mod config_upgrade;
 pub mod configuration;
 pub mod host;
 pub mod providers;

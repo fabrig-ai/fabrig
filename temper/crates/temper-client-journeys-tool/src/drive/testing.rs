@@ -3,6 +3,8 @@ use super::{Options, Plan};
 use std::ffi::OsStr;
 use temper_config_shell::{File, Shape};
 
+pub(crate) const SESSION_PID: u32 = 42;
+
 pub(super) fn plan() -> Plan {
     Plan::new(
         Options {
@@ -20,6 +22,7 @@ pub(super) fn plan() -> Plan {
         },
         "/browser/chromium".into(),
         OsStr::new("/bin"),
+        SESSION_PID,
     )
 }
 

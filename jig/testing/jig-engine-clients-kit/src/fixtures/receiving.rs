@@ -22,6 +22,8 @@ fn model() -> core::Model {
         price_unit: 1_000_000,
         efforts: Box::default(),
         effort: None,
+        speeds: Box::default(),
+        speed: None,
     }
 }
 
@@ -50,6 +52,8 @@ pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
             unit: model.price_unit,
         },
         description: None,
+        speeds: Box::default(),
+        speed: None,
     }])
 }
 

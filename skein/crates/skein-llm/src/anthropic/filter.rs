@@ -27,6 +27,7 @@ pub(crate) const EVENT: Filter = Filter {
 };
 
 const USAGE: &[Node] = &[
+    field(b"speed", Keep::Text(STRINGS)),
     field(b"input_tokens", Keep::Value),
     field(b"output_tokens", Keep::Value),
     field(b"cache_read_input_tokens", Keep::Value),

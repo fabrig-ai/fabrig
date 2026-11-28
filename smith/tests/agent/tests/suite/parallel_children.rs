@@ -56,6 +56,7 @@ fn four_inspect_only_sub_agents_in_parallel_are_each_answered() {
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: b"work".as_slice().into(),
             root: Token::new(disk.root(b"work")),

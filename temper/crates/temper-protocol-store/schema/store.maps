@@ -243,7 +243,7 @@ record ChangeCi = c::Ci
 record EffectAccount = d::EffectAccount
 record ResultText = d::ResultText
 record ChangeResult = d::ChangeResult
-record ModelEffort = jig_domain_tasks::ModelEffort
+record ModelEffort by hand # The speed is an inline name in the domain choice.
 record LlmChoice by hand
 enum Route by hand
 record Held
@@ -580,6 +580,7 @@ record ChangeSource = d::ChangeSource
 record ChangeCold = d::ChangeCold
 record Regate = d::Regate
 record CloseRefused = c::CloseRefused
+enum CloseOutdated = c::CloseOutdated
 record CloseAt = c::CloseAt
 enum BehindRead = d::BehindRead
 record ReadBehind = d::ReadBehind

@@ -7,23 +7,29 @@ use jig_domain_core_vocabulary::documents;
 use jig_domain_people::ApplicationScope;
 use skein_lib::List;
 pub(crate) fn serves(settings: &Settings, family: Option<u16>, version: u32) -> bool {
-    for range in &settings.served {
-        if range.family == family && range.first <= version && version <= range.last {
+    for owner in &settings.served {
+        if owner.family == family && owner.version == version {
             return true;
         }
     }
     false
 }
 pub(crate) fn not_served(settings: &Settings, owner: w::Owner) -> w::NotServed {
+    w::NotServed { owner, served: wire_ranges(settings) }
+}
+pub(crate) fn wire_ranges(settings: &Settings) -> List<w::Served> {
     let mut served = List::with_capacity(settings.served.len());
-    for Served { family, first, last, .. } in &settings.served {
+    for &Served { family, version, .. } in &settings.served {
         let owner = match family {
             None => w::Owner::Jig,
-            Some(number) => w::Owner::Family(w::Family { number: *number }),
+            Some(number) => w::Owner::Family(w::Family { number }),
         };
-        served.push(w::Served { owner, first: *first, last: *last }).expect("served bound");
+        served.push(wire_range(owner, version)).expect("served ranges fit");
     }
-    w::NotServed { owner, served }
+    served
+}
+pub(crate) fn wire_range(owner: w::Owner, version: u32) -> w::Served {
+    w::Served { owner, first: version, last: version }
 }
 pub(crate) fn scope(scope: &w::Scope) -> ApplicationScope {
     match scope {

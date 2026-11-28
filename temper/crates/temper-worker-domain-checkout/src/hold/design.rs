@@ -92,6 +92,7 @@ pub(super) fn pushed(
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -123,6 +124,7 @@ pub(super) fn pushed(
         | Done::Paths { .. }
         | Done::ParentUnreachable { .. }
         | Done::Looked { .. }
+        | Done::Message { .. }
         | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
@@ -146,6 +148,7 @@ pub(super) fn pushed(
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -173,6 +176,7 @@ pub(super) fn pushed(
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -206,6 +210,7 @@ pub(super) fn pushed(
             | Done::Exists
             | Done::Rejected
             | Done::Failed { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::FailedWithOutput { .. } => unreachable!("an ancestry query has its own terminals"),
         },
@@ -215,6 +220,7 @@ pub(super) fn pushed(
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Conflicted { .. }
@@ -234,6 +240,7 @@ pub(super) fn pushed(
             | Done::Paths { .. }
             | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -271,6 +278,7 @@ pub(super) fn pushed(
                 Step::Push
             }
             Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged

@@ -35,6 +35,7 @@ pub struct ProjectLanding {
     pub close_job: Option<Box<[u8]>>,
     pub landing_attempts: u8,
     pub check_timeout_ms: Option<u64>,
+    pub hook_timeout_max_seconds: u32,
     /// Unset is `rerun` at the deployment's figure.
     pub flakes: Option<Flakes>,
     pub gate_retries: u8,
@@ -55,6 +56,7 @@ impl Default for ProjectLanding {
             close_job: None,
             landing_attempts: 3,
             check_timeout_ms: None,
+            hook_timeout_max_seconds: 3_600,
             flakes: None,
             gate_retries: 2,
             gate_timeout_ms: 3_600_000,
@@ -246,6 +248,9 @@ pub fn judge_landing(v: &ProjectLanding, b: &Bounds) -> Result<(), Refusal> {
     {
         return Err(refuse(b"check_timeout_ms", b"must be 1000 to 86400000"));
     }
+    if !(1..=86_400).contains(&v.hook_timeout_max_seconds) {
+        return Err(refuse(b"hook_timeout_max_seconds", b"must be 1 to 86400"));
+    }
     if let Some(Flakes::Rerun(processes)) = v.flakes
         && processes > b.rerun_processes
     {
@@ -259,7 +264,7 @@ pub fn judge_landing(v: &ProjectLanding, b: &Bounds) -> Result<(), Refusal> {
     }
     for (field, path) in [(b"merge_job".as_slice(), &v.merge_job), (b"close_job".as_slice(), &v.close_job)] {
         if let Some(path) = path
-            && !job(path)
+            && !job_path(path)
         {
             return Err(refuse(field, b"must be a relative path of 1 to 4096 bytes without NUL or .. segments"));
         }
@@ -280,7 +285,9 @@ pub fn judge_landing(v: &ProjectLanding, b: &Bounds) -> Result<(), Refusal> {
     }
     Ok(())
 }
-fn job(path: &[u8]) -> bool {
+/// A relative tooling path, within the setting's path bound.
+#[must_use]
+pub fn job_path(path: &[u8]) -> bool {
     if path.is_empty() || path.len() > 4096 || path.first() == Some(&b'/') || path.contains(&0) {
         return false;
     }

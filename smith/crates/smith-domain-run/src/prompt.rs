@@ -18,11 +18,11 @@ use crate::budget::{Budget, Granted};
 use crate::charter::{Brief, Mode, Reserve};
 use skein_lib::{Duration, Writer};
 
-use crate::boundary::Stop;
+use crate::boundary::{Hook, Hooks, Stop};
 use crate::charter::{Charter, Families, HostTool, Llm, Tools};
 use crate::conventions;
 use crate::outcome::{FieldRule, OutcomeSpec, TextSpec, VerdictRule};
-use crate::prepare::{Found, Guide};
+use crate::prepare::{Check, Found, Guide, Kind};
 use crate::workspace::{self, Directory, Workspace};
 
 /// A waking instruction scopes exhaustion to the activation that spent its allowance.
@@ -82,7 +82,7 @@ pub fn fixed_prompt() -> Box<[u8]> {
 fn render_fixed(text: &mut Text) {
     render_tools(text, Tools { inspect: true, modify: true, shell: true });
     text.put(b"\n");
-    render_checkout(text, &[], &[], b"");
+    render_checkout(text, &[], &[], b"", None);
     text.put(b"\n");
     render_agents(text, &[]);
     text.put(b"\n");
@@ -286,12 +286,20 @@ pub(crate) fn non_brief_host_bytes(charter: &Charter, mounted: Option<&Workspace
     count_host_bytes(charter, mounted, guide_bytes, false)
 }
 
+const HOOKS_LABEL: &[u8] = b"hooks `deliver` and `finish` in ";
+
 fn count_host_bytes(charter: &Charter, mounted: Option<&Workspace>, guide_bytes: u32, brief: bool) -> Option<u64> {
     let repositories = workspace::directories(mounted);
     let mut found = Found::with_capacity(u32::try_from(repositories.len()).ok()?);
     for (index, directory) in repositories.iter().enumerate() {
         if directory.writable {
-            found.checks.push(u32::try_from(index).ok()?).expect("one check per directory");
+            let kind = match conventions::hooks(charter) {
+                Some(hooks) if hooks.len().saturating_add(HOOKS_LABEL.len()) >= conventions::checks(charter).len() => {
+                    Kind::Hooks(Hooks { deliver: Hook::Executable, finish: Hook::Executable })
+                }
+                Some(_) | None => Kind::Legacy,
+            };
+            found.checks.push(Check { directory: u32::try_from(index).ok()?, kind }).expect("one check per directory");
         }
     }
     let mut text = Text::measuring();
@@ -532,7 +540,13 @@ fn render_system(
     if mounted.is_some() {
         render_tools(text, families.tools);
         text.put(b"\n");
-        render_checkout(text, repositories, found.checks.as_slice(), conventions::checks(charter));
+        render_checkout(
+            text,
+            repositories,
+            found.checks.as_slice(),
+            conventions::checks(charter),
+            conventions::hooks(charter),
+        );
         text.put(b"\n");
     }
     if families.agents {
@@ -586,7 +600,7 @@ fn render_agents(text: &mut Text, models: &[Llm]) {
         return;
     }
     text.host = true;
-    text.put(b"run's main LLM unless you name one of these: ");
+    text.put(b"run's main LLM, or pick from: ");
     let mut rest = models.len();
     for llm in models {
         text.put(b"`");
@@ -665,7 +679,13 @@ fn render_tools(text: &mut Text, tools: Tools) {
     }
 }
 
-fn render_checkout(text: &mut Text, repositories: &[Directory], checks: &[u32], check_path: &[u8]) {
+fn render_checkout(
+    text: &mut Text,
+    repositories: &[Directory],
+    checks: &[Check],
+    check_path: &[u8],
+    hooks_path: Option<&[u8]>,
+) {
     text.put(b"## Checkout\n\n");
     if repositories.is_empty() {
         text.put(b"There is no checkout.\n");
@@ -673,7 +693,7 @@ fn render_checkout(text: &mut Text, repositories: &[Directory], checks: &[u32], 
     text.host = true;
     match repositories.len() {
         0 => {}
-        1 => text.put(b"Paths start in your working directory. Use `src/lib.rs`, without a directory-name prefix.\n"),
+        1 => text.put(b"Use paths relative to the working directory: `src/lib.rs`.\n"),
         _ => {
             text.put(b"Your working directory is `");
             text.put(&repositories.first().expect("several directories").name);
@@ -682,7 +702,8 @@ fn render_checkout(text: &mut Text, repositories: &[Directory], checks: &[u32], 
     }
     let mut index: u32 = 0;
     let mut merging = false;
-    for Directory { name, host: _, root: _, writable, git, conflicts, results: _ } in repositories {
+    let mut checked = 0_usize;
+    for Directory { name, host: _, root: _, writable, git, conflicts, .. } in repositories {
         if repositories.len() == 1 {
             text.put(b"- The working directory");
         } else {
@@ -701,10 +722,11 @@ fn render_checkout(text: &mut Text, repositories: &[Directory], checks: &[u32], 
                 text.put(b"` ");
             }
         }
-        if checks.contains(&index) {
-            text.put(b", with checks (`");
-            text.put(check_path);
-            text.put(b"`)");
+        if let Some(check) = checks.get(checked)
+            && check.directory == index
+        {
+            render_checks(text, &check.kind, check_path, hooks_path);
+            checked = checked.saturating_add(1);
         }
         text.put(b"\n");
         index = index.saturating_add(1);
@@ -713,6 +735,32 @@ fn render_checkout(text: &mut Text, repositories: &[Directory], checks: &[u32], 
         text.put(b"A directory with initial merge conflicts holds a merge in progress: `HEAD` is your work so far and `MERGE_HEAD` the tip the host merged into it. Every other staged file is what that merge brought in, not stray work: leave those files in place and restore nothing. Settle the files named; a delivery commits the whole tree as the merge, with both parents.\n");
     }
     text.host = false;
+}
+
+fn render_checks(text: &mut Text, kind: &Kind, check_path: &[u8], hooks_path: Option<&[u8]>) {
+    text.put(b", with checks (");
+    match kind {
+        Kind::Legacy => {
+            text.put(b"`");
+            text.put(check_path);
+            text.put(b"`");
+        }
+        Kind::Hooks(hooks) => {
+            let directory = hooks_path.expect("hooks directory selected");
+            let label = if hooks.deliver == Hook::Missing {
+                b"hook `finish` in ".as_slice()
+            } else if hooks.finish == Hook::Missing {
+                b"hook `deliver` in ".as_slice()
+            } else {
+                HOOKS_LABEL
+            };
+            text.put(label);
+            text.put(b"`");
+            text.put(directory);
+            text.put(b"`");
+        }
+    }
+    text.put(b")");
 }
 
 fn render_finishing(text: &mut Text, spec: &OutcomeSpec, checks: bool) {
@@ -878,7 +926,7 @@ mod tests {
     use crate::boundary::Stop;
     use crate::charter::{Charter, Families, Grants, Mode, Tools};
     use crate::outcome::{ChangeSpec, FieldRule, ItemRule, ItemSpec, OutcomeSpec, TextSpec, VerdictRule};
-    use crate::prepare::{Found, Guide};
+    use crate::prepare::{Check, Found, Guide, Kind};
     use crate::tests::{bytes, charter, workspace};
     use alloc::boxed::Box;
 
@@ -893,7 +941,7 @@ mod tests {
             .guides
             .push(Guide { directory: 0, text: bytes(b"Run `make test` before you finish."), whole: false })
             .expect("room");
-        found.checks.push(1).expect("room");
+        found.checks.push(Check { directory: 1, kind: Kind::Legacy }).expect("room");
         found
     }
 
@@ -1013,7 +1061,7 @@ You can read, list and search the files in the checkout.
 
 ## Checkout
 
-Paths start in your working directory. Use `src/lib.rs`, without a directory-name prefix.
+Use paths relative to the working directory: `src/lib.rs`.
 - The working directory, which you may only read, a git working tree
 
 ## Answering
@@ -1213,7 +1261,7 @@ At open, your share is 3 turns and less than a second. Your answer may hold at m
         let rendered = text(&rendered);
         assert!(!rendered.contains(text(&mounted.directories[0].name)), "the one mount's name is hidden");
         assert!(rendered.contains("## AGENTS.md in the working directory\n\nGuide text."));
-        assert!(rendered.contains("## Checkout\n\nPaths start in your working directory. Use `src/lib.rs`, without a directory-name prefix.\n- The working directory, which you may only read"));
+        assert!(rendered.contains("## Checkout\n\nUse paths relative to the working directory: `src/lib.rs`.\n- The working directory, which you may only read"));
     }
 
     #[test]

@@ -1,13 +1,166 @@
 //! Restored outbox and ordinary-round checks (temper/docs/design/testing/engine-checks.md, 2 and 6).
 use skein_forge_client::{Condition, Effect, Entry};
-use skein_world::inspect::{Moment, Wake, check_tables, check_waits};
+use skein_lib::{Env, Queue, Time, Token, Wall};
+use skein_world::inspect::{Inspection, Moment, Release, Table, Wake, check_tables, check_waits};
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
+use temper_engine_domain_forge_issues as issues;
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_forge_world::{LIMITS, REPO, World, changes, landings};
 
 const OWNER: u64 = landings::LANDING;
 const WAITER: u64 = 70;
+
+const CENSUS_MOMENT: Moment = Moment { seed: 307, at: Time::ZERO, iteration: 0 };
+const CALL: Token = Token::new(101);
+const CALL_TASK: u64 = 71;
+const PROJECTION: u64 = 102;
+const GOAL: u64 = 72;
+const ASK_KEY: &str = "asked change (task 70)";
+const CALL_KEY: &str = "agent call 101 (task 71)";
+const PROJECTION_KEY: &str = "goal projection 102 (task 72)";
+
+struct CensusFixture {
+    forge: top::Domain,
+    env: Env<top::Limits>,
+}
+
+impl CensusFixture {
+    fn new() -> Self {
+        let mut world = World::new(CENSUS_MOMENT.seed);
+        world.adopt();
+        let repository = world.stored().get(&top::Key::Repository(REPO)).expect("adopted repository").clone();
+        let mut limits = LIMITS;
+        limits.entries = 4;
+        limits.client.entries = 4;
+        let env = Env { limits, now: CENSUS_MOMENT.at, wall: Wall::EPOCH };
+        let mut forge = top::Domain::new(
+            &limits,
+            CENSUS_MOMENT.seed,
+            top::Config { push: None, namespace: b"census".as_slice().into(), writers: Box::default() },
+            &[],
+            &[],
+            false,
+        )
+        .expect("fixture bounds");
+        forge.restore_begin(env.wall);
+        let mut fixture = Self { forge, env };
+        fixture.step(top::Event::Restore { record: repository });
+        let mut waiter = changes::change_row();
+        waiter.task = WAITER;
+        waiter.change.task = WAITER;
+        waiter.change.state = change::State::Opening { requested: false };
+        waiter.room = Some(1);
+        fixture.step(top::Event::Restore { record: top::Stored::Change(Box::new(waiter)) });
+        for number in 1..=4 {
+            fixture.step(top::Event::Restore { record: super::goal_branch_restart::held_dispatch(number) });
+        }
+        fixture.forge.fit_restored(&limits).expect("restored fixture fits");
+        fixture.step(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        fixture.step(top::Event::CatchUp);
+        for entry in 1..=3 {
+            fixture.step(top::Event::Resolve { entry, again: false });
+        }
+        assert!(fixture.forge.room_asked(WAITER), "the oldest waiter got the first place freed");
+        assert!(fixture.forge.reserve_call(&fixture.env, CALL, CALL_TASK));
+        let live = projection(PROJECTION, false);
+        let out = fixture.step(live);
+        assert!(out.iter().any(|request| matches!(request, top::Request::ProjectionEffect { .. })));
+        fixture
+    }
+
+    fn step(&mut self, event: top::Event) -> Queue<top::Request> {
+        let mut out = Queue::uncapped();
+        top::step(&mut self.forge, &self.env, event, &mut out);
+        out
+    }
+
+    fn inspect(&self) -> Inspection {
+        let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
+        temper_engine_inspect::forge(&self.forge, &mut inspection);
+        inspection
+    }
+}
+
+fn projection(entry: u64, ended: bool) -> top::Event {
+    top::Event::Project {
+        entry,
+        repository: REPO,
+        view: issues::GoalView {
+            phase: if ended { issues::Phase::Done } else { issues::Phase::Active },
+            goal: GOAL,
+            repository: u64::from(REPO.repository),
+            title: Box::from("Goal"),
+            goal_text: Box::from("Plan"),
+            plan: Box::new([]),
+            milestones: Box::new([]),
+            finished: ended.then(|| Box::from("Done")),
+        },
+    }
+}
+
+fn writes(inspection: &Inspection) -> &Table {
+    inspection.tables().iter().find(|table| table.name == "forge write entries").expect("write table")
+}
+
+#[test]
+fn the_forge_room_counts_its_entry_and_each_live_reservation() {
+    let mut fixture = CensusFixture::new();
+    let inspection = fixture.inspect();
+    let table = writes(&inspection);
+    let outbox = format!("entry 4 (task {})", fixture.forge.inspection_entry(4).expect("outbox entry").task);
+    let keys: Vec<_> = table.entries.iter().map(|entry| entry.key.as_str()).collect();
+    assert_eq!(keys, [outbox.as_str(), ASK_KEY, CALL_KEY, PROJECTION_KEY]);
+    assert!(table.entries.iter().all(|entry| entry.release == Release::Pending));
+    assert_eq!(fixture.forge.inspection_room_taken(), 4);
+    assert_eq!(inspection.check_violation(CENSUS_MOMENT), Ok(()));
+    assert_eq!(check_tables(&[&inspection], CENSUS_MOMENT), Ok(()));
+
+    fixture.step(top::Event::ChangeEnding { task: WAITER, ending: top::Ending::Cancelled });
+    let after = fixture.inspect();
+    assert!(!writes(&after).entries.iter().any(|entry| entry.key == ASK_KEY), "ending gives back the ask in its step");
+    assert_eq!(fixture.forge.inspection_room_taken(), 3);
+    assert_eq!(after.check_violation(CENSUS_MOMENT), Ok(()));
+    assert_eq!(check_tables(&[&after], CENSUS_MOMENT), Ok(()));
+}
+
+#[test]
+fn a_call_reservation_still_held_after_its_owner_ends_is_due() {
+    let mut fixture = CensusFixture::new();
+    fixture.step(top::Event::ChangeEnding { task: CALL_TASK, ending: top::Ending::Cancelled });
+    let inspection = fixture.inspect();
+    let finding = check_tables(&[&inspection], CENSUS_MOMENT).expect_err("ended call's reservation is due");
+    assert!(finding.contains(&format!("forge write entries {CALL_KEY}")), "{finding}");
+    assert!(finding.contains("the call's entry or the end of its run"), "{finding}");
+    fixture.forge.unreserve_call(&fixture.env, CALL, CALL_TASK, &mut Queue::uncapped());
+    assert_eq!(check_tables(&[&fixture.inspect()], CENSUS_MOMENT), Ok(()));
+}
+
+#[test]
+fn a_projection_reservation_still_held_after_its_goal_ends_is_due() {
+    let mut fixture = CensusFixture::new();
+    fixture.step(projection(103, true));
+    let inspection = fixture.inspect();
+    let finding = check_tables(&[&inspection], CENSUS_MOMENT).expect_err("ended goal's reservation is due");
+    assert!(finding.contains(&format!("forge write entries {PROJECTION_KEY}")), "{finding}");
+    assert!(finding.contains("the projection's entry or the end of its goal"), "{finding}");
+    fixture.step(top::Event::DropProjection { entry: PROJECTION, goal: GOAL });
+    assert_eq!(check_tables(&[&fixture.inspect()], CENSUS_MOMENT), Ok(()));
+}
+
+#[test]
+fn a_forge_room_census_mismatch_names_both_counts_and_the_holders_by_kind() {
+    let fixture = CensusFixture::new();
+    let snapshot = fixture.inspect();
+    let mut report = Inspection::new("engine", temper_engine_inspect::KINDS);
+    temper_engine_inspect::check_room_census(writes(&snapshot), 5, &mut report);
+    let finding = report.check_violation(CENSUS_MOMENT).expect_err("one charge has no holder");
+    assert!(finding.contains("engine forge room: census 4, taken 5"), "{finding}");
+    for (kind, key) in [("asked waiters", ASK_KEY), ("agent calls", CALL_KEY), ("goal projections", PROJECTION_KEY)] {
+        assert!(finding.contains(&format!("{kind}: [{key}]")), "{finding}");
+    }
+    assert!(finding.contains("outbox entries: [entry 4 (task "), "{finding}");
+}
 
 fn restored(ended: bool) -> World {
     let mut world = World::with_entries(307, 2);

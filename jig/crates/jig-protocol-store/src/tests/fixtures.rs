@@ -33,9 +33,9 @@ pub(crate) use jig_protocol_store_kit::{
 pub use store::floor_put;
 pub use store::limits as store_limits;
 pub use store::{
-    Answer, ROOT, answer, below, commit, committed, committed_with_places, directory, env, events, format_put, get_kv,
-    header, header_put, installation_put, opened, opened_with_budget, opened_with_transcripts, over, plant, reopen,
-    run, save, script, sign_in_secret, stores, written,
+    Answer, ROOT, answer, below, commit, committed, committed_with_places, directory, env, events, format_put,
+    frame_layout, get_kv, header, header_put, installation_put, opened, opened_with_budget, opened_with_transcripts,
+    over, plant, reopen, run, save, script, sign_in_secret, stores, written,
 };
 
 pub fn registered_store_limits() -> crate::Limits {

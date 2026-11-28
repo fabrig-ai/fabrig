@@ -100,6 +100,19 @@ fn the_goal_specs_keep_only_steps_at_the_boundary() {
 }
 
 #[test]
+fn the_goal_specs_ask_only_what_the_checkout_can_show() {
+    let assembled = assembled_goal();
+    let mut lines = core::str::from_utf8(&assembled.instructions).unwrap().lines();
+    lines.find(|line| line.starts_with("- **Within bounds:**")).expect("within bounds bullet");
+    assert_eq!(
+        lines.next(),
+        Some(
+            "- **Answerable from its checkout:** it asks only for what the change's checkout can show, never a bisect, a build or run of main or of an older commit, or a figure taken at main. A fact about history or main it needs is given in its words, from what the goal's records hold, or asked of your requester."
+        )
+    );
+}
+
+#[test]
 fn the_designer_keeps_a_lean_design_and_temporary_contracts() {
     let assembled = assembled_goal();
     let part = assembled.parts.first().unwrap();
@@ -135,6 +148,34 @@ fn the_implementer_reports_simplifications() {
     let coder = engine.charters.iter().find(|charter| charter.number == 2).unwrap();
     let instructions = core::str::from_utf8(&coder.policy.instructions).unwrap();
     assert!(instructions.contains("- **Say where it repeats:** where the design or your spec makes you write the same thing twice, or a type with no behaviour of its own, say so: as a question when the simpler form crosses your change's edge, otherwise under `## Simpler` in your report, naming the place and the simpler form."));
+}
+
+#[test]
+fn the_implementer_works_without_reading_history() {
+    let engine = engine(&generated());
+    let coder = engine.charters.iter().find(|charter| charter.number == 2).unwrap();
+    let mut lines = core::str::from_utf8(&coder.policy.instructions).unwrap().lines();
+    lines.find(|line| line.starts_with("- **Your checkout is detached:**")).expect("detached checkout bullet");
+    assert_eq!(
+        lines.next(),
+        Some(
+            "- **No history:** work from your checkout's current files, a conflict's three versions in the index (`:1:`, `:2:` and `:3:`, read with `git show :2:PATH`) and the records your request gives. Your checkout keeps no old file contents, so ask your requester for any fact about history rather than reading an old commit."
+        )
+    );
+    let repairs = lines.find(|line| line.starts_with("- **In repairs and resolutions,**")).expect("repairs bullet");
+    assert!(repairs.contains("and you ask your requester why it went before you restore it"));
+
+    let temper_charter_set::Set { common, goal, designer, coordinator, implementer } = crate::stock::charter_set();
+    for (file, text) in [
+        (File::Common, common),
+        (File::Goal, goal),
+        (File::Designer, designer),
+        (File::Coordinator, coordinator),
+        (File::Implementer, implementer),
+    ] {
+        let name = file.name();
+        assert!(!text.expect(name).contains("read the commit that deleted it"), "{name}: asks to read history");
+    }
 }
 
 #[test]

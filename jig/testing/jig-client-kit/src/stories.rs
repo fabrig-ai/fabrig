@@ -92,10 +92,7 @@ fn configured_rows(settings: Settings, rows: u32) -> World<Test, Scripted> {
         settings,
         Scripted::new(
             Script {
-                versions: VersionRange {
-                    first: jig_client_protocol_wire::VERSION,
-                    last: jig_client_protocol_wire::VERSION,
-                },
+                served: true,
                 truth,
                 bounds: Bounds {
                     text: 32,
@@ -707,6 +704,7 @@ fn proposal_fixture(seed: u64, delegate_chip: bool) -> World<Test, Scripted> {
                 input: text(b"Resolve incident"),
                 outcome: Some(text(b"Delegate ten")),
                 failed: false,
+                answer: None,
                 objects: if delegate_chip {
                     list([ObjectKey::Task(10), ObjectKey::Proposal(p.key)])
                 } else {

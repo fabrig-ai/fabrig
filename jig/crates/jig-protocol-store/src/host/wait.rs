@@ -1,6 +1,6 @@
 //! Payload-free opening steps and driver counts (protocol/store/opening.md, 1, and protocol/store/opening-rehearsal.md, 1).
 use super::Hosted;
-use crate::{directory::Opening, upgrade::phase::Patching};
+use crate::{directory::Opening, upgrade::phase::Upgrading};
 
 #[derive(Debug)]
 pub struct Wait {
@@ -83,15 +83,15 @@ fn opening(step: &Opening) -> &'static str {
         Opening::CheckpointSweep(_) => "sweep checkpoint temporaries",
         Opening::TranscriptsMade => "make transcripts directory",
         Opening::TranscriptsOpen => "open transcripts directory",
-        Opening::Patching(step) => match step.as_ref() {
-            Patching::Closing { .. } => "close maps before upgrading",
-            Patching::Dropping(_) => "drop previous generation",
-            Patching::Copying(_) => "copy patch generation",
-            Patching::Mapping { .. } => "open patch directories",
-            Patching::Recovering { .. } => "recover patch maps",
-            Patching::Jobs(_) => "run jobs",
-            Patching::Sealing { .. } => "seal patches",
-            Patching::Checking(_) => "check patched records",
+        Opening::Upgrading(step) => match step.as_ref() {
+            Upgrading::Closing { .. } => "close maps before upgrading",
+            Upgrading::Dropping(_) => "drop previous generation",
+            Upgrading::Copying(_) => "copy generation for upgrade",
+            Upgrading::Mapping { .. } => "open the copy's directories",
+            Upgrading::Recovering { .. } => "recover the copy's maps",
+            Upgrading::Jobs(_) => "run jobs",
+            Upgrading::Sealing { .. } => "seal the upgrade",
+            Upgrading::Checking(_) => "check the copy's records",
         },
         Opening::Pending(_) => "pending generation switch",
     }

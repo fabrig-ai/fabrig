@@ -47,6 +47,7 @@ An act marked `(no tool)` has no tool here yet; one followed by a
 colon and a reason is refused as it stands; one marked `proposed
 to` asks another party first. A change task adds `next:` and the
 call that reads its change. An ended task prints its result.
+A model choice with a named speed ends with `at SPEED`.
 Text reads and waits fill `asked:` from the specification within their output
 bounds. If words remain, `task text TASK --field specification --from OFFSET`
 reads on from the first undisplayed byte. JSON keeps the bounded overview
@@ -265,6 +266,8 @@ task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME
   --to-party PARTY: a number; optional. Address the person task to this party
   --to-role ROLE: a number from 0 to 4294967295; optional. Address the person task to this role of its project
   --budget AMOUNT: an amount with at most two decimals, as 130 or 1.25; optional. Its budget, as task show prints it; the rest of its authority kept
+  --speed SPEED: text, at most 1048576 bytes, or - to read stdin; optional. The main model's speed; needs --model
+  --sub-agent-speed MODEL:SPEED: text, at most 1048576 bytes, or - to read stdin; repeated, at most 64. A sub-agent's speed; repeatable, each model once
 Amend a task: each control you name is replaced, the rest kept
 Prints: `done: task N, amend`, or `proposed: PROPOSAL, to RECIPIENT` when another party must agree
 --json: the record amend.
@@ -276,6 +279,10 @@ that names no change fails (exit 1); one that names a value the task
 already has is sent, and the engine answers it.
 An address re-addresses at this read's person revision; a non-person
 task fails (exit 1).
+--speed needs --model. --sub-agent-speed changes a kept sub-agent's speed;
+the other sub-agents keep theirs. A faster speed costs more.
+Choose a speed from model list, or standard. A new main with no speed
+uses the charter's speed or the model's default, not the old main's speed.
 ```
 
 ## task decide

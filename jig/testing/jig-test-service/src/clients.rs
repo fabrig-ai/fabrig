@@ -138,8 +138,7 @@ impl Clients {
             link,
             served: kit::host::served(kit::Served {
                 family: Some(1),
-                first: VERSION,
-                last: VERSION,
+                version: VERSION,
                 layout: jig_client_test_protocol_wire::LAYOUT,
             }),
             public: List::with_capacity(0),

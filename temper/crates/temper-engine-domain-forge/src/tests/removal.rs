@@ -434,6 +434,7 @@ fn remove_cancels_each_change_on_the_forge_and_its_task_ends_cancelled() {
             entry: None,
             evidence: None,
             close_at: None,
+            close_refusal: None,
         }));
     }
     assert_eq!(d.change(53), Some(&other));

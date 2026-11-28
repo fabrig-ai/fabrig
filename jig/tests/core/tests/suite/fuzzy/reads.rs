@@ -6,13 +6,14 @@ use jig_domain_core::{self as core, reads};
 use jig_domain_people as people;
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Rng, Token};
+use skein_world::{sweep::cases, this_test};
+use std::convert::Infallible;
 
 const QUERY_READ: u64 = 4;
 
 #[test]
 fn seeded_reads_wait_for_prior_commits_and_keep_receipts_across_restart_cuts() {
-    for seed in 801..=812 {
-        eprintln!("read crash replay seed {seed}");
+    cases(this_test!("seeded_reads_wait_for_prior_commits_and_keep_receipts_across_restart_cuts"), 801..=812, |seed| {
         let mut rng = Rng::new(seed);
         let mut world = world(seed);
         let task = world.assigned.as_ref().expect("chat").task;
@@ -49,5 +50,7 @@ fn seeded_reads_wait_for_prior_commits_and_keep_receipts_across_restart_cuts() {
         );
         assert_eq!(jig_core_world::fixtures::query_numbers(&world), [task]);
         assert_eq!(world.reads.as_ref().expect("party").receipts.len(), observed + 3);
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }

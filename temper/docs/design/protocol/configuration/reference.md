@@ -105,9 +105,12 @@ place (jig's `domain/engine/overlays.md`).
   hold every merge into a goal's branch (`stock.md`).
   `docs/examples/reference/landing.json` is the document's
   `application.landing` (`engine.md`), which the walk's document carries:
-  project 1's `merge_job`, `.temper/merge`, its `flakes`, `none`, since
+  project 1's `flakes`, `none`, since
   fabrig's checks run only tests that replay
-  (`../../domain/forge/judgement.md`, 4), and its tiers (below).
+  (`../../domain/forge/judgement.md`, 4), and its tiers (below). It
+  names neither `merge_job` nor `close_job`: fabrig's repository keeps
+  its merge and close commands as hooks, which a repository with
+  `.temper/hooks/` runs alone (`../hooks.md`, 5).
 
 ## 3. Tiers and the limit profile
 
@@ -150,7 +153,7 @@ place (jig's `domain/engine/overlays.md`).
     shows its goals, and its kind 2 rule 1, main's (the landing rules,
     above). A project's setting cannot be in `settings.json`,
     which is applied before the project exists;
-  - the repository's `.temper/pre-pr` and `.temper/merge`, and its
+  - the repository's hooks, `.temper/hooks/` (`../hooks.md`), and its
     tiers' workflows (below).
 
   Its limits size one goal of a hundred changes and bound each change's
@@ -209,7 +212,8 @@ place (jig's `domain/engine/overlays.md`).
 - **What the repository carries:** the merge commit is its merge style
   on its forge, the repository's default on Forgejo
   (`../../domain/forge/adoption.md`), set where the repository is made;
-  the project's checks are its `.temper/pre-pr` (smith's
+  the project's checks are its `.temper/hooks/deliver`, which its
+  `.temper/hooks/finish` links to (`../hooks.md`, 2.2; smith's
   `domain/run-delivery.md`, 1.1; `tools/pre-pr/design.md`): the format check and
   the counted baselines on everything, then, against the base the worker
   pins (`../../domain/worker/checkouts.md`), the lints of the packages the
@@ -231,9 +235,16 @@ place (jig's `domain/engine/overlays.md`).
   `tier-slow.yml` and `tier-goal.yml`, dispatch-only, each running the
   ids in its `temper_tests` input alone when given them
   (`../../domain/after-landing-runs.md`, section 1). Its merge command is its
-  `.temper/merge` (`../tooling.md`, 4.1), which recounts a counted
+  `.temper/hooks/merge` (`../tooling.md`, 4.1), which recounts a counted
   baseline left in conflict (each tree's `scripts/old-forms.txt`, by
-  its `scripts/old_forms.py --write`) and leaves every other conflict.
+  its `scripts/old_forms.py --write`) and leaves every other conflict;
+  its close command is its `.temper/hooks/close` (`../tooling.md`, 4.2),
+  which settles the goal's status and then runs pre-PR's close check
+  (`tools/pre-pr/design.md`, 4.1), given 1,800 seconds by its
+  `.temper/hooks/config.toml` (`../hooks.md`, 2.3). Its older `.temper/pre-pr`,
+  `.temper/merge`, `.temper/close` and `.temper/checked-close` are
+  wrappers that run them, for a build that reads no hooks
+  (`../hooks.md`, 5).
   The delivery format check batches Cargo's target roots by target edition
   and nearest rustfmt configuration, retaining rustfmt's module traversal;
   all five trees' counted baselines run against the private snapshot index,
@@ -276,7 +287,7 @@ place (jig's `domain/engine/overlays.md`).
   documents shared by every run, and entries outside a run's parts
   left for the next run.
 
-- **The checks' deadline** (`reference.md`): `.temper/pre-pr` names each check
+- **The checks' deadline** (`reference.md`): `.temper/hooks/deliver` names each check
   before it starts (`tools/pre-pr/design.md`, section 4), so a timeout's
   tail shows where it stopped; with lints and focused tests it builds, and
   the agent's 60-second `check_timeout` is the owner's to raise, separately

@@ -226,6 +226,7 @@ fn a_host_start_preserves_kept_parts_and_the_results_path() {
                 git: false,
                 conflicts: Box::default(),
                 results: Some(b"/results".as_slice().into()),
+                hooks: None,
             }]),
         },
         smith_host_domain::Window { turns: 2, bytes: 1_000_000 },

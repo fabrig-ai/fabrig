@@ -37,7 +37,7 @@ pub struct AnswerMeta {
 pub fn answer_record(meta: AnswerMeta, answer: &run::Answer, capture: Capture) -> RunCompleted {
     let (status, failure, result, turns, spent) = match answer {
         run::Answer::Parked { spent, turns } => (Status::Parked, None, None, *turns, *spent),
-        run::Answer::Refused(refusal) => (Status::Refused, Some(refusal_record(*refusal)), None, 0, run::Spend::ZERO),
+        run::Answer::Refused(refusal) => (Status::Refused, Some(refusal_record(refusal)), None, 0, run::Spend::ZERO),
         run::Answer::Accepted { outcome, spent, turns } => {
             (Status::Accepted, None, Some(accepted(outcome, capture)), *turns, *spent)
         }
@@ -125,14 +125,19 @@ fn failure(class: AnswerClass, which: Option<&[u8]>) -> AnswerFailure {
 
 /// Project a refused entrance into the event vocabulary.
 #[must_use]
-pub fn refusal_record(refusal: run::Refusal) -> AnswerFailure {
+pub fn refusal_record(refusal: &run::Refusal) -> AnswerFailure {
     match refusal {
         run::Refusal::Busy => failure(AnswerClass::Busy, None),
+        run::Refusal::Invalid(run::Invalid::ProgramSpeed { speed, program }) => AnswerFailure {
+            program: Some(program.clone()),
+            detail: Some(skein_lib::bytes::concat(&[b"program cannot request speed ", speed])),
+            ..failure(AnswerClass::Invalid, Some(b"llm"))
+        },
         run::Refusal::Invalid(invalid) => failure(AnswerClass::Invalid, Some(invalid_name(invalid))),
     }
 }
 
-fn invalid_name(invalid: run::Invalid) -> &'static [u8] {
+fn invalid_name(invalid: &run::Invalid) -> &'static [u8] {
     match invalid {
         run::Invalid::HostPart { .. } => b"host_part",
         run::Invalid::Room { .. } => b"room",
@@ -159,7 +164,7 @@ fn invalid_name(invalid: run::Invalid) -> &'static [u8] {
             | run::BudgetRefusal::Completion { .. } => b"budget",
         },
         run::Invalid::Price(_) => b"price",
-        run::Invalid::Llm => b"llm",
+        run::Invalid::Llm | run::Invalid::ProgramSpeed { .. } => b"llm",
         run::Invalid::Effort => b"effort",
         run::Invalid::Conversation => b"conversation",
     }

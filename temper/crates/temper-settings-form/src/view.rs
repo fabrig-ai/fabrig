@@ -161,6 +161,8 @@ pub struct ModelEffort {
     pub model: Text,
     /// One of the efforts the model declares; `None` is its LLM provider's default.
     pub effort: Option<Text>,
+    /// A declared speed by name, `standard`, or `None` for the charter's speed.
+    pub speed: Option<Text>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Authority {
@@ -472,6 +474,17 @@ pub struct SettingModel {
     pub price_unit: u32,
     pub efforts: List<Text>,
     pub effort: Option<Text>,
+    pub speeds: List<SettingSpeed>,
+    pub speed: Option<Text>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SettingSpeed {
+    pub name: Text,
+    pub also: List<Text>,
+    pub input_price: u64,
+    pub cached_price: u64,
+    pub cache_write_price: Option<u64>,
+    pub output_price: u64,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct SettingNumber {

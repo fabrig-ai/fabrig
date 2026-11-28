@@ -104,6 +104,8 @@ pub enum Op {
     CheckOut { at: Place, commit: Commit, clean: bool, identity: u32, account: Option<u64> },
     /// Whether fetched ancestor is contained in commit, including equality. Local and read-only.
     IsAncestor { at: Place, ancestor: Commit, commit: Commit },
+    /// Read a fetched commit's stored message. Local and read-only.
+    Message { at: Place, commit: Commit },
     /// Whether head and upstream share a commit absent from base (protocol/git-operations.md, 1.9).
     Brings { at: Place, head: Commit, base: Commit, upstream: Commit },
     /// Stream paths differing between two commits, including deletions, without
@@ -230,6 +232,8 @@ pub enum Done {
     Looked { holds: bool },
     /// The standalone local ancestry query.
     IsAncestor { contains: bool },
+    /// Raw message bytes, or none if the invocation's stdout exceeded its cap.
+    Message { message: Option<Box<[u8]>> },
     /// The local upstream contribution query.
     Brings { brings: bool },
     /// Merge has no unresolved paths; the next explicit merge commit still
@@ -320,6 +324,7 @@ pub enum Kind {
     CheckOut,
     Merge,
     IsAncestor,
+    Message,
     Brings,
     DiffPaths,
     Commit,
@@ -345,6 +350,7 @@ impl Op {
             Op::CheckOut { .. } => Kind::CheckOut,
             Op::Merge { .. } => Kind::Merge,
             Op::IsAncestor { .. } => Kind::IsAncestor,
+            Op::Message { .. } => Kind::Message,
             Op::Brings { .. } => Kind::Brings,
             Op::DiffPaths { .. } => Kind::DiffPaths,
             Op::Commit { .. } => Kind::Commit,
@@ -370,6 +376,7 @@ impl Op {
             | Op::Point { .. }
             | Op::Clone { .. }
             | Op::Look { .. }
+            | Op::Message { .. }
             | Op::Brings { .. }
             | Op::IsAncestor { .. }
             | Op::DiffPaths { .. }

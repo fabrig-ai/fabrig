@@ -35,12 +35,11 @@ pub fn settings() -> Settings {
     served
         .push(crate::Served {
             family: None,
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION,
+            version: jig_client_protocol_wire::VERSION,
             layout: jig_client_protocol_wire::LAYOUT,
         })
         .expect("one jig range");
-    served.push(crate::Served { family: Some(9), first: 2, last: 2, layout: [1; 32] }).expect("one family range");
+    served.push(crate::Served { family: Some(9), version: 2, layout: [1; 32] }).expect("one family range");
     Settings {
         private: crate::Private::none(),
         provider: None,
@@ -89,6 +88,8 @@ pub fn models() -> Box<[crate::Model]> {
             efforts: Box::new([Box::from(b"low".as_slice()), Box::from(b"high".as_slice())]),
             prices: crate::Prices { input: 3, cached: 1, cache_write: Some(5), output: 15, unit: 1_000_000 },
             description: Some(Box::from(b"For careful work".as_slice())),
+            speeds: Box::default(),
+            speed: None,
         },
         crate::Model {
             new_until: None,
@@ -105,6 +106,8 @@ pub fn models() -> Box<[crate::Model]> {
             efforts: Box::new([]),
             prices: crate::Prices { input: 1, cached: 1, cache_write: None, output: 2, unit: 1000 },
             description: None,
+            speeds: Box::default(),
+            speed: None,
         },
     ])
 }

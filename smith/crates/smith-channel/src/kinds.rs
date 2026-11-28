@@ -2,7 +2,7 @@
 //! [`schema`] projects the generated body bounds into Skein's channel table.
 //! Contract: `protocol/channel.md`, sections 2-4.
 
-use skein_channel::{Direction, Kind, Role, Schema, Term, Version};
+use skein_channel::{Direction, Kind, Role, Schema, Term};
 use skein_lib::List;
 
 use crate::{Record, kind, v14};
@@ -147,32 +147,23 @@ pub fn schema(limits: &v14::Limits) -> Result<Schema, Overflow> {
         };
         kinds.push(Kind { kind: rule.kind, direction: rule.direction, largest }).expect("V14 has exactly 26 kinds");
     }
-    let mut versions = List::with_capacity(1);
-    versions.push(Version { version: kind::VERSION, kinds }).expect("one version has one slot");
-    Ok(Schema { magic: *b"smth", versions })
+    Ok(Schema { magic: *b"smth", version: kind::VERSION, kinds })
 }
 
 /// Find the first required kind that the peer cannot receive at our sending bound.
 #[must_use]
-pub fn peer_terms_gap(schema: &Schema, role: Role, version: u16, terms: &List<Term>) -> Option<u16> {
-    required_terms_gap(schema, role, version, terms, V14)
+pub fn peer_terms_gap(schema: &Schema, role: Role, terms: &List<Term>) -> Option<u16> {
+    required_terms_gap(schema, role, terms, V14)
 }
 
-fn required_terms_gap(
-    schema: &Schema,
-    role: Role,
-    version: u16,
-    terms: &List<Term>,
-    rules: &[KindRule],
-) -> Option<u16> {
+fn required_terms_gap(schema: &Schema, role: Role, terms: &List<Term>, rules: &[KindRule]) -> Option<u16> {
     let sending = match role {
         Role::Initiator => Direction::FromInitiator,
         Role::Responder => Direction::FromResponder,
     };
-    let table = schema.version(version)?;
     for rule in rules {
         if rule.direction == sending && rule.required {
-            let own = table.kind(rule.kind)?;
+            let own = schema.kind(rule.kind)?;
             let mut accepted = false;
             for term in terms {
                 if term.kind == rule.kind && term.largest >= own.largest {
@@ -199,7 +190,7 @@ impl KindRule {
 mod optional_tests {
     use super::{Body, KindRule, required_terms_gap};
     use crate::kind;
-    use skein_channel::{Direction, Kind, Role, Schema, Term, Version};
+    use skein_channel::{Direction, Kind, Role, Schema, Term};
     use skein_lib::List;
 
     #[test]
@@ -214,22 +205,14 @@ mod optional_tests {
         for rule in rules {
             kinds.push(Kind { kind: rule.kind, direction: rule.direction, largest: 32 }).expect("four test kinds");
         }
-        let mut versions = List::with_capacity(1);
-        versions.push(Version { version: kind::VERSION, kinds }).expect("one test version");
-        let schema = Schema { magic: *b"smth", versions };
+        let schema = Schema { magic: *b"smth", version: kind::VERSION, kinds };
         let mut host_terms = List::with_capacity(1);
         host_terms.push(Term { kind: 0x0100, largest: 32 }).expect("one required kind");
-        assert_eq!(required_terms_gap(&schema, Role::Initiator, kind::VERSION, &host_terms, &rules), None);
-        assert_eq!(
-            required_terms_gap(&schema, Role::Initiator, kind::VERSION, &List::with_capacity(0), &rules),
-            Some(0x0100)
-        );
+        assert_eq!(required_terms_gap(&schema, Role::Initiator, &host_terms, &rules), None);
+        assert_eq!(required_terms_gap(&schema, Role::Initiator, &List::with_capacity(0), &rules), Some(0x0100));
         let mut agent_terms = List::with_capacity(1);
         agent_terms.push(Term { kind: 0x0102, largest: 32 }).expect("one required kind");
-        assert_eq!(required_terms_gap(&schema, Role::Responder, kind::VERSION, &agent_terms, &rules), None);
-        assert_eq!(
-            required_terms_gap(&schema, Role::Responder, kind::VERSION, &List::with_capacity(0), &rules),
-            Some(0x0102)
-        );
+        assert_eq!(required_terms_gap(&schema, Role::Responder, &agent_terms, &rules), None);
+        assert_eq!(required_terms_gap(&schema, Role::Responder, &List::with_capacity(0), &rules), Some(0x0102));
     }
 }

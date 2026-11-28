@@ -315,7 +315,7 @@ fn prepared_settings(directory: &Path, settings: &Path) -> serde_json::Value {
     let items = value["items"].as_array_mut().expect("items");
     items.extend(limit_items(&figures));
     let wanted = temper_agent_fixtures::providers::read(directory);
-    // The seven stock entries; the box adds its own fixed provider's model separately.
+    // The box adds its fixed provider's model separately.
     let llm = jig_protocol_config::Llm { models: Box::new([]), providers: Box::new([]), endpoints: Box::new([]) };
     for model in temper_engine_service_stock::stock::models(&llm) {
         let mut read = model_json(Setting::Model(model.number), Value::Model(Box::new(model)));
@@ -596,7 +596,8 @@ mod tests {
         use jig_domain_core::settings::{Current, Setting};
         use jig_domain_core_vocabulary::reads::SettingDocument;
         use serde_json::{Value, json};
-        const STOCK_MODELS: std::ops::RangeInclusive<u32> = 1..=7; // stock.md, the numbered catalogue before demo.
+        // stock.md: stock numbers, with 8 reserved for the fake's demo model.
+        const STOCK_MODELS: [u32; 8] = [1, 2, 3, 4, 5, 6, 7, 9];
         let limits = temper_client_tools::limits::tools();
         let client = temper_client_tools::limits::client().client;
         let link = jig_client_protocol_link::Limits::new(client.domain, client.exchanges).expect("client limits");
@@ -624,13 +625,13 @@ mod tests {
             let rows = value["items"].as_array().expect("settings items");
             let (non_models, models) = rows.split_at(expected.len());
             assert_eq!(non_models, expected, "agents, providers and both kinds of limits");
-            assert_eq!(models.len(), STOCK_MODELS.count());
+            assert_eq!(models.len(), STOCK_MODELS.len());
 
             // Settings show reads the current value of each numbered stock model at first start.
             let engine = stock_engine(&world);
             let core = jig_protocol_config::core(&engine, [0; 16], 1);
             let current = Current::new(core.defaults, &engine.limits.core, &[]);
-            for (number, row) in STOCK_MODELS.zip(models) {
+            for (number, row) in STOCK_MODELS.into_iter().zip(models) {
                 let setting = Setting::Model(number);
                 let document = SettingDocument {
                     overlay: None,

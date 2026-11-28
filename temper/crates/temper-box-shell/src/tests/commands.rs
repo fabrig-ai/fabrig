@@ -19,6 +19,7 @@ fn command_words(command: &Command) -> Vec<&str> {
     match command {
         Command::Version => vec!["--version"],
         Command::Versions => vec!["versions"],
+        Command::ConfigUpgrade { .. } => vec!["config", "upgrade"],
         Command::Checkpoint { .. } => vec!["checkpoint"],
         Command::Restore { .. } => vec!["restore"],
         Command::Upgrade { request, .. } => match request {
@@ -63,6 +64,7 @@ fn every_row_parses_from_an_example() {
     let examples: &[(&[&str], &[&str])] = &[
         (&["help"], &["help", "pages"]),
         (&["versions"], &["versions"]),
+        (&["config", "upgrade"], &["config", "upgrade"]),
         (&["checkpoint"], &["checkpoint"]),
         (&["checkpoint"], &["checkpoint", "--remove", "00000000000000000012-00000000000000ff"]),
         (&["checkpoint"], &["checkpoint", "--hold", "00000000000000000012-00000000000000ff", "--", "cmd", "arg"]),
@@ -201,6 +203,7 @@ fn temper_help_lists_only_public_commands() {
         [
             "init",
             "serve",
+            "config",
             "program-login",
             "help",
             "versions",

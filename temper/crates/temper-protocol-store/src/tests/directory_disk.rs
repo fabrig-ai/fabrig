@@ -150,7 +150,7 @@ impl Disk {
                     _ => unreachable!(),
                 };
                 store::up(store, &self.env, io, &mut above, &mut below);
-            } else if !store::sizes::is_patching(store) {
+            } else if !store::sizes::is_upgrading(store) {
                 let mut events = Vec::new();
                 while let Some(event) = above.pop() {
                     events.push(event);

@@ -287,7 +287,7 @@ fn stored_llm_choice_names_the_task_that_configuration_cannot_hold() {
     row.llm = Some(tasks::LlmChoice {
         later: None,
         account: None,
-        main: tasks::ModelEffort { model: u8::MAX, effort: None },
+        main: tasks::ModelEffort { model: u8::MAX, effort: None, speed: None },
         subagents: Box::new([]),
     });
     restore_task(&mut core, &env, period());

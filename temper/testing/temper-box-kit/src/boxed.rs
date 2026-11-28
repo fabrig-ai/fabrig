@@ -261,15 +261,16 @@ pub fn run(directory: &Path, forgejo: Option<SocketAddr>, plan: Plan, deadline: 
 /// Drives the same box referee with an isolation wrapper around the shipped binary.
 #[must_use]
 pub fn run_command(command: Command, forgejo: Option<SocketAddr>, plan: Plan, deadline: Duration) -> Outcome {
-    let data = if command.arguments.first().is_some_and(|word| word == "serve") {
+    let serving = command.arguments.first().is_some_and(|word| word == "serve");
+    let data = if serving {
         None
     } else {
         command.arguments.windows(2).find(|pair| pair[0] == "--data").map(|pair| PathBuf::from(&pair[1]))
     };
     let clock = Clock::new();
-    let mut binary =
-        Binary::start_with_tree(dying_with_test(command), Mode::Pipes, 262_144, Expectation::Supervise, false)
-            .expect("temper box starts");
+    let command = if serving { super::fixture::dying_with_test(command, Signal::Kill) } else { box_fixture(command) };
+    let mut binary = Binary::start_with_tree(command, Mode::Pipes, 262_144, Expectation::Supervise, false)
+        .expect("temper box starts");
     let streams = binary.take_streams().expect("binary streams");
     let fds = streams.descriptors();
     let Streams::Pipes { input, output } = streams else { panic!("pipes mode") };
@@ -533,7 +534,7 @@ pub fn run_story_with_box<T>(
     let logs = data.join("box/logs");
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(
-        dying_with_test(Command {
+        box_fixture(Command {
             program: skein_scratch::paths::built("temper-box", "temper-box"),
             arguments: flags.into_iter().map(Into::into).collect(),
             directory: directory.into(),
@@ -1160,7 +1161,7 @@ fn run_ctl_peers<T>(
     let clock = Clock::new();
     let program = peers.program.unwrap_or_else(|| skein_scratch::paths::built("temper-box", "temper-box"));
     let mut binary = Binary::start_with_tree(
-        dying_with_program(
+        super::fixture::dying_with_program(
             Command {
                 program: program.clone(),
                 arguments: flags.into_iter().map(Into::into).collect(),
@@ -1180,6 +1181,7 @@ fn run_ctl_peers<T>(
                 },
             },
             &program,
+            Signal::Terminate,
         ),
         Mode::Pipes,
         262_144,
@@ -1251,55 +1253,10 @@ fn run_ctl_peers<T>(
     )
 }
 
-/// Spawn on the calling test thread, which drives the world until teardown.
-/// Linux's death signal follows that thread's lifetime, even across box's exec.
+/// Starts a full box with Terminate so its steps drain on the test's death.
 #[must_use]
-pub fn dying_with_test(command: Command) -> Command {
-    if cfg!(target_os = "linux") {
-        dying_with_program(command, &skein_scratch::paths::built("temper-box", "temper-box"))
-    } else {
-        command
-    }
-}
-fn dying_with_program(mut command: Command, program: &Path) -> Command {
-    if cfg!(target_os = "linux") {
-        let mut arguments = vec![
-            "internal".into(),
-            "forge-child".into(),
-            "--parent".into(),
-            std::process::id().to_string().into(),
-            // Terminate, so the box stops its steps as on any stop.
-            "--signal".into(),
-            "terminate".into(),
-            "--".into(),
-            command.program.into(),
-        ];
-        arguments.extend(command.arguments);
-        command.program = program.into();
-        command.arguments = arguments;
-    }
-    command
-}
-
-pub mod tests {
-    /// Installed binaries supply their own death-signal wrapper, not Cargo's package binary.
-    pub fn an_explicit_program_supplies_its_own_death_signal_wrapper() {
-        let program = std::path::Path::new("/installed/temper-box");
-        let command = super::dying_with_program(
-            skein_world::end_to_end::Command {
-                program: program.into(),
-                arguments: vec!["--config".into(), "/fixture".into()],
-                directory: "/fixture".into(),
-                environment: Vec::new(),
-            },
-            program,
-        );
-        assert_eq!(command.program, program);
-        assert!(command.arguments.ends_with(&["--config".into(), "/fixture".into()]));
-        if cfg!(target_os = "linux") {
-            assert!(command.arguments.windows(2).any(|pair| pair == ["--", "/installed/temper-box"]));
-        }
-    }
+pub fn box_fixture(command: Command) -> Command {
+    super::fixture::dying_with_test(command, Signal::Terminate)
 }
 
 /// Drive a crash story; the probe either cuts at its boundary or lets ctl finish.
@@ -1369,7 +1326,7 @@ pub fn run_ctl_with_cut(
     let pair = flags.windows(2).find(|pair| pair[0] == "--data").expect("explicit data directory");
     let data = PathBuf::from(&pair[1]);
     let mut binary = Binary::start_with_tree(
-        dying_with_test(Command {
+        box_fixture(Command {
             program: skein_scratch::paths::built("temper-box", "temper-box"),
             arguments: flags.into_iter().map(Into::into).collect(),
             directory: directory.into(),

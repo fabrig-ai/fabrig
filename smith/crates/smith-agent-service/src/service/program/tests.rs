@@ -84,6 +84,7 @@ fn child_request(service: &Service, owner: Token, account: u32) -> llm::FromDoma
             affinity: domain::llm::Affinity { key: [0; 16], thread: 1 },
             model: b"fake".as_slice().into(),
             effort: None,
+            speed: None,
             system: Box::default(),
             tools: domain::tools::Grants { inspect: true, modify: false, shell: false },
             namespace: domain::tools::Namespace::NoWorkspace,

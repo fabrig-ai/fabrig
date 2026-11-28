@@ -10,7 +10,7 @@
 //!
 //! Calls are numbered by their first call/result block's position within the turn.
 //! Their inputs remain bytes as written. Results also fill the matching call's
-//! outcome line, including results outside the display window. This schema has no jig
+//! outcome line and answer kind, including results outside the display window. This schema has no jig
 //! object references or inbox read position: neither is inferred from tool text.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
@@ -22,6 +22,7 @@ use jig_client_domain::contract::{Message, ModelEffort, Text, Usage};
 use skein_lib::{Decimal, List, Reader, length::len_u64};
 use smith_transcript::{Record, v8 as smith};
 
+mod answer;
 mod brief;
 mod summary;
 mod withhold;
@@ -160,7 +161,7 @@ fn llm(source: &smith::Turn) -> Option<ModelEffort> {
         ),
         None => None,
     };
-    Some(ModelEffort { model, effort })
+    Some(ModelEffort { model, effort, speed: None })
 }
 
 fn empty_text() -> Text {
@@ -180,6 +181,7 @@ fn translate_block(source: &smith::Turn, block: &smith::Block, budget: &mut Budg
             input: empty_text(),
             outcome: None,
             failed: false,
+            answer: None,
             objects: List::with_capacity(0),
             parts: List::with_capacity(0),
         }),
@@ -235,12 +237,7 @@ fn fill_block(
         }
         Block::Call(call) => match original {
             smith::Block::Call(original) => match price {
-                Price::Outcomes => {
-                    if let Some(answer) = call_outcome(source, original.id.as_ref(), outcome, budget) {
-                        call.outcome = Some(answer.text);
-                        call.failed = answer.failed;
-                    }
-                }
+                Price::Outcomes => fill_call_outcome(source, original.id.as_ref(), call, outcome, budget),
                 Price::Inputs => call.input = budget.text(original.input.as_ref()),
                 Price::Texts | Price::Summaries => {}
             },
@@ -268,20 +265,23 @@ fn fill_block(
     }
 }
 
-fn call_outcome(source: &smith::Turn, id: &[u8], bound: u32, budget: &mut Budget) -> Option<ResultText> {
+fn fill_call_outcome(source: &smith::Turn, id: &[u8], call: &mut Call, bound: u32, budget: &mut Budget) {
     for message in &source.messages {
         for candidate in &message.blocks {
             match candidate {
                 smith::Block::Result(result) => {
                     if result.id.as_ref() == id {
-                        return Some(result_text(&result.returned, Some(bound), budget));
+                        let outcome = result_text(&result.returned, Some(bound), budget);
+                        call.outcome = Some(outcome.text);
+                        call.failed = outcome.failed;
+                        call.answer = Some(answer::word(&result.returned));
+                        return;
                     }
                 }
                 smith::Block::Text(_) | smith::Block::Refusal(_) | smith::Block::Call(_) | smith::Block::Opaque(_) => {}
             }
         }
     }
-    None
 }
 
 fn call_number(source: &smith::Turn, id: &[u8]) -> u64 {

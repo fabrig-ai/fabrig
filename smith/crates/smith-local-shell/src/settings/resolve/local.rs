@@ -124,6 +124,7 @@ pub(super) fn build(
         Some(run::Conventions {
             guide: input::text(settings, "workspace.conventions.guide")?.as_bytes().into(),
             checks: input::text(settings, "workspace.conventions.checks")?.as_bytes().into(),
+            hooks: None,
         })
     } else {
         None
@@ -223,6 +224,7 @@ fn directories(
         .ok_or_else(|| input::refuse(settings, &key, "directory path exceeds its receiving bound"))?;
         directories.push(run::Directory {
             results: None,
+            hooks: None,
             host,
             name: name.as_bytes().into(),
             root: Token::new(u64::try_from(index).expect("bounded roots").checked_add(1).expect("bounded root")),

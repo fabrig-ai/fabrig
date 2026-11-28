@@ -415,16 +415,16 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
 // Retained-revision release adds 2 * 8 heads + 16 versions + one extent = 33.
 // Placed holds: tightened core room plus 18 connector slots needs 151,673 writes.
 const JOURNAL: super::JournalSizes = super::JournalSizes { commits: 3, writes: 151_673, door: 1024, release: 1024 };
-// check_commits sets value to the largest map value, 103,387,876 bytes at these limits (protocol/store/records.md, 4).
-// Settings history includes provider settings, limit overrides and the values a revision replaced.
-// Page bytes are key + value = 2,079 + 103,387,876 = 103,389,955, above the 33,554,496-byte
-// TurnRecord frame for smith's 33,554,432-byte turn (protocol/store/transcripts.md, 1).
-// Chunk bytes are skein_kv::chunk_bytes(key, value) = 103,389,975, including framing.
+// check_commits sizes the largest map value at 103,646,948 bytes (jig/docs/design/protocol/store/records.md, 4).
+// Settings history includes named speeds in model choices, providers, limit overrides and replaced values.
+// Page bytes are key + value = 2,079 + 103,646,948 = 103,649,027, above the full TurnRecord
+// frame for smith's 33,554,432-byte turn (jig/docs/design/protocol/store/transcripts.md, 1).
+// Chunk bytes are skein_kv::chunk_bytes(key, value) = 103,649,047, including 20 bytes of framing.
 // The map's budget is the core's fill mark, 1 GiB: a project of fabrig's scale fills a team's
 // 256 MiB, since its tasks keep every milestone in the map, and past its budget the map refuses
 // every commit that grows it, before the fill mark refuses new party work.
 const STORE_KV: skein_kv::Limits = skein_kv::Limits {
-    value: 103_387_876,
+    value: 103_646_948,
     ops: 455_024,
     // 1 GiB values + 455,024 operations * (2,079 key + 9 framing) + 26 frame bytes.
     commit: 2_023_831_962,
@@ -433,8 +433,8 @@ const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     budget: CORE.fill_mark,
     segment: 4_047_663_924,
     snapshot_after: 2_023_831_962,
-    chunk: 103_389_975,
-    page: skein_kv::Page { rows: 2, bytes: 103_389_955 },
+    chunk: 103_649_047,
+    page: skein_kv::Page { rows: 2, bytes: 103_649_027 },
     record: 103_389_955,
     logs: 64,
     key: 2079,

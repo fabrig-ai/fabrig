@@ -1,14 +1,14 @@
 //! Public transcript decode against fixture bytes, with deterministic file replies.
 //! Shared by the fuzzy model and the isolated heap test; step tests exercise real file drivers.
 use crate::root;
-use jig_protocol_store::{self as store, Event, OwnerSets, Request, Root, TranscriptRead, codec, keys};
-use jig_test_layouts::frames;
+use jig_protocol_store::{self as store, Event, KeptFamily, OwnerSets, Request, Root, TranscriptRead, codec, keys};
+use jig_test_layouts::{frames, layouts};
 use skein_io::{file, kernel::Fd};
 use skein_lib::{Env, Queue, Time, Token, Wall, length::len_u64};
 
 const OWNER: Token = Token::new(9);
 const COMMITTED: u64 = 1024;
-pub use crate::patches::FRAME_SETS as SETS;
+pub use crate::upgrade_fixtures::FRAME_SETS as SETS;
 #[must_use]
 pub fn floor() -> Box<[u8]> {
     use jig_protocol_store::core_v6::Record as _;
@@ -20,6 +20,14 @@ fn env(limits: &store::Limits) -> Env<store::Limits> {
 }
 #[must_use]
 pub fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, Env<store::Limits>) {
+    closed_with_old_turn(sets, limits, layouts::FRAME_TURN_KEPT)
+}
+#[must_use]
+pub fn closed_with_old_turn(
+    sets: OwnerSets,
+    limits: &store::Limits,
+    old_turn: &str,
+) -> (store::Store, Env<store::Limits>) {
     let maps = store::Stores {
         store: skein_kv::Store::memory(&limits.store),
         secrets: skein_kv::Store::memory(&limits.secrets),
@@ -47,7 +55,7 @@ pub fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, Env<sto
     let mut maps = component.into_stores();
     let codec = codec::limits(&limits.core).expect("codec");
     let own = |key| keys::encode_own(&key, limits.store.key).expect("component key");
-    let ops = Box::new([
+    let mut ops = vec![
         skein_kv::Op::Put {
             key: keys::encode(&root::header(2).key(), limits.store.key).expect("header key"),
             value: codec::encode(&root::header(2), &codec, &[]).expect("header"),
@@ -60,19 +68,63 @@ pub fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, Env<sto
             key: own(keys::Own::Attempt { task: frames::TASK, attempt: frames::ATTEMPT }),
             value: codec::component::Attempt { first: 0 }.encode().expect("attempt"),
         },
-    ]);
+    ];
+    for family in sets.sets.iter().flat_map(|set| set.families) {
+        let text = if family.name == "fixture-frame" { layouts::FRAME_BODY_KEPT } else { old_turn };
+        let (rows, _) = frame_rows(family, text, limits.store.key);
+        ops.extend(rows.map(|(key, value)| skein_kv::Op::Put { key, value }));
+    }
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
     skein_kv::down(
         &mut maps.store,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.store },
-        skein_kv::Request::Commit { owner: OWNER, ops },
+        skein_kv::Request::Commit { owner: OWNER, ops: ops.into_boxed_slice() },
         &mut above,
         &mut below,
     );
     let mut component = store::Store::over(&checked, root::APPLICATION, &[], maps);
     component.owner_sets(sets);
     (component, env)
+}
+type RawRow = (Box<[u8]>, Box<[u8]>);
+
+/// The stored text and layout rows at the family's version id, and their layout fingerprint.
+#[must_use]
+pub fn frame_rows(family: &KeptFamily, text: &str, bound: u32) -> ([RawRow; 2], [u8; 32]) {
+    use skein_codec::Record as _;
+    use store::registry_v1 as wire;
+    let frame = family.frames.expect("fixture frame type");
+    let schema = skein_codec::schema::parse(text.as_bytes()).expect("frame schema");
+    let root = frame.root.as_bytes();
+    let layout = schema.layout(schema.root(root, None).expect("frame root"), &[]).expect("frame layout").digest();
+    let mut digest = skein_lib::sha256::Sha256::new();
+    digest.update(text.as_bytes());
+    let digest = digest.finish();
+    let row = wire::Layout {
+        root: root.into(),
+        variant: None,
+        layout,
+        text: digest,
+        held: skein_lib::List::with_capacity(0),
+    };
+    (
+        [
+            (
+                keys::encode_own(&keys::Own::Text(digest), bound).expect("frame text key"),
+                wire::Text { text: text.as_bytes().into() }.encode(&wire::CEILINGS).expect("frame text"),
+            ),
+            (
+                keys::encode_own(
+                    &keys::Own::Layout { family: family.name.into(), number: frame.number, id: schema.version() },
+                    bound,
+                )
+                .expect("frame layout key"),
+                row.encode(&wire::CEILINGS).expect("frame layout"),
+            ),
+        ],
+        layout,
+    )
 }
 pub fn open(component: &mut store::Store, env: &Env<store::Limits>) {
     let mut above = Queue::uncapped();
@@ -98,7 +150,7 @@ pub fn open(component: &mut store::Store, env: &Env<store::Limits>) {
     // These transcript checks do not consume the map census (protocol/store/growth.md, 1.3).
     let Some(Event::Census { .. }) = above.pop() else { panic!("opened census") };
 }
-pub use crate::patches::fixture_turn as turn;
+pub use crate::upgrade_fixtures::fixture_turn as turn;
 // At most six file operations cover one small fixture frame.
 const STEPS: u32 = 8;
 
@@ -181,6 +233,7 @@ pub fn decode(component: &mut store::Store, env: &Env<store::Limits>, raw: &[u8]
             | file::Request::Create { .. }
             | file::Request::CreateNoFollow { .. }
             | file::Request::OpenReadNoFollow { .. }
+            | file::Request::OpenSiblingFile { .. }
             | file::Request::OpenWrite { .. }
             | file::Request::OpenWriteNoFollow { .. }
             | file::Request::OpenDirectory { .. }

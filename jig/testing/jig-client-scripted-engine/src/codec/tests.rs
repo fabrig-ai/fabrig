@@ -107,6 +107,7 @@ fn committed_turns_use_the_transcript_and_client_codecs() {
             llm: Some(c::ModelEffort {
                 model: c::Text::new(Box::from(b"named-model".as_slice()), 128).unwrap(),
                 effort: Some(c::Text::new(Box::from(b"high".as_slice()), 32).unwrap()),
+                speed: None,
             }),
             cut: false,
         }),
@@ -124,6 +125,7 @@ fn committed_call_outcomes_survive_with_or_without_an_explicit_result_block() {
             input: text(b"input"),
             outcome: Some(text(b"refused")),
             failed: true,
+            answer: None,
             objects: List::with_capacity(0),
             parts: List::with_capacity(0),
         })];

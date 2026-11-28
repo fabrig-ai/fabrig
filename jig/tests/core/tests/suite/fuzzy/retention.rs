@@ -5,7 +5,8 @@ use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
-use skein_lib::{ReplyTo, Rng, Token, Wall};
+use skein_lib::{Duration, ReplyTo, Rng, Token, Wall};
+use skein_world::{sweep::cases, this_test};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Next {
@@ -108,14 +109,19 @@ impl Model {
 
 #[test]
 fn seeded_retention_never_erases_early_or_leaves_rows_past_their_last_stage() {
-    for seed in 4100..4112 {
+    const STEPS: u64 = 20;
+    const JUMP_DAYS: u64 = 40;
+    const LONG_JUMP_DAYS: u64 = 366;
+    // Keep the reader signed in even if every draw advances by the most it can.
+    let lifetime = Duration::from_nanos((STEPS * (JUMP_DAYS - 1) + LONG_JUMP_DAYS + 1) * f::DAY);
+    cases(this_test!("seeded_retention_never_erases_early_or_leaves_rows_past_their_last_stage"), 4100..4112, |seed| {
         let mut rng = Rng::new(seed);
-        let mut w = f::world(seed, rng.below(2) == 0);
+        let mut w = f::world_with_sign_in(seed, rng.below(2) == 0, lifetime);
         let mut models = vec![Model::new(&mut w)];
         let mut seen = 0;
         let mut removed = false;
         let mut wall = w.clocks().1.as_nanos();
-        for step in 0..20 {
+        for step in 0..STEPS {
             if step == 3 {
                 let chat = jig_core_world::fixtures::chat(&w, 1, b"another end".as_slice().into());
                 request(&mut w, 72, chat);
@@ -137,8 +143,13 @@ fn seeded_retention_never_erases_early_or_leaves_rows_past_their_last_stage() {
                     }
                 }
                 1 => {
-                    wall += rng.below(40) * f::DAY;
+                    wall += rng.below(JUMP_DAYS) * f::DAY;
                     w.set_clock(w.clocks().0, Wall::from_nanos(wall));
+                    if removed {
+                        // Deletion leaves retention markers until due. Drain them at the
+                        // final clock so the restart oracle compares two settled stores.
+                        f::pass(&mut w);
+                    }
                 }
                 _ => {
                     f::pass(&mut w);
@@ -148,7 +159,7 @@ fn seeded_retention_never_erases_early_or_leaves_rows_past_their_last_stage() {
                 }
             }
             if step == 15 {
-                wall += 366 * f::DAY;
+                wall += LONG_JUMP_DAYS * f::DAY;
                 w.set_clock(w.clocks().0, Wall::from_nanos(wall));
                 f::pass(&mut w);
                 for model in &mut models {
@@ -177,5 +188,7 @@ fn seeded_retention_never_erases_early_or_leaves_rows_past_their_last_stage() {
                 model.check(&mut w, seed, step);
             }
         }
-    }
+        Ok::<(), String>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }

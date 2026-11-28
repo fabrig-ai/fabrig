@@ -4,7 +4,8 @@ fn facts() -> Facts {
     Facts {
         report: ReportRead::Read(ReportFields::empty()),
         goal_branch: true,
-        close_job: true,
+        close_job: CloseJob::Declared,
+        catch_up: None,
         pending: false,
         landed: Box::new([9, 12]),
         base_holds: Some(false),
@@ -14,6 +15,105 @@ fn facts() -> Facts {
         close_ended: 1,
         land_ended: 1,
         bound: 1,
+    }
+}
+
+const OUTDATED_CLOSE: Running = Running { step: Step::Close, change: 20 };
+const CATCH_UP: Running = Running { step: Step::CatchUp, change: 21 };
+const REQUEST: &[u64] = &[9, 12];
+
+fn outdated_close() -> (Closer, Facts) {
+    let mut f = facts();
+    f.child = Child::Outdated;
+    f.catch_up = Some(REQUEST.into());
+    let mut closer = Closer::new();
+    closer.closed = Some(f.landed.clone());
+    closer.running = Some(OUTDATED_CLOSE);
+    (closer, f)
+}
+
+#[test]
+fn an_outdated_close_catches_up_for_a_new_request() {
+    let (mut closer, f) = outdated_close();
+    closer.caught_up = Some(Box::new([9]));
+    let next = step(&closer, &f);
+    assert_eq!(next.decision, Decision::Make(Step::CatchUp));
+    assert_eq!(next.closer.running, Some(OUTDATED_CLOSE));
+}
+
+#[test]
+fn an_outdated_close_waits_for_pending_work() {
+    let (closer, mut f) = outdated_close();
+    f.pending = true;
+    let next = step(&closer, &f);
+    assert_eq!(next.decision, Decision::Wait);
+    assert_eq!(next.closer, closer);
+}
+
+#[test]
+fn an_outdated_close_recloses_for_newly_landed_work() {
+    let (closer, mut f) = outdated_close();
+    f.landed = Box::new([9, 12, 18]);
+    assert_eq!(step(&closer, &f).decision, Decision::Make(Step::Close));
+}
+
+#[test]
+fn an_outdated_close_that_cannot_catch_up_holds_at_once() {
+    for (caught_up, request) in [(Some(Box::from(REQUEST)), Some(Box::from(REQUEST))), (None, None)] {
+        let (mut closer, mut f) = outdated_close();
+        closer.caught_up = caught_up;
+        f.catch_up = request;
+        f.close_ended = 0;
+        let expected = Hold::ClosingStep { step: Step::Close, change: OUTDATED_CLOSE.change };
+        let next = step(&closer, &f);
+        assert_eq!(next.decision, Decision::Hold(expected.clone()));
+        assert_eq!(next.closer.hold, Some(expected));
+    }
+}
+
+#[test]
+fn a_done_catch_up_makes_the_close_again() {
+    let (mut closer, mut f) = outdated_close();
+    closer.running = Some(CATCH_UP);
+    closer.caught_up = Some(REQUEST.into());
+    f.child = Child::Done; // The route uses Done for both landed and no change.
+    let next = step(&closer, &f);
+    assert_eq!(next.decision, Decision::Make(Step::Close));
+    assert_eq!(next.closer.running, Some(CATCH_UP));
+    assert_eq!(next.closer.caught_up.as_deref(), Some(REQUEST));
+}
+
+#[test]
+fn an_ended_catch_up_holds_regardless_of_attempts() {
+    for bound in [1, 3] {
+        let (mut closer, mut f) = outdated_close();
+        closer.running = Some(CATCH_UP);
+        closer.caught_up = Some(REQUEST.into());
+        f.child = Child::Ended { branch: false };
+        f.bound = bound;
+        let expected = Hold::ClosingStep { step: Step::CatchUp, change: CATCH_UP.change };
+        let next = step(&closer, &f);
+        assert_eq!(next.decision, Decision::Hold(expected.clone()));
+        assert_eq!(next.closer.hold, Some(expected));
+    }
+}
+
+#[test]
+fn a_released_outdated_step_is_made_again_after_work() {
+    for running in [OUTDATED_CLOSE, CATCH_UP] {
+        let (mut closer, mut f) = outdated_close();
+        closer.running = Some(running);
+        closer.caught_up = Some(REQUEST.into());
+        closer.hold = Some(Hold::ClosingStep { step: running.step, change: running.change });
+        f.released = true;
+        f.pending = true;
+        let next = step(&closer, &f);
+        assert_eq!(next.decision, Decision::Wait);
+        assert_eq!(next.closer.retry, Some(running.step));
+        f.released = false;
+        f.pending = false;
+        f.landed = Box::new([9, 12, 18]);
+        assert_eq!(step(&next.closer, &f).decision, Decision::Make(running.step));
     }
 }
 
@@ -166,7 +266,7 @@ fn a_released_report_check_can_read_but_not_hold_again() {
     let released = step(&held.closer, &f);
     assert_eq!(released.decision, Decision::Make(Step::Close));
     f.released = false;
-    f.close_job = false;
+    f.close_job = CloseJob::Undeclared;
     f.report = ReportRead::Unread;
     let read = step(&released.closer, &f);
     assert_eq!(read.decision, Decision::ReadReport);
@@ -178,16 +278,16 @@ fn a_released_report_check_can_read_but_not_hold_again() {
 }
 
 #[test]
-fn close_first_where_the_project_names_a_close_job() {
+fn close_first_where_the_engine_declares_the_kind() {
     assert_eq!(step(&Closer::new(), &facts()).decision, Decision::Make(Step::Close));
 }
 
 #[test]
-fn no_close_step_without_a_close_job_or_a_goal_branch() {
+fn a_close_step_requires_a_declared_kind_and_a_goal_branch() {
     let mut f = facts();
-    f.close_job = false;
+    f.close_job = CloseJob::Undeclared;
     assert_eq!(step(&Closer::new(), &f).decision, Decision::Make(Step::Land));
-    f.close_job = true;
+    f.close_job = CloseJob::Declared;
     f.goal_branch = false;
     assert_eq!(step(&Closer::new(), &f).decision, Decision::Report);
 }
@@ -384,6 +484,40 @@ fn an_idle_close_reopens_or_wakes_after_work_ends() {
         let running = if !pending && new { None } else { c.running };
         assert_eq!(s.closer.running, running);
     }
+}
+
+#[test]
+fn an_idle_close_keeps_running_until_its_undeclared_replacement_is_skipped() {
+    const CLOSE: u64 = 20;
+    const PREVIOUS_LANDINGS: [u64; 1] = [9]; // The first of the two changes in facts().
+    let mut c = Closer::new();
+    c.closed = Some(Box::new(PREVIOUS_LANDINGS));
+    c.running = Some(Running { step: Step::Close, change: CLOSE });
+    let mut f = facts();
+    f.child = Child::Idle { held: true };
+    f.close_job = CloseJob::Undeclared;
+    let s = step(&c, &f);
+    assert_eq!(s.decision, Decision::SkipClose { change: CLOSE });
+    assert_eq!(s.closer.running, c.running);
+}
+
+/// temper/docs/design/domain/forge/branches.md, 2: an outdated close is rechecked after its catch-up.
+#[test]
+fn an_outdated_close_catches_up_and_rechecks_when_the_close_kind_is_declared() {
+    let mut f = facts();
+    let mut c = Closer::new();
+    c.closed = Some(f.landed.clone());
+    c.running = Some(Running { step: Step::Close, change: 20 });
+    f.child = Child::Outdated;
+
+    f.catch_up = Some(f.landed.clone());
+    assert_eq!(step(&c, &f).decision, Decision::Make(Step::CatchUp));
+
+    c.running = Some(Running { step: Step::CatchUp, change: 21 });
+    f.child = Child::Done;
+    assert_eq!(step(&c, &f).decision, Decision::Make(Step::Close));
+    f.close_job = CloseJob::Undeclared;
+    assert_eq!(step(&c, &f).decision, Decision::Make(Step::Land));
 }
 
 #[test]

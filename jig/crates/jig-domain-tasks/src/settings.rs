@@ -14,15 +14,7 @@ impl Domain {
     /// The latest version made at or before `revision`, absent after a removal.
     #[must_use]
     pub fn charter_models(&self, charter: u32, revision: u32) -> Option<&[u8]> {
-        let mut found = None;
-        let mut latest = 0;
-        for version in &self.charters {
-            if version.number == charter && version.revision <= revision && version.revision >= latest {
-                latest = version.revision;
-                found = version.models.as_deref();
-            }
-        }
-        found
+        crate::llm::version(&self.charters, charter, revision)?.models.as_deref()
     }
 
     /// Live agent tasks recording this revision as their task's or run's, counted once.

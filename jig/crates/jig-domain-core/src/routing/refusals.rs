@@ -165,6 +165,7 @@ fn llm_why(why: tasks::LlmFault) -> people::LlmWhy {
         tasks::LlmFault::Authority => people::LlmWhy::Authority,
         tasks::LlmFault::Procedure => people::LlmWhy::Procedure,
         tasks::LlmFault::Repeated => people::LlmWhy::Repeated,
+        tasks::LlmFault::Speed => people::LlmWhy::Speed,
     }
 }
 

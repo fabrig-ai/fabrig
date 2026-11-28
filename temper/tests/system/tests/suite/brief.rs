@@ -68,6 +68,7 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             name: b"work".as_slice().into(),
             host: b"/work".as_slice().into(),
             root: Token::new(disk.root(b"work")),

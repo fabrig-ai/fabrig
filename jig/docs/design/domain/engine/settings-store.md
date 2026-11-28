@@ -58,6 +58,15 @@
     charter's default that differs under its overlay changes the
     current settings, the overlay laid over the new default
     (`overlays.md`, 4);
+  - *a release's new model a deployment already holds by name*
+    (`settings-catalogue.md`, 1): a default model the stored defaults
+    lack, whose name a stored change gives a model at any number, a
+    withdrawn one's too, is left out of the defaults the start is given,
+    before every check below. The deployment's model keeps its number
+    and its value, the tasks, templates and charters that name it go on
+    naming it, and the default's number stays unused there while the
+    name is held, since a catalogue holds a name once. A later start
+    leaves it out the same way, so nothing of it is stored;
   - *the numbers first* (1): every default of a charter, template,
     policy or model out of its range, and every stored change of one
     past 64, refuses the

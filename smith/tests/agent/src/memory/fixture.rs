@@ -66,6 +66,7 @@ pub const LIMITS: Limits = Limits {
 pub(super) fn workspace() -> Workspace {
     let repository = Directory {
         results: None,
+        hooks: None,
         host: Box::from(b"/host".as_slice()),
         name: (*b"temper").into(),
         root: Token::new(1),
@@ -147,6 +148,7 @@ pub(super) fn charter(context_bytes: u64) -> Charter {
         budget: run::Budget { turns: 12, ..TIGHT.run.budget },
         llm: Llm {
             effort: None,
+            speed: None,
             prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
             account: Some(0),
             endpoint: Endpoint(0),
@@ -159,6 +161,7 @@ pub(super) fn charter(context_bytes: u64) -> Charter {
         conventions: Some(smith_domain::run::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: None,
         }),
         resume: false,
         waiting: skein_lib::Duration::from_secs(30),

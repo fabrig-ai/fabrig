@@ -79,7 +79,9 @@ fn the_run_replaces_itself_holding_the_lock_as_standard_input() {
         ),
     ];
     let launched = rows.map(|(selector, argv, environment)| {
-        let mut child = owned::command(root, selector).env("LEAKED", "private").spawn().expect("run starts");
+        let mut command = owned::command(root, selector);
+        command.env("LEAKED", "private");
+        let mut child = support::fixture::spawn(&mut command, skein_io::kernel::Signal::Kill).expect("run starts");
         let marker = programs.marker(selector, &mut child, support::WITHIN);
         let stdin_is_lock = owned::stdin_is(child.id(), &programs.lock(selector));
         let box_exists = root.join("box").exists();

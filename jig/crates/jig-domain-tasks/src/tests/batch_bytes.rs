@@ -16,7 +16,7 @@ fn a_batch_counts_its_members_templates() {
     let mut member = task(1, &[]);
     let plain = crate::batch_bytes(core::slice::from_ref(&member)).unwrap();
     let mut template_batch: Box<[New]> = Box::new([task(1, &[]), task(2, &[1])]);
-    let chosen = crate::ModelEffort { model: 0, effort: None };
+    let chosen = crate::ModelEffort { model: 0, effort: None, speed: None };
     template_batch[0].llm =
         Some(crate::LlmChoice { later: None, account: None, main: chosen, subagents: Box::new([chosen]) });
     let template_bytes = crate::batch_bytes(&template_batch).unwrap();
@@ -28,6 +28,22 @@ fn a_batch_counts_its_members_templates() {
     );
     assert_eq!(crate::batch_bytes(&[]), Some(0));
     assert_eq!(plain, u64::try_from(size_of::<New>()).unwrap() + 1);
+}
+
+#[test]
+fn a_batch_accounts_for_both_choices_subagent_arrays() {
+    const MEMBER: u64 = 1;
+    const SUBAGENT_BYTES: u64 = 37; // Model and effort (3), optional inline speed (34).
+    let mut member = task(MEMBER, &[]);
+    let plain = crate::batch_bytes(core::slice::from_ref(&member)).unwrap();
+    let chosen = crate::ModelEffort { model: 0, effort: None, speed: skein_lib::Name::from_checked(b"fast") };
+    member.llm = Some(crate::LlmChoice {
+        account: None,
+        main: chosen,
+        subagents: Box::new([chosen]),
+        later: Some(crate::LlmLater { main: chosen, subagents: Box::new([chosen]) }),
+    });
+    assert_eq!(crate::batch_bytes(&[member]), Some(plain + 2 * SUBAGENT_BYTES));
 }
 
 #[test]
@@ -44,7 +60,7 @@ fn a_batch_past_its_bytes_is_not_bounded() {
 #[test]
 fn followups_past_the_batch_bytes_are_invalid() {
     let mut batch: Box<[New]> = Box::new([task(1, &[]), task(2, &[1])]);
-    let chosen = crate::ModelEffort { model: 0, effort: None };
+    let chosen = crate::ModelEffort { model: 0, effort: None, speed: None };
     batch[0].llm = Some(crate::LlmChoice { later: None, account: None, main: chosen, subagents: Box::new([chosen]) });
     let held = bytes(&batch);
     let contract =

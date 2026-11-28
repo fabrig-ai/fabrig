@@ -980,7 +980,7 @@ fn assignment(first: u64, run: Token, workstream: u64, start: wire::Start) -> Ev
             grants: Box::new([]),
         },
     };
-    let items = wire::Workspace { rerun: None, repositories: Box::new([repository]) };
+    let items = wire::Workspace { hook_timeout_max_seconds: 3600, rerun: None, repositories: Box::new([repository]) };
     Event::Assign { assignment, items: Ok(items) }
 }
 

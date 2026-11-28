@@ -17,6 +17,7 @@ pub struct CloseAt {
     pub landing: Commit,
     pub asked: bool,
     pub refused: Option<CloseRefused>,
+    pub outdated: Option<CloseOutdated>,
 }
 
 impl CloseAt {
@@ -32,6 +33,12 @@ impl CloseAt {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct CloseRefused {
     pub counts: Option<Commit>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum CloseOutdated {
+    Window,
+    Ancestry,
 }
 
 /// The status of a fact or requirement at the named head.
@@ -541,7 +548,7 @@ pub struct Facts {
     pub contains_base: Status,
     /// Whether the landing branch's tip contains the change's head (temper/docs/design/domain/forge/change/README.md, 2).
     pub contains_head: Status,
-    /// Whether a merge job is configured, declared and authorized (temper/docs/design/domain/forge/change/repairs.md).
+    /// Whether the declared merge kind is within the change's delegation authority.
     pub merge_job: bool,
     /// The change's current delegate, as the forge's row keeps it (`ChangeRow::delegate`);
     /// `None` when it has none.

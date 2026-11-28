@@ -53,8 +53,9 @@ fn the_rows_repeats_are_within_the_client_limits() {
         };
         for form in row.forms {
             for argument in *form {
+                let bound = if argument.name == b"sub-agent-speed" { jig_domain_tasks::MODELS } else { most };
                 match argument.occurs {
-                    Occurs::Repeated { most: repeated } => assert!(repeated <= most, "{:?}", row.name),
+                    Occurs::Repeated { most: repeated } => assert!(repeated <= bound, "{:?}", row.name),
                     Occurs::Required | Occurs::Optional => {}
                 }
             }

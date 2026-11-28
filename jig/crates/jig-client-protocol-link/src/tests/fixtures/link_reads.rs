@@ -308,6 +308,7 @@ fn whole_call_turn_case() -> (w::ReadValue, c::ReadValue) {
             input: c::Text::new(Box::from(INPUT), u32::try_from(INPUT.len()).unwrap()).unwrap(),
             outcome: None,
             failed: false,
+            answer: None,
             objects: skein_lib::List::with_capacity(0),
             parts: skein_lib::List::with_capacity(0),
         }))

@@ -627,7 +627,15 @@ fn prepare(
         Op::Shutdown { fd } => opcode::Shutdown::new(types::Fd(fd.raw()), libc::SHUT_WR).build(),
         Op::Close { fd } => opcode::Close::new(types::Fd(fd.raw())).build(),
         Op::Open { root, path: asked, how } => {
-            *path = c_path(asked);
+            let sibling = if *how == OpenHow::PathSiblingFile {
+                match crate::posix::links::sibling_file(root.raw(), asked) {
+                    Ok(path) => path,
+                    Err(errno) => return Prepared::Done(Err(error(kind, errno, false))),
+                }
+            } else {
+                None
+            };
+            *path = c_path(sibling.as_deref().unwrap_or(asked));
             *open_how.get_mut() = open(*how);
             open_entry(*root, path, open_how)
         }
@@ -773,7 +781,7 @@ fn decode(flight: &mut Flight, res: i32, cancelled: bool) -> Result<Done, Error>
         | Op::Append { .. }
         | Op::PipeRead { .. }
         | Op::PipeWrite { .. } => Ok(Done::Count(u32::try_from(res).expect("a non-negative i32 fits in a u32"))),
-        Op::Open { how: OpenHow::PathNoFollow, .. } => Ok(Done::Fd(Fd::new(res))),
+        Op::Open { how, .. } if how.path_only() => Ok(Done::Fd(Fd::new(res))),
         Op::Open { .. } => opened(res),
         Op::Stat { .. } => Ok(Done::Stat(stat(statx.get_mut()))),
         Op::Wait { .. } => child_exit(siginfo.get_mut()).map(Done::Exit),

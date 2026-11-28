@@ -1,6 +1,7 @@
 # contract: status
 
-2026-11-24. Where jig's code lags or departs from [README.md](README.md).
+2026-11-27. Where jig's code lags or departs from [README.md](README.md).
+
 
 
 `requests.md`, section 2, and `documents.md`, section 1 have no known gap in charter parts or `later` on

@@ -186,6 +186,7 @@ fn a_second_timeout_refuses_with_the_retrys_given_time() {
                 repository: bytes(b"temper"),
                 check: bytes(b".temper/pre-pr"),
                 given: Duration::from_secs(120),
+                ceiling_cut: None,
                 ran: timed_out_check()
             }
         )]
@@ -223,11 +224,165 @@ fn the_charters_check_bound_replaces_the_limit_and_is_cut_by_the_call() {
                     repository: bytes(b"temper"),
                     check: bytes(b".temper/pre-pr"),
                     given,
+                    ceiling_cut: None,
                     ran: ran(1, b"failed")
                 }
             )]
         );
     }
+}
+
+#[test]
+fn a_hooks_time_replaces_the_charters_and_is_cut_by_the_call_and_run() {
+    use crate::{Hook, Hooks};
+
+    for (seconds, call, given) in [(500, 700, 500), (500, 200, 200), (900, 1000, 600)] {
+        let hooks = Hooks { deliver: Hook::Executable, finish: Hook::Executable };
+        let times = deliver_time(seconds, seconds, 3600);
+        let (mut harness, conversation) = hook_run_with_times(Some(hooks), Some(times), BUDGET.time);
+        let requests = harness.step(hook_deliver(conversation, call));
+        let [Request::Check { program, bound, cap, .. }, Request::Checking { deadline, .. }] = &*requests else {
+            panic!("expected the deliver check: {requests:?}");
+        };
+        assert_eq!(program.path.as_ref(), b".temper/hooks/deliver");
+        assert_eq!(*bound, Duration::from_secs(given));
+        assert_eq!(*cap, EXPIRY.min(Time::from_nanos(Duration::from_secs(call).as_nanos())));
+        assert_eq!(*deadline, Time::from_nanos(Duration::from_secs(given).as_nanos()));
+    }
+}
+
+#[test]
+fn an_untimed_moment_and_a_legacy_check_keep_the_charters_bound() {
+    use crate::{Hook, Hooks};
+
+    let found = Hooks { deliver: Hook::Executable, finish: Hook::Executable };
+    let times = deliver_time(50, 50, 100);
+    for (hooks, moment, expected_path) in
+        [(Some(found), false, b".temper/hooks/finish".as_slice()), (None, true, b".temper/pre-pr".as_slice())]
+    {
+        let (mut harness, conversation) = hook_run_with_times(hooks, Some(times.clone()), BUDGET.time);
+        let call =
+            if moment { hook_deliver(conversation, 600) } else { finish(conversation, 7, Declared::Change(change())) };
+        let requests = harness.step(call);
+        let [Request::Check { program, bound, .. }, Request::Checking { .. }] = &*requests else {
+            panic!("expected one check: {requests:?}");
+        };
+        assert_eq!(program.path.as_ref(), expected_path);
+        assert_eq!(*bound, Duration::from_secs(400));
+    }
+}
+
+#[test]
+fn a_timed_hook_retries_only_if_the_ceiling_leaves_more_time() {
+    use crate::{Hook, Hooks};
+
+    for (seconds, retry) in [(1000, Some(1500)), (1500, None)] {
+        let hooks = Hooks { deliver: Hook::Executable, finish: Hook::Missing };
+        let times = deliver_time(seconds, seconds, 1500);
+        let (mut harness, conversation) = hook_run_with_times(Some(hooks), Some(times), Duration::from_secs(6000));
+        let requests = harness.step(hook_deliver(conversation, 5000));
+        let [Request::Check { owner, bound, program, .. }, Request::Checking { .. }] = &*requests else {
+            panic!("the first check: {requests:?}");
+        };
+        assert_eq!(*bound, Duration::from_secs(seconds));
+        harness.after(*bound);
+        let next = harness.step(Event::Checked { owner: *owner, ran: timed_out_check() });
+        if let Some(retry) = retry {
+            let [Request::Check { owner: retried, program: same, bound, .. }, Request::Checking { deadline, .. }] =
+                &*next
+            else {
+                panic!("the cut retry: {next:?}");
+            };
+            assert_eq!((retried, same, *bound), (owner, program, Duration::from_secs(retry)));
+            assert_eq!(*deadline, harness.env.now.saturating_add(*bound));
+        } else {
+            assert_eq!(
+                next.as_ref(),
+                [returned(
+                    50,
+                    Returned::ChecksNotJudged {
+                        repository: bytes(b"work"),
+                        check: bytes(b".temper/hooks/deliver"),
+                        given: *bound,
+                        ceiling_cut: None,
+                        ran: timed_out_check(),
+                    }
+                )]
+            );
+        }
+    }
+}
+
+#[test]
+fn a_host_cut_hook_returns_both_the_given_and_requested_times() {
+    let hooks = crate::Hooks { deliver: crate::Hook::Executable, finish: crate::Hook::Missing };
+    let times = deliver_time(3600, 7200, 3600);
+    let (mut harness, conversation) = hook_run_with_times(Some(hooks), Some(times), Duration::from_secs(6000));
+    let requests = harness.step(hook_deliver(conversation, 5000));
+    let [Request::Check { owner, bound, .. }, Request::Checking { .. }] = &*requests else {
+        panic!("expected one check: {requests:?}");
+    };
+    assert_eq!(*bound, Duration::from_secs(3600));
+    let outcome = b"refused";
+    assert_eq!(
+        harness.step(Event::Checked { owner: *owner, ran: ran(1, outcome) }).as_ref(),
+        [returned(
+            50,
+            Returned::ChecksFailed {
+                repository: bytes(b"work"),
+                check: bytes(b".temper/hooks/deliver"),
+                given: Duration::from_secs(3600),
+                ceiling_cut: Some(Duration::from_secs(7200)),
+                ran: ran(1, outcome),
+            }
+        )]
+    );
+}
+
+#[test]
+fn a_hook_time_fault_refuses_each_found_moment_without_a_process() {
+    use crate::{Hook, HookProblem, Hooks};
+
+    let hooks = Hooks { deliver: Hook::Executable, finish: Hook::Broken(HookProblem::NotExecutable) };
+    let fault = b".temper/hooks/config.toml:3: unknown key `timeout`";
+    let times =
+        crate::HookTimes { deliver: None, finish: None, ceiling: Duration::from_secs(3600), fault: bytes(fault) };
+    let (mut harness, conversation) = hook_run_with_times(Some(hooks), Some(times), BUDGET.time);
+    for (call, token, path) in [
+        (hook_deliver(conversation, 600), 50, b".temper/hooks/deliver".as_slice()),
+        (finish(conversation, 7, Declared::Change(change())), 7, b".temper/hooks/finish".as_slice()),
+    ] {
+        assert_eq!(
+            harness.step(call).as_ref(),
+            [returned(
+                token,
+                Returned::ChecksFailed {
+                    repository: bytes(b"work"),
+                    check: bytes(path),
+                    given: Duration::ZERO,
+                    ceiling_cut: None,
+                    ran: Ran { exit: Exit::Unstarted, said_not_judged: false, output: bytes(fault), cut: 0 },
+                }
+            )]
+        );
+    }
+}
+
+fn deliver_time(time: u64, asked: u64, ceiling: u64) -> crate::HookTimes {
+    crate::HookTimes {
+        deliver: Some(crate::HookTime { time: Duration::from_secs(time), asked: Duration::from_secs(asked) }),
+        finish: None,
+        ceiling: Duration::from_secs(ceiling),
+        fault: Box::default(),
+    }
+}
+
+fn hook_deliver(conversation: Token, seconds: u64) -> Event {
+    let mut deliver = mid_ask(conversation, 1);
+    let Event::Delegated { ask, deadline, .. } = &mut deliver else { unreachable!("delivery fixture") };
+    *ask = Ask::Deliver { change: change() };
+    *deadline = Time::from_nanos(Duration::from_secs(seconds).as_nanos());
+    deliver
 }
 
 #[test]
@@ -280,6 +435,7 @@ fn retries_are_cut_at_the_call_and_ordinary_deadlines() {
                     repository: bytes(b"temper"),
                     check: bytes(b".temper/pre-pr"),
                     given: Duration::from_secs(90),
+                    ceiling_cut: None,
                     ran: timed_out_check()
                 }
             )]
@@ -317,9 +473,9 @@ fn checks_without_retry_room_or_a_timeout_return_feedback_at_once() {
         let given = Duration::from_secs(60);
         let ran = Ran { exit, ..timed_out_check() };
         let expected = if refused {
-            Returned::ChecksFailed { repository, check, given, ran }
+            Returned::ChecksFailed { repository, check, given, ceiling_cut: None, ran }
         } else {
-            Returned::ChecksNotJudged { repository, check, given, ran }
+            Returned::ChecksNotJudged { repository, check, given, ceiling_cut: None, ran }
         };
         assert_eq!(
             harness.step(Event::Checked { owner, ran: Ran { exit, ..timed_out_check() } }).as_ref(),
@@ -374,6 +530,7 @@ fn a_change_that_fails_its_checks_or_its_delivery_goes_back_to_the_llm() {
                 repository: bytes(b"temper"),
                 check: bytes(b".temper/pre-pr"),
                 given: LIMITS.check_timeout,
+                ceiling_cut: None,
                 ran: failing,
             }
         )]
@@ -780,9 +937,9 @@ fn a_mid_run_delivery_without_a_change_contract_needs_passing_checks() {
         let check = bytes(check);
         let ran = Ran { exit, said_not_judged: false, output: bytes(output), cut };
         let expected = if refused {
-            Returned::ChecksFailed { repository, check, given, ran }
+            Returned::ChecksFailed { repository, check, given, ceiling_cut: None, ran }
         } else {
-            Returned::ChecksNotJudged { repository, check, given, ran }
+            Returned::ChecksNotJudged { repository, check, given, ceiling_cut: None, ran }
         };
         assert_eq!(
             harness
@@ -1268,4 +1425,89 @@ fn saving_preserves_host_feedback_and_a_stale_branch_ends_the_run() {
             );
         }
     }
+}
+
+#[test]
+fn deliver_and_finish_use_only_their_own_check_in_each_directory() {
+    use crate::{Hook, Hooks};
+
+    for (hooks, deliver_path, finish_path) in [
+        (
+            Some(Hooks { deliver: Hook::Executable, finish: Hook::Executable }),
+            b".temper/hooks/deliver".as_slice(),
+            Some(b".temper/hooks/finish".as_slice()),
+        ),
+        (Some(Hooks { deliver: Hook::Executable, finish: Hook::Missing }), b".temper/hooks/deliver".as_slice(), None),
+        (None, b".temper/pre-pr".as_slice(), Some(b".temper/pre-pr".as_slice())),
+    ] {
+        let (mut harness, conversation) = hook_run(hooks);
+        let mut deliver = mid_ask(conversation, 1);
+        let Event::Delegated { ask, .. } = &mut deliver else { unreachable!("delivery fixture") };
+        *ask = Ask::Deliver { change: change() };
+        let requested = harness.step(deliver);
+        let owner = settle_selected_check(&mut harness, &requested, Some(deliver_path));
+        let mid = harness.step(Event::Delivered { owner, delivery: delivered() });
+        assert_eq!(mid.as_ref(), &[returned(50, Returned::Delivered(receipts()))]);
+
+        let requested = harness.step(finish(conversation, 7, Declared::Change(change())));
+        let owner = settle_selected_check(&mut harness, &requested, finish_path);
+        let closed = harness.step(Event::Delivered { owner, delivery: delivered() });
+        assert_eq!(closed.as_ref(), &[returned(7, Returned::Delivered(receipts())), Request::Close { peer: PEER }]);
+    }
+}
+
+fn hook_run(hooks: Option<crate::Hooks>) -> (Harness, Token) {
+    hook_run_with_times(hooks, None, BUDGET.time)
+}
+
+fn hook_run_with_times(
+    hooks: Option<crate::Hooks>,
+    times: Option<crate::HookTimes>,
+    budget: Duration,
+) -> (Harness, Token) {
+    let limits = Limits { budget: Budget { time: LIMITS.budget.time.max(budget), ..LIMITS.budget }, ..LIMITS };
+    let mut harness = Harness::new(limits);
+    let mut checkout = coding_workspace();
+    checkout.directories[0].name = bytes(b"work");
+    checkout.directories[0].hooks = times;
+    checkout.directories[1].writable = false;
+    let mut policy = coding();
+    policy.grants.deliver = policy.outcome.change.clone();
+    policy.budget.time = budget;
+    policy.check_timeout = Some(Duration::from_secs(400));
+    policy.conventions.as_mut().expect("selected conventions").hooks = Some(bytes(b".temper/hooks"));
+    let requests = harness.start_workspace(1, policy, Some(checkout));
+    let [Request::Admitted { run, .. }, Request::Read { .. }] = &*requests else { panic!("admitted: {requests:?}") };
+    let run = *run;
+    let requests = harness.step(Event::Read { owner: run, read: Read::Missing });
+    let [Request::ProbeHooks { owner, at, .. }] = &*requests else { panic!("hooks first: {requests:?}") };
+    assert_eq!((*owner, at.root, at.path.as_ref()), (run, Token::new(900), b".temper/hooks".as_slice()));
+    let mut requested = harness.step(Event::HooksProbed { owner: run, hooks });
+    if hooks.is_none() {
+        let [Request::Probe { owner, at, .. }] = &*requested else { panic!("fallback: {requested:?}") };
+        assert_eq!((*owner, at.root, at.path.as_ref()), (run, Token::new(900), b".temper/pre-pr".as_slice()));
+        requested = harness.step(Event::Probed { owner: run, executable: true });
+    }
+    let [Request::Read { at, .. }] = &*requested else { panic!("read second guide, not legacy: {requested:?}") };
+    assert_eq!(at.root, Token::new(901));
+    let requests = harness.step(Event::Read { owner: run, read: Read::Missing });
+    let [Request::Open { conversation, .. }] = &*requests else { panic!("no readonly probe: {requests:?}") };
+    drop(harness.step(Event::Started { conversation: *conversation, peer: PEER }));
+    (harness, *conversation)
+}
+
+fn settle_selected_check(harness: &mut Harness, requested: &[Request], selected: Option<&[u8]>) -> Token {
+    let checked;
+    let landing = if let Some(path) = selected {
+        let [Request::Check { owner, program, .. }, Request::Checking { .. }] = requested else {
+            panic!("one check at {path:?}: {requested:?}");
+        };
+        assert_eq!((program.root, program.path.as_ref()), (Token::new(900), path));
+        checked = harness.step(pass_checks(*owner));
+        checked.as_ref()
+    } else {
+        requested
+    };
+    let [Request::Deliver { owner, .. }] = landing else { panic!("one submission, no second check: {landing:?}") };
+    *owner
 }

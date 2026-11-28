@@ -204,6 +204,8 @@ pub enum Event {
         /// Whether IO found an executable within the named root before its deadline.
         executable: bool,
     },
+    /// Terminal for `ProbeHooks`: no hooks directory, or its two checks.
+    HooksProbed { owner: Token, hooks: Option<Hooks> },
     /// A call the conversation's LLM made of the run, which the run answers
     /// with one `Return`. `deadline` is the conversation's own expiry: past
     /// it, pre-submission checks abort and return `TimedOut` once settled.
@@ -256,7 +258,10 @@ pub enum MessageRefusal {
 
 /// run -> parent
 #[derive(PartialEq, Eq, Debug)]
-#[expect(clippy::large_enum_variant, reason = "bounded diagnostics move inline with their terminal")]
+#[cfg_attr(
+    target_arch = "wasm32",
+    expect(clippy::large_enum_variant, reason = "bounded diagnostics move inline with their terminal")
+)]
 pub enum Request {
     /// Internal notice after the last child settles; the root may release a held main completion.
     CompletionReady { conversation: Token },
@@ -355,6 +360,8 @@ pub enum Request {
     /// Find out whether an executable file is at `at`, giving up at
     /// `deadline`.
     Probe { owner: Token, at: Place, deadline: Time },
+    /// Find the delivery hooks in the directory at `at`, giving up at `deadline`.
+    ProbeHooks { owner: Token, at: Place, deadline: Time },
     /// Run the executable at `program`, in its repository's root, as a
     /// contained process, given `bound` of held time within `cap`; keep the last `tail`
     /// bytes of what it writes.
@@ -518,11 +525,20 @@ pub enum Returned {
         check: Box<[u8]>,
         /// The time allowed by the check timeout or the caller's earlier deadline.
         given: Duration,
+        /// The directory’s requested time, only when cut by the host’s ceiling.
+        ceiling_cut: Option<Duration>,
         /// Checks' process terminal, including its bounded diagnostic tail.
         ran: Ran,
     },
     /// The repository's required check reached no verdict; the same tree may be delivered again.
-    ChecksNotJudged { repository: Box<[u8]>, check: Box<[u8]>, given: Duration, ran: Ran },
+    ChecksNotJudged {
+        repository: Box<[u8]>,
+        check: Box<[u8]>,
+        given: Duration,
+        /// The directory’s requested time, only when cut by the host’s ceiling.
+        ceiling_cut: Option<Duration>,
+        ran: Ran,
+    },
     /// Delivery cannot land later because the host context moved, and
     /// the run ends.
     Stale,
@@ -581,6 +597,43 @@ pub enum AskRefusal {
     Unworkable,
     /// The run has spent past its budget.
     Over,
+}
+
+/// The two checks found in a writable workspace's hooks directory.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Hooks {
+    pub deliver: Hook,
+    pub finish: Hook,
+}
+
+/// What the machine found at one hook's path.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Hook {
+    /// No entry at the path.
+    Missing,
+    /// An executable regular file, or exactly one link to one beside it.
+    Executable,
+    /// The machine found a hook that cannot run.
+    Broken(HookProblem),
+}
+
+/// Why the machine could not use a workspace hook.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum HookProblem {
+    /// The hook or its directory could not be read.
+    Unreadable,
+    /// The hook has no execute bits.
+    NotExecutable,
+    /// The hook is not a regular file.
+    NotFile,
+    /// The hook links somewhere other than directly to an executable beside it.
+    BadLink,
+}
+
+impl Hooks {
+    /// Neither hook could be read.
+    pub const UNREADABLE: Hooks =
+        Hooks { deliver: Hook::Broken(HookProblem::Unreadable), finish: Hook::Broken(HookProblem::Unreadable) };
 }
 
 /// What a check's process did: how it ended, and the tail of what it wrote,
@@ -998,7 +1051,7 @@ pub enum Answer {
 }
 
 /// Why a run was refused.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
     /// No room for another run, or for its conversation.
     Busy,
@@ -1007,7 +1060,7 @@ pub enum Refusal {
 }
 
 /// What about a charter does not fit the limits.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Invalid {
     /// Rendered charter text, generated schemas and guides exceed this host part.
     HostPart { bound: u64 },
@@ -1052,6 +1105,8 @@ pub enum Invalid {
     /// A model is undeclared, its effective window/output are zero or above its
     /// declaration, its spare is negative, or the charter repeats a model or exceeds its model count.
     Llm,
+    /// The named program cannot run the LLM at the requested speed.
+    ProgramSpeed { speed: Box<[u8]>, program: Box<[u8]> },
     /// The requested effort is outside the model’s declared values.
     Effort,
     /// The main conversation was refused: its opening does not fit the

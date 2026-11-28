@@ -16,9 +16,9 @@ smith-domain-run-fixtures.workspace = true
 skein-lib.workspace = true
 smith-domain-run.workspace = true
 skein-world.workspace = true
+smith-faults.workspace = true
 
 [dev-dependencies]
-smith-faults.workspace = true
 smith-machine-world.workspace = true
 smith-protocol-machine.workspace = true
 smith-protocol-machine-fixtures.workspace = true

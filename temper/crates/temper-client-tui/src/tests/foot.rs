@@ -34,6 +34,8 @@ fn model() -> c::MeModel {
         shown: None,
         accounts: List::from_boxed(Box::new([1])),
         picker: true,
+        speeds: List::with_capacity(0),
+        speed: None,
     }
 }
 pub(super) fn template(number: u32) -> c::Template {
@@ -86,7 +88,7 @@ pub(super) fn root_state(
                 template: d::pages::chats::ASKING_TEMPLATE,
                 choice: c::LlmChoice {
                     account: Some(1),
-                    main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
+                    main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")), speed: None },
                     subagents: List::with_capacity(0),
                     later: None,
                 },
@@ -110,7 +112,7 @@ pub(super) fn root_state(
         }]));
     }
     let (mut root, me_watch) = f::starting();
-    f::client(&mut root, jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
+    f::client(&mut root, jig_client::Event::Up { up: jig_client::Up::Served { served: true } });
     let mut out = f::client(
         &mut root,
         jig_client::Event::Up {
@@ -190,7 +192,7 @@ pub(super) fn root_state(
         ]));
         task.llm = Some(c::LlmChoice {
             account: Some(1),
-            main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
+            main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")), speed: None },
             subagents: List::with_capacity(0),
             later: None,
         });
@@ -2117,7 +2119,7 @@ pub(super) fn walk_root(choices: bool) -> Domain {
             with: Some(jig_client::With::Transport),
         },
     );
-    let mut more = f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true, versions: None } });
+    let mut more = f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true } });
     while let Some(request) = more.pop() {
         out.push(request);
     }
@@ -2134,7 +2136,7 @@ pub(super) fn walk_root(choices: bool) -> Domain {
             template: d::pages::chats::ASKING_TEMPLATE,
             choice: c::LlmChoice {
                 account: Some(1),
-                main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
+                main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")), speed: None },
                 subagents: List::with_capacity(0),
                 later: None,
             },

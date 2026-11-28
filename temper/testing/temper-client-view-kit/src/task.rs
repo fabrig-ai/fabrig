@@ -271,7 +271,7 @@ pub fn agent_root_for(
     for event in [
         E::StartUnlinked { kept: List::with_capacity(0) },
         E::SignIn { with: jig_client::With::Transport },
-        E::Up { up: Up::Served { served: true, versions: None } },
+        E::Up { up: Up::Served { served: true } },
         E::Up {
             up: Up::Watched {
                 watch: skein_lib::Token::new(0),
@@ -359,6 +359,7 @@ pub fn activity(conversation: bool) -> c::ActivityPage {
                 input: c::Text::new(Box::from(*b"Review the change"), 32).expect("input"),
                 outcome: Some(c::Text::new(Box::from(*b"Delegated tasks: 17"), 32).expect("outcome")),
                 failed: false,
+                answer: None,
                 objects: {
                     let mut objects = List::with_capacity(1);
                     objects.push(c::ObjectKey::Task(17)).expect("delegate");

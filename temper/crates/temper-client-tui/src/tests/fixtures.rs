@@ -106,7 +106,7 @@ pub fn starting() -> (Domain, Token) {
 }
 pub fn live(me: Option<c::Me>) -> (Domain, Token) {
     let (mut root, watch) = starting();
-    client(&mut root, jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
+    client(&mut root, jig_client::Event::Up { up: jig_client::Up::Served { served: true } });
     match me {
         Some(me) => deliver(&mut root, watch, me),
         None => {
@@ -326,7 +326,7 @@ impl GoalCase {
                 with: Some(jig_client::With::Transport),
             },
         );
-        append(&mut out, client(&mut root, jig_client::Event::Up { up: Up::Served { served: true, versions: None } }));
+        append(&mut out, client(&mut root, jig_client::Event::Up { up: Up::Served { served: true } }));
         let link = jig_client_protocol_link::Limits::new(limits().client.domain, 8).unwrap();
         let mut task =
             jig_client_protocol_link::translate::documents::task(jig_client_test_records::task_record(), &link)

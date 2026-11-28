@@ -71,10 +71,6 @@ impl Walk {
         })
     }
 
-    pub(super) fn seed(&mut self, store: &Store) -> Result<(), OpenRefusal> {
-        self.decoder.seed_frames(store)
-    }
-
     fn bad_frame(&self) -> Unread {
         let family = match self.body {
             Some(body) => body.family,

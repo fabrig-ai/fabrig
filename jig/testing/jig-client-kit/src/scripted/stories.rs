@@ -540,6 +540,7 @@ fn proposal_turn(words: &[u8], key: jig_client_domain::contract::ProposalKey) ->
                 input: fixture::text(words),
                 outcome: Some(fixture::text(b"Proposed")),
                 failed: false,
+                answer: None,
                 objects: list([ObjectKey::Proposal(key)]),
                 parts: list([]),
             })]),

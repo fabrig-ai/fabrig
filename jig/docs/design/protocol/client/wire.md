@@ -174,8 +174,13 @@ tasks and people families; the worker's `GrantValue` keeps tags 0 to 2.
 `me` carries `resolved_default: Option<LlmChoice>` for each effective
 template with one, in its project's `defaults` by the template's number, a
 template's own record being a setting's too; and in each project's `models`
-the offer alone, each `MeModel` with its `effort`, `shown`, `accounts` and
-`picker` (`../../client/domain/contract/documents.md`, 1). The schema, generated
+the offer alone, each `MeModel` with its `effort`, `shown`, `accounts`,
+`picker`, `speeds`, each a setting's `SettingSpeed` record, and `speed`
+(`../../client/domain/contract/documents.md`, 1). Each `ModelEffort` of a
+choice carries its `speed` by name, none where it names none, and the
+LLM refusal's `LlmWhy` has `Speed` (`../../domain/tasks/README.md`, section 3).
+Each is an added field or variant; a client at the layout before them
+is refused by name, as any other is (`versions.md`, section 1). The schema, generated
 codecs, translations and served-version declarations carry those fields
 (`versions.md`, section 1, and `testing.md`, section 1). Tests build their values from schema text
 or with public fields, without golden files (skein's `data/codec/golden.md`, 1). The
@@ -253,9 +258,10 @@ the engine's messages to the client as they come.
   stream whose opening names no version, or one it doesn't serve: the
   stream's name, the ranges and the heartbeat, with no `me` and no watch
   of it, encoded the same in every version (`versions.md`, section 1). So
-  an earlier client, whose opening names none, reads the ranges and is
-  refused by name. A client whose version the hello alone's ranges
-  serve takes it as a record out of its order on the stream.
+  an earlier client, whose opening names none, reads it and is refused
+  by name. A client judges it as a hello that names no layout
+  (`versions.md`, section 1): its ranges keep their bytes, and no client
+  reads them.
 - **A client is one run of `jig-client`,** from its start to its end: a
   native process; a browser page from its load until it is left. A link
   followed, or back and forward, within the page's history keeps it
@@ -493,7 +499,7 @@ none.
   client holds, or none when the transport carries one the client never
   sees (`sign-in.md`).
 - **The stream:** opened naming jig's version, the link's own; its
-  hello judged against the client's versions
+  hello judged by the layouts its `Opened` names
   (`versions.md`, section 1), and its `me` handed on as the first value of
   the client's `me`, watch `0`'s deliveries its later ones (`wire.md`, section 2);
   each delivery and run's text routed to its watch by name;

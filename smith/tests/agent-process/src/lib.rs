@@ -306,17 +306,14 @@ fn host_with_limits(mut limits: channel::Limits) -> ScriptedPeer {
     // The scripted host sends the initiator's kinds, with the same joint
     // Start as the agent receives (smith/docs/design/protocol/limits-derivation.md, section 1, rule 6).
     let mut largest = 0;
-    for version in &schema.versions {
-        for kind in &version.kinds {
-            match kind.direction {
-                skein_channel::Direction::FromInitiator => largest = largest.max(kind.largest),
-                skein_channel::Direction::FromResponder => (),
-            }
+    for kind in &schema.kinds {
+        match kind.direction {
+            skein_channel::Direction::FromInitiator => largest = largest.max(kind.largest),
+            skein_channel::Direction::FromResponder => (),
         }
     }
     limits.channel.output_bytes = largest.checked_add(8).expect("host frame");
-    ScriptedPeer::new(schema, Role::Initiator, limits.channel, smith_channel::kind::VERSION, Box::new([]))
-        .expect("scripted host")
+    ScriptedPeer::new(schema, Role::Initiator, limits.channel, Box::new([])).expect("scripted host")
 }
 
 /// One activation Start sent by the scripted host, ending with an Answer.
@@ -371,6 +368,7 @@ pub(crate) fn start_workspace_message(
                 directories
                     .push(smith_channel::Directory {
                         results: None,
+                        hooks: None,
                         name: name.into(),
                         path: path.into(),
                         writable: false,

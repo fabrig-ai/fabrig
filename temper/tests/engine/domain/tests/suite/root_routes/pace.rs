@@ -69,7 +69,7 @@ fn an_agent_amends_its_delegate_to_the_default_model_without_effort() {
     let mut member = report_delegate(b"survey", Box::new([]));
     member.llm = Some(tasks::LlmChoice {
         account: None,
-        main: tasks::ModelEffort { model: 1, effort: Some(0) },
+        main: tasks::ModelEffort { model: 1, effort: Some(0), speed: None },
         subagents: Box::new([]),
         later: None,
     });
@@ -77,7 +77,7 @@ fn an_agent_amends_its_delegate_to_the_default_model_without_effort() {
     let mut amendment = task_amendment(None, None, b"use the default model");
     amendment.llm = Some(tasks::LlmChoice {
         account: None,
-        main: tasks::ModelEffort { model: 0, effort: None },
+        main: tasks::ModelEffort { model: 0, effort: None, speed: None },
         subagents: Box::new([]),
         later: None,
     });
@@ -90,7 +90,7 @@ fn an_agent_amends_its_delegate_to_the_default_model_without_effort() {
     assert_eq!(live(&driver, child).revisions.spec, 1);
     assert_eq!(
         live(&driver, child).llm.as_ref().expect("explicit choice").main,
-        tasks::ModelEffort { model: 0, effort: None }
+        tasks::ModelEffort { model: 0, effort: None, speed: None }
     );
     assert_eq!(
         driver.answered(91),

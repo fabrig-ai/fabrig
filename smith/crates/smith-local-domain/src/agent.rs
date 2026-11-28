@@ -42,6 +42,7 @@ pub(crate) fn prepare_start(
             for directory in workspace.directories {
                 let item = channel::Directory {
                     results: None,
+                    hooks: None,
                     host: directory.host,
                     root: directory.root,
                     name: directory.name,

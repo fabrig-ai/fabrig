@@ -63,7 +63,7 @@ fn choice(account: u32) -> c::LlmChoice {
     c::LlmChoice {
         later: None,
         account: Some(account),
-        main: c::ModelEffort { model: text(b"scripted"), effort: Some(text(b"high")) },
+        main: c::ModelEffort { model: text(b"scripted"), effort: Some(text(b"high")), speed: None },
         subagents: List::with_capacity(0),
     }
 }

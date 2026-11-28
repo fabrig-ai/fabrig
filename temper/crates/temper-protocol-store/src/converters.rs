@@ -1,4 +1,7 @@
-//! Scalar meanings owned by the store (skein/docs/design/data/codec/maps.md, 5).
+//! Scalar meanings and written layouts owned by the store (skein/docs/design/data/codec/maps.md, 5;
+//! skein/docs/design/data/codec/layouts.md, 4).
+
+pub use crate::jobs::test_ids::convert;
 
 #[must_use]
 pub fn signed_to_record(value: &i32) -> u32 {

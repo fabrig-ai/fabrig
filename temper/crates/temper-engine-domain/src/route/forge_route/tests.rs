@@ -40,42 +40,7 @@ fn not_installed_ends_the_roots_adoption_part_as_missing_access() {
     assert_eq!(super::adoption_failure(skein_forge::api::Error::Busy), people::Outcome::Again(people::Again::Busy));
 }
 
-fn adopted(forge: u16) -> super::forge::Repository {
-    super::forge::Repository {
-        contexts: Box::new([]),
-        landing: b"main".as_slice().into(),
-        refusals: Box::default(),
-        workflows: Box::default(),
-        project: 5,
-        home: forge == 1,
-        provider: skein_forge::api::Repository { forge, repository: 1 },
-        host: Box::from(&b"forge.example"[..]),
-        owner: Box::from(&b"org"[..]),
-        name: Box::from(&b"repo"[..]),
-        prefix: Box::from(&b"temper/"[..]),
-        role: super::forge::Role::Owned,
-        ci: true,
-        checks: Box::new([]),
-        kinds: super::forge::Kinds {
-            read: true,
-            push: true,
-            open: true,
-            land: true,
-            review: true,
-            status: true,
-            comment: true,
-            issue: true,
-            branch: true,
-        },
-        protection: super::forge::Protection::Absent,
-        settings: skein_forge::api::Settings {
-            default_branch: Box::from(&b"main"[..]),
-            merge: true,
-            squash: true,
-            rebase: false,
-        },
-    }
-}
+pub(super) use crate::tests::owned_repository as adopted;
 
 #[test]
 fn tree_branches_count_prefix_slashes_against_authority_segments() {
@@ -620,22 +585,9 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
             task: GOAL_CHANGE,
             decision: forge_change::Decision::Effect(forge_change::Effect::Merge { head: SHA1, base: SHA1 }),
             entry: Some(ENTRY),
-            evidence: Some(forge::ChangeEvidence {
-                behind: None,
-                readback_owed: false,
-                nearest_write: None,
-                touched: forge::Touched::UNKNOWN,
-                size: None,
-                prior,
-                head: Some(SHA1),
-                base_tip: SHA1,
-                contains_base: forge_change::Status::Passed,
-                ci: forge_change::Status::Passed,
-                gates: Box::new([]),
-                reviews: Box::new([]),
-                reviews_complete: true,
-            }),
+            evidence: Some(passed_evidence(prior, SHA1, SHA1)),
             close_at: None,
+            close_refusal: None,
         },
     );
     assert_eq!(domain.engine.core().tasks.writer(&resource).unwrap().writer, tasks::Writer::Effect { entry: ENTRY });
@@ -772,7 +724,7 @@ fn forge_party_with_link(
 
 #[test]
 fn a_review_counts_only_from_the_forge_it_was_made_on() {
-    use super::{forge, forge_change};
+    use super::forge;
     use skein_forge::api;
     let linked = Some(forge::Link { user: 7, person: 1 });
     for (key, link, forge, author, counted) in [
@@ -786,18 +738,6 @@ fn a_review_counts_only_from_the_forge_it_was_made_on() {
         let mut row = change_row(None);
         row.repository = api::Repository { forge, repository: 1 };
         let evidence = forge::ChangeEvidence {
-            behind: None,
-            readback_owed: false,
-            nearest_write: None,
-            touched: forge::Touched::UNKNOWN,
-            size: None,
-            prior: row.change.clone(),
-            head: Some(SHA1),
-            base_tip: SHA1,
-            contains_base: forge_change::Status::Passed,
-            ci: forge_change::Status::Passed,
-            gates: Box::new([]),
-            reviews_complete: true,
             reviews: Box::new([api::Review {
                 id: 1,
                 provenance: api::Provenance::Original,
@@ -810,6 +750,7 @@ fn a_review_counts_only_from_the_forge_it_was_made_on() {
                 at: skein_lib::Time::ZERO,
                 official: true,
             }]),
+            ..passed_evidence(row.change.clone(), SHA1, SHA1)
         };
         let facts = super::landing_reviewers(&domain, &env, &row, &evidence).expect("review facts");
         if counted {
@@ -1235,6 +1176,39 @@ fn task_event(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>, e
     );
 }
 
+fn passed_evidence(
+    prior: super::forge_change::Change,
+    head: [u8; 32],
+    base_tip: [u8; 32],
+) -> super::forge::ChangeEvidence {
+    use super::{forge, forge_change::Status};
+    forge::ChangeEvidence {
+        behind: None,
+        readback_owed: false,
+        nearest_write: None,
+        touched: forge::Touched::UNKNOWN,
+        prior,
+        head: Some(head),
+        base_tip,
+        contains_base: Status::Passed,
+        ci: Status::Passed,
+        gates: Box::new([]),
+        reviews: Box::new([]),
+        reviews_complete: true,
+        size: None,
+    }
+}
+
+fn unavailable_evidence(prior: super::forge_change::Change, head: [u8; 32]) -> super::forge::ChangeEvidence {
+    use super::{forge, forge_change::Status};
+    forge::ChangeEvidence {
+        contains_base: Status::Unknown,
+        ci: Status::Unknown,
+        reviews_complete: false,
+        ..passed_evidence(prior, head, [0; 32])
+    }
+}
+
 #[test]
 fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
     use super::{forge, forge_change as change};
@@ -1276,21 +1250,7 @@ fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
             was: Box::new(was),
             hold: change::Hold::new(change::Cause::BranchMoved, Wall::EPOCH),
         };
-        let evidence = forge::ChangeEvidence {
-            behind: None,
-            readback_owed: false,
-            nearest_write: None,
-            touched: forge::Touched::UNKNOWN,
-            prior: row.change.clone(),
-            head: Some(observed),
-            base_tip: stale,
-            contains_base: change::Status::Passed,
-            ci: change::Status::Passed,
-            gates: Box::new([]),
-            reviews: Box::new([]),
-            reviews_complete: true,
-            size: None,
-        };
+        let evidence = passed_evidence(row.change.clone(), observed, stale);
         restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
         let mut routed = Queue::uncapped();
         routed.push(forge::Request::ChangeDecision {
@@ -1299,6 +1259,7 @@ fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
             entry: None,
             evidence: Some(evidence),
             close_at: None,
+            close_refusal: None,
         });
         super::outputs(&mut domain, &env, &mut decision, &mut routed);
         let Some(super::Work::Tasks(super::tasks::Event::HoldFrom { source, .. })) = domain.work.pop() else {
@@ -1600,6 +1561,7 @@ fn a_landing_repair_charter_fit_cuts_pull_contents_and_keeps_its_whole_ci() {
             endpoint: run::charter::Endpoint(0),
             model: b"model".as_slice().into(),
             effort: None,
+            speed: None,
             window: 65_536,
             output: 256,
         },
@@ -2797,18 +2759,8 @@ fn a_record_judged_hold_names_the_deciding_read_and_its_nearest_write() {
         ]);
         let evidence = forge::ChangeEvidence {
             behind,
-            readback_owed: false,
             nearest_write: Some(3),
-            touched: forge::Touched::UNKNOWN,
-            prior,
-            head: Some(found),
-            base_tip: [0; 32],
-            contains_base: change::Status::Unknown,
-            ci: change::Status::Unknown,
-            gates: Box::new([]),
-            reviews: Box::new([]),
-            reviews_complete: false,
-            size: None,
+            ..unavailable_evidence(prior, found)
         };
         let decision = super::change_hold_step(&domain, &env, 7, why, Some(&evidence));
         assert_eq!(
@@ -2822,7 +2774,6 @@ fn a_record_judged_hold_names_the_deciding_read_and_its_nearest_write() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one story compares the deciding read, its committed row and the re-hold")]
 fn a_restored_hold_keeps_its_deciding_read_account_and_refreshes_its_release_revision() {
     use super::{forge, forge_change as change, tasks};
     const EXPECTED: [u8; 32] = [0x12; 32];
@@ -2851,22 +2802,9 @@ fn a_restored_hold_keeps_its_deciding_read_account_and_refreshes_its_release_rev
         task,
         decision: change::Decision::Hold(change::Cause::BranchMoved),
         entry: None,
-        evidence: Some(forge::ChangeEvidence {
-            behind: None,
-            readback_owed: false,
-            nearest_write: None,
-            touched: forge::Touched::UNKNOWN,
-            prior,
-            head: Some(FOUND),
-            base_tip: [0; 32],
-            contains_base: change::Status::Unknown,
-            ci: change::Status::Unknown,
-            gates: Box::new([]),
-            reviews: Box::new([]),
-            reviews_complete: false,
-            size: None,
-        }),
+        evidence: Some(unavailable_evidence(prior, FOUND)),
         close_at: None,
+        close_refusal: None,
     });
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);
@@ -3167,9 +3105,12 @@ fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
     use temper_protocol_worker_wire::v1::{self, Record};
     for (head, head_text) in COMMITS {
         for (base, base_text) in COMMITS {
-            let bytes = super::merge::spec(b"fabrig", b".temper/merge", head, base, 4096).expect("merge spec");
+            let bytes =
+                super::forge::jobs::merge(b"fabrig", Some(b".temper/merge"), head, base, 4096).expect("merge spec");
             let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-            assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/merge");
+            assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/hooks/merge");
+            assert!(decoded.find && !decoded.refusal);
+            assert_eq!(decoded.fallback.as_ref(), b"fabrig/.temper/merge");
             let expected = alloc::format!(
                 "{{\"version\":1,\"head\":\"{}\",\"base\":\"{}\"}}",
                 core::str::from_utf8(head_text).unwrap(),
@@ -3177,8 +3118,8 @@ fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
             );
             assert_eq!(decoded.request.as_ref(), expected.as_bytes());
             let bound = u32::try_from(bytes.len()).unwrap();
-            assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound), Some(bytes));
-            assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound - 1), None);
+            assert_eq!(super::forge::jobs::merge(b"fabrig", Some(b".temper/merge"), head, base, bound), Some(bytes));
+            assert_eq!(super::forge::jobs::merge(b"fabrig", Some(b".temper/merge"), head, base, bound - 1), None);
         }
     }
 }
@@ -3238,7 +3179,7 @@ fn live_delegate_amendment(
     domain.forge.restore_begin(env.wall);
     restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
     let delegate =
-        super::change_delegate(&domain, &env, task, kind.unwrap_or(change::Delegate::Repair(change::Repair::Ci)))
+        super::change_delegate(&domain, &env, task, kind.unwrap_or(change::Delegate::Repair(change::Repair::Ci)), None)
             .unwrap();
     let mut change = domain.engine.core().tasks.task(task).unwrap().clone();
     let mut child = change.clone();
@@ -3496,18 +3437,8 @@ fn change_delegates_take_their_roles_saved_llm_choice() {
         crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
     env.limits.tasks.parameters = GATE_PARAMETERS;
     env.limits.tasks.spec_bytes = SPEC_BYTES;
-    let producing = tasks::LlmChoice {
-        later: None,
-        main: tasks::ModelEffort { model: 3, effort: Some(1) },
-        subagents: Box::new([]),
-        account: None,
-    };
-    let review = tasks::LlmChoice {
-        later: None,
-        main: tasks::ModelEffort { model: 2, effort: Some(0) },
-        subagents: Box::new([]),
-        account: None,
-    };
+    let producing = choice_at_speed(3, Some(1), b"ultrafast");
+    let review = choice_at_speed(2, Some(0), b"standard");
     let mut row = task_change_row(task, Some(7));
     row.change.last_head = Some(SHA1);
     row.producing_llm = Some(producing.clone());
@@ -3527,7 +3458,9 @@ fn change_delegates_take_their_roles_saved_llm_choice() {
         (Delegate::Gate { number: CHECK_GATE, head: SHA1 }, Some(producing)),
         (Delegate::Gate { number: PERSON_GATE, head: SHA1 }, None),
     ] {
-        let Some(delegate) = super::change_delegate(&domain, &env, task, kind) else { panic!("delegate {kind:?}") };
+        let Some(delegate) = super::change_delegate(&domain, &env, task, kind, None) else {
+            panic!("delegate {kind:?}")
+        };
         assert_eq!(delegate.llm, expected, "{kind:?}");
     }
 }
@@ -3535,9 +3468,15 @@ fn choice(model: u8, effort: Option<u8>) -> super::tasks::LlmChoice {
     super::tasks::LlmChoice {
         later: None,
         account: None,
-        main: super::tasks::ModelEffort { model, effort },
+        main: super::tasks::ModelEffort { model, effort, speed: None },
         subagents: Box::new([]),
     }
+}
+
+fn choice_at_speed(model: u8, effort: Option<u8>, speed: &[u8]) -> super::tasks::LlmChoice {
+    let mut llm = choice(model, effort);
+    llm.main.speed = Some(skein_lib::Name::from_checked(speed).expect("speed fixture fits"));
+    llm
 }
 
 #[test]
@@ -3554,12 +3493,26 @@ fn change_llm_text_round_trips_each_role_and_optional_effort() {
             crate::ChangeLlm {
                 producer: Some(tasks::LlmChoice {
                     subagents: Box::new([
-                        tasks::ModelEffort { model: 0, effort: Some(0) },
-                        tasks::ModelEffort { model: 2, effort: None },
+                        tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
+                        tasks::ModelEffort { model: 2, effort: None, speed: None },
                     ]),
                     ..choice(3, Some(1))
                 }),
                 review: Some(choice(3, Some(0))),
+            },
+        ),
+        (
+            b"6;3.1@ultrafast 0.0 2;3.0@standard",
+            Some(6),
+            crate::ChangeLlm {
+                producer: Some(tasks::LlmChoice {
+                    subagents: Box::new([
+                        tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
+                        tasks::ModelEffort { model: 2, effort: None, speed: None },
+                    ]),
+                    ..choice_at_speed(3, Some(1), b"ultrafast")
+                }),
+                review: Some(choice_at_speed(3, Some(0), b"standard")),
             },
         ),
         (
@@ -3590,6 +3543,12 @@ fn change_llm_text_refuses_malformed_parts_and_too_many_entries() {
         b";1.;",
         b";.1;",
         b";1.2.3;",
+        b";1@;",
+        b";1@abcdefghijklmnopqrstuvwxyz0123456;",
+        b";1@Fast;",
+        b";1@fast@standard;",
+        b";;1@fast.speed",
+        b";1@\xff;",
         b"; 1;",
         b";1 ;",
         b";1  2;",
@@ -3614,13 +3573,34 @@ fn change_llm_text_refuses_malformed_parts_and_too_many_entries() {
     assert_eq!(super::change_llm::read(text.as_slice()), None);
 }
 
-fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
+pub(super) fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
+    change_choice_world_with_producer_speeds(&[])
+}
+
+fn change_choice_world_with_producer_speeds(
+    speeds: &[&[u8]],
+) -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
     use super::{authority, forge, tasks};
     let mut config = crate::tests::resume_fixture::config(7);
     let chat = crate::tests::resume_fixture::charter();
     let mut producer = chat.clone();
     producer.number = 6;
     producer.policy.model.name = b"producer".as_slice().into();
+    let model = &mut producer.policy.model;
+    let mut declared = skein_lib::List::with_capacity(u32::try_from(speeds.len()).expect("fixture speeds"));
+    for name in speeds {
+        declared
+            .push(jig_domain_core::Speed {
+                name: (*name).into(),
+                also: Box::new([]),
+                input_price: model.input_price.max(1),
+                cached_price: model.cached_price.max(1),
+                cache_write_price: model.cache_write_price,
+                output_price: model.output_price.max(1),
+            })
+            .unwrap();
+    }
+    model.speeds = declared.into_boxed();
     let mut review = chat.clone();
     review.number = 4;
     review.policy.model.name = b"review".as_slice().into();
@@ -3860,6 +3840,51 @@ fn a_changes_llm_choices_are_checked_against_their_own_charters_and_run_models()
     );
 }
 
+fn a_change_with_producer_choice(choice: super::tasks::LlmChoice) -> crate::ChangeCall {
+    crate::ChangeCall {
+        producer: Some(6),
+        llm: crate::ChangeLlm { producer: Some(choice), review: None },
+        ..crate::ChangeCall::words(b"Make the fix".as_slice().into(), None)
+    }
+}
+
+#[test]
+fn an_undeclared_change_speed_names_the_models_speeds_in_order() {
+    for (declared, expected) in [
+        (
+            &[b"turbo".as_slice(), b"fast"][..],
+            b"speed ultrafast is not one producer declares; it declares turbo, fast".as_slice(),
+        ),
+        (&[][..], b"speed ultrafast is not one producer declares; it declares none"),
+    ] {
+        let (domain, env, context) = change_choice_world_with_producer_speeds(declared);
+        // The same model may run as main and sub-agent, at different speeds.
+        let change = a_change_with_producer_choice(super::tasks::LlmChoice {
+            subagents: Box::new([choice_at_speed(1, None, b"ultrafast").main]),
+            ..choice_at_speed(1, None, b"standard")
+        });
+        let Err(super::ChangeRefused::Words(words)) = super::change_batch(&domain, &env, 1, &context, &[change]) else {
+            panic!("the producer's speed was not refused in words")
+        };
+        assert_eq!(words.as_ref(), expected);
+    }
+}
+
+#[test]
+fn change_speed_choices_accept_declared_standard_and_omitted() {
+    let (domain, env, context) = change_choice_world_with_producer_speeds(&[b"ultrafast"]);
+    for (choice, expected) in [
+        (choice_at_speed(1, None, b"ultrafast"), b"6;1@ultrafast;".as_slice()),
+        (choice_at_speed(1, None, b"standard"), b"6;1@standard;"),
+        (choice(1, None), b"6;1;"),
+    ] {
+        let batch = change_choice_batch(&domain, &env, &context, a_change_with_producer_choice(choice)).unwrap();
+        assert!(
+            batch[0].spec.parameters.contains(&super::tasks::Parameter::Bytes { name: 11, value: expected.into() })
+        );
+    }
+}
+
 #[test]
 fn jig_admission_refuses_a_procedures_producer_beyond_its_creators_kinds() {
     use super::authority;
@@ -3907,7 +3932,7 @@ fn jig_admission_refuses_a_procedures_producer_beyond_its_creators_kinds() {
     assert!(lacks.executors);
 }
 
-fn change_start_fixture() -> (super::Domain, skein_lib::Env<super::Limits>, Box<super::tasks::RunContext>) {
+pub(super) fn change_start_fixture() -> (super::Domain, skein_lib::Env<super::Limits>, Box<super::tasks::RunContext>) {
     use super::{forge, tasks};
     let (mut domain, mut env, task) =
         crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
@@ -4002,17 +4027,17 @@ fn a_changes_start_keeps_parameter_elevens_charter_and_role_choices() {
     for (text, producer, llm) in [
         (None, 1, crate::ChangeLlm::default()),
         (
-            Some(b"6;3.1 0.0 2;3.0".as_slice()),
+            Some(b"6;3.1@ultrafast 0.0 2;3.0@standard".as_slice()),
             6,
             crate::ChangeLlm {
                 producer: Some(tasks::LlmChoice {
                     subagents: Box::new([
-                        tasks::ModelEffort { model: 0, effort: Some(0) },
-                        tasks::ModelEffort { model: 2, effort: None },
+                        tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
+                        tasks::ModelEffort { model: 2, effort: None, speed: None },
                     ]),
-                    ..choice(3, Some(1))
+                    ..choice_at_speed(3, Some(1), b"ultrafast")
                 }),
-                review: Some(choice(3, Some(0))),
+                review: Some(choice_at_speed(3, Some(0), b"standard")),
             },
         ),
         (Some(b";0;"), 1, crate::ChangeLlm { producer: Some(choice(0, None)), review: None }),
@@ -4168,6 +4193,8 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
     use forge_change::{Delegate, Freshness, Gate, GateKind, Repair};
     for (kind, fault, role) in [
         (Delegate::Produce, tasks::LlmFault::Charter, Some(b"producer".as_slice())),
+        (Delegate::Produce, tasks::LlmFault::Speed, Some(b"producer")),
+        (Delegate::Gate { number: 1, head: SHA1 }, tasks::LlmFault::Speed, Some(b"review")),
         (Delegate::Repair(Repair::Ci), tasks::LlmFault::Charter, Some(b"producer")),
         (Delegate::Resolve { base: SHA1 }, tasks::LlmFault::Charter, Some(b"producer")),
         (Delegate::Gate { number: 1, head: SHA1 }, tasks::LlmFault::Charter, Some(b"review")),
@@ -4181,6 +4208,8 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
         let mut row = task_change_row(task, Some(7));
         row.producing_charter = 2;
         row.review_charter = 4;
+        row.producing_llm = Some(choice_at_speed(0, None, b"ultrafast"));
+        row.review_llm = Some(choice_at_speed(0, None, b"fast"));
         let mut gates = skein_lib::List::with_capacity(3);
         for (number, kind) in [(1, GateKind::Agent), (2, GateKind::Check), (3, GateKind::Person)] {
             gates.push(Gate { number, kind, blocking: true, freshness: Freshness::Exact, eager: false }).unwrap();
@@ -4231,6 +4260,12 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
                 super::append(&mut expected, role);
                 super::append(&mut expected, b" choice names model ");
                 super::append(&mut expected, &domain.engine.core().settings.models[0].name);
+                if fault == tasks::LlmFault::Speed {
+                    super::append(
+                        &mut expected,
+                        if role == b"review" { b" at speed fast" } else { b" at speed ultrafast" },
+                    );
+                }
                 super::append(
                     &mut expected,
                     if role == b"review" { b", which charter 4" } else { b", which charter 2" },
@@ -4471,7 +4506,7 @@ fn a_held_branch_change_refuses_each_parameter_past_capacity() {
             SPEND,
         );
         if capacity < PARAMETERS {
-            assert_eq!(result.unwrap_err(), tasks::Refusal::Spec, "capacity {capacity}");
+            assert_eq!(result.unwrap_err().task_refusal(), tasks::Refusal::Spec, "capacity {capacity}");
         } else {
             assert_eq!(result.unwrap().spec.parameters.len(), usize::try_from(PARAMETERS).unwrap());
         }
@@ -4857,13 +4892,16 @@ fn the_job_root_names_the_declaration_the_engine_encodes() {
     assert_eq!(root.wire, wire::FAMILY);
     assert_eq!(root.declaration, "JobSpec");
     for (bytes, refusal) in [
-        (super::close::spec(b"repo", b"close", b"{}", 4096).expect("close spec"), true),
-        (super::merge::spec(b"repo", b"merge", &[3; 32], &[4; 32], 4096).expect("merge spec"), false),
+        (super::forge::jobs::close(b"repo", None, b"{}", 4096).expect("close spec"), true),
+        (super::forge::jobs::merge(b"repo", None, &[3; 32], &[4; 32], 4096).expect("merge spec"), false),
     ] {
         let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("JobSpec bytes");
         assert_ne!(spec.command.as_ref(), []);
         assert_ne!(spec.request.as_ref(), []);
         assert_eq!(spec.refusal, refusal);
+        assert_eq!(spec.outdated, refusal);
+        assert!(spec.find);
+        assert!(spec.fallback.is_empty());
     }
 }
 
@@ -4872,14 +4910,21 @@ fn the_job_root_names_the_declaration_the_engine_encodes() {
 fn a_close_jobs_spec_is_its_command_and_its_request() {
     use temper_protocol_worker_wire::v1::{self, Record};
     let request = br#"{"version":1,"goal":7,"changes":[{"task":9,"landed":true}]}"#;
-    let bytes = super::close::spec(b"fabrig", b".temper/close", request, 16384).expect("close spec");
+    let bytes = super::forge::jobs::close(b"fabrig", Some(b".temper/close"), request, 16384).expect("close spec");
     let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("job spec");
-    assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/close");
+    assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/hooks/close");
+    assert!(decoded.find && decoded.refusal);
+    assert_eq!(decoded.fallback.as_ref(), b"fabrig/.temper/close");
     assert_eq!(decoded.request.as_ref(), request);
     let bound = u32::try_from(bytes.len()).expect("bounded spec");
-    assert_eq!(super::close::spec(b"fabrig", b".temper/close", request, bound), Some(bytes));
+    assert_eq!(super::forge::jobs::close(b"fabrig", Some(b".temper/close"), request, bound), Some(bytes));
     assert_eq!(
-        super::close::spec(b"fabrig", b".temper/close", request, bound.checked_sub(1).expect("nonempty spec")),
+        super::forge::jobs::close(
+            b"fabrig",
+            Some(b".temper/close"),
+            request,
+            bound.checked_sub(1).expect("nonempty spec")
+        ),
         None
     );
 }
@@ -5056,21 +5101,8 @@ fn a_change_rerun_is_kind_17_on_its_own_branch() {
         env.limits.authority.segments,
     )
     .unwrap();
-    let evidence = forge::ChangeEvidence {
-        behind: None,
-        readback_owed: false,
-        nearest_write: None,
-        touched: forge::Touched::UNKNOWN,
-        size: None,
-        prior: row.change.clone(),
-        head: Some(SHA1),
-        base_tip: SHA1,
-        contains_base: forge_change::Status::Passed,
-        ci: forge_change::Status::Failed,
-        gates: Box::new([]),
-        reviews: Box::new([]),
-        reviews_complete: true,
-    };
+    let evidence =
+        forge::ChangeEvidence { ci: forge_change::Status::Failed, ..passed_evidence(row.change.clone(), SHA1, SHA1) };
     restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Change(Box::new(row)));
     let description = super::describe_change_effect(
         &domain,
@@ -5802,56 +5834,6 @@ fn report_tests() -> super::forge::ReceiptReport {
     ]))
 }
 
-#[test]
-fn landing_repairs_keep_report_tests_before_jobs_and_a_cut_below_list() {
-    use super::forge_change::{Below, Landed, Repair};
-    use skein_lib::bytes::{concat, find};
-    let mut row = change_row(Some(42));
-    row.change.last_head = Some(SHA1);
-    let why = Repair::LandingAt {
-        gate: 1,
-        candidate: SHA1,
-        below: Some(Below {
-            by_test: false,
-            top: false,
-            green: SHA256,
-            changes: [Some(Landed { change: 2341, pull: 7 }), Some(Landed { change: 2342, pull: 8 }), None, None],
-        }),
-    };
-    let mut failure = repair_failure(SHA1, Some(SHA256));
-    failure.report = report_tests();
-    let whole = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
-    let tests =
-        b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)\nFailed test: test skein-lib::suite b (focused)";
-    let run_at = find(&whole, b"\nGate run: 4211 at ").unwrap();
-    let tests_at = find(&whole, tests).expect("each reported test has its required profile line");
-    let job_at = find(&whole, b"\nFailed job: gate: read_ci what=job commit=").unwrap();
-    assert!(run_at < tests_at && tests_at < job_at);
-    let without_list = u32::try_from(whole.len() - b" Changes landing below it: 2341 (#7), 2342 (#8).".len()).unwrap();
-    let cut = super::repair_words(&row, why, Some(&failure), &[], without_list).unwrap();
-    assert!(find(&cut, b"2341 (#7)").is_none(), "optional below list yields first");
-    assert!(cut.ends_with(&whole[run_at..]), "run, all tests and jobs survive whole");
-    let first_test = b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)";
-    let marker = b"\n[2 more failed tests and jobs: read_ci what=checks names them]";
-    let bound = u32::try_from(
-        usize::try_from(without_list).unwrap() - whole[tests_at..].len() + first_test.len() + marker.len(),
-    )
-    .unwrap();
-    let bounded = super::repair_words(&row, why, Some(&failure), &[], bound).unwrap();
-    assert!(bounded.ends_with(&concat(&[first_test, marker])), "whole test lines precede the combined omitted count");
-    for (report, line) in [
-        (super::forge::ReceiptReport::Many { bound: 16 }, b"\nFailed tests: more than 16".as_slice()),
-        (super::forge::ReceiptReport::Unset, b"\nFailed tests: not known (the gate names no report)".as_slice()),
-        (super::forge::ReceiptReport::Unread, b"\nFailed tests: not known (its report could not be read)".as_slice()),
-    ] {
-        failure.report = report;
-        let words = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
-        let at = find(&words, line).unwrap();
-        assert!(find(&words[..at], b"\nGate run:").is_some());
-        assert!(words[at + line.len()..].starts_with(b"\nFailed job:"));
-    }
-}
-
 /// questions.md, 1, What every delegate is told: the step's retained amendment is visible before admission.
 #[test]
 fn a_delegate_made_at_the_amendment_step_carries_its_reason() {
@@ -5906,7 +5888,7 @@ fn a_delegate_made_at_the_amendment_step_carries_its_reason() {
         step,
         connector,
         code,
-        &(change::Delegate::Repair(change::Repair::Ci), None),
+        &(change::Delegate::Repair(change::Repair::Ci), None, None),
     );
     let Some(super::Work::Core(jig_domain_core::Event::ProcedureStep { decision, .. })) = domain.work.pop() else {
         panic!("delegate step")

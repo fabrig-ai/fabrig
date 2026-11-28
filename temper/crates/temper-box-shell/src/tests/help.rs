@@ -358,7 +358,7 @@ fn tester_recipe_copies_a_stock_charter_without_landing_tools() {
         messages: Box::new([]),
         saved: Box::new([]),
         workstream: 1,
-        workspace: engine::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
+        workspace: engine::ForgeWorkspace::default(),
         transcript: Box::new([]),
         parts: Box::new([]),
         answered: Box::new([]),
@@ -945,6 +945,7 @@ fn box_help_names_delivery_checks_path_and_tools() {
         .collect::<Vec<_>>()
         .join(" ");
     for required in [
+        "`.temper/hooks/`",
         "`.temper/pre-pr`",
         "inherit the box's startup `PATH`",
         "unit's `PATH` in a service",

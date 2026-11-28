@@ -146,12 +146,9 @@ pub enum NoteChange {
 /// Authenticated keyed requests admitted by the people child and routed by
 /// the root after role checks (domain/people/acts.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(
-        clippy::large_enum_variant,
-        reason = "an amendment stays inline, as `Event` carries a keyed request whole, and is priced by size_of"
-    )
+#[expect(
+    clippy::large_enum_variant,
+    reason = "an amendment stays inline, as `Event` carries a keyed request whole, and is priced by size_of"
 )]
 pub enum Ask {
     /// Pause, drain or resume a linked worker (domain/engine/workers.md, 5).
@@ -792,12 +789,9 @@ pub struct KeptDeletion {
 /// Root-to-child inputs; authenticated identity, authoritative roles and restored records
 /// cross this boundary without protocol secrets. (domain/people/README.md, sections 3–4 and domain/people/acts.md).
 #[derive(PartialEq, Eq, Hash, Debug)]
-#[cfg_attr(
-    target_pointer_width = "64",
-    expect(
-        clippy::large_enum_variant,
-        reason = "the people boundary carries the complete request including its later choice"
-    )
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the people boundary carries the complete request including its later choice"
 )]
 pub enum Event {
     /// Keep or erase a deletion row (jig/docs/design/domain/people/acts.md, 2).

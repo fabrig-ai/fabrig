@@ -455,7 +455,7 @@ fn goal_choice_template(config: &mut engine::Config) {
     let template = &mut config.core.defaults.templates[1];
     template.executor = TemplateExecutor::Charter(1);
     template.deadline = TemplateDeadline::None;
-    let main = ModelEffort { model: 0, effort: Some(0) };
+    let main = ModelEffort { model: 0, effort: Some(0), speed: None };
     template.llm = Some(LlmChoice {
         account: None,
         main,
@@ -954,7 +954,7 @@ pub fn account_chat(front: &mut Joint, account: u32) -> u64 {
     batch[0].llm = Some(people::LlmChoice {
         later: None,
         account: Some(account),
-        main: people::ModelEffort { model: 0, effort: None },
+        main: people::ModelEffort { model: 0, effort: None, speed: None },
         subagents: Box::new([]),
     });
     front.engine.send(engine::Event::Party(engine::PartyInput::Ask {

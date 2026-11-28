@@ -41,6 +41,7 @@ fn workspace() -> run::Workspace {
     run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             host: b"/host".as_slice().into(),
             name: b"r".as_slice().into(),
             root: Token::new(1),

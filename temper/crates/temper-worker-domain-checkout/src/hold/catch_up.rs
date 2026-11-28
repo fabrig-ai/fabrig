@@ -87,6 +87,7 @@ pub(super) fn pushed(
         | Done::Paths { .. }
         | Done::Looked { .. }
         | Done::IsAncestor { .. }
+        | Done::Message { .. }
         | Done::Brings { .. }
         | Done::Merged
         | Done::Succeeded
@@ -105,6 +106,7 @@ pub(super) fn pushed(
                 | Done::Paths { .. }
                 | Done::Looked { .. }
                 | Done::IsAncestor { .. }
+                | Done::Message { .. }
                 | Done::Brings { .. }
                 | Done::Merged
                 | Done::Succeeded
@@ -129,6 +131,7 @@ pub(super) fn pushed(
                 | Done::Paths { .. }
                 | Done::Looked { .. }
                 | Done::IsAncestor { .. }
+                | Done::Message { .. }
                 | Done::Brings { .. }
                 | Done::Merged
                 | Done::Succeeded
@@ -153,6 +156,7 @@ pub(super) fn pushed(
                 | Done::Paths { .. }
                 | Done::Looked { .. }
                 | Done::IsAncestor { .. }
+                | Done::Message { .. }
                 | Done::Brings { .. }
                 | Done::Merged
                 | Done::Succeeded
@@ -177,6 +181,7 @@ pub(super) fn pushed(
             Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Message { .. }
             | Done::Brings { .. }
             | Done::Merged
             | Done::Succeeded
@@ -197,6 +202,7 @@ pub(super) fn pushed(
                 | Done::Paths { .. }
                 | Done::Looked { .. }
                 | Done::IsAncestor { .. }
+                | Done::Message { .. }
                 | Done::Brings { .. }
                 | Done::Succeeded
                 | Done::Fetched { .. }
@@ -222,6 +228,7 @@ pub(super) fn pushed(
                 | Done::Paths { .. }
                 | Done::Looked { .. }
                 | Done::IsAncestor { .. }
+                | Done::Message { .. }
                 | Done::Brings { .. }
                 | Done::Merged
                 | Done::Succeeded

@@ -1,6 +1,7 @@
 use super::*;
 use smith_transcript::Record;
 
+mod answers;
 mod withhold;
 
 const DIALECT: u32 = 3;
@@ -92,6 +93,7 @@ fn a_turn_keeps_its_model_and_effort_outside_the_text_budget() {
                         Some(value) => Some(Text::new(Box::from(value), 32).unwrap()),
                         None => None,
                     },
+                    speed: None,
                 })
             };
             assert_eq!(turn.llm, expected);
@@ -532,8 +534,15 @@ fn admission_errors_are_explicit_and_whole_records_are_required() {
 #[test]
 fn receiving_limits_cut_without_growing_or_losing_call_outcomes() {
     let source = source(&[
-        message(smith::Role::Assistant, &[call(b"id")]),
-        message(smith::Role::User, &[result(b"id", owned(smith::Outcome::NotGranted)), SBlock::Text(text(b"words"))]),
+        message(smith::Role::Assistant, &[call(b"id"), call(b"other")]),
+        message(
+            smith::Role::User,
+            &[
+                result(b"id", owned(smith::Outcome::NotGranted)),
+                result(b"other", smith::Returned::Withdrawn),
+                SBlock::Text(text(b"words")),
+            ],
+        ),
     ]);
     let bytes = encode(&source);
     let mut small = limits();
@@ -541,13 +550,11 @@ fn receiving_limits_cut_without_growing_or_losing_call_outcomes() {
     let turn = decode(&small, &bytes).unwrap();
     assert!(turn.cut);
     assert_eq!(turn.messages.len(), 1);
-    match &turn.messages.get(0).unwrap().blocks.get(0).unwrap() {
-        Block::Call(call) => {
-            assert!(call.failed);
-            assert_eq!(call.outcome.as_ref().unwrap().bytes(), b"Tool refused: not granted");
-        }
-        Block::Text(_) | Block::Result { .. } | Block::Opaque { .. } => panic!("call expected"),
-    }
+    let first = call_at(&turn, 0, 0);
+    assert!(first.failed);
+    assert_eq!(first.outcome.as_ref().unwrap().bytes(), b"Tool refused: not granted");
+    assert_eq!(first.answer, Some(b"not_granted".as_slice()));
+    assert_eq!(call_at(&turn, 0, 1).answer, Some(b"withdrawn".as_slice()));
     small = limits();
     small.turn.blocks = 1;
     let turn = decode(&small, &bytes).unwrap();
@@ -557,13 +564,12 @@ fn receiving_limits_cut_without_growing_or_losing_call_outcomes() {
     small.turn.text = 2;
     let turn = decode(&small, &bytes).unwrap();
     assert!(turn.cut);
-    match &turn.messages.get(0).unwrap().blocks.get(0).unwrap() {
-        Block::Call(call) => {
-            assert_eq!((call.tool.bytes()).len(), 0);
-            assert_eq!((call.input.bytes()).len(), 0);
-            assert_eq!((call.outcome.as_ref().unwrap().bytes()).len(), 0);
-        }
-        Block::Text(_) | Block::Result { .. } | Block::Opaque { .. } => panic!("call expected"),
+    for (block, word) in [(0, b"not_granted".as_slice()), (1, b"withdrawn".as_slice())] {
+        let call = call_at(&turn, 0, block);
+        assert_eq!(call.tool.bytes(), b"");
+        assert_eq!(call.input.bytes(), b"");
+        assert_eq!(call.outcome.as_ref().unwrap().bytes(), b"");
+        assert_eq!(call.answer, Some(word));
     }
     small.turn.messages = 0;
     let turn = decode(&small, &bytes).unwrap();
@@ -609,6 +615,7 @@ fn smith_full_fixed_value_preserves_maximum_usage_at_its_whole_length() {
             llm: Some(ModelEffort {
                 model: Text::new(Box::from(b"abc".as_slice()), 3).unwrap(),
                 effort: Some(Text::new(Box::from(b"abc".as_slice()), 3).unwrap()),
+                speed: None,
             }),
             cut: false
         }
