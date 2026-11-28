@@ -151,16 +151,10 @@ fn stored_setting_names_default_to_none_at_the_previous_layout_and_round_trip_no
     let old_root = old.root(b"Changed", None).unwrap();
     let write_old = Plan::between(Mode::Read, &current, current_root, &[], &old, old_root, &[]).unwrap();
     let read_old = Plan::between(Mode::Keep, &old, old_root, &[], &current, current_root, &[]).unwrap();
-    let mut domain = fixtures::CORE_LIMITS;
-    domain.authority.executors = 3;
-    let limits = &codec::settings::limits(&domain).unwrap();
-    let catalogue = [super::settings::catalogue_name(b"model"), super::settings::catalogue_name(b"other")];
+    let (limits, catalogue) = named_settings_codec();
+    let limits = &limits;
     let mut workspace = Workspace::new();
-    for (setting, mut value) in [
-        (s::Setting::Charter(1), s::Value::Charter(Box::new(super::settings::charter()))),
-        (s::Setting::Template(1), s::Value::Template(Box::new(super::settings::template()))),
-        (s::Setting::Policy(1), s::Value::Policy(Box::new(super::settings::policy()))),
-    ] {
+    for (setting, mut value) in unnamed_settings() {
         let unnamed = s::Record::Changed { setting, changed: s::Changed { value: Some(value.clone()), revision: 10 } };
         value.set_name(Some(b"my-setting"));
         let named = s::Record::Changed { setting, changed: s::Changed { value: Some(value), revision: 10 } };
@@ -174,6 +168,70 @@ fn stored_setting_names_default_to_none_at_the_previous_layout_and_round_trip_no
         assert!(workspace.fit(&read_old));
         read_old.convert(old_bytes.as_slice(), &mut converted, &mut workspace).unwrap();
         assert_eq!(codec::settings::decode(&named.key(), converted.as_slice(), limits, &catalogue), Ok(unnamed));
+    }
+}
+
+fn named_settings_codec() -> (crate::settings_v3::Limits, [s::ModelName; 2]) {
+    let mut domain = fixtures::CORE_LIMITS;
+    domain.authority.executors = 3;
+    let limits = codec::settings::limits(&domain).unwrap();
+    (limits, [super::settings::catalogue_name(b"model"), super::settings::catalogue_name(b"other")])
+}
+
+fn unnamed_settings() -> [(s::Setting, s::Value); 3] {
+    [
+        (s::Setting::Charter(1), s::Value::Charter(Box::new(super::settings::charter()))),
+        (s::Setting::Template(1), s::Value::Template(Box::new(super::settings::template()))),
+        (s::Setting::Policy(1), s::Value::Policy(Box::new(super::settings::policy()))),
+    ]
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "derive the conversion plans from the retained dev layout")]
+fn dev_defaults_and_changes_read_without_setting_names() {
+    use skein_codec::{
+        layout::{Mode, Plan, Workspace},
+        schema,
+    };
+    use skein_lib::Buffer;
+
+    const RECORD_BYTES: u32 = 8192; // Room for any of the three settings fixtures.
+    const REVISION: u32 = 10;
+    let current = schema::parse(settings_schema().as_bytes()).unwrap();
+    let dev = schema::parse(include_str!("fixtures/dev-settings-v3.schema").as_bytes()).unwrap();
+    let (limits, catalogue) = named_settings_codec();
+    let limits = &limits;
+    let mut workspace = Workspace::new();
+    for (root, records) in [
+        (
+            b"Default".as_slice(),
+            unnamed_settings().map(|(setting, value)| s::Record::Default {
+                setting,
+                default: s::Default { value, revision: REVISION },
+            }),
+        ),
+        (
+            b"Changed".as_slice(),
+            unnamed_settings().map(|(setting, value)| s::Record::Changed {
+                setting,
+                changed: s::Changed { value: Some(value), revision: REVISION },
+            }),
+        ),
+    ] {
+        let current_root = current.root(root, None).unwrap();
+        let dev_root = dev.root(root, None).unwrap();
+        let write_dev = Plan::between(Mode::Read, &current, current_root, &[], &dev, dev_root, &[]).unwrap();
+        let read_dev = Plan::between(Mode::Keep, &dev, dev_root, &[], &current, current_root, &[]).unwrap();
+        for record in records {
+            let bytes = codec::settings::encode(&record, limits, &catalogue).unwrap();
+            let mut retained = Buffer::with_capacity(RECORD_BYTES);
+            assert!(workspace.fit(&write_dev));
+            write_dev.convert(&bytes, &mut retained, &mut workspace).unwrap();
+            let mut converted = Buffer::with_capacity(RECORD_BYTES);
+            assert!(workspace.fit(&read_dev));
+            read_dev.convert(retained.as_slice(), &mut converted, &mut workspace).unwrap();
+            assert_eq!(codec::settings::decode(&record.key(), converted.as_slice(), limits, &catalogue), Ok(record));
+        }
     }
 }
 

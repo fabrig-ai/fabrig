@@ -121,7 +121,7 @@ findings = "ask"
 ## 8. Versioned files
 
 - **Each file names its format:** `format = 1` in `ways.toml`, in each way's file and in `hooks/config.toml`, and in a charter file's front matter, where leaving it out reads as 1.
-- **Every format shipped keeps reading:** a build reads each format temper has released, converting it as it reads. A file lives in a repository temper doesn't control, so this is longer than the store's rule, which keeps no code for a layout older than the deployment runs ([layouts-both-ways.md](layouts-both-ways.md)).
+- **Every format shipped keeps reading:** a build reads each format temper has released, converting it as it reads. A file lives in a repository temper doesn't control, so this is longer than the store's rule, which keeps no code for a layout older than the deployment runs ([archive/layouts-both-ways.md](archive/layouts-both-ways.md)).
 - **A newer format than the build knows** fails the read, naming the file and the format, and the last good revision holds (5).
 - **Rewriting a file to the newest format** is a change a person asks for, or Ask temper proposes (`ways.md`, section 11); nothing rewrites it by itself.
 - **temper.toml and the other files a person writes** take the same rule, by [formats.md](formats.md).

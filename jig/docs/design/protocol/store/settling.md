@@ -3,7 +3,7 @@
 2026-11-24. How the store puts each map value at another layout again
 at the binary's while it serves, so that plans at open and conversions
 at read stay few, and a layout no value holds leaves the registry
-(temper's `draft/layouts-both-ways.md`, 8.2). It puts what a settling
+(temper's `draft/archive/layouts-both-ways.md`, 8.2). It puts what a settling
 job would have (`jobs.md`, 5), without holding the open.
 
 ## 1. What settles

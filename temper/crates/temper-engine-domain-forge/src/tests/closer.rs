@@ -1,4 +1,4 @@
-//! Closer reclamation (temper/docs/design/domain/forge/branches.md, 2).
+//! Closer reclamation (temper/docs/design/domain/forge/branches-closer.md, 1).
 use super::*;
 
 pub(super) fn closer(task: u64, goal: u64, done: bool) -> CloserRow {

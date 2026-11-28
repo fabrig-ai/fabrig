@@ -34,7 +34,7 @@ const CHARTER_MODEL: Relation = Relation {
 };
 const PRODUCER: Relation = Relation {
     name: "producer",
-    design: "temper/docs/design/protocol/configuration/stock.md; settings.md, 2 and 8",
+    design: "temper/docs/design/protocol/configuration/stock.md; protocol/configuration/settings-kinds.md, 1; protocol/configuration/settings.md, 8",
     exception: "none",
 };
 const TEMPLATE_MODEL: Relation = Relation {

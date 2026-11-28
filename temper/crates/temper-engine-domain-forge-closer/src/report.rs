@@ -1,4 +1,4 @@
-//! Report words and cuts (temper/docs/design/domain/forge/branches.md, 2).
+//! Report words and cuts (temper/docs/design/domain/forge/branches-closer.md, 1).
 
 use alloc::boxed::Box;
 use skein_lib::bytes::{concat, find, utf8_prefix};

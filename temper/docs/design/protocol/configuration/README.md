@@ -149,6 +149,7 @@ Documents:
 - `moved.md`: members that moved.
 - `providers.md`: LLM providers in the store.
 - `stock.md`: stock defaults.
+- `stock-settings.md`: default charters, templates, policy and project settings.
 - `reference.md`: the reference configuration.
 
 ## 2. The document
@@ -251,7 +252,7 @@ Documents:
 - **Templates are jig's two defaults,** chat (template 1, label 1) and
   goal (template 2, label 2), as jig's `protocol/configuration-templates.md`,
   1 gives them, the chat's executor the charter chats run under;
-  temper's own, templates 4 to 8, are the stock's (`stock.md`), template
+  temper's own, templates 4 to 8, are the stock's (`stock-settings.md`, 1), template
   8 a milestone's (`../../domain/milestones.md`, section 2). One flag departs from jig's
   defaults: the chat is ended by its requester, `"ended_by":
   "requester"` (jig's `protocol/configuration-templates.md`, 2), so that a chat
@@ -300,14 +301,6 @@ Documents:
   absolute; `directories.md` gives each member's. None is resolved against
   the working directory.
 
-## 3. temper's members for a worker
-
-Moved to [`worker.md`](worker.md), section 1.
-
-## 4. The agent's configuration
-
-Moved to [`worker.md`](worker.md), section 2.
-
 ## 5. Secrets' files
 
 | File | Named by | Holds | Read by |
@@ -352,10 +345,6 @@ Moved to [`worker.md`](worker.md), section 2.
 - **No LLM account's file.** LLM accounts' records and keys are in
   jig's secrets' store, and a program's login is in its configuration
   directory, which temper never reads (../credentials-llm-accounts.md, section 1).
-
-## 6. First start and every start
-
-Moved to [`startup.md`](startup.md), section 1.
 
 ## 7. The client's arguments
 
@@ -521,7 +510,7 @@ one owned Forgejo's place, with its own values (../setup/init.md, 4).
   section 13 leaves retention for a continuation undecided. Default:
   derive the answer room from the payload and ask a new child, narrower,
   for omitted material; temper declares no continuation setting.
-- **A coordinator's repository notes** (`stock.md`, `reference.md`): charter 5 asks
+- **A coordinator's repository notes** (`stock-settings.md`, `reference.md`): charter 5 asks
   for notes about flakes and inherited failures in the repository's
   scope, which the stock's goal-only note authority does not grant.
   Default: retain the narrow authority; satisfying that instruction

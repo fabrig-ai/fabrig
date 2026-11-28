@@ -1,0 +1,3 @@
+# Split the goal closer from the branch and hold rules.
+title temper/docs/design/domain/forge/branches-closer.md: A goal's closer
+temper/docs/design/domain/forge/branches.md 2 -> temper/docs/design/domain/forge/branches-closer.md 1

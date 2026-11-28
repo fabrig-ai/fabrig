@@ -68,7 +68,7 @@ const HEADER: &str =
 const COMPARABLE_HEADER: &str =
     "<!doctype html>\n<html\n>\n<head\n><title\n>Sign in</title\n></head\n>\n<!-- press to continue -->\n<body\n>\n";
 const DIFF_LINE: usize = LINE + 6; // Six tag boundaries in HEADER put the button on a later line in the diff.
-const WIDTHS: [u32; 3] = [1440, 1000, 420]; // journey-writer.md, 6.2, step 7.
+const WIDTHS: [u32; 3] = [1440, 1000, 420]; // client/journey-writer-requests.md, 1.2, step 7.
 const HEIGHT: u32 = 900;
 const BOX: Rect = Rect { x: -5, y: 20, width: 80, height: 30 };
 const BOX_STYLE_CHANGE: [&[(&str, &str)]; 2] = [
@@ -950,7 +950,7 @@ fn field_values_escape_backslash_tab_and_line_endings() {
 
 #[test]
 fn reports_list_fifty_differences_then_count_the_rest() {
-    const ALL: u32 = 52; // Two past the page's fifty listed differences (journey-writer.md, 6.2).
+    const ALL: u32 = 52; // Two past the page's fifty listed differences (client/journey-writer-requests.md, 1.2).
     const LISTED: u32 = 50;
     let mut steps = edited_button();
     let names = (0..ALL).rev().map(|at| format!("property-{at:02}")).collect::<Vec<_>>();

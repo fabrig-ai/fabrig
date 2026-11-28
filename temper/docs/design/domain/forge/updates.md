@@ -135,7 +135,7 @@ instead (`../landing-prepare.md`, section 1).
   `turn` its train merges it, never squashing it (`../landing-prepare.md`, 1.2),
   so the goal's branch shows it as a merge of the base. Nothing makes
   one but its requester's call, and a goal's closer's for a close found
-  outdated (`branches.md`, 2, *A close found outdated*).
+  outdated (`branches-closer.md`, 1, *A close found outdated*).
 - **A semantic conflict** is CI failing on a change's head after a clean
   update. The name records that order, not proof that the base caused
   the failure. Its repair's brief carries the failed check and its output

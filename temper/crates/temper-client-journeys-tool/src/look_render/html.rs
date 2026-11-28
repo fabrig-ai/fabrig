@@ -1,4 +1,4 @@
-//! Source start tags, never a second DOM (temper/docs/design/client/journey-writer.md, 6.2).
+//! Source start tags, never a second DOM (temper/docs/design/client/journey-writer-requests.md, 1.2).
 
 pub(super) struct Tag<'a> {
     pub(super) line: usize,

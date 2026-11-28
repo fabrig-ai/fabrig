@@ -182,14 +182,6 @@ temper                       the binary: `temper ctl` runs the host
 - **Step code under the subset:** the runner, the rendering, the table,
   the tools' root. **Ordinary Rust:** the host.
 
-## 5. Requests: once, and named
-
-Moved to [`requests.md`](requests.md), section 1.
-
-## 6. The command line: `temper ctl`
-
-Moved to [`command-line.md`](command-line.md), section 1.
-
 ## 7. Who the agent is
 
 - **Any credential.** An agent acting for a person may hold the person's
@@ -318,10 +310,6 @@ account and adopting its repository itself (`../../protocol/setup/playground.md`
 first link, then `playground start` (`areas.md`, area 6), which answers once
 the playground is ready, and `playground end`, which answers once it
 is reset, the store empty again.
-
-## 9. The bounds
-
-Moved to [`bounds.md`](bounds.md), section 1.
 
 ## 10. What it takes of jig
 

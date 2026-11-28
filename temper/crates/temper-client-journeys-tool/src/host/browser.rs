@@ -1,4 +1,4 @@
-//! The render check's browser effects (temper/docs/design/client/journey-writer.md, 6.2).
+//! The render check's browser effects (temper/docs/design/client/journey-writer-requests.md, 1.2).
 
 use std::path::PathBuf;
 

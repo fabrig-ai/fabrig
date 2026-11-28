@@ -1,4 +1,4 @@
-//! Seeded workloads shared by temper's worlds (`temper/docs/design/testing/workloads.md`, 3).
+//! Seeded workloads shared by temper's worlds (`temper/docs/design/testing/workloads-kit.md`, 1).
 
 pub mod draw;
 pub mod names;

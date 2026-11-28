@@ -93,14 +93,6 @@ look; 8 a walk on a box; 9 the browser's journeys; 10 what is open.
   it of any node. The host's own act gives what it returns. With the view's tree, `Host::tree(&self) ->
   &Tree`, it is where an act is read and its node found for replay (`journeys-recordings.md`, 1.3).
 
-## 3. The recording
-
-Moved to [`journeys-recordings.md`](journeys-recordings.md), section 1.
-
-## 4. Replay
-
-Moved to [`journeys-recordings.md`](journeys-recordings.md), section 2.
-
 ## 5. The print
 
 ### 5.1 The programs
@@ -392,7 +384,7 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   once main's `looks.html` holds an entry for its newest `Look-landed`,
   or, for one landed with no `Look-landed`, once the last `Printed:` on
   `main` covers the commit carrying its `Look-request`
-  (`../journey-writer.md`, 6), and pushes it
+  (`../journey-writer-requests.md`, 1), and pushes it
   with `--force-with-lease`, its lease the branch as the checkout last
   knew it, so that a branch moved from another checkout is refused,
   never overwritten. It says which commit main's pages were printed at,
@@ -414,8 +406,8 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   `task-pages.css` and the markup's changes into the view, for every
   state, then compares with `scripts/look-compare.sh NAME C`, which
   prints into scratch in its own tree and compares with the request's
-  commit (`../journey-writer.md`, 6.1). It needs no box and commits no page
-  (`look-requests.md`, 3; `../journey-writer.md`, 6). Its own commits carry
+  commit (`../journey-writer-requests.md`, 1.1). It needs no box and commits no page
+  (`look-requests.md`, 3; `../journey-writer-requests.md`, 1). Its own commits carry
   the request's trailer, never the request's commit itself, and its
   last, carrying the account, `Look-landed: NAME` beside it. The account
   and what done means are `look-requests.md`, 5; the render comparison

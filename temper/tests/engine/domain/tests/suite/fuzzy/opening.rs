@@ -1,6 +1,6 @@
 //! Crash cuts through a seeded workload (draft/reconciling-start.md, 7).
 //! Referee observations are settled, but the cuts never drain first.
-//! Campaign cases follow `temper/docs/design/testing/workloads.md`, 8.5.
+//! Campaign cases follow `temper/docs/design/testing/workloads-sweeps.md`, 1.5.
 use super::follows::referee::Referee;
 use crate::forge_routes::follow_changes::proof;
 use jig_domain_people as people;

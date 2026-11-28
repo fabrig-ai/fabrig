@@ -1042,7 +1042,7 @@ pub struct EffectAccount {
     pub entry: u64,
     pub words: Box<[u8]>,
 }
-/// A change's terminal account (temper/docs/design/domain/forge/branches.md, 2).
+/// A change's terminal account (temper/docs/design/domain/forge/branches-closer.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Ending {
     Landed,
@@ -1091,7 +1091,7 @@ pub struct PreviousLink {
     pub ask: Option<change::Ask>,
 }
 
-/// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
+/// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches-closer.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "the cohort mark is independent of the delegate and base flags")]
 pub struct ChangeRow {

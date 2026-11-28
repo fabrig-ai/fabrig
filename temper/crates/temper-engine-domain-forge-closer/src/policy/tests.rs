@@ -501,7 +501,7 @@ fn an_idle_close_keeps_running_until_its_undeclared_replacement_is_skipped() {
     assert_eq!(s.closer.running, c.running);
 }
 
-/// temper/docs/design/domain/forge/branches.md, 2: an outdated close is rechecked after its catch-up.
+/// temper/docs/design/domain/forge/branches-closer.md, 1: an outdated close is rechecked after its catch-up.
 #[test]
 fn an_outdated_close_catches_up_and_rechecks_when_the_close_kind_is_declared() {
     let mut f = facts();

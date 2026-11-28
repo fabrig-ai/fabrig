@@ -1,4 +1,4 @@
-//! One question at a time, without a closer allowance (temper/docs/design/domain/forge/branches.md, 2).
+//! One question at a time, without a closer allowance (temper/docs/design/domain/forge/branches-closer.md, 1).
 use crate::{Closer, Running, Step, first_line};
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Wall, bytes};

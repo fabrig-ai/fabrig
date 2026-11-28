@@ -353,7 +353,7 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
 
 ## 8. Open questions
 
-- **A closer's stops on a goal's path** (`branch-path.md`; `../branches.md`, 2): its close step's
+- **A closer's stops on a goal's path** (`branch-path.md`; `../branches-closer.md`, 1): its close step's
   change and its landing draw as a change into the goal's branch and
   the goal's landing do, with no stop of an agent's; whether the path
   names them "close" and "land", and a closer's card, is open. Default:

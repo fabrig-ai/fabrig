@@ -59,10 +59,6 @@ The pages a person meets it on are `../../client/pages/settings.md`, 2.
   land is its landing rules, a setting of kind 2, decided by its
   owners.
 
-## 2. temper's kinds
-
-Moved to [`settings-kinds.md`](settings-kinds.md), section 1.
-
 ## 3. How the landing rules are enforced
 
 - **Two standing requirements** in temper's stock rules, on the forge's
@@ -278,10 +274,6 @@ A stored document whose resource name is no forge branch renders with
 preserving what was stored. A settings file naming a document in that raw
 form is refused as out of shape; the accepted input form is the forge,
 repository and branch form above (2026-11-04).
-
-## 7. A model with a larger output
-
-Moved to [`settings-output.md`](settings-output.md), section 1.
 
 ## 8. The stock ways
 

@@ -51,7 +51,7 @@ A look request's round trip: drawing it, landing it, accounting for it and check
 - **Where it is drawn,** in this order:
   1. **Main's pages,** where a journey's print shows the state: the
      request edits them in place, as the journeys' writer last printed
-     them (`../journey-writer.md`, 6). Before it is drawn, its branch is
+     them (`../journey-writer-requests.md`, 1). Before it is drawn, its branch is
      on `origin/main` through `look-refresh.sh`. A journey whose print
      lags a landing is the writer's to print in the world, never the
      person's.
@@ -169,13 +169,13 @@ starts no browser to compare, and is complete when it lands:
    removes is checked in the terminal's prints, which keep their
    meaning: a heading the browser drops by style stays a heading.
 6. **Compare with `scripts/look-compare.sh NAME C`,** in the landing's
-   own tree (`../journey-writer.md`, 6.1). It prints the journeys whose
+   own tree (`../journey-writer-requests.md`, 1.1). It prints the journeys whose
    pages C changes into scratch with `temper-client-walk print`
    (`../journey-walks.md`, 5.1), a walk the request adds from its
    landed sources. It compares each page three ways with git, as C's
    parent holds it, as C holds it and as printed, and each rule C
    changes in an overlay with the landed stylesheets. Then it writes
-   the account's rows (section 5), its exit 0 where every edit and
+   the account's rows (`look-requests.md`, section 5), its exit 0 where every edit and
    rule landed. A row that differs is landed or explained; a conflict,
    the rules' cascade order and the TUI's rules are read. A walk that
    stops is repaired where the landing stopped it and named
@@ -184,7 +184,7 @@ starts no browser to compare, and is complete when it lands:
    journey's. The print walks in a world, with no box or replay of a
    committed recording. The landing commits no page or file printed
    beside one: the journeys' writer writes main's pages after it lands
-   (`../journey-writer.md`, 6).
+   (`../journey-writer-requests.md`, 1).
 7. **Account** (section 5), and bring the design text in line: the
    client's `../README.md` and `README.md`, the journeys' `README.md`
    files, `journeys.md`, 9, and the mockups' `../mockups/STATUS.md`.
@@ -210,7 +210,7 @@ After the landing, outside the plan, with no one watching: the
 journeys' writer's run, by a timer, within ten minutes of the commit
 carrying the request's `Look-landed` reaching main, prints main's tip
 and renders the request beside it with `temper-client-journeys
-look-render NAME C` (`../journey-writer.md`, 4 and 6.2). A world print
+look-render NAME C` (`../journey-writer.md`, 4, and `../journey-writer-requests.md`, 1.2). A world print
 compared byte for byte establishes no rendered equality with a
 request; this does.
 
@@ -249,12 +249,12 @@ request; this does.
   byte-equal print establish no real terminal's look, which stays
   temper/tui's (`../tui/journeys.md`, 11).
 - **The result:** an entry in `looks.html` beside the request's
-  journeys (`../journey-writer.md`, 6.3): identical, or each
+  journeys (`../journey-writer-requests.md`, 1.3): identical, or each
   difference, by page, element, width and property, with the request's
   value against the landed one. It lands with the pages in the writer's
   change, opened as whoever starts look requests' goals, whose end
   brings them the verdict. Each difference becomes a repair goal on the
-  person's yes, carrying the request's trailer (section 3); its last
+  person's yes, carrying the request's trailer (`look-requests.md`, section 3); its last
   commit carries a new `Look-landed`, which the next run checks
   again.
 
@@ -283,7 +283,7 @@ The script's rows are the evidence; the judgement is the landing's.
   for one landed with no `Look-landed`, once the last `Printed:` on main
   covers the commit carrying its trailer; a deferred row survives it
   only where the account put it (`journeys.md`, 7;
-  `../journey-writer.md`, 6).
+  `../journey-writer-requests.md`, 1).
 
 ## 6. More than the look
 

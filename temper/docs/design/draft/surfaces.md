@@ -14,7 +14,7 @@ pane, needs from elsewhere and talking with a role become v0.1.0's
 through `surfaces.md`, section 11. It wins where they differ
 until its plans fold it in. temper/ui carries out the web, the phone and
 the drafter's instructions, which are a chat's; temper/tui carries out
-the terminal. Reasons: `whole-story.md` and `notes.md`.
+the terminal. Reasons: `whole-story.md` and `whole-story.notes.md`.
 
 ## 1. In one page
 

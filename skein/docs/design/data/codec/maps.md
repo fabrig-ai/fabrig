@@ -379,7 +379,7 @@ schema's name, for:
 A wire's record is the one type its two sides share, each translating
 it into its own vocabulary (`temper/docs/design/draft/archive/codec-shape.md`,
 4.4). Its versions are frozen and its layouts named by fingerprint
-(`temper/docs/design/draft/layouts-both-ways.md`, 3), so a map is
+(`temper/docs/design/draft/archive/layouts-both-ways.md`, 3), so a map is
 written once against the family's text and moves with it.
 
 - **A maps file for each crate that translates:** a crate that

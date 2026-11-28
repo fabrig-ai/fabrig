@@ -1,16 +1,9 @@
 # hooks: status
 
-2026-11-28.
+2026-11-28. Where the design lags or departs from [hooks.md](hooks.md).
 
-## Design lags
-
-- 5: `../protocol/hooks.md`, 5, `../domain/landing-settings.md`, 1.1, `../protocol/configuration/engine.md` and `../domain/agent/charter.md`, section 4: `.temper/pre-pr`, `merge_job` and `close_job` are still read for a repository without `.temper/hooks/`, `check_timeout_ms` still bounds checks, and `temper ctl` takes all three settings. `../protocol/configuration/reference.md` and `tools/pre-pr/design.md`: fabrig keeps `.temper/pre-pr`, `merge`, `close` and `checked-close` as wrappers. Goal H2's.
-
-## Design departs
-
-- 3.3: temper's conventions name the hooks directory, `.temper/hooks`, whose `deliver` and `finish` smith takes as the check for each moment, rather than a path for each (smith's `protocol/charter.md`, section 2; `../protocol/hooks.md`, 4.1). A moment's hook is named for smith's own tool, so the directory says both, and the rule by repository needs the directory anyway. Decided by goal 20277's designer, 2026-11-27, keeping the draft's intent where its letter names two paths.
-- 3.4: `.temper/hooks/config.toml` is read as a subset of TOML, headers and `timeout_seconds = N` lines with comments, and any other form, valid TOML or not (a dotted key, an inline table, `1_800`), is the hook's failure as a file that doesn't parse, named with its line (`../protocol/hooks.md`, 2.3 and 6). The worker reads it in its own steps, with no TOML library there, and a form it refuses is never misread. Decided by goal 20452's designer, 2026-11-27, keeping the draft's file, tables and key.
-
-## Open
-
-- `ways-temper-dir.md`, 4, and `ways.md`, 10 and 11, point to this draft for hooks instead of the first pass's three hooks, `close` run from the landing branch's tip where its refusal holds a landing, fallback by moment, and hooks after `.temper/`'s guarded read. On the user's word (2026-11-27), the remaining ways follow-up waits for its next pass: a way's path still shows a goal's catch-up by `merge_job` alone (`../protocol/hooks.md`, 7).
+- **Design lags:** 5: `../protocol/hooks.md`, 5, `../domain/landing-settings.md`, 1.1, `../protocol/configuration/engine.md` and `../domain/agent/charter.md`, section 4: `.temper/pre-pr`, `merge_job` and `close_job` are still read for a repository without `.temper/hooks/`, `check_timeout_ms` still bounds checks, and `temper ctl` takes all three settings. `../protocol/configuration/reference.md` and `tools/pre-pr/design.md`: fabrig keeps `.temper/pre-pr`, `merge`, `close` and `checked-close` as wrappers. Goal H2's.
+- **Design departs:**
+  - 3.3: temper's conventions name the hooks directory, `.temper/hooks`, whose `deliver` and `finish` smith takes as the check for each moment, rather than a path for each (smith's `protocol/charter.md`, section 2; `../protocol/hooks.md`, 4.1). A moment's hook is named for smith's own tool, so the directory says both, and the rule by repository needs the directory anyway. Decided by goal 20277's designer, 2026-11-27, keeping the draft's intent where its letter names two paths.
+  - 3.4: `.temper/hooks/config.toml` is read as a subset of TOML, headers and `timeout_seconds = N` lines with comments, and any other form, valid TOML or not (a dotted key, an inline table, `1_800`), is the hook's failure as a file that doesn't parse, named with its line (`../protocol/hooks.md`, 2.3 and 6). The worker reads it in its own steps, with no TOML library there, and a form it refuses is never misread. Decided by goal 20452's designer, 2026-11-27, keeping the draft's file, tables and key.
+- **Open:** `ways-temper-dir.md`, 4, and `ways.md`, 10 and 11, point to this draft for hooks instead of the first pass's three hooks, `close` run from the landing branch's tip where its refusal holds a landing, fallback by moment, and hooks after `.temper/`'s guarded read. On the user's word (2026-11-27), the remaining ways follow-up waits for its next pass: a way's path still shows a goal's catch-up by `merge_job` alone (`../protocol/hooks.md`, 7).

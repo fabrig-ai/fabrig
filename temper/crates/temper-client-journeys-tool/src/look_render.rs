@@ -1,4 +1,4 @@
-//! A landed look request rendered beside the print (temper/docs/design/client/journey-writer.md, 6.2).
+//! A landed look request rendered beside the print (temper/docs/design/client/journey-writer-requests.md, 1.2).
 
 use std::{
     borrow::Cow,

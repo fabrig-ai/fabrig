@@ -31,13 +31,13 @@
 - **The adoption request is the forge's own,** keyed as any party's
   request (`../../client/forge/family.md`, 4): the root takes it from the protocol
   layer typed, and the connector refuses a forge the deployment does not
-  keep, and an ended one as not connected (5); then locates the
+  keep, and an ended one as not connected (`adoption-connection.md`, 1); then locates the
   repository (`Read::Locate { owner, name }`, answered
   `Answer::Located { repository }`); then the root makes jig's
   adoption request on the person's behalf (jig's `domain/people/acts.md`,
   1), in which the connector reads what temper may do there (below)
   before the core commits the adoption (jig's `domain/connectors.md`,
-  12). A forge not connected refuses it first, as such (5); a managed
+  12). A forge not connected refuses it first, as such (`adoption-connection.md`, 1); a managed
   or owned Forgejo's access is asked for before the reads (6). Its
   outcome is the adoption's: adopted, refused by the core with jig's
   reasons, or refused by the forge with the connector's. The
@@ -98,7 +98,7 @@
   gives the human collaborators to the core as parties known by their forge
   account: provider 0, with the subject of the repository's forge and the
   collaborator's user (`../../protocol/store.md`, section 2). temper's own writer
-  is excluded, and so is the user the forge's link names (10): the link's
+  is excluded, and so is the user the forge's link names (`adoption-person.md`, 1): the link's
   person is known there already. The
   project's configuration maps each permission to a role, given to those
   with no role in the project yet (jig's `domain/people/README.md`, section 4):
@@ -111,7 +111,7 @@
   means nothing without its forge: GitHub's user 3 isn't Forgejo's, and anyone
   may post a review on a public repository's pull request. The root's
   `forge_person` answers the link's person when the forge's link names that
-  user (10), else the party whose key is provider 0's subject for that
+  user (`adoption-person.md`, 1), else the party whose key is provider 0's subject for that
   pair, with their role in the project, else unknown. A party seeded for
   the link's user before the link was made stays, role and all, but is
   never answered on that forge: nothing merges. Every reader of a
@@ -160,10 +160,6 @@
   owned Forgejo's adoption asks for is the setup host's run, not an
   effect of the connector's (6), and so are the labels a project's
   findings use (`../findings.md`, section 2).
-
-## 5. Connected or not, ended and removed
-
-Moved to [`adoption-connection.md`](adoption-connection.md), section 1.
 
 ## 6. Access at adoption
 
@@ -247,7 +243,7 @@ suspended marks them until it is unsuspended. The marks are held in
 memory, never stored. A marked repository is shown with what would make
 it reachable again (`../../client/forge/README.md`, a repository's health). Its
 calls meet `Missing`, `NotInstalled` or `Forbidden`, which the connector
-takes there as access lacking, as `NotConnected` is (5): nothing is
+takes there as access lacking, as `NotConnected` is (`adoption-connection.md`, 1): nothing is
 narrowed, and its changes wait.
 
 ## 8. What adoption says of the branch's rules
@@ -353,14 +349,10 @@ public address, adopted into a project when `into` names one
   is asked again runs its plan, which finds its copy finished, and
   adopts it.
 - **Adopted,** the row is erased in the decision that hears jig's answer.
-- **A forge removed** erases its rows in its removal's decision (5),
+- **A forge removed** erases its rows in its removal's decision (`adoption-connection.md`, 1),
   and its live run ends with the forge's runs (skein's `forge/setup/README.md`, 4.3).
 - **A project deleted** while a row names it: the act is refused, and the
   row says so.
-
-## 10. A box's person on its forges
-
-Moved to [`adoption-person.md`](adoption-person.md), section 1.
 
 ## 11. Its CI workflows
 
@@ -454,7 +446,7 @@ apart.
   the forge's `name_bytes`, as the adoption's `landing` is. A record
   stored before the field reads it empty, the default its plan gives;
   the store's decoder then takes the record's `settings.default_branch`
-  for it, as the record is read (`../../draft/layouts-both-ways.md`,
+  for it, as the record is read (`../../draft/archive/layouts-both-ways.md`,
   4.2 and 4.4). Since no adoption keeps an empty landing, empty means
   that layout alone, and an existing repository lands where it did. A
   record is written with its landing whole. No version moves, and no
@@ -472,7 +464,7 @@ apart.
     whose change names no base;
   - the closer: whether the landing branch holds the goal branch, the
     goal's landing into it, and the pulls its report quotes as landed
-    there (`branches.md`, 2); and a closer-ended goal's skip of the
+    there (`branches-closer.md`, 1); and a closer-ended goal's skip of the
     landing branch's landings;
   - the landing queue: a train's batch cap and the project's landing
     gates and their proofs, a held goal branch's upstream, and a

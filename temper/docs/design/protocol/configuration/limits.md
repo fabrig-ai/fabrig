@@ -344,14 +344,6 @@
   | `sign_in.body_bytes` | an answer's body from Google: the key set or the token |
   | `sign_in.url_bytes` | a configured endpoint, and the authorization URL given to the browser |
   | `sign_in.secret_bytes` | the client secret |
-## 5. Startup checks
-
-Moved to [`limits-startup.md`](limits-startup.md), section 1.
-
-## 6. Engine and client bounds
-
-Moved to [`limits-client.md`](limits-client.md), section 1.
-
 ## 7. Memory and concurrency
 
 - **The engine's byte budget** is the limit `transcript_memory`, a

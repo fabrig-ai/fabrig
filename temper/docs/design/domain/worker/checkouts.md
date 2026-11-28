@@ -197,78 +197,6 @@ Preparing a checkout is in [`checkouts-prepare.md`](checkouts-prepare.md); pushi
     after a worker's restart or a burst of due work alike
     (`../../draft/archive/redeploys.md`, 6.4).
 
-## 8. Prepare
-
-Moved to [`checkouts-prepare.md`](checkouts-prepare.md), section 1.
-
-## 9. The landing pin
-
-Moved to [`checkouts-prepare.md`](checkouts-prepare.md), section 2.
-
-## 10. The replaced head's pin
-
-Moved to [`checkouts-prepare.md`](checkouts-prepare.md), section 3.
-
-## 11. A named pin
-
-Moved to [`checkouts-prepare.md`](checkouts-prepare.md), section 4.
-
-## 12. Main's counts
-
-Moved to [`checkouts-prepare.md`](checkouts-prepare.md), section 5.
-
-## 13. A goal's reds for each check
-
-Moved to [`checkouts-prepare.md`](checkouts-prepare.md), section 6.
-
-## 14. An existing producer branch
-
-Moved to [`checkouts-prepare.md`](checkouts-prepare.md), section 7.
-
-## 15. A base with heads merged in
-
-Moved to [`checkouts-prepare.md`](checkouts-prepare.md), section 8.
-
-## 16. A merge in progress
-
-Moved to [`checkouts-prepare.md`](checkouts-prepare.md), section 9.
-
-## 17. A goal's later run
-
-Moved to [`checkouts-prepare.md`](checkouts-prepare.md), section 10.
-
-## 18. Push commits what the run checked
-
-Moved to [`checkouts-push.md`](checkouts-push.md), section 1.
-
-## 19. A design delivery
-
-Moved to [`checkouts-push.md`](checkouts-push.md), section 2.
-
-## 20. A save pushes unchecked
-
-Moved to [`checkouts-push.md`](checkouts-push.md), section 3.
-
-## 21. A landed dependency's catch-up
-
-Moved to [`checkouts-push.md`](checkouts-push.md), section 4.
-
-## 22. Each repository lands on its own
-
-Moved to [`checkouts-push.md`](checkouts-push.md), section 5.
-
-## 23. A task's own delivery outlives its hold
-
-Moved to [`checkouts-push.md`](checkouts-push.md), section 6.
-
-## 24. Pushes are never cancelled
-
-Moved to [`checkouts-push.md`](checkouts-push.md), section 7.
-
-## 25. Saved work
-
-Moved to [`checkouts-push.md`](checkouts-push.md), section 8.
-
 ## 26. A workspace kept for its run
 
 - **A workspace kept for its run.** A run a drain or a stop cut, whose
@@ -358,14 +286,6 @@ Moved to [`checkouts-push.md`](checkouts-push.md), section 8.
   or commits, names the repository's identity, which the protocol layer
   maps to credentials or an author for that invocation only, never into a
   checkout's configuration, where an agent could read them.
-
-## 28. Merge commits' titles
-
-Moved to [`checkouts-prepare.md`](checkouts-prepare.md), section 11.
-
-## 29. A failed prepare says where and why
-
-Moved to [`checkouts-prepare.md`](checkouts-prepare.md), section 12.
 
 ## 30. Open questions
 

@@ -34,7 +34,7 @@ Kind 4's members, each with its default and the section it serves:
 | `combine`: how a train combines its members (`landing-prepare.md`, 1.2), `merge` or `squash`, `main` for the trains into a repository's main and `other` for those into any other branch | `merge`; `squash` | `landing-prepare.md`, 1.2, and `landing-turn.md`, 1 |
 | `prepare`, `key`: paths in the home, or none; `home_revision`; `prepare_timeout` | temper's own prepare and key | `landing-prepare.md`, 1.3, `landing-proof.md`, 1.1 |
 | `merge_job`: a path in each repository it merges that holds no `.temper/hooks/`, or none; a repository with one runs its `merge` hook and ignores it (`../protocol/hooks.md`, 5) | none: a conflict goes to a resolution at once | `forge/change/repairs.md` and `forge/updates.md`, 1 |
-| `close_job`: a path in each repository a goal's branch is in that holds no `.temper/hooks/`, or none, as `merge_job`; `landing_attempts`, 1 to 255 | none; 3 | `forge/branches.md`, 2 |
+| `close_job`: a path in each repository a goal's branch is in that holds no `.temper/hooks/`, or none, as `merge_job`; `landing_attempts`, 1 to 255 | none; 3 | `forge/branches-closer.md`, 1 |
 | `check_timeout`: the delivery checks' wall bound in a run delegated for one of the project's changes, or none | none: the agent's own | `../protocol/configuration/engine.md`, `landing` |
 | `hook_timeout_max_seconds`: the ceiling on any of the project's hooks' time, whole seconds from 1 to 86,400, and its merge and close jobs' deadline | 3,600 | `../protocol/hooks.md`, 2.3 |
 | `flakes`: whether the project's checks can flake, `none` or `rerun N`, N from 0 to the deployment's `checkout.rerun_processes` | `rerun` at that figure | `forge/judgement.md`, 4 |

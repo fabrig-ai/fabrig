@@ -81,7 +81,7 @@ of domain/host.md, section 2.
   started without smith's tools to a run's failures, and version 8 a
   model failure's status to its report.
   Its version is frozen at 14, as every wire's is (temper's
-  `draft/layouts-both-ways.md`, 3, which the user approved on
+  `draft/archive/layouts-both-ways.md`, 3, which the user approved on
   2026-11-18, in place of the owner's rule of 2026-11-12 that moved it
   with every change to its layout): a change is made in its current text
   alone, its `schema/` holds that text and no other, and no older text

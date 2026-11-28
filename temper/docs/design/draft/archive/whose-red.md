@@ -1,6 +1,6 @@
 # whose-red: one way to judge a red, one release rule, and temper's own writes
 
-Draft, 2026-11-25, on the user's word: the fourth of the five drafts the user accepted on 2026-11-20, from the review of goal execution on the reference deployment (its group on the change lifecycle). It builds on [bounded-waits.md](bounded-waits.md), where every wait is a record with a bound and every hold names its cause and its way out (8), and on [landing-liveness.md](landing-liveness.md), whose landings settle what they hold. Its reasons are in [whose-red.notes.md](whose-red.notes.md), its execution in [whose-red.execution.md](whose-red.execution.md).
+Draft, 2026-11-25, on the user's word: the fourth of the five drafts the user accepted on 2026-11-20, from the review of goal execution on the reference deployment (its group on the change lifecycle). It builds on [../bounded-waits.md](../bounded-waits.md), where every wait is a record with a bound and every hold names its cause and its way out (8), and on [../landing-liveness.md](../landing-liveness.md), whose landings settle what they hold. Its reasons are in [whose-red.notes.md](whose-red.notes.md), its execution in [whose-red.execution.md](whose-red.execution.md).
 
 ## 1. In one page
 
@@ -20,7 +20,7 @@ What it leaves to the other drafts is in section 9.
 
 | What happened | Why it went on | Section |
 |---|---|---|
-| Goals 15519 and 15520's close checks refused on test failures on 11-25, and each ran three more times in full before holding: about 23 and 8 minutes of a worker, the goal hearing that much later | Any nonzero exit is the close command's failure (`../protocol/tooling.md`, 4.2), which jig tries three more times. pre-PR's replay cache (b025ef123f) repeats a budget or format refusal, but not a test failure, and a repeat still spends a try | 4 |
+| Goals 15519 and 15520's close checks refused on test failures on 11-25, and each ran three more times in full before holding: about 23 and 8 minutes of a worker, the goal hearing that much later | Any nonzero exit is the close command's failure (`../../protocol/tooling.md`, 4.2), which jig tries three more times. pre-PR's replay cache (b025ef123f) repeats a budget or format refusal, but not a test failure, and a repeat still spends a try | 4 |
 | pre-PR exits 1 for a refusal and for an exception in its own code alike, and `temper/check-results` reads `refused` for both | The check's outer contract has two outcomes, not three | 3.1 |
 | A goal's full pre-PR can run a failing test's process again and pass it as a flake, up to the bound in its checkout's `temper/rerun` (`checkout.rerun_processes`, stock 4, where a worker writes it). fabrig's checks run only tests that replay, so such a pass would hide a bug. It never fired for fabrig: the CI runner's checkouts have no marker, so the bound is 0, and close mode never reruns. The reference deployment's figure was set to 0 on 11-25 as a guard | Whether a project's checks can flake is a deployment figure and a marker, not the project's statement | 3.3 |
 | A plain no-change landing repair holds `Failed`, and its release asks a fresh repair (P67). A no-change CI repair reruns and can ask more repairs up to the allowance of 80 (F22). A repair's flake or no-test verdict holds until a release lets it regate once (F64, F127) | Each found its own path | 5 |
@@ -33,8 +33,8 @@ What it leaves to the other drafts is in section 9.
 
 ### 3.1 What a check can show
 
-- **A record,** where a check promises one: passed or refused, the tree and the base it judged, and each failure by its key and class, as pre-PR's `pre-pr-failures 1` record does (`tools/pre-pr/design.md`, 6), or a gate's configured report (`../domain/landing-proof.md`, 1.2).
-- **What the run shows,** where it promises none: a failed status, a failed workflow step, a failed job with its log (`../domain/landing-proof.md`, 2.3). These stay as they are judged today: a failure with no fact of the runner's is the change's.
+- **A record,** where a check promises one: passed or refused, the tree and the base it judged, and each failure by its key and class, as pre-PR's `pre-pr-failures 1` record does (`tools/pre-pr/design.md`, 6), or a gate's configured report (`../../domain/landing-proof.md`, 1.2).
+- **What the run shows,** where it promises none: a failed status, a failed workflow step, a failed job with its log (`../../domain/landing-proof.md`, 2.3). These stay as they are judged today: a failure with no fact of the runner's is the change's.
 - **Candidate diagnostics are the change's:** a compiler error, a lint, a test failure, an exceeded count, wherever they show, a helper the check builds from the candidate's tree included. **Errors of the check or its machine are not:** an exception in the checker's own code, a signal, a lost process, a full disk, a network or forge read that failed, a deadline.
 - **A record's promise binds its check.** A check that promises a record and ends without one, or with a refusal that names no failure, didn't judge the change. pre-PR gains a third outcome for its own errors (4.1), so `refused` means the change was judged.
 
@@ -52,13 +52,13 @@ Code judges each outcome once, by one function, the same at every site (3.4):
 - **A verified red stands.** When one job of a check refused and another failed for the runner, the check is refused: the runner's fault never hides a red already shown.
 - **Not the change's, never repaired.** The runner's and broke never spend the change's repairs and never reach a repair's brief as its red.
 - **An agent's verdict** on a repair it made (a flake, no failing test) is no class: section 5 reads it.
-- **Advisory gates** are judged the same and hold nothing, as today (`../domain/landing-proof.md`, 2.2).
+- **Advisory gates** are judged the same and hold nothing, as today (`../../domain/landing-proof.md`, 2.2).
 
 ### 3.3 Whether a project's checks can flake
 
 - **A project setting**, `checks.flakes`: `none`, or `rerun N`, N at most the deployment's `checkout.rerun_processes`. Stock: `rerun` at that figure, as today.
-- **With `none`:** every checkout temper prepares or dispatches for the project's checks, on a worker or a CI runner, has `temper-rerun 1 0` (`../domain/forge/reds.md`, 5.2). The landing gate runs no known-flake rerun (`../domain/landing-regate.md`, 2), and no flake finding is filed for the project. A test that fails is the change's red, or a repair shows it isn't (5). A test that passes alone after failing beside others is still red, its log naming the tests before it, as today.
-- **The after-landing tiers keep their one rerun:** a project's `flakes` doesn't reach them. A red tier runs its failed tests again and calls those that pass a flake, kept on the tier's record (`../domain/after-landing.md`, 5.2), whatever the setting says (the drafter, 2026-11-26).
+- **With `none`:** every checkout temper prepares or dispatches for the project's checks, on a worker or a CI runner, has `temper-rerun 1 0` (`../../domain/forge/reds.md`, 5.2). The landing gate runs no known-flake rerun (`../../domain/landing-regate.md`, 2), and no flake finding is filed for the project. A test that fails is the change's red, or a repair shows it isn't (5). A test that passes alone after failing beside others is still red, its log naming the tests before it, as today.
+- **The after-landing tiers keep their one rerun:** a project's `flakes` doesn't reach them. A red tier runs its failed tests again and calls those that pass a flake, kept on the tier's record (`../../domain/after-landing.md`, 5.2), whatever the setting says (the drafter, 2026-11-26).
 - **fabrig's is `none`** (the user, 2026-11-25: pre-PR "is deterministic and shouldn't flake", and the landing gate's known-flake rerun goes with it): its checks run only tests that replay, which own their clock, seeds and kernel (`tools/tiers/layers.md`, 6.1). A test that fails and then passes is a determinism bug, to be fixed where it lies.
 
 ### 3.4 At each site
@@ -67,14 +67,14 @@ Code judges each outcome once, by one function, the same at every site (3.4):
 |---|---|---|
 | A delivery's checks | the run gets the refusal and its record, as today | the run is told the check didn't judge, and why, and may deliver again. Today every nonzero exit is a refusal (smith's `domain/run-delivery.md`, 1.1) |
 | A change's CI | a counted repair, as today | a rerun within the runner's allowance (`forge.change_policy.reruns`), then a hold |
-| A landing's gate | the red unit's repairs, as today | the gate's retries (`gate_retries`), then a hold on the landing (`../domain/landing-proof.md`, 2.4) |
+| A landing's gate | the red unit's repairs, as today | the gate's retries (`gate_retries`), then a hold on the landing (`../../domain/landing-proof.md`, 2.4) |
 | A goal's close | the close holds at once (4) | the job is tried again in its class, then held |
 
 ## 4. A check that refused holds at once
 
 ### 4.1 The close command's typed refusal
 
-The close command (`../protocol/tooling.md`, 4.2) keeps its exits, and its exit 3 gains a meaning. The worker already reads `result.json` after exit 0 or 3, as merge's exit 3 finishes with a result and delivers nothing (4.1 there):
+The close command (`../../protocol/tooling.md`, 4.2) keeps its exits, and its exit 3 gains a meaning. The worker already reads `result.json` after exit 0 or 3, as merge's exit 3 finishes with a result and delivers nothing (4.1 there):
 
 - **Exit 0,** as today: settled, and what it staged committed and pushed. Nothing staged is success with no change.
 - **Exit 3, refused:** `result.json` is `{"refused": {"tree": T, "base": B, "failures": [...], "more": N}}`, its failures cut to the kind's result bound as `merge`'s are. Nothing is committed or pushed. The job finishes, spending no try, and the close change holds at once with the refusal (4.2).
@@ -86,8 +86,8 @@ In fabrig, `.temper/checked-close` settles, then runs pre-PR's close check. With
 
 ### 4.2 Its hold and its release
 
-- **The hold** is the close change's refusal (6.1). Its words name the first failures and the record, and it escalates to the goal at once, as a held close does today (`../domain/forge/change/repairs-releases.md`, 1).
-- **Its release** checks again only when what the close checked has changed: the goal's branch tip, its landing branch's tip, or the published counts the check judged against (`tools/pre-pr/design.md`, 4), each recorded with the refusal. Landed work supersedes a held close, as today (`../domain/forge/branches.md`, 2). Its decider may ask for a fresh measurement instead (6.3).
+- **The hold** is the close change's refusal (6.1). Its words name the first failures and the record, and it escalates to the goal at once, as a held close does today (`../../domain/forge/change/repairs-releases.md`, 1).
+- **Its release** checks again only when what the close checked has changed: the goal's branch tip, its landing branch's tip, or the published counts the check judged against (`tools/pre-pr/design.md`, 4), each recorded with the refusal. Landed work supersedes a held close, as today (`../../domain/forge/branches-closer.md`, 1). Its decider may ask for a fresh measurement instead (6.3).
 - **A close that broke** has no verdict to keep: its release runs it again, unchanged inputs or not.
 - **The replay cache retires.** With no try after a refusal, pre-PR's cache of hard refusals (`tools/pre-pr/design.md`, 4) has nothing left to replay.
 
@@ -104,7 +104,7 @@ In fabrig, `.temper/checked-close` settles, then runs pre-PR's close check. With
 
 ### 6.1 One hold, with a cause
 
-A held change keeps one record: the step it held at, its cause, its words, its *since* and its way out (`bounded-waits.md`, 8). The fourteen arms become causes of four kinds:
+A held change keeps one record: the step it held at, its cause, its words, its *since* and its way out (`../bounded-waits.md`, 8). The fourteen arms become causes of four kinds:
 
 | Kind | Causes |
 |---|---|
@@ -115,12 +115,12 @@ A held change keeps one record: the step it held at, its cause, its words, its *
 
 ### 6.2 What a release does
 
-One function, for every cause, taken once per hold revision and fenced against reads made before it, as releases are today (`../domain/forge/change/repairs-releases.md`, 1):
+One function, for every cause, taken once per hold revision and fenced against reads made before it, as releases are today (`../../domain/forge/change/repairs-releases.md`, 1):
 
-1. **Settle what is owed first:** a delegate's durable result, an accepted decision, an effect in flight (an uncertain write is read back before anything else), a landing's ask or its uncertain merge (`landing-liveness.md`, 5.2). These are kept, never forgotten.
+1. **Settle what is owed first:** a delegate's durable result, an accepted decision, an effect in flight (an uncertain write is read back before anything else), a landing's ask or its uncertain merge (`../landing-liveness.md`, 5.2). These are kept, never forgotten.
 2. **Forget what is stale:** the held step's reads, pins and verdicts, except a held judgement's verdict with the inputs it judged, and the spent allowance of the cause alone. The change's owned pull, its identity and the record of its writes (7) are kept.
 3. **Read afresh:** the branch, its base and the pull, through the record of temper's writes, so a view behind them waits rather than holds again.
-4. **Re-enter at the earliest step the fresh facts support:** producing with no branch, opening with no pull, checking at a new head, gating at the same head with its asks cleared, as the change's steps run them (`../domain/forge/change/README.md`, 2).
+4. **Re-enter at the earliest step the fresh facts support:** producing with no branch, opening with no pull, checking at a new head, gating at the same head with its asks cleared, as the change's steps run them (`../../domain/forge/change/README.md`, 2).
 
 The engine's own releases keep their triggers (a green read at the head ends a CI hold, a delegate's end ends its stall) and go through the same function. A change blocked at any step is moved on by its release, so a cancel and a fresh cut (F2) are never needed to unblock one.
 
@@ -141,13 +141,13 @@ The engine's own releases keep their triggers (a green read at the head ends a C
 ### 7.2 Drift is a change no record explains
 
 - **A fresh read is explained** when it is the after state of the newest settled entry on its resource, or the after state of an entry still admitted, sent or uncertain, in order. A pull closed or retargeted is explained only by temper's own close or retarget.
-- **A view behind the record** (a read that is the before state of a confirmed entry, or an older head of the same history) waits for the caller that needs the fresh fact, read again until it catches up, within that caller's wait bound (`bounded-waits.md`, 4). A caller that doesn't need the fact doesn't wait for it.
+- **A view behind the record** (a read that is the before state of a confirmed entry, or an older head of the same history) waits for the caller that needs the fresh fact, read again until it catches up, within that caller's wait bound (`../bounded-waits.md`, 4). A caller that doesn't need the fact doesn't wait for it.
 - **Drift** is a change no entry explains: another actor's push, a move backwards, a reset to an older commit of temper's after a newer one was confirmed, a pull closed or retargeted by someone else. It holds as today, its words naming the expected state, the observed one and the nearest entry.
 - **Can't tell.** Where the forge can't tell a stale view from another actor's write (a read of an older commit of temper's own, with no actor evidence), the caller reads again within its bound, then holds with words saying the read may be stale or another's write.
 
 ### 7.3 Its room
 
-- **Admission waits for room.** The record has a figure of its own per resource. A write that finds it full waits before it's sent, a `room` wait (`bounded-waits.md`, 3.2), and names the figure. Only confirmed entries are ever evicted, oldest first. An admitted, sent or uncertain entry is never evicted.
+- **Admission waits for room.** The record has a figure of its own per resource. A write that finds it full waits before it's sent, a `room` wait (`../bounded-waits.md`, 3.2), and names the figure. Only confirmed entries are ever evicted, oldest first. An admitted, sent or uncertain entry is never evicted.
 
 ### 7.4 What it replaces
 
@@ -166,7 +166,7 @@ The pair of heads F108 keeps beside a branch hold, the lagging-head exceptions o
 - **Provider failures, accounts and funding,** classified as limited, refused, out of credits or a model not served: the fifth draft. A run's model failures are not checks.
 - **One capacity model:** here a starved run is judged as the testing strategy says; how much room a gate gets is the review's capacity part, for a later draft.
 - **One structured record of what a check found, for every brief:** this draft needs only what each site can show of a verdict (3.1). What a repair's brief reads of it stays as it is.
-- **Waits and holds' words:** [bounded-waits.md](bounded-waits.md). **A landing's members and endings:** [landing-liveness.md](landing-liveness.md).
+- **Waits and holds' words:** [../bounded-waits.md](../bounded-waits.md). **A landing's members and endings:** [../landing-liveness.md](../landing-liveness.md).
 
 ## 10. Tests
 

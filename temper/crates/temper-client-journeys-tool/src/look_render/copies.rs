@@ -1,4 +1,4 @@
-//! Two copies of the journeys and their stylesheets (temper/docs/design/client/journey-writer.md, 6.2, step 3).
+//! Two copies of the journeys and their stylesheets (temper/docs/design/client/journey-writer-requests.md, 1.2, step 3).
 
 use std::{
     collections::{BTreeMap, BTreeSet},

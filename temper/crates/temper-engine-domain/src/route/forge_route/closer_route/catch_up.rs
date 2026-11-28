@@ -1,5 +1,5 @@
 //! A closer's catch-up belongs to the close request that found the goal outdated
-//! (temper/docs/design/domain/forge/branches.md, 2).
+//! (temper/docs/design/domain/forge/branches-closer.md, 1).
 use super::super::forge_change::{CloseAt, CloseOutdated};
 use super::super::{ChangeBuildRefused, ChangeOrigin, chat_change};
 use super::{Box, Domain, List, c, forge, tasks};

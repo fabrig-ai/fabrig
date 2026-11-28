@@ -665,7 +665,7 @@ As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
   own that moves the overlay's rules into `temper-client-tui`'s theme
   (its palette, its tokens' paints, its borders and glyphs) and the
   frames' changes into its view and words. It compares with
-  `scripts/look-compare.sh NAME C` (`../journey-writer.md`, 6.1), which
+  `scripts/look-compare.sh NAME C` (`../journey-writer-requests.md`, 1.1), which
   lists the theme's rules for reading, and commits no frame
   (`../web/look-requests.md`, 3). Its last commit, carrying the
   account, carries `Look-landed: NAME` too. The writer prints main

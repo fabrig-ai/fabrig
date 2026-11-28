@@ -6,7 +6,7 @@ which they are, their frozen versions and their layouts, what the
 engine and a worker state of them at their opening, how the engine
 converts between its layouts and a worker's, what a mismatch costs, how
 the host tools' contract is answered across versions, and how
-`versions` prints them. It carries `../draft/layouts-both-ways.md`,
+`versions` prints them. It carries `../draft/archive/layouts-both-ways.md`,
 sections 3, 5 and 6, and `../draft/archive/redeploys.md`, sections 3.4, 4.4 and
 8, for temper's parts. The mechanisms are skein's
 (`skein/docs/design/data/codec/layouts.md`, plans;
@@ -67,7 +67,7 @@ them.
 
 ### 3.1 The rule
 
-- **A worker wire's version is frozen** (`../draft/layouts-both-ways.md`,
+- **A worker wire's version is frozen** (`../draft/archive/layouts-both-ways.md`,
   3): `jig-worker-wire` at 22, `smith-pieces` at 1, `smith-charter` at
   5, `smith-transcript` at 8, `smith-channel` at 14 and
   `temper-worker-wire` at 12, their headers'. Their crates keep no old
@@ -398,7 +398,7 @@ them.
   `temper-public-wire` (`temper/crates/temper-client-protocol-wire`),
   and the reference UI's `jig-client-view-records`
   (`jig/crates/jig-client-view`).
-- **Their versions are frozen** (`../draft/layouts-both-ways.md`, 3),
+- **Their versions are frozen** (`../draft/archive/layouts-both-ways.md`, 3),
   with no kept text, no patch, no bridge and no list of layouts: a
   layout is the family's fingerprint, and the gate refuses a landing
   that moves one of their versions, naming the family. The base is the

@@ -3807,6 +3807,43 @@ fn revision_show_hydrates_replaced_values_for_every_edit() {
 }
 
 #[test]
+fn revision_show_distinguishes_application_and_jig_removals_in_json() {
+    let document = c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
+        head: head(c::RevisionDecider::Release),
+        items: list([
+            c::RevisionItem {
+                setting: c::Setting::Application { kind: 21, scope: 0, number: 1 },
+                edit: c::RevisionEdit::Application(c::SizedEdit::Remove),
+                replaced: c::RevisionReplaced::Default,
+            },
+            c::RevisionItem {
+                setting: c::Setting::Charter(c::SettingNumber { number: 9 }),
+                edit: c::RevisionEdit::Removed,
+                replaced: c::RevisionReplaced::Default,
+            },
+        ]),
+    })));
+
+    let json = read(&["revision", "show", "5", "--json"], document.clone());
+    assert_eq!(json.status, 0);
+    let value: serde_json::Value = serde_json::from_slice(&json.stdout).expect("revision JSON");
+    assert_eq!(
+        value["items"],
+        serde_json::json!([
+            {"setting": {"kind": "agents"}, "application": "removed", "replaced": "default"},
+            {"setting": {"kind": "charter", "number": 9_u32}, "edit": "removed", "replaced": "default"},
+        ])
+    );
+
+    let text = read(&["revision", "show", "5"], document);
+    assert_eq!(text.status, 0);
+    let words = core::str::from_utf8(&text.stdout).expect("revision text");
+    for line in ["  agents: removed", "  charter 9: removed"] {
+        assert!(words.lines().any(|words| words == line), "missing revision line: {line}\n{words}");
+    }
+}
+
+#[test]
 fn revision_show_preserves_unavailable_and_oversized_replaced_values() {
     let preset = crate::limits::tools();
     let forgotten =

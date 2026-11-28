@@ -1,21 +1,5 @@
 # The processes and the binaries
 
-## 6. The box's command table
-
-Moved to [`binaries-box.md`](binaries-box.md), section 1.
-
-## 7. The client's binary
-
-Moved to [`binaries-client.md`](binaries-client.md), section 1.
-
-## 8. The box's commands
-
-Moved to [`binaries-box.md`](binaries-box.md), section 2.
-
-## 9. Standalone processes
-
-Moved to [`binaries-box.md`](binaries-box.md), section 3.
-
 ## 1. The deployment's binaries
 
 A deployment's processes each run a binary of their own

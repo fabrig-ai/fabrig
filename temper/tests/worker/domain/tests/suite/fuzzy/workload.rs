@@ -1,4 +1,4 @@
-//! Workloads and their two ledgers (`temper/docs/design/testing/workloads.md`, 8.1).
+//! Workloads and their two ledgers (`temper/docs/design/testing/workloads-sweeps.md`, 1.1).
 use skein_world::sweep::Sweep;
 use temper_faults::{bounds, parks};
 use temper_worker_domain_world::whole::workload;

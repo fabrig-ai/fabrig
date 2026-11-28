@@ -37,7 +37,7 @@ reaches 100,000 bytes; the remaining fake-program and live proof is `smith/docs/
   - 2, 7, 10: `archive/goal-runs-itself.md`, sections 1 to 7, replaces the
     agent's landing, close-out and finish with a closer: jig makes it
     when nothing is left to await, and temper settles the status tags,
-    lands the goal and reports (`../domain/forge/branches.md`, 2). The design
+    lands the goal and reports (`../domain/forge/branches-closer.md`, 1). The design
     writes status up front, with no close-out change after landing.
     The goal has no main-landing subscription or catch-ups; its agent
     wakes for judgement, with reds reaching it through its branch's

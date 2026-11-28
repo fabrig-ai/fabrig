@@ -29,14 +29,6 @@
   The engine serves exactly one version (jig's `protocol/client/versions.md`, section 1): a client of another
   is out of date for the forge (`family.md`, 4), and its kept adoption is dropped
   as kept work at start (`../line.md`, 6; jig's `protocol/client/small-store.md`, section 1).
-## 2. Requests
-
-Moved to [`records-requests.md`](records-requests.md), section 1.
-
-## 3. Deployment reads
-
-Moved to [`records-deployment.md`](records-deployment.md), section 1.
-
 ## 4. A change’s panel
 - **A change's panel, the subject `change`** (`served.md`, 2): of a
   project's scope, its window unused, naming the change task's number
@@ -96,10 +88,6 @@ Moved to [`records-deployment.md`](records-deployment.md), section 1.
     source, or `PanelSource`: the source `branch` (bytes, bounded as
     `Adopt`'s), the `at` named (an option of a commit, 32 bytes) and the
     `kept` head (an option of a commit, none before taking selects it).
-## 5. The deployment’s forges
-
-Moved to [`records-deployment.md`](records-deployment.md), section 2.
-
 ## 6. A person’s state
 - **A person's Away switch, the subject `away`:** of the party's own scope,
   with no fields, its window unused; on the wire `Watching`'s `away`, one

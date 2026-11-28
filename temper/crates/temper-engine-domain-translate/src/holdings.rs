@@ -1,4 +1,4 @@
-//! Translate task-owned forge holdings without routing reports (domain/forge/branches.md, 1–2).
+//! Translate task-owned forge holdings without routing reports (domain/forge/branches.md, 1, and domain/forge/branches-closer.md, 1).
 use alloc::boxed::Box;
 use forge::routing::{branch_what, hub_name, include_repository, tree_branch, write_holding};
 use jig_domain_tasks as tasks;

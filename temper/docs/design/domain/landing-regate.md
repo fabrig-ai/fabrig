@@ -6,8 +6,9 @@ repaired: a red made only of known flakes, rerun before its receipt is
 published (section 2), and a failed receipt whose repair changed
 nothing, superseded at once by one fresh run (section 3). It
 carries `../draft/archive/flake-regate.md` on the landing of `landing.md`,
-whose words it uses: keys and receipts (section 6), proof by dispatch
-(7.1), a real failure (7.3) and a fault of the runner (7.4); flake
+whose words it uses: keys and receipts (`landing-proof.md`, 1), proof by dispatch
+(`landing-proof.md`, 2.1), a real failure (`landing-proof.md`, 2.3) and
+a fault of the runner (`landing-proof.md`, 2.4); flake
 findings are `findings.md`'s, and a repair, its result and its release
 `forge/change/repairs.md`'s.
 
