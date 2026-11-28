@@ -21,16 +21,20 @@ engine's routing encodes it (`../../protocol/llm.md`, section 5).
   (below). In a project whose home repository has `ways.toml`, a task
   of a charter the project keeps a file for runs by that file's words
   instead (`project-charters.md`, 3).
-- **A set of charter files** (`../../draft/stock-charters.md`, 2) is a
-  directory of Markdown files, each named `<file>.md`, of five:
-  `common`, `goal`, `designer`, `coordinator` and `implementer`; the
-  stock's, `temper/docs/charters/stock/`, holds all five, and an
-  overlay's (that draft's section 4) any of them. The assembly makes two
-  charters' texts from it:
+- **A set of charter files** (`../../draft/stock-charters.md`, 2;
+  `../../draft/any-project.md`, 4.2) is a directory of Markdown files,
+  each named `<file>.md`, of six: `common`, `goal`, `design`,
+  `designer`, `coordinator` and `implementer`; the stock's,
+  `temper/docs/charters/stock/`, holds all six, and an overlay's
+  (`../../draft/stock-charters.md`, 4) any of them, so that an overlay
+  without `design` makes the charter it made before the set had one.
+  `design` says how a goal keeps the project's design: charter 5 reads
+  it on every wake, after `goal`, and charter 2 never. The assembly
+  makes two charters' texts from it:
 
   | Charter | Its instructions | Its parts, in order |
   |---|---|---|
-  | 5, the goal's agent | `common`, then `goal` | `designer`, on `first`; then each section of `coordinator` |
+  | 5, the goal's agent | `common`, then `goal`, then `design` | `designer`, on `first`; then each section of `coordinator` |
   | 2, the implementer | `common`, then `implementer` | none |
 
   - **A section** of `coordinator` starts at a line beginning
@@ -45,7 +49,7 @@ engine's routing encodes it (`../../protocol/llm.md`, section 5).
     `designer`, no part. A section is a part whatever its text.
   - **Nothing is dropped:** the assembly refuses, naming the file, the
     line and the name: a Markdown file (a name ending `.md`) in the
-    directory that is none of the five; text in `coordinator` before its
+    directory that is none of the six; text in `coordinator` before its
     first section, line feeds aside; and a section whose reasons are
     empty (none, or an empty name between commas), repeated within its
     heading, or unknown. Other files in the directory, a settings file
@@ -59,12 +63,13 @@ engine's routing encodes it (`../../protocol/llm.md`, section 5).
     texts, never a directory: its caller lists the directory and reads
     the files. Its public surface, which the stock and a settings file's
     overlay items (that draft's section 4) build on:
-    - `File`, the five, with `File::name`, its name in a directory (the
+    - `File`, the six, with `File::name`, its name in a directory (the
       file's name, then `.md`), and `file`,
       which gives a directory entry's file: `Ok(Some(File))` for one of
-      the five, `Ok(None)` for a name not ending `.md`, and the refusal
+      the six, `Ok(None)` for a name not ending `.md`, and the refusal
       for any other Markdown name.
-    - `Set`, each file's text optional, `&str`.
+    - `Set`, each file's text optional, `&str`, `design` beside the
+      other five.
     - `goal_agent(set, reason)`, where `reason` maps a reason's name to
       the caller's own value or `None` for an unknown name, gives
       `GoalAgent { instructions, parts }`, each `Part { reasons, text }`,

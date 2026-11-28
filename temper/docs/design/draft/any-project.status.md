@@ -3,7 +3,7 @@
 2026-11-28. Where the design lags or departs from [any-project.md](any-project.md).
 
 - **Design lags:**
-  - 2.2, 4.2: `temper/docs/charters/stock/designer.md`, `goal.md` and `coordinator.md` still ask for lasting design documents, the contracts document and its deleting change, **Not yet** entries with their tags and **Design departs**; [stock-charters.md](stock-charters.md), section 2 names five files, with no `design`; `temper/crates/temper-charter-set/` knows five names, and the stock-set test's lint refuses any repository path in the stock's text.
+  - 2.2, 4.2: `temper/docs/charters/stock/designer.md`, `goal.md` and `coordinator.md` still ask for lasting design documents, the contracts document and its deleting change, and **Design departs**; the stock's `design.md` holds the stock's words on **Not yet** entries and their tags, rather than 4.2's.
   - 4.3: `temper/docs/charters/fabrig/` doesn't yet carry the status and contracts words the stock drops.
   - 4.3, 5: [design-economy.md](design-economy.md), 4.3: a goal's contracts document sits beside the area's design with its own status file, deleted by the goal's last change.
   - 5: [../domain/forge/branches-closer.md](../domain/forge/branches-closer.md), section 1, [../domain/forge/branches.md](../domain/forge/branches.md), section 3, and [../domain/landing-prepare.md](../domain/landing-prepare.md): a goal records nothing of its base's `.goal/`, the prepared landing head leaves nothing out, and no check binds to it; a goal's record keeps no plan.

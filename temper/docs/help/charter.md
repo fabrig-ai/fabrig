@@ -57,10 +57,10 @@ the stock's rules offer seven charter executors, procedures 2, 3 and 4,
 merge job 3 and roles 0, 1 and 2.
 
 Charters 5 and 2 are built from the stock's set of charter files in
-`temper/docs/charters/stock/`: `common`, `goal`, `designer`, `coordinator`
-and `implementer`. Charter 5 joins `common` and `goal`, with `designer`
-and `coordinator`'s sections as parts; charter 2 joins `common` and `implementer`,
-with no parts. The goal's agent designs a goal's draft, cuts it into
+`temper/docs/charters/stock/`: `common`, `goal`, `design`, `designer`,
+`coordinator` and `implementer`. On every wake, charter 5 reads `common`,
+`goal`, then `design`, with `designer` and `coordinator`'s sections as
+parts. Charter 2 reads only `common` and `implementer`, with no parts. The goal's agent designs a goal's draft, cuts it into
 changes, and answers what they ask.
 
 The forge's procedures run a change's agent work under two charters,
@@ -139,7 +139,8 @@ In a settings file, use `{"setting":{"kind":"charter","number":2},
 with `"charters":["."]`: directories relative to that settings file, in order.
 Standard input (`-`) requires absolute directories. Each directory's Markdown
 files are read, not its subdirectories; other extensions are ignored.
-The optional five names and assembly are the stock's above. `designer` is on
+The six names and assembly are the stock's above. Each file, including
+`design.md`, is optional. `designer` is on
 `first`; each coordinator section begins `## part, on:` and comma-separated
 reasons, its heading excluded. Texts retain every byte but opening and closing
 line feeds. Unknown Markdown names, text before the first coordinator section,

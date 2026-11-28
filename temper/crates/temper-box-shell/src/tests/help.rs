@@ -272,6 +272,8 @@ fn charter_help_explains_documents_and_host_discovery() {
     let text = page.split_whitespace().collect::<Vec<_>>().join(" ");
     for words in [
         "documents",
+        "charter 5 reads `common`, `goal`, then `design`",
+        "Each file, including `design.md`, is optional.",
         "temper ctl DIR forge list",
         "temper ctl DIR forge list --json",
         "host",

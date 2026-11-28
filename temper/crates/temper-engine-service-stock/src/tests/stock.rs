@@ -312,7 +312,7 @@ fn the_coordinators_charter_makes_no_landing_or_close_out() {
     assert!(set.common.unwrap().contains("No agent merges or lands."));
     let goal = set.goal.unwrap();
     assert!(goal.contains("A goal never finishes itself: its closer lands g and ends it."));
-    assert!(goal.contains("[in flight: change N]"));
+    assert!(set.design.unwrap().contains("[in flight: change N]"));
     assert!(goal.contains("never to main's"));
     assert!(goal.contains("Then `subscribe` to it"));
     assert!(set.designer.unwrap().contains("Your changes' questions and failures reach you as you work"));
@@ -2242,6 +2242,7 @@ fn stock_words_hold_no_placeholder_a_run_cannot_fill() {
         include_str!("../stock/chat.txt"),
         include_str!("../../../../docs/charters/stock/common.md"),
         include_str!("../../../../docs/charters/stock/goal.md"),
+        include_str!("../../../../docs/charters/stock/design.md"),
         include_str!("../../../../docs/charters/stock/designer.md"),
         include_str!("../../../../docs/charters/stock/coordinator.md"),
         include_str!("../../../../docs/charters/stock/implementer.md"),

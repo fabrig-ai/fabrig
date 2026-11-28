@@ -1,0 +1,1 @@
+**Status:** where the project's design keeps status, each section a change you cut will build gets a **Not yet** entry ending `[in flight: change N]`, N the change's task number, delivered once the change has it. The closer deletes each entry whose change landed and untags the rest.

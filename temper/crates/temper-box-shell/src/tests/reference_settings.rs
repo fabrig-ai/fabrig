@@ -172,7 +172,8 @@ fn the_reference_charters_fit_a_stock_worker_and_the_run_bound() {
         if number == COORDINATOR {
             let common = include_str!("../../../../docs/charters/stock/common.md").trim();
             let goal = include_str!("../../../../docs/charters/stock/goal.md").trim();
-            assert_eq!(charter.policy.instructions.as_ref(), format!("{common}\n\n{goal}").as_bytes());
+            let design = include_str!("../../../../docs/charters/stock/design.md").trim();
+            assert_eq!(charter.policy.instructions.as_ref(), format!("{common}\n\n{goal}\n\n{design}").as_bytes());
             assert_eq!(charter.parts.len(), 4);
             assert_eq!(charter.policy.model.name.as_ref(), b"claude-opus-5-5");
         }

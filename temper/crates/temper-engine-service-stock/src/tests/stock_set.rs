@@ -8,7 +8,7 @@ use super::{engine, generated};
 use jig_domain_tasks::Reasons;
 use temper_charter_set::File;
 #[test]
-fn the_stock_set_holds_exactly_five_files_and_assembles_both_charters() {
+fn the_stock_set_holds_exactly_six_files_and_assembles_both_charters() {
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/charters/stock");
     let mut names = alloc::collections::BTreeSet::new();
     for entry in std::fs::read_dir(&directory).unwrap() {
@@ -24,19 +24,21 @@ fn the_stock_set_holds_exactly_five_files_and_assembles_both_charters() {
     }
     assert_eq!(
         names,
-        [File::Common, File::Goal, File::Designer, File::Coordinator, File::Implementer]
+        [File::Common, File::Goal, File::Design, File::Designer, File::Coordinator, File::Implementer]
             .into_iter()
             .map(|file| file.name().to_owned())
             .collect()
     );
     let common = std::fs::read_to_string(directory.join("common.md")).unwrap();
     let goal_text = std::fs::read_to_string(directory.join("goal.md")).unwrap();
+    let design = std::fs::read_to_string(directory.join("design.md")).unwrap();
     let designer = std::fs::read_to_string(directory.join("designer.md")).unwrap();
     let coordinator = std::fs::read_to_string(directory.join("coordinator.md")).unwrap();
     let implementer = std::fs::read_to_string(directory.join("implementer.md")).unwrap();
     let set = temper_charter_set::Set {
         common: Some(&common),
         goal: Some(&goal_text),
+        design: Some(&design),
         designer: Some(&designer),
         coordinator: Some(&coordinator),
         implementer: Some(&implementer),
@@ -47,7 +49,8 @@ fn the_stock_set_holds_exactly_five_files_and_assembles_both_charters() {
     assert_eq!(goal.policy.instructions, assembled.instructions);
     assert_eq!(
         goal.policy.instructions.as_ref(),
-        format!("{}\n\n{}", common.trim_matches('\n'), goal_text.trim_matches('\n')).as_bytes()
+        format!("{}\n\n{}\n\n{}", common.trim_matches('\n'), goal_text.trim_matches('\n'), design.trim_matches('\n'))
+            .as_bytes()
     );
     assert_eq!(goal.parts.len(), 4);
     assert_eq!(goal.parts[0].on, Reasons::FIRST);
@@ -72,14 +75,39 @@ fn the_stock_set_holds_exactly_five_files_and_assembles_both_charters() {
 }
 
 fn assert_no_repository_path(name: &str, text: &str) {
+    let path = repository_path(text);
+    assert_eq!(path, None, "{name}: repository path or Markdown file");
+}
+
+fn repository_path(text: &str) -> Option<&str> {
     for path in ["docs/", "skein/", "smith/", "jig/", "temper/", "hearth/", "tools/", "examples/", ".config/"] {
-        assert!(!text.contains(path), "{name}: repository path {path}");
+        if text.contains(path) {
+            return Some(path);
+        }
     }
-    for word in text.split(|ch: char| !ch.is_alphanumeric() && !"._-".contains(ch)) {
-        let file = word.trim_end_matches('.');
-        let markdown = file.rsplit_once('.').is_some_and(|(_, extension)| extension == "md");
-        assert!(!markdown || file == "AGENTS.md", "{name}: Markdown file {file}");
+    for word in text.split(|ch: char| !ch.is_alphanumeric() && !"._-/".contains(ch)) {
+        let path = word.trim_end_matches('.');
+        if path == ".goal/contracts.md" {
+            continue;
+        }
+        for file in path.split('/') {
+            let file = file.trim_end_matches('.');
+            let markdown = file.rsplit_once('.').is_some_and(|(_, extension)| extension == "md");
+            if markdown && file != "AGENTS.md" {
+                return Some(path);
+            }
+        }
     }
+    None
+}
+
+#[test]
+fn stock_paths_allow_tempers_goal_workspace_but_not_repository_paths() {
+    assert_eq!(repository_path("Keep it in `.goal/` and describe it in `.goal/contracts.md`."), None);
+    assert_eq!(repository_path("Read `docs/design/x.md`."), Some("docs/"));
+    assert_eq!(repository_path("Read `notes.md`."), Some("notes.md"));
+    assert_eq!(repository_path("Read `.goal/notes.md`."), Some(".goal/notes.md"));
+    assert_eq!(repository_path("Read `some/.goal/contracts.md`."), Some("some/.goal/contracts.md"));
 }
 
 fn assembled_goal() -> temper_charter_set::GoalAgent<Reasons> {
@@ -165,10 +193,12 @@ fn the_implementer_works_without_reading_history() {
     let repairs = lines.find(|line| line.starts_with("- **In repairs and resolutions,**")).expect("repairs bullet");
     assert!(repairs.contains("and you ask your requester why it went before you restore it"));
 
-    let temper_charter_set::Set { common, goal, designer, coordinator, implementer } = crate::stock::charter_set();
+    let temper_charter_set::Set { common, goal, design, designer, coordinator, implementer } =
+        crate::stock::charter_set();
     for (file, text) in [
         (File::Common, common),
         (File::Goal, goal),
+        (File::Design, design),
         (File::Designer, designer),
         (File::Coordinator, coordinator),
         (File::Implementer, implementer),

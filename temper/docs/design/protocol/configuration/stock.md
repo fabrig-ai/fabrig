@@ -143,7 +143,9 @@ Moved to [`stock-settings.md`](stock-settings.md), section 1.
   files are code to every gate: compiled in and read by tests, a change
   to them lands through a goal like code, never by hand as
   documentation, Markdown though they are, and they name no model, no
-  program and no project's paths (`../../draft/stock-charters.md`, 3); `Service` passes
+  program and no project's paths (`../../draft/stock-charters.md`, 3),
+  `.goal/` being temper's own path, not a project's
+  (`../../draft/any-project.md`, 4.2); `Service` passes
   jig's kinds' defaults, with the three kinds' declarations (number,
   scope, the forge's connector, the bounds above), to jig's builder in
   place of the document's members, and temper's kinds' defaults (kind 3,

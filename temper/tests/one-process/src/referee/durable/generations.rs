@@ -173,6 +173,9 @@ impl Store {
         self.lengths.clear();
         self.pending.clear();
         self.recovered.clear();
+        for prefix in self.validated.values_mut() {
+            prefix.recovered = false;
+        }
         self.agent_records.clear();
         self.installation = None;
         self.applied = 0;

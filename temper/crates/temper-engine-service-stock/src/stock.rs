@@ -868,6 +868,7 @@ pub fn charter_set() -> temper_charter_set::Set<'static> {
     temper_charter_set::Set {
         common: Some(include_str!("../../../docs/charters/stock/common.md")),
         goal: Some(include_str!("../../../docs/charters/stock/goal.md")),
+        design: Some(include_str!("../../../docs/charters/stock/design.md")),
         designer: Some(include_str!("../../../docs/charters/stock/designer.md")),
         coordinator: Some(include_str!("../../../docs/charters/stock/coordinator.md")),
         implementer: Some(include_str!("../../../docs/charters/stock/implementer.md")),

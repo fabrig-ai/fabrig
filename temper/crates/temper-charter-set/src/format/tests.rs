@@ -38,3 +38,17 @@ fn formats_are_positive_decimal_and_only_one_is_read() {
         );
     }
 }
+
+#[test]
+fn design_source_lines_include_its_front_matter() {
+    let set = Set {
+        common: None,
+        goal: None,
+        design: Some("+++\nformat = 1\n+++\ndesign\n"),
+        designer: None,
+        coordinator: None,
+        implementer: None,
+    };
+    let refusal = Refusal::BeforeSection { file: File::Design, line: 1 };
+    assert_eq!(refusal.in_source(&set), Refusal::BeforeSection { file: File::Design, line: 4 });
+}

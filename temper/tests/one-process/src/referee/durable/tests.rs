@@ -263,6 +263,34 @@ fn a_torn_log_write_recovers_the_durable_prefix() {
 }
 
 #[test]
+fn recovery_counts_synced_and_new_frames_across_split_reads() {
+    let fixture = fixture::bytes(false);
+    let first = &fixture.frames[0];
+    let second = &fixture.frames[1];
+    let (head, tail) = second.split_at(second.len() - 1);
+    let path = fixture::LOG.to_vec();
+    let mut store = Store::new();
+    let limits = fixtures::codec();
+    let bounds = fixture::bounds();
+    let observe = |store: &mut Store, at, bytes: &[u8], end| {
+        let events = &mut vec![Observed::Bytes { path: path.clone(), at, bytes: bytes.to_vec() }, end];
+        store.observe(events, &limits, fixtures::store_names(), &bounds).expect("durable observation")
+    };
+
+    let synced = observe(&mut store, 0, first, Observed::Sync(path.clone()));
+    assert_eq!(synced.iter().map(|commit| commit.number).collect::<Vec<_>>(), [1]);
+    assert!(store.recovered.is_empty(), "sync alone is not recovery");
+
+    let incomplete = observe(&mut store, first.len(), head, Observed::Recovered(path.clone()));
+    assert!(incomplete.is_empty(), "an incomplete frame produces no commit");
+    assert_eq!(store.recovered, [1].into(), "read back the frame already checked at sync");
+
+    let completed = observe(&mut store, first.len() + head.len(), tail, Observed::Recovered(path.clone()));
+    assert_eq!(completed.iter().map(|commit| commit.number).collect::<Vec<_>>(), [2]);
+    assert_eq!(store.recovered, [1, 2].into());
+}
+
+#[test]
 fn a_repair_snapshot_write_yields_no_commit_frames() {
     let bytes = fixture::bytes(true).snapshot;
     let mut capture = Capture::default();
