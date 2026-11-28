@@ -23,6 +23,7 @@ use std::{
         },
     },
     path::Path,
+    process::Stdio,
 };
 
 const STORY: &str =
@@ -40,13 +41,14 @@ pub fn restart() {
         let name = format!("temper-e4-{}", std::process::id());
         let address = UnixAddress::from_abstract_name(name.as_bytes()).expect("short capture address");
         let listener = UnixListener::bind_addr(&address).expect("capture socket");
-        let child = std::process::Command::new(std::env::current_exe().expect("process test binary"))
+        let mut command = std::process::Command::new(std::env::current_exe().expect("process test binary"));
+        command
             .args(["--exact", STORY, "--nocapture"])
             .env(temper_test_env::E4_CAPTURE.name, &name)
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .spawn()
-            .expect("captured complete story");
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let child =
+            super::fixture::spawn(&mut command, skein_io::kernel::Signal::Kill).expect("captured complete story");
         // The child opens this before setup: even setup failure closes the stream.
         let (mut stream, _) = listener.accept().expect("capture child");
         let mut token = Vec::new();
@@ -148,7 +150,11 @@ fn child(root: &Path, restarted: bool, token: &[u8]) {
     if restarted {
         command.env(temper_test_env::E4_RESTART.name, "1");
     }
-    let output = command.output().expect("captured story life");
+    command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    let output = super::fixture::spawn(&mut command, skein_io::kernel::Signal::Kill)
+        .expect("story life starts")
+        .wait_with_output()
+        .expect("captured story life");
     no_token(&output.stdout, token);
     no_token(&output.stderr, token);
     // Only release diagnostics after the redacted byte scan.
@@ -275,7 +281,9 @@ fn life(root: &Path, restarted: bool) {
         directory: root.into(),
         environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
     };
-    let mut engine = Binary::start(command, Mode::Pipes, 65_536).expect("elsewhere engine");
+    let mut engine =
+        Binary::start(super::fixture::dying_with_test(command, skein_io::kernel::Signal::Kill), Mode::Pipes, 65_536)
+            .expect("elsewhere engine");
     let streams = engine.take_streams().expect("engine pipes");
     let fd = skein_shell::open_root(root).expect("story root");
     let mut fds = streams.descriptors();

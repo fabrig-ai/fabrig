@@ -322,25 +322,36 @@ fn startup_orders_sign_ins_and_confines_programs() {
     let (mut m, actions) = Machine::start(plan(), Time::ZERO);
     let [Action::Start { process: Process::Box, program }] = actions.as_slice() else { panic!("{actions:?}") };
     assert_eq!(program.program, Path::new("/build/bin/temper-box"));
-    assert_eq!(
-        program.args,
-        [
-            "--fake-backends",
-            "--bundle",
-            "/build/bundle",
-            "--config",
-            "/scratch/config",
-            "--data",
-            "/scratch/data",
-            "--cache",
-            "/scratch/cache",
-            "--scripts",
-            "/build/one.script",
-            "--scripts",
-            "/build/two.script",
-            "--strict"
-        ]
-    );
+    let mut args = vec![];
+    if cfg!(target_os = "linux") {
+        args.extend([
+            "internal",
+            "forge-child",
+            "--parent",
+            "42",
+            "--signal",
+            "terminate",
+            "--",
+            "/build/bin/temper-box",
+        ]);
+    }
+    args.extend([
+        "--fake-backends",
+        "--bundle",
+        "/build/bundle",
+        "--config",
+        "/scratch/config",
+        "--data",
+        "/scratch/data",
+        "--cache",
+        "/scratch/cache",
+        "--scripts",
+        "/build/one.script",
+        "--scripts",
+        "/build/two.script",
+        "--strict",
+    ]);
+    assert_eq!(program.args, args);
     assert_eq!(program.input, Input::Null);
     assert_eq!(program.directory, Path::new("/scratch"));
     for (key, value) in &program.environment {

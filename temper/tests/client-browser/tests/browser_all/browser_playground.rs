@@ -1,8 +1,7 @@
 //! The built playground, its frame's figures and a downloaded log replayed natively
 //! (temper/docs/design/client/web/testing.md, 6, item 12; temper/docs/design/playground.md, 9).
 use skein_fake_person::{Face, Find, Found, Next, Step as PersonStep, Why};
-use skein_fake_person_browser::harness::{Names, Output, Printed, Sent};
-use skein_fake_person_browser::{BrowserFace, Outcome, Play, Script, Setup, Step};
+use skein_fake_person_browser::{BrowserFace, Outcome, Play, Script, Step};
 use skein_lib::Time;
 use skein_ui::Role;
 use std::{
@@ -10,7 +9,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Child, Command},
 };
-use temper_client_browser_world::{WITHIN, chromium, playground_serve};
+use temper_client_browser_world::{WITHIN, playground_setup};
 use temper_playground::{programs, story};
 
 struct Walk {
@@ -170,16 +169,7 @@ fn story_a_walks_on_the_built_playground() {
     let scratch = skein_scratch::Scratch::new("browser-playground");
     let downloads = scratch.path().join("downloads");
     fs::create_dir(&downloads).expect("downloads directory");
-    let setup = Setup {
-        server: playground_serve(),
-        args: vec![out.clone().into_os_string()],
-        restart: vec![],
-        printed: Printed { sent: Sent::Page, prefix: b"http://127.0.0.1:", on: Output::Stdout, names: Names::Url },
-        chromium: chromium(),
-        downloads: Some(downloads),
-        expected: vec![],
-        origins: vec![],
-    };
+    let setup = playground_setup(&out, downloads);
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let mut steps = vec![
         see(Find::text("Loading the playground…".as_bytes())),

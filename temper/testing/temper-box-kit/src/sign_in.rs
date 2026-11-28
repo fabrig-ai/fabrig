@@ -229,20 +229,19 @@ pub(super) fn issuer(
 }
 
 pub(super) fn start(directory: &Path) -> skein_world::end_to_end::Binary {
-    use skein_world::end_to_end::{Binary, Command, Mode};
+    use skein_world::end_to_end::{Binary, Mode};
     super::limit_settings::install(directory);
     // A fresh init's demo forge is prepared by box before it starts serve.
-    Binary::start(
-        Command {
-            program: skein_scratch::paths::built("temper-box", "temper-box"),
-            arguments: super::configuration::flags(directory),
-            directory: directory.into(),
-            environment: Vec::new(),
-        },
-        Mode::Pipes,
-        65_536,
-    )
-    .expect("box starts the initialized deployment")
+    Binary::start(box_command(directory), Mode::Pipes, 65_536).expect("box starts the initialized deployment")
+}
+
+pub(super) fn box_command(directory: &Path) -> skein_world::end_to_end::Command {
+    super::boxed::box_fixture(skein_world::end_to_end::Command {
+        program: skein_scratch::paths::built("temper-box", "temper-box"),
+        arguments: super::configuration::flags(directory),
+        directory: directory.into(),
+        environment: Vec::new(),
+    })
 }
 
 struct Judge {

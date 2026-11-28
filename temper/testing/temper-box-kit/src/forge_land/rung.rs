@@ -711,7 +711,6 @@ fn box_command(binary: &Path, store: &Path, paths: &[PathBuf; 3]) -> skein_world
 
 fn start_box(binary: &Path, store: &Path, paths: &[PathBuf; 3], dies_with_test: bool) -> Child {
     let command = box_command(binary, store, paths);
-    let command = if dies_with_test { super::super::boxed::dying_with_test(command) } else { command };
     let mut spawn = if dies_with_test {
         Command::new(&command.program)
     } else {
@@ -726,9 +725,13 @@ fn start_box(binary: &Path, store: &Path, paths: &[PathBuf; 3], dies_with_test: 
         .current_dir(command.directory)
         .stdin(Stdio::null())
         .stdout(fs::File::create(store.join("box.out")).expect("box output"))
-        .stderr(fs::File::create(store.join("box.err")).expect("box errors"))
-        .spawn()
-        .expect("rung box")
+        .stderr(fs::File::create(store.join("box.err")).expect("box errors"));
+    if dies_with_test {
+        super::super::fixture::spawn(&mut spawn, skein_io::kernel::Signal::Terminate)
+    } else {
+        spawn.spawn()
+    }
+    .expect("rung box")
 }
 
 /// Both faces import, walk, return the account, then stop through these acts.
@@ -789,7 +792,7 @@ fn start_twin_box(program: &Path, store: &Path, paths: &[PathBuf; 3]) -> Binary 
         ..command
     };
     Binary::start_with_tree(
-        super::super::boxed::dying_with_test(command),
+        super::super::boxed::box_fixture(command),
         Mode::Pipes,
         262_144,
         Expectation::Supervise,

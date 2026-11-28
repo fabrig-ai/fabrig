@@ -51,3 +51,47 @@ fn ctl_a_failed_ctl_check_reaches_the_world_after_cleanup() {
 fn ctl_a_returned_visit_drains_without_another_process_or_a_poll() {
     support::ctl::read_condition_tests::a_returned_visit_drains_without_another_process_or_a_poll();
 }
+
+// The spawning thread, not just its process, is the parent-death owner on Linux.
+#[cfg(target_os = "linux")]
+#[test]
+#[expect(clippy::disallowed_methods, reason = "this test exercises death on the spawning thread's return")]
+fn a_fixture_started_on_a_thread_dies_when_that_thread_returns() {
+    use skein_io::kernel::Signal;
+    use skein_world::{Deadline, Expired};
+    use std::{
+        os::unix::process::ExitStatusExt,
+        process::{Command, Stdio},
+        thread,
+    };
+
+    let child = thread::spawn(|| {
+        let mut command = Command::new("/bin/sleep");
+        command.arg("60").stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+        support::fixture::spawn(&mut command, Signal::Kill).expect("fixture starts")
+    })
+    .join()
+    .expect("spawning thread returned");
+    let mut deadline = Deadline::arm("the fixture ends with its spawning thread", skein_lib::Duration::from_secs(3));
+    deadline.watch_process(child.id());
+    let mut owner = support::parent::Guard::new(child);
+    let status = loop {
+        if let Some(status) = owner.child.as_mut().expect("fixture child").try_wait().expect("fixture status") {
+            break status;
+        }
+        if deadline.passed() {
+            match deadline.expired() {
+                Expired::Starved(starved) => {
+                    drop(owner);
+                    starved.pass();
+                }
+                Expired::Failed(figures) => {
+                    drop(owner);
+                    panic!("fixture must end with its spawning thread: {figures}");
+                }
+            }
+        }
+        thread::sleep(std::time::Duration::from_millis(5));
+    };
+    assert_eq!(status.signal(), Some(9), "fixture dies by SIGKILL");
+}

@@ -36,8 +36,8 @@ pub struct Probed {
 }
 
 #[must_use]
-pub fn probe(mut command: Command, address: SocketAddr, marker: &str) -> Probed {
-    let mut child = command.spawn().expect("listener claimant");
+pub fn probe(mut command: Command, address: SocketAddr, marker: &str, signal: skein_io::kernel::Signal) -> Probed {
+    let mut child = crate::support::fixture::spawn(&mut command, signal).expect("listener claimant");
     let mut deadline = skein_world::Deadline::arm("the inherited listener's printed marker", crate::support::WITHIN);
     deadline.watch_process(child.id());
     let mut stdout = Vec::new();

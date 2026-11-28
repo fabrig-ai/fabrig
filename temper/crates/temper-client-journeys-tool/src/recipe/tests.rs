@@ -489,7 +489,7 @@ fn run_ctl_hello(options: drive::Options, lines: Vec<WalkLine>, scratch: &Path) 
     use drive::{Action, Event, Input, Machine, Output, Plan, Process};
     use skein_lib::Time;
 
-    let plan = Plan::new(options, std::path::PathBuf::new(), OsStr::new("/bin"));
+    let plan = Plan::new(options, std::path::PathBuf::new(), OsStr::new("/bin"), drive::testing::SESSION_PID);
     let (mut machine, _) = Machine::start(plan, Time::ZERO);
     machine.step(
         Event::BoxLine { output: Output::Stdout, line: b"http://127.0.0.1:9/link?secret=first".as_slice().into() },
@@ -1107,7 +1107,7 @@ fn walk_plan_orders_scripts_and_strict_and_checks_scratch() {
     let options =
         session_options(&chain, &arguments.setups, &arguments.drive.expect("drive")).expect("session options");
     assert!(!options.ctl, "a mixed chain keeps its browser session");
-    let plan = drive::Plan::new(options, "/chromium".into(), OsStr::new("/bin"));
+    let plan = drive::Plan::new(options, "/chromium".into(), OsStr::new("/bin"), drive::testing::SESSION_PID);
     let (machine, actions) = drive::Machine::start(plan, skein_lib::Time::ZERO);
     assert!(!machine.ready());
     let [drive::Action::Start { process: drive::Process::Box, program }] = actions.as_slice() else {
