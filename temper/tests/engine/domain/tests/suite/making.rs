@@ -275,9 +275,15 @@ fn a_restart_during_the_act_joins_it_and_adopts_once() {
     let calls = d.forge.as_ref().expect("forge stand").calls;
     d.reopen(config(true));
     d.settle();
+    let after_start = d.forge.as_ref().expect("forge stand").calls;
+    assert_eq!(after_start, calls + 2, "startup reads only the home tip and its .temper listing");
     event(&mut d, forge::Event::MakingAdopt { key: key() });
     adopted(&d);
-    assert_eq!(d.forge.as_ref().expect("forge stand").calls, calls, "a kept act cannot adopt again after restart");
+    assert_eq!(
+        d.forge.as_ref().expect("forge stand").calls,
+        after_start,
+        "a kept act cannot adopt again after restart"
+    );
 }
 #[test]
 fn a_document_with_no_grant_says_so_in_the_row() {

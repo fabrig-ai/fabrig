@@ -8,3 +8,12 @@
 - **Not yet:** 5: kind 4 has no `temper_dir_sign_off` [in flight: change 22419].
 - **Not yet:** 5: no change under the queue waits for an owner's sign-off of `.temper/` [in flight: change 22426].
 - **Not yet:** 5: no turn's member waits for an owner's sign-off of `.temper/` [in flight: change 22427].
+- **Design departs:** 2: a home without method is not watched for moves; a
+  first `.temper/ways.toml` added from outside temper is read at the next
+  engine start or the next landing temper sees on that home, so a project
+  without `ways.toml` runs exactly as before (the goal's requester, 2026-11-28).
+- **Design departs:** 4: before comparing, the step a change may join a turn
+  or land at reads, pinned to the change's head and its base's tip, whether
+  either holds method; where neither does it makes no comparison and the
+  change lands as before, so a project without `ways.toml` makes no comparison
+  it didn't (the goal's requester, 2026-11-28).

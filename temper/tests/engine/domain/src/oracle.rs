@@ -19,7 +19,7 @@ use jig_domain_people as people;
 use skein_lib::{ReplyTo, Token};
 use std::{borrow::Cow, collections::BTreeMap};
 use temper_engine_domain::{self as engine, Delivery, Key, Record};
-use temper_engine_domain_forge::Document as ForgeDocument;
+use temper_engine_domain_forge::{Document as ForgeDocument, Stored as ForgeRow};
 
 /// The one inventory of rows rebuilt by startup, with the step's reason.
 #[must_use]
@@ -90,6 +90,15 @@ impl Snapshot {
     }
 
     pub fn compare_rows(&self, rows: &BTreeMap<Key, Record>) -> Result<(), String> {
+        self.compare_inventory(rows, false)
+    }
+
+    /// Check the settled inventory after startup has made its fresh observations.
+    pub fn compare_rows_after_restart(&self, rows: &BTreeMap<Key, Record>) -> Result<(), String> {
+        self.compare_inventory(rows, true)
+    }
+
+    fn compare_inventory(&self, rows: &BTreeMap<Key, Record>, restarted: bool) -> Result<(), String> {
         // Walk both sorted maps once. Report a difference in the saved keys
         // before reporting a newly present key, as in the restart oracle.
         let mut afters = rows.iter().peekable();
@@ -103,7 +112,7 @@ impl Snapshot {
                 }
             }
             let after = afters.next_if(|(after_key, _)| *after_key == key).map(|(_, row)| row);
-            if after == Some(before) {
+            if after == Some(before) || restarted && startup_observed_temper_revision(before, after) {
                 continue;
             }
             let before = retained(key, before, self.wall);
@@ -138,6 +147,26 @@ impl Snapshot {
             difference(&format!("{before:#?}"), &format!("{after:#?}"))
         ))
     }
+}
+
+// temper/docs/design/domain/forge/temper-dir.md, 2–3: startup rereads the home,
+// and even an identical observation advances the stamp, not the revision.
+fn startup_observed_temper_revision(before: &Record, after: Option<&Record>) -> bool {
+    let (Record::Forge { row: before }, Some(Record::Forge { row: after })) = (before, after) else { return false };
+    let (ForgeRow::TemperRevision(before), ForgeRow::TemperRevision(after)) = (before.as_ref(), after.as_ref()) else {
+        return false;
+    };
+    if after.observed <= before.observed {
+        return false;
+    }
+    let mut observed = after.clone();
+    observed.observed = before.observed;
+    if let (Some(before), Some(refused)) = (&before.refused, &mut observed.refused)
+        && refused.observed == after.observed
+    {
+        refused.observed = before.observed;
+    }
+    before == &observed
 }
 
 fn row_difference(key: &Key, before: Option<&Record>, after: Option<&Record>) -> String {
@@ -263,7 +292,7 @@ impl Driver {
         self.period_sent = true;
         self.ends.restarted(self.env.now);
         self.oracle_settle();
-        snapshot.compare_rows(&self.store.rows)?;
+        snapshot.compare_rows_after_restart(&self.store.rows)?;
         compare_forges(forges, self.root.forges())?;
         for (index, (sign_in, read)) in snapshot.queries.iter().enumerate() {
             let answer = self.oracle_read(*sign_in, read);

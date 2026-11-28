@@ -160,6 +160,8 @@ fn unmade_rows() -> Box<[forge::Stored]> {
         panic!("repository")
     };
     repository.project = 1;
+    // This repository supplies link rows, not a home with a live forge peer.
+    repository.home = false;
     repository.provider.repository = 7;
     let changes: Vec<_> = [8975, 9104, 9885]
         .into_iter()

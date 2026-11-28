@@ -1,6 +1,6 @@
 //! The change's own `.temper/` check (temper/docs/design/domain/forge/temper-dir.md, 4–5).
 use alloc::boxed::Box;
-use skein_forge::api::{Answer, Commit, Error, State};
+use skein_forge::api::{Answer, Commit, Error, Read, State};
 use skein_lib::{Decimal, Env, Overflow, Queue, Token, Writer};
 use temper_engine_domain_forge_change as change;
 use temper_protocol_temper_dir::{Home, Reading, Touch, Verdict};
@@ -30,25 +30,50 @@ pub(super) struct Pass {
     owner_short: bool,
 }
 
+#[derive(Clone, Copy, Hash, Debug)]
+pub(super) struct Probed {
+    pair: Pair,
+    head_method: bool,
+    base_method: bool,
+    touch: Option<Touch>,
+}
+
+#[derive(Hash, Debug)]
+struct Probe {
+    root: Reading,
+    base: bool,
+}
+
 #[derive(Hash, Debug)]
 pub(crate) struct Check {
     pub(super) touch: Touch,
+    pub(super) compared: bool,
+    started: bool,
+    probe: Option<Box<Probe>>,
+    head_listing: Option<Box<Reading>>,
     fact: change::TemperDir,
     tree: Option<Commit>,
     pub(super) fault: Option<Box<[u8]>>,
-    reading: Option<Box<TreeRead>>,
-}
-
-#[derive(Hash, Debug)]
-struct TreeRead {
-    head: Reading,
-    base: Option<Reading>,
-    covered: bool,
+    reading: Option<Box<Reading>>,
 }
 
 impl Check {
+    pub(super) fn in_flight(&self) -> bool {
+        self.started && self.fact == change::TemperDir::Pending
+    }
+
     pub(crate) const fn new() -> Self {
-        Self { touch: Touch::Unknown, fact: change::TemperDir::Pending, tree: None, fault: None, reading: None }
+        Self {
+            touch: Touch::Unknown,
+            compared: false,
+            started: false,
+            probe: None,
+            head_listing: None,
+            fact: change::TemperDir::Uncovered,
+            tree: None,
+            fault: None,
+            reading: None,
+        }
     }
 }
 
@@ -74,7 +99,7 @@ pub(crate) fn guards(row: &ChangeRow, repository: &Repository) -> bool {
     repository.role != Role::Context && repository.kinds.push && row.base == repository.landing
 }
 
-pub(super) fn should_compare(d: &Domain, row: &ChangeRow, repository: &Repository, step: &PendingStep) -> bool {
+fn can_check(d: &Domain, row: &ChangeRow, repository: &Repository, step: &PendingStep) -> bool {
     if !eligible(d, row, repository)
         || step.heard.cancelled
         || step.contains_head == change::Status::Passed
@@ -84,6 +109,128 @@ pub(super) fn should_compare(d: &Domain, row: &ChangeRow, repository: &Repositor
         return false;
     }
     if let Some(pull) = &step.pull { pull.state == State::Open && pull.merged.is_none() } else { false }
+}
+
+pub(super) fn needs_probe(d: &Domain, row: &ChangeRow, step: &PendingStep, decision: change::Decision) -> bool {
+    let landing = if let change::Decision::Effect(change::Effect::Merge { .. }) = decision {
+        !d.landing.held
+    } else {
+        decision == change::Decision::Ready && row.change.way == change::Way::Turn
+    };
+    // An owner-short change waits out of the queue. A new review must be
+    // judged before it can become first and propose a merge again.
+    let owner_short = d.temper_dir_owner_short(row);
+    if step.temper_dir.started || step.woken || !(landing || owner_short) {
+        return false;
+    }
+    if let Some(repository) = d.repository(row.repository) { can_check(d, row, repository, step) } else { false }
+}
+
+pub(super) fn probe(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out: &mut Queue<Request>) {
+    let pair = Pair::at(&pending).expect("probe has current endpoints");
+    let Some(seq) = d.sequence.checked_add(1) else { return };
+    d.sequence = seq;
+    let owner = Token::new(seq | (1_u64 << 62));
+    pending.temper_dir.started = true;
+    pending.temper_dir.fact = change::TemperDir::Pending;
+    if let Some(probed) = d.temper_dir_probes.get(&pending.task).copied()
+        && probed.pair == pair
+    {
+        probed_pair(d, env, owner, pending, probed, out);
+    } else {
+        probe_root(d, env, owner, pending, pair.head, false, out);
+    }
+}
+
+fn probe_root(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    mut pending: PendingStep,
+    commit: Commit,
+    base: bool,
+    out: &mut Queue<Request>,
+) {
+    let root = Reading::new(commit, env.limits.client.answer_bytes);
+    let read = root.next().expect("new reader lists the root");
+    pending.temper_dir.probe = Some(Box::new(Probe { root, base }));
+    ask(d, env, owner, pending, StepStage::TemperProbe, read, out);
+}
+
+pub(super) fn probe_answered(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    mut pending: PendingStep,
+    answer: &Result<Answer, Error>,
+    out: &mut Queue<Request>,
+) {
+    let mut probe = pending.temper_dir.probe.take().expect("probe read pending");
+    if pending.woken || probe.root.take(answer).is_err() {
+        finish_step(d, env, pending, out);
+        return;
+    }
+    let Some(method) = probe.root.method_present() else {
+        finish_step(d, env, pending, out);
+        return;
+    };
+    let pair = Pair::at(&pending).expect("probe has current endpoints");
+    if !probe.base {
+        pending.temper_dir.head_listing = Some(Box::new(probe.root));
+        if !method && pair.head != pair.base {
+            probe_root(d, env, owner, pending, pair.base, true, out);
+            return;
+        }
+    }
+    let probed = Probed { pair, head_method: !probe.base && method, base_method: probe.base && method, touch: None };
+    d.temper_dir_probes.insert(pending.task, probed).expect("one probe per live change");
+    probed_pair(d, env, owner, pending, probed, out);
+}
+
+fn probed_pair(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    mut pending: PendingStep,
+    probed: Probed,
+    out: &mut Queue<Request>,
+) {
+    if !probed.head_method && !probed.base_method {
+        pending.temper_dir.fact = change::TemperDir::Uncovered;
+        finish_step(d, env, pending, out);
+    } else if pending.temper_dir.compared {
+        after_paths(d, env, owner, pending, out);
+    } else if let Some(touch) = probed.touch {
+        pending.temper_dir.touch = touch;
+        after_paths(d, env, owner, pending, out);
+    } else {
+        let Pair { head: after, base: before } = probed.pair;
+        ask(d, env, owner, pending, StepStage::Paths, Read::Compare { before, after }, out);
+    }
+}
+
+fn ask(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    mut pending: PendingStep,
+    stage: StepStage,
+    read: Read,
+    out: &mut Queue<Request>,
+) {
+    let Some(row) = d.changes.get(&pending.task) else { return };
+    let repository = row.repository;
+    pending.stage = stage;
+    d.steps.insert(owner, pending).expect("one step per change");
+    gather_read(d, env, owner, repository, read, out);
+}
+
+pub(crate) fn no_method(d: &Domain, task: u64, head: Commit, base: Commit) -> bool {
+    if let Some(probed) = d.temper_dir_probes.get(&task) {
+        !probed.head_method && !probed.base_method && probed.pair == (Pair { head, base })
+    } else {
+        false
+    }
 }
 
 pub(super) fn unread(d: &Domain, row: &ChangeRow) -> TemperDirEvidence {
@@ -116,31 +263,35 @@ pub(super) fn after_paths(
 ) {
     let Some(row) = d.changes.get(&pending.task) else { return };
     let Some(repository) = d.repository(row.repository) else { return };
-    if pending.woken || !should_compare(d, row, repository, &pending) {
+    if !pending.temper_dir.started || pending.woken || !can_check(d, row, repository, &pending) {
         finish_step(d, env, pending, out);
         return;
     }
     let pair = Pair::at(&pending).expect("comparison has endpoints");
-    if pending.temper_dir.touch == Touch::None {
+    let probed = d.temper_dir_probes.get_mut(&pending.task).expect("comparison follows the probe");
+    let touch = pending.temper_dir.touch;
+    probed.touch = Some(touch);
+    let base_method = probed.base_method;
+    // Before a queue update the base's method could enter the head that will land.
+    let head_method = probed.head_method
+        || (touch == Touch::Temper
+            && base_method
+            && crate::readiness::selected_way(d, row) == change::Way::Queue
+            && pending.contains_base != change::Status::Passed);
+    if !covered(touch, head_method, base_method) {
         pending.temper_dir.fact = change::TemperDir::Uncovered;
+        finish_step(d, env, pending, out);
+    } else if !may_judge(d, row, &mut pending) {
         finish_step(d, env, pending, out);
     } else if let Some(pass) = d.temper_dir_passes.get(&pending.task)
         && pass.pair == pair
-        && (crate::readiness::selected_way(d, row) == change::Way::Turn
-            || pending.contains_base == change::Status::Passed)
     {
         passed(d, env, owner, pending, pair, out);
     } else {
-        let covered = covered(pending.temper_dir.touch, false, false);
-        if covered && !may_judge(d, row, &mut pending) {
-            finish_step(d, env, pending, out);
-            return;
-        }
-        pending.temper_dir.reading = Some(Box::new(TreeRead {
-            head: Reading::new(pair.head, env.limits.client.answer_bytes),
-            base: None,
-            covered,
-        }));
+        pending.temper_dir.reading = match pending.temper_dir.head_listing.take() {
+            Some(listing) => Some(listing),
+            None => Some(Box::new(Reading::new(pair.head, env.limits.client.answer_bytes))),
+        };
         next(d, env, owner, pending, out);
     }
 }
@@ -164,62 +315,19 @@ pub(super) fn answered(
     answer: &Result<Answer, Error>,
     out: &mut Queue<Request>,
 ) {
-    let Some(row) = d.changes.get(&pending.task) else { return };
-    let mut reading = pending.temper_dir.reading.take().expect("file read has its reader");
-    let reader = match &mut reading.base {
-        Some(base) => base,
-        None => &mut reading.head,
-    };
-    if reader.take(answer).is_err() || pending.woken {
+    let reading = pending.temper_dir.reading.as_mut().expect("file read has its reader");
+    if pending.woken || reading.take(answer).is_err() {
         finish_step(d, env, pending, out);
-        return;
+    } else {
+        next(d, env, owner, pending, out);
     }
-    if !reading.covered {
-        let pair = Pair::at(&pending).expect("reading has endpoints");
-        let touch = pending.temper_dir.touch;
-        let head_method = reading.head.method_present() != Some(false);
-        // A cut listing doesn't establish absence. A covered cut head is judged, not waived.
-        let needs_base = touch == Touch::Unknown
-            || (touch == Touch::Temper
-                && crate::readiness::selected_way(d, row) == change::Way::Queue
-                && pending.contains_base != change::Status::Passed);
-        if !head_method && needs_base && reading.base.is_none() && pair.head != pair.base {
-            reading.base = Some(Reading::new(pair.base, env.limits.client.answer_bytes));
-            pending.temper_dir.reading = Some(reading);
-            next(d, env, owner, pending, out);
-            return;
-        }
-        let base_method =
-            if let Some(base) = reading.base.take() { base.method_present() != Some(false) } else { false };
-        // Before a queue update, the base's method can enter the head that will land.
-        let projected_method = head_method || (touch == Touch::Temper && base_method);
-        if !covered(touch, projected_method, base_method) {
-            pending.temper_dir.fact = change::TemperDir::Uncovered;
-            finish_step(d, env, pending, out);
-            return;
-        }
-        reading.covered = true;
-        if !may_judge(d, row, &mut pending) {
-            finish_step(d, env, pending, out);
-            return;
-        }
-    }
-    pending.temper_dir.reading = Some(reading);
-    next(d, env, owner, pending, out);
 }
 
 fn next(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: PendingStep, out: &mut Queue<Request>) {
     let Some(row) = d.changes.get(&pending.task) else { return };
-    let reading = pending.temper_dir.reading.as_ref().expect("working reading");
-    let reader = match &reading.base {
-        Some(base) => base,
-        None => &reading.head,
-    };
+    let reader = pending.temper_dir.reading.as_ref().expect("working reading");
     if let Some(read) = reader.next() {
-        let repository = row.repository;
-        pending.stage = StepStage::TemperDir;
-        d.steps.insert(owner, pending).expect("one step per change");
-        gather_read(d, env, owner, repository, read, out);
+        ask(d, env, owner, pending, StepStage::TemperDir, read, out);
         return;
     }
     let pair = Pair::at(&pending).expect("judgement has endpoints");

@@ -642,12 +642,6 @@ fn finish_adoption(
             None => Box::default(),
         },
     };
-    if row.home
-        && let Err(error) = crate::domain::admission::home_watch(d, &env.limits, row.provider, &row.landing)
-    {
-        adopted(d, out, owner, Err(error));
-        return;
-    }
     let mut stored = row.clone();
     let mut contexts = List::with_capacity(env.limits.judge_projects);
     if let Some(existing) = d.repository(row.provider) {

@@ -211,7 +211,9 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
 }
 
 fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
-    if !domain.forge.settling_changes(repository, branch, 1).is_empty() {
+    if !domain.forge.settling_changes(repository, branch, 1).is_empty()
+        || domain.forge.probing_train(repository, branch)
+    {
         return false;
     }
     if let Some((refusal, _)) = domain.forge.forming_refusal(repository, branch) {

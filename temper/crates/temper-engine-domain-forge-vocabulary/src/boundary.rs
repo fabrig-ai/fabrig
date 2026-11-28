@@ -2222,7 +2222,6 @@ pub enum Key {
     Dismissed { party: u64, what: crate::PersonFact },
     Making(crate::MakingKey),
     ProjectFacts { project: u32 },
-    TemperRevision { project: u32 },
     Looked { party: u64, project: u32 },
     Away { party: u64, project: u32 },
     Decided { project: u32, number: u32 },
@@ -2238,6 +2237,8 @@ pub enum Key {
     Milestone(u64),
     PersonBrief { party: u64, project: u32 },
     Writes(Name),
+    // Store family 53 follows Writes in the startup walk.
+    TemperRevision { project: u32 },
     HistoryProject { project: u32 },
     HistoryEvent { project: u32, number: u64 },
     HistoryChange { project: u32, change: u64, number: u64 },

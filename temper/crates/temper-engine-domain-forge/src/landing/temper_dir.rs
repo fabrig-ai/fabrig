@@ -2,7 +2,7 @@
 use super::{
     GatherRead, Pending, Stage, ask, decide, observe_tip, policy, read_failed, repository, step, wait_for_record,
 };
-use crate::domain::temper_dir::{covered, fault_words, guards, home};
+use crate::domain::temper_dir::{covered, fault_words, guards, home, no_method};
 use crate::{Domain, LandingRow, Limits, Request, TemperDirEvidence};
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Commit, Error, Read};
@@ -149,6 +149,9 @@ fn compare(
             continue;
         }
         let after = p.facts.get(index).expect("member facts").head;
+        if no_method(d, member.change, after, before) {
+            continue;
+        }
         let paths = p.paths.get(index).expect("member paths");
         if let Some(diff) = &paths.comparison
             && diff.before == before

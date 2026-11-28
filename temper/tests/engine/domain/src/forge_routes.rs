@@ -4451,7 +4451,7 @@ impl World {
             ));
         }
         self.oracle_settle();
-        snapshot.compare_rows(&self.store.rows).unwrap_or_else(|finding| panic!("{finding}"));
+        snapshot.compare_rows_after_restart(&self.store.rows).unwrap_or_else(|finding| panic!("{finding}"));
         crate::oracle::compare_forges(forges, self.root.forges()).unwrap_or_else(|finding| panic!("{finding}"));
         for (index, (sign_in, read)) in snapshot.queries.iter().enumerate() {
             let answer = self.oracle_read(*sign_in, read.clone());

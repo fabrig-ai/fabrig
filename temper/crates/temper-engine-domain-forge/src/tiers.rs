@@ -112,19 +112,13 @@ pub(crate) fn name(repository: Repository, branch: &[u8]) -> Name {
     Name { forge: repository.forge, repository: repository.repository, what: What::Branch(path_parts(branch)) }
 }
 pub(crate) fn watched(d: &Domain) -> List<Name> {
-    watched_except_home(d, None)
-}
-
-pub(crate) fn watched_except_home(d: &Domain, replacing_home: Option<Repository>) -> List<Name> {
     let capacity = d.tiers.capacity().checked_add(d.holds.capacity()).expect("tier and goal watches");
     let mut names = List::with_capacity(
         capacity
             .checked_add(d.subscriptions.capacity())
             .expect("subscription watches")
             .checked_add(d.follow_rows.capacity())
-            .expect("follow watches")
-            .checked_add(d.repositories.capacity())
-            .expect("home watches"),
+            .expect("follow watches"),
     );
     for (repository, _) in &d.repositories {
         if d.forge_ended(repository.forge) {
@@ -157,7 +151,6 @@ pub(crate) fn watched_except_home(d: &Domain, replacing_home: Option<Repository>
         }
     }
     crate::follows::watches(d, &mut names);
-    crate::temper_revision::watches(d, replacing_home, &mut names);
     names
 }
 pub(crate) fn add_watches(

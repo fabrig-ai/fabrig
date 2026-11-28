@@ -1,6 +1,6 @@
 //! The root maps forge reviews for the method check independently of landing rules.
 use super::approval_identity::{forge_with_only_temper, post_approval_read, settle};
-use super::light_rules::{change_row, pushed_path_change_in};
+use super::light_rules::{change_row, pushed_path_change_in, pushed_path_change_with_base_edit};
 use super::*;
 use temper_engine_domain_forge_change::{Repair, State};
 
@@ -58,6 +58,38 @@ fn request_changes(world: &mut World, task: u64) {
     })));
 }
 
+fn assert_probe_and_updated_method(
+    world: &World,
+    original: skein_forge::api::Commit,
+    updated: skein_forge::api::Commit,
+) {
+    let reads = world.forge_reads.as_ref().expect("recorded forge reads");
+    let probes: Vec<_> = reads
+        .iter()
+        .filter_map(|(_, read)| match read {
+            skein_forge::api::Read::File { path, head, .. }
+                if path.as_ref() == b".temper" && [original, updated].contains(head) =>
+            {
+                Some(*head)
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(probes, [original, updated], "probe each pair once");
+    let files: Vec<_> = reads
+        .iter()
+        .filter_map(|(_, read)| match read {
+            skein_forge::api::Read::File { path, head, .. }
+                if path.as_ref() == b".temper/ways.toml" && [original, updated].contains(head) =>
+            {
+                Some(*head)
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(files, [updated], "read the method only at the updated head");
+}
+
 #[test]
 fn temper_dir_sign_off_counts_only_mapped_owners_and_keeps_clean_predecessors() {
     for old_review in [None, Some(raw::Verdict::RequestChanges), Some(raw::Verdict::Approve)] {
@@ -102,25 +134,11 @@ fn temper_dir_sign_off_counts_only_mapped_owners_and_keeps_clean_predecessors() 
                 raw::Answer::Comparison { contains_base: true, .. }
             ));
         }
-        let trees: Vec<_> = world
-            .forge_reads
-            .as_ref()
-            .unwrap()
-            .iter()
-            .filter_map(|(_, read)| {
-                if let skein_forge::api::Read::File { path, head, .. } = read
-                    && path.as_ref() == b".temper"
-                {
-                    Some(*head)
-                } else {
-                    None
-                }
-            })
-            .collect();
-        assert_eq!(trees, [updated], "read the method only at the updated head");
+        let original = translate::commit(original);
+        assert_probe_and_updated_method(&world, original, updated);
         if old_review == Some(raw::Verdict::RequestChanges) {
             assert!(
-                matches!(row.change.state, State::Repairing { why: Repair::Review { head }, .. } if head == translate::commit(original)),
+                matches!(row.change.state, State::Repairing { why: Repair::Review { head }, .. } if head == original),
                 "{:?}",
                 row.change
             );
@@ -152,5 +170,50 @@ fn temper_dir_sign_off_counts_only_mapped_owners_and_keeps_clean_predecessors() 
     settle(&mut world);
     assert_eq!(world.merges, 1, "uncovered changes don't need an owner");
     assert!(!world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Update { .. })));
+    world.close();
+}
+
+#[test]
+fn a_first_faulty_method_is_repaired_before_landing() {
+    let (mut world, task, _, _) =
+        pushed_path_change_in(world(), false, b"main", &[(b".temper/ways.toml", b"format = 99\noffer = [\"pair\"]\n")]);
+    settle(&mut world);
+    let row = change_row(&world, task);
+    assert!(matches!(row.change.state, State::Repairing { why: Repair::TemperDir { .. }, .. }));
+    let fault = row.temper_dir_fault.as_deref().expect("the check keeps its words");
+    let words = std::str::from_utf8(fault).expect("fault is text");
+    assert!(words.contains(".temper/ways.toml:1: format 99"), "{words}");
+    assert_eq!(world.merges, 0);
+    world.close();
+}
+
+#[test]
+fn a_hooks_only_change_lands_without_a_method_comparison() {
+    const MERGE_STEPS: u32 = 200;
+    let (mut world, task, head, base) =
+        pushed_path_change_with_base_edit(world(), b"main", &[(b".temper/hooks/close", b"#!/bin/sh\n")], None);
+    for _ in 0..MERGE_STEPS {
+        world.tick();
+        if world.merges != 0 {
+            break;
+        }
+    }
+    assert_eq!(world.merges, 1);
+    let (head, base) = (translate::commit(head), translate::commit(base));
+    let reads = world.forge_reads.as_ref().expect("recorded forge reads");
+    for commit in [head, base] {
+        assert!(
+            reads.iter().any(|(_, read)| matches!(read,
+                skein_forge::api::Read::File { path, head, .. } if path.as_ref() == b".temper" && *head == commit
+            )),
+            "probe each exact tip"
+        );
+    }
+    assert!(
+        !reads.iter().any(|(_, read)| matches!(read, skein_forge::api::Read::Compare { .. })),
+        "methodless change must not compare its head to its base: {reads:?}"
+    );
+    settle(&mut world);
+    assert!(matches!(change_row(&world, task).change.state, State::Landed { .. }));
     world.close();
 }

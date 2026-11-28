@@ -15,6 +15,8 @@ struct Pending {
     branch: Box<[u8]>,
     observed: u64,
     tree: Option<Tree>,
+    ask: Option<Read>,
+    poll: Option<Movement>,
     again: bool,
 }
 
@@ -22,6 +24,19 @@ struct Pending {
 struct Tree {
     commit: Commit,
     reading: Reading,
+}
+
+#[derive(Clone, Copy, Hash, Debug)]
+struct Watch {
+    home: Repository,
+    tip: Commit,
+    at: Time,
+}
+
+#[derive(Hash, Debug)]
+enum Movement {
+    Tip(Commit),
+    Paths { before: Commit, after: Commit },
 }
 
 #[derive(Hash, Debug)]
@@ -37,6 +52,7 @@ pub(crate) struct State {
     stamped: Map<u32, u64>,
     reads: Map<Token, Pending>,
     retries: Map<u32, Retry>,
+    watches: Map<u32, Watch>,
 }
 
 impl State {
@@ -47,6 +63,7 @@ impl State {
             stamped: Map::with_capacity(limits.judge_projects),
             reads: Map::with_capacity(limits.judge_projects),
             retries: Map::with_capacity(limits.judge_projects),
+            watches: Map::with_capacity(limits.judge_projects),
         }
     }
 
@@ -78,15 +95,14 @@ pub(crate) fn forget(d: &mut Domain, repository: Repository) {
     d.temper_revisions.provisional.remove(&repository);
 }
 
-pub(crate) fn adopted(d: &mut Domain, env: &Env<Limits>, home: Repository, request: Token, out: &mut Queue<Request>) {
+pub(crate) fn adopted(d: &mut Domain, env: &Env<Limits>, home: Repository, request: Token) {
     if d.temper_revisions.provisional.get(&home) != Some(&request) {
         return;
     }
     forget(d, home);
-    d.tier_ops.dirty = true;
     let Some(row) = d.repository(home) else { return };
     if row.home && row.role != Role::Context {
-        read(d, env, row.project, None, out);
+        read(d, env, row.project, None);
     } else {
         retire(d, home);
     }
@@ -94,6 +110,7 @@ pub(crate) fn adopted(d: &mut Domain, env: &Env<Limits>, home: Repository, reque
 
 fn home(d: &Domain, project: u32) -> Option<&crate::Repository> {
     let row = d.home(project)?;
+    d.configured(row.provider.forge)?;
     if row.role == Role::Context || d.temper_revisions.provisional.contains_key(&row.provider) {
         return None;
     }
@@ -107,23 +124,7 @@ fn is_home(d: &Domain, project: u32, repository: Repository) -> bool {
     false
 }
 
-/// Add the homes' landing branches to the shared watches.
-pub(crate) fn watches(d: &Domain, replacing: Option<Repository>, names: &mut List<crate::Name>) {
-    for (_, row) in &d.repositories {
-        if row.home
-            && row.role != Role::Context
-            && !d.forge_ended(row.provider.forge)
-            && replacing != Some(row.provider)
-        {
-            let name = crate::tiers::name(row.provider, &row.landing);
-            if !names.as_slice().contains(&name) {
-                names.push(name).expect("one watch per home repository");
-            }
-        }
-    }
-}
-
-pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>) {
     let mut projects = List::with_capacity(d.repositories.len());
     for (_, row) in &d.repositories {
         if row.home && !projects.as_slice().contains(&row.project) {
@@ -131,7 +132,7 @@ pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
         }
     }
     for project in projects.into_boxed() {
-        read(d, env, project, None, out);
+        read(d, env, project, None);
     }
 }
 
@@ -140,17 +141,10 @@ pub(crate) fn watches_branch(d: &Domain, repository: Repository, branch: &[u8]) 
     row.landing.as_ref() == branch && is_home(d, row.project, repository)
 }
 
-pub(crate) fn landed(
-    d: &mut Domain,
-    env: &Env<Limits>,
-    repository: Repository,
-    branch: &[u8],
-    tip: Option<Commit>,
-    out: &mut Queue<Request>,
-) {
+pub(crate) fn landed(d: &mut Domain, env: &Env<Limits>, repository: Repository, branch: &[u8], tip: Option<Commit>) {
     if watches_branch(d, repository, branch) {
         let project = d.repository(repository).expect("watched home").project;
-        read(d, env, project, tip, out);
+        read(d, env, project, tip);
     }
 }
 
@@ -165,7 +159,11 @@ pub(crate) fn touched(files: Option<&[Box<[u8]>]>, behind: bool) -> bool {
     }
 }
 
-fn read(d: &mut Domain, env: &Env<Limits>, project: u32, tip: Option<Commit>, out: &mut Queue<Request>) {
+fn read(d: &mut Domain, env: &Env<Limits>, project: u32, tip: Option<Commit>) {
+    queue(d, env, project, tip, None);
+}
+
+fn queue(d: &mut Domain, env: &Env<Limits>, project: u32, tip: Option<Commit>, poll: Option<Movement>) {
     if d.stopping {
         return;
     }
@@ -194,6 +192,7 @@ fn read(d: &mut Domain, env: &Env<Limits>, project: u32, tip: Option<Commit>, ou
         return;
     }
     d.temper_revisions.retries.remove(&project);
+    d.temper_revisions.watches.remove(&project);
     d.sequence = sequence;
     let owner = Token::new(sequence | (1_u64 << 60_u32));
     let (tree, read) = match tip {
@@ -204,17 +203,42 @@ fn read(d: &mut Domain, env: &Env<Limits>, project: u32, tip: Option<Commit>, ou
         }
         None => (None, Read::Branch { branch: branch.clone() }),
     };
-    let pending = Pending { project, home: repository, branch, observed, tree, again: false };
-    send(d, env, owner, pending, read, out);
+    let pending = Pending { project, home: repository, branch, observed, tree, ask: Some(read), poll, again: false };
+    d.temper_revisions.reads.insert(owner, pending).expect("one read per observed project");
 }
 
 fn tree(env: &Env<Limits>, commit: Commit) -> Tree {
     Tree { commit, reading: Reading::new(commit, env.limits.client.answer_bytes) }
 }
 
-fn send(d: &mut Domain, env: &Env<Limits>, owner: Token, pending: Pending, read: Read, out: &mut Queue<Request>) {
+fn next(d: &Domain) -> Option<Token> {
+    if !d.room_for_revision_read() {
+        return None;
+    }
+    let mut next = None;
+    for (owner, pending) in &d.temper_revisions.reads {
+        pending.ask.as_ref()?;
+        if next.is_none() {
+            next = Some(*owner);
+        }
+    }
+    next
+}
+
+pub(crate) fn ready(d: &Domain) -> bool {
+    next(d).is_some()
+}
+
+pub(crate) fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let Some(owner) = next(d) else { return };
+    let ready = d.temper_revisions.reads.get(&owner).expect("waiting read");
+    if !watches_branch(d, ready.home, &ready.branch) {
+        d.temper_revisions.reads.remove(&owner);
+        return;
+    }
+    let pending = d.temper_revisions.reads.get_mut(&owner).expect("waiting read");
     let repository = pending.home;
-    d.temper_revisions.reads.insert(owner, pending).expect("one read per observed project");
+    let read = pending.ask.take().expect("waiting read has an ask");
     crate::domain::child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
 }
 
@@ -230,6 +254,34 @@ pub(crate) fn answered(
     let same = watches_branch(d, pending.home, &pending.branch)
         && d.repository(pending.home).expect("watched home").project == project;
     if !d.stopping && same && pending.observed > d.temper_revisions.observed(project) {
+        let result = match pending.poll.take() {
+            Some(Movement::Tip(before)) => match result {
+                Ok(Answer::Commit(after)) if before == after => {
+                    rearm(d, env, &pending, after);
+                    return;
+                }
+                Ok(Answer::Commit(after)) => {
+                    pending.ask = Some(Read::Compare { before, after });
+                    pending.poll = Some(Movement::Paths { before, after });
+                    d.temper_revisions.reads.insert(owner, pending).expect("poll retains its place");
+                    return;
+                }
+                other => other,
+            },
+            Some(Movement::Paths { before, after }) => {
+                if let Ok(Answer::Compare { before: from, after: to, changed, files, behind, .. }) = &result
+                    && *from == before
+                    && *to == after
+                    && *changed == len_u64(files.len())
+                    && !touched(Some(files), *behind > 0)
+                {
+                    rearm(d, env, &pending, after);
+                    return;
+                }
+                Ok(Answer::Commit(after))
+            }
+            None => result,
+        };
         let mut error = None;
         if let Some(tree) = &mut pending.tree {
             if tree.reading.take(&result).is_err() {
@@ -252,15 +304,20 @@ pub(crate) fn answered(
             }
         } else if let Some(tree) = &pending.tree {
             if let Some(next) = tree.reading.next() {
-                send(d, env, owner, pending, next, out);
+                pending.ask = Some(next);
+                d.temper_revisions.reads.insert(owner, pending).expect("read retains its place");
                 return;
             }
             let judged = tree.reading.judge(Home::Here);
-            take(d, &pending, Some(tree.commit), judgement(&tree.reading, &judged), out);
+            let tip = tree.commit;
+            take(d, &pending, Some(tip), judgement(&tree.reading, &judged), out);
+            if judged.method {
+                watch(d, env, &pending, tip);
+            }
         }
     }
     if pending.again {
-        read(d, env, project, None, out);
+        read(d, env, project, None);
     }
 }
 
@@ -335,8 +392,42 @@ fn take(
     out.push(Request::Save { record: Stored::TemperRevision(row), read_afresh: None, release: None });
 }
 
+// Only a home known to have method has its own branch observer. Its tip
+// does not consume a shared watch place or write the task branch-head cache.
+fn watch(d: &mut Domain, env: &Env<Limits>, pending: &Pending, tip: Commit) {
+    let at = d.poll_at(env, pending.home);
+    d.temper_revisions
+        .watches
+        .insert(pending.project, Watch { home: pending.home, tip, at })
+        .expect("at most one watch per revision");
+}
+
+fn rearm(d: &mut Domain, env: &Env<Limits>, pending: &Pending, tip: Commit) {
+    watch(d, env, pending, tip);
+    if pending.again {
+        read(d, env, pending.project, None);
+    }
+}
+
+pub(crate) fn hinted(d: &mut Domain, env: &Env<Limits>, hint: &skein_forge::api::Hint) {
+    let branch = match &hint.change {
+        skein_forge::api::Change::Branch(branch) | skein_forge::api::Change::BranchMoved { branch, .. } => branch,
+        skein_forge::api::Change::Item(_) | skein_forge::api::Change::Commit(_) => return,
+    };
+    if !watches_branch(d, hint.repository, branch) {
+        return;
+    }
+    let project = d.repository(hint.repository).expect("home branch").project;
+    if let Some(watch) = d.temper_revisions.watches.get_mut(&project) {
+        watch.at = watch.at.min(env.now.saturating_add(env.limits.client.hinted));
+    }
+}
+
 pub(crate) fn deadline(d: &Domain) -> Option<Time> {
     let mut next: Option<Time> = None;
+    for (_, watch) in &d.temper_revisions.watches {
+        next = skein_lib::earliest(next, Some(watch.at));
+    }
     for (_, retry) in &d.temper_revisions.retries {
         next = Some(match next {
             Some(at) => at.min(retry.at),
@@ -346,7 +437,7 @@ pub(crate) fn deadline(d: &Domain) -> Option<Time> {
     next
 }
 
-pub(crate) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+pub(crate) fn fire(d: &mut Domain, env: &Env<Limits>) {
     let mut due = List::with_capacity(d.temper_revisions.retries.len());
     for (project, retry) in &d.temper_revisions.retries {
         if retry.at <= env.now {
@@ -356,13 +447,35 @@ pub(crate) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     for (project, repository) in due.into_boxed() {
         d.temper_revisions.retries.remove(&project);
         if is_home(d, project, repository) {
-            read(d, env, project, None, out);
+            read(d, env, project, None);
+        }
+    }
+    let mut due = List::with_capacity(d.temper_revisions.watches.len());
+    for (project, watch) in &d.temper_revisions.watches {
+        if watch.at <= env.now {
+            due.push((*project, *watch)).expect("one poll per project");
+        }
+    }
+    for (project, watch) in due.into_boxed() {
+        d.temper_revisions.watches.remove(&project);
+        if is_home(d, project, watch.home) {
+            queue(d, env, project, None, Some(Movement::Tip(watch.tip)));
         }
     }
 }
 
 pub(crate) fn retire(d: &mut Domain, repository: Repository) {
     forget(d, repository);
+    let mut watched = None;
+    for (project, watch) in &d.temper_revisions.watches {
+        if watch.home == repository {
+            watched = Some(*project);
+            break;
+        }
+    }
+    if let Some(project) = watched {
+        d.temper_revisions.watches.remove(&project);
+    }
     let mut reads = List::with_capacity(d.temper_revisions.reads.len());
     for (owner, pending) in &d.temper_revisions.reads {
         if pending.home == repository {
@@ -384,6 +497,7 @@ pub(crate) fn retire(d: &mut Domain, repository: Repository) {
 }
 
 pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    d.temper_revisions.watches.remove(&project);
     d.temper_revisions.stamped.remove(&project);
     d.temper_revisions.retries.remove(&project);
     let mut reading = None;

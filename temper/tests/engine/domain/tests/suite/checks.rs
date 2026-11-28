@@ -159,8 +159,8 @@ fn a_parked_producing_change_with_its_live_delegate_passes() {
 
 #[test]
 fn a_preparing_change_without_a_landing_waits_on_its_write() {
-    // The new gather meets Busy at 69.7 s in this fixture and retries one second later.
-    const READ_ADMISSION_RETRY: Time = Time::from_nanos(70_700_000_000);
+    // The gather meets Busy at 70.3 s in this fixture and retries one second later.
+    const READ_ADMISSION_RETRY: Time = Time::from_nanos(71_300_000_000);
     let (world, change) = super::forge_routes::reviews::preparing_review_repair(None);
     let row = world.root.forge().change(change).expect("preparing change");
     assert_eq!(world.root.forge().landing_of(row.task), None);

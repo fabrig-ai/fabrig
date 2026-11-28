@@ -107,7 +107,7 @@ fn directory(d: &mut Domain, head: Commit, path: &[u8], name: &[u8], kind: Entry
     )
 }
 
-fn good_tree(d: &mut Domain) -> Box<[Request]> {
+fn good_root(d: &mut Domain) {
     file_read(
         d,
         HEAD,
@@ -122,6 +122,9 @@ fn good_tree(d: &mut Domain) -> Box<[Request]> {
             truncated: false,
         }),
     );
+}
+
+fn good_tree(d: &mut Domain) -> Box<[Request]> {
     directory(d, HEAD, b".temper/ways", b"pair.toml", EntryKind::File);
     file_read(
         d,
@@ -149,7 +152,6 @@ fn good_tree(d: &mut Domain) -> Box<[Request]> {
 }
 
 fn offers(d: &mut Domain, bytes: &[u8]) -> Box<[Request]> {
-    directory(d, HEAD, b".temper", b"ways.toml", EntryKind::File);
     file_read(d, HEAD, WAYS, Ok(Answer::File { head: HEAD, path: WAYS.into(), bytes: bytes.into(), truncated: false }))
 }
 
@@ -179,16 +181,20 @@ fn temper_dir_coverage_controls_the_reads_and_merge_evidence() {
     ] {
         let mut d = fixture(first(), Way::Queue, b"main");
         gather(&mut d, BASE, Status::Passed);
-        let compared = compare(&mut d, BASE, path, whole);
         let done = if !whole {
             file_read(&mut d, HEAD, b".temper", Err(Error::Missing));
-            directory(&mut d, BASE, b".temper", b"ways.toml", EntryKind::File)
+            directory(&mut d, BASE, b".temper", b"ways.toml", EntryKind::File);
+            compare(&mut d, BASE, path, whole)
         } else if path == WAYS {
+            good_root(&mut d);
+            compare(&mut d, BASE, path, whole);
             good_tree(&mut d)
         } else if path.starts_with(b".temper/") {
-            directory(&mut d, HEAD, b".temper", b"hooks", EntryKind::Directory)
+            directory(&mut d, HEAD, b".temper", b"hooks", EntryKind::Directory);
+            file_read(&mut d, BASE, b".temper", Err(Error::Missing))
         } else {
-            compared
+            good_root(&mut d);
+            compare(&mut d, BASE, path, whole)
         };
         merged(&done, BASE, expected);
         assert!(d.steps.is_empty());
@@ -203,18 +209,23 @@ fn temper_dir_coverage_controls_the_reads_and_merge_evidence() {
 fn temper_dir_waits_to_read_until_the_queue_update_and_invalidates_a_moved_base() {
     let mut d = fixture(first(), Way::Queue, b"main");
     gather(&mut d, BASE, Status::Failed);
+    good_root(&mut d);
     let compared = compare(&mut d, BASE, WAYS, true);
     let (effect, evidence) = decision(&compared);
     assert_eq!(effect, Decision::Effect(Effect::Update { head: HEAD, base: BASE }));
     assert_eq!(evidence.expect("update evidence").temper_dir, TemperDirEvidence::Pending);
-    assert!(d.steps.is_empty(), "no file before updating");
+    assert!(d.steps.is_empty(), "the probe reads no method file before updating");
 
-    let mut d = fixture(gating(), Way::Queue, b"main");
+    let mut d = fixture(gating(), Way::Turn, b"main");
     gather(&mut d, BASE, Status::Passed);
+    good_root(&mut d);
     compare(&mut d, BASE, WAYS, true);
     assert_eq!(decision(&good_tree(&mut d)).0, Decision::Ready);
-    d.changes.get_mut(&CHANGE).expect("ready change").change.state = first();
+    let row = d.changes.get_mut(&CHANGE).expect("ready change");
+    row.change.state = first();
+    row.change.way = Way::Queue;
     gather(&mut d, MOVED, Status::Passed);
+    good_root(&mut d);
     compare(&mut d, MOVED, WAYS, true);
     // The head stayed the same; a pass at the old base cannot authorize this merge.
     let approved = good_tree(&mut d);
@@ -225,17 +236,18 @@ fn temper_dir_waits_to_read_until_the_queue_update_and_invalidates_a_moved_base(
 fn temper_dir_failures_wait_for_a_read_and_repair_only_faults_at_the_own_head() {
     let mut d = fixture(gating(), Way::Turn, b"main");
     gather(&mut d, BASE, Status::Failed);
-    compare(&mut d, BASE, WAYS, true);
     let pending = file_read(&mut d, HEAD, b".temper", Err(Error::Forbidden));
     assert!(matches!(decision(&pending).0, Decision::Wait { .. }));
     assert_eq!(d.change(CHANGE).expect("waiting change").change.repairs, 0);
     gather(&mut d, BASE, Status::Failed);
+    good_root(&mut d);
     compare(&mut d, BASE, WAYS, true);
     assert_eq!(decision(&good_tree(&mut d)).0, Decision::Ready);
 
     for (way, state) in [(Way::Turn, gating()), (Way::Queue, first())] {
         let mut d = fixture(state, way, b"main");
         gather(&mut d, BASE, Status::Passed);
+        directory(&mut d, HEAD, b".temper", b"ways.toml", EntryKind::File);
         compare(&mut d, BASE, WAYS, true);
         let fault = offers(&mut d, b"offer = [\"pair\"]\n");
         let why = Repair::TemperDir { head: HEAD };
@@ -253,6 +265,7 @@ fn temper_dir_failures_wait_for_a_read_and_repair_only_faults_at_the_own_head() 
 
     let mut bounded = fixture(first(), Way::Queue, b"main");
     gather(&mut bounded, BASE, Status::Passed);
+    directory(&mut bounded, HEAD, b".temper", b"ways.toml", EntryKind::File);
     compare(&mut bounded, BASE, WAYS, true);
     offers(&mut bounded, b"offer = [\"pair\"]\na=0\nb=0\nc=0\nd=0\ne=0\nf=0\ng=0\nh=0\ni=0\nj=0\nk=0\nl=0\nm=0\nn=0\no=0\np=0\nq=0\nr=0\ns=0\nt=0\n");
     let reason = bounded.change(CHANGE).expect("repairing change").temper_dir_fault.as_deref().expect("fault text");
@@ -272,8 +285,8 @@ fn temper_dir_failures_wait_for_a_read_and_repair_only_faults_at_the_own_head() 
     home.name = b"method".as_slice().into();
     d.repositories.insert(home.provider, Box::new(home)).expect("home beside changed repository");
     gather(&mut d, BASE, Status::Passed);
-    compare(&mut d, BASE, b".temper/charters/intro.md", true);
     directory(&mut d, HEAD, b".temper", b"charters", EntryKind::Directory);
+    compare(&mut d, BASE, b".temper/charters/intro.md", true);
     let done = file_read(
         &mut d,
         HEAD,

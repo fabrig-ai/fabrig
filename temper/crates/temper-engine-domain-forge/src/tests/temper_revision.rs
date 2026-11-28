@@ -257,9 +257,7 @@ impl World {
     }
 
     pub(crate) fn trigger(&mut self, tip: Option<Commit>) {
-        let mut out = Queue::uncapped();
-        crate::temper_revision::landed(&mut self.d, &self.env, REPO, BRANCH, tip, &mut out);
-        self.take(out);
+        crate::temper_revision::landed(&mut self.d, &self.env, REPO, BRANCH, tip);
     }
 
     fn revision(&self) -> &TemperRevision {

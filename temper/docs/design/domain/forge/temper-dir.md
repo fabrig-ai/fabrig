@@ -53,12 +53,16 @@ files, and the judgement made of them, is
     project's home, or keeps it so, is saved and taken, not one the
     root's seeding of its party rolls back (`adoption.md`, the act of 9
     alike);
-  - **at a move of the home's landing branch** whose landing's files
-    (`topics.md`, 1.1) name a path under `.temper/`, or aren't known
-    (the comparison refused, past its bound, or not made), or whose
-    comparison has `behind` above 0: a rewind or a branch moved past
-    its tip, whose files from the merge base say nothing of what went.
-    A move someone else made is a landing as temper's own merge is;
+  - **at a move of the home's landing branch,** watched where the home
+    holds temper's method, whose landing's files (`topics.md`, 1.1)
+    name a path under `.temper/`, or aren't known (the comparison
+    refused, past its bound, or not made), or whose comparison has
+    `behind` above 0: a rewind or a branch moved past its tip, whose
+    files from the merge base say nothing of what went. A move someone
+    else made is a landing as temper's own merge is. A home without
+    method gets no watch of its own: a first `.temper/ways.toml` added
+    outside temper is read at the next engine start or the next landing
+    temper already sees on that home;
   - **when the project's home changes:** a repository made its home is
     read at its adoption (above); a home released, or on a forge that
     ended, leaves the project with no home and nothing to read, and its
@@ -117,9 +121,9 @@ files, and the judgement made of them, is
 ## 4. The check before landing
 
 - **What it covers:** a change into the landing branch of one of the
-  project's writable repositories (`adoption.md`, 12), where the
-  comparison of the base's tip and its head (`Read::Compare`,
-  `change/gates.md`, 2) touches it, by the paths it gives:
+  project's writable repositories (`adoption.md`, 12), where the probe
+  below finds method and the comparison of the base's tip and its head
+  (`Read::Compare`, `change/gates.md`, 2) touches it, by the paths it gives:
   - **the method:** a path is `.temper/ways.toml`, or under
     `.temper/ways/` or `.temper/charters/`; always covered;
   - **`.temper/` alone:** else a path is under `.temper/`; covered where
@@ -133,6 +137,15 @@ files, and the judgement made of them, is
   A change into any other branch isn't covered either: a goal's branch
   lands whole as the change that lands it into the landing branch
   (`branches.md`, section 2), and is checked then.
+- **Probe before comparing:** the step that could decide a queue merge
+  or admit the change to a turn reads whether the change's head or its
+  base's tip holds method, pinned to those commits. It keeps the result
+  in memory by head and base, never in the store. If neither holds
+  method, the change is not covered and the check makes no comparison,
+  even if method was present at the merge base. If either holds method,
+  compare and apply the categories above. A failed probe waits and is
+  read again at the next step; it never refuses or repairs and is never
+  taken as absence. The probe makes no start or timed reads.
 - **Read once per pair:** the comparison is read where a step may
   decide on it, and kept by head and base in the forge's working set,
   as `Touched` is (`change/gates.md`, 2), so a pair is compared once.
@@ -174,10 +187,11 @@ files, and the judgement made of them, is
 - **A read that fails:** the change waits, the check still to pass, and is read again
   at its next step. It never lands on a read that failed, and never
   repairs for one.
-- **A project without temper's method:** its changes touching
-  `.temper/` alone, its hooks among them, touch `.temper/` over trees
-  that hold none, so none is covered and each lands as it does today; its
-  hooks are checked where they run (`../../protocol/hooks.md`, 2.2 and
+- **A project without temper's method:** where neither tip holds method,
+  a change touching `.temper/` alone, its hooks among them, is not
+  covered and lands as it does today, without the check comparing the
+  tips. A change introducing method is still checked before landing.
+  Hooks are checked where they run (`../../protocol/hooks.md`, 2.2 and
   4.3).
 
 ## 5. The owners' sign-off

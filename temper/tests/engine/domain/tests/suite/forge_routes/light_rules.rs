@@ -45,10 +45,20 @@ pub(crate) fn pushed_change_in(world: World, conflict: bool, landing: &[u8]) -> 
 }
 
 pub(super) fn pushed_path_change_in(
-    mut world: World,
+    world: World,
     conflict: bool,
     landing: &[u8],
     edits: &[(&[u8], &[u8])],
+) -> (World, u64, u64, u64) {
+    let path: &[u8] = if conflict { b"file" } else { b"other" };
+    pushed_path_change_with_base_edit(world, landing, edits, Some(path))
+}
+
+pub(super) fn pushed_path_change_with_base_edit(
+    mut world: World,
+    landing: &[u8],
+    edits: &[(&[u8], &[u8])],
+    base_edit: Option<&[u8]>,
 ) -> (World, u64, u64, u64) {
     world.adopt();
     let start = world.fake.branch(b"org/repo", b"main").expect("initial main");
@@ -86,9 +96,12 @@ pub(super) fn pushed_path_change_in(
         head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, path, content, 2)
             .expect("producer pushed");
     }
-    let path: &[u8] = if conflict { b"file" } else { b"other" };
-    let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", landing, path, b"base moved", 1)
-        .expect("main advanced after the producer pushed");
+    let base = if let Some(path) = base_edit {
+        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", landing, path, b"base moved", 1)
+            .expect("main advanced after the producer pushed")
+    } else {
+        start
+    };
     assert_eq!(
         world.external(
             1,
