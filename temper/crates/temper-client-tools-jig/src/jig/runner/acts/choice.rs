@@ -1,5 +1,5 @@
 //! Model-choice flags are checked against me's offer
-//! (temper/docs/design/client/ctl/areas-accounts.md, 1).
+//! (jig/docs/design/domain/tasks/README.md, 3).
 use super::{Call, Failed, value};
 use crate::jig::{
     call::{Value, repeated, split_model_value},

@@ -1661,7 +1661,7 @@ pub(crate) fn settings_wire_setting_model(value: &c::SettingModel) -> w::Setting
         efforts,
         effort: optional_text(value.effort.as_ref()),
         speeds,
-        speed: None,
+        speed: optional_text(value.speed.as_ref()),
     }
 }
 

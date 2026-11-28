@@ -28,27 +28,22 @@ Start a goal from a project's template
 Prints: `done: task N, goal`, or `proposed: PROPOSAL, to RECIPIENT` when another party must agree
 --json: the record goal_create.
 Key: --key KEY, required.
-Template sets charter, contract, tracking, label, flags, models
-and symbolic resources. TEXT's first line is the goal's title, as Home
-and Work show it: at most 60 characters naming the work for a person,
-as "Store shape: history in task logs"; the rest of TEXT follows
-on the lines below.
-Given budget: --budget or --as-allowed; given deadline: --deadline
-or --no-deadline. Defaults otherwise.
-A goal waiting on tasks counts its deadline from when it was made.
-With --milestone, --as-allowed takes all the milestone has left, so
-a second --as-allowed goal in it is refused for its budget: give each
-goal in a milestone --budget AMOUNT.
---effort needs --model, defaults if absent. --model wins each run
-and replaces the later choice; only --sub-agent replaces sub-agents.
---speed needs --model; --sub-agent-speed needs a model named by --sub-agent.
-A faster speed costs more. Choose a speed from model list, or standard.
-Leave it out to use the charter's speed or the model's default.
-Without --model the choice holds whole.
-Refused model flags name value and bound; nothing made.
-Within bounds: created; past but proposable: proposed (exit 0);
-not offered or past ceilings, nothing sent (exit 1).
-task show TASK --until replied.
+Template: charter, contract, tracking, label, flags, models, symbolic resources.
+TEXT's first line is the goal's title, as Home and Work show it: at most
+60 characters naming the work for a person, as "Store shape: history in
+task logs"; the rest of TEXT follows on the lines below.
+Budget: --budget or --as-allowed. Deadline: --deadline or --no-deadline.
+Defaults otherwise. Waiting deadlines count from creation.
+With --milestone, --as-allowed takes the remainder; a second fails for
+budget. Give each --budget AMOUNT.
+--effort and --speed need --model. Defaults: model effort and the
+charter's speed or model default. Pick from model list or standard;
+faster costs more.
+--model wins each run, later too; without it the choice holds whole.
+Only --sub-agent replaces sub-agents; --sub-agent-speed must name one.
+Flag refusal names flag, value, bound; nothing made.
+Within bounds: created; past but proposable: proposed (exit 0); not offered or past
+ceilings: nothing sent (exit 1). task show TASK --until replied.
 ```
 
 ## goal show

@@ -29,40 +29,12 @@ fn restore(domain: &mut Domain, env: &Env<Limits>, record: forge::Stored) {
     );
 }
 fn repository() -> forge::Repository {
-    forge::Repository {
-        contexts: Box::new([]),
-        landing: b"main".as_slice().into(),
-        refusals: Box::default(),
-        workflows: Box::default(),
-        project: 1,
-        home: true,
-        provider: REPO,
-        host: b"forge.example".as_slice().into(),
-        owner: b"work".as_slice().into(),
-        name: b"hello".as_slice().into(),
-        prefix: b"temper/".as_slice().into(),
-        role: forge::Role::Owned,
-        ci: true,
-        checks: Box::new([]),
-        kinds: forge::Kinds {
-            read: true,
-            push: true,
-            open: true,
-            land: true,
-            review: true,
-            status: true,
-            comment: true,
-            issue: true,
-            branch: true,
-        },
-        protection: forge::Protection::Absent,
-        settings: skein_forge::api::Settings {
-            default_branch: b"main".as_slice().into(),
-            merge: true,
-            squash: true,
-            rebase: false,
-        },
-    }
+    let mut repository = super::owned_repository(REPO.forge);
+    repository.project = 1;
+    repository.provider = REPO;
+    repository.owner = b"work".as_slice().into();
+    repository.name = b"hello".as_slice().into();
+    repository
 }
 #[test]
 fn catching_up_reports_after_opening_and_ends_without_another_start_step() {

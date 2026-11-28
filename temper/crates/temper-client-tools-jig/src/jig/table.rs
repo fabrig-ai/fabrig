@@ -243,6 +243,8 @@ pub const PLACEHOLDERS: &[&[u8]] = &[
     b"MODEL",
     b"EFFORT",
     b"MODEL[:EFFORT]",
+    b"SPEED",
+    b"MODEL:SPEED",
     b"AMOUNT",
     b"ADDRESS",
     b"ORG/NAME",

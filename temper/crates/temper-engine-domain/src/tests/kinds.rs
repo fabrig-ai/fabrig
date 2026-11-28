@@ -1034,40 +1034,12 @@ fn a_proposals_items_say_whether_an_approval_covers_an_owned_forgejo() {
         let (mut reader, _) = reader(Some(Role::Member));
         let mut config = resume_fixture::config(7);
         config.forges.first_mut().unwrap().mode = mode;
-        let repository = forge::Repository {
-            contexts: Box::new([]),
-            landing: b"main".as_slice().into(),
-            refusals: Box::default(),
-            workflows: Box::default(),
-            project: PROJECT,
-            home: true,
-            provider: skein_forge::api::Repository { forge: 1, repository: 1 },
-            host: b"forge.example".as_slice().into(),
-            owner: b"org".as_slice().into(),
-            name: b"repo".as_slice().into(),
-            prefix: Box::new([]),
-            role: forge::Role::Owned,
-            ci: false,
-            checks: Box::new([]),
-            kinds: forge::Kinds {
-                read: true,
-                push: writable,
-                open: true,
-                land: true,
-                review: true,
-                status: true,
-                comment: true,
-                issue: true,
-                branch: true,
-            },
-            protection: forge::Protection::Absent,
-            settings: skein_forge::api::Settings {
-                default_branch: b"main".as_slice().into(),
-                merge: true,
-                squash: false,
-                rebase: false,
-            },
-        };
+        let mut repository = owned_repository(1);
+        repository.project = PROJECT;
+        repository.prefix = Box::new([]);
+        repository.ci = false;
+        repository.kinds.push = writable;
+        repository.settings.squash = false;
         let (mut domain, env) = resume_fixture::root_with_config(config);
         ::core::mem::swap(&mut domain.engine.core_mut().people, &mut reader.engine.core_mut().people);
         domain.forge.restore_begin(env.wall);
@@ -1389,44 +1361,29 @@ fn follow_value() -> settings::Follow {
 }
 
 fn follow_repository(number: u32, role: forge::Role, push: bool) -> forge::Repository {
-    forge::Repository {
-        project: 2,
-        contexts: Box::new([]),
-        home: false,
-        provider: skein_forge::api::Repository { forge: 1, repository: number },
-        host: b"forge.example".as_slice().into(),
-        owner: b"org".as_slice().into(),
-        name: b"repo".as_slice().into(),
-        prefix: Box::new([]),
-        role,
-        ci: true,
-        checks: Box::new([]),
-        kinds: forge::Kinds {
-            read: true,
-            push,
-            open: push,
-            land: push,
-            review: push,
-            status: push,
-            comment: push,
-            issue: push,
-            branch: push,
-        },
-        protection: forge::Protection::Absent,
-        settings: skein_forge::api::Settings {
-            default_branch: if role == forge::Role::Context {
-                b"main".as_slice().into()
-            } else {
-                b"stable".as_slice().into()
-            },
-            merge: true,
-            squash: false,
-            rebase: false,
-        },
-        landing: if role == forge::Role::Context { b"main".as_slice().into() } else { b"stable".as_slice().into() },
-        refusals: Box::default(),
-        workflows: Box::new([]),
+    let mut repository = owned_repository(1);
+    repository.project = 2;
+    repository.home = false;
+    repository.provider.repository = number;
+    repository.prefix = Box::new([]);
+    repository.role = role;
+    repository.kinds = forge::Kinds {
+        read: true,
+        push,
+        open: push,
+        land: push,
+        review: push,
+        status: push,
+        comment: push,
+        issue: push,
+        branch: push,
+    };
+    if role != forge::Role::Context {
+        repository.landing = b"stable".as_slice().into();
+        repository.settings.default_branch = repository.landing.clone();
     }
+    repository.settings.squash = false;
+    repository
 }
 
 fn follow_root() -> (Domain, Env<RootLimits>) {

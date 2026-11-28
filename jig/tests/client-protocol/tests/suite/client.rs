@@ -305,11 +305,9 @@ fn the_previous_jig_layout_leaves_the_client_out_of_date_naming_jig() {
         0x20, 0xeb, 0x4f, 0x27, 0x2f, 0xcb, 0xdb, 0x62, 0xa1, 0x5d, 0xdb, 0x3e, 0x4f, 0xc2,
     ];
     let mut story = Story::live(fixtures::SEED);
-    let version = jig_client_protocol_wire::VERSION;
     story.restart_serving(jig_client_kit::test::list([jig_protocol_engine_clients::Served {
         family: None,
-        first: version,
-        last: version,
+        version: jig_client_protocol_wire::VERSION,
         layout: PREVIOUS_LAYOUT,
     }]));
     assert!(story.run_until(|s| s.client.link().state == Link::OutOfDate, Duration::from_secs(1)));
@@ -323,13 +321,7 @@ fn the_previous_jig_layout_leaves_the_client_out_of_date_naming_jig() {
     assert_eq!(story.made(fixtures::FIRST_OWNER), 0);
     assert_eq!(story.client.pending(STOP).expect("kept stop").progress, jig_client::Progress::Parked);
     assert_eq!(story.client.next_deadline(), None);
-    assert_eq!(
-        story.pages(PROJECT_PAGE),
-        vec![Readout::NotServed {
-            family: None,
-            served: Some(contract::VersionRange { first: version, last: version })
-        }]
-    );
+    assert_eq!(story.pages(PROJECT_PAGE), vec![Readout::NotServed { family: None }]);
 }
 
 const FAMILY_REQUEST: Key = Key { asker: Asker(1), number: 77 };

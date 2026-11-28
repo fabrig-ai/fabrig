@@ -224,7 +224,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
             // 16 each for name and alias slice, 48 for prices. Main's
             // inline LLM isn't charged here, and no speed owns a payload.
             // The configured hooks path owns another 13 bytes.
-            const CHARTER_5_WITH_SMALL_BRIEF_OWNED: u64 = 62_532;
+            const CHARTER_5_WITH_SMALL_BRIEF_OWNED: u64 = 62_738;
             assert_eq!(original.owned_bytes().unwrap(), CHARTER_5_WITH_SMALL_BRIEF_OWNED);
 
             assert_eq!(receiving, 127_391);

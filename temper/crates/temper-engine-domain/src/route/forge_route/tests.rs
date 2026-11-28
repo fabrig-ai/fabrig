@@ -40,42 +40,7 @@ fn not_installed_ends_the_roots_adoption_part_as_missing_access() {
     assert_eq!(super::adoption_failure(skein_forge::api::Error::Busy), people::Outcome::Again(people::Again::Busy));
 }
 
-pub(super) fn adopted(forge: u16) -> super::forge::Repository {
-    super::forge::Repository {
-        contexts: Box::new([]),
-        landing: b"main".as_slice().into(),
-        refusals: Box::default(),
-        workflows: Box::default(),
-        project: 5,
-        home: forge == 1,
-        provider: skein_forge::api::Repository { forge, repository: 1 },
-        host: Box::from(&b"forge.example"[..]),
-        owner: Box::from(&b"org"[..]),
-        name: Box::from(&b"repo"[..]),
-        prefix: Box::from(&b"temper/"[..]),
-        role: super::forge::Role::Owned,
-        ci: true,
-        checks: Box::new([]),
-        kinds: super::forge::Kinds {
-            read: true,
-            push: true,
-            open: true,
-            land: true,
-            review: true,
-            status: true,
-            comment: true,
-            issue: true,
-            branch: true,
-        },
-        protection: super::forge::Protection::Absent,
-        settings: skein_forge::api::Settings {
-            default_branch: Box::from(&b"main"[..]),
-            merge: true,
-            squash: true,
-            rebase: false,
-        },
-    }
-}
+pub(super) use crate::tests::owned_repository as adopted;
 
 #[test]
 fn tree_branches_count_prefix_slashes_against_authority_segments() {
@@ -604,21 +569,7 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
             task: GOAL_CHANGE,
             decision: forge_change::Decision::Effect(forge_change::Effect::Merge { head: SHA1, base: SHA1 }),
             entry: Some(ENTRY),
-            evidence: Some(forge::ChangeEvidence {
-                behind: None,
-                readback_owed: false,
-                nearest_write: None,
-                touched: forge::Touched::UNKNOWN,
-                size: None,
-                prior,
-                head: Some(SHA1),
-                base_tip: SHA1,
-                contains_base: forge_change::Status::Passed,
-                ci: forge_change::Status::Passed,
-                gates: Box::new([]),
-                reviews: Box::new([]),
-                reviews_complete: true,
-            }),
+            evidence: Some(passed_evidence(prior, SHA1, SHA1)),
             close_at: None,
             close_refusal: None,
         },
@@ -757,7 +708,7 @@ fn forge_party_with_link(
 
 #[test]
 fn a_review_counts_only_from_the_forge_it_was_made_on() {
-    use super::{forge, forge_change};
+    use super::forge;
     use skein_forge::api;
     let linked = Some(forge::Link { user: 7, person: 1 });
     for (key, link, forge, author, counted) in [
@@ -771,18 +722,6 @@ fn a_review_counts_only_from_the_forge_it_was_made_on() {
         let mut row = change_row(None);
         row.repository = api::Repository { forge, repository: 1 };
         let evidence = forge::ChangeEvidence {
-            behind: None,
-            readback_owed: false,
-            nearest_write: None,
-            touched: forge::Touched::UNKNOWN,
-            size: None,
-            prior: row.change.clone(),
-            head: Some(SHA1),
-            base_tip: SHA1,
-            contains_base: forge_change::Status::Passed,
-            ci: forge_change::Status::Passed,
-            gates: Box::new([]),
-            reviews_complete: true,
             reviews: Box::new([api::Review {
                 id: 1,
                 provenance: api::Provenance::Original,
@@ -795,6 +734,7 @@ fn a_review_counts_only_from_the_forge_it_was_made_on() {
                 at: skein_lib::Time::ZERO,
                 official: true,
             }]),
+            ..passed_evidence(row.change.clone(), SHA1, SHA1)
         };
         let facts = super::landing_reviewers(&domain, &env, &row, &evidence).expect("review facts");
         if counted {
@@ -1210,6 +1150,39 @@ fn task_event(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>, e
     );
 }
 
+fn passed_evidence(
+    prior: super::forge_change::Change,
+    head: [u8; 32],
+    base_tip: [u8; 32],
+) -> super::forge::ChangeEvidence {
+    use super::{forge, forge_change::Status};
+    forge::ChangeEvidence {
+        behind: None,
+        readback_owed: false,
+        nearest_write: None,
+        touched: forge::Touched::UNKNOWN,
+        prior,
+        head: Some(head),
+        base_tip,
+        contains_base: Status::Passed,
+        ci: Status::Passed,
+        gates: Box::new([]),
+        reviews: Box::new([]),
+        reviews_complete: true,
+        size: None,
+    }
+}
+
+fn unavailable_evidence(prior: super::forge_change::Change, head: [u8; 32]) -> super::forge::ChangeEvidence {
+    use super::{forge, forge_change::Status};
+    forge::ChangeEvidence {
+        contains_base: Status::Unknown,
+        ci: Status::Unknown,
+        reviews_complete: false,
+        ..passed_evidence(prior, head, [0; 32])
+    }
+}
+
 #[test]
 fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
     use super::{forge, forge_change as change};
@@ -1251,21 +1224,7 @@ fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
             was: Box::new(was),
             hold: change::Hold::new(change::Cause::BranchMoved, Wall::EPOCH),
         };
-        let evidence = forge::ChangeEvidence {
-            behind: None,
-            readback_owed: false,
-            nearest_write: None,
-            touched: forge::Touched::UNKNOWN,
-            prior: row.change.clone(),
-            head: Some(observed),
-            base_tip: stale,
-            contains_base: change::Status::Passed,
-            ci: change::Status::Passed,
-            gates: Box::new([]),
-            reviews: Box::new([]),
-            reviews_complete: true,
-            size: None,
-        };
+        let evidence = passed_evidence(row.change.clone(), observed, stale);
         restore_forge(&mut domain, &env, forge::Stored::Change(Box::new(row)));
         let mut routed = Queue::uncapped();
         routed.push(forge::Request::ChangeDecision {
@@ -2767,18 +2726,8 @@ fn a_record_judged_hold_names_the_deciding_read_and_its_nearest_write() {
         ]);
         let evidence = forge::ChangeEvidence {
             behind,
-            readback_owed: false,
             nearest_write: Some(3),
-            touched: forge::Touched::UNKNOWN,
-            prior,
-            head: Some(found),
-            base_tip: [0; 32],
-            contains_base: change::Status::Unknown,
-            ci: change::Status::Unknown,
-            gates: Box::new([]),
-            reviews: Box::new([]),
-            reviews_complete: false,
-            size: None,
+            ..unavailable_evidence(prior, found)
         };
         let decision = super::change_hold_step(&domain, &env, 7, why, Some(&evidence));
         assert_eq!(
@@ -2792,7 +2741,6 @@ fn a_record_judged_hold_names_the_deciding_read_and_its_nearest_write() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one story compares the deciding read, its committed row and the re-hold")]
 fn a_restored_hold_keeps_its_deciding_read_account_and_refreshes_its_release_revision() {
     use super::{forge, forge_change as change, tasks};
     const EXPECTED: [u8; 32] = [0x12; 32];
@@ -2821,21 +2769,7 @@ fn a_restored_hold_keeps_its_deciding_read_account_and_refreshes_its_release_rev
         task,
         decision: change::Decision::Hold(change::Cause::BranchMoved),
         entry: None,
-        evidence: Some(forge::ChangeEvidence {
-            behind: None,
-            readback_owed: false,
-            nearest_write: None,
-            touched: forge::Touched::UNKNOWN,
-            prior,
-            head: Some(FOUND),
-            base_tip: [0; 32],
-            contains_base: change::Status::Unknown,
-            ci: change::Status::Unknown,
-            gates: Box::new([]),
-            reviews: Box::new([]),
-            reviews_complete: false,
-            size: None,
-        }),
+        evidence: Some(unavailable_evidence(prior, FOUND)),
         close_at: None,
         close_refusal: None,
     });
@@ -5115,21 +5049,8 @@ fn a_change_rerun_is_kind_17_on_its_own_branch() {
         env.limits.authority.segments,
     )
     .unwrap();
-    let evidence = forge::ChangeEvidence {
-        behind: None,
-        readback_owed: false,
-        nearest_write: None,
-        touched: forge::Touched::UNKNOWN,
-        size: None,
-        prior: row.change.clone(),
-        head: Some(SHA1),
-        base_tip: SHA1,
-        contains_base: forge_change::Status::Passed,
-        ci: forge_change::Status::Failed,
-        gates: Box::new([]),
-        reviews: Box::new([]),
-        reviews_complete: true,
-    };
+    let evidence =
+        forge::ChangeEvidence { ci: forge_change::Status::Failed, ..passed_evidence(row.change.clone(), SHA1, SHA1) };
     restore_forge_with_engine_waits(&mut domain, &env, forge::Stored::Change(Box::new(row)));
     let description = super::describe_change_effect(
         &domain,

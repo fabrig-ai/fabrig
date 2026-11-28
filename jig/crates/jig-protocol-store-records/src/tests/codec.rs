@@ -1848,8 +1848,8 @@ fn a_visibility_set_outcome_round_trips_as_kept() {
 /// The three choices bound later sub-agents by MODELS (jig/docs/design/protocol/store/records.md).
 fn later_subagents_obey_the_models_bound_in_every_family() {
     use skein_lib::{Reader, Writer};
-    // ModelEffort is one model byte and one absent-effort tag; a list adds a u32 count.
-    const MODEL_BYTES: usize = 2;
+    // ModelEffort is one model byte and absent-effort and absent-speed tags; a list adds a u32 count.
+    const MODEL_BYTES: usize = 3;
     const COUNT_BYTES: usize = 4;
     let settings = crate::codec::settings::limits(&fixtures::CORE_LIMITS).unwrap();
     let tasks = tasks_limits();
@@ -1866,10 +1866,10 @@ fn later_subagents_obey_the_models_bound_in_every_family() {
             .checked_add(COUNT_BYTES)
             .unwrap();
         let mut writer = Writer::new(capacity);
-        writer.put(&[0, 0]).unwrap();
+        writer.put(&[0; MODEL_BYTES]).unwrap();
         writer.put(&count.to_be_bytes()).unwrap();
         for _ in 0..count {
-            writer.put(&[0, 0]).unwrap();
+            writer.put(&[0; MODEL_BYTES]).unwrap();
         }
         let bytes = writer.finish();
         for (family, decoded) in [

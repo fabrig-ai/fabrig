@@ -363,7 +363,10 @@ fn live_settings_remap_efforts_by_name_and_refuse_missing_efforts() {
     let before = [catalogue_name(b"one"), catalogue_name(b"two")];
     let mut after = before.clone();
     after[0].efforts = Box::new([Box::from(b"high".as_slice()), Box::from(b"low".as_slice())]);
-    let value = s::Value::Template(Box::new(template()));
+    let template = template();
+    let speed = template.llm.as_ref().expect("template choice").main.speed;
+    assert_eq!(speed.expect("named speed").as_bytes(), b"fast");
+    let value = s::Value::Template(Box::new(template));
     for original in [
         s::Record::Default {
             setting: s::Setting::Template(1),
@@ -408,7 +411,7 @@ fn live_settings_remap_efforts_by_name_and_refuse_missing_efforts() {
             let s::Value::Template(value) = value else { panic!("template") };
             assert_eq!(
                 value.llm.unwrap().main,
-                tasks::ModelEffort { model: expected_model, effort: Some(expected_effort), speed: None }
+                tasks::ModelEffort { model: expected_model, effort: Some(expected_effort), speed }
             );
         }
     }

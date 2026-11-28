@@ -40,22 +40,20 @@ Prints: `done: task N, chat`, or `proposed: PROPOSAL, to RECIPIENT` when another
 --json: the record chat_create.
 Key: --key KEY, required.
 --effort needs --model; omitted, it takes the model's default effort.
---model wins over the template for every run, its later choice included;
-it keeps first-choice sub-agents unless --sub-agent replaces them.
-Without --model the template's choice holds whole. A model flag a bound
-refuses names its flag, value and bound; nothing is made.
-Past start bounds but proposable: proposed (exit 0). `chat not offered`
-or `chat exceeds offered bounds` (exit 1): your party may not start it.
---template must name an offered chat template; otherwise it fails naming
-those me offers (exit 1).
---sub-agent needs --model. Two choices, distinct models from model list:
+--model wins each run, later too. Otherwise keep the template's choice.
+Only --sub-agent replaces first sub-agents; it needs --model.
+Two distinct models from model list:
 --sub-agent MODEL_A:EFFORT_A --sub-agent MODEL_B:EFFORT_B
 Available choices only: they neither start children nor assign by order.
 The parent's sub_agent selects optional llm; omitted, main's model/effort.
 Each model has one child effort; multiple children may use that choice.
---speed needs --model; --sub-agent-speed needs a model named by --sub-agent.
-A faster speed costs more. Choose a speed from model list, or standard.
-Leave it out to use the charter's speed or the model's default.
+--speed needs --model; --sub-agent-speed needs a model from --sub-agent.
+Choose a speed from model list, or standard. Faster costs more.
+Omitted: the charter's speed or the model's default.
+Flag refusal names flag, value, bound; nothing made.
+Past bounds but proposable: proposed (exit 0). `chat not offered` or
+`chat exceeds offered bounds` (exit 1): your party can't start it.
+An unoffered --template fails (exit 1), naming offered chat templates.
 Then task show TASK --until replied.
 ```
 
