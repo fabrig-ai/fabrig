@@ -123,14 +123,24 @@ form and the check before it lands are `../../protocol/temper-dir.md`,
   read was whole (smith's `smith/docs/design/domain/run-start.md`, 1.3).
   The worker names each directory's repository and the commit its
   checkout holds once prepared (`../worker/checkouts.md`), keeps the
-  report from preparation, and sends it once, on the attempt's durable
-  answer, as an optional member whose default is none; the root steps
-  it onto the attempt before that answer closes it. A running attempt
-  therefore reads as unreported until it answers: the draft asks only
-  that what a run read be read back while its records are kept, and the
-  answer is the one payload of the attempt a lost link doesn't lose. A
-  worker of the build before sends none: the attempt reads as
-  unreported.
+  report from preparation, and gives it to jig's hub, which sends it as
+  a `guides` record just before the attempt's answer, again wherever
+  that answer is sent again, and frees it with the answer's
+  acknowledgement (jig's `jig/docs/design/domain/hosts/hub.md`, 2,
+  step 9). Its bytes are `temper-worker-wire`'s `Guides`, carried as the
+  application's root of that name (`../../protocol/wires.md`, 6). The
+  root steps the report onto the attempt as it reads the record, before
+  the answer closes it. A running attempt therefore reads as unreported
+  until it answers: the draft asks only that what a run read be read
+  back while its records are kept, and a report kept with the answer is
+  lost with it alone.
+- **Why a record of its own:** an engine of the build before bounds the
+  answer's `Left` by its own largest, so a report inside it would make
+  that engine refuse the answer. `guides` is a kind the worker sends
+  only where the engine's terms list it (jig's
+  `protocol/channel/layouts.md`, 4.2): to an engine of the build before
+  it sends none, and that attempt reads as unreported, as one run by a
+  worker of the build before does.
 - **Read back:** `temper ctl task runs TASK` prints each attempt's
   sources (`../../client/ctl/tools-reads.md`, 1). With the set's commit
   and each guide's, a person reads from the repository what the run was
@@ -140,9 +150,9 @@ form and the check before it lands are `../../protocol/temper-dir.md`,
 
 - **No version moves:** jig's families gain what jig's design says
   (`jig/docs/design/domain/engine/project-charters.md`, 9; its
-  `domain/tasks/lifecycle.md`, 12.1); `temper-worker-wire` gains the
-  guides' report, a payload an engine of this build reads from a worker
-  of the build before as absent; the clients' wire gains a setting
+  `domain/tasks/lifecycle.md`, 12.1); `jig-worker-wire` gains `guides`,
+  an optional kind each side of either order goes without (6), and
+  `temper-worker-wire` its `Guides` root; the clients' wire gains a setting
   read's project and an attempt's sources, the clients rebuilt with them
   (`../../protocol/wires.md`, 9).
 - **dev.fabrig.ai** needs no step by hand: fabrig's `.temper/` holds no
