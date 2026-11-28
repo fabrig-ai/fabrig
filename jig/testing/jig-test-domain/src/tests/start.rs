@@ -5,30 +5,32 @@
     reason = "the scripted host is ordinary Rust with Vec-backed store pages and typed assertions"
 )]
 use super::fixtures;
-use crate::{Delivery, Domain, Event, Record, Request, StartInput, Work, Write};
+use crate::{Delivery, Domain, Event, Record, Request, Write};
 use ::core::mem;
 use jig_domain_core::{
     self as core,
-    start::{Continuation, Failure, Phase},
+    engine::{In, Resume, store},
+    start::{Failure, Phase},
 };
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Token};
 
-struct Host {
-    domain: Domain,
-    env: Env<crate::Limits>,
+pub(super) struct Host {
+    pub(super) domain: Domain,
+    pub(super) env: Env<crate::Limits>,
     rows: Vec<Record>,
     phases: Vec<Phase>,
     commits: Vec<(u64, bool)>,
     cut_wires: bool,
-    wires: Option<Continuation>,
+    hold_switch: bool,
+    wires: Option<Resume>,
     reads: Vec<u16>,
     stopped: bool,
 }
 
 impl Host {
-    fn new(rows: Vec<Record>) -> Self {
+    pub(super) fn new(rows: Vec<Record>) -> Self {
         Self {
             domain: fixtures::domain(),
             env: fixtures::env(),
@@ -36,38 +38,48 @@ impl Host {
             phases: Vec::new(),
             commits: Vec::new(),
             cut_wires: false,
+            hold_switch: false,
             wires: None,
             reads: Vec::new(),
             stopped: false,
         }
     }
 
-    fn begin(&mut self) {
+    pub(super) fn begin(&mut self) {
         assert!(!self.domain.ready(), "the root must start before accepting work");
         crate::step(&mut self.domain, &self.env, Event::StartBegin { pending: false });
         assert!(!self.domain.ready());
     }
 
-    fn page(&mut self, phase: Phase) {
+    fn load(&mut self) -> (Token, store::Range) {
+        let mut out = Queue::uncapped();
+        crate::release(&mut self.domain, &self.env, &mut out);
+        let Some(Request::Deliver(Delivery::Store(store::Out::Load { load, range }))) = out.pop() else {
+            panic!("engine holds a page load")
+        };
+        assert!(out.is_empty());
+        (load, range)
+    }
+
+    fn answer(&mut self, load: Token, items: Box<[store::Item]>, next: Option<store::Cursor>) {
+        let result = store::Answer::Rows(store::Rows::Start { items, next });
+        crate::step(&mut self.domain, &self.env, Event::Store(store::In::Loaded { load, result }));
+    }
+
+    fn page(&mut self, load: Token, range: store::Range) {
+        let store::Range::Start { ranges, .. } = range else { panic!("start page range") };
         let mut rows = self.rows.clone();
         rows.sort_by_key(Record::key);
-        for row in rows {
-            let selected = match (&phase, &row) {
-                (Phase::LoadCore, Record::Core(row)) => {
-                    core::RestoreRange::LIVE.iter().any(|range| range.admits(&row.key()))
-                }
-                (Phase::Sweep, Record::Core(core::Record::People(_))) => true,
-                (Phase::RestoreConnector { connector }, Record::Connector { number, .. }) => connector == number,
-                _ => false,
-            };
-            if selected {
-                crate::start_record(&mut self.domain, &self.env, row);
-            }
-            if self.domain.start_stopped() {
-                break;
-            }
-        }
-        crate::step(&mut self.domain, &self.env, Event::StartDone(phase));
+        let items = ranges
+            .iter()
+            .flat_map(|range| {
+                rows.iter().filter_map(|row| match row {
+                    Record::Core(row) if range.admits(&row.key()) => Some(store::Item::Record(row.clone())),
+                    Record::Core(_) | Record::Connector { .. } => None,
+                })
+            })
+            .collect();
+        self.answer(load, items, None);
     }
 
     fn apply(&mut self, number: u64, mut writes: Queue<Write>) -> bool {
@@ -89,31 +101,51 @@ impl Host {
         wires
     }
 
-    fn drive(&mut self) {
+    pub(super) fn drive(&mut self) {
         for _ in 0..128_u32 {
             let mut out = Queue::uncapped();
             crate::release(&mut self.domain, &self.env, &mut out);
             for _ in 0..out.len() {
                 match out.pop().expect("host request") {
-                    Request::Start { phase, census } => {
-                        assert_eq!(census.is_some(), phase == Phase::LoadInbox);
-                        self.phases.push(phase);
-                        self.page(phase);
+                    Request::Deliver(Delivery::Store(store::Out::Load { load, range })) => {
+                        self.phases.push(self.domain.start_phase().expect("reported page phase"));
+                        self.page(load, range);
+                    }
+                    Request::Deliver(Delivery::ConnectorLoad { number, after: None }) => {
+                        self.phases.push(self.domain.start_phase().expect("reported connector phase"));
+                        let records = self
+                            .rows
+                            .iter()
+                            .filter_map(|row| match row {
+                                Record::Connector { number: owner, record } if *owner == number => Some(record.clone()),
+                                Record::Core(_) | Record::Connector { .. } => None,
+                            })
+                            .collect();
+                        crate::step(&mut self.domain, &self.env, Event::ConnectorPage { number, records, after: None });
+                    }
+                    Request::Deliver(Delivery::Store(store::Out::Switch)) => {
+                        assert_eq!(self.domain.start_phase(), Some(Phase::Switch));
+                        self.phases.push(Phase::Switch);
+                        if self.hold_switch {
+                            assert!(out.is_empty());
+                            return;
+                        }
+                        crate::step(&mut self.domain, &self.env, Event::Store(store::In::Switched));
                     }
                     Request::Commit { number, writes } => {
                         if self.apply(number, writes) {
                             let mut held = Queue::uncapped();
                             let _released = self.domain.journal.release(&mut held);
-                            let Some(Delivery::Start(continuation)) = held.pop() else {
+                            let Some(Delivery::Resume(continuation)) = held.pop() else {
                                 panic!("Wires and its continuation belong to one decision");
                             };
                             assert!(held.is_empty());
-                            self.wires = Some(continuation.clone());
+                            self.wires = Some(continuation);
                             assert!(!self.domain.ready());
                             if self.cut_wires {
                                 return;
                             }
-                            crate::decide(&mut self.domain, &self.env, Work::Start(StartInput::Resume(continuation)));
+                            crate::step(&mut self.domain, &self.env, Event::Engine(In::Resume(continuation)));
                         }
                     }
                     Request::Deliver(Delivery::System {
@@ -152,7 +184,7 @@ impl Host {
                     }
                 }
             }
-            if self.domain.ready() || self.domain.rehearsed() {
+            if (self.domain.ready() && self.domain.quiescent()) || self.domain.rehearsed() {
                 return;
             }
         }
@@ -160,10 +192,11 @@ impl Host {
     }
 }
 
-fn seeded_rows() -> Vec<Record> {
+pub(super) fn seeded_rows() -> Vec<Record> {
     let mut host = Host::new(Vec::new());
     host.begin();
-    host.page(Phase::LoadCore);
+    let (load, range) = host.load();
+    host.page(load, range);
     let commit = host.domain.journal.commit().expect("seed commits before inbox loading");
     host.apply(commit.number, commit.writes);
     host.rows
@@ -200,13 +233,10 @@ pub(super) fn with_sign_in(expiry: skein_lib::Wall) -> (Domain, Env<crate::Limit
 fn begin_holds_the_seed_until_its_commit_is_released() {
     let mut host = Host::new(Vec::new());
     host.begin();
-    let mut out = Queue::uncapped();
-    crate::release(&mut host.domain, &host.env, &mut out);
-    let Some(Request::Start { phase: Phase::LoadCore, census: None }) = out.pop() else {
-        panic!("LoadCore starts the walk")
-    };
-    assert!(out.is_empty());
-    host.page(Phase::LoadCore);
+    let (load, range) = host.load();
+    assert_eq!(host.domain.start_phase(), Some(Phase::LoadCore));
+    assert_eq!(range, store::Range::Start { ranges: Box::new(core::RestoreRange::LIVE), after: None });
+    host.page(load, range);
     assert!(!host.domain.ready());
     let commit = host.domain.journal.commit().expect("empty store seeds in one decision");
     let mut held = Queue::uncapped();
@@ -214,7 +244,7 @@ fn begin_holds_the_seed_until_its_commit_is_released() {
     assert!(held.is_empty(), "seed continuation waits for durability");
     host.apply(commit.number, commit.writes);
     let _released = host.domain.journal.release(&mut held);
-    let Some(Delivery::Start(_)) = held.pop() else { panic!("seed holds its start continuation") };
+    let Some(Delivery::Resume(_)) = held.pop() else { panic!("seed holds its start continuation") };
     assert!(held.is_empty());
     let mut settings = false;
     for row in &host.rows {
@@ -435,16 +465,25 @@ fn project_policy_past_its_bytes_refuses_at_load_core_before_switch() {
 
 #[test]
 fn missing_link_is_retained_until_the_core_link_pass() {
-    let mut host = Host::new(Vec::new());
+    let mut host = Host::new(seeded_rows());
     host.begin();
-    crate::start_missing(
-        &mut host.domain,
-        core::Key::People(people::Key::Roles(1)),
-        core::Key::People(people::Key::Person(1)),
+    let (load, _) = host.load();
+    let record = core::Key::People(people::Key::Roles(1));
+    let target = core::Key::People(people::Key::Person(1));
+    host.answer(
+        load,
+        Box::new([store::Item::Missing { record: record.clone(), target: target.clone() }]),
+        Some(store::Cursor { interval: 0, after: Box::new([1]) }),
     );
-    assert_eq!(host.domain.engine.core().start_phase(), Some(Phase::LoadCore));
+    assert_eq!(host.domain.start_phase(), Some(Phase::LoadCore));
     assert_eq!(host.domain.start_failure(), None);
     assert!(!host.domain.ready());
+    host.drive();
+    assert_eq!(
+        host.domain.start_failure(),
+        Some((Some(Phase::Link), Failure::Link { record, linked: core::start::Linked::Record(target) }))
+    );
+    assert!(host.stopped);
 }
 
 #[test]
@@ -467,26 +506,14 @@ fn populated_fixture_contains_a_live_task_and_its_people_and_project() {
 
 #[test]
 fn wires_commit_holds_its_continuation_before_any_connector_read() {
-    use core::start::{Action, SweepInput};
     let mut host = Host::new(Vec::new());
-    let env = host.env.with(host.env.limits.core);
-    let mut out = Queue::uncapped();
-    // Prepare the core at Wires without asking the host for an inbox census.
-    let mut action = host.domain.engine.core_mut().start_begin(false, env.wall);
-    for _ in 0..32_u32 {
-        action = match action {
-            Action::Step(Phase::Wires) => break,
-            Action::Step(Phase::Sweep) => {
-                host.domain.engine.core_mut().start_sweep(&env, SweepInput::Finished, &mut out)
-            }
-            Action::Step(phase) => host.domain.engine.core_mut().start_done(&env, phase, &mut out),
-            Action::Commit(continuation) => host.domain.engine.core_mut().start_resume(&env, continuation, &mut out),
-            Action::Idle | Action::Refused(_) => panic!("prepared core reaches Wires"),
-        };
-        while out.pop().is_some() {}
-    }
-    assert_eq!(host.domain.engine.core().start_phase(), Some(Phase::Wires));
-    crate::step(&mut host.domain, &host.env, Event::StartDone(Phase::Wires));
+    host.hold_switch = true;
+    host.begin();
+    host.drive();
+    assert_eq!(host.domain.start_phase(), Some(Phase::Switch));
+    assert_eq!(host.reads, []);
+    crate::step(&mut host.domain, &host.env, Event::Store(store::In::Switched));
+    assert_eq!(host.domain.start_phase(), Some(Phase::Wires));
     let commit = host.domain.journal.commit().expect("Wires asks for durability");
     let mut held = Queue::uncapped();
     let _released = host.domain.journal.release(&mut held);
@@ -494,10 +521,10 @@ fn wires_commit_holds_its_continuation_before_any_connector_read() {
     assert!(!host.domain.ready());
     assert!(host.apply(commit.number, commit.writes));
     let _released = host.domain.journal.release(&mut held);
-    let Some(Delivery::Start(continuation)) = held.pop() else { panic!("Wires holds its own continuation") };
+    let Some(Delivery::Resume(continuation)) = held.pop() else { panic!("Wires holds its own continuation") };
     assert!(held.is_empty());
-    crate::decide(&mut host.domain, &host.env, Work::Start(StartInput::Resume(continuation)));
-    assert_eq!(host.domain.engine.core().start_phase(), None);
+    crate::step(&mut host.domain, &host.env, Event::Engine(In::Resume(continuation)));
+    assert_eq!(host.domain.start_phase(), None);
     let mut released = Queue::uncapped();
     crate::release(&mut host.domain, &host.env, &mut released);
     let mut read = false;
@@ -517,12 +544,13 @@ fn a_store_page_refusal_stops_with_its_cause_and_phase() {
     let mut host = Host::new(Vec::new());
     host.begin();
     let failure = PageFailure { cause: Cause::Range(RangeFailure::Cursor), row: None };
-    crate::step(&mut host.domain, &host.env, Event::StartPageRefused { failure: failure.clone() });
+    let (load, _) = host.load();
+    crate::step(&mut host.domain, &host.env, Event::StartPageRefused { load: Some(load), failure: failure.clone() });
     assert_eq!(host.domain.start_page_failure(), Some(&(Phase::LoadCore, failure)));
     assert_eq!(host.domain.start_failure(), None);
     assert!(!host.domain.ready());
     assert!(host.domain.journal.idle());
-    crate::step(&mut host.domain, &host.env, Event::StartDone(Phase::LoadCore));
+    host.answer(load, Box::new([]), None);
     host.drive();
     assert!(host.stopped);
     assert_eq!(host.commits.len(), 0);
@@ -530,4 +558,34 @@ fn a_store_page_refusal_stops_with_its_cause_and_phase() {
     let mut out = Queue::uncapped();
     crate::release(&mut host.domain, &host.env, &mut out);
     assert!(out.is_empty(), "stop is reported once");
+}
+
+#[test]
+fn restoring_numbering_keeps_the_next_page_and_numbers_the_first_commit() {
+    const COMMITS: u64 = 41;
+    let mut host = Host::new(seeded_rows());
+    let index = host
+        .rows
+        .iter()
+        .position(|row| row.key() == crate::Key::Core(core::Key::Core(core::CoreKey::Deployment)))
+        .expect("seeded deployment header");
+    let Record::Core(core::Record::Core(core::CoreRecord::Deployment(mut header))) = host.rows.remove(index) else {
+        panic!("deployment header")
+    };
+    header.commits = COMMITS;
+    host.begin();
+    let (load, _) = host.load();
+    let cursor = store::Cursor { interval: 0, after: Box::new([1]) };
+    host.answer(
+        load,
+        Box::new([store::Item::Record(core::Record::Core(core::CoreRecord::Deployment(header)))]),
+        Some(store::Cursor { interval: cursor.interval, after: cursor.after.clone() }),
+    );
+    let (next_load, range) = host.load();
+    assert_ne!(next_load, load);
+    assert_eq!(range, store::Range::Start { ranges: Box::new(core::RestoreRange::LIVE), after: Some(cursor) });
+    host.page(next_load, range);
+    host.drive();
+    assert!(host.domain.ready());
+    assert_eq!(host.commits.first().map(|(number, _)| *number), Some(COMMITS + 1));
 }

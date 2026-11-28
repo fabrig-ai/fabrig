@@ -236,7 +236,8 @@ impl Peers {
             | root::Delivery::System { .. }
             | root::Delivery::Store(_)
             | root::Delivery::Connector(..)
-            | root::Delivery::Start(_)
+            | root::Delivery::Resume(_)
+            | root::Delivery::ConnectorLoad { .. }
             | root::Delivery::Procedure { .. } => {}
         }
     }

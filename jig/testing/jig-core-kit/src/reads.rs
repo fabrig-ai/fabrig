@@ -101,8 +101,7 @@ impl Parties {
             | root::Event::TopicCall { .. }
             | root::Event::EffectCall { .. }
             | root::Event::CallAnswered { .. }
-            | root::Event::StartRecord(_)
-            | root::Event::StartMissing { .. }
+            | root::Event::ConnectorPage { .. }
             | root::Event::StartPageRefused { .. }
             | root::Event::StartBegin { .. }
             | root::Event::Engine(_)
@@ -111,8 +110,7 @@ impl Parties {
                 | engine_store::In::Switched
                 | engine_store::In::Fill { .. }
                 | engine_store::In::Census(..),
-            )
-            | root::Event::StartDone(_) => {}
+            ) => {}
         }
     }
 

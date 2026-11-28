@@ -1,9 +1,11 @@
 //! Store transport, fixture writes and cold restart.
 use super::{Fault, StoreOut, Up, World, connector, core, fixture, root, tasks};
+use core::engine::store as engine_store;
+
 impl World {
     pub(super) fn point_load(&mut self, out: core::engine::store::Out) {
         use core::engine::store::{Out, Range};
-        let Out::Load { load, range } = &out else { unreachable!("the test root drives its own start") };
+        let Out::Load { load, range } = &out else { unreachable!("switch is not a point load") };
         assert!(self.internal_reads.insert(*load), "one internal point load");
         if matches!(range, Range::Record(core::Key::Tasks(tasks::Key::Ended(_))))
             && let Some(pending) = &mut self.pending_ended_loads
@@ -14,45 +16,73 @@ impl World {
         }
     }
 
-    /// Serve the phase selected by the core (jig/docs/design/domain/engine/restart.md).
-    pub(super) fn start_step(&mut self, phase: core::start::Phase, census: Option<core::Census>) {
-        use core::start::Phase;
-        if phase == Phase::Sweep && self.restoring.is_some_and(|(selected, _)| selected == Phase::Sweep) {
-            return;
-        }
-        self.restart_steps.push(phase);
-        match phase {
-            Phase::LoadCore | Phase::LoadInbox | Phase::RestoreConnector { .. } | Phase::Sweep => {
-                if phase == Phase::LoadCore {
-                    self.restore_ranges.extend(core::RestoreRange::LIVE);
-                    let env = self.env();
-                    for row in self.fixture_rows.clone() {
-                        root::start_record(&mut self.domain, &env, row);
+    /// Observe the start's logical walks, then carry the released store output.
+    pub(super) fn start_load(&mut self, out: engine_store::Out) {
+        use engine_store::{Out, Range};
+        let phase = self.domain.start_phase().expect("engine reported the phase before the load");
+        match &out {
+            Out::Switch => {
+                self.restart_steps.push(phase);
+                if self.hold_switch {
+                    self.switch_held = true;
+                    return;
+                }
+            }
+            Out::Load { load, range: Range::Start { ranges, after } } => {
+                let live = ranges.as_ref() == core::RestoreRange::LIVE;
+                if after.is_none() {
+                    self.restart_steps.push(phase);
+                    if live {
+                        self.restore_ranges.extend(ranges.iter().cloned());
                     }
                 }
-                self.restoring = Some((phase, 0));
-                self.store.pause_pages(self.hold_restore_pages);
-                self.store.ask(StoreOut::Start { phase, census });
-            }
-            Phase::Switch if self.hold_switch => {}
-            Phase::Switch => {
-                if self.store.generation_pending {
-                    self.store.ask(StoreOut::Start { phase, census: None });
-                } else {
-                    self.events.push_back(root::Event::StartDone(phase));
+                if live && !self.fixture_rows.is_empty() {
+                    self.fixture_page(*load, after.as_ref());
+                    return;
                 }
+                self.store.pause_pages(self.hold_restore_pages);
             }
-            Phase::Link | Phase::Wires | Phase::AdoptRuns | Phase::Open => {
-                panic!("root performs its synchronous phase")
-            }
+            Out::Load { .. } => unreachable!("only the start's store outputs"),
         }
+        self.store.ask(StoreOut::Engine(out));
     }
 
-    /// Serve a previously captured Switch after inspecting the restored copy.
+    // First-start fixture rows take the place of the empty store's live walk.
+    // They still become durable only with the first seed commit.
+    fn fixture_page(&mut self, load: skein_lib::Token, after: Option<&engine_store::Cursor>) {
+        let offset = after
+            .map_or(0, |cursor| usize::from_be_bytes(cursor.after.as_ref().try_into().expect("fixture page offset")));
+        let items: Vec<_> = self
+            .fixture_rows
+            .iter()
+            .skip(offset)
+            .take(2)
+            .map(|row| match row {
+                root::Record::Core(row) => engine_store::Item::Record(row.clone()),
+                root::Record::Connector { .. } => panic!("first-start fixture rows belong to the core"),
+            })
+            .collect();
+        let offset = offset + items.len();
+        let next = (offset < self.fixture_rows.len())
+            .then(|| engine_store::Cursor { interval: 0, after: Box::new(offset.to_be_bytes()) });
+        let result = engine_store::Answer::Rows(engine_store::Rows::Start { items: items.into_boxed_slice(), next });
+        self.events.push_back(root::Event::Store(engine_store::In::Loaded { load, result }));
+    }
+
+    pub(super) fn connector_load(&mut self, number: u16, after: Option<Box<[u8]>>) {
+        if after.is_none() {
+            self.restart_steps.push(self.domain.start_phase().expect("engine reported the connector phase"));
+        }
+        self.store.pause_pages(self.hold_restore_pages);
+        self.store.ask(StoreOut::ConnectorLoad { number, after });
+    }
+
+    /// Serve a previously captured switch after inspecting the restored copy.
     pub fn finish_switch(&mut self) {
         self.hold_switch = false;
-        self.restart_steps.pop();
-        self.start_step(core::start::Phase::Switch, None);
+        if std::mem::take(&mut self.switch_held) {
+            self.store.ask(StoreOut::Engine(engine_store::Out::Switch));
+        }
         self.drain();
     }
 
@@ -66,24 +96,26 @@ impl World {
     }
 
     pub(super) fn start_input(&mut self, event: &root::Event) {
-        if let root::Event::StartRecord(row) = event {
-            let (phase, count) = self.restoring.as_mut().expect("one start load");
-            *count += 1;
-            if *phase == core::start::Phase::LoadInbox
-                && matches!(row, root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(_))))
-            {
-                self.census_ended += 1;
+        let Some(phase) = self.domain.start_phase() else { return };
+        let rows = match event {
+            root::Event::Store(engine_store::In::Loaded {
+                result: engine_store::Answer::Rows(engine_store::Rows::Start { items, .. }),
+                ..
+            }) => {
+                if phase == core::start::Phase::LoadInbox {
+                    for item in items {
+                        if matches!(item, engine_store::Item::Record(core::Record::Tasks(tasks::Stored::Ended(_)))) {
+                            self.census_ended += 1;
+                        }
+                    }
+                }
+                items.len()
             }
-            if self.tracing && *count % 2 == 0 {
-                self.trace.push(format!("store page {phase:?} 2 rows"));
-            }
-        } else if let root::Event::StartDone(phase) = event
-            && self.restoring.is_some_and(|(selected, _)| selected == *phase)
-        {
-            let (_, count) = self.restoring.take().expect("start load completion");
-            if self.tracing && count % 2 != 0 {
-                self.trace.push(format!("store page {phase:?} 1 rows"));
-            }
+            root::Event::ConnectorPage { records, .. } => records.len(),
+            _ => return,
+        };
+        if self.tracing && rows != 0 {
+            self.trace.push(format!("store page {phase:?} {rows} rows"));
         }
     }
 
@@ -310,7 +342,7 @@ impl World {
         self.observer.cold(self.wall, &self.store)?;
         self.stopped = false;
         self.period_started = false;
-        self.restoring = None;
+        self.switch_held = false;
         self.move_provider = config.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         self.domain = root::Domain::new(config, &self.limits);
         if let Some((_, active)) = &mut self.restart_check {

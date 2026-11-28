@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_contract as jig;
 use jig_domain_core as core;
-use jig_domain_core::engine::{self, In, Out, Peer};
+use jig_domain_core::engine::{self, In, Out, Peer, application};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
@@ -80,8 +80,17 @@ fn route_engine_outputs(
                 }
             }
             Out::Write(write) => route_request(domain, env, decision, core::Request::Write(write), work),
-            Out::Now(_) | Out::Held(Peer::Application(_) | Peer::Resume(_)) => {
-                unreachable!("the root drives its own start")
+            Out::Now(Peer::Application(report)) => match report {
+                application::Out::Start { phase } => {
+                    domain.start_phase = phase;
+                    domain.start_opened = phase.is_none();
+                }
+                application::Out::Numbered { commits } => domain.decision_numbering = Some(commits),
+                application::Out::Refused { phase, failure } => domain.start_failure = Some((phase, failure)),
+            },
+            Out::Held(Peer::Resume(resume)) => hold(decision, Delivery::Resume(resume)),
+            Out::Now(Peer::Store(_) | Peer::Connector(..) | Peer::Resume(_)) | Out::Held(Peer::Application(_)) => {
+                unreachable!("engine peers use their declared durability class")
             }
             Out::Ask(connector, ask) => match connector.0 {
                 1 => work.push(Work::Connector { number: 1, event: connector::Event::Ask(ask) }),
@@ -355,9 +364,7 @@ fn route_now(
             drop(domain.hub_link.take_brief(task));
             drop(domain.workspace_writes.remove(&task));
         }
-        core::Now::RestoreRefused => {
-            assert!(domain.start_stopped(), "a refused restore has stopped the core");
-        }
+        core::Now::RestoreRefused => {} // The application port carries the typed refusal.
 
         other @ (core::Now::SettledCallRefused { .. }
         | core::Now::Call { .. }
@@ -420,10 +427,7 @@ pub(super) fn route_connector(
             connector::Out::Topic { token, resources } => {
                 crate::topics::described(domain, number, token, resources, work);
             }
-            connector::Out::RestoreRefused { kind, scope, number } => {
-                crate::refuse_settings_restore(domain, kind, scope, number);
-            }
-            connector::Out::RestoreResource { .. } => unreachable!("restore owns its reports"),
+            connector::Out::LoadLive { after } => hold(decision, Delivery::ConnectorLoad { number, after }),
         }
     }
 }

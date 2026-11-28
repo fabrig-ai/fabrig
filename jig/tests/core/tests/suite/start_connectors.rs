@@ -245,15 +245,6 @@ impl Harness {
             connector::step(&mut self.connector, &self.connector_env, event, &mut out);
             while let Some(output) = out.pop() {
                 match output {
-                    connector::Out::RestoreResource { project, name, role, hold } => {
-                        // Exercise the engine's resource report during connector restoration.
-                        self.connector_up(jig::Up::Resources(jig::resources::Up::Resource {
-                            project,
-                            name,
-                            role,
-                            hold,
-                        }));
-                    }
                     connector::Out::Save(record) => {
                         self.records.insert(record.key(), record);
                     }

@@ -263,7 +263,7 @@ pub struct World {
     /// Referee observations, independent of the root state.
     pub observer: crate::conformance::Observer,
     heap: crate::conformance::Heap,
-    restoring: Option<(core::start::Phase, usize)>,
+    switch_held: bool,
     pub events: VecDeque<root::Event>,
     limits: root::Limits,
     /// Pause at a selected transaction boundary, with its traffic retained.
@@ -522,20 +522,21 @@ impl World {
             let env = self.env();
             self.record_wall = self.record_wall.max(env.wall);
             self.observer.systems(self.wall, &self.systems)?;
-            let sweep_waits = store_check::sweep_waits(&self.domain, self.events.front());
-            if consume
-                && !sweep_waits
-                && let Some(mut event) = self.events.pop_front()
-            {
+            if consume && let Some(mut event) = self.events.pop_front() {
                 self.start_input(&event);
                 if !matches!(
                     event,
                     root::Event::StartBegin { .. }
-                        | root::Event::StartRecord(_)
-                        | root::Event::StartMissing { .. }
+                        | root::Event::ConnectorPage { .. }
+                        | root::Event::Store(
+                            engine_store::In::Loaded {
+                                result: engine_store::Answer::Rows(engine_store::Rows::Start { .. }),
+                                ..
+                            } | engine_store::In::Switched
+                                | engine_store::In::Census(_)
+                        )
                         | root::Event::StartPageRefused { .. }
                         | root::Event::Engine(_)
-                        | root::Event::StartDone(_)
                 ) {
                     self.observer.inbound(&self.store, self.wall, &mut event)?;
                     if let Some(offers) = &mut self.offers {
@@ -580,7 +581,6 @@ impl World {
                     root::Request::Workers(_)
                     | root::Request::StoreCatalogue { .. }
                     | root::Request::ClientsCatalogue { .. } => {}
-                    root::Request::Start { phase, census } => self.start_step(phase, census),
 
                     root::Request::Commit { number, mut writes } => {
                         let mut rows = Vec::new();
@@ -772,7 +772,7 @@ impl World {
             if steps == 1 {
                 return Ok(());
             }
-            let held_restore = self.hold_restore_pages && self.restoring.is_some() && self.store.loading();
+            let held_restore = self.hold_restore_pages && !self.domain.ready() && self.store.loading();
             if empty
                 && self.events.is_empty()
                 && self.store.pending.is_empty()

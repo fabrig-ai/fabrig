@@ -560,7 +560,10 @@ impl RequestWorld {
             while let Some(request) = out.pop() {
                 match request {
                     root::Request::Commit { number, writes } => self.commit(number, writes),
-                    root::Request::Start { phase, census } => self.restore(phase, census),
+                    root::Request::Deliver(root::Delivery::Store(out)) => self.restore(out),
+                    root::Request::Deliver(root::Delivery::ConnectorLoad { number, after }) => {
+                        self.restore_connector(number, after.as_deref());
+                    }
                     root::Request::Deliver(root::Delivery::Core(core::Held::PeopleReply { reply: value, .. })) => {
                         assert!(reply.replace(value).is_none(), "one reply per call");
                     }
@@ -608,27 +611,42 @@ impl RequestWorld {
         root::step(&mut self.domain, &self.env, root::Event::Committed { number, fill: 0 });
     }
 
-    fn restore(&mut self, phase: core::start::Phase, census: Option<core::Census>) {
-        use core::start::Phase;
-        let ranges = match phase {
-            Phase::LoadCore => core::RestoreRange::LIVE.to_vec(),
-            Phase::LoadInbox => vec![core::RestoreRange::Census(census.expect("inbox census"))],
-            Phase::Sweep => vec![core::RestoreRange::People],
-            Phase::RestoreConnector { .. } | Phase::Switch => Vec::new(),
-            other @ (Phase::Link | Phase::Wires | Phase::AdoptRuns | Phase::Open) => {
-                panic!("root owns phase {other:?}")
+    fn restore(&mut self, out: core::engine::store::Out) {
+        use core::engine::store::{Answer, In, Item, Out, Range, Rows};
+        let event = match out {
+            Out::Switch => In::Switched,
+            Out::Load { load, range: Range::Start { ranges, after: None } } => {
+                let items = ranges
+                    .iter()
+                    .flat_map(|range| {
+                        self.store.rows.iter().filter_map(|(key, row)| match (key, row) {
+                            (root::Key::Core(key), root::Record::Core(row)) if range.admits(key) => {
+                                Some(Item::Record(row.clone()))
+                            }
+                            _ => None,
+                        })
+                    })
+                    .collect();
+                In::Loaded { load, result: Answer::Rows(Rows::Start { items, next: None }) }
             }
+            other @ Out::Load { .. } => panic!("no runtime loads in the settings workload: {other:?}"),
         };
-        for range in ranges {
-            for (key, row) in &self.store.rows {
-                if let root::Key::Core(key) = key
-                    && range.admits(key)
-                {
-                    root::start_record(&mut self.domain, &self.env, row.clone());
-                }
-            }
-        }
-        root::step(&mut self.domain, &self.env, root::Event::StartDone(phase));
+        root::step(&mut self.domain, &self.env, root::Event::Store(event));
+    }
+
+    fn restore_connector(&mut self, number: u16, after: Option<&[u8]>) {
+        assert_eq!(after, None, "fake store answers the entire connector range");
+        let records = self
+            .store
+            .rows
+            .values()
+            .filter_map(|row| match row {
+                root::Record::Connector { number: owner, record } if *owner == number => Some(record.clone()),
+                _ => None,
+            })
+            .collect();
+        let event = root::Event::ConnectorPage { number, records, after: None };
+        root::step(&mut self.domain, &self.env, event);
     }
 
     /// Sign in the configured owner through the same authenticated request entrance.

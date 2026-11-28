@@ -1,6 +1,5 @@
 //! Public admission and the journal callback (jig/docs/design/domain/root.md, 3 and 10).
 #![expect(
-    clippy::disallowed_types,
     clippy::disallowed_macros,
     reason = "ordinary Rust fixtures collect store rows and compare complete output records"
 )]
@@ -47,31 +46,19 @@ fn expected_projects(at: Time) -> PublicAnswer {
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    clippy::disallowed_methods,
-    clippy::match_like_matches_macro,
-    reason = "the ordinary Rust fixture orders store rows and reopens one public project through the root's start script"
-)]
 fn fixture() -> (Domain, Env<Limits>) {
     let mut env = fixtures::env();
     env.limits.public_reads = 2;
     env.limits.public_watermark = 16;
     env.limits.watermark = 32;
     env.limits.core.public = core::PublicIndexLimits { goals: 2, ended: 1, lines: 2, depth: 2 };
-    let mut seed = fixtures::domain();
-    crate::step(&mut seed, &env, Event::StartBegin { pending: false });
-    crate::step(&mut seed, &env, Event::StartDone(core::start::Phase::LoadCore));
-    let mut commit = seed.journal.commit().unwrap();
-    let mut rows = Vec::new();
-    for _ in 0..commit.writes.len() {
-        let Write::Save(mut row) = commit.writes.pop().unwrap() else { panic!("the seed only saves") };
-        if let Record::Core(core::Record::Core(core::CoreRecord::Deployment(header))) = &mut row {
+    let mut rows = super::start::seeded_rows();
+    for row in &mut rows {
+        if let Record::Core(core::Record::Core(core::CoreRecord::Deployment(header))) = row {
             header.projects = 1;
             header.people = 1;
             header.sign_ins = 1;
         }
-        rows.push(row);
     }
     rows.extend([
         Record::Core(core::Record::People(people::Stored::Person {
@@ -116,57 +103,12 @@ fn fixture() -> (Domain, Env<Limits>) {
         })),
         Record::Core(core::Record::People(people::Stored::Public { project: 1 })),
     ]);
-    rows.sort_by_key(Record::key);
-    let mut domain = fixtures::domain();
-    crate::step(&mut domain, &env, Event::StartBegin { pending: false });
-    for _ in 0_u8..64 {
-        let mut out = released(&mut domain, &env);
-        for _ in 0..out.len() {
-            match out.pop().unwrap() {
-                Request::Start { phase, .. } => {
-                    for row in &rows {
-                        let selected = match (phase, row) {
-                            (core::start::Phase::LoadCore, _) => true,
-                            (core::start::Phase::Sweep, Record::Core(core::Record::People(_))) => true,
-                            _ => false,
-                        };
-                        if selected {
-                            crate::start_record(&mut domain, &env, row.clone());
-                        }
-                    }
-                    crate::step(&mut domain, &env, Event::StartDone(phase));
-                }
-                Request::Commit { number, .. } => crate::step(&mut domain, &env, Event::Committed { number, fill: 0 }),
-                Request::Deliver(Delivery::System {
-                    connector,
-                    call: crate::connector::SystemRequest::ReadFact { resource, .. },
-                }) => {
-                    crate::step(
-                        &mut domain,
-                        &env,
-                        Event::Connector {
-                            number: connector,
-                            event: crate::connector::Event::System(crate::connector::SystemEvent::Fact {
-                                resource,
-                                fact: crate::connector::Fact { state: Some(1), pending: false, observed: env.wall },
-                                origin: crate::connector::Origin::Own,
-                            }),
-                        },
-                    );
-                }
-                Request::StoreCatalogue { .. }
-                | Request::Workers(_)
-                | Request::ClientsCatalogue { .. }
-                | Request::Deliver(_)
-                | Request::Now(_) => {}
-                Request::Stop | Request::Busy { .. } | Request::ReadResult { .. } => panic!("start failed: {domain:?}"),
-            }
-        }
-        if domain.ready() && domain.journal.idle() {
-            return (domain, env);
-        }
-    }
-    panic!("start did not open: {domain:?}");
+    let mut host = super::start::Host::new(rows);
+    host.env = env;
+    host.begin();
+    host.drive();
+    assert!(host.domain.ready());
+    (host.domain, host.env)
 }
 
 #[test]

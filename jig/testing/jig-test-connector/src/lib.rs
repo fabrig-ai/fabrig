@@ -59,7 +59,7 @@ pub use boundary::{
     Added, Adoption, ApplyResult, Attempt, Class, Classed, Config, Description, Effect, EffectPhase, Event, Fact, Form,
     Hold, HoldMode, Item, Key, KindSpec, Looked, Named, Origin, OutboxEntry, Outcome, Path, PoolSpec, ProcedureAction,
     ProcedureResult, ProcedureSignal, ProcedureSpec, ProcedureState, Purpose, Read, Record, RecordKey, Recovery,
-    Request, RequirementSpec, ResourceRole, ResourceSpec, RestartStep, StepDecision, StepRefusal, StepWait,
+    Request, RequirementSpec, ResourceRole, ResourceSpec, RestartStep, RestoreRow, StepDecision, StepRefusal, StepWait,
     SystemEvent, SystemRequest, TopicSpec, Verdict, split,
 };
 pub use domain::{Domain, OUTPUTS_BOUND, closing_ready, fire_system, next_deadline, restart_ready, step_system};

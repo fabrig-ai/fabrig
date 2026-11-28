@@ -5,6 +5,7 @@ use alloc::collections::BTreeMap;
 use jig_domain_core as core;
 use jig_domain_core::engine::store as engine_store;
 use jig_protocol_store::{self as store, Event, Request, Restore, Row};
+use jig_test_connector as connector;
 use jig_test_domain as root;
 use skein_lib::{List, Queue, Token, length::len_u64};
 
@@ -19,7 +20,9 @@ pub struct Routes {
 }
 #[derive(Debug)]
 enum Flight {
-    Start { phase: core::start::Phase, census: Option<core::Census> },
+    Start(Token),
+    Connector(u16),
+    Switch,
     Read(Token),
     Notes(Token),
     Point { load: Token, pending: store::ended::Pending },
@@ -63,8 +66,10 @@ impl Routes {
     }
 }
 /// Translate one root request, retaining only its continuation's identity.
+/// A switch with no pending generation instead replies directly into `into`.
+#[expect(clippy::manual_map, reason = "the step subset translates cursors without closures")]
 #[must_use]
-pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
+pub fn down(routes: &mut Routes, out: StoreOut, generation_pending: bool, into: &mut Queue<Up>) -> Option<Request> {
     let limits = routes.limits?;
     routes.restore_bytes.expect("configure restore before routing requests");
     Some(match out {
@@ -93,25 +98,28 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
             routes.commit = number;
             Request::Commit { number, writes: translated.into_boxed() }
         }
-        StoreOut::Start { phase, census } => {
-            use core::start::Phase;
-            match phase {
-                Phase::LoadCore | Phase::RestoreConnector { .. } | Phase::Sweep | Phase::Switch => {}
-                Phase::LoadInbox => {
-                    census.as_ref()?;
-                }
-                Phase::Link | Phase::Wires | Phase::AdoptRuns | Phase::Open => return None,
-            }
-            let owner = routes.keep(Flight::Start { phase, census });
-            if phase == Phase::Switch {
-                return Some(Request::Switch { owner });
-            }
-            restart(routes, owner, None)?
+        StoreOut::ConnectorLoad { number, after } => {
+            let owner = routes.keep(Flight::Connector(number));
+            let after = match after {
+                Some(after) => Some(store::Cursor { interval: 0, after }),
+                None => None,
+            };
+            restore(routes, owner, Restore::Application(Box::new([live(number)])), after)
         }
-        StoreOut::Engine(
-            engine_store::Out::Switch | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. },
-        ) => {
-            unreachable!("the test root drives its own start")
+        StoreOut::Engine(engine_store::Out::Switch) => {
+            if !generation_pending {
+                into.push(Up::Root(root::Event::Store(engine_store::In::Switched)));
+                return None;
+            }
+            Request::Switch { owner: routes.keep(Flight::Switch) }
+        }
+        StoreOut::Engine(engine_store::Out::Load { load, range: engine_store::Range::Start { ranges, after } }) => {
+            let owner = routes.keep(Flight::Start(load));
+            let after = match after {
+                Some(cursor) => Some(store::Cursor { interval: cursor.interval, after: cursor.after }),
+                None => None,
+            };
+            restore(routes, owner, Restore::Jig(ranges), after)
         }
         StoreOut::Engine(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) => {
             let owner = routes.keep(Flight::Read(load));
@@ -148,31 +156,24 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
         }
     })
 }
-fn restart(routes: &Routes, owner: Token, after: Option<store::Cursor>) -> Option<Request> {
-    use core::start::Phase;
-    let (phase, census) = match routes.pending.get(&owner)? {
-        Flight::Start { phase, census } => (*phase, census),
-        Flight::Read(_) | Flight::Notes(_) | Flight::Point { .. } | Flight::Window { .. } => return None,
-    };
-    let range = match phase {
-        Phase::LoadCore => Restore::Jig(Box::new(core::RestoreRange::LIVE)),
-        Phase::LoadInbox => Restore::Jig(Box::new([core::RestoreRange::Census(census.clone()?)])),
-        Phase::RestoreConnector { connector } => Restore::Application(Box::new([live(connector)])),
-        Phase::Sweep => Restore::Jig(Box::new([core::RestoreRange::People])),
-        Phase::Link | Phase::Switch | Phase::Wires | Phase::AdoptRuns | Phase::Open => return None,
-    };
-    Some(Request::Restore {
+fn restore(routes: &Routes, owner: Token, range: Restore, after: Option<store::Cursor>) -> Request {
+    Request::Restore {
         owner,
         range,
         after,
         rows: 2,
         bytes: routes.restore_bytes.expect("configure restore before routing requests"),
-    })
+    }
 }
 fn transcript(routes: &Routes, owner: Token, after: Option<u64>) -> Option<Request> {
     let (task, attempt, turn) = match routes.pending.get(&owner)? {
         Flight::Window { task, attempt, turn, .. } => (task, attempt, turn),
-        Flight::Start { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Point { .. } => {
+        Flight::Start(_)
+        | Flight::Connector(_)
+        | Flight::Switch
+        | Flight::Read(_)
+        | Flight::Notes(_)
+        | Flight::Point { .. } => {
             return None;
         }
     };
@@ -194,11 +195,14 @@ fn transcript(routes: &Routes, owner: Token, after: Option<u64>) -> Option<Reque
 pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
     match event {
         Event::Page { owner, items, next } => page(routes, owner, items, next, into),
-        Event::PageRefused { owner, failure } => {
-            if let Some(Flight::Start { .. }) = routes.pending.remove(&owner) {
-                into.push(Up::Root(root::Event::StartPageRefused { failure }));
-            }
-        }
+        Event::PageRefused { owner, failure } => match routes.pending.remove(&owner) {
+            Some(Flight::Start(load)) => refused(Some(load), failure, into),
+            Some(Flight::Connector(_)) => refused(None, failure, into),
+            Some(
+                Flight::Switch | Flight::Read(_) | Flight::Notes(_) | Flight::Point { .. } | Flight::Window { .. },
+            )
+            | None => {}
+        },
         // This route has no job handlers; answer through the ordinary request path.
         Event::Job { owner, .. } => {
             into.push(Up::Ask(Request::Job {
@@ -249,10 +253,9 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         }
         Event::OpenRefused { .. } => stop(routes, into),
         Event::Switched { owner } => switched(routes, owner, into),
+        Event::Census { census } => into.push(Up::Root(root::Event::Store(engine_store::In::Census(census)))),
         // The shell driving open owns progress; this root route prints no lines.
-        // This reference route does not consume the census (protocol/store/growth.md, 1.3).
-        Event::Census { .. }
-        | Event::Checkpointed { .. }
+        Event::Checkpointed { .. }
         | Event::CheckpointRefused { .. }
         | Event::Restored { .. }
         | Event::RestoreRefused { .. }
@@ -327,14 +330,8 @@ fn window_loaded(
 }
 
 fn switched(routes: &mut Routes, owner: Token, into: &mut Queue<Up>) {
-    match routes.pending.remove(&owner) {
-        Some(Flight::Start { phase: core::start::Phase::Switch, .. }) => {
-            into.push(Up::Root(root::Event::StartDone(core::start::Phase::Switch)));
-        }
-        Some(
-            Flight::Start { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Point { .. } | Flight::Window { .. },
-        )
-        | None => {}
+    if let Some(Flight::Switch) = routes.pending.remove(&owner) {
+        into.push(Up::Root(root::Event::Store(engine_store::In::Switched)));
     }
 }
 fn loaded(routes: &mut Routes, owner: Token, rows: Box<[Row]>, next: Option<store::Cursor>, into: &mut Queue<Up>) {
@@ -343,29 +340,28 @@ fn loaded(routes: &mut Routes, owner: Token, rows: Box<[Row]>, next: Option<stor
         into.push(Up::Root(root::Event::Store(engine_store::In::Loaded { load, result })));
     }
 }
-fn decode(row: Row, limits: &root::Limits) -> Result<root::Record, store::restore::Failure> {
+fn decode(
+    key: &[u8],
+    value: &[u8],
+    limits: &connector::Limits,
+) -> Result<(u16, connector::Record), store::restore::Failure> {
     use store::restore::{Cause, DecodeFailure, Failure, RowSite};
-    Ok(match row {
-        Row::Jig(row) => root::Record::Core(row),
-        Row::Application { key, value } => {
-            let site = RowSite {
-                family: Some(store::Family::Application),
-                key: store::keys::application(&key, u32::MAX).expect("bounded application key"),
-                key_bytes: len_u64(key.len()).checked_add(1).expect("bounded tagged key"),
-                truncated: false,
-            };
-            let Some((number, _)) = keys::decode(&key, &limits.connector) else {
-                return Err(Failure { cause: Cause::Decode(DecodeFailure::Key), row: Some(site) });
-            };
-            let Ok(record) = records::decode(&value, &limits.connector) else {
-                return Err(Failure { cause: Cause::Decode(DecodeFailure::Value), row: Some(site) });
-            };
-            if keys::encode(number, &record.key()) != key {
-                return Err(Failure { cause: Cause::Decode(DecodeFailure::KeyValueDisagree), row: Some(site) });
-            }
-            root::Record::Connector { number, record }
-        }
-    })
+    let site = RowSite {
+        family: Some(store::Family::Application),
+        key: store::keys::application(key, u32::MAX).expect("bounded application key"),
+        key_bytes: len_u64(key.len()).checked_add(1).expect("bounded tagged key"),
+        truncated: false,
+    };
+    let Some((number, _)) = keys::decode(key, limits) else {
+        return Err(Failure { cause: Cause::Decode(DecodeFailure::Key), row: Some(site) });
+    };
+    let Ok(record) = records::decode(value, limits) else {
+        return Err(Failure { cause: Cause::Decode(DecodeFailure::Value), row: Some(site) });
+    };
+    if keys::encode(number, &record.key()).as_ref() != key {
+        return Err(Failure { cause: Cause::Decode(DecodeFailure::KeyValueDisagree), row: Some(site) });
+    }
+    Ok((number, record))
 }
 fn page(
     routes: &mut Routes,
@@ -374,36 +370,82 @@ fn page(
     next: Option<store::Cursor>,
     into: &mut Queue<Up>,
 ) {
-    let Some(Flight::Start { phase, .. }) = routes.pending.get(&owner) else {
-        return;
-    };
-    let phase = *phase;
-    let limits = routes.limits.expect("configured routing");
-    for item in items {
-        let event = match item {
-            store::restore::Item::Row(row) => {
-                let record = match decode(row, &limits) {
-                    Ok(record) => record,
-                    Err(failure) => {
-                        routes.pending.remove(&owner);
-                        into.push(Up::Root(root::Event::StartPageRefused { failure }));
-                        return;
-                    }
-                };
-                root::Event::StartRecord(record)
-            }
-            store::restore::Item::MissingLink { record, target } => root::Event::StartMissing { record, target },
-        };
-        into.push(Up::Root(event));
-    }
-    if let Some(after) = next {
-        if let Some(request) = restart(routes, owner, Some(after)) {
-            into.push(Up::Ask(request));
+    match routes.pending.remove(&owner) {
+        Some(Flight::Start(load)) => start_page(load, items, next, into),
+        Some(Flight::Connector(number)) => {
+            let limits = routes.limits.expect("configured routing");
+            connector_page(number, &limits, items, next, into);
         }
-    } else {
-        routes.pending.remove(&owner);
-        into.push(Up::Root(root::Event::StartDone(phase)));
+        Some(Flight::Switch | Flight::Read(_) | Flight::Notes(_) | Flight::Point { .. } | Flight::Window { .. })
+        | None => {}
     }
+}
+fn start_page(load: Token, items: Box<[store::restore::Item]>, next: Option<store::Cursor>, into: &mut Queue<Up>) {
+    let mut page = List::with_capacity(u32::try_from(items.len()).expect("bounded page"));
+    for item in items {
+        let item = match item {
+            store::restore::Item::Row(Row::Jig(row)) => engine_store::Item::Record(row),
+            store::restore::Item::MissingLink { record, target } => engine_store::Item::Missing { record, target },
+            store::restore::Item::Row(Row::Application { .. }) => {
+                refused(Some(load), wrong_range(), into);
+                return;
+            }
+        };
+        page.push(item).expect("one item per row");
+    }
+    let next = match next {
+        Some(cursor) => Some(engine_store::Cursor { interval: cursor.interval, after: cursor.after }),
+        None => None,
+    };
+    let result = engine_store::Answer::Rows(engine_store::Rows::Start { items: page.into_boxed(), next });
+    into.push(Up::Root(root::Event::Store(engine_store::In::Loaded { load, result })));
+}
+fn connector_page(
+    number: u16,
+    limits: &root::Limits,
+    items: Box<[store::restore::Item]>,
+    next: Option<store::Cursor>,
+    into: &mut Queue<Up>,
+) {
+    let mut records = List::with_capacity(u32::try_from(items.len()).expect("bounded page"));
+    for item in items {
+        let (key, value) = match item {
+            store::restore::Item::Row(Row::Application { key, value }) => (key, value),
+            store::restore::Item::Row(Row::Jig(_)) | store::restore::Item::MissingLink { .. } => {
+                refused(None, wrong_range(), into);
+                return;
+            }
+        };
+        match decode(&key, &value, &limits.connector) {
+            Ok((owner, record)) if owner == number => {
+                records.push(record).expect("one entry per row");
+            }
+            Ok(_) => {
+                refused(None, wrong_range(), into);
+                return;
+            }
+            Err(failure) => {
+                refused(None, failure, into);
+                return;
+            }
+        }
+    }
+    let after = match next {
+        Some(store::Cursor { interval: 0, after }) => Some(after),
+        Some(_) => {
+            refused(None, wrong_range(), into);
+            return;
+        }
+        None => None,
+    };
+    into.push(Up::Root(root::Event::ConnectorPage { number, records: records.into_boxed(), after }));
+}
+fn wrong_range() -> store::restore::Failure {
+    use store::restore::{Cause, Failure, WalkFailure};
+    Failure { cause: Cause::Walk(WalkFailure::UnexpectedTerminal), row: None }
+}
+fn refused(load: Option<Token>, failure: store::restore::Failure, into: &mut Queue<Up>) {
+    into.push(Up::Root(root::Event::StartPageRefused { load, failure }));
 }
 fn stop(routes: &Routes, into: &mut Queue<Up>) {
     into.push(Up::Root(root::Event::Failed { number: routes.commit }));

@@ -96,7 +96,8 @@ pub(crate) fn application(value: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::LostRead { .. }
         | root::Delivery::Store(_)
         | root::Delivery::Connector(..)
-        | root::Delivery::Start(_)
+        | root::Delivery::Resume(_)
+        | root::Delivery::ConnectorLoad { .. }
         | root::Delivery::Procedure { .. } => return None,
     };
     Some(kit::Event::Application(value))

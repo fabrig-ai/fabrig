@@ -32,7 +32,6 @@ pub(super) fn request(engine: &mut Engine, request: root::Request) {
                 jig_test_store::StoreOut::Commit { number, writes: crate::store::writes(writes) },
             );
         }
-        root::Request::Start { phase, census } => restart(engine, phase, census),
 
         root::Request::Deliver(delivery) => deliver(engine, delivery),
         root::Request::Now(now) => immediate(engine, now),
@@ -50,7 +49,7 @@ pub(super) fn request(engine: &mut Engine, request: root::Request) {
 
 fn deliver(engine: &mut Engine, delivery: root::Delivery) {
     match delivery {
-        root::Delivery::Start(_) | root::Delivery::Connector(..) => {
+        root::Delivery::Resume(_) | root::Delivery::Connector(..) => {
             unreachable!("the root resumes its own start continuation")
         }
         root::Delivery::ProjectMade { .. } => {}
@@ -74,7 +73,10 @@ fn deliver(engine: &mut Engine, delivery: root::Delivery) {
         root::Delivery::Fleet(event) => engine.events.push(root::Event::Core(core::Event::Fleet(event))),
         root::Delivery::Procedure { .. } => stop::unavailable(engine, b"procedures"),
         root::Delivery::Core(held) => core_held(engine, held),
-        root::Delivery::Store(load) => crate::store::request(engine, jig_test_store::StoreOut::Engine(load)),
+        root::Delivery::Store(out) => crate::store::request(engine, jig_test_store::StoreOut::Engine(out)),
+        root::Delivery::ConnectorLoad { number, after } => {
+            crate::store::request(engine, jig_test_store::StoreOut::ConnectorLoad { number, after });
+        }
         held @ (root::Delivery::ApplicationDocument { .. }
         | root::Delivery::ApplicationRead { .. }
         | root::Delivery::Application { .. }) => {
@@ -137,25 +139,6 @@ fn deliver(engine: &mut Engine, delivery: root::Delivery) {
         }
         root::Delivery::Message { .. } | root::Delivery::CallAnswer { .. } => {
             stop::unavailable(engine, b"workers");
-        }
-    }
-}
-
-fn restart(engine: &mut Engine, phase: core::start::Phase, census: Option<core::Census>) {
-    use core::start::Phase;
-    match phase {
-        Phase::Switch => {
-            if engine.store.pending {
-                crate::store::request(engine, jig_test_store::StoreOut::Start { phase, census });
-            } else {
-                engine.events.push(root::Event::StartDone(phase));
-            }
-        }
-        Phase::LoadCore | Phase::LoadInbox | Phase::RestoreConnector { .. } | Phase::Sweep => {
-            crate::store::request(engine, jig_test_store::StoreOut::Start { phase, census });
-        }
-        Phase::Link | Phase::Wires | Phase::AdoptRuns | Phase::Open => {
-            unreachable!("the root serves this start phase");
         }
     }
 }
