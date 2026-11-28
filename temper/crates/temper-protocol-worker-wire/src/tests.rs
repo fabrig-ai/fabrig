@@ -192,8 +192,9 @@ fn largest_parts_are_the_generated_encoded_bounds() {
     // Five prefix branches fit the channel's 1 MiB Items ceiling; six do not.
     let largest = v1::Items::encoded_bound(&v1::CEILINGS).expect("ceiling bound");
     // At ceilings: 64 * 15,434-byte repositories, a four-byte list length, the two-byte version,
-    // and the five-byte optional rerun bound (a one-byte tag and a four-byte value).
-    assert_eq!(largest, 987_787);
+    // the five-byte optional rerun bound (a one-byte tag and a four-byte value), and the
+    // four-byte hook_timeout_max_seconds ceiling field.
+    assert_eq!(largest, 987_791);
     assert!(largest <= 1_048_576);
     let one_more =
         largest + u64::from(v1::CEILINGS.items_repositories) * (4 + u64::from(v1::CEILINGS.prefixes_branches_item));
