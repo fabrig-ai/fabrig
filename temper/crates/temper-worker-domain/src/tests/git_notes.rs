@@ -18,6 +18,31 @@ fn note(job: Option<JobKind>, repository: &[u8], what: Git) -> Request {
     Request::Git { run: fixtures::RUN, attempt: fixtures::ATTEMPT, job, repository: repository.into(), what }
 }
 
+fn prepare_done(op: &Op) -> Done {
+    match op {
+        Op::Fetch { .. } => Done::Fetched { commit: COMMIT },
+        Op::Look { .. } => Done::Looked { holds: false },
+        Op::Pack { .. }
+        | Op::Reds { .. }
+        | Op::Reset { .. }
+        | Op::Keep { .. }
+        | Op::Make { .. }
+        | Op::Store { .. }
+        | Op::Clone { .. }
+        | Op::Point { .. }
+        | Op::Counts { .. }
+        | Op::Create { .. }
+        | Op::CheckOut { .. } => Done::Succeeded,
+        Op::IsAncestor { .. }
+        | Op::Message { .. }
+        | Op::Brings { .. }
+        | Op::DiffPaths { .. }
+        | Op::Merge { .. }
+        | Op::Commit { .. }
+        | Op::Push { .. } => panic!("read-only prepare does not ask this operation"),
+    }
+}
+
 fn prepared(job: Option<JobKind>) -> (Harness, Token, Box<[Request]>) {
     let mut h = Harness::new();
     let kind = tooling::Kind {
@@ -65,28 +90,7 @@ fn prepared(job: Option<JobKind>) -> (Harness, Token, Box<[Request]>) {
         match request {
             Request::Io { owner, op, .. } => {
                 hold = Some(owner);
-                let done = match op {
-                    Op::Fetch { .. } => Done::Fetched { commit: COMMIT },
-                    Op::Look { .. } => Done::Looked { holds: false },
-                    Op::Pack { .. }
-                    | Op::Reds { .. }
-                    | Op::Reset { .. }
-                    | Op::Keep { .. }
-                    | Op::Make { .. }
-                    | Op::Store { .. }
-                    | Op::Clone { .. }
-                    | Op::Point { .. }
-                    | Op::Counts { .. }
-                    | Op::Create { .. }
-                    | Op::CheckOut { .. } => Done::Succeeded,
-                    Op::IsAncestor { .. }
-                    | Op::Message { .. }
-                    | Op::Brings { .. }
-                    | Op::DiffPaths { .. }
-                    | Op::Merge { .. }
-                    | Op::Commit { .. }
-                    | Op::Push { .. } => panic!("read-only prepare does not ask this operation"),
-                };
+                let done = prepare_done(&op);
                 for row in h.step(Event::Done { owner, done }) {
                     pending.push(row);
                 }
