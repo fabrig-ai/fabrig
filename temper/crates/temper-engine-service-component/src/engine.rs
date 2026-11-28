@@ -415,6 +415,7 @@ impl Engine {
                 root::Fact::BriefReadRefused { task, section, stage, reason, heads, error } => {
                     self.notes.push(crate::Note::BriefReadRefused { task, section, stage, reason, heads, error });
                 }
+                root::Fact::ProjectCharters(note) => self.notes.push(crate::Note::ProjectCharters(note)),
                 root::Fact::ForgeTable { words } => self.notes.push(crate::Note::ForgeTable { words }),
                 root::Fact::HeadRefused { task, words } => {
                     self.notes.push(crate::Note::HeadRefused { task, words });

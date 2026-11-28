@@ -68,7 +68,7 @@ impl World {
             if let Request::Call { call, repository, op: Op::Read(read) } = request {
                 self.seen.push(read.clone());
                 self.calls.push((call, repository, read));
-            } else if let Request::Save { record: Stored::DotTemperRevision(row), .. } = request {
+            } else if let Request::SaveTemperRevision { row, .. } = request {
                 self.saved.push(row);
             } else if let Request::Erase { key } = request {
                 self.erased.push(key);

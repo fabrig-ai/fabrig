@@ -693,6 +693,20 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 String::from_utf8_lossy(section)
             )
         }
+        temper_engine_service::Note::ProjectCharters(note) => {
+            use temper_engine_domain::ProjectChartersFault;
+            let project = note.project;
+            let revision = note.revision;
+            match note.fault {
+                ProjectChartersFault::Unreadable { path, line, why } => format!(
+                    "{binary} serve: project charter unreadable project={project} revision={revision} file={:?} line={line}: {why:?}\n",
+                    String::from_utf8_lossy(&path),
+                ),
+                ProjectChartersFault::Refused(fault) => format!(
+                    "{binary} serve: project charters refused project={project} revision={revision} fault={fault:?}\n",
+                ),
+            }
+        }
         temper_engine_service::Note::ForgeTable { words } => {
             let mut line = format!("{binary} serve: {}", String::from_utf8_lossy(&words));
             line = line.replace(['\r', '\n'], " ");

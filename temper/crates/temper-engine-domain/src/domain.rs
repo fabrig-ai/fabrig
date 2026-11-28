@@ -1474,7 +1474,12 @@ fn released_into(
         Delivery::ForgeCommitted { entry } => {
             domain.work.push(Work::Forge(forge::Event::Released(jig_domain_contract::Released::Make { entry })));
         }
-        Delivery::Resume(resume) => domain.work.push(Work::EngineResume(resume)),
+        Delivery::Resume(resume) => match resume {
+            crate::StartResume::Core(resume) => domain.work.push(Work::EngineResume(resume)),
+            crate::StartResume::ProjectCharters(project) => {
+                forge_route::project_charters::restore(domain, env, decision, project);
+            }
+        },
         Delivery::EngineStore(request) => crate::store_route::released(domain, request, out),
         Delivery::Fleet(event) => domain.work.push(Work::Fleet(event)),
         Delivery::Relay { task, attempt, word, .. } => {

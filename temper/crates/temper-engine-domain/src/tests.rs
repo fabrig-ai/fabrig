@@ -21,6 +21,7 @@ mod documents;
 mod forge_route;
 mod history;
 mod looked;
+mod project_charters;
 mod projection_room;
 mod projection_settled;
 mod public;

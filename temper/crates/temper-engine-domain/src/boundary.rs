@@ -256,9 +256,24 @@ pub enum Missing {
     Commit,
 }
 
+/// A repository revision whose charter set was not taken.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProjectChartersDiagnostic {
+    pub project: u32,
+    pub revision: u64,
+    pub fault: ProjectChartersFault,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ProjectChartersFault {
+    Unreadable { path: Box<[u8]>, line: u32, why: Box<str> },
+    Refused(jig_domain_core::ProjectChartersFault),
+}
+
 /// An observation of the root, which decides nothing (domain/root.md, 3, and domain/root-translation.md, 2.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Fact {
+    ProjectCharters(ProjectChartersDiagnostic),
     /// A forge table full past its bound or free again (protocol/service-process.md, 1.3).
     ForgeTable {
         words: Box<[u8]>,

@@ -582,7 +582,9 @@ fn engine_output(
         Out::Core(request) => return Some(request),
         Out::Write(write) => return Some(core::Request::Write(write)),
         Out::Now(Peer::Application(report)) => start_report::record(domain, env, report),
-        Out::Held(Peer::Resume(resume)) => emit(decision, &env.limits, Delivery::Resume(resume)),
+        Out::Held(Peer::Resume(resume)) => {
+            emit(decision, &env.limits, Delivery::Resume(crate::StartResume::Core(resume)));
+        }
         Out::Now(Peer::Store(_) | Peer::Connector(..) | Peer::Resume(_)) | Out::Held(Peer::Application(_)) => {
             unreachable!("engine port marks determine their delivery")
         }

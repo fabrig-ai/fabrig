@@ -63,6 +63,7 @@ use landing_route::{describe_landing_effect, landing_decision};
 pub(super) mod reds;
 pub(crate) use reds::landed_for_run;
 pub use reds::{RunRed, reds_for_run};
+pub(crate) mod project_charters;
 pub(crate) mod push_admission;
 mod reads;
 use reads::read_answer;
@@ -4653,6 +4654,16 @@ pub(crate) fn outputs(
                 }));
             }
             forge::Request::Settled { unfinished } => crate::settling::finished(domain, unfinished),
+            forge::Request::SaveTemperRevision { row, moved } => {
+                if moved {
+                    project_charters::moved(domain, env, decision, &row);
+                }
+                save(
+                    decision,
+                    &env.limits,
+                    Write::Save(Record::Forge { row: Box::new(forge::Stored::DotTemperRevision(row)) }),
+                );
+            }
             forge::Request::Save { mut record, release, read_afresh } => {
                 if let forge::Stored::ChangeHot(hot) = &mut record {
                     fill_hold_account(domain, env, hot, out);
@@ -4962,7 +4973,7 @@ pub(crate) fn outputs(
                 );
             }
             forge::Request::Up(Up::Lifecycle(lifecycle::Up::Done { stage: forge::RestartStage::Restored })) => {
-                super::forge_up(domain, Up::Lifecycle(lifecycle::Up::Done { stage: forge::RestartStage::Restored }));
+                project_charters::begin_restore(domain, env, decision);
             }
             forge::Request::Up(Up::Lifecycle(lifecycle::Up::Done { stage })) => {
                 if !domain.engine.core().stopping() && !domain.settling.active() {

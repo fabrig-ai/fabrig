@@ -40,8 +40,8 @@ mod tests;
 mod translate;
 pub mod wire;
 pub use decision::{
-    Counters, Decision, Delivery, Journal, JournalOutput, Limits as JournalLimits, accept_routed, commit, committed,
-    fresh, resume, uncommitted, valid as journal_valid,
+    Counters, Decision, Delivery, Journal, JournalOutput, Limits as JournalLimits, StartResume, accept_routed, commit,
+    committed, fresh, resume, uncommitted, valid as journal_valid,
 };
 pub use store::{
     CallAnswer, CallKey, CallRecord, Changed, CoreRange, Deployment, DocumentOutcome, DocumentRefusal, Documented,
