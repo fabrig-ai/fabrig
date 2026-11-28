@@ -503,38 +503,6 @@ and L2):
   by `hearth-protocol-proc` (`tools.md`, 1.1): what runs is what the kernel says,
   not what the activator meant.
 
-## 6. Its state
-
-Moved to [`state.md`](state.md), section 1.
-
-### 6.1 Layout
-
-Moved to [`state.md`](state.md), section 1.1.
-
-### 6.2 Records
-
-Moved to [`state.md`](state.md), section 1.2.
-
-### 6.3 The journal
-
-Moved to [`state.md`](state.md), section 1.3.
-
-### 6.4 Start
-
-Moved to [`state.md`](state.md), section 1.4.
-
-## 7. The tools it drives
-
-Moved to [`tools.md`](tools.md), section 1.
-
-### 7.1 Formats, each its own machine
-
-Moved to [`tools.md`](tools.md), section 1.1.
-
-### 7.2 Tools
-
-Moved to [`tools.md`](tools.md), section 1.2.
-
 ## 8. Its world
 
 - **The root's world:** `hearth-domain-activator` with its children

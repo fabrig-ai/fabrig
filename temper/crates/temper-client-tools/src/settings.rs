@@ -358,6 +358,7 @@ pub const SETTING: Tool = Tool {
         &[positional(b"kind", b"limits", Kind::Word { set: &[b"limits"] }, Required, b"Overrides of jig's limits")],
         &[positional(b"kind", b"temper-limits", Kind::Word { set: &[b"temper-limits"] }, Required, b"Overrides of temper's limits"), revision_flag()],
         rows::SETTING.forms[2],
+        rows::CHARTER_PREVIEW,
     ],
     ..rows::SETTING
 };
@@ -461,6 +462,7 @@ pub(crate) fn inventory_next(reading: &crate::jig::runner::reads::Reading) -> Op
         return Some((
             2,
             Readable::Jig(c::Read::Setting(c::ReadSetting {
+                project: None,
                 setting: c::Setting::Limits,
                 revision: document.newest,
                 proposal: None,

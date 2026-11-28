@@ -1924,6 +1924,10 @@ impl World {
                 let bytes = temper_worker_service::translate::ask(ask);
                 self.lanes[at].worker_events.push_back(worker::Event::AdmitAsk { client, cookie, bytes });
             }
+            worker::Request::EncodeGuides { owner, guides } => {
+                let bytes = temper_worker_service::translate::guides(guides);
+                self.lanes[at].worker_events.push_back(worker::Event::EncodedGuides { owner, bytes });
+            }
             worker::Request::AdmitAnswer { client, cookie, bytes } => {
                 let own = temper_service_core::limits::stock();
                 let limits = temper_worker_service::worker_settings::payload_limits(
@@ -1983,6 +1987,7 @@ impl World {
                     | host::LinkUp::Part { .. }
                     | host::LinkUp::JobAnswer { .. }
                     | host::LinkUp::Ask { .. }
+                    | host::LinkUp::Guides { .. }
                     | host::LinkUp::Answer { .. } => {}
                 }
                 self.up_at(at, engine::Link::Up { up, parts: engine::Parts::none() });
@@ -2079,8 +2084,22 @@ impl World {
                 self.absence.outbound.push_back(link);
                 return;
             }
-            self.root_events
-                .push_back(engine::Event::Worker(engine::WorkerInput::Link { channel: self.lanes[at].channel, link }));
+            let channel = self.lanes[at].channel;
+            if let engine::Link::Up { up: host::LinkUp::Guides { run, attempt, bytes }, .. } = link {
+                let guides = temper_engine_service_vocabulary::translate::guides(
+                    &bytes,
+                    &temper_protocol_worker_wire::v1::CEILINGS,
+                )
+                .expect("the mock link receives a whole guide report");
+                self.root_events.push_back(engine::Event::Worker(engine::WorkerInput::Guides {
+                    channel,
+                    run,
+                    attempt,
+                    guides,
+                }));
+            } else {
+                self.root_events.push_back(engine::Event::Worker(engine::WorkerInput::Link { channel, link }));
+            }
         }
     }
 }

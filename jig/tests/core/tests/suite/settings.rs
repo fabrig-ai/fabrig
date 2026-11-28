@@ -138,6 +138,94 @@ fn a_new_model_default_yields_to_a_name_the_deployment_already_holds() {
 }
 
 #[test]
+fn stored_choices_keep_the_deployments_model_when_a_release_adds_its_name() {
+    use jig_domain_tasks as tasks;
+
+    const OWN: u32 = 64;
+    const STOCK: u32 = 9;
+    const INDEX: u8 = 63;
+    let (mut config, limits) = configuration();
+    config.core.defaults.charters[0].rest = true;
+    config.core.defaults.charters[0].policy.resume = false;
+    let mut own = config.core.defaults.models[0].clone();
+    own.number = OWN;
+    own.model.name = b"new-stock-model".as_slice().into();
+    own.model.efforts = Box::new([b"low".as_slice().into(), b"high".as_slice().into()]);
+    own.model.effort = Some(b"low".as_slice().into());
+    own.source = settings::ModelSource::Person;
+    let mut world = start_with(64, jig_core_world::clone_configuration(&config), limits);
+    world.seed(Box::new([record(settings::Record::Changed {
+        setting: settings::Setting::Model(OWN),
+        changed: settings::Changed { revision: 1, value: Some(settings::Value::Model(Box::new(own.clone()))) },
+    })]));
+    restart(&mut world, jig_core_world::clone_configuration(&config));
+
+    let signed = sign_in(&mut world);
+    let chosen = tasks::ModelEffort { model: INDEX, effort: Some(1), speed: None };
+    let task_choice = tasks::LlmChoice { later: None, account: None, main: chosen, subagents: Box::new([]) };
+    let mut template = world.domain.settings().template(1).expect("chat template").clone();
+    let template_choice = tasks::LlmChoice {
+        subagents: Box::new([chosen]),
+        later: Some(tasks::LlmLater { main: chosen, subagents: Box::new([chosen]) }),
+        ..task_choice.clone()
+    };
+    template.llm = Some(template_choice.clone());
+    let edit = settings::Item {
+        setting: settings::Setting::Template(1),
+        edit: settings::Edit::Set(settings::Value::Template(Box::new(template))),
+    };
+    changed(&change(&mut world, signed, 1, 1, Box::new([edit])), 2);
+
+    world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
+    let mut chat = fixtures::chat(&world, 1, Box::from(b"keep my model".as_slice()));
+    let people::Ask::Create { batch, .. } = &mut chat else { panic!("agent batch") };
+    batch[0].budget = people::Budget::Named;
+    batch[0].authority.spend = 20;
+    batch[0].authority.models = Some(people::Models::Named(1));
+    batch[0].llm = Some(people::LlmChoice {
+        later: None,
+        account: None,
+        main: people::ModelEffort { model: INDEX, effort: Some(1), speed: None },
+        subagents: Box::new([]),
+    });
+    world.send(root::Event::Core(core::Event::People(people::Event::Ask {
+        models: Box::new([own.model.name.clone()]),
+        reply_to: ReplyTo::new(Token::new(SEED)),
+        sign_in: signed,
+        key: [2; 16],
+        ask: chat,
+    })));
+    let (_, root::Delivery::Core(core::Held::PeopleReply { reply, .. })) =
+        world.client_peer.as_mut().expect("client").delivered.pop().expect("task creation reply")
+    else {
+        panic!("task creation reply")
+    };
+    let people::Reply::Outcome(people::Outcome::Created { first: task, .. }) = reply else { panic!("{reply:?}") };
+    let models = tasks::Models::Named(1 << INDEX);
+    assert_eq!(fixtures::live_row(&world, task).llm.as_ref(), Some(&task_choice));
+    assert_eq!(fixtures::live_row(&world, task).authority.models, models);
+
+    let stock = settings::CatalogueModel { number: STOCK, source: settings::ModelSource::Stock, ..own.clone() };
+    config.core.defaults.models = Box::new([config.core.defaults.models[0].clone(), stock]);
+    config.core.settings.models = settings::catalogue::rows(&config.core.defaults.models);
+    let own = settings::Value::Model(Box::new(own));
+    let stock_setting = settings::Setting::Model(STOCK);
+    for _ in 0..2 {
+        restart(&mut world, jig_core_world::clone_configuration(&config));
+        let settings = world.domain.settings();
+        assert_eq!(settings.newest(), 2, "the omitted model makes no release revision");
+        assert_eq!(settings.value(settings::Setting::Model(OWN)), Some(&own));
+        assert_eq!(settings.value(stock_setting), None);
+        assert!(!world.store.rows.contains_key(&key(jig_domain_core::settings::Key::Default(stock_setting))));
+        assert_eq!(settings.template(1).expect("chat template").llm.as_ref(), Some(&template_choice));
+        let signed = sign_in(&mut world);
+        let task = settings_task_document(&mut world, signed, task);
+        assert_eq!(task.llm.as_ref(), Some(&task_choice));
+        assert_eq!(task.authority.models, models);
+    }
+}
+
+#[test]
 fn a_stored_change_wins_until_reset_and_a_dropped_default_is_no_longer_offered() {
     let mut world = start(64);
     let mut template = configuration().0.core.defaults.templates[0].clone();
@@ -865,7 +953,7 @@ fn a_setting_reads_whole_only_from_the_newest() {
     let reads::Answer::Setting(value) = client_read(
         &mut world,
         signed,
-        reads::Read::Setting { setting: settings::Setting::Template(1), revision: 6, proposal: None },
+        reads::Read::Setting { project: None, setting: settings::Setting::Template(1), revision: 6, proposal: None },
     ) else {
         panic!("whole template")
     };
@@ -875,7 +963,12 @@ fn a_setting_reads_whole_only_from_the_newest() {
         client_read(
             &mut world,
             signed,
-            reads::Read::Setting { setting: settings::Setting::Template(1), revision: 5, proposal: None }
+            reads::Read::Setting {
+                project: None,
+                setting: settings::Setting::Template(1),
+                revision: 5,
+                proposal: None
+            }
         ),
         reads::Answer::None(reads::Why::Unknown)
     );
@@ -883,7 +976,12 @@ fn a_setting_reads_whole_only_from_the_newest() {
         client_read(
             &mut world,
             signed,
-            reads::Read::Setting { setting: settings::Setting::Template(999), revision: 6, proposal: None }
+            reads::Read::Setting {
+                project: None,
+                setting: settings::Setting::Template(999),
+                revision: 6,
+                proposal: None
+            }
         ),
         reads::Answer::None(reads::Why::Unknown)
     );
@@ -1017,7 +1115,12 @@ fn a_removed_setting_keeps_its_inventory_line_and_reads_unknown() {
         client_read(
             &mut world,
             signed,
-            reads::Read::Setting { setting: settings::Setting::Template(2), revision: 1, proposal: None }
+            reads::Read::Setting {
+                project: None,
+                setting: settings::Setting::Template(2),
+                revision: 1,
+                proposal: None
+            }
         ),
         reads::Answer::None(reads::Why::Unknown)
     );
@@ -1238,7 +1341,7 @@ fn a_held_revisions_charter_reads_whole_and_the_inventory_counts_its_holders() {
     let reads::Answer::Setting(value) = client_read(
         &mut world,
         signed,
-        reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 1, proposal: None },
+        reads::Read::Setting { project: None, setting: settings::Setting::Charter(1), revision: 1, proposal: None },
     ) else {
         panic!("held charter")
     };
@@ -1250,7 +1353,12 @@ fn a_held_revisions_charter_reads_whole_and_the_inventory_counts_its_holders() {
         client_read(
             &mut world,
             signed,
-            reads::Read::Setting { setting: settings::Setting::Template(1), revision: 1, proposal: None }
+            reads::Read::Setting {
+                project: None,
+                setting: settings::Setting::Template(1),
+                revision: 1,
+                proposal: None
+            }
         ),
         reads::Answer::None(reads::Why::Unknown)
     );
@@ -1306,7 +1414,7 @@ fn a_revision_leaves_memory_as_its_last_holder_ends() {
         client_read(
             &mut world,
             signed,
-            reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 1, proposal: None }
+            reads::Read::Setting { project: None, setting: settings::Setting::Charter(1), revision: 1, proposal: None }
         ),
         reads::Answer::None(reads::Why::Unknown)
     );
@@ -2326,7 +2434,7 @@ fn a_checks_refusal_keeps_the_held_reserve_until_revision_advancement() {
     let reads::Answer::Setting(held) = client_read(
         &mut world,
         signed,
-        reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 2, proposal: None },
+        reads::Read::Setting { project: None, setting: settings::Setting::Charter(1), revision: 2, proposal: None },
     ) else {
         panic!("held charter")
     };
@@ -2461,7 +2569,7 @@ fn a_model_setting_survives_a_restart_and_reads_back_whole() {
     let reads::Answer::Setting(document) = client_read(
         &mut world,
         signed,
-        reads::Read::Setting { setting: settings::Setting::Model(33), revision: 2, proposal: None },
+        reads::Read::Setting { project: None, setting: settings::Setting::Model(33), revision: 2, proposal: None },
     ) else {
         panic!("whole model setting")
     };
@@ -2536,7 +2644,7 @@ fn an_overlay_survives_starts_and_new_defaults_preserve_running_versions() {
     let reads::Answer::Setting(document) = client_read(
         &mut world,
         signed,
-        reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 2, proposal: None },
+        reads::Read::Setting { project: None, setting: settings::Setting::Charter(1), revision: 2, proposal: None },
     ) else {
         panic!("held setting read")
     };
@@ -2546,7 +2654,7 @@ fn an_overlay_survives_starts_and_new_defaults_preserve_running_versions() {
     let reads::Answer::Setting(current) = client_read(
         &mut world,
         signed,
-        reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 3, proposal: None },
+        reads::Read::Setting { project: None, setting: settings::Setting::Charter(1), revision: 3, proposal: None },
     ) else {
         panic!("current setting read")
     };

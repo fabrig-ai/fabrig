@@ -35,6 +35,7 @@ pub(crate) fn propose_request(
                 role: creation.role,
                 symbols: create::symbols(&creation.batch),
                 members,
+                executors: Box::new([]),
                 given: None,
                 proposal: Some((reason, to)),
                 ids: Box::new([]),
@@ -70,7 +71,7 @@ fn check(
             people::Budget::Named => {}
         }
     }
-    let (members, _) = create::checked(core, env, creation, true)?;
+    let create::Checked { members, .. } = create::checked(core, env, creation, true)?;
     let Some(crate::acts::Recipient::Roles { roles, .. }) =
         crate::acts::bounds::recipient(core, creation.project, authority::ProposalKind::Batch)
     else {

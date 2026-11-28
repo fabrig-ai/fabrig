@@ -141,6 +141,7 @@ impl Story {
                 reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(u64::MAX - 3)),
                 creator: tasks::Party::Deployment { project: row.project },
                 batch: Box::new([tasks::New {
+                    charter_scope: tasks::CharterScope::Project,
                     deadline: tasks::Deadline::Named,
                     number,
                     project: row.project,

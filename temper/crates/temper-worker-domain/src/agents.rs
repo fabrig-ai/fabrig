@@ -166,6 +166,12 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
         smith::parent::Request::Answered { client, answer, detail } => {
             return answered(domain, env, client, answer, &detail, out);
         }
+        smith::parent::Request::Prepared { client, guides } => {
+            if let Some(guides) = workspace::guides(domain, client, guides) {
+                out.push(Request::EncodeGuides { owner: client, guides });
+            }
+            return;
+        }
         smith::parent::Request::Told { client, body } => {
             domain.facts_out = domain.facts_out.saturating_add(1);
             return out.push(Request::Fact { owner: client, body });

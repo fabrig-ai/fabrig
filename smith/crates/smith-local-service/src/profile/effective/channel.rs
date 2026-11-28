@@ -16,6 +16,7 @@ pub(super) fn transcript(limits: &smith_transcript::v8::Limits) -> Box<[Limit]> 
     entries.into_boxed()
 }
 
+#[expect(clippy::too_many_lines, reason = "exhaustive projection of the channel body bounds")]
 pub(super) fn bodies(limits: &smith_channel::Limits) -> Box<[Limit]> {
     let smith_channel::Limits {
         directory_name,
@@ -68,6 +69,8 @@ pub(super) fn bodies(limits: &smith_channel::Limits) -> Box<[Limit]> {
         list_row_efforts: _,
         list_row_efforts_item: _,
         list_rows_rows: _,
+        guide_path: _,
+        guides_guides: _,
     } = *limits;
     Box::new([
         body_bytes("process.channel.bodies.directory_name", directory_name),

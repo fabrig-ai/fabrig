@@ -32,7 +32,7 @@ impl Play for Turns {
 fn a_waiting_find_only_wakes_at_its_poll_times() {
     const TEXT: &[u8] = b"Ready";
     const WITHIN: Duration = Duration::from_secs(1);
-    // Four of the kit's 50 ms poll intervals (testing/browser.md, 6).
+    // Four of the kit's 50 ms poll intervals (testing/browser-operations.md, 1).
     const VISIBLE: Time = Time::from_nanos(200_000_000);
     const WAKES: [Time; 4] =
         [Time::from_nanos(50_000_000), Time::from_nanos(100_000_000), Time::from_nanos(150_000_000), VISIBLE];

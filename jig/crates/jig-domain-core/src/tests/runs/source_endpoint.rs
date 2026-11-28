@@ -182,16 +182,21 @@ fn connect(core: &mut Core, limits: &Limits, channel: Token, endpoints: &[u32], 
     }
 }
 fn prepare(core: &mut Core, limits: &Limits) -> (Box<RunCharter>, Box<[Grant]>) {
-    send_task(core, limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(1)), task: TASK });
-    core.contexts.insert(TASK, core.tasks.run_context(TASK).unwrap()).unwrap();
-    core.begin_transcript(TASK, 0, None);
-    super::briefs::plan_fixture(core, limits, TASK);
-    let attempt = core.workspace_flight(TASK).unwrap().1;
+    let (_, run, grants) = prepare_for(core, limits, TASK, 0);
+    (run, grants)
+}
+fn prepare_for(core: &mut Core, limits: &Limits, task: u64, guide_limit: u32) -> (u64, Box<RunCharter>, Box<[Grant]>) {
+    send_task(core, limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(1)), task });
+    core.contexts.insert(task, core.tasks.run_context(task).unwrap()).unwrap();
+    core.begin_transcript(task, 0, None);
+    super::briefs::plan_fixture(core, limits, task);
+    let attempt = core.workspace_flight(task).unwrap().1;
     let out = watch_outputs(
         core,
         limits,
         Event::WorkspacePrepared {
-            task: TASK,
+            guide_limit,
+            task,
             attempt,
             holds: Box::new([]),
             writes: Some(Box::new([])),
@@ -203,8 +208,8 @@ fn prepare(core: &mut Core, limits: &Limits) -> (Box<RunCharter>, Box<[Grant]>) 
         if let Request::Now(now) = request
             && let Now::RunPrepared { run, grants, .. } = *now
         {
-            assert!(core.claim_bindings_usable(TASK, attempt));
-            return (run, grants);
+            assert!(core.claim_bindings_usable(task, attempt));
+            return (attempt, run, grants);
         }
     }
     panic!("run prepared");
@@ -371,4 +376,101 @@ fn another_providers_program_model_takes_its_own_direct_way() {
             }
         }
     }
+}
+
+const WITH_SET: u64 = 2;
+const CHARTER_REVISION: u64 = 4;
+const WORKSPACE_DIRS: u32 = 2;
+
+fn claim_run(core: &mut Core, limits: &Limits, task: u64, guide_limit: u32) -> (u64, u32, Box<[Request]>) {
+    let (attempt, run, _) = prepare_for(core, limits, task, guide_limit);
+    let out =
+        watch_outputs(core, limits, Event::ClaimPrepared { task, attempt, budget: run.budget, writes: Box::new([]) });
+    (attempt, run.revision, out)
+}
+
+fn attempt_put(out: &[Request]) -> Option<&tasks::AttemptRow> {
+    for request in out {
+        if let Request::Write(Write::Save(Record::Tasks(tasks::Stored::Attempt(row)))) = request {
+            return Some(row);
+        }
+    }
+    None
+}
+
+#[test]
+fn claims_record_the_prepared_revision_and_the_tasks_set() {
+    let (mut core, limits) = fixture(false, true);
+    let set = project_charters::set(CHARTER_REVISION);
+    let source = set.source.clone();
+    watch_outputs(&mut core, &limits, Event::ProjectCharters(set));
+    make_task(&mut core, &limits, WITH_SET);
+    for (task, charters, source) in [(TASK, 0, Box::from([])), (WITH_SET, CHARTER_REVISION, source)] {
+        let (attempt, revision, out) = claim_run(&mut core, &limits, task, WORKSPACE_DIRS);
+        let stored = attempt_put(&out).expect("claim put");
+        assert_eq!(stored.attempt, attempt);
+        let expected = RunSources { build: "test-build".into(), settings: revision, charters, source, guides: None };
+        assert_eq!(stored.sources, Some(expected.clone()));
+        assert_eq!(attempt_from_row(stored).sources, Some(expected));
+    }
+}
+
+fn guide() -> Guide {
+    Guide {
+        workspace: "acme/shop".into(),
+        commit: "abc".into(),
+        path: "AGENTS.md".into(),
+        digest: [23; 32],
+        bytes: 11,
+        whole: true,
+    }
+}
+
+fn report(core: &mut Core, limits: &Limits, attempt: u64, guides: Box<[Guide]>) -> Box<[Request]> {
+    watch_outputs(core, limits, Event::RunGuides { task: TASK, attempt, guides })
+}
+
+#[test]
+fn guide_reports_replace_unreported_only_once_while_open() {
+    let (mut core, limits) = fixture(false, true);
+    let (attempt, _, _) = claim_run(&mut core, &limits, TASK, WORKSPACE_DIRS);
+    assert!(report(&mut core, &limits, attempt.checked_add(1).unwrap(), Box::new([guide()])).is_empty());
+    let out = report(&mut core, &limits, attempt, Box::new([]));
+    assert_eq!(attempt_put(&out).unwrap().sources.as_ref().unwrap().guides, Some(Box::from([])));
+    assert!(report(&mut core, &limits, attempt, Box::new([guide()])).is_empty());
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Activation {
+            reads_project: false,
+            reply_to: ReplyTo::new(Token::new(TASK)),
+            task: TASK,
+            attempt,
+            end: tasks::End::Parked,
+            saved: None,
+            cause: tasks::Cause::Unpriced,
+        },
+    );
+    assert!(report(&mut core, &limits, attempt, Box::new([guide()])).is_empty());
+}
+
+#[test]
+fn oversize_guide_reports_do_not_consume_the_open_attempts_report() {
+    let (mut core, limits) = fixture(false, true);
+    let (attempt, _, _) = claim_run(&mut core, &limits, TASK, WORKSPACE_DIRS);
+    let beyond = "é".repeat((tasks::GUIDE_TEXT_BYTES / 2).checked_add(1).unwrap()).into_boxed_str();
+    let oversize: [Box<[Guide]>; 4] = [
+        Box::new([guide(), guide(), guide()]),
+        Box::new([guide(), Guide { workspace: beyond.clone(), ..guide() }]),
+        Box::new([guide(), Guide { commit: beyond.clone(), ..guide() }]),
+        Box::new([guide(), Guide { path: beyond, ..guide() }]),
+    ];
+    for guides in oversize {
+        assert!(report(&mut core, &limits, attempt, guides).is_empty());
+    }
+    let exactly = "é".repeat(tasks::GUIDE_TEXT_BYTES / 2).into_boxed_str();
+    let valid =
+        Box::new([guide(), Guide { workspace: exactly.clone(), commit: exactly.clone(), path: exactly, ..guide() }]);
+    let out = report(&mut core, &limits, attempt, valid.clone());
+    assert_eq!(attempt_put(&out).unwrap().sources.as_ref().unwrap().guides.as_deref(), Some(valid.as_slice()));
 }

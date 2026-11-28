@@ -96,6 +96,13 @@ impl Waiting {
         match self.resume {
             Resume::Keep { kind, body, walked } => keep_parts(peer, kind, body, walked, Some(answer), limits),
             Resume::Read { source, kind, record, walked } => {
+                let guide_limits;
+                let limits = if kind == Kind::Guides {
+                    guide_limits = sizes::guides(limits);
+                    &guide_limits
+                } else {
+                    limits
+                };
                 read_parts(peer, source, kind, record, walked, Some(answer), limits, None)
             }
             Resume::KeepFrame { source, target } => match answer {
@@ -216,6 +223,13 @@ pub fn start_receive(peer: &mut Peer, source: u16, body: &[u8], limits: &v22::Li
 }
 
 fn read_record(peer: &mut Peer, source: u16, kind: Kind, bytes: &[u8], limits: &v22::Limits) -> Advance {
+    let guide_limits;
+    let limits = if kind == Kind::Guides {
+        guide_limits = sizes::guides(limits);
+        &guide_limits
+    } else {
+        limits
+    };
     match up::decode(peer, source, kind, bytes, limits) {
         Ok(record) => read_parts(peer, source, kind, record, Walked::new(), None, limits, Some(bytes)),
         Err(problem) => Advance::Refused(problem),

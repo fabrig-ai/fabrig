@@ -82,6 +82,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
 
         deployment: [31; 16],
         seed: 31,
+        build: "test-build".into(),
         workers_in_process: false,
         hub_turns: 2,
         owners: Box::new([]),

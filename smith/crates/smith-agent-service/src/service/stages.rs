@@ -115,6 +115,7 @@ pub(super) fn work_pending(service: &Stages, frame: Option<&Frame>, now: Time) -
             }
             None => false,
         }
+        || super::down::guides_ready(service, frame)
         || !service.completions.is_empty()
         || !service.io_completions.is_empty()
         || !service.io_events.is_empty()
@@ -221,6 +222,7 @@ impl Stages {
                 host: super::orphan::Host::Open,
                 signalled: false,
                 pending_signal: None,
+                prepared: None,
                 run_started: Time::ZERO,
                 line: crate::terminal::Last::Quiet,
                 opening: super::opening::Opening::Idle,

@@ -37,7 +37,8 @@ pub(crate) fn workstream(key: &[u8]) -> u64 {
 }
 
 fn repository(repository: wire::Repository) -> checkout::Repository {
-    let wire::Repository { tag: _, name, remote, git, start, access, identity, account, save, admit } = repository;
+    let wire::Repository { tag: _, name, qualified: _, remote, git, start, access, identity, account, save, admit } =
+        repository;
     let (push, expected, landing, delivered, pin, prefixes): (_, _, _, _, _, Box<[Box<[u8]>]>) = match access {
         wire::Access::ReadOnly => (None, None, None, None, None, Box::new([])),
         wire::Access::Prefixes { branches } => (None, None, None, None, None, branches),

@@ -292,7 +292,10 @@ charter, template, policy or model numbered
   that reads a task's charter through `charter_of` reads the task's own
   version with no change of its own.
   An amendment of a task's LLM choice is checked against its own
-  version's models, a delegate's against the newest's.
+  version's models, a delegate's against the newest's. A task bound to
+  a project's charter reads its fields through them as any task does,
+  and its run's words from its project's set (`project-charters.md`, 4
+  and 5).
 - **Held revisions.** The newest is held, and so is every revision a
   live agent task records or a run in flight was prepared under (its
   preparation, its claim, its placement). A revision nothing holds,
@@ -337,18 +340,6 @@ charter, template, policy or model numbered
 - **What a task may do is never pinned.** Its authority is the rules',
   its project's policy's and its chain's as they stand (../authority.md,
   section 6); only what its runs are given is its charter version's.
-
-## 5. An application's settings
-
-Moved to [`settings-application.md`](settings-application.md), section 1.
-
-## 6. A proposal of settings
-
-Moved to [`settings-proposals.md`](settings-proposals.md), section 1.
-
-## 7. In the store, and at a start
-
-Moved to [`settings-store.md`](settings-store.md), section 1.
 
 ## 8. Bounds
 
@@ -536,11 +527,3 @@ forgotten and names the oldest kept (2026-11-04).
 The proposal's reason is `restores revision R: ` followed by the party's
 reason. The combined text is cut to the reason's byte bound at a character
 boundary (2026-11-04).
-
-## 11. The catalogue
-
-Moved to [`settings-catalogue.md`](settings-catalogue.md), section 1.
-
-## 12. A provider's list
-
-Moved to [`settings-catalogue.md`](settings-catalogue.md), section 2.

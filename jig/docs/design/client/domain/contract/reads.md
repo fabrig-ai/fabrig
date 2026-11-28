@@ -25,7 +25,7 @@ party reads is therefore never lost by a crash.
 | `waits{project, kind, party, due}`: a project's live waits, a page (1.2) | live state |
 | a project; its spend, a page; its notes, a page | live state; the store; the notes child |
 | the deployment | live state |
-| `settings`; `setting{kind, scope, number, revision}`: one setting's value whole, as the newest reads it, or, for a charter, as a held revision reads it, or, with `proposal`, as a pending proposal of settings would set it, or, of an application's kind, its state and size alone; `revision{n}`: a revision's record and its items, as it set them, an application's with their sizes alone; `revisions`: its records, a page, newest first | live state; the store's history, for a revision no longer held (`../../../domain/engine/settings-store.md`, 1) |
+| `settings`; `setting{kind, scope, number, revision}`: one setting's value whole, as the newest reads it, or, for a charter, as a held revision reads it, or, with `proposal`, as a pending proposal of settings would set it, or, with `project`, as a new task of that project would read it, the project's charter beside it (`../../../domain/engine/project-charters.md`, 7), or, of an application's kind, its state and size alone; `revision{n}`: a revision's record and its items, as it set them, an application's with their sizes alone; `revisions`: its records, a page, newest first | live state; the store's history, for a revision no longer held (`../../../domain/engine/settings-store.md`, 1) |
 | an application's read, naming its owner, its scope and its window (`watches.md`, 1.5) | its owner, the connector, through the engine's root |
 
 - **Task source text** is read independently of its overview. `field` selects
@@ -67,6 +67,9 @@ party reads is therefore never lost by a crash.
   record EndedValueEscalation { task: Task decision: EscalationDecisionRecord hold: option HoldLine }
   ```
 
+  An attempt's line carries its sources too, as its row records them
+  (`../../../domain/tasks/lifecycle.md`, 12.1), an optional field added
+  with its default, none.
   An attempt's times are wall nanoseconds, none where the store did not
   record them (an attempt restored without its opening evidence,
   or still live); `end` is how its run ended, as the activity's

@@ -45,12 +45,19 @@ const CURRENT: OwnerSets = OwnerSets { sets: &[crate::SKEIN_SET, crate::SMITH_SE
 fn old_sets() -> OwnerSets {
     let families = crate::STORE_FAMILIES.map(|family| crate::KeptFamily {
         current: TEXTS.iter().find(|(name, _)| *name == family.name).unwrap().1,
-        // Dev's core predates parts: keep only its registered types and key range.
-        types: if family.name == "jig-store-core" { &family.types[..8] } else { family.types },
+        // Keep only the types registered by the dev binary.
+        types: match family.name {
+            "jig-store-core" => &family.types[..8],
+            "jig-store-settings" => &family.types[..7],
+            _ => family.types,
+        },
         keys: match family.name {
             "jig-store-core" => &family.keys[..1],
             // The kept registry text does not declare Order.
             "jig-store-registry" => &family.keys[..3],
+            "jig-store-settings" => {
+                Box::leak(family.keys.iter().copied().filter(|key| key.root != "ProjectCharters").collect())
+            }
             _ => family.keys,
         },
         frames: None, // The earlier map-only registry.

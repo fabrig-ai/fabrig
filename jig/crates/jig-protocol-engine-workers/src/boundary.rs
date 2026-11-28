@@ -157,6 +157,7 @@ impl Unsent {
                 | Kind::Ask
                 | Kind::Usage
                 | Kind::UsageRead
+                | Kind::Guides
                 | Kind::Paused => false,
             },
         }

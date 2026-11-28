@@ -20,6 +20,7 @@ pub(super) fn ready_changes(changes: &[u64], batch_size: u16) -> (Domain, Env<Li
     for number in changes {
         batch
             .push(tasks::New {
+                charter_scope: jig_domain_tasks::CharterScope::Project,
                 number: *number,
                 project: 1,
                 label: 0,

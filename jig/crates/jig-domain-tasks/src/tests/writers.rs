@@ -76,6 +76,7 @@ fn one_slot_left() -> Harness {
 fn claim(h: &mut Harness, task: u64, writes: &[u8]) -> Vec<Request> {
     h.send(Event::Prepare { reply_to: to(), task });
     h.send(Event::Claim {
+        sources: None,
         reply_to: to(),
         fresh: None,
         session_end: None,

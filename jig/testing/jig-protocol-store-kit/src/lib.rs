@@ -236,6 +236,7 @@ pub fn task_llm() -> jig_domain_tasks::LlmChoice {
 pub fn task_creation(number: u64) -> jig_domain_tasks::New {
     use jig_domain_tasks::{Executor, Funder, Holding, New, Numbers};
     New {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         deadline: jig_domain_tasks::Deadline::Named,
         label: 7,
         flags: jig_domain_tasks::Flags::PLAIN,

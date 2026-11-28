@@ -120,6 +120,12 @@ cancel, from any state ──────────────► stop ─►
    is answered once as refused: the hub frees what it took for it at
    once, keeps no copy and lists it at no hello, and the fleet closes it
    as it hears it, never acknowledging it (../engine/fleet.md).
+   Where the application gave the run's guides (its report of what the
+   run was told from, `../tasks/lifecycle.md`, 12.1), the hub keeps them
+   with the answer and sends a `guides` record just before it, each time
+   it sends the answer, only where the engine's terms list `guides`
+   (`../../protocol/channel/records.md`, 1); the answer's
+   acknowledgement frees both.
 
 A run with no workspace skips preparing, saving and releasing. A cancel
 from the engine, a lost link or shutdown, a drain's turn end (7), or a

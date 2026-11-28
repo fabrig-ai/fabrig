@@ -70,6 +70,7 @@ pub(super) fn make(
         None => tasks::Party::Person(1),
     };
     let new = tasks::New {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         deadline: tasks::Deadline::Named,
         label: 0,
         flags: tasks::Flags { conversation, ..tasks::Flags::PLAIN },

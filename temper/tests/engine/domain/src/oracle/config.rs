@@ -48,6 +48,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
             kept_starts: Box::new([]),
             deployment: c.deployment,
             seed: c.seed,
+            build: c.build.clone(),
             workers_in_process: c.workers_in_process,
             hub_turns: c.hub_turns,
             owners: c.owners.clone(),

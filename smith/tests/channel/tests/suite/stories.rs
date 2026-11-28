@@ -1502,3 +1502,29 @@ fn a_signal_notice_requires_admission_and_preserves_the_signal_and_sender() {
     world.settle();
     assert!(!world.agent_signalled(smith_channel::Signal::Interrupt, None), "the answer ended the notice window");
 }
+
+#[test]
+fn prepared_guide_metadata_reaches_the_host() {
+    let mut world = World::admitted();
+    let guides = Box::new([smith_host_domain::Guide {
+        directory: 2,
+        path: b"AGENTS.md".as_slice().into(),
+        digest: [23; 32],
+        bytes: 3201,
+        whole: false,
+    }]);
+    let fact = smith_domain::Fact::Run {
+        opening: None,
+        fact: smith_domain::run::facts::Fact {
+            at: skein_lib::Time::ZERO,
+            kind: smith_domain::run::facts::FactKind::Prepared {
+                run: skein_lib::Token::new(1),
+                guides: guides.clone(),
+                checks: 0,
+            },
+        },
+    };
+    assert!(world.agent_sends_fact(&fact, skein_lib::Time::ZERO));
+    world.settle();
+    assert!(world.observations().contains(&Observation::HostPrepared { guides }));
+}

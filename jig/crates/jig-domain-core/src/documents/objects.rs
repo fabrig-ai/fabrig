@@ -799,6 +799,7 @@ pub fn attempt_from_row(value: &tasks::AttemptRow) -> AttemptLine {
         ended: value.ended,
         end: value.end,
         phases: value.phases,
+        sources: value.sources.clone(),
     }
 }
 

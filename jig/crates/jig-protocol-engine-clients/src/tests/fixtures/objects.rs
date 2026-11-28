@@ -76,6 +76,7 @@ pub fn proposed_task() -> d::ProposedTask {
 
 pub fn person_goal() -> t::New {
     t::New {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         label: 0,
         flags: t::Flags::PLAIN,
         number: 37,

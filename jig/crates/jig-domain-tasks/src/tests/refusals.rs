@@ -262,6 +262,7 @@ fn running_job() -> Harness {
     h.send(Event::Prepare { reply_to: super::revisions::to(), task: 2 });
     assert_eq!(h.domain.task(2).unwrap().phase, crate::Phase::Active(crate::Active::Preparing));
     h.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
@@ -317,6 +318,7 @@ fn a_job_claim_refuses_an_account_or_a_nonzero_budget() {
     let before = h.domain.task(2).unwrap().clone();
     for (budget, account, why) in [(1, None, crate::Refusal::Funding), (0, Some(1), crate::Refusal::Executor)] {
         let out = h.send(Event::Claim {
+            sources: None,
             fresh: None,
             session_end: None,
             offered: crate::Reasons::ALL,
@@ -559,6 +561,7 @@ fn a_suspension_survives_preparation_and_closes_at_the_next_claim_or_hold() {
         } else {
             h.send(Event::Prepare { reply_to: super::revisions::to(), task: 2 });
             h.send(Event::Claim {
+                sources: None,
                 reply_to: super::revisions::to(),
                 task: 2,
                 attempt: 2,
@@ -731,6 +734,7 @@ fn a_version_refusal_keeps_tries_and_its_reason_without_a_retry_bound() {
     assert_eq!(h.domain.task(2).unwrap().phase, crate::Phase::Active(crate::Active::Due));
     h.send(Event::Prepare { reply_to: super::revisions::to(), task: 2 });
     h.send(Event::Claim {
+        sources: None,
         fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,

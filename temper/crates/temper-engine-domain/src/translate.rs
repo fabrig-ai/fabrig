@@ -202,7 +202,9 @@ pub fn landing_stock(
 }
 
 /// The forge's connector capabilities, in the engine's vocabulary.
-pub(crate) fn forge_declaration(connector: u16) -> jig_domain_contract::Declaration {
+/// The engine root's declaration for the forge connector.
+#[must_use]
+pub fn forge_declaration(connector: u16) -> jig_domain_contract::Declaration {
     use jig_domain_contract::{
         Connector, Declaration,
         effects::{EffectForm, EffectKind, Recovery},

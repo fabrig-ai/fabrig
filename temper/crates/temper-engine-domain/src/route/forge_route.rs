@@ -63,6 +63,7 @@ use landing_route::{describe_landing_effect, landing_decision};
 pub(super) mod reds;
 pub(crate) use reds::landed_for_run;
 pub use reds::{RunRed, reds_for_run};
+pub(crate) mod project_charters;
 pub(crate) mod push_admission;
 mod reads;
 use reads::read_answer;
@@ -3090,6 +3091,7 @@ pub(super) fn chat_change(
         return Err(ChangeBuildRefused::Task(tasks::Refusal::Spec));
     }
     Ok(super::Delegate {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         deadline: tasks::Deadline::Named,
         executor: tasks::Executor::Procedure { connector: domain.config.forge_connector, code: CHANGE_CODE },
         spec: tasks::Spec {
@@ -3211,6 +3213,7 @@ fn change_delegate(
         let head = from.or(catch_up_head)?;
         let fallback = domain.forge.merge_job(repository.project);
         return Some(super::Delegate {
+            charter_scope: jig_domain_tasks::CharterScope::Project,
             executor: tasks::Executor::Job { kind: forge::MERGE_KIND },
             spec: tasks::Spec {
                 job: Some(Box::new(tasks::JobSpec {
@@ -3243,6 +3246,7 @@ fn change_delegate(
         let repository = domain.forge.repository(row.repository)?;
         let fallback = domain.forge.close_job(repository.project);
         return Some(super::Delegate {
+            charter_scope: jig_domain_tasks::CharterScope::Project,
             executor: tasks::Executor::Job { kind: forge::CLOSE_KIND },
             spec: tasks::Spec {
                 job: Some(Box::new(tasks::JobSpec {
@@ -3322,14 +3326,22 @@ fn change_delegate(
         words: env.limits.tasks.result_bytes,
         choices,
     };
-    let (executor, contract, llm) = match kind {
+    let (executor, contract, llm, charter_scope) = match kind {
         forge_change::Delegate::Merge { .. } | forge_change::Delegate::Close => return None,
-        forge_change::Delegate::Produce | forge_change::Delegate::Repair(_) => {
-            (tasks::Executor::Agent { charter: row.producing_charter }, change_contract, row.producing_llm.clone())
-        }
+        forge_change::Delegate::Produce | forge_change::Delegate::Repair(_) => (
+            tasks::Executor::Agent { charter: row.producing_charter },
+            change_contract,
+            row.producing_llm.clone(),
+            tasks::CharterScope::Project,
+        ),
         forge_change::Delegate::Resolve { base } => {
             parameters.push(tasks::Parameter::Bytes { name: 6, value: commit_text(&base) }).ok()?;
-            (tasks::Executor::Agent { charter: row.producing_charter }, change_contract, row.producing_llm.clone())
+            (
+                tasks::Executor::Agent { charter: row.producing_charter },
+                change_contract,
+                row.producing_llm.clone(),
+                tasks::CharterScope::Project,
+            )
         }
         forge_change::Delegate::Gate { number, head } => {
             parameters.push(tasks::Parameter::Number { name: 7, value: number }).ok()?;
@@ -3366,6 +3378,11 @@ fn change_delegate(
                     forge_change::GateKind::Follow => unreachable!("the forge dispatches a follow check"),
                     forge_change::GateKind::Person => None,
                 },
+                if gate.kind == forge_change::GateKind::Agent {
+                    tasks::CharterScope::Deployment
+                } else {
+                    tasks::CharterScope::Project
+                },
             )
         }
     };
@@ -3380,6 +3397,7 @@ fn change_delegate(
         env.limits.tasks.spec_bytes,
     )?;
     Some(super::Delegate {
+        charter_scope,
         deadline: tasks::Deadline::Named,
         tracked: None,
         label: 0,
@@ -4653,6 +4671,16 @@ pub(crate) fn outputs(
                 }));
             }
             forge::Request::Settled { unfinished } => crate::settling::finished(domain, unfinished),
+            forge::Request::SaveTemperRevision { row, moved } => {
+                if moved {
+                    project_charters::moved(domain, env, decision, &row);
+                }
+                save(
+                    decision,
+                    &env.limits,
+                    Write::Save(Record::Forge { row: Box::new(forge::Stored::DotTemperRevision(row)) }),
+                );
+            }
             forge::Request::Save { mut record, release, read_afresh } => {
                 if let forge::Stored::ChangeHot(hot) = &mut record {
                     fill_hold_account(domain, env, hot, out);
@@ -4962,7 +4990,7 @@ pub(crate) fn outputs(
                 );
             }
             forge::Request::Up(Up::Lifecycle(lifecycle::Up::Done { stage: forge::RestartStage::Restored })) => {
-                super::forge_up(domain, Up::Lifecycle(lifecycle::Up::Done { stage: forge::RestartStage::Restored }));
+                project_charters::begin_restore(domain, env, decision);
             }
             forge::Request::Up(Up::Lifecycle(lifecycle::Up::Done { stage })) => {
                 if !domain.engine.core().stopping() && !domain.settling.active() {

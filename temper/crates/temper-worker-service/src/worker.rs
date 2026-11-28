@@ -1072,6 +1072,10 @@ impl Worker {
                 let encoded = worker_route::encode(value, &self.agent);
                 root::step(&mut self.root, &self.env, root::Event::Encoded { owner, encoded }, &mut self.out);
             }
+            root::Request::EncodeGuides { owner, guides } => {
+                let bytes = translate::guides(guides);
+                root::step(&mut self.root, &self.env, root::Event::EncodedGuides { owner, bytes }, &mut self.out);
+            }
             root::Request::Fact { owner, body } => {
                 let activity = worker_route::activity(&body, &self.agent.limits);
                 root::step(&mut self.root, &self.env, root::Event::Activity { owner, activity }, &mut self.out);

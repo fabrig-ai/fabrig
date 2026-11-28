@@ -186,3 +186,30 @@ mod applications;
 #[path = "models.rs"]
 mod models;
 mod replaced;
+
+#[test]
+fn project_charter_sets_round_trip_through_the_settings_range() {
+    use crate::{Restore, Row, Write, commits, keys, restore};
+    use core::{CoreKey, CoreRecord, Key, Record, RestoreRange};
+
+    let key = Key::Core(CoreKey::Settings(s::Key::ProjectCharters { project: 3, revision: u64::MAX }));
+    let raw = keys::encode(&key, fixtures::KEY_LIMIT).unwrap();
+    assert_eq!(raw.as_ref(), &[1, 0, 8, 6, 0, 0, 0, 0, 0, 0, 0, 3, 255, 255, 255, 255, 255, 255, 255, 255]);
+    let record = Record::Core(CoreRecord::Settings(s::Record::ProjectCharters(core::ProjectCharters {
+        project: 3,
+        revision: u64::MAX,
+        source: Box::from(b"source".as_slice()),
+        charters: Box::new([core::ProjectCharter {
+            name: Box::from(b"implementer".as_slice()),
+            settings: Box::from(b"different".as_slice()),
+            instructions: Box::from(b"instructions".as_slice()),
+            parts: charter().parts,
+        }]),
+    })));
+    let mut store = fixtures::opened();
+    let puts = commits::operations(&mut store, 1, Box::new([Write::Save(record.clone())]), false).unwrap().ops;
+    fixtures::plant(&mut store.stores, &puts);
+    let page = restore::page(&mut store, Restore::Jig(Box::new([RestoreRange::Settings])), None, 8, u64::MAX).unwrap();
+    let [restore::Item::Row(Row::Jig(restored))] = page.items.as_ref() else { panic!("settings row: {page:?}") };
+    assert_eq!(restored, &record);
+}

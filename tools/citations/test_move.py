@@ -9,6 +9,9 @@ import unittest
 MOVER = Path(__file__).with_name("move.py").resolve()
 CHECKER = Path(__file__).with_name("citations.py").resolve()
 DESIGN = "skein/docs/design"
+ALLOW = "tools/citations/allow.txt"
+SPLIT_A = "temper/docs/design/a.md"
+SPLIT_B = "temper/docs/design/b.md"
 A = f"{DESIGN}/a.md"
 B = f"{DESIGN}/b.md"
 DOC = "# a\n\n## 1. One\n\nText.\n\n## 2. Two\n\n### 2.1 Part\n\nText.\n"
@@ -192,6 +195,54 @@ class Moves(unittest.TestCase):
         self.assertNotIn("skein/docs/plan/p.md", result.stdout)
         self.assertNotIn("skein/docs/development/2026-01-01.md", result.stdout)
         self.assertEqual(self.read("tools/citations/allow.txt"), f"{DESIGN}/sub/a.md {DESIGN}/sub/a.md 2.1 # a label\n{DESIGN}/*.md {DESIGN}/sub/a.md # a glob\n")
+        self.clean_check()
+
+    def allow_split(self, target, reason, first="Text.", second="An example names `missing.md`.", file=SPLIT_A):
+        self.write(SPLIT_A, f"# a\n\n## 1. One\n\n{first}\n\n## 2. Two\n\n{second}\n")
+        self.write(ALLOW, f"{file} {target} # {reason}\n")
+        self.commit("exception source")
+        return f"{SPLIT_A} 2 -> {SPLIT_B} 1\ntitle {SPLIT_B}: B\n"
+
+    def test_allow_moves_with_its_only_finding(self):
+        mapping = self.allow_split("missing.md", "an example")
+        result = self.apply(mapping)
+        self.assertEqual(self.read(ALLOW), f"{SPLIT_B} missing.md # an example\n")
+        self.assertIn("Rewrote 1 citations and 0 bare numbers in 1 files.", result.stdout)
+        self.clean_check()
+
+    def test_allow_copies_when_an_excused_finding_stays(self):
+        mapping = self.allow_split("missing.md", "an example", first="Another `missing.md` example.")
+        before = self.snapshot()
+        preview = self.move(mapping, "--dry-run")
+        self.assertEqual(preview.returncode, 0, preview.stdout + preview.stderr)
+        self.assertEqual(self.snapshot(), before)
+        self.assertEqual(self.git("diff", "--cached", "--name-only"), "")
+        self.assertEqual(self.apply(mapping).stdout, preview.stdout)
+        self.assertEqual(self.read(ALLOW), f"{SPLIT_A} missing.md # an example\n{SPLIT_B} missing.md # an example\n")
+        self.assertIn("Rewrote 1 citations and 0 bare numbers in 1 files.", preview.stdout)
+        self.clean_check()
+
+    def test_allow_wildcard_matches_findings_with_different_targets(self):
+        mapping = self.allow_split("*", "examples", first="An example names `other.md`.")
+        self.apply(mapping)
+        self.assertEqual(self.read(ALLOW), f"{SPLIT_A} * # examples\n{SPLIT_B} * # examples\n")
+        self.clean_check()
+
+    def test_allow_glob_reports_a_finding_that_leaves_its_scope(self):
+        pattern = "temper/docs/design/a*.md"
+        mapping = self.allow_split("missing.md", "an example", file=pattern)
+        result = self.apply(mapping)
+        self.assertEqual(self.read(ALLOW), f"{pattern} missing.md # an example\n")
+        self.assertIn(f"By hand:\n  {ALLOW}:1: excused finding moves outside glob: {pattern}", result.stdout)
+        self.assertIn("Rewrote 0 citations and 0 bare numbers in 0 files.", result.stdout)
+
+    def test_allow_does_not_follow_a_finding_removed_by_a_retitle(self):
+        mapping = self.allow_split("missing.md", "an example", second="Text.")
+        self.write(SPLIT_A, self.read(SPLIT_A).replace("## 2. Two", "## 2. `missing.md`"))
+        self.commit("example in heading")
+        self.apply(mapping + f"heading {SPLIT_B} 1: Two\n")
+        self.assertEqual(self.read(ALLOW), f"{SPLIT_A} missing.md # an example\n")
+        self.assertIn("## 1. Two", self.read(SPLIT_B))
         self.clean_check()
 
     def test_cross_document_status_entries_follow_labels(self):

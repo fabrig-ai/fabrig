@@ -347,7 +347,8 @@ fn route_now(
         | core::Now::RunText { .. }
         | core::Now::NotesIndexed { .. }
         | core::Now::NotesRecalled { .. }
-        | core::Now::NotesRefused { .. }) => domain.now.push(crate::Request::Now(other)),
+        | core::Now::NotesRefused { .. }
+        | core::Now::ProjectChartersRefused { .. }) => domain.now.push(crate::Request::Now(other)),
     }
 }
 
@@ -458,7 +459,8 @@ fn prepare_workspace(
         }
         None => (Box::<[tasks::Name]>::from([]), Box::<[u32]>::from([]), None),
     };
-    let event = core::Event::WorkspacePrepared { task, attempt, holds, credentials, writes, workspace: None };
+    let event =
+        core::Event::WorkspacePrepared { guide_limit: 0, task, attempt, holds, credentials, writes, workspace: None };
     if let Some(waiting) = &mut domain.scripted_workspaces {
         waiting.push(event);
     } else {

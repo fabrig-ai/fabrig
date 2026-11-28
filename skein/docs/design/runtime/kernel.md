@@ -65,11 +65,11 @@ pub struct Complete { pub op: Token, pub kind: Op, pub result: Result<Done, Erro
 // one success shape per operation
 pub enum Done {
     Nothing, Count(u32), Fd(Fd), Accepted { fd: Fd, peer: Addr }, Bound(Addr),
-    Stat(Stat),                       // kind, size, mode, owners, links, inode, times (6.1)
-    Subvolume(Subvolume), Filesystem(Filesystem),  // btrfs's, and a filesystem's status (6.5)
-    Spawned { pidfd: Fd, sender: Sender, report: Option<Fd> },  // report: the helper's (6.6)
+    Stat(Stat),                       // kind, size, mode, owners, links, inode, times (kernel-files.md, 1)
+    Subvolume(Subvolume), Filesystem(Filesystem),  // btrfs's, and a filesystem's status (kernel-files.md, 3)
+    Spawned { pidfd: Fd, sender: Sender, report: Option<Fd> },  // report: the helper's (kernel-cgroups.md, 1)
     Exit(Exit), Signalled(Signalled),
-    Cgroup { dir: Fd, events: Fd }, Populated(bool), Counts(Counts),  // cgroups (6.6)
+    Cgroup { dir: Fd, events: Fd }, Populated(bool), Counts(Counts),  // cgroups (kernel-cgroups.md, 1)
     Usage(Usage), Window(Window),     // the process's own (6.3)
 }
 
@@ -84,12 +84,12 @@ pub enum Op {
     Send     { fd: Fd, bytes: Box<[u8]>, from: u32 },
     Shutdown { fd: Fd },
     Close    { fd: Fd },
-    // files, beneath a root (section 6.1)
+    // files, beneath a root (kernel-files.md, section 1)
     Open          { root: Fd, path: Box<[u8]>, how: OpenHow },   // Read, Directory, Create
     Read          { fd: Fd, buf: Box<[u8]>, at: u64 },
     Write         { fd: Fd, bytes: Box<[u8]>, from: u32, at: u64 },
-    Append        { fd: Fd, bytes: Box<[u8]>, from: u32 },       // at the end (6.1)
-    Truncate      { fd: Fd, length: u64 },                       // ftruncate (6.1)
+    Append        { fd: Fd, bytes: Box<[u8]>, from: u32 },       // at the end (kernel-files.md, 1)
+    Truncate      { fd: Fd, length: u64 },                       // ftruncate (kernel-files.md, 1)
     Sync          { fd: Fd },
     Stat          { fd: Fd },
     StatEntry     { dir: Fd, name: Box<[u8]> },                  // the entry itself, never a link's target
@@ -98,7 +98,7 @@ pub enum Op {
     MakeDirectory { dir: Fd, name: Box<[u8]>, mode: u32 },     // less the umask (io/files.md, 11)
     List          { fd: Fd, entries: Box<[Entry]>, names: Box<[u8]> },  // synchronous
     Lock          { fd: Fd },                                    // exclusive, without waiting; synchronous
-    // a tree's metadata, by name in an open directory (section 6.4)
+    // a tree's metadata, by name in an open directory (kernel-files.md, section 2)
     ReadLink        { dir: Fd, name: Box<[u8]>, buf: Box<[u8]> },                          // synchronous
     MakeLink        { dir: Fd, name: Box<[u8]>, target: Box<[u8]> },
     HardLink        { from_dir: Fd, from: Box<[u8]>, to_dir: Fd, to: Box<[u8]> },
@@ -108,7 +108,7 @@ pub enum Op {
     GetAttribute    { dir: Fd, name: Box<[u8]>, attribute: Box<[u8]>, value: Box<[u8]> },  // synchronous
     SetAttribute    { dir: Fd, name: Box<[u8]>, attribute: Box<[u8]>, value: Box<[u8]> },  // synchronous
     RemoveAttribute { dir: Fd, name: Box<[u8]>, attribute: Box<[u8]> },                    // synchronous
-    // the filesystem a descriptor lies on, and btrfs's subvolumes (section 6.5); all synchronous
+    // the filesystem a descriptor lies on, and btrfs's subvolumes (kernel-files.md, section 3); all synchronous
     FilesystemStatus  { fd: Fd },
     SyncFilesystem    { fd: Fd },
     SubvolumeCreate   { dir: Fd, name: Box<[u8]> },
@@ -124,7 +124,7 @@ pub enum Op {
     Signal    { pidfd: Fd, signal: Signal, to: Target },     // synchronous
     PipeRead  { fd: Fd, buf: Box<[u8]> },
     PipeWrite { fd: Fd, bytes: Box<[u8]>, from: u32 },
-    // cgroups (section 6.6); all synchronous but CgroupChanged
+    // cgroups (kernel-cgroups.md, section 1); all synchronous but CgroupChanged
     MakeCgroup        { parent: Fd, name: Box<[u8]>, setup: CgroupSetup },  // limits, bounds, owner
     EnableControllers { cgroup: Fd, controllers: Controllers },
     EnterCgroup       { cgroup: Fd },                         // the process itself
@@ -141,7 +141,7 @@ pub enum Op {
     Cancel     { target: Token },
 }
 
-// what the records on files answer (6.1, 6.5)
+// what the records on files answer (kernel-files.md, 1, 3)
 pub struct Stat {
     pub kind: Kind, pub size: u64,
     pub mode: u32,                   // 0o7777 at most; a Create's or a MakeDirectory's, 0o777
@@ -277,10 +277,6 @@ error means the operation did nothing usable: a failed `Socket` or
 - **Timers are not operations.** The shell waits for completions with one
   timeout: the earliest deadline over every layer.
 
-### 6.1 Files beneath a root
-
-Moved to [`kernel-files.md`](kernel-files.md), section 1.
-
 ### 6.2 Processes
 
 - **A child is a pidfd from its spawn,** and the leader of a process
@@ -343,18 +339,6 @@ Moved to [`kernel-files.md`](kernel-files.md), section 1.
   descriptor it names (`TIOCGWINSZ`). The shell found at startup that the
   descriptor is a terminal (shell-startup.md, 1.3); one that has since hung up
   fails with the kernel's error, as `Other`.
-
-### 6.4 A tree's metadata
-
-Moved to [`kernel-files.md`](kernel-files.md), section 2.
-
-### 6.5 The filesystem: its status, its sync, btrfs's subvolumes
-
-Moved to [`kernel-files.md`](kernel-files.md), section 3.
-
-### 6.6 Cgroups, and the helper
-
-Moved to [`kernel-cgroups.md`](kernel-cgroups.md), section 1.
 
 ## 7. Broken invariants
 

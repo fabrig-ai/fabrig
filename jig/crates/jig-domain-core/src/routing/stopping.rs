@@ -160,6 +160,11 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
             }
             Err(out)
         }
+        Event::ProjectCharters(set) => Err(crate::settings::project_sets::refused(
+            set.project,
+            set.revision,
+            crate::ProjectChartersFault::Stopping,
+        )),
         Event::People(event) => people_gate(event),
         Event::Watch { watcher, .. } | Event::WatchRun { watcher, .. } => Err(watch(watcher)),
         Event::NamedAnswer { to, key, .. } | Event::Delegate { to, key, .. } => Err(continued_call(core, to, key)),
@@ -193,6 +198,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::RunCall { .. }
         | Event::RunInput { .. }
         | Event::RunText { .. }
+        | Event::RunGuides { .. }
         | Event::Tasks(_)
         | Event::ConnectorRepair { .. }
         | Event::PersonTask { .. }

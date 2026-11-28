@@ -157,6 +157,7 @@ impl Walking {
                         };
                         self.delegated = true;
                         let delegate = core::Delegate {
+                            charter_scope: jig_domain_tasks::CharterScope::Project,
                             deadline: jig_domain_tasks::Deadline::Named,
                             label: 0,
                             flags: jig_domain_tasks::Flags::PLAIN,

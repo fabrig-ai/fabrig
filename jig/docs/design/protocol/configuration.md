@@ -94,26 +94,6 @@ the application's main (its shell)
   constructs. The reference binary's, `jig-test`'s, is the reference
   (`service.md`, section 7).
 
-## 3. jig's part for an engine
-
-Moved to [`configuration-engine.md`](configuration-engine.md), section 1; its subsections moved to [`configuration-templates.md`](configuration-templates.md), sections 1 to 4.
-
-### 3.1 Templates
-
-Moved to [`configuration-templates.md`](configuration-templates.md), section 1.
-
-### 3.2 Ending authority in templates
-
-Moved to [`configuration-templates.md`](configuration-templates.md), section 2.
-
-### 3.3 A template's own resources
-
-Moved to [`configuration-templates.md`](configuration-templates.md), section 3.
-
-### 3.4 Members an application fixes
-
-Moved to [`configuration-templates.md`](configuration-templates.md), section 4.
-
 ## 4. jig's part for a worker
 
 | Member | What it gives |

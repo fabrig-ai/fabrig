@@ -738,8 +738,8 @@ fn an_unclaimed_default_rechecks_usable_providers_with_its_first_effort() {
     let (mut core, limits) = ready(false);
     granted(&mut core, &limits, 2);
     account(&mut core, &limits, accounts::Event::Limited { account: 1, reset: None });
-    let mut batch = [new_row(&core, 2, tasks::Funder::Period { project: 1, period: 1 }, None)];
-    core.resolve_llm(&mut batch).unwrap();
+    let batch = [new_row(&core, 2, tasks::Funder::Period { project: 1, period: 1 }, None)];
+    core.resolve_llm(&limits, &batch, &[]).unwrap();
     assert_eq!(batch[0].llm, None);
     fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new(batch));
     assert_eq!(
@@ -758,6 +758,7 @@ fn terminal_after_zero_reset(account_terminal: bool) -> tasks::Tries {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            sources: None,
             fresh: None,
             session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
@@ -815,6 +816,7 @@ fn claim_account_run(core: &mut Core, env: &Env<Limits>, attempt: u64) {
         &mut core.tasks,
         &child,
         tasks::Event::Claim {
+            sources: None,
             fresh: None,
             session_end: None,
             offered: tasks::Reasons::ALL,
@@ -1911,6 +1913,7 @@ fn claim_existing_open(core: &mut Core, limits: &Limits, attempt: u64) {
         core,
         limits,
         tasks::Event::Claim {
+            sources: None,
             fresh: None,
             session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
@@ -2613,6 +2616,7 @@ fn a_first_later_run_changes_provider_and_its_claim_keeps_the_account() {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            sources: None,
             fresh: None,
             session_end: None,
             offered: tasks::Reasons::ALL,
@@ -3001,6 +3005,7 @@ fn a_settling_core_leaves_a_waiting_attempt_unplaced_after_a_slot_frees() {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            sources: None,
             fresh: None,
             session_end: None,
             offered: tasks::Reasons::ALL,

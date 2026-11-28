@@ -11,8 +11,8 @@ fn hello_schema() -> skein_channel::Schema {
     crate::schema(&fixtures::LIMITS).expect("small schema")
 }
 
-// Wire 22 has eighteen up records and twenty down records.
-const UP_KINDS: u32 = 18;
+// Wire 22 has nineteen up records and twenty down records.
+const UP_KINDS: u32 = 19;
 const DOWN_KINDS: u32 = 20;
 const CHANNEL_KINDS: u32 = UP_KINDS + DOWN_KINDS;
 fn hello_terms(largest: u32) -> List<Term> {
@@ -40,7 +40,8 @@ fn hello_terms(largest: u32) -> List<Term> {
         // UsageRead: read8 + outcome1 + count4 + eight windows of59.
         (0x010f, 485),
         (0x0110, 1),
-        (0x0111, 69), // Part: six numbers, kind, and bounded body.
+        (0x0111, 69),              // Part: six numbers, kind, and bounded body.
+        (0x0112, 16 + 4 + 65_536), // Guides: task, attempt, and length-prefixed report.
     ] {
         terms.push(Term { kind, largest }).expect("one term per up kind");
     }

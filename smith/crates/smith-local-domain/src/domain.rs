@@ -469,6 +469,7 @@ fn refuse_save(domain: &mut Domain, env: &Env<Limits>, call: Token) {
     );
 }
 
+#[expect(clippy::too_many_lines, reason = "exhaustive routing of parent requests")]
 fn parent_request(domain: &mut Domain, env: &Env<Limits>, event: parent::Request, out: &mut Queue<Request>) {
     match event {
         parent::Request::Started { agent, .. } => {
@@ -543,7 +544,10 @@ fn parent_request(domain: &mut Domain, env: &Env<Limits>, event: parent::Request
             ),
         },
         // The local host draws no usage; the account observation needs no action.
-        parent::Request::Usage { .. } | parent::Request::Withdrawn { .. } | parent::Request::Told { .. } => {}
+        parent::Request::Usage { .. }
+        | parent::Request::Withdrawn { .. }
+        | parent::Request::Told { .. }
+        | parent::Request::Prepared { .. } => {}
         parent::Request::Unread { names, .. } => {
             for name in names {
                 observe(domain, Fact::Unread { name });

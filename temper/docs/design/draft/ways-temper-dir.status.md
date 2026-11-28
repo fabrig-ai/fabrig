@@ -4,9 +4,10 @@
 
 - **Design lags:**
   - 1: `../protocol/temper-dir.md`, 3.1: `ways.toml` holds no `[defaults]` ([ways.md](ways.md), 5.3).
+  - 2: `way copy` has no design; `charter copy` is `../client/ctl/tools-reads.md`, 1.
   - 4: the hooks' lags are [hooks.status.md](hooks.status.md)'s.
-  - 5: nothing takes a project's ways or charters from its repository revision, so no start names a way, and none waits for a first good read (`../domain/forge/temper-dir.md`, 3).
-  - 6: `../protocol/temper-dir.md`, 8: the judgement checks no way's tasks, executors, contracts, guardrails or recipes, and no charter's `settings` or bounds.
+  - 5: nothing takes a project's ways from its repository revision, so no start names a way, and none waits for a first good read (`../domain/forge/temper-dir.md`, 3).
+  - 6: `../protocol/temper-dir.md`, 8: the judgement checks no way's tasks, executors, contracts, guardrails or recipes, and no way's charters' files.
   - 7: `../domain/forge/adoption.md`: a project's creation and adoption write nothing into its repository.
 - **Design departs:**
   - 6: a hook that is a symbolic link is judged where it runs, not before it lands: the forges' listings give no link's target (`../protocol/temper-dir.md`, 5). A link anywhere else temper reads is refused before it lands. Goal 21394's designer decided, 2026-11-28, keeping the rule where the forge can tell it.

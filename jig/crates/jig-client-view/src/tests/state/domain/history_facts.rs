@@ -29,6 +29,7 @@ fn change(task: u64, revision: u64) -> HistoryRow {
 }
 fn attempt(task: u64, attempt: u64) -> HistoryRow {
     HistoryRow::Attempt(Box::new(AttemptLine {
+        sources: None,
         task,
         attempt,
         claimed: Some(Wall::EPOCH),

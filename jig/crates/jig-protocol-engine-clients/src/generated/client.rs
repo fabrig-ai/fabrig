@@ -2299,9 +2299,47 @@ pub fn history_line_to_record(value: &jig_domain_core_vocabulary::documents::His
 }
 
 #[must_use]
-pub fn attempt_line_to_record(value: &jig_domain_core_vocabulary::documents::AttemptLine) -> jig_client_protocol_wire::v44::AttemptLine {
-    let jig_domain_core_vocabulary::documents::AttemptLine { task: field_000000, attempt: field_000001, claimed: field_000002, started: field_000003, ended: field_000004, end: field_000005, phases: field_000006 } = value;
-    jig_client_protocol_wire::v44::AttemptLine {
+pub fn guide_to_record(value: &jig_domain_tasks::Guide) -> jig_client_protocol_wire::v44::Guide {
+    let jig_domain_tasks::Guide { workspace: field_000000, commit: field_000001, path: field_000002, digest: field_000003, bytes: field_000004, whole: field_000005 } = value;
+    jig_client_protocol_wire::v44::Guide {
+        workspace: skein_codec::convert::text_to_record(field_000000),
+        commit: skein_codec::convert::text_to_record(field_000001),
+        path: skein_codec::convert::text_to_record(field_000002),
+        digest: *field_000003,
+        bytes: *field_000004,
+        whole: *field_000005
+    }
+}
+
+pub fn run_sources_to_record(value: &jig_domain_tasks::RunSources) -> Result<jig_client_protocol_wire::v44::RunSources, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_tasks::RunSources { build: field_000000, settings: field_000001, charters: field_000002, source: field_000003, guides: field_000004 } = value;
+    Ok(jig_client_protocol_wire::v44::RunSources {
+        build: skein_codec::convert::text_to_record(field_000000),
+        settings: *field_000001,
+        charters: *field_000002,
+        source: field_000003.clone(),
+        guides: match field_000004 {
+            Some(item) => {
+                let converted = {
+                    let source = item;
+                    let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::RUN_SOURCES_GUIDES.problem(skein_codec::Reason::Bound)) };
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.as_ref() {
+                        let converted = guide_to_record(item);
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    translated
+                };
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+pub fn attempt_line_to_record(value: &jig_domain_core_vocabulary::documents::AttemptLine) -> Result<jig_client_protocol_wire::v44::AttemptLine, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::documents::AttemptLine { task: field_000000, attempt: field_000001, claimed: field_000002, started: field_000003, ended: field_000004, end: field_000005, phases: field_000006, sources: field_000007 } = value;
+    Ok(jig_client_protocol_wire::v44::AttemptLine {
         task: *field_000000,
         attempt: *field_000001,
         claimed: match field_000002 {
@@ -2338,8 +2376,15 @@ pub fn attempt_line_to_record(value: &jig_domain_core_vocabulary::documents::Att
                 Some(converted)
             }
             None => None,
+        },
+        sources: match field_000007 {
+            Some(item) => {
+                let converted = run_sources_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
         }
-    }
+    })
 }
 
 pub fn hold_line_to_record(value: &jig_domain_core_vocabulary::documents::HoldLine, context: &(&[crate::Model] , &jig_client_protocol_wire::Limits)) -> Result<jig_client_protocol_wire::v44::HoldLine, jig_client_protocol_wire::v44::Problem> {
@@ -5439,8 +5484,29 @@ pub fn sized_edit_to_record(value: &jig_domain_core_vocabulary::settings::applic
     }
 }
 
+pub fn project_charter_document_to_record(value: &jig_domain_core_vocabulary::reads::ProjectCharterDocument) -> Result<jig_client_protocol_wire::v44::ProjectCharterDocument, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::reads::ProjectCharterDocument { name: field_000000, revision: field_000001, source: field_000002, settings: field_000003, instructions: field_000004, parts: field_000005 } = value;
+    Ok(jig_client_protocol_wire::v44::ProjectCharterDocument {
+        name: field_000000.clone(),
+        revision: *field_000001,
+        source: field_000002.clone(),
+        settings: field_000003.clone(),
+        instructions: field_000004.clone(),
+        parts: {
+            let source = field_000005;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROJECT_CHARTER_DOCUMENT_PARTS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = charter_part_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
 pub fn setting_document_to_record(value: &jig_domain_core_vocabulary::reads::SettingDocument, context: &(&[crate::Model] , &jig_client_protocol_wire::Limits)) -> Result<jig_client_protocol_wire::v44::SettingDocument, jig_client_protocol_wire::v44::Problem> {
-    let jig_domain_core_vocabulary::reads::SettingDocument { setting: field_000000, revision: field_000001, value: field_000002, application: field_000003, proposed: field_000004, overlay: field_000005 } = value;
+    let jig_domain_core_vocabulary::reads::SettingDocument { setting: field_000000, revision: field_000001, value: field_000002, application: field_000003, proposed: field_000004, overlay: field_000005, project: field_000006 } = value;
     Ok(jig_client_protocol_wire::v44::SettingDocument {
         setting: setting_to_record(field_000000),
         revision: *field_000001,
@@ -5468,6 +5534,13 @@ pub fn setting_document_to_record(value: &jig_domain_core_vocabulary::reads::Set
         overlay: match field_000005 {
             Some(item) => {
                 let converted = overlay_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
+        },
+        project: match field_000006 {
+            Some(item) => {
+                let converted = project_charter_document_to_record(item)?;
                 Some(converted)
             }
             None => None,

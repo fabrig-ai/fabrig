@@ -336,10 +336,6 @@ becomes observations:
   An uncapped queue grows from a floor of four entries, so one output
   need not allocate only one entry; the ceiling includes that growth.
 
-## 7. Fakes and kits
-
-Moved to [`testing-fakes.md`](testing-fakes.md), section 1.
-
 ## 8. What an application adds
 
 - **its connectors' worlds,** each with its system's fake below and the

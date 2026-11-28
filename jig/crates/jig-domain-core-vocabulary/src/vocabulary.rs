@@ -418,6 +418,12 @@ pub enum LinkNow {
 /// Core output that follows no mutation.
 #[derive(Hash, Debug)]
 pub enum Now {
+    /// The application's charter set was refused whole.
+    ProjectChartersRefused {
+        project: u32,
+        revision: u64,
+        fault: crate::ProjectChartersFault,
+    },
     PartBusy {
         key: crate::PartKey,
     },
@@ -681,6 +687,8 @@ pub struct CoreBriefBudgets {
 /// One event routed to a child of the core.
 #[derive(Hash, Debug)]
 pub enum Event {
+    /// Install the application's new project charter set.
+    ProjectCharters(crate::ProjectCharters),
     /// Replace the live procedure's wait report. Empty clears it; at most four waits and
     /// four things per wait (jig/docs/design/domain/engine/waits.md, 6).
     Waits { connector: u16, task: u64, waits: List<crate::Reported> },
@@ -782,6 +790,8 @@ pub enum Event {
         text: Box<[u8]>,
         call: Option<views::Call>,
     },
+    /// Once per open attempt, the guides its host reports it read.
+    RunGuides { task: u64, attempt: u64, guides: Box<[crate::Guide]> },
     /// Task lifecycle or hub work.
     Tasks(tasks::Event),
     /// An application asks for one admitted recurring core procedure.
@@ -795,6 +805,8 @@ pub enum Event {
         /// (jig/docs/design/domain/engine/executors.md, 1, step 3); empty for an agent.
         holds: Box<[tasks::Name]>,
         credentials: Box<[u32]>,
+        /// The prepared workspace's number of directories eligible to supply a guide.
+        guide_limit: u32,
         /// A job's application-encoded workspace items, within `Limits::run_bytes`.
         workspace: Option<Box<[u8]>>,
     },
@@ -1114,7 +1126,8 @@ impl Event {
             | Self::StartRecurring { .. }
             | Self::Period { .. }
             | Self::NamedAction { .. } => true,
-            Self::SettingsCommit { .. }
+            Self::ProjectCharters(_)
+            | Self::SettingsCommit { .. }
             | Self::Settling
             | Self::Stopping
             | Self::Waits { .. }
@@ -1130,6 +1143,7 @@ impl Event {
             | Self::RunCall { .. }
             | Self::RunInput { .. }
             | Self::RunText { .. }
+            | Self::RunGuides { .. }
             | Self::WorkspacePrepared { .. }
             | Self::ClaimPrepared { .. }
             | Self::ClaimRefused { .. }
@@ -1224,6 +1238,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::EffectInFlight { .. }
         | tasks::Event::EffectSettled { .. }
         | tasks::Event::Started { .. }
+        | tasks::Event::RunGuides { .. }
         | tasks::Event::Activation { .. }
         | tasks::Event::PreparationWaiting { .. }
         | tasks::Event::PreparationPaused { .. }

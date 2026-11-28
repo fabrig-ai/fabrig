@@ -233,6 +233,44 @@ fn temper_dir_waits_to_read_until_the_queue_update_and_invalidates_a_moved_base(
 }
 
 #[test]
+fn temper_dir_landing_repairs_a_charter_with_unknown_settings() {
+    const CHARTER: &[u8] = b".temper/charters/careful.md";
+    for (way, state) in [(Way::Queue, first()), (Way::Turn, gating())] {
+        let mut d = fixture(state, way, b"main");
+        d.give_deployment_charters(DeploymentCharters {
+            offered: Box::new([CharterRoom { name: b"implementer".as_slice().into(), bytes: Some(100), parts: 8 }]),
+            limit: 32,
+        });
+        gather(&mut d, BASE, Status::Passed);
+        directory(&mut d, HEAD, b".temper", b"charters", EntryKind::Directory);
+        compare(&mut d, BASE, CHARTER, true);
+        directory(&mut d, HEAD, b".temper/charters", b"careful.md", EntryKind::File);
+        let checked = file_read(
+            &mut d,
+            HEAD,
+            CHARTER,
+            Ok(Answer::File {
+                head: HEAD,
+                path: CHARTER.into(),
+                bytes: b"+++\nsettings = 'careful-impl'\n+++\nFollow the brief.\n".as_slice().into(),
+                truncated: false,
+            }),
+        );
+        let why = Repair::TemperDir { head: HEAD };
+        assert_eq!(decision(&checked).0, Decision::Delegate(Delegate::Repair(why)));
+        let row = d.change(CHANGE).expect("repairing change");
+        assert_eq!(row.change.repairs, 1);
+        let words = change_words::repair_words(row, why, None, &[], 4096).expect("repair spec words");
+        let expected = skein_lib::bytes::concat(&[
+            b"temper's check of .temper/ at ",
+            &commit_text(&HEAD),
+            b":\n.temper/charters/careful.md:2: `settings` names `careful-impl`, which this deployment's settings don't offer\n",
+        ]);
+        assert!(words.starts_with(&expected), "{words:?}");
+    }
+}
+
+#[test]
 fn temper_dir_failures_wait_for_a_read_and_repair_only_faults_at_the_own_head() {
     let mut d = fixture(gating(), Way::Turn, b"main");
     gather(&mut d, BASE, Status::Failed);

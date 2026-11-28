@@ -24,13 +24,18 @@ fn kind(action: &tasks::ProposalAction) -> (tasks::ProposalKind, Option<authorit
     }
 }
 
-fn action_for_check(core: &Core, action: &tasks::ProposalAction, decision: Wall) -> Option<authority::Action> {
+fn action_for_check(
+    core: &Core,
+    action: &tasks::ProposalAction,
+    decision: Wall,
+    bindings: &[Option<tasks::CharterBinding>],
+) -> Option<authority::Action> {
     match action {
         tasks::ProposalAction::Settings { .. } => None,
         tasks::ProposalAction::Batch(batch) => {
             let mut members = List::with_capacity(u32::try_from(batch.len()).expect("bounded proposed batch"));
-            for member in batch {
-                let executor = match member.executor {
+            for (at, member) in batch.iter().enumerate() {
+                let executor = match tasks::bound_executor(member.executor, bindings, at) {
                     tasks::Executor::Agent { charter } => authority::Executor::Charter(charter),
                     tasks::Executor::Procedure { code, .. } => authority::Executor::Procedure(code),
                     tasks::Executor::Job { .. } | tasks::Executor::Person(_) => return None,
@@ -219,6 +224,16 @@ impl Core {
         action: &tasks::ProposalAction,
         decision: Wall,
     ) -> Result<authority::Authority, tasks::Refusal> {
+        let Some(checked) = action_for_check(self, action, decision, &[]) else { return Err(tasks::Refusal::Executor) };
+        self.admit_checked_proposal(project, action, &checked)
+    }
+
+    fn admit_checked_proposal(
+        &self,
+        project: u32,
+        action: &tasks::ProposalAction,
+        checked: &authority::Action,
+    ) -> Result<authority::Authority, tasks::Refusal> {
         if let tasks::ProposalAction::Amend { amendment, .. } = action {
             self.amendment_person(amendment)?;
         }
@@ -228,8 +243,7 @@ impl Core {
             return Err(problem.why);
         }
         self.proposed_action_accounts(action)?;
-        let Some(checked) = action_for_check(self, action, decision) else { return Err(tasks::Refusal::Executor) };
-        let Some(needed) = authority::needs(&checked) else { return Err(tasks::Refusal::AuthorityShape) };
+        let Some(needed) = authority::needs(checked) else { return Err(tasks::Refusal::AuthorityShape) };
         let Some(policy) = self.authority.policy(project) else { return Err(tasks::Refusal::Project) };
         let implies = &self.authority.rules().implies;
         if !authority::at_most(&needed, &policy.ceiling, implies)
@@ -257,9 +271,8 @@ impl Core {
                 Err(tasks::Refusal::HoldOwner { hold: *hold })
             };
         }
-        let Some(checked) = action_for_check(self, action, decision) else { return Err(tasks::Refusal::Executor) };
-        let Some(needed) = authority::needs(&checked) else { return Err(tasks::Refusal::AuthorityShape) };
-        self.proposal_admit_action(project, action, decision)?;
+        let checked = self.proposal_action_for_check(limits, action, decision)?;
+        let needed = self.admit_checked_proposal(project, action, &checked)?;
         self.action_accounts(action, tasks::Funder::Task(holder))?;
         let Some(depth) = distance(self, limits, proposer, holder) else { return Err(tasks::Refusal::Reference) };
         if covers_task(self, &needed, holder, depth, project) { Ok(()) } else { Err(tasks::Refusal::Funding) }
@@ -311,13 +324,21 @@ impl Core {
     }
 
     /// Translate a proposal action for authority admission.
-    #[must_use]
     pub fn proposal_action_for_check(
         &self,
+        limits: &Limits,
         action: &tasks::ProposalAction,
         decision: Wall,
-    ) -> Option<authority::Action> {
-        action_for_check(self, action, decision)
+    ) -> Result<authority::Action, tasks::Refusal> {
+        let bindings = if let tasks::ProposalAction::Batch(batch) = action {
+            match self.bind_batch(limits, batch, None) {
+                Ok(bindings) => bindings,
+                Err(problem) => return Err(problem.why),
+            }
+        } else {
+            Box::new([])
+        };
+        action_for_check(self, action, decision, &bindings).ok_or(tasks::Refusal::AuthorityShape)
     }
 
     /// Whether one ancestor can decide this proposal.

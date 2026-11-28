@@ -87,6 +87,7 @@ pub(super) fn cancelling(event: &root::Event) -> Option<crate::worker_alone::Not
         | root::Event::Encoded { .. }
         | root::Event::Activity { .. }
         | root::Event::Done { .. }
+        | root::Event::EncodedGuides { .. }
         | root::Event::Shutdown { .. } => None,
     }
 }
@@ -125,7 +126,7 @@ fn event_tag(event: &root::Event) -> WorkerEvent {
         root::Event::Process(_) | root::Event::Job { .. } => WorkerEvent::Process,
         root::Event::Live { .. } => WorkerEvent::Live,
         root::Event::Decoded { .. } => WorkerEvent::Decoded,
-        root::Event::Encoded { .. } => WorkerEvent::Encoded,
+        root::Event::Encoded { .. } | root::Event::EncodedGuides { .. } => WorkerEvent::Encoded,
         root::Event::Activity { .. } => WorkerEvent::Activity,
         root::Event::Done { .. } => WorkerEvent::Done,
         root::Event::Shutdown { .. } => WorkerEvent::Shutdown,

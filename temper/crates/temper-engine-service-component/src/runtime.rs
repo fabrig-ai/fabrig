@@ -113,6 +113,7 @@ impl engine::Engine {
         let notes = Queue::with_capacity(settings.limits.forge.forges);
         let mut workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
         let mut core = core_config(&settings.jig, seeds);
+        core.build = Box::from(settings.build);
         workers.default_workers(&core.defaults.workers);
         core.kinds.clone_from(&settings.kinds);
         core.jobs.clone_from(&workers.jobs);

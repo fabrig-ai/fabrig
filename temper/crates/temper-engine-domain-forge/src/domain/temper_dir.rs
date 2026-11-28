@@ -344,7 +344,7 @@ fn next(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: PendingSte
     }
     let pair = Pair::at(&pending).expect("judgement has endpoints");
     let root_known = reader.method_present().is_some();
-    let verdict = reader.judge(home(d, row.repository));
+    let verdict = reader.judge(home(d, row.repository), d.deployment_charters());
     pending.temper_dir.reading = None;
     if (verdict.method || !root_known) && !verdict.faults.is_empty() {
         pending.temper_dir.fact = change::TemperDir::Fault { head: pair.head };

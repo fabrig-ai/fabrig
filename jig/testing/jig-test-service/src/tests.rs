@@ -26,8 +26,8 @@ fn both_jig_profiles_have_usable_store_edges() {
     // eight templates with 24-byte later choices in both Template and New.
     // The settings envelope includes named speeds in model choices and each bounded provider and its endpoints.
     for (label, name, value, commit, ops) in [
-        ("small", crate::limits::small(&jig_protocol_config_fixtures::small()), 40_008_900, 398_741_298, 62_407),
-        ("standard", crate::limits::stock(&jig_protocol_config::stock()), 103_649_284, 2_023_829_874, 455_023),
+        ("small", crate::limits::small(&jig_protocol_config_fixtures::small()), 40_009_028, 398_741_298, 62_407),
+        ("standard", crate::limits::stock(&jig_protocol_config::stock()), 103_649_540, 2_023_829_874, 455_023),
     ] {
         let limits = name;
         let sizes = jig_protocol_store::sizes::check_commits(

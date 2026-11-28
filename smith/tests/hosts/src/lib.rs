@@ -463,6 +463,7 @@ impl HostService {
                 | host::parent::Request::Usage { .. }
                 | host::parent::Request::Limited { .. }
                 | host::parent::Request::Told { .. }
+                | host::parent::Request::Prepared { .. }
                 | host::parent::Request::Faulted { .. }
                 | host::parent::Request::MessageRefused { .. },
             ) => {}

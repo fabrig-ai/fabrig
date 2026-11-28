@@ -211,54 +211,6 @@ open is section 9.
   whole, by durable replace (skein's `runtime/io/files.md`, 10), with the same content
   for every run, so that runs on one source never race over it.
 
-## 5. Running Claude Code
-
-Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.
-
-### 5.1 The command
-
-Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.1.
-
-### 5.2 Isolated
-
-Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.2.
-
-### 5.3 The tools
-
-Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.3.
-
-### 5.4 The permission prompt
-
-Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.4.
-
-### 5.5 Its stream, told as smith's
-
-Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.5.
-
-### 5.6 Failures and notices
-
-Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.6.
-
-### 5.7 The budget, the clock and a cancel
-
-Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.7.
-
-### 5.8 Parking, resuming and carrying over
-
-Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.8.
-
-### 5.9 Open runs
-
-Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.9.
-
-### 5.10 Sub-agents
-
-Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.10.
-
-### 5.11 The usage read
-
-Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.11.
-
 ## 6. The terms it keeps
 
 Anthropic allows a person's own Claude Code to run in a product under

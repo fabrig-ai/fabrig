@@ -76,6 +76,11 @@ pub(crate) fn hello(hello: Hello, limits: &wire::v22::Limits) -> Option<Frame> {
 
 pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v22::Limits) -> Option<Frame> {
     match up {
+        host::LinkUp::Guides { run, attempt, bytes } => {
+            let record =
+                wire::v22::Guides { task: run.raw(), attempt: attempt.raw(), bytes: wire::v22::AskBytes { bytes } };
+            frame(wire::Kind::Guides.number(), record.encode(&wire::sizes::guides(limits)).ok()?)
+        }
         host::LinkUp::Ask { run, attempt, number, bytes } => {
             let record = wire::Ask { run: token_to_record(&run), attempt: token_to_record(&attempt), number, bytes };
             frame(wire::Kind::Ask.number(), record.encode(limits).ok()?)
@@ -450,7 +455,8 @@ pub(crate) fn down(
             }
         }
         // TurnBusy is decoded below the hub by the component; up kinds are invalid here.
-        wire::Kind::Part
+        wire::Kind::Guides
+        | wire::Kind::Part
         | wire::Kind::PartBusy
         | wire::Kind::Paused
         | wire::Kind::Draining

@@ -413,6 +413,16 @@ pub struct SettingDocument {
     pub value: Option<SettingValue>,
     pub application: Option<ApplicationState>,
     pub proposed: Option<SizedEdit>,
+    pub project: Option<Box<ProjectCharterDocument>>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectCharterDocument {
+    pub name: Box<[u8]>,
+    pub revision: u64,
+    pub source: Box<[u8]>,
+    pub settings: Box<[u8]>,
+    pub instructions: Text,
+    pub parts: List<CharterPart>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingEdit {

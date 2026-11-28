@@ -20,6 +20,7 @@ fn saved_lifecycle_projections_take_holds_and_ended_positions_but_not_attempts()
     let phase = tasks::Phase::Held { was: held.was.clone(), why: held.why, source: None };
     let rows = [
         tasks::Stored::Attempt(tasks::AttemptRow {
+            sources: None,
             task: 2,
             attempt: 3,
             claimed: None,

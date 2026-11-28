@@ -726,6 +726,7 @@ fn suspended_attempts_cross_activity_and_history_bytes_without_becoming_refused(
             c::Activity::RunEnded { attempt: 4, end: expected, spent: 19 }
         );
         let rows = List::from_boxed(Box::new([reads::PageRow::Attempt(d::AttemptLine {
+            sources: None,
             task: 7,
             attempt: 4,
             claimed: Some(Wall::from_nanos(14)),

@@ -57,15 +57,22 @@ fn kept_text(family: &KeptFamily) -> &'static str {
     }
 }
 
-fn kept_types(family: &KeptFamily) -> &'static [ValueType] {
-    let text = kept_text(family);
-    let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept family schema");
-    let mut kept: Vec<ValueType> = Vec::new();
+fn kept_family(family: &KeptFamily) -> KeptFamily {
+    let current = kept_text(family);
+    if current == family.current {
+        return *family;
+    }
+    let schema = skein_codec::schema::parse(current.as_bytes()).expect("kept family schema");
+    let keys: Vec<Keys> =
+        family.keys.iter().copied().filter(|keys| schema.find(keys.root.as_bytes()).is_some()).collect();
+    let mut types: Vec<ValueType> = Vec::new();
     for ty in family.types {
         if schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).is_some() {
-            kept.push(*ty);
-        } else {
-            let previous = kept.last_mut().expect("new types append after kept types");
+            types.push(*ty);
+        } else if schema.find(ty.root.as_bytes()).is_some() {
+            // New variants subdivide a kept root's range; new roots have their own keys.
+            let previous = types.last_mut().expect("new variants append after kept variants");
+            assert_eq!(previous.root, ty.root);
             let mut ranges = previous.keys.to_vec();
             let last = ranges.last_mut().expect("kept type's range");
             assert_eq!(last.to, ty.keys.first().expect("new type's first range").from);
@@ -73,7 +80,12 @@ fn kept_types(family: &KeptFamily) -> &'static [ValueType] {
             previous.keys = Box::leak(ranges.into_boxed_slice());
         }
     }
-    Box::leak(kept.into_boxed_slice())
+    KeptFamily {
+        current,
+        keys: Box::leak(keys.into_boxed_slice()),
+        types: Box::leak(types.into_boxed_slice()),
+        ..*family
+    }
 }
 
 fn sets(kept: bool, registered: bool) -> OwnerSets {
@@ -84,17 +96,13 @@ fn sets(kept: bool, registered: bool) -> OwnerSets {
             let families = set
                 .families
                 .iter()
-                .map(|family| KeptFamily {
-                    retired: if registered { family.retired } else { &[] },
-                    current: if kept { kept_text(family) } else { family.current },
-                    types: if !registered {
-                        &[]
-                    } else if kept {
-                        kept_types(family)
-                    } else {
-                        family.types
-                    },
-                    ..*family
+                .map(|family| {
+                    let mut family = if kept { kept_family(family) } else { *family };
+                    if !registered {
+                        family.retired = &[];
+                        family.types = &[];
+                    }
+                    family
                 })
                 .collect::<Vec<_>>();
             OwnerSet {

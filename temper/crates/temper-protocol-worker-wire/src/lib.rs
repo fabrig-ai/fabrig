@@ -61,7 +61,11 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         job_spec_command: v1::CEILINGS.job_spec_command,
         job_spec_request: v1::CEILINGS.job_spec_request,
         job_spec_fallback: v1::CEILINGS.job_spec_fallback,
+        guide_repository: v1::CEILINGS.guide_repository,
+        guide_commit: v1::CEILINGS.guide_commit,
+        guide_path: v1::CEILINGS.guide_path,
         left_landed: bounds.repositories,
+        guides_guides: bounds.repositories,
         saved_repositories: bounds.repositories,
         files_files: bounds.conflicts,
         files_files_item: bounds.path_bytes,
@@ -136,6 +140,12 @@ pub fn items(value: &v1::Items) -> Box<[u8]> {
 /// Encode Left into exactly its measured room.
 #[must_use]
 pub fn left(value: &v1::Left) -> Box<[u8]> {
+    value.encode(&v1::CEILINGS).expect("application value within ceilings")
+}
+
+/// Encode a guide report into exactly its measured room.
+#[must_use]
+pub fn guides(value: &v1::Guides) -> Box<[u8]> {
     value.encode(&v1::CEILINGS).expect("application value within ceilings")
 }
 

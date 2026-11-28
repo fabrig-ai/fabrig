@@ -52,7 +52,7 @@ in each direction it crosses, and no other:
 | `smith-charter` | `Charter` | — | `Assignment.charter` |
 | `smith-charter` | `RunResult` | an ended run's outcome, `Ended.outcome` in an `Answer` | — |
 | `smith-transcript` | `Turn` | `Turn.body`, `Part.body` | each turn of `Assignment.transcript`, each body of `Assignment.parts` |
-| the application's | each root's declaration (7) | `Left` (`Work.left`), `Saved` (`Work.saved`), `Preparation` (`Resource.resource`), `JobResult` (`JobFinished.result`), `Ask` (`Ask.bytes`) | `Items` (`Workspace.items`, in an assignment or a job), `JobSpec` (`Job.spec`), `Grant` (`ApplicationValue.secret`, at an assignment, a job, a `ReadList` and each renewal), `Answer` (`Asked.answer`'s bytes) |
+| the application's | each root's declaration (7) | `Left` (`Work.left`), `Saved` (`Work.saved`), `Preparation` (`Resource.resource`), `Guides` (`Guides.bytes`), `JobResult` (`JobFinished.result`), `Ask` (`Ask.bytes`) | `Items` (`Workspace.items`, in an assignment or a job), `JobSpec` (`Job.spec`), `Grant` (`ApplicationValue.secret`, at an assignment, a job, a `ReadList` and each renewal), `Answer` (`Asked.answer`'s bytes) |
 
 - **A frame is its kind's enumeration's value:** its tag, one byte, then
   its body, the encoding of that value (skein's `data/codec/README.md`,
@@ -176,7 +176,8 @@ at another layout whose value types' plans all keep (skein's
 - **A kind the engine's layout lacks** is not among the engine's terms
   (`wires.md`, 5), so the worker does not send it: a kind the worker
   sends only where the engine takes it (`pause.md`'s `paused`,
-  `records.md`, 5's `part`, the usage notices) is sent where the
+  `records.md`, 5's `part`, the usage notices, `records.md`, 1's
+  `guides`) is sent where the
   engine's terms list it, and a worker whose other kinds the engine's
   terms lack refuses the opening as a terms gap.
 
@@ -338,7 +339,7 @@ pub struct Spoken {
     pub layout: [u8; 32],     // its text's family fingerprint (skein's data/codec/fingerprints.md, 1)
     pub text: &'static str,   // its current schema text, as its crate embeds it
 }
-pub enum Carried { Items, Left, Saved, Preparation, JobSpec, JobResult, Grant, Ask, Answer }
+pub enum Carried { Items, Left, Saved, Preparation, Guides, JobSpec, JobResult, Grant, Ask, Answer }
 pub struct Root { pub carried: Carried, pub wire: &'static str, pub declaration: &'static str }
 pub struct Written {          // a written entry (6)
     pub wire: &'static str,   // its wire's family, as its `Spoken` names it

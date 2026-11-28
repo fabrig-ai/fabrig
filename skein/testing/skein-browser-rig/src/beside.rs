@@ -1,4 +1,4 @@
-//! A page stays usable beside its own tab (skein/docs/design/testing/browser.md, 6).
+//! A page stays usable beside its own tab (skein/docs/design/testing/browser-operations.md, 1).
 use super::{Event, FIND, IMAGE, PAGE, PRESS, Request, Rig, SNAPSHOT, Stage, query};
 
 impl Rig {

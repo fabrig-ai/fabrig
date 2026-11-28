@@ -272,12 +272,7 @@ fn words_heading(word: &tasks::Word) -> Box<[u8]> {
 fn waiting_read(core: &Core, task: u64, carried: u32, bytes: u32) -> BriefRead {
     let Some(context) = core.contexts.get(&task) else { return BriefRead::Failed };
     let Some(row) = core.tasks.task(task) else { return BriefRead::Failed };
-    let offered = crate::routing::run::parts::offered_kinds(
-        core.charter_of(task),
-        row.instructions.is_some(),
-        context.reasons,
-        row.flags.ended_by == tasks::EndedBy::Standing,
-    );
+    let offered = crate::routing::run::parts::preparation_offered(core, context);
     let messages = crate::routing::run::preparation::start_messages(context.inbox.clone(), carried, offered);
     let open = core.tasks.open_questions(task);
     let mut questions = List::with_capacity(open.len());

@@ -3,7 +3,7 @@
 
 use crate::vocabulary::connector_ask;
 use crate::{
-    Core, Event, Limits, Now, Request, RunCharter, RunProof,
+    Core, Event, Limits, Now, PendingClaim, Request, RunCharter, RunProof,
     engine::store,
     routing::{NoteRoute, Work, children::remember_due},
 };
@@ -36,6 +36,7 @@ pub(crate) struct Prepared {
     pub writes: Option<Box<[authority::Write]>>,
     pub holds: Box<[tasks::Name]>,
     pub credentials: Box<[u32]>,
+    pub guide_limit: u32,
     pub workspace: Option<Box<[u8]>>,
 }
 
@@ -51,7 +52,7 @@ pub(crate) fn workspace_prepared(
     attempt: u64,
     prepared: Prepared,
 ) -> Queue<Request> {
-    let Prepared { writes, holds, credentials, workspace } = prepared;
+    let Prepared { writes, holds, credentials, guide_limit, workspace } = prepared;
     let mut out = Queue::uncapped();
     let Some((token, issued)) = core.workspace_flight(task) else { return out };
     if issued != attempt {
@@ -159,6 +160,7 @@ pub(crate) fn workspace_prepared(
         && core.charter_of(task).policy.resume
         && transcript.bytes <= u64::from(core.settings.resume_bytes);
     let charter = core.charter_of(task);
+    let project_words = super::parts::project_words(core, task);
     let row = core.tasks.task(task).expect("live task");
     let standing = row.flags.ended_by == tasks::EndedBy::Standing;
     let own = row.instructions.as_deref();
@@ -177,7 +179,13 @@ pub(crate) fn workspace_prepared(
                         bytes: transcript.bytes,
                         bound: tasks::context_bound(model.window),
                         kinds: context.session_kinds,
-                        offered: super::parts::offered_kinds(charter, own.is_some(), session.reasons, true),
+                        offered: super::parts::offered_kinds(
+                            charter,
+                            project_words,
+                            own.is_some(),
+                            session.reasons,
+                            true,
+                        ),
                         resumable: resume && transcript.last.is_some(),
                     },
                 );
@@ -210,8 +218,8 @@ pub(crate) fn workspace_prepared(
         Some(tasks::Fresh::Session)
     };
     let conversation = if resume && transcript.last.is_some() { transcript.from } else { attempt };
-    let instructions = super::parts::run_instructions(charter, own, reasons, standing);
-    let offered = super::parts::offered_kinds(charter, own.is_some(), reasons, standing);
+    let instructions = super::parts::run_instructions(charter, project_words, own, reasons, standing);
+    let offered = super::parts::offered_kinds(charter, project_words, own.is_some(), reasons, standing);
     let messages = start_messages(context.inbox, env.limits.tasks.run_inbox, offered);
     let mut proof = start_proof(core, task, attempt, conversation, &messages);
     proof.host = allowance.choice.placement.kind;
@@ -279,8 +287,14 @@ pub(crate) fn workspace_prepared(
         authority: context.authority,
         budget: allowance.spend,
     };
+    let row = core.tasks.task(task).expect("prepared task");
+    let source = match core.project_charter_set(row.project, row.charters) {
+        Some(set) => set.source.clone(),
+        None => Box::new([]),
+    };
+    let sources = Some(tasks::ClaimSources { build: core.build.clone(), settings: run.revision, source, guide_limit });
     assert!(
-        core.claiming.insert(task, (attempt, offered, session_end, fresh)) == Ok(None),
+        core.claiming.insert(task, PendingClaim { attempt, offered, session_end, fresh, sources }) == Ok(None),
         "one pending claim per task"
     );
     out.push(Request::Now(Box::new(Now::RunPrepared {
@@ -778,7 +792,7 @@ pub(crate) fn preparation_failure(task: u64, failure: brief::GatherFailure, out:
 /// whose fleet handoff trails their commit. The same claims must fit at a cold start.
 pub(crate) fn claim_fits(core: &Core, task: u64, attempt: u64) -> bool {
     match core.claiming.get(&task) {
-        Some((prepared, ..)) if *prepared == attempt => {}
+        Some(prepared) if prepared.attempt == attempt => {}
         Some(_) | None => return true,
     }
     if core.workers_in_process
@@ -833,8 +847,8 @@ pub(crate) fn route_claim_prepared(
     budget: u64,
     writes: Box<[tasks::Name]>,
 ) -> Queue<Request> {
-    if let Some(&(prepared, offered, session_end, fresh)) = core.claiming.get(&task)
-        && prepared == attempt
+    if let Some(prepared) = core.claiming.get(&task)
+        && prepared.attempt == attempt
     {
         let mut reasons = tasks::Reasons::FIRST;
         if let Some(context) = core.contexts.remove(&task) {
@@ -852,8 +866,7 @@ pub(crate) fn route_claim_prepared(
                 None => false,
             };
             if !valid {
-                let _: Option<(u64, tasks::Reasons, Option<tasks::SessionEnd>, Option<tasks::Fresh>)> =
-                    core.claiming.remove(&task);
+                drop(core.claiming.remove(&task));
                 core.restore_replaced_proof(task);
                 work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
                 let mut out = Queue::uncapped();
@@ -872,8 +885,9 @@ pub(crate) fn route_claim_prepared(
         };
         let resumed = earlier_transcript && turned;
         work.push(Work::Event(Event::Tasks(tasks::Event::Claim {
-            session_end,
-            offered,
+            session_end: prepared.session_end,
+            offered: prepared.offered,
+            sources: prepared.sources.clone(),
             reasons,
             account: match core.proofs.get(&task) {
                 Some(proof) => match proof.accounts.first() {
@@ -886,7 +900,7 @@ pub(crate) fn route_claim_prepared(
             task,
             attempt,
             resumed,
-            fresh,
+            fresh: prepared.fresh,
             budget,
             writes,
         })));

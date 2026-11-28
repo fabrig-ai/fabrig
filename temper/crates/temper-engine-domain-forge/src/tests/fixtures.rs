@@ -347,7 +347,7 @@ pub fn settle_home_reads(d: &mut Domain, clock: &Env<Limits>, tip: skein_forge::
         };
         let mut answered = answer_at(d, clock, call, result);
         if matches!(op, Op::Read(Read::File { .. })) {
-            assert!(matches!(answered.pop(), Some(Request::Save { record: Stored::DotTemperRevision(row), .. })
+            assert!(matches!(answered.pop(), Some(Request::SaveTemperRevision { row, .. })
                 if row.home == repository && !row.method && row.refused.is_none()));
         }
         assert!(answered.is_empty(), "ordinary home read has no other effects: {answered:?}");

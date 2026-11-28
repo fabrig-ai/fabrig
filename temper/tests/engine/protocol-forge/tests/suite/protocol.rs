@@ -586,6 +586,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
                 | top::Request::Save { .. }
+                | top::Request::SaveTemperRevision { .. }
                 | top::Request::MarkedForges
                 | top::Request::Waits { .. }
                 | top::Request::MilestoneMarked { .. }

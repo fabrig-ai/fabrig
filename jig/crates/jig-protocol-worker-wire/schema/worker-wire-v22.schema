@@ -229,6 +229,9 @@ record Draining {}
 # Application reads (domain/hosts/hub.md, 10).
 record Ask { run: u64 attempt: u64 number: u64 bytes: bytes 1048576 }
 record AskBytes { bytes: bytes 1048576 }
+# Reuse the opaque application byte envelope: an older engine knows its bound
+# name even though it does not admit the optional guides kind.
+record Guides { task: u64 attempt: u64 bytes: AskBytes }
 enum AskAnswer { bytes: AskBytes, refused }
 record Asked { run: u64 attempt: u64 number: u64 answer: AskAnswer }
 
@@ -260,7 +263,7 @@ enum FromWorker {
     hello: Hello, turn: Turn, call: Call, answer: Answer, fact: Fact,
     unauthorized: Unauthorized, limited: Limited, account_refused: AccountRefused,
     logins: Logins, signed_out: SignedOut, list_read: ListRead, draining: Draining,
-    job_answer: JobAnswer, ask: Ask, usage: Usage, usage_read: UsageRead, paused: Paused, part: Part
+    job_answer: JobAnswer, ask: Ask, usage: Usage, usage_read: UsageRead, paused: Paused, part: Part, guides: Guides
 }
 enum FromEngine {
     assignment: Assignment, message: Inbound, relayed: Relayed, turn_kept: TurnKept,

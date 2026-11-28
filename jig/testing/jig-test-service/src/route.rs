@@ -222,6 +222,7 @@ fn immediate(engine: &mut Engine, now: core::Now) {
         | core::Now::RunPrepared { .. }
         | core::Now::PartBusy { .. }
         | core::Now::RestoreRefused => stop::invalid_restore(engine),
+        core::Now::ProjectChartersRefused { .. } => {}
     }
 }
 

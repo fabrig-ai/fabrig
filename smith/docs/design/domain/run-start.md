@@ -142,7 +142,10 @@ conventions name, as text, UTF-8: whole within its share of the host's
 part, at most the guide limit, which the product's presets size so that
 a guide is normally whole (../protocol/limits-derivation.md, 1.9), and past it cut at
 a character boundary, the prompt saying that the file goes on; a file
-that is not text counts as no guide.
+that is not text counts as no guide. At preparation the run tells its
+host once which guides it read: directory index, path, SHA-256 of the
+bytes read, their count and whether the read was whole, without the
+text.
 
 A sub-agent's system text is its brief, then the same mechanics for the
 tools it has, with the same guides: `## Your share` in place of

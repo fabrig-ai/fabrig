@@ -621,14 +621,6 @@ nothing.
   }
   ```
 
-## 11. What hearth reserves
-
-Moved to [`tasks-reserved.md`](tasks-reserved.md), section 1.
-
-## 12. The hearth task
-
-Moved to [`tasks-hearth.md`](tasks-hearth.md), section 1.
-
 ## 13. Units that may fail
 
 - **A task may name units whose failure does not block a bless,** such as
@@ -653,7 +645,3 @@ Moved to [`tasks-hearth.md`](tasks-hearth.md), section 1.
 - **A container never counts against its host [M5]:** the host's
   minimal bless leaves out its containers' nspawn units without any
   list, since each container's slot has its own trial (hearth/docs/design/domain/slots/bless.md, 1.1).
-
-## 14. Live changes
-
-Moved to [`tasks-live.md`](tasks-live.md), section 1.

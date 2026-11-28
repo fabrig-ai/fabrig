@@ -781,6 +781,7 @@ fn receive(agent: &mut Agent, owner: Token, message: Up, env: &Env<Limits>, out:
             agent.long.end();
             out.push(Output::Parent(parent::Request::LongDone { client: agent.client }));
         }
+        Up::Prepared { guides } => out.push(Output::Parent(parent::Request::Prepared { client: agent.client, guides })),
         Up::Fact { body } => out.push(Output::Parent(parent::Request::Told { client: agent.client, body })),
         Up::Unauthorized { account, generation } => {
             out.push(Output::Parent(parent::Request::Unauthorized { client: agent.client, account, generation }));
@@ -802,7 +803,7 @@ fn discarded_work(agent: &Agent, message: &Up) -> bool {
     match agent.supervision {
         State::Terminating { .. } | State::Killing => match message {
             Up::Answer { .. } => agent.word.dropped(),
-            Up::MessageRefused { .. } => false,
+            Up::MessageRefused { .. } | Up::Prepared { .. } => false,
             Up::Admitted
             | Up::Call { .. }
             | Up::Withdraw { .. }
@@ -1188,6 +1189,7 @@ fn observations(domain: &mut Domain, out: &Queue<Output>, before: u32) {
                     | parent::Request::Usage { .. }
                     | parent::Request::Limited { .. }
                     | parent::Request::Told { .. }
+                    | parent::Request::Prepared { .. }
                     | parent::Request::MessageRefused { .. }
                     | parent::Request::Unread { .. },
                 )

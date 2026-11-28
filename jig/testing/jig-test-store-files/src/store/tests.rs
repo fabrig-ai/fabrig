@@ -221,6 +221,7 @@ fn history_readback_discovers_logs_and_survives_a_memory_restart() {
             (1..=3).map(move |attempt| {
                 root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Attempt(
                     jig_domain_tasks::AttemptRow {
+                        sources: None,
                         task,
                         attempt,
                         claimed: Some(skein_lib::Wall::EPOCH),
@@ -271,6 +272,7 @@ fn disk_history_store() -> Store {
         commits: 1,
     };
     let attempt = jig_domain_tasks::AttemptRow {
+        sources: None,
         task: 1,
         attempt: 1,
         claimed: Some(skein_lib::Wall::EPOCH),
@@ -404,6 +406,7 @@ fn history_and_turns(mut store: Store) -> Store {
     let _turns = save_transcript(&mut store);
     let ended = core::Record::Tasks(tasks::Stored::Ended(crate::tests::ended_chat()));
     let attempt = core::Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
+        sources: None,
         task: TRANSCRIPT_TASK,
         attempt: 1,
         claimed: Some(skein_lib::Wall::EPOCH),

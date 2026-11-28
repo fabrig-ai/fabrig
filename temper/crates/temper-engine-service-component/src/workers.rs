@@ -386,6 +386,9 @@ impl Workers {
                     link: root::Link::Hello { worker, hello },
                 }));
             }
+            kit::host::Output::Up { channel, up: host::LinkUp::Guides { run, attempt, bytes }, parts: _ } => {
+                self.received_guides(channel, run, attempt, &bytes, events);
+            }
             kit::host::Output::Up { channel, up, parts } => self.received(channel, up, &parts, events),
             kit::host::Output::Lost { channel } => {
                 events.push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Lost }));
@@ -444,6 +447,21 @@ fn delivery(now: Time, channel: Token, down: host::LinkDown, values: &Values) ->
 }
 
 impl Workers {
+    fn received_guides(
+        &mut self,
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        bytes: &[u8],
+        events: &mut Queue<root::Event>,
+    ) {
+        if let Some(guides) = crate::translate::guides(bytes, &self.encoding.limits) {
+            events.push(root::Event::Worker(root::WorkerInput::Guides { channel, run, attempt, guides }));
+        } else {
+            self.bad_parts = self.bad_parts.saturating_add(1);
+        }
+    }
+
     /// Decode application records in this step, discarding and counting a bad set.
     pub fn received(&mut self, channel: Token, up: host::LinkUp, records: &[Part], events: &mut Queue<root::Event>) {
         let parts = match parts(&up, records, &self.encoding.limits) {
@@ -493,6 +511,7 @@ pub fn parts(up: &host::LinkUp, parts: &[Part], limits: &wire::Limits) -> Option
         },
         host::LinkUp::ListRead { .. }
         // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+        | host::LinkUp::Guides { .. }
         | host::LinkUp::Paused { .. }
         | host::LinkUp::UsageRead { .. }
         | host::LinkUp::Draining

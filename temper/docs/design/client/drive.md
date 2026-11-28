@@ -338,7 +338,7 @@ temper-client-journeys journey walk NAME --bin DIR [--bundle DIR] --scratch DIR 
 | `web input ROLE NAME VALUE [ORDER]` | the field's value selected and VALUE typed | 60 s |
 | `web see TEXT` | waits until the page shows TEXT | 60 s |
 | `web reload PATH` | loads PATH, with its query, on the box's origin, and waits for the client's main region | 60 s |
-| `web look` | answers the page's accessible text, the browser kit's snapshot, a line per node (skein's `testing/browser.md`, 6) | 10 s |
+| `web look` | answers the page's accessible text, the browser kit's snapshot, a line per node (skein's `testing/browser-operations.md`, 1) | 10 s |
 | `web look WIDTH` | first the path of a screenshot of the page at WIDTH CSS pixels wide, its height the page's viewport's, written to `session/looks/`, then the text as `web look`; the viewport restored after | 10 s |
 | `web mark` | in a journey's session alone, answers a look (3.6), text and screenshots at `--widths` | 10 s per screenshot, then 10 s for text |
 | `web requests` | answers the requests the page has sent since it last loaded, a line each with its wave, then `N requests in W waves`, once the page is quiet (below) | 30 s, quiet for 2 s |
@@ -351,7 +351,7 @@ engine's clients' listener, its first link's
 
 **The page's requests,** what `web requests` answers, come from the
 requests the browser kit reports of the session's page and their first
-answers (skein's `testing/browser.md`, 5), which the harness passes on
+answers (skein's `testing/browser-vocabulary.md`, 1), which the harness passes on
 as it passes the page's troubles (2.3; skein's `ui/web/testing.md`, 2).
 The session takes them from its start, whatever line runs or none:
 
@@ -640,7 +640,7 @@ deployment line`, and is not kept.
   a thin loop around it over skein's harness, the fake person's browser
   face, the pseudo-terminal and the processes.
 - **The browser kit's snapshot, viewport and screenshot** (skein's
-  `testing/browser.md`, 5 and 6) are asked through the fake person's
+  `testing/browser-vocabulary.md`, 1, and `testing/browser-operations.md`, 1) are asked through the fake person's
   harness, which gains a read for each where it has none (skein's
   `ui/web/testing.md`, 2).
 - **The page's requests** are the harness's reports (skein's

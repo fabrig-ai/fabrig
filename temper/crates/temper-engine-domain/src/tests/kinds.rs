@@ -1538,6 +1538,7 @@ fn make_follow_owner_task(
             reply_to: READ_REPLY,
             creator: tasks::Party::Deployment { project },
             batch: Box::new([tasks::New {
+                charter_scope: tasks::CharterScope::Project,
                 number: 52,
                 project,
                 label,

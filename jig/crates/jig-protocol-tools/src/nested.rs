@@ -69,6 +69,7 @@ pub(crate) fn delegate(value: Node<'_>) -> Result<engine::Delegate, Problem> {
         None => jig_domain_people::Budget::Named,
     };
     Ok(engine::Delegate {
+        charter_scope: tasks::CharterScope::Project,
         deadline: tasks::Deadline::Named,
         executor,
         spec,

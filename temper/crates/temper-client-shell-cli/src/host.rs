@@ -222,7 +222,15 @@ impl OneShot {
         self.finish(status, false);
     }
     fn print(&mut self, printed: temper_client_tools::jig::Printed) {
-        self.file_end = Some(printed.file);
+        use temper_client_tools::jig::FileEnd;
+        match printed.file {
+            FileEnd::WriteNew { file } => {
+                self.until = None;
+                self.directory.write_charter(*file);
+                return;
+            }
+            end @ (FileEnd::Keep | FileEnd::Remove | FileEnd::Service { .. }) => self.file_end = Some(end),
+        }
         self.output.push(false, printed.stdout);
         if printed.status == 1 && !printed.stderr.is_empty() {
             self.fail(printed.stderr.strip_suffix(b"\n").unwrap_or(&printed.stderr));
@@ -236,7 +244,7 @@ impl OneShot {
             return;
         }
         if self.move_file.is_some() {
-            let end = self.file_end.unwrap_or_else(|| {
+            let end = self.file_end.take().unwrap_or_else(|| {
                 if self.exporting { self.root.file_end(1) } else { temper_client_tools::jig::FileEnd::Keep }
             });
             self.directory.end_record(end);
@@ -484,7 +492,7 @@ impl OneShot {
         }
         self.sign_out_keep();
         self.signing_keep();
-        if self.status.is_some() {
+        if self.status.is_some() || self.directory.writing_charter() {
             return;
         }
         self.client_link();
@@ -595,8 +603,8 @@ impl OneShot {
                     self.directory.write_record(&record);
                 }
                 root::Request::Printed { printed, .. } => {
-                    self.file_end = Some(printed.file);
                     if self.class == Class::Act {
+                        self.file_end = Some(printed.file.clone());
                         self.recovery.printed = Some(printed);
                         continue;
                     }
@@ -853,6 +861,9 @@ impl Host for OneShot {
         self.prepare_progress();
         if !self.preparing || self.status.is_some() {
             self.directory.progress(now);
+        }
+        if let Some(written) = self.directory.charter_written.take() {
+            self.print(written.printed());
         }
         if let Some(result) = self.directory.recorded.take() {
             if self.link_file.is_some() {

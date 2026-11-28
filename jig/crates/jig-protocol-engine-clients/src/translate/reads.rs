@@ -181,7 +181,12 @@ fn read_setting(value: w::ReadSetting) -> reads::Read {
         Some(key) => Some((mapped::proposer_to_domain(key.proposer), key.number)),
         None => None,
     };
-    reads::Read::Setting { setting: mapped::setting_to_domain(value.setting), revision: value.revision, proposal }
+    reads::Read::Setting {
+        setting: mapped::setting_to_domain(value.setting),
+        revision: value.revision,
+        proposal,
+        project: value.project,
+    }
 }
 
 fn read_task_text(value: w::ReadTaskText) -> reads::Read {

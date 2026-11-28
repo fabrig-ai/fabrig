@@ -59,6 +59,7 @@ pub fn restore_read_revisions(value: &w::ReadRevisions) -> c::ReadRevisions {
 #[must_use]
 pub fn restore_read_setting(value: &w::ReadSetting) -> c::ReadSetting {
     c::ReadSetting {
+        project: value.project,
         setting: restore_setting(&value.setting),
         revision: value.revision,
         proposal: match &value.proposal {
@@ -200,6 +201,10 @@ pub fn wire_revisions_page(value: &c::RevisionsPage) -> w::RevisionsPage {
 }
 pub fn wire_setting_document(value: &c::SettingDocument, limits: &w::Limits) -> Result<w::SettingDocument, w::Problem> {
     Ok(w::SettingDocument {
+        project: match &value.project {
+            Some(project) => Some(wire_project_charter_document(project)),
+            None => None,
+        },
         overlay: match &value.overlay {
             Some(item) => Some(wire_overlay(item)),
             None => None,

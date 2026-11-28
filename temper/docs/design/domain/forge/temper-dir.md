@@ -36,7 +36,9 @@ files, and the judgement made of them, is
   read names no tip, a `Read::Branch` gives it first. Then the forge
   reads `.temper/` at that commit as `../../protocol/temper-dir.md`,
   2 says, through its client, each answer at that commit and that path,
-  and judges it (8 there) as the home's.
+  and judges it (8 there) as the home's, against the deployment's
+  charters the root last gave it (8.1 there), as the check before
+  landing judges a tree (4).
 - **Whole or none:** a read the forge refuses or fails, or answers for
   another commit or path, is no read. It changes no revision; the
   record says so (3).
@@ -116,7 +118,10 @@ files, and the judgement made of them, is
   rows are; never at a change of home.
 - **What its readers take:** a project whose record has `method` false
   at its home runs the stock ways (`../../draft/ways-temper-dir.md`,
-  5); what reads `files` is the charters' and the ways' designs.
+  5). The root gives jig's core the project's charters from `files` in
+  the decision that saves a moved `number`, and at a start
+  (`../agent/project-charters.md`, 4); what else reads `files` is the
+  ways' design.
 
 ## 4. The check before landing
 

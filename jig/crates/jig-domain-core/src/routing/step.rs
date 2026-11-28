@@ -34,7 +34,17 @@ impl Core {
     }
 }
 
-pub(crate) fn step_tasks(core: &mut Core, env: &Env<Limits>, mut event: tasks::Event, out: &mut Queue<tasks::Request>) {
+pub(crate) fn step_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Event, out: &mut Queue<tasks::Request>) {
+    step_tasks_with_charters(core, env, event, &[], out);
+}
+
+pub(crate) fn step_tasks_with_charters(
+    core: &mut Core,
+    env: &Env<Limits>,
+    mut event: tasks::Event,
+    bindings: &[Option<tasks::CharterBinding>],
+    out: &mut Queue<tasks::Request>,
+) {
     // These events can arrive after loads or effects. Stamp the fact only at the child entrance.
     if let tasks::Event::Make { creator, maker, reads_project, .. } = &mut event {
         *reads_project = maker.is_none() && core.creator_reads_project(*creator);
@@ -54,7 +64,7 @@ pub(crate) fn step_tasks(core: &mut Core, env: &Env<Limits>, mut event: tasks::E
     let park = core.wait_alarms.park_terminal(&mut event);
     let before = out.len();
     let env = env.with(env.limits.tasks);
-    tasks::step(&mut core.tasks, &env, event, out);
+    tasks::step_with_charters(&mut core.tasks, &env, event, bindings, out);
     if let Some(task) = park {
         for request in out.iter().skip(skein_lib::usize_of(before)) {
             if let tasks::Request::Acknowledged {

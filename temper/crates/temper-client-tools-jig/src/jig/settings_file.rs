@@ -1,15 +1,47 @@
 //! Ctl argv and client-value adapter for the neutral settings file form.
 use super::{
     Limits,
-    call::{Call, Value, Values, number, value},
-    names, settings_adapter,
+    call::{Call, Project, Value, Values, number, value},
+    names, rows, settings_adapter,
 };
 use alloc::boxed::Box;
 use jig_client::contract as c;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::List;
+/// Recover the base of a charter from a setting read, which carries its composed
+/// instructions and parts (jig/docs/design/domain/engine/overlays.md, 1).
+#[must_use]
+pub fn without_overlay<'a>(
+    instructions: &'a [u8],
+    parts: &'a [c::CharterPart],
+    added: &[u8],
+    added_parts: &[c::CharterPart],
+) -> Option<(&'a [u8], &'a [c::CharterPart])> {
+    let instructions = if added.is_empty() {
+        instructions
+    } else if added == instructions {
+        b""
+    } else {
+        let base = instructions.strip_suffix(added)?.strip_suffix(b"\n\n")?;
+        if base.is_empty() {
+            return None;
+        }
+        base
+    };
+    Some((instructions, parts.strip_suffix(added_parts)?))
+}
+
 /// Input files stacked by one apply call, separate from delegate counts.
 pub const FILES: u32 = 128;
+pub(crate) fn preview_project(call: &Call) -> Option<&Project> {
+    if call.tool == rows::SETTING_AT
+        && let Some(Value::Project(project)) = value(call, rows::CHARTER_PREVIEW_PROJECT)
+    {
+        return Some(project);
+    }
+    None
+}
+
 pub(crate) fn selector(call: &Call) -> c::Setting {
     if call.form == 1 {
         return c::Setting::Rules;
@@ -17,11 +49,7 @@ pub(crate) fn selector(call: &Call) -> c::Setting {
     let number =
         c::SettingNumber { number: u32::try_from(number(call, 1).expect("setting number")).expect("parsed u32") };
     if let Some(kind) = name_kind(call) {
-        return match kind {
-            names::Kind::Charter => c::Setting::Charter(number),
-            names::Kind::Template => c::Setting::Template(number),
-            names::Kind::Policy => c::Setting::Policy(number),
-        };
+        return kind.setting(number.number);
     }
     match value(call, 0) {
         Some(Value::Word(0)) => c::Setting::Model(number),
@@ -31,6 +59,9 @@ pub(crate) fn selector(call: &Call) -> c::Setting {
     }
 }
 pub(crate) fn name_kind(call: &Call) -> Option<names::Kind> {
+    if preview_project(call).is_some() {
+        return Some(names::Kind::Charter);
+    }
     if call.form != 0 {
         return None;
     }
@@ -136,7 +167,7 @@ pub(crate) fn request(call: &Call, limits: &Limits) -> Result<c::ChangeSettings,
     }
     let change = settings_form::view::ChangeSettings {
         against: u32::try_from(
-            number(call, if call.tool == crate::jig::rows::PROPOSE_SETTINGS_AT { 2 } else { 1 }).expect("against"),
+            number(call, if call.tool == rows::PROPOSE_SETTINGS_AT { 2 } else { 1 }).expect("against"),
         )
         .expect("parsed u32"),
         items,
@@ -157,7 +188,7 @@ pub(crate) fn request(call: &Call, limits: &Limits) -> Result<c::ChangeSettings,
     Ok(c::ChangeSettings {
         against: change.against,
         items,
-        running: if call.tool == crate::jig::rows::CHANGE_SETTINGS_AT && value(call, 2) == Some(&Value::Word(1)) {
+        running: if call.tool == rows::CHANGE_SETTINGS_AT && value(call, 2) == Some(&Value::Word(1)) {
             c::Running::Moves
         } else {
             c::Running::Stays
@@ -360,4 +391,29 @@ pub fn upgrade(bytes: &[u8], limits: &Limits) -> super::Printed {
         out.put(b"\n");
     }
     super::Printed { status: 0, stdout, stderr: out.finish(), file: super::FileEnd::Keep }
+}
+
+#[cfg(test)]
+mod charter_words {
+    use super::{c, without_overlay};
+
+    fn part(words: &[u8]) -> c::CharterPart {
+        c::CharterPart {
+            on: 1, // first
+            instructions: c::Text::new(words.into(), 20).expect("fixture words"),
+        }
+    }
+
+    #[test]
+    fn overlay_only_words_leave_an_empty_base() {
+        let parts = [part(b"Use the log.")];
+        assert_eq!(without_overlay(b"Added.", &parts, b"Added.", &parts), Some((b"".as_slice(), [].as_slice())));
+    }
+
+    #[test]
+    fn matching_reasons_do_not_make_the_overlay_suffix_match() {
+        let effective = [part(b"Base."), part(b"Another part.")];
+        let added = [part(b"Added.")];
+        assert_eq!(without_overlay(b"Base.", &effective, b"", &added), None);
+    }
 }

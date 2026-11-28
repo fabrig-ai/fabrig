@@ -18,7 +18,9 @@ engine's routing encodes it (`../../protocol/llm.md`, section 5).
   temper's stock chat's and coding agent's held in the binary as their
   defaults (`../../protocol/configuration/stock.md`), the goal's agent's
   and the implementer's assembled from the stock's set of charter files
-  (below).
+  (below). In a project whose home repository has `ways.toml`, a task
+  of a charter the project keeps a file for runs by that file's words
+  instead (`project-charters.md`, 3).
 - **A set of charter files** (`../../draft/stock-charters.md`, 2;
   `../../draft/any-project.md`, 4.2) is a directory of Markdown files,
   each named `<file>.md`, of six: `common`, `goal`, `design`,

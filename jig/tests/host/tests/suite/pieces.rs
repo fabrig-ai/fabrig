@@ -26,6 +26,7 @@ fn pieces(world: &World) -> Vec<(Token, Token, Piece)> {
             LinkUp::Piece { run, attempt, piece } => Some((*run, *attempt, piece.clone())),
             LinkUp::ListRead { .. }
             // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+            | LinkUp::Guides { .. }
             | LinkUp::Paused { .. }
             | LinkUp::UsageRead { .. }
             | LinkUp::Draining

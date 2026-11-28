@@ -55,6 +55,7 @@ pub use objects::{
     result_from_row, retained_action,
 };
 pub use project_note::note_from_entry;
+pub(crate) use project_note::project_readable;
 pub use settings::inventory as settings_inventory;
 pub use task_lines::{task_line, task_line_from_summary};
 pub use task_query::lines;

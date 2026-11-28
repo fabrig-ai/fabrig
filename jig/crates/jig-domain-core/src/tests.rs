@@ -15,6 +15,7 @@ mod jobs;
 mod limits;
 #[path = "tests/person_task.rs"]
 mod person_task_stories;
+mod project_charters;
 mod reads;
 mod reports;
 mod routing;
@@ -687,6 +688,7 @@ pub(crate) fn config(seed: u64) -> Config {
 
         deployment: [31; 16],
         seed,
+        build: "test-build".into(),
         workers_in_process: false,
         hub_turns: 2,
         grants: Box::new([]),
@@ -873,8 +875,12 @@ fn core_with_config(config: Config, limits: &Limits) -> Core {
 }
 
 fn core_with_declarations(config: Config, limits: &Limits, declarations: &[Declaration]) -> Core {
+    core_with_roles(config, limits, declarations, &[1])
+}
+
+fn core_with_roles(config: Config, limits: &Limits, declarations: &[Declaration], projects: &[u32]) -> Core {
     let mut core = seeded_core_with_declarations(config, declarations, limits).expect("fixture core configuration");
-    core.counters.deployment.projects = 1;
+    core.counters.deployment.projects = u64::from(projects.iter().copied().max().unwrap_or(0));
     restore_key_account(&mut core, limits, 0, 1, 1);
     let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
@@ -893,17 +899,19 @@ fn core_with_declarations(config: Config, limits: &Limits, declarations: &[Decla
         },
         &mut out,
     );
-    people::step(
-        &mut core.people,
-        &env,
-        people::Event::Restore {
-            record: people::Stored::Roles {
-                project: 1,
-                holdings: Box::new([people::Holding { person: 1, role: people::Role::Owner }]),
+    for &project in projects {
+        people::step(
+            &mut core.people,
+            &env,
+            people::Event::Restore {
+                record: people::Stored::Roles {
+                    project,
+                    holdings: Box::new([people::Holding { person: 1, role: people::Role::Owner }]),
+                },
             },
-        },
-        &mut out,
-    );
+            &mut out,
+        );
+    }
     finish_people(&mut core.people, &env);
     core
 }
@@ -927,6 +935,7 @@ fn make_task_ended_by(core: &mut Core, limits: &Limits, number: u64, ended_by: t
     let mut given = core.creating_authority(1, 1, people::Role::Owner, u32::MAX);
     given.budget.spend = 100;
     let row = tasks::New {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         deadline: jig_domain_tasks::Deadline::Named,
         label: 0,
         flags: tasks::Flags { ended_by, conversation: true, ..tasks::Flags::PLAIN },
@@ -1253,6 +1262,7 @@ fn new_row(core: &Core, number: u64, funder: tasks::Funder, tracked: Option<u32>
     };
     authority.budget.spend = budget;
     tasks::New {
+        charter_scope: jig_domain_tasks::CharterScope::Project,
         deadline: jig_domain_tasks::Deadline::Named,
         label: 0,
         flags: jig_domain_tasks::Flags::PLAIN,
@@ -1928,6 +1938,7 @@ fn documents_question_words_are_bounded_and_answered_questions_end() {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            sources: None,
             fresh: None,
             session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,

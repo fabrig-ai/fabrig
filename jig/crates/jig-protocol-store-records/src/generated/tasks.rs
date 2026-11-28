@@ -1086,6 +1086,22 @@ pub fn deadline_to_domain(record: crate::tasks_v13::Deadline) -> jig_domain_task
 }
 
 #[must_use]
+pub fn charter_scope_to_record(value: &jig_domain_tasks::CharterScope) -> crate::tasks_v13::CharterScope {
+    match value {
+        jig_domain_tasks::CharterScope::Project => crate::tasks_v13::CharterScope::Project,
+        jig_domain_tasks::CharterScope::Deployment => crate::tasks_v13::CharterScope::Deployment,
+    }
+}
+
+#[must_use]
+pub fn charter_scope_to_domain(record: crate::tasks_v13::CharterScope) -> jig_domain_tasks::CharterScope {
+    match record {
+        crate::tasks_v13::CharterScope::Project => jig_domain_tasks::CharterScope::Project,
+        crate::tasks_v13::CharterScope::Deployment => jig_domain_tasks::CharterScope::Deployment,
+    }
+}
+
+#[must_use]
 pub fn result_field_to_record(value: &jig_domain_tasks::ResultField) -> crate::tasks_v13::ResultField {
     let jig_domain_tasks::ResultField { name: field_000000, value: field_000001 } = value;
     crate::tasks_v13::ResultField {
@@ -2854,9 +2870,85 @@ pub fn suspension_to_domain(record: crate::tasks_v13::Suspension) -> jig_domain_
 }
 
 #[must_use]
-pub fn attempt_row_to_record(value: &jig_domain_tasks::AttemptRow) -> crate::tasks_v13::AttemptRow {
-    let jig_domain_tasks::AttemptRow { task: field_000000, attempt: field_000001, claimed: field_000002, started: field_000003, ended: field_000004, end: field_000005, phases: field_000006 } = value;
-    crate::tasks_v13::AttemptRow {
+pub fn guide_to_record(value: &jig_domain_tasks::Guide) -> crate::tasks_v13::Guide {
+    let jig_domain_tasks::Guide { workspace: field_000000, commit: field_000001, path: field_000002, digest: field_000003, bytes: field_000004, whole: field_000005 } = value;
+    crate::tasks_v13::Guide {
+        workspace: skein_codec::convert::text_to_record(field_000000),
+        commit: skein_codec::convert::text_to_record(field_000001),
+        path: skein_codec::convert::text_to_record(field_000002),
+        digest: *field_000003,
+        bytes: *field_000004,
+        whole: *field_000005
+    }
+}
+
+pub fn guide_to_domain(record: crate::tasks_v13::Guide) -> Result<jig_domain_tasks::Guide, crate::tasks_v13::Problem> {
+    let crate::tasks_v13::Guide { workspace: field_000000, commit: field_000001, path: field_000002, digest: field_000003, bytes: field_000004, whole: field_000005 } = record;
+    Ok(jig_domain_tasks::Guide {
+        workspace: match skein_codec::convert::text_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::GUIDE_WORKSPACE.problem(reason)) },
+        commit: match skein_codec::convert::text_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::GUIDE_COMMIT.problem(reason)) },
+        path: match skein_codec::convert::text_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::GUIDE_PATH.problem(reason)) },
+        digest: field_000003,
+        bytes: field_000004,
+        whole: field_000005
+    })
+}
+
+pub fn run_sources_to_record(value: &jig_domain_tasks::RunSources) -> Result<crate::tasks_v13::RunSources, crate::tasks_v13::Problem> {
+    let jig_domain_tasks::RunSources { build: field_000000, settings: field_000001, charters: field_000002, source: field_000003, guides: field_000004 } = value;
+    Ok(crate::tasks_v13::RunSources {
+        build: skein_codec::convert::text_to_record(field_000000),
+        settings: *field_000001,
+        charters: *field_000002,
+        source: field_000003.clone(),
+        guides: match field_000004 {
+            Some(item) => {
+                let converted = {
+                    let source = item;
+                    let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::tasks_v13::paths::RUN_SOURCES_GUIDES.problem(skein_codec::Reason::Bound)) };
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.as_ref() {
+                        let converted = guide_to_record(item);
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    translated
+                };
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+pub fn run_sources_to_domain(record: crate::tasks_v13::RunSources) -> Result<jig_domain_tasks::RunSources, crate::tasks_v13::Problem> {
+    let crate::tasks_v13::RunSources { build: field_000000, settings: field_000001, charters: field_000002, source: field_000003, guides: field_000004 } = record;
+    Ok(jig_domain_tasks::RunSources {
+        build: match skein_codec::convert::text_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::RUN_SOURCES_BUILD.problem(reason)) },
+        settings: field_000001,
+        charters: field_000002,
+        source: field_000003,
+        guides: match field_000004 {
+            Some(item) => {
+                let converted = {
+                    let source = item;
+                    let count = source.len();
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.into_boxed() {
+                        let converted = guide_to_domain(item)?;
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    Box::from(translated)
+                };
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+pub fn attempt_row_to_record(value: &jig_domain_tasks::AttemptRow) -> Result<crate::tasks_v13::AttemptRow, crate::tasks_v13::Problem> {
+    let jig_domain_tasks::AttemptRow { task: field_000000, attempt: field_000001, claimed: field_000002, started: field_000003, ended: field_000004, end: field_000005, phases: field_000006, sources: field_000007 } = value;
+    Ok(crate::tasks_v13::AttemptRow {
         task: *field_000000,
         attempt: *field_000001,
         claimed: match field_000002 {
@@ -2893,14 +2985,20 @@ pub fn attempt_row_to_record(value: &jig_domain_tasks::AttemptRow) -> crate::tas
                 Some(converted)
             }
             None => None,
+        },
+        sources: match field_000007 {
+            Some(item) => {
+                let converted = run_sources_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
         }
-    }
+    })
 }
 
-#[must_use]
-pub fn attempt_row_to_domain(record: crate::tasks_v13::AttemptRow) -> jig_domain_tasks::AttemptRow {
-    let crate::tasks_v13::AttemptRow { task: field_000000, attempt: field_000001, claimed: field_000002, started: field_000003, ended: field_000004, end: field_000005, phases: field_000006 } = record;
-    jig_domain_tasks::AttemptRow {
+pub fn attempt_row_to_domain(record: crate::tasks_v13::AttemptRow) -> Result<jig_domain_tasks::AttemptRow, crate::tasks_v13::Problem> {
+    let crate::tasks_v13::AttemptRow { task: field_000000, attempt: field_000001, claimed: field_000002, started: field_000003, ended: field_000004, end: field_000005, phases: field_000006, sources: field_000007 } = record;
+    Ok(jig_domain_tasks::AttemptRow {
         task: field_000000,
         attempt: field_000001,
         claimed: match field_000002 {
@@ -2937,14 +3035,20 @@ pub fn attempt_row_to_domain(record: crate::tasks_v13::AttemptRow) -> jig_domain
                 Some(converted)
             }
             None => None,
+        },
+        sources: match field_000007 {
+            Some(item) => {
+                let converted = run_sources_to_domain(item)?;
+                Some(converted)
+            }
+            None => None,
         }
-    }
+    })
 }
 
-#[must_use]
-pub fn open_attempt_to_record(value: &jig_domain_tasks::OpenAttempt) -> crate::tasks_v13::OpenAttempt {
-    let jig_domain_tasks::OpenAttempt { attempt: field_000000, claimed: field_000001, started: field_000002, from: field_000003, end: field_000004 } = value;
-    crate::tasks_v13::OpenAttempt {
+pub fn open_attempt_to_record(value: &jig_domain_tasks::OpenAttempt) -> Result<crate::tasks_v13::OpenAttempt, crate::tasks_v13::Problem> {
+    let jig_domain_tasks::OpenAttempt { attempt: field_000000, claimed: field_000001, started: field_000002, from: field_000003, end: field_000004, sources: field_000005, guide_limit: field_000006 } = value;
+    Ok(crate::tasks_v13::OpenAttempt {
         attempt: *field_000000,
         claimed: match field_000001 {
             Some(item) => {
@@ -2967,14 +3071,21 @@ pub fn open_attempt_to_record(value: &jig_domain_tasks::OpenAttempt) -> crate::t
                 Some(converted)
             }
             None => None,
-        }
-    }
+        },
+        sources: match field_000005 {
+            Some(item) => {
+                let converted = run_sources_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
+        },
+        guide_limit: *field_000006
+    })
 }
 
-#[must_use]
-pub fn open_attempt_to_domain(record: crate::tasks_v13::OpenAttempt) -> jig_domain_tasks::OpenAttempt {
-    let crate::tasks_v13::OpenAttempt { attempt: field_000000, claimed: field_000001, started: field_000002, from: field_000003, end: field_000004 } = record;
-    jig_domain_tasks::OpenAttempt {
+pub fn open_attempt_to_domain(record: crate::tasks_v13::OpenAttempt) -> Result<jig_domain_tasks::OpenAttempt, crate::tasks_v13::Problem> {
+    let crate::tasks_v13::OpenAttempt { attempt: field_000000, claimed: field_000001, started: field_000002, from: field_000003, end: field_000004, sources: field_000005, guide_limit: field_000006 } = record;
+    Ok(jig_domain_tasks::OpenAttempt {
         attempt: field_000000,
         claimed: match field_000001 {
             Some(item) => {
@@ -2997,8 +3108,16 @@ pub fn open_attempt_to_domain(record: crate::tasks_v13::OpenAttempt) -> jig_doma
                 Some(converted)
             }
             None => None,
-        }
-    }
+        },
+        sources: match field_000005 {
+            Some(item) => {
+                let converted = run_sources_to_domain(item)?;
+                Some(converted)
+            }
+            None => None,
+        },
+        guide_limit: field_000006
+    })
 }
 
 #[must_use]

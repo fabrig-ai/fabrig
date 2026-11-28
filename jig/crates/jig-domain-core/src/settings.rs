@@ -3,11 +3,13 @@
 pub use jig_domain_core_vocabulary::settings::*;
 
 pub mod application;
+pub(crate) mod binding;
 pub mod change;
 pub mod charters;
 pub mod check;
 pub mod fleet_needs;
 pub(crate) mod held;
+pub(crate) mod project_sets;
 pub(crate) mod restart;
 pub mod revisions;
 #[cfg(test)]

@@ -38,6 +38,8 @@ pub fn task_record() -> jig_domain_tasks::TaskRecord {
         restarted: false,
         placed: None,
         settings: task::SettingsRevision { task: 3, run: Some(2) },
+        charters: 0,
+        scope: None,
         added: Box::new([]),
         hold_bound_since: None,
         kept_account: Some(u32::MAX - 1),

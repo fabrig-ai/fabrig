@@ -14,7 +14,9 @@ use skein_forge::api::{EntryKind, Error};
 use skein_lib::Writer;
 use std::path::Path;
 use support::*;
-use temper_protocol_temper_dir::{Fault, Home, Reading, Touch, Unread, Verdict, touched};
+use temper_protocol_temper_dir::{
+    CharterRoom, DeploymentCharters, Fault, Home, Reading, Touch, Unread, Verdict, touched,
+};
 
 const GOOD_OFFERS: &[u8] = b"offer = [\"pair\"]\n";
 const GOOD_HOOKS: &[u8] = b"[close]\ntimeout_seconds = 1800\n";
@@ -22,9 +24,21 @@ const NEWER: &str = "format 2; this temper-engine reads format 1: upgrade it, or
 const CUT: &str = "past what temper reads, 65,536 bytes";
 const PAST: &str = ".temper/: past what temper reads: 64 files";
 const BAD_FORMAT: &str = "format: a whole number from 1";
-const FRONT_MATTER: &str = "front matter holds format = N alone";
+const UNKNOWN_FRONT_KEY: &str =
+    "unknown key `extra`: a charter's file holds words alone; models, tools, wakes and budgets are settings";
+const IMPLEMENTER_WORDS: u64 = 52_000;
 const BAD_NAME: &str = "is no name: 1 to 32 lowercase letters, digits and `-`, from a letter";
 const CHARTER: &str = ".temper/charters/pair.md";
+
+fn deployment() -> DeploymentCharters {
+    DeploymentCharters {
+        offered: Box::new([
+            CharterRoom { name: b"implementer".as_slice().into(), bytes: Some(IMPLEMENTER_WORDS), parts: 8 },
+            CharterRoom { name: b"reviewer".as_slice().into(), bytes: Some(1024), parts: 1 },
+        ]),
+        limit: 32,
+    }
+}
 
 fn shown(fault: &Fault) -> String {
     let mut measure = Writer::measure(usize::MAX);
@@ -209,10 +223,14 @@ fn faults_name_the_entry_or_file_and_line() {
         (
             &[Listing(CHARTERS), File(CHARTER, b"+++\nformat = 1\nextra = 1\n+++\n")],
             Home::Here,
-            (CHARTER, 3, FRONT_MATTER),
+            (CHARTER, 3, UNKNOWN_FRONT_KEY),
         ),
-        (&[Listing(CHARTERS), File(CHARTER, b"+++\nextra = 1\n+++\n")], Home::Here, (CHARTER, 2, FRONT_MATTER)),
-        (&[Listing(CHARTERS), File(CHARTER, b"+++\nformat = 1\n")], Home::Here, (CHARTER, 3, FRONT_MATTER)),
+        (&[Listing(CHARTERS), File(CHARTER, b"+++\nextra = 1\n+++\n")], Home::Here, (CHARTER, 2, UNKNOWN_FRONT_KEY)),
+        (
+            &[Listing(CHARTERS), File(CHARTER, b"+++\nformat = 1\n")],
+            Home::Here,
+            (CHARTER, 1, "front matter: no closing `+++`"),
+        ),
         (&[Listing(CHARTERS), File(CHARTER, b"+++\nformat = 0\n+++\n")], Home::Here, (CHARTER, 2, BAD_FORMAT)),
         (&[Listing(CHARTERS), File(CHARTER, b"+++\nformat = 2\n+++\n")], Home::Here, (CHARTER, 2, NEWER)),
         (&[File(OFFERS, b"this would not parse"), CutFile(OFFERS)], Home::Here, (OFFERS, 0, CUT)),
@@ -226,11 +244,95 @@ fn faults_name_the_entry_or_file_and_line() {
             Home::None => Home::None,
             Home::Elsewhere { name } => Home::Elsewhere { name: name.clone() },
         };
-        let verdict = reading.judge(home);
+        let verdict = reading.judge(home, &deployment());
         let expected_fault = Fault { path: path.as_bytes().into(), line: *line, why: why.as_bytes().into() };
         assert_eq!(verdict.faults.as_ref(), [expected_fault], "{path}: {why}");
         assert_eq!(verdict.more, 0);
     }
+}
+
+#[test]
+fn charter_faults_follow_format_lines_settings_room_count_and_home() {
+    const CAREFUL: &str = ".temper/charters/careful.md";
+    const IMPLEMENTER: &str = ".temper/charters/implementer.md";
+    const REVIEWER: &str = ".temper/charters/reviewer.md";
+    let mut deployment = deployment();
+    let cases: &[(&[u8], u32, &str)] = &[
+        (b"+++\nmodel = 3\nformat = 2\n+++\n", 3, NEWER),
+        (
+            b"+++\nmodel = 3\n+++\n",
+            2,
+            "unknown key `model`: a charter's file holds words alone; models, tools, wakes and budgets are settings",
+        ),
+        (b"+++\nsettings = false\n+++\n", 2, "`settings`: a charter name"),
+        (b"+++\nsettings = '9'\n+++\n", 2, "`9` is no name: 1 to 32 lowercase letters, digits and `-`, from a letter"),
+        (
+            b"+++\nsettings = 'missing'\n+++\n## part, on: frist\n",
+            4,
+            "`## part, on: frist`: `frist` is no reason a part is selected by",
+        ),
+        (b"## part, on:\n", 1, "`## part, on:`: a part needs at least one reason"),
+        (b"## part, on: first,,timer\n", 1, "`## part, on: first,,timer`: a reason is empty"),
+        (b"## part, on: first,first\n", 1, "`## part, on: first,first`: `first` is repeated"),
+        (
+            b"+++\nsettings = 'careful-impl'\n+++\n",
+            2,
+            "`settings` names `careful-impl`, which this deployment's settings don't offer",
+        ),
+        (
+            b"+++\n# before the key\nformat = 1\n\"settings\" = 'careful-impl'\n+++\n",
+            4,
+            "`settings` names `careful-impl`, which this deployment's settings don't offer",
+        ),
+        (b"Follow the brief.\n", 0, "no `settings`, and this deployment offers no charter `careful`"),
+    ];
+    for &(body, line, why) in cases {
+        let (reading, _) = tree(&[At::Listing(CHARTERS), At::File(CAREFUL, body)]).read(FILE_BYTES);
+        let verdict = reading.judge(Home::Here, &deployment);
+        assert_eq!(
+            verdict.faults.as_ref(),
+            &[Fault { path: CAREFUL.as_bytes().into(), line, why: why.as_bytes().into() }]
+        );
+        assert_eq!(verdict.more, 0);
+    }
+
+    let before = vec![b'x'; usize::try_from(IMPLEMENTER_WORDS).expect("fixture fits usize")];
+    let mut past = before.clone();
+    past.push(b'x');
+    let reviewers_parts =
+        b"+++\nformat = 1\nsettings = 'reviewer'\n+++\n## part, on: first, result\nOne\n## part, on: timer\nTwo\n";
+    deployment.limit = 2;
+    let (at, _) = tree(&[
+        At::Listing(CHARTERS),
+        At::File(IMPLEMENTER, &before),
+        At::File(REVIEWER, b"+++\nsettings = 'reviewer'\nformat = 1\n+++\n## part, on: first, result\nOne\n"),
+    ])
+    .read(FILE_BYTES);
+    assert_eq!(at.judge(Home::Here, &deployment), Verdict { method: true, faults: Box::new([]), more: 0 });
+    let (reading, _) = tree(&[
+        At::Listing(CHARTERS),
+        At::File(REVIEWER, reviewers_parts),
+        At::File(IMPLEMENTER, &past),
+        At::File(CAREFUL, b"+++\nsettings = 'careful-impl'\n+++\n"),
+    ])
+    .read(FILE_BYTES);
+    let verdict = reading.judge(Home::None, &deployment);
+    assert_eq!(verdict.more, 0);
+    let part_words = 2_usize.checked_mul(size_of::<jig_domain_core_vocabulary::CharterPart>() + 2 + 3).unwrap();
+    assert_eq!(
+        verdict.faults.iter().map(shown).collect::<Vec<_>>(),
+        [
+            format!("{CAREFUL}:2: `settings` names `careful-impl`, which this deployment's settings don't offer"),
+            format!(
+                "{IMPLEMENTER}: its words take 52,001 bytes and 0 parts; charter `implementer` leaves them 52,000 bytes and 8 parts"
+            ),
+            format!(
+                "{REVIEWER}: its words take {part_words} bytes and 2 parts; charter `reviewer` leaves them 1,024 bytes and 1 parts"
+            ),
+            ".temper/charters/: 3 charters; this deployment's tasks hold at most 2".to_owned(),
+            ".temper/charters: a project's ways live in its home repository, and it has none".to_owned(),
+        ]
+    );
 }
 
 #[test]
@@ -248,7 +350,7 @@ fn method_means_any_listed_method_entry_not_hooks() {
     ];
     for (parts, method) in cases {
         let (reading, _) = tree(parts).read(FILE_BYTES);
-        let verdict = reading.judge(Home::Here);
+        let verdict = reading.judge(Home::Here, &deployment());
         assert_eq!(verdict.method, *method);
         if !method {
             assert!(verdict.faults.is_empty() && verdict.more == 0, "{verdict:?}");
@@ -347,7 +449,7 @@ fn exact_file_count_holds_and_next_does_not_overread() {
         let (reading, paths) = tree.read(FILE_BYTES);
         assert_eq!(paths.len(), MAX_FILES + 2, "64 files and two listings");
         assert_eq!(paths.last().expect("last requested file"), ".temper/ways/way-63.toml");
-        let faults: Vec<_> = reading.judge(Home::Here).faults.iter().map(shown).collect();
+        let faults: Vec<_> = reading.judge(Home::Here, &deployment()).faults.iter().map(shown).collect();
         assert_eq!(faults, expected);
     }
 }
@@ -374,7 +476,19 @@ fn total_bytes_hold_at_the_bound_but_not_past() {
         let (reading, paths) = tree.read(FILE_BYTES);
         assert_eq!(paths.len(), requests + 2, "requests, including two listings");
         assert_eq!(reading.method_files().len(), kept);
-        let faults: Vec<_> = reading.judge(Home::Here).faults.iter().map(shown).collect();
+        // Every retained stem has a deployment charter. Only the read budget can refuse this tree.
+        let offered = (0..FULL_FILES - 1)
+            .map(|index| format!("a-{index}"))
+            .chain(["b".to_owned()])
+            .chain((0..more.len()).map(|index| format!("c-{index}")))
+            .map(|name| CharterRoom {
+                name: name.into_bytes().into(),
+                bytes: Some(skein_lib::len_u64(FULL_FILE)),
+                parts: 0,
+            })
+            .collect();
+        let deployment = DeploymentCharters { offered, limit: u32::try_from(MAX_FILES).expect("fixture file count") };
+        let faults: Vec<_> = reading.judge(Home::Here, &deployment).faults.iter().map(shown).collect();
         assert_eq!(faults, expected);
     }
 }
@@ -392,7 +506,7 @@ fn first_sixteen_faults_are_kept_in_judgement_order() {
         tree.file(&format!("{CHARTERS}/a-{index}.md"), b"+++\nformat = 0\n+++\n");
     }
     let (reading, _) = tree.read(FILE_BYTES);
-    let verdict = reading.judge(Home::None);
+    let verdict = reading.judge(Home::None, &deployment());
     let expected: Vec<_> = (0..NAME_FAULTS)
         .map(|i| format!("{WAYS}/Not-{i:02}.toml: `Not-{i:02}` {BAD_NAME}"))
         .chain((0..MAX_FAULTS - NAME_FAULTS).map(|i| format!("{CHARTERS}/a-{i}.md:2: {BAD_FORMAT}")))
@@ -409,7 +523,7 @@ fn faults_within_offers_follow_lines_then_home_is_last() {
         File(OFFERS, b"unknown = true\noffer = [\n  \"pair\",\n  \"Wrong\",\n]\n[default]\nchange = \"x\"\n"),
     ])
     .read(FILE_BYTES);
-    let verdict = reading.judge(Home::None);
+    let verdict = reading.judge(Home::None, &deployment());
     assert_eq!(
         verdict.faults.iter().map(shown).collect::<Vec<_>>(),
         [
@@ -461,7 +575,14 @@ fn frozen_format_one_tree_reads_with_no_faults() {
     let mut tree = Tree::default();
     load_fixture(&mut tree, ROOT, &root);
     let (reading, _) = tree.read(FILE_BYTES);
-    assert_eq!(reading.judge(Home::Here), Verdict { method: true, faults: Box::new([]), more: 0 });
+    let deployment = DeploymentCharters {
+        offered: Box::new([
+            CharterRoom { name: b"implementer".as_slice().into(), bytes: Some(IMPLEMENTER_WORDS), parts: 8 },
+            CharterRoom { name: b"pair".as_slice().into(), bytes: Some(IMPLEMENTER_WORDS), parts: 8 },
+        ]),
+        limit: 32,
+    };
+    assert_eq!(reading.judge(Home::Here, &deployment), Verdict { method: true, faults: Box::new([]), more: 0 });
 }
 
 mod fuzzy {
@@ -493,7 +614,8 @@ mod fuzzy {
                 let path = format!("{directory}/{name}-{index}.{suffix}");
                 let kind = pick(&mut rng, KINDS);
                 if kind == EntryKind::File {
-                    tree.file(&path, &random_body(&mut rng));
+                    let body = if directory == CHARTERS { charter_body(&mut rng) } else { random_body(&mut rng) };
+                    tree.file(&path, &body);
                 } else {
                     tree.entry(&path, kind);
                 }
@@ -522,15 +644,57 @@ mod fuzzy {
         }
     }
 
+    fn charter_body(rng: &mut Rng) -> Vec<u8> {
+        let mut body = match rng.below(5) {
+            0 => return random_body(rng),
+            1 => String::new(),
+            2 => "+++\n# front\nformat = 1\n+++\n".to_owned(),
+            3 => format!(
+                "+++\nsettings = '{}'\n{}+++\n",
+                pick(rng, &["implementer", "reviewer", "unknown"]),
+                pick(rng, &["", "format = 1\n", "format = 2\n", "model = 7\n"])
+            ),
+            4 => "+++\nsettings = 5\n".to_owned(),
+            other => unreachable!("bounded alternative: {other}"),
+        };
+        body.push_str(pick(rng, &["", "Follow the brief.\n", "## Other heading\n"]));
+        for _ in 0..rng.below(5) {
+            let reasons = pick(rng, &["first", "timer, result", "", "news,,words", "frist", "first, first"]);
+            let text = pick(rng, &["", "Consider the new information.\n", "\nWords.\n## Other heading\n"]);
+            body.push_str("## part, on: ");
+            body.push_str(reasons);
+            body.push('\n');
+            body.push_str(text);
+        }
+        body.into_bytes()
+    }
+
+    fn random_deployment(seed: u64) -> DeploymentCharters {
+        let mut rng = Rng::new(seed);
+        let mut offered = Vec::new();
+        for name in ["implementer", "reviewer", "way-0", "a-9-1"] {
+            if rng.chance(750) {
+                let bytes = if rng.chance(900) { Some(rng.below(200)) } else { None };
+                offered.push(CharterRoom {
+                    name: name.as_bytes().into(),
+                    bytes,
+                    parts: u32::try_from(rng.below(5)).unwrap(),
+                });
+            }
+        }
+        DeploymentCharters { offered: offered.into_boxed_slice(), limit: u32::try_from(rng.below(32)).unwrap() }
+    }
+
     #[test]
     fn bounded_trees_and_verdicts_replay_from_the_seed() {
         for seed in 0..SEEDS {
             let (reading, reads) = random_tree(seed).read(FILE_BYTES);
             let (again, read_again) = random_tree(seed).read(FILE_BYTES);
-            let verdict = reading.judge(Home::None);
+            let deployment = random_deployment(seed);
+            let verdict = reading.judge(Home::None, &deployment);
             assert_eq!(reads, read_again, "seed {seed}");
-            assert_eq!(verdict, reading.judge(Home::None), "seed {seed}: judgement changed");
-            assert_eq!(verdict, again.judge(Home::None), "seed {seed}: tree did not replay");
+            assert_eq!(verdict, reading.judge(Home::None, &deployment), "seed {seed}: judgement changed");
+            assert_eq!(verdict, again.judge(Home::None, &random_deployment(seed)), "seed {seed}: tree did not replay");
             assert!(verdict.faults.len() <= MAX_FAULTS, "seed {seed}: too many faults");
             assert!(reads.len() <= MAX_FILES + 4, "seed {seed}: too many reads");
             let files = reading.method_files();
@@ -556,7 +720,10 @@ mod fuzzy {
         for seed in 0..SEEDS {
             let (good, _) = good_tree_with_way(seed, EntryKind::File);
             let (reading, _) = good.read(FILE_BYTES);
-            assert_eq!(reading.judge(Home::Here), Verdict { method: true, faults: Box::new([]), more: 0 });
+            assert_eq!(
+                reading.judge(Home::Here, &deployment()),
+                Verdict { method: true, faults: Box::new([]), more: 0 }
+            );
 
             let (kind, why) = pick(
                 &mut Rng::new(seed),
@@ -568,7 +735,7 @@ mod fuzzy {
             );
             let (bad, path) = good_tree_with_way(seed, kind);
             let (reading, _) = bad.read(FILE_BYTES);
-            let verdict = reading.judge(Home::Here);
+            let verdict = reading.judge(Home::Here, &deployment());
             assert_eq!(verdict.faults.iter().map(shown).collect::<Vec<_>>(), [format!("{path}: {why}")], "seed {seed}");
             assert_eq!(verdict.more, 0);
         }

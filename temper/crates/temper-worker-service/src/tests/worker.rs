@@ -141,6 +141,7 @@ fn an_assignment_with_items_reaches_the_root_decoded_with_its_save() {
     };
     let mut expected = fixtures::one_repository();
     expected.repositories[0].save = Some(b"temper/saved-7".as_slice().into());
+    expected.repositories[0].qualified = Some("acme/app".into());
     assert_eq!(items.unwrap(), expected);
     assert!(assignment.assignment.save);
     assert_eq!(assignment.assignment.workspace.unwrap().workstream, 7);

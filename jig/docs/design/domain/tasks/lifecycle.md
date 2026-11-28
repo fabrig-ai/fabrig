@@ -236,10 +236,6 @@ which may amend, cancel or re-address it. Kept, it stays in the inbox,
 shown waiting on its dependencies, and an answer is refused, naming
 them (8).
 
-## 6. Failures and holds
-
-Moved to [`lifecycle-holds.md`](lifecycle-holds.md), section 1.
-
 ## 7. Results
 
 - **Checked twice.** An agent's run checks its result against the
@@ -302,22 +298,6 @@ Moved to [`lifecycle-holds.md`](lifecycle-holds.md), section 1.
   all, its own choice, and one whose bound is smaller than the words
   keeps their beginning (the standard's holds them whole).
 
-## 8. Kept by a dependency
-
-Moved to [`lifecycle-endings.md`](lifecycle-endings.md), section 1.
-
-## 9. Ended by its requester
-
-Moved to [`lifecycle-endings.md`](lifecycle-endings.md), section 2.
-
-## 10. Placed holds: owners, modes and scopes
-
-Moved to [`lifecycle-holds.md`](lifecycle-holds.md), section 2.
-
-## 11. Ended by its closer
-
-Moved to [`lifecycle-endings.md`](lifecycle-endings.md), section 3.
-
 ## 12. What is kept of it
 
 A task's phase changes are not kept one by one. What people read of a
@@ -371,6 +351,31 @@ record OpenAttempt { attempt: u64 claimed: option u64 started: option u64 from: 
   that change's time, `end` its run's end where one was heard, `phases`
   that change's position less `from`; and `open_attempt` clears. An
   attempt costs three puts of one row.
+- **Its sources:** an agent task's attempt records what its run was
+  told from, `sources`, from its opening on, so that what a run read can
+  be read back while its row is kept (temper's
+  `temper/docs/design/domain/agent/project-charters.md`, 6):
+  - `build`: the application's build name, at most 64 bytes, as the
+    application gives it at the core's construction and the store's
+    floor keeps it (`../../protocol/store/opening.md`);
+  - `settings`: the settings revision its run is prepared under
+    (`../engine/settings.md`, 3);
+  - `charters` and `source`: the project's set its task records, its
+    revision and its `source`, or 0 and empty
+    (`../engine/project-charters.md`, 4);
+  - `guides`: none until its host reports them, then each guide its
+    agent read, at most one per workspace directory: the workspace's name
+    (`workspace`), the commit its checkout held, the guide's path, each at most
+    256 bytes, the SHA-256 of the bytes read, their count, and whether
+    the read was whole. A report is taken once, for the attempt still
+    open; another, or one for an attempt closed, is dropped. The host
+    sends its report just before the attempt's answer
+    (`../hosts/hub.md`, 2, step 9), so the report steps first, then the
+    end. An attempt
+    whose host never reported keeps none, which reads as unreported,
+    never as no guide.
+  The row carries them as an optional field, its default none, so a row
+  written before them reads with none.
 - **A task restored** whose phase names an attempt its record keeps no
   `open_attempt` for takes `open_attempt { attempt, claimed: none,
   started: none, from: 0, end: none }`; at its close its row is put

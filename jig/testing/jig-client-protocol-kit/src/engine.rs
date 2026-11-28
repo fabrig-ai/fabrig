@@ -437,7 +437,8 @@ pub use jig_client_kit::joint::engine::{held_event, now_event};
 pub fn watcher(event: &core::Event) -> Option<Token> {
     match event {
         core::Event::Watch { watcher, .. } | core::Event::WatchRun { watcher, .. } => Some(*watcher),
-        core::Event::SettingsCommit { .. }
+        core::Event::ProjectCharters(_)
+        | core::Event::SettingsCommit { .. }
         | core::Event::Settling
         | core::Event::Stopping
         | core::Event::Waits { .. }
@@ -463,6 +464,7 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::RunCall { .. }
         | core::Event::RunInput { .. }
         | core::Event::RunText { .. }
+        | core::Event::RunGuides { .. }
         | core::Event::Tasks(_)
         | core::Event::StartRecurring { .. }
         | core::Event::WorkspacePrepared { .. }

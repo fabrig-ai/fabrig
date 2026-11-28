@@ -138,6 +138,16 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         core::Now::NoteBusy { to, key: _ } => {
             relay_call(domain, &env.limits, decision, to, CallAnswer::NoteRefused(jig_domain_notes::Refusal::Busy));
         }
+        core::Now::ProjectChartersRefused { project, revision, fault } => {
+            super::diagnostics::emit(
+                domain,
+                crate::Fact::ProjectCharters(crate::ProjectChartersDiagnostic {
+                    project,
+                    revision,
+                    fault: crate::ProjectChartersFault::Refused(fault),
+                }),
+            );
+        }
         core::Now::RestoreRefused => {
             unreachable!("the engine port reports start refusals with their failure");
         }
@@ -279,6 +289,12 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
     } else {
         Box::new([])
     };
+    let guide_limit = match domain.run_workspaces.get(&task) {
+        Some(prepared) => {
+            u32::try_from(prepared.prepared().workspace.workspace.repositories.len()).expect("bounded workspace")
+        }
+        None => 0,
+    };
     domain.work.push(Work::Core(core::Event::WorkspacePrepared {
         task,
         attempt,
@@ -286,6 +302,7 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
         writes,
         credentials,
         workspace: job_workspace,
+        guide_limit,
     }));
 }
 

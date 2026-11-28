@@ -38,6 +38,7 @@ fn agree(world: &jig_core_world::world::World) {
                 }
                 settings::Record::Revision { history: false, revision } => held.push(revision.head.number),
                 settings::Record::Revision { history: true, .. }
+                | settings::Record::ProjectCharters(_)
                 | settings::Record::Extent { .. }
                 | settings::Record::Charter { .. }
                 | settings::Record::Proposal { .. } => {}

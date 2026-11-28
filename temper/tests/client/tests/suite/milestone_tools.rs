@@ -12,7 +12,7 @@ fn call(front: &mut Joint, root: &mut Root, number: u32, words: &[&[u8]]) -> tem
     let printed = root.agent().printed(number).expect("ctl call answered");
     assert_eq!(printed.status, 0, "call {number}: {}", String::from_utf8_lossy(&printed.stderr));
     temper_client_tools::jig::Printed {
-        file: printed.file,
+        file: printed.file.clone(),
         status: printed.status,
         stdout: printed.stdout.clone(),
         stderr: printed.stderr.clone(),

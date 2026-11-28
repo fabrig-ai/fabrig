@@ -246,7 +246,7 @@ terminal.
    so that a page taller than 900 px lays out at its whole width, as a
    shorter one does (step 7), its profile under the
    scratch directory, with one person. Each page of step 2 is opened
-   from each copy as a `file://` page kept to files (skein/docs/design/testing/browser.md, 5), so
+   from each copy as a `file://` page kept to files (skein/docs/design/testing/browser-vocabulary.md, 1), so
    that every request outside `file://` fails. A page's `Trouble` goes
    to stderr under the page, and the check judges none.
    - **File access** lets a `file://` page read other `file://` URLs,
@@ -269,8 +269,8 @@ terminal.
      is `uncompared`, `its markup doesn't parse as written`. So the k-th
      start tag is the k-th element, and its line is the line it starts
      on. A page whose `Elements` counts any past the kit's
-     `Limits::elements` in either copy (`skein/docs/design/testing/browser.md`,
-     5 and 8), N as the check's browser runs it, 4096 by the kit's
+     `Limits::elements` in either copy (`skein/docs/design/testing/browser-vocabulary.md`, 1,
+     and `skein/docs/design/testing/browser.md`, 8), N as the check's browser runs it, 4096 by the kit's
      default, is `uncompared`, `too large to compare, over N elements`,
      judged before its names are: its elements past N go unread, so
      its start tags can't all be matched.

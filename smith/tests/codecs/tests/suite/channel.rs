@@ -78,7 +78,7 @@ fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
     assert_eq!(table.magic, *b"smth");
     assert_eq!(smith_channel::KindRule::FORMAT_VERSION, u64::from(smith_channel::wire::VERSION));
     assert_eq!(table.version, smith_channel::wire::VERSION);
-    assert_eq!(table.kinds.len(), 26);
+    assert_eq!(table.kinds.len(), 27);
     for (index, rule) in V14.iter().enumerate() {
         assert!(rule.required, "all initial kinds are required");
         let kind = table.kind(rule.kind).expect("required kind is listed");

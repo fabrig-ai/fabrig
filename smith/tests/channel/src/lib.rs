@@ -37,11 +37,19 @@ pub enum Observation {
     /// The scripted host domain submitted this run's one Start.
     HostStarted,
     /// The kinds the host asked to receive.
-    HostLiveAsked { text: bool, reasoning: bool, input: bool },
+    HostLiveAsked {
+        text: bool,
+        reasoning: bool,
+        input: bool,
+    },
     /// The scripted agent domain issued one durable operation name.
-    AgentIssuedCall { name: smith_host_domain::channel::CallName },
+    AgentIssuedCall {
+        name: smith_host_domain::channel::CallName,
+    },
     /// The scripted host domain supplied one terminal for a live call.
-    HostSettledCall { call: skein_lib::Token },
+    HostSettledCall {
+        call: skein_lib::Token,
+    },
     /// Host completed the opening.
     HostOpened(u16),
     /// Agent completed the opening.
@@ -57,31 +65,71 @@ pub enum Observation {
     /// Agent received a valid Start body.
     AgentStart,
     /// Agent Start kept mount paths, post-transcript answers and credential values below the domain.
-    AgentContext { path: Box<[u8]>, answered: usize, window: u32 },
+    AgentContext {
+        path: Box<[u8]>,
+        answered: usize,
+        window: u32,
+    },
     /// The agent received a grant name and relative validity without its value.
-    AgentGrant { account: u32, generation: u64, valid: skein_lib::Duration },
+    AgentGrant {
+        account: u32,
+        generation: u64,
+        valid: skein_lib::Duration,
+    },
     /// The host's renewal availability reached the domain.
-    AgentRenewals { held: bool },
+    AgentRenewals {
+        held: bool,
+    },
     /// An already installed generation reached the domain without another installation.
-    AgentGrantResent { account: u32, generation: u64 },
+    AgentGrantResent {
+        account: u32,
+        generation: u64,
+    },
     /// A settled oversized answer survived Start translation.
     AgentSavedTooLarge,
     /// A saved host decision reached the domain vocabulary with its stable name.
-    AgentSavedHost { activation: u64, tool: Box<[u8]>, text: Box<[u8]>, error: bool },
+    AgentSavedHost {
+        activation: u64,
+        tool: Box<[u8]>,
+        text: Box<[u8]>,
+        error: bool,
+    },
     /// Host's sender label and message text reached the agent's domain face.
-    AgentMessage { finish_requested: bool, name: skein_lib::Token, label: Box<[u8]>, text: Box<[u8]> },
+    AgentMessage {
+        finish_requested: bool,
+        name: skein_lib::Token,
+        label: Box<[u8]>,
+        text: Box<[u8]>,
+    },
     /// The host saw the run wait after reading a named message.
-    HostWaiting { read: Option<skein_lib::Token> },
+    HostWaiting {
+        read: Option<skein_lib::Token>,
+    },
     /// The host received a long operation's bounded span.
-    HostLong { operation: smith_domain::Operation, span: skein_lib::Duration },
+    HostLong {
+        operation: smith_domain::Operation,
+        span: skein_lib::Duration,
+    },
     /// The host received the end of the long operation.
     HostLongDone,
     /// The agent left a termination signal to its host.
-    HostSignalled { signal: smith_host_domain::parent::Signal, from: Option<u32> },
+    HostSignalled {
+        signal: smith_host_domain::parent::Signal,
+        from: Option<u32>,
+    },
     /// A named message ended refused at the agent ingress.
-    HostMessageRefused { name: Token, reason: smith_host_domain::MessageRefusal },
+    HostMessageRefused {
+        name: Token,
+        reason: smith_host_domain::MessageRefusal,
+    },
     /// The host received a numbered durable transcript body.
-    HostTurn { number: u32, spent: u64, read: Option<skein_lib::Token>, opens_window: bool, body: Box<[u8]> },
+    HostTurn {
+        number: u32,
+        spent: u64,
+        read: Option<skein_lib::Token>,
+        opens_window: bool,
+        body: Box<[u8]>,
+    },
     /// A checked live piece reached the host owner.
     HostLive {
         turn: u32,
@@ -92,15 +140,35 @@ pub enum Observation {
         call: Option<smith_channel::LiveCall>,
     },
     /// A best-effort content-free fact reached the host.
-    HostFact { kind: smith_channel::FactKind, elapsed: skein_lib::Duration, count: u64 },
+    HostPrepared {
+        guides: Box<[smith_host_domain::Guide]>,
+    },
+    HostFact {
+        kind: smith_channel::FactKind,
+        elapsed: skein_lib::Duration,
+        count: u64,
+    },
     /// The host received a credential rejection notice.
-    HostUnauthorized { account: u32, generation: u64 },
+    HostUnauthorized {
+        account: u32,
+        generation: u64,
+    },
     /// The host received one allowance window.
-    HostUsage { account: u32, window: smith_host_domain::UsageWindow },
+    HostUsage {
+        account: u32,
+        window: smith_host_domain::UsageWindow,
+    },
     /// The host received an account exhaustion notice.
-    HostLimited { account: u32, reset: Option<skein_lib::Duration> },
+    HostLimited {
+        account: u32,
+        reset: Option<skein_lib::Duration>,
+    },
     /// The host received an account refusal without any credential.
-    HostRefused { account: u32, code: Box<[u8]>, reason: Box<[u8]> },
+    HostRefused {
+        account: u32,
+        code: Box<[u8]>,
+        reason: Box<[u8]>,
+    },
     /// The agent received the host's one polite cancellation.
     AgentCancel,
     /// Host asked for the current turn to finish whole.
@@ -108,7 +176,10 @@ pub enum Observation {
     /// A nonempty drain grace carried to the agent.
     AgentDrainGrace(skein_lib::Duration),
     /// A checked part delivered to the host.
-    HostPart { number: u32, turn: u32 },
+    HostPart {
+        number: u32,
+        turn: u32,
+    },
     /// A part prefix kept by the host.
     AgentPartKept(u32),
     /// The agent's write stream failed while its read side may continue.
@@ -116,7 +187,9 @@ pub enum Observation {
     /// The host's write stream failed while its read side may continue.
     HostWriteFailed,
     /// The agent received exact durable commitment for one turn.
-    AgentAcknowledged { turn: u32 },
+    AgentAcknowledged {
+        turn: u32,
+    },
     /// The host received one named call with its deadline and metadata.
     HostCall {
         call: skein_lib::Token,
@@ -125,23 +198,46 @@ pub enum Observation {
         ask: Box<smith_host_domain::channel::Ask>,
     },
     /// The host received a withdrawal for a live call.
-    HostWithdraw { call: skein_lib::Token },
+    HostWithdraw {
+        call: skein_lib::Token,
+    },
     /// The agent received the host tool's settled terminal under its relay.
-    AgentHostReturned { relay: smith_domain::run::RelayName, reply: smith_domain::run::HostReply },
+    AgentHostReturned {
+        relay: smith_domain::run::RelayName,
+        reply: smith_domain::run::HostReply,
+    },
     /// The agent received a checked delivery terminal.
-    AgentDelivered { owner: skein_lib::Token, delivery: Box<smith_domain::run::Delivery> },
+    AgentDelivered {
+        owner: skein_lib::Token,
+        delivery: Box<smith_domain::run::Delivery>,
+    },
     /// A delivery frame did not enter the stream.
-    AgentDeliveryUnsent { owner: skein_lib::Token },
+    AgentDeliveryUnsent {
+        owner: skein_lib::Token,
+    },
     /// Host received an invalid Start answer.
-    InvalidStart { why: smith_channel::InvalidStart, turns: u32, spent: u64 },
+    InvalidStart {
+        why: smith_channel::InvalidStart,
+        turns: u32,
+        spent: u64,
+    },
     /// Host received admission before the final answer.
     HostAdmitted,
     /// Host received the agent's parked last word.
-    HostParked { turns: u32, spent: u64 },
+    HostParked {
+        turns: u32,
+        spent: u64,
+    },
     /// The host received the agent's one final answer envelope.
-    HostAnswer { turns: u32, spent: u64 },
+    HostAnswer {
+        turns: u32,
+        spent: u64,
+    },
     /// Agent translated a saved turn into concrete session history.
-    AgentHistory { turns: usize, place: u32 },
+    AgentHistory {
+        turns: usize,
+        place: u32,
+    },
     /// A saved turn could not enter the domain as concrete history.
     TranscriptFailed(smith_channel::TranscriptRefusal),
 }
@@ -384,6 +480,9 @@ impl Peer {
                 }
                 host::Received::Live { turn, retry, kind, offset, bytes, call } => {
                     output.push(Observation::HostLive { turn, retry, kind, offset, bytes, call });
+                }
+                host::Received::Message { message: smith_host_domain::Up::Prepared { guides } } => {
+                    output.push(Observation::HostPrepared { guides });
                 }
                 host::Received::Message { message: smith_host_domain::Up::Fact { body } } => {
                     let fact =
