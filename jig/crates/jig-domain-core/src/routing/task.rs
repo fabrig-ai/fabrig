@@ -419,6 +419,9 @@ fn tag_tasks(
             super::run::calls::call_decision(core, out, ReplyTo::new(request), key, part);
         }
         tasks::Request::Released { revision } => terminals::released(core, env, revision, out),
+        tasks::Request::ReleasedProjectCharters { project, revision } => {
+            core.release_project_charters(project, revision, out);
+        }
         tasks::Request::Erase { key } => terminals::erase(key, out),
         tasks::Request::Relay { task, .. } => terminals::relay(core, env, task, out),
         tasks::Request::PersonProposed { reply_to, proposal } => {

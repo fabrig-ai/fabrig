@@ -258,6 +258,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         suspended: 0,
         restarted: false,
         settings: tasks::SettingsRevision { task: 1, run: None },
+        charters: 0,
         added: Box::new([]),
         hold_bound_since: None,
         label: 0,

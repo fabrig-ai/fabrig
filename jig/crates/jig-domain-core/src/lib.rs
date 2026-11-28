@@ -107,6 +107,7 @@ pub use crate::{
     },
     settings::{
         charters::{Charter, CharterPart, Document},
+        project_charters::{ProjectCharter, ProjectCharters, ProjectChartersFault},
         templates::Template,
     },
     start::{Census, HeldLimit, Linked, ReadResults, Restore, RestoreRange, restore_cursor},
@@ -211,6 +212,7 @@ pub struct Core {
     pub(crate) relaying: Map<u64, PendingRelay>,
     /// Configured project identifiers for bootstrap.
     pub projects: List<u32>,
+    project_charter_sets: Map<(u32, u64), ProjectCharters>,
     pub current: settings::Current,
     pub(crate) held: settings::Held,
     pub(crate) hub_turns: u32,
@@ -528,10 +530,15 @@ impl Core {
                     current.newest(),
                     charters::models(&current, &config.settings, limits),
                     charters::efforts(&config.settings),
-                );
+                )
+                .with_project_charter_capacity(limits.authority.projects);
                 tasks.set_kept_starts(config.kept_starts);
                 tasks
             },
+            project_charter_sets: Map::with_capacity(
+                jig_domain_core_vocabulary::settings::project_charters::capacity(limits)
+                    .expect("project charter bound"),
+            ),
             current,
             held: settings::Held::new(limits),
             hub_turns: config.hub_turns,

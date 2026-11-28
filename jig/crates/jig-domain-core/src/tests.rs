@@ -15,6 +15,7 @@ mod jobs;
 mod limits;
 #[path = "tests/person_task.rs"]
 mod person_task_stories;
+mod project_charters;
 mod reads;
 mod reports;
 mod routing;

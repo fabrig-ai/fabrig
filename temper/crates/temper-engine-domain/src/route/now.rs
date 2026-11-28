@@ -138,6 +138,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         core::Now::NoteBusy { to, key: _ } => {
             relay_call(domain, &env.limits, decision, to, CallAnswer::NoteRefused(jig_domain_notes::Refusal::Busy));
         }
+        core::Now::ProjectChartersRefused { .. } => {}
         core::Now::RestoreRefused => {
             unreachable!("the engine port reports start refusals with their failure");
         }

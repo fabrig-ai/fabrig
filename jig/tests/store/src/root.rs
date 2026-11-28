@@ -352,6 +352,7 @@ pub fn live_task(number: u64) -> core::Record {
         restarted: false,
         placed: None,
         settings: tasks::SettingsRevision { task: 1, run: None },
+        charters: 0,
         added: Box::new([]),
         hold_bound_since: None,
         kept_account: None,

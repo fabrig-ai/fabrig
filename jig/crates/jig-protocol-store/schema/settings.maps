@@ -147,4 +147,6 @@ record Changed by hand
 record Revision by hand
 record Extent by hand
 record CharterVersion = v::CharterVersion { charter boxed, overlay boxed }
+record ProjectCharter = v::ProjectCharter { parts slice }
+record ProjectCharters by hand
 record Proposal by hand

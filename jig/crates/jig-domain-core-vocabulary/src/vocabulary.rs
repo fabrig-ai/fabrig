@@ -418,6 +418,12 @@ pub enum LinkNow {
 /// Core output that follows no mutation.
 #[derive(Hash, Debug)]
 pub enum Now {
+    /// The application's charter set was refused whole.
+    ProjectChartersRefused {
+        project: u32,
+        revision: u64,
+        fault: crate::ProjectChartersFault,
+    },
     PartBusy {
         key: crate::PartKey,
     },
@@ -681,6 +687,8 @@ pub struct CoreBriefBudgets {
 /// One event routed to a child of the core.
 #[derive(Hash, Debug)]
 pub enum Event {
+    /// Install the application's new project charter set.
+    ProjectCharters(crate::ProjectCharters),
     /// Replace the live procedure's wait report. Empty clears it; at most four waits and
     /// four things per wait (jig/docs/design/domain/engine/waits.md, 6).
     Waits { connector: u16, task: u64, waits: List<crate::Reported> },
@@ -1114,7 +1122,8 @@ impl Event {
             | Self::StartRecurring { .. }
             | Self::Period { .. }
             | Self::NamedAction { .. } => true,
-            Self::SettingsCommit { .. }
+            Self::ProjectCharters(_)
+            | Self::SettingsCommit { .. }
             | Self::Settling
             | Self::Stopping
             | Self::Waits { .. }

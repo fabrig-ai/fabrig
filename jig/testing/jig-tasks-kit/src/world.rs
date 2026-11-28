@@ -481,6 +481,7 @@ impl World {
         tasks::step(&mut self.domain, &self.env, Event::PersonStallNotice { task, message, offer }, &mut self.out);
     }
 
+    #[expect(clippy::too_many_lines, reason = "the task world classifies every child output")]
     fn route_hint(&mut self, request: &Request) {
         match request {
             Request::PersonStallDue { task } => self.person_stall_due(*task),
@@ -580,6 +581,7 @@ impl World {
             | Request::Erase { .. }
             | Request::MovedToNewest { .. }
             | Request::Released { .. }
+            | Request::ReleasedProjectCharters { .. }
             | Request::RestoreRefused { .. } => {}
         }
     }
@@ -963,6 +965,7 @@ impl World {
                 | Request::Release { .. }
                 | Request::MovedToNewest { .. }
                 | Request::Released { .. }
+                | Request::ReleasedProjectCharters { .. }
                 | Request::RestoreRefused { .. }
                 | Request::EscalationNeeded { .. }
                 | Request::EscalationsInspected { .. }
@@ -1094,6 +1097,7 @@ impl World {
                 | Request::ResolveUncertain { .. }
                 | Request::MovedToNewest { .. }
                 | Request::Released { .. }
+                | Request::ReleasedProjectCharters { .. }
                 | Request::Release { .. } => {}
                 Request::EndTopic { task, subscription, connector } => {
                     self.ended_topics.push((task, subscription, connector));

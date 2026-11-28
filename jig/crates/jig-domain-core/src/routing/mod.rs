@@ -602,6 +602,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             digest,
             *change,
         ),
+        Event::ProjectCharters(set) => core.take_project_charters(&env.limits, set),
         Event::SettingsCommit { room } => core.commit_restored_settings(env, room.saturating_sub(1)),
         Event::Settling => {
             core.settling = true;

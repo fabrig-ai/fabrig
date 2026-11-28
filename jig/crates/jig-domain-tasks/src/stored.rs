@@ -71,6 +71,7 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
                 Executor::Person(_) | Executor::Procedure { .. } | Executor::Job { .. } => {}
             }
             crate::settings::hold(domain, &task);
+            crate::project_charters::hold(domain, &task);
             let mut restored = Task::new(*task);
             restored.observed_phase = Some(restored.record.phase.clone());
             restored.observed_hold = observed_hold;

@@ -11,6 +11,8 @@ pub mod names;
 pub mod overlays;
 mod overrides;
 pub use overrides::{OVERRIDE_NAME_BYTES, OVERRIDE_REASON_BYTES, OVERRIDES, Override, OverrideFault, check_overrides};
+pub mod project_charters;
+pub use project_charters::{ProjectCharter, ProjectCharters, ProjectChartersFault};
 pub mod providers;
 pub mod revisions;
 pub mod templates;
@@ -393,6 +395,7 @@ pub enum Key {
     Charter { charter: u32, revision: u32 },
     Proposal { proposer: people::Proposer, proposal: u32 },
     Extent,
+    ProjectCharters { project: u32, revision: u64 },
     History(u32),
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -717,6 +720,7 @@ pub enum Record {
     Application { setting: Setting, state: application::State },
     Revision { history: bool, revision: Revision },
     Extent { oldest: u32, keys: u64 },
+    ProjectCharters(ProjectCharters),
     Charter { charter: u32, revision: u32, value: CharterVersion },
     Proposal { proposer: people::Proposer, proposal: u32, value: Proposal },
 }
@@ -734,6 +738,7 @@ impl Record {
                 }
             }
             Self::Extent { .. } => Key::Extent,
+            Self::ProjectCharters(set) => Key::ProjectCharters { project: set.project, revision: set.revision },
             Self::Charter { charter, revision, .. } => Key::Charter { charter: *charter, revision: *revision },
             Self::Proposal { proposer, proposal, .. } => Key::Proposal { proposer: *proposer, proposal: *proposal },
         }
@@ -818,7 +823,9 @@ pub fn revision_bound(limits: &crate::Limits) -> Option<u64> {
 }
 
 /// The first start or a revision's largest write set, including its deployment
-/// header, one steady-state history erase and a list's account record (domain/engine/settings-store.md, 1, domain/engine/settings-catalogue.md, 2).
+/// header, one steady-state history erase, a list's account record, and room
+/// for startup's project charter erasures (domain/engine/settings-store.md, 1;
+/// domain/engine/settings-catalogue.md, 2; domain/engine/project-charters.md, 3 and 8).
 #[must_use]
 pub fn writes_bound(limits: &crate::Limits) -> Option<u32> {
     let count = capacity(limits)?;
@@ -830,6 +837,7 @@ pub fn writes_bound(limits: &crate::Limits) -> Option<u32> {
         .max(count.checked_mul(4)?.checked_add(8)?.checked_add(limits.settings.versions.checked_mul(2)?)?)
         .checked_add(withdrawal_writes(limits)?)?
         .checked_add(move_writes(limits)?)?
+        .checked_add(limits.authority.projects)?
         .checked_add(limits.people.holdings.checked_mul(2)?.checked_add(2)?)?
         .checked_add(1)
 }
@@ -869,10 +877,17 @@ pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
     heads.into_boxed()
 }
 
-/// One decision copies/erases each old head, drops each version, and saves one extent.
+/// One decision copies/erases each old head, drops each version, saves one
+/// extent, and can release one project charter set per live task.
 #[must_use]
 pub fn release_writes(limits: &crate::Limits) -> Option<u32> {
-    limits.settings.revisions.checked_mul(2)?.checked_add(limits.settings.versions)?.checked_add(1)
+    limits
+        .settings
+        .revisions
+        .checked_mul(2)?
+        .checked_add(limits.settings.versions)?
+        .checked_add(1)?
+        .checked_add(limits.tasks.tasks)
 }
 
 /// Each moved live record and at most two projection rows, plus release cleanup.

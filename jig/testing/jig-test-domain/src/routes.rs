@@ -347,7 +347,8 @@ fn route_now(
         | core::Now::RunText { .. }
         | core::Now::NotesIndexed { .. }
         | core::Now::NotesRecalled { .. }
-        | core::Now::NotesRefused { .. }) => domain.now.push(crate::Request::Now(other)),
+        | core::Now::NotesRefused { .. }
+        | core::Now::ProjectChartersRefused { .. }) => domain.now.push(crate::Request::Now(other)),
     }
 }
 

@@ -124,6 +124,7 @@ pub enum LiveSet {
     Calls,
     Parts,
     Projections,
+    ProjectCharters,
     Conversations,
     Census,
     PeopleBound(people::RestoreBound),
@@ -202,7 +203,8 @@ impl RestoreRange {
                         | crate::settings::Key::Held(_)
                         | crate::settings::Key::Charter { .. }
                         | crate::settings::Key::Proposal { .. }
-                        | crate::settings::Key::Extent => true,
+                        | crate::settings::Key::Extent
+                        | crate::settings::Key::ProjectCharters { .. } => true,
                     }
             }
             Key::Core(crate::CoreKey::Deployment) => *self == Self::Deployment,

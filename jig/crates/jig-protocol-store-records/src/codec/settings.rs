@@ -80,6 +80,12 @@ pub(in crate::codec) const EMPTY: wire::Limits = wire::Limits {
     charter_parts: 0,
     charter_setting_name_some: 0,
     charter_part_instructions: 0,
+    project_charter_name: 0,
+    project_charter_settings: 0,
+    project_charter_instructions: 0,
+    project_charter_parts: 0,
+    project_charters_source: 0,
+    project_charters_charters: 0,
     last_exact_bytes: 0,
     last_open_bytes: 0,
     pattern_segments: 0,
@@ -635,6 +641,9 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
     limits.charter_documents = domain.tasks.charter_documents;
     limits.charter_parts = domain.tasks.charter_parts;
     limits.charter_part_instructions = domain.run_bytes;
+    limits.project_charter_instructions = domain.run_bytes;
+    limits.project_charter_parts = domain.tasks.charter_parts;
+    limits.project_charters_charters = domain.tasks.charters;
     limits.llm_later_subagents = tasks::MODELS;
     limits.document_name = domain.authority.segments;
     limits.document_path = core::DOCUMENT_PATH_BYTES;
@@ -716,6 +725,7 @@ pub fn encode(
             value.encode(limits)
         }
         settings::Record::Charter { value, .. } => encode_version(value, limits),
+        settings::Record::ProjectCharters(set) => encode_project_charters(set, limits),
         settings::Record::Proposal { value, .. } => {
             let value = encode_proposal(value, limits, names)?;
             value.encode(limits)
@@ -760,6 +770,7 @@ pub fn decode(
                 | settings::Key::Changed(_)
                 | settings::Key::Charter { .. }
                 | settings::Key::Proposal { .. }
+                | settings::Key::ProjectCharters { .. }
                 | settings::Key::Extent => unreachable!("revision key"),
             };
             settings::Record::Revision {
@@ -771,6 +782,9 @@ pub fn decode(
             let wire::Extent { oldest, keys } = wire::Extent::decode(limits, &mut reader)?;
             settings::Record::Extent { oldest, keys }
         }
+        settings::Key::ProjectCharters { project, revision } => settings::Record::ProjectCharters(
+            decode_project_charters(*project, *revision, wire::ProjectCharters::decode(limits, &mut reader)?)?,
+        ),
         settings::Key::Charter { charter, revision } => {
             settings::Record::Charter { charter: *charter, revision: *revision, value: decode_version(bytes, limits)? }
         }
@@ -780,6 +794,28 @@ pub fn decode(
             value: decode_proposal(wire::Proposal::decode(limits, &mut reader)?, limits, names)?,
         },
     })
+}
+
+fn encode_project_charters(set: &settings::ProjectCharters, limits: &wire::Limits) -> Result<Box<[u8]>, wire::Problem> {
+    let mut charters = List::with_capacity(limits.project_charters_charters);
+    for charter in &set.charters {
+        if charters.push(maps::project_charter_to_record(charter)?).is_err() {
+            return Err(bound());
+        }
+    }
+    wire::ProjectCharters { source: set.source.clone(), charters }.encode(limits)
+}
+
+fn decode_project_charters(
+    project: u32,
+    revision: u64,
+    set: wire::ProjectCharters,
+) -> Result<settings::ProjectCharters, wire::Problem> {
+    let mut charters = List::with_capacity(set.charters.len());
+    for charter in set.charters.into_boxed() {
+        charters.push(maps::project_charter_to_domain(charter)?).expect("decoded charter count");
+    }
+    Ok(settings::ProjectCharters { project, revision, source: set.source, charters: charters.into_boxed() })
 }
 
 // Like the people family's live policy rows, settings remember the catalogue's

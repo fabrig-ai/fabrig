@@ -754,25 +754,10 @@ fn charter_fault(setting: Setting, charter: &crate::Charter, limits: &Limits) ->
 /// The parts' shape and stored policy bound also hold for restored values
 /// (jig/docs/design/protocol/limits.md; jig/docs/design/domain/tasks/messages.md, 6).
 fn parts_fault(setting: Setting, charter: &crate::Charter, limits: &Limits) -> Option<Failure> {
-    if charter.parts.len() > skein_lib::length::usize_of(limits.tasks.charter_parts) {
-        return Some(Failure { setting, fault: Fault::Count, detail: None });
-    }
-    for part in &charter.parts {
-        if part.on.is_empty() || !part.on.is_known() {
-            return Some(Failure { setting, fault: Fault::Shape, detail: None });
-        }
-    }
-    let bytes = match crate::limits::policy_owned_bytes(&charter.policy) {
-        Some(policy) => match crate::limits::parts_owned_bytes(&charter.parts) {
-            Some(parts) => policy.checked_add(parts),
-            None => None,
-        },
-        None => None,
-    };
-    let supplied = match bytes {
-        Some(bytes) if bytes <= u64::from(limits.run_bytes) => return None,
-        Some(bytes) => u32::try_from(bytes).unwrap_or(u32::MAX),
-        None => u32::MAX,
+    let supplied = match words_fault(&charter.parts, crate::limits::policy_owned_bytes(&charter.policy), limits)? {
+        WordsFault::Parts => return Some(Failure { setting, fault: Fault::Count, detail: None }),
+        WordsFault::Reasons => return Some(Failure { setting, fault: Fault::Shape, detail: None }),
+        WordsFault::Bytes { supplied } => supplied,
     };
     Some(Failure {
         setting,
@@ -787,6 +772,32 @@ fn parts_fault(setting: Setting, charter: &crate::Charter, limits: &Limits) -> O
         }),
     })
 }
+pub(super) enum WordsFault {
+    Parts,
+    Reasons,
+    Bytes { supplied: u32 },
+}
+
+pub(super) fn words_fault(parts: &[crate::CharterPart], policy: Option<u64>, limits: &Limits) -> Option<WordsFault> {
+    if parts.len() > skein_lib::usize_of(limits.tasks.charter_parts) {
+        return Some(WordsFault::Parts);
+    }
+    for part in parts {
+        if part.on.is_empty() || !part.on.is_known() {
+            return Some(WordsFault::Reasons);
+        }
+    }
+    let bytes = match (policy, crate::limits::parts_owned_bytes(parts)) {
+        (Some(policy), Some(parts)) => policy.checked_add(parts),
+        (None, _) | (_, None) => None,
+    };
+    match bytes {
+        Some(bytes) if bytes <= u64::from(limits.run_bytes) => None,
+        Some(bytes) => Some(WordsFault::Bytes { supplied: u32::try_from(bytes).unwrap_or(u32::MAX) }),
+        None => Some(WordsFault::Bytes { supplied: u32::MAX }),
+    }
+}
+
 fn contract_fault(contract: &tasks::Contract, connectors: &[u16]) -> Option<Fault> {
     match contract {
         tasks::Contract::Job { .. } => return Some(Fault::Reference),

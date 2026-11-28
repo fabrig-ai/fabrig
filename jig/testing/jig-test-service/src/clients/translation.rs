@@ -65,6 +65,7 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::BriefFailed { .. }
         | core::Now::RunPrepared { .. }
         | core::Now::PartBusy { .. }
+        | core::Now::ProjectChartersRefused { .. }
         | core::Now::RestoreRefused => None,
     }
 }

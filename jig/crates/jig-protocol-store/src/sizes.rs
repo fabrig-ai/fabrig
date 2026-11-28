@@ -1,6 +1,6 @@
 //! Checked store admission bounds (protocol/store/records.md, 4, and protocol/store/commits.md, 1, and protocol/store/README.md, 8).
 use crate::tasks_v13::Record as _;
-use crate::{accounts_v2, codec, component_v3, core_v6, notes_v1, openings_v3, people_v17, tasks_v13};
+use crate::{accounts_v2, codec, component_v3, core_v6, notes_v1, openings_v3, people_v17, settings_v3, tasks_v13};
 use jig_domain_core_vocabulary as core;
 
 /// Decoded byte allowance for a two-row restart page (protocol/store/loads.md, 2).
@@ -25,20 +25,34 @@ pub fn frame(domain: &core::Limits, transcript_bytes: u32) -> Option<u32> {
     body.checked_add(17) // skein-kv's uncompressed payload-log framing (skein's data/kv.md, 6.1)
 }
 
-/// Settings history with replaced values, framing and the model-name table
-/// (protocol/store/records.md, 4).
+/// Settings history with replaced values, framing and the model-name table,
+/// or a whole project charter set (protocol/store/records.md, 4;
+/// jig/docs/design/domain/engine/project-charters.md, 6 and 8).
 #[must_use]
 pub fn settings_value(domain: &core::Limits) -> Option<u32> {
-    u32::try_from(
+    let history =
         core::settings::revision_bound(domain)?.checked_add(16)?.checked_add(
             u64::from(jig_domain_tasks::MODELS)
                 .checked_mul(u64::from(core::MODEL_NAME_BYTES).checked_add(4)?.checked_add(4)?.checked_add(
                     u64::from(core::EFFORTS).checked_mul(u64::from(core::EFFORT_BYTES).checked_add(4)?)?,
                 )?)?
                 .checked_add(4)?,
-        )?,
-    )
-    .ok()
+        )?;
+    u32::try_from(history.max(project_charter_value(domain)?)).ok()
+}
+
+fn project_charter_value(domain: &core::Limits) -> Option<u64> {
+    // Instructions and all part text share one run-bytes allowance. Add the
+    // wire framing separately rather than charging the text once per part.
+    let name_bytes = u64::from(jig_domain_people::settings::NAME_BYTES).checked_mul(2)?;
+    let parts = u64::from(domain.tasks.charter_parts).checked_mul(settings_v3::CharterPart::ENCODED_AT_ZERO)?;
+    let charter = settings_v3::ProjectCharter::ENCODED_AT_ZERO
+        .checked_add(name_bytes)?
+        .checked_add(parts)?
+        .checked_add(u64::from(domain.run_bytes))?;
+    settings_v3::ProjectCharters::ENCODED_AT_ZERO
+        .checked_add(u64::from(core::settings::project_charters::SOURCE_BYTES))?
+        .checked_add(u64::from(domain.tasks.charters).checked_mul(charter)?)
 }
 
 /// Largest whole manifest: 88 fixed bytes, plus a length and two counts

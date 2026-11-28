@@ -66,6 +66,7 @@ pub use crate::{
     },
     settings::{
         charters::{Charter, CharterPart, Document},
+        project_charters::{ProjectCharter, ProjectCharters, ProjectChartersFault},
         templates::Template,
     },
     start::{Census, HeldLimit, Linked, ReadResults, Restore, RestoreRange, restore_cursor},

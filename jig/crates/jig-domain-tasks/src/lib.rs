@@ -121,6 +121,7 @@ pub use questions::ANSWER_NOTICE_BYTES;
 mod person;
 mod person_proposals;
 mod procedure;
+mod project_charters;
 mod proposals;
 mod recurring;
 mod refs;

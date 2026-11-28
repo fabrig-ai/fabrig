@@ -74,6 +74,8 @@ pub struct Domain {
     pub(crate) newest: u32,
     pub(crate) kept: crate::Kept,
     pub(crate) holders: Map<u32, u32>,
+    pub(crate) project_charters: Map<u32, u64>,
+    pub(crate) project_charter_holders: Map<(u32, u64), u32>,
     pub(crate) stubs: Map<u64, crate::Stub>,
     pub(crate) alarms: Deadlines<u64>,
     pub(crate) grace_alarms: Deadlines<u64>,
@@ -280,6 +282,8 @@ impl Domain {
             newest,
             kept,
             holders: Map::with_capacity(kept.revisions.checked_add(1).expect("revision bound")),
+            project_charters: Map::with_capacity(0),
+            project_charter_holders: Map::with_capacity(limits.tasks),
             stubs: Map::with_capacity(crate::limits::stub_capacity(limits).expect("valid stub bound")),
             alarms: Deadlines::with_capacity(limits.tasks),
             grace_alarms: Deadlines::with_capacity(limits.tasks),
@@ -1734,6 +1738,7 @@ pub(crate) fn make_admitted(
             restarted: false,
             placed: None,
             settings: crate::SettingsRevision { task: domain.newest, run: None },
+            charters: domain.newest_project_charters(new.project),
             label: new.label,
             flags: new.flags,
             last_activity: env.wall,
@@ -1828,6 +1833,7 @@ pub(crate) fn make_admitted(
             }
             crate::Executor::Person(_) | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => {}
         }
+        crate::project_charters::hold(domain, &task.record);
         let id = domain.tasks.insert(task).expect("batch slab room admitted");
         let indexed = domain.names.insert(number, id);
         assert!(indexed == Ok(None), "batch names admitted");

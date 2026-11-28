@@ -289,6 +289,7 @@ record TaskHistory {
     refused: list 128 Number
     grace: option Grace
     settings: SettingsRevision
+    charters: u64 = 0
     revisions: Revisions
     created_at: u64
     changed: u64
@@ -390,6 +391,7 @@ record HotHistory {
     refused: list 128 Number
     grace: option Grace
     settings: SettingsRevision
+    charters: u64 = 0
     revisions: Revisions
     created_at: u64
     changed: u64

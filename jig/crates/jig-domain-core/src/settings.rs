@@ -8,6 +8,7 @@ pub mod charters;
 pub mod check;
 pub mod fleet_needs;
 pub(crate) mod held;
+pub(crate) mod project_sets;
 pub(crate) mod restart;
 pub mod revisions;
 #[cfg(test)]

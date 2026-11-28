@@ -398,6 +398,7 @@ impl Application for OpsApplication {
                 | core::Now::BriefFailed { .. }
                 | core::Now::RunPrepared { .. }
                 | core::Now::PartBusy { .. }
+                | core::Now::ProjectChartersRefused { .. }
                 | core::Now::RestoreRefused,
             )
             | root::Output::IncidentAssociationRefused { .. }

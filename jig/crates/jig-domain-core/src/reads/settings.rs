@@ -868,6 +868,7 @@ pub(super) fn from_store(
                     | settings::Record::Changed { .. }
                     | settings::Record::Charter { .. }
                     | settings::Record::Proposal { .. }
+                    | settings::Record::ProjectCharters(_)
                     | settings::Record::Extent { .. },
                 )
                 | CoreRecord::Deployment(_)

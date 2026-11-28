@@ -837,3 +837,16 @@ fn a_kept_deletion_advances_after_fleet_inputs_and_timers() {
         assert_eq!(loads, 1, "a kept deletion resumes its ended-task walk, timer={timer}");
     }
 }
+
+#[test]
+fn project_erasure_erases_its_newest_charter_set() {
+    use crate::tests::project_charters::{erased, set};
+    let (mut core, limits) = core();
+    let env = environment(&limits);
+    drop(step(&mut core, &env, Event::ProjectCharters(set(1))));
+    assert_eq!(core.project_charters(1), 1);
+    let (_answer, mut out) = begin(&mut core, &limits, 1, None);
+    deletion::tasks_erased(&mut core, &env, &mut out, 1);
+    assert!(erased(&out, 1));
+    assert_eq!(core.project_charters(1), 0);
+}

@@ -150,6 +150,7 @@ impl ClientPeer {
             | core::Now::BriefFailed { .. }
             | core::Now::RunPrepared { .. }
             | core::Now::PartBusy { .. }
+            | core::Now::ProjectChartersRefused { .. }
             | core::Now::RestoreRefused => false,
         }
     }

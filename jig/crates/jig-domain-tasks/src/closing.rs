@@ -329,6 +329,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending,
     ended.room_wait = None;
     crate::placed::ended(domain, env, number, out);
     crate::settings::release(domain, &ended);
+    crate::project_charters::release(domain, &ended, out);
     ended.settings.run = None;
     for subscription in &subscriptions {
         crate::subscriptions::release_timer(domain, *subscription);

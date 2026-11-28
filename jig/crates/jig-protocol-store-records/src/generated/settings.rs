@@ -2991,3 +2991,41 @@ pub fn charter_version_to_domain(record: crate::settings_v3::CharterVersion, con
     })
 }
 
+pub fn project_charter_to_record(value: &jig_domain_core_vocabulary::settings::ProjectCharter) -> Result<crate::settings_v3::ProjectCharter, crate::settings_v3::Problem> {
+    let jig_domain_core_vocabulary::settings::ProjectCharter { name: field_000000, settings: field_000001, instructions: field_000002, parts: field_000003 } = value;
+    Ok(crate::settings_v3::ProjectCharter {
+        name: field_000000.clone(),
+        settings: field_000001.clone(),
+        instructions: field_000002.clone(),
+        parts: {
+            let source = field_000003;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::settings_v3::paths::PROJECT_CHARTER_PARTS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = charter_part_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+pub fn project_charter_to_domain(record: crate::settings_v3::ProjectCharter) -> Result<jig_domain_core_vocabulary::settings::ProjectCharter, crate::settings_v3::Problem> {
+    let crate::settings_v3::ProjectCharter { name: field_000000, settings: field_000001, instructions: field_000002, parts: field_000003 } = record;
+    Ok(jig_domain_core_vocabulary::settings::ProjectCharter {
+        name: field_000000,
+        settings: field_000001,
+        instructions: field_000002,
+        parts: {
+            let source = field_000003;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = charter_part_to_domain(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        }
+    })
+}
+

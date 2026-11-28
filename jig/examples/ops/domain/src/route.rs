@@ -679,6 +679,7 @@ fn core_now(
         | core::Now::RunText { .. }
         | core::Now::NotesIndexed { .. }
         | core::Now::NotesRecalled { .. }
-        | core::Now::NotesRefused { .. }) => now(domain, Output::Now(other)),
+        | core::Now::NotesRefused { .. }
+        | core::Now::ProjectChartersRefused { .. }) => now(domain, Output::Now(other)),
     }
 }

@@ -286,6 +286,7 @@ pub struct TaskRecord {
     pub placed: Option<u64>,
     /// Settings read by this task and its run (domain/engine/settings.md, 3).
     pub settings: SettingsRevision,
+    pub charters: u64,
     /// Opaque application label, immutable after creation.
     pub label: u32,
     /// Immutable engine flags.
@@ -1283,67 +1284,179 @@ pub enum Event {
 pub enum Request {
     /// Numbers recorded, and numbers naming none of this task's unrecorded words
     /// (jig/docs/design/domain/tasks/messages.md, 2).
-    WordsRecorded { reply_to: ReplyTo, task: u64, recorded: Box<[u64]>, unknown: Box<[u64]> },
+    WordsRecorded {
+        reply_to: ReplyTo,
+        task: u64,
+        recorded: Box<[u64]>,
+        unknown: Box<[u64]>,
+    },
     /// Placed hold lifted; count of tasks released from their held phase.
-    Lifted { reply_to: ReplyTo, released: u32 },
+    Lifted {
+        reply_to: ReplyTo,
+        released: u32,
+    },
     /// The selected live agent tasks moved to the newest, and those that could not move.
-    MovedToNewest { moved: u32, stayed: u32 },
+    MovedToNewest {
+        moved: u32,
+        stayed: u32,
+    },
     /// The last live holder of this settings revision ended in this step.
-    Released { revision: u32 },
+    Released {
+        revision: u32,
+    },
+    ReleasedProjectCharters {
+        project: u32,
+        revision: u64,
+    },
     /// Nothing was made: the first failed operation and its owner diagnostic.
-    CompoundRefused { reply_to: ReplyTo, at: u32, problem: Problem },
+    CompoundRefused {
+        reply_to: ReplyTo,
+        at: u32,
+        problem: Problem,
+    },
     /// No part of this procedure step changed task state.
-    ProcedureRefused { task: u64, step: u64, problem: Problem },
+    ProcedureRefused {
+        task: u64,
+        step: u64,
+        problem: Problem,
+    },
     /// The complete requested set became held in this commit.
-    Taken { task: u64, holdings: Box<[Holding]> },
+    Taken {
+        task: u64,
+        holdings: Box<[Holding]>,
+    },
     /// One task entered or changed position in a resource's waiting queue.
-    Waiting { task: u64, resource: Name, place: u32 },
+    Waiting {
+        task: u64,
+        resource: Name,
+        place: u32,
+    },
     /// A writer slot was busy; the caller may pause and retry without a failed attempt.
-    WriterWaiting { reply_to: ReplyTo, task: Option<u64>, resource: Name },
+    WriterWaiting {
+        reply_to: ReplyTo,
+        task: Option<u64>,
+        resource: Name,
+    },
     /// Terminal for one admitted person-origin goal proposal.
-    PersonProposed { reply_to: ReplyTo, proposal: u64 },
+    PersonProposed {
+        reply_to: ReplyTo,
+        proposal: u64,
+    },
     /// Terminal for one person-origin goal decision.
-    PersonProposalDecided { reply_to: Option<ReplyTo>, proposer: u64, number: u64, outcome: crate::ProposalOutcome },
+    PersonProposalDecided {
+        reply_to: Option<ReplyTo>,
+        proposer: u64,
+        number: u64,
+        outcome: crate::ProposalOutcome,
+    },
     /// The core procedure needs one whole root-numbered template batch in this period.
-    RecurringDue { task: u64, period: u64, members: u32 },
+    RecurringDue {
+        task: u64,
+        period: u64,
+        members: u32,
+    },
     /// A changed requester tree asks root to recheck the current proposal recipient from the nearest holder.
-    ProposalRerouteNeeded { proposer: u64, proposal: u64 },
+    ProposalRerouteNeeded {
+        proposer: u64,
+        proposal: u64,
+    },
     /// Root supplies one message number for the elapsed person-task wait.
-    PersonStallDue { task: u64 },
+    PersonStallDue {
+        task: u64,
+    },
     /// A restored wait with a notice may still have a party to pass up to.
-    PersonStallRestored { task: u64 },
+    PersonStallRestored {
+        task: u64,
+    },
     /// One continuation for each asker whose questions ended unanswered.
-    QuestionEndedDue { task: u64, questions: Box<[u64]> },
+    QuestionEndedDue {
+        task: u64,
+        questions: Box<[u64]>,
+    },
     /// Root supplies the next obligation reminder number.
-    QuestionOwedDue { task: u64 },
+    QuestionOwedDue {
+        task: u64,
+    },
     /// Number the always-waking notice for an idle result-ended task.
-    NothingAwaitedDue { task: u64 },
+    NothingAwaitedDue {
+        task: u64,
+    },
     /// Route the change's own wakes before judging the affected parks.
     RecheckStuck,
     /// Finish an exhausted park with words from the core's question cache.
-    QuestionParked { task: u64, question: crate::OpenQuestion, chain: Box<[crate::StuckLink]> },
+    QuestionParked {
+        task: u64,
+        question: crate::OpenQuestion,
+        chain: Box<[crate::StuckLink]>,
+    },
     /// Make the idle task's closer instead of numbering a notice (domain/tasks/lifecycle-endings.md, 3).
-    CloserDue { task: u64 },
+    CloserDue {
+        task: u64,
+    },
     /// Root supplies one message number for the notice that a kept task goes on (domain/tasks/lifecycle-endings.md, 1, and domain/tasks/messages.md, 1).
-    MetDue { task: u64, dependency: u64, removed: bool, by: Party },
+    MetDue {
+        task: u64,
+        dependency: u64,
+        removed: bool,
+        by: Party,
+    },
     /// One nonfinal held decision passed its configured wait.
-    EscalationStalled { task: u64, revision: u64, holder: crate::EscalationHolder },
+    EscalationStalled {
+        task: u64,
+        revision: u64,
+        holder: crate::EscalationHolder,
+    },
     /// One nonfinal holder's wait bound elapsed; root chooses the next holder.
-    ProposalStalled { proposer: u64, proposal: u64, holder: crate::ProposalHolder },
+    ProposalStalled {
+        proposer: u64,
+        proposal: u64,
+        holder: crate::ProposalHolder,
+    },
     /// Exact semantic proposal decision terminal for a named call or keyed person request.
-    ProposalDecided { reply_to: ReplyTo, proposer: u64, number: u64, outcome: crate::ProposalOutcome },
+    ProposalDecided {
+        reply_to: ReplyTo,
+        proposer: u64,
+        number: u64,
+        outcome: crate::ProposalOutcome,
+    },
     /// Root allocates a commit-order message number for this subscribed state change.
-    Notify { task: u64, subscription: u64, target: u64, state: NoticeState, words: Box<[u8]> },
+    Notify {
+        task: u64,
+        subscription: u64,
+        target: u64,
+        state: NoticeState,
+        words: Box<[u8]>,
+    },
     /// Root allocates a commit-order message number for this due timer.
-    Timer { task: u64, subscription: u64 },
+    Timer {
+        task: u64,
+        subscription: u64,
+    },
     /// An ending task releases a connector topic interest in the same decision.
-    EndTopic { task: u64, subscription: u64, connector: u16 },
+    EndTopic {
+        task: u64,
+        subscription: u64,
+        connector: u16,
+    },
     /// Accepted person words; root answers the keyed request after the inbox write commits.
-    Sent { reply_to: ReplyTo, task: u64, word: Word },
+    Sent {
+        reply_to: ReplyTo,
+        task: u64,
+        word: Word,
+    },
     /// Resolve an unrecoverable outbox entry with the release in one decision.
-    ResolveUncertain { task: u64, entry: u64, again: bool },
+    ResolveUncertain {
+        task: u64,
+        entry: u64,
+        again: bool,
+    },
     /// Root relays this whole committed message through the fleet to the current run.
-    Relay { task: u64, attempt: u64, previous: Option<u64>, word: Word },
+    Relay {
+        task: u64,
+        attempt: u64,
+        previous: Option<u64>,
+        word: Word,
+    },
     /// Terminal read-only `SetRoles` preflight; snapshot is owned transient root
     /// context, not retained state.
     EscalationsInspected {
@@ -1454,7 +1567,10 @@ pub enum Request {
         ending: Ending,
     },
     /// Ask root to release this task's resources after prior effects settle.
-    Release { task: u64, ending: Ending },
+    Release {
+        task: u64,
+        ending: Ending,
+    },
     /// One newly ended requester-identified notification emitted with the ended record and exact
     /// financial posting; current root exposes person result notices, with no task-requester inbox
     /// route or child delivery credit.
