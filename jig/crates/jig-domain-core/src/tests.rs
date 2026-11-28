@@ -4304,7 +4304,8 @@ fn finishing_inspects_membership_role_and_query_visibility_without_clocks() {
 
 #[test]
 fn projection_readiness_shares_generation_restore_and_pending_connector_rules() {
-    let (mut core, limits) = make_tree();
+    let (core, limits) = tree_core_with_capabilities(Box::new([]), Box::new([]), &[], &[1]);
+    let mut core = make_tree_in(core, &limits);
     core.counters.next_commit();
     assert!(core.finish_owed());
     finish_watch_outputs(&mut core, &limits);
@@ -4347,7 +4348,7 @@ fn projection_readiness_shares_generation_restore_and_pending_connector_rules() 
     assert!(core.tasks.task(1).unwrap().tracked.is_none());
     assert!(core.finish_owed());
     finish_watch_outputs(&mut core, &limits);
-    assert!(!core.projections.get(&1).unwrap().pending.is_empty());
+    assert_eq!(core.projections.get(&1).unwrap().pending.as_ref(), &[1]);
     assert!(!core.finish_owed(), "an untracked goal waits on its closing connectors first");
     core.projections.get_mut(&1).unwrap().changed = true;
     assert!(!core.finish_owed(), "pending connectors take precedence over changed");

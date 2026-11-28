@@ -546,7 +546,8 @@ fn failures_past_the_tries_hold_without_an_inbox_until_cancelled() {
 fn ending_summary_keeps_the_core_assigned_result_position() {
     let (mut core, env) = fixture();
     let task = make_person(&mut core, &env);
-    drop(step(
+    // Without effect declarers, cancellation settles in this step.
+    let out = step(
         &mut core,
         &env,
         Event::Tasks(tasks::Event::Cancel {
@@ -554,9 +555,7 @@ fn ending_summary_keeps_the_core_assigned_result_position() {
             by: tasks::Party::Deployment { project: PROJECT },
             operation: tasks::Cancel { task, reason: Box::new([]), grace: None, message: None },
         }),
-    ));
-    drop(step(&mut core, &env, Event::Tasks(tasks::Event::EffectsSettled { task })));
-    let out = connector_step(&mut core, &env, 1, contract::Up::Effects(contract::effects::Up::Released { task }));
+    );
     let mut ended = None;
     let mut summary = None;
     for request in &out {
