@@ -5,7 +5,6 @@
 
 
 
-- **Not yet:** 2: a job's wait as `TaskWaitRefused::Job { kind, refusal }`, the fleet's `JobRefusal` whole; the code's wait says the cause again as a `JobWhy` beside its figures. [in flight: change 21633]
 - **Not yet:** the whole document: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance.  the point-load fences remain `vocabulary.status.md`, 1.2, and `decisions.status.md`, 1.3.
