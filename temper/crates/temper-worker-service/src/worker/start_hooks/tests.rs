@@ -162,7 +162,10 @@ fn a_start_reads_times_only_inside_writable_hook_directories() {
         Some(HookTimes { deliver: Some(HookTime { time: deliver, asked: deliver }), ..empty.clone() }),
         None,
         Some(HookTimes { finish: Some(HookTime { time: ceiling, asked: Duration::from_secs(7200) }), ..empty.clone() }),
-        Some(HookTimes { fault: hooks::times(bad).unwrap_err().text(), ..empty.clone() }),
+        Some(HookTimes {
+            fault: b".temper/hooks/config.toml:3: unknown key `timeout`".as_slice().into(),
+            ..empty.clone()
+        }),
         Some(empty.clone()),
         Some(HookTimes { fault: wrong_kind.as_slice().into(), ..empty.clone() }),
         Some(HookTimes { fault: wrong_kind.as_slice().into(), ..empty }),
@@ -179,7 +182,7 @@ fn a_start_reads_times_only_inside_writable_hook_directories() {
 #[test]
 fn an_overlong_hook_fault_is_cut_to_a_whole_text_prefix() {
     let file = bytes::concat(&[b"[deliver]\n", &[b'a'; 2000], b" = 1"]);
-    let reported = hooks::times(&file).expect_err("unknown key").text();
+    let reported = hooks::times(&file).expect_err("unknown key").text(HOOK_CONFIG_READER);
     let start = load_result(Observed::Loaded(file), Duration::from_secs(u64::from(CEILING)));
     assert_eq!((start.deliver, start.finish), (None, None));
     assert!(reported.len() > 1024);

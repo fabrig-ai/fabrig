@@ -16,7 +16,10 @@ fn arbitrary_bytes_never_report_lines_outside_the_file() {
         }
         if let Err(fault) = times(file) {
             let lines = file.split_inclusive(|&byte| byte == b'\n').count();
-            assert!(usize::try_from(fault.line).expect("line fits") <= lines, "seed {seed}: {fault:?}, {lines} lines");
+            assert!(
+                usize::try_from(fault.line()).expect("line fits") <= lines,
+                "seed {seed}: {fault:?}, {lines} lines"
+            );
         }
     }
 }

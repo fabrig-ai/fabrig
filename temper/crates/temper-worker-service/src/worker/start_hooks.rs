@@ -2,6 +2,7 @@
 //! (temper/docs/design/protocol/hooks.md, 2.3 and 4.1). Only one directory and
 //! its bounded time file are open at a time. The reader keeps no credentials.
 
+use super::HOOK_CONFIG_READER;
 use alloc::boxed::Box;
 use skein_io::{file, file_layer, kernel};
 use skein_lib::{Decimal, Duration, Env, Map, Queue, Time, Token, Wall, bytes};
@@ -305,7 +306,7 @@ fn load_result(event: Observed, ceiling: Duration) -> HookTimes {
             fault: Box::default(),
         },
         Err(fault) => {
-            let text = fault.text();
+            let text = fault.text(HOOK_CONFIG_READER);
             HookTimes {
                 deliver: None,
                 finish: None,
@@ -322,7 +323,7 @@ fn hook_time(seconds: Option<u32>, ceiling: Duration) -> Option<HookTime> {
 }
 
 fn fault(why: &[u8]) -> Fault {
-    Fault { line: 0, why: why.into() }
+    Fault::Line { line: 0, why: why.into() }
 }
 
 fn config_bytes() -> u32 {
