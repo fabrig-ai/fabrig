@@ -93,6 +93,7 @@ use jig_domain_people as people;
 /// Policy copied into a later project (protocol/configuration-engine.md, 1; domain/model.md, 6.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ConfiguredPolicy {
+    pub name: Option<Box<[u8]>>,
     pub policy: authority::Policy,
     pub permissions: Box<[people::PermissionRole]>,
     pub templates: Box<[people::TemplateOverride]>,

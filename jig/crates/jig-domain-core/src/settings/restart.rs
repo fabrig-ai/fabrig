@@ -304,6 +304,9 @@ impl Core {
             core::mem::swap(&mut self.current.defaults, &mut self.settings_restore.defaults);
             self.settings_restore.position = DefaultsPosition::Stored;
         }
+        if self.settings_restore.position == DefaultsPosition::Given {
+            self.settings_unnamed = jig_domain_core_vocabulary::settings::names::restore(&mut self.current);
+        }
         self.settings_restore.ready = true;
         self.settings.models = super::catalogue::table(&self.current);
         super::charters::rebuild(&mut self.current, &env.limits);
@@ -377,6 +380,12 @@ impl Core {
     #[must_use]
     pub fn settings_kept(&self) -> Box<[Setting]> {
         super::check::kept(&self.current)
+    }
+
+    /// Stored own items offered without the names now reserved by defaults.
+    #[must_use]
+    pub fn settings_unnamed(&self) -> &[Setting] {
+        &self.settings_unnamed
     }
 
     /// The typed refusal is retained even when a later completion repeats it.
@@ -640,6 +649,7 @@ impl Core {
         }
         if self.settings_restore.position == DefaultsPosition::Stored {
             core::mem::swap(&mut self.current.defaults, &mut self.settings_restore.defaults);
+            self.settings_unnamed = jig_domain_core_vocabulary::settings::names::restore(&mut self.current);
         }
         if release {
             self.current.head = Head {

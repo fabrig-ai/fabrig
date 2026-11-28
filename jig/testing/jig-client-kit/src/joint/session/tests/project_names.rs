@@ -105,6 +105,7 @@ fn projects() -> (Session, Client, Time, Wall) {
         .insert(
             1,
             core::ConfiguredPolicy {
+                name: None,
                 policy: seed.policy.clone(),
                 permissions: Box::new([]),
                 templates: seed.templates.clone(),

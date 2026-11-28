@@ -1,7 +1,4 @@
 //! The asking family's document call (temper/docs/design/domain/agent/ask-temper.md, 3).
-mod sections;
-pub(crate) use sections::{heading, made};
-
 use super::{CallKey, Decision, Delivery, Domain, Env, Limits, Request, Work, emit};
 use crate::boundary::Read;
 use crate::{
@@ -12,11 +9,7 @@ use jig_domain_core::{self as core, NamedAction, ToolKind};
 use jig_domain_notes as notes;
 use skein_lib::{Id, List, Queue, ReplyTo, Token};
 
-/// The note a document call leaves: its description and whole body.
-pub(crate) struct Made {
-    pub description: Box<[u8]>,
-    pub body: Box<[u8]>,
-}
+pub(crate) use temper_engine_domain_translate::document::{heading, made};
 
 /// A document call between its scope index and entry loads.
 #[derive(Hash, Debug)]

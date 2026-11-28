@@ -707,7 +707,7 @@ fn owner_root() -> (Domain, Env<Limits>) {
     owner_root_with_limits(&resume_fixture::limits())
 }
 
-fn owner_root_with_limits(limits: &Limits) -> (Domain, Env<Limits>) {
+pub(crate) fn owner_root_with_limits(limits: &Limits) -> (Domain, Env<Limits>) {
     let mut config = resume_fixture::config(7);
     config.core.owners[0].project = people::DEPLOYMENT;
     let records = [
@@ -732,7 +732,7 @@ fn owner_root_with_limits(limits: &Limits) -> (Domain, Env<Limits>) {
 
 // Release the root's decisions against a durable store; the party is the only outside reader.
 #[expect(clippy::wildcard_enum_match_arm, reason = "this fixture only commits settings and receives party replies")]
-pub(super) fn settled(root: &mut Domain, env: &Env<Limits>, input: PartyInput) -> people::Reply {
+pub(crate) fn settled(root: &mut Domain, env: &Env<Limits>, input: PartyInput) -> people::Reply {
     // Each change needs fewer than 64 journal and child continuation handoffs.
     const HANDOFFS: u32 = 64;
     crate::try_step(root, env, Event::Party(input)).unwrap();

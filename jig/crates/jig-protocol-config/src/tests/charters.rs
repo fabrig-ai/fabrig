@@ -382,3 +382,23 @@ fn malformed_charter_wake_members_are_refused() {
         );
     }
 }
+
+#[test]
+fn a_charter_reads_its_name_or_refuses_the_name_member() {
+    let named = fixtures::with(
+        fixtures::ENGINE_SMALL,
+        br#""number": 1, "instructions""#,
+        br#""number": 1, "name": "draft-goal", "instructions""#,
+    );
+    let engine = fixtures::engine(&named).expect("named charter");
+    assert_eq!(engine.charters[0].name.as_deref(), Some(b"draft-goal".as_slice()));
+    let malformed = fixtures::with(&named, b"draft-goal", b"Draft-goal");
+    let problems = fixtures::engine(&malformed).expect_err("malformed charter name");
+    assert_eq!(
+        problems.problems.as_slice(),
+        &[crate::Problem {
+            path: fixtures::path(&[b"charters"]).child(crate::Segment::Index(0)).member(b"name"),
+            what: What::Form,
+        }]
+    );
+}

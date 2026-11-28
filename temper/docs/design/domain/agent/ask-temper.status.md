@@ -1,6 +1,7 @@
 # ask-temper: status
 
-2026-11-18. Where the tree's code lags or departs from [ask-temper.md](ask-temper.md).
+2026-11-27. Where the tree's code lags or departs from [ask-temper.md](ask-temper.md).
+
 
 
 - **Not yet:** *Its instructions*: `ask.txt`'s *Showing* opens with the

@@ -174,9 +174,10 @@ fn numbers_precede_references_and_defaults_have_the_stock_bound() {
 
 fn template() -> Template {
     Template {
+        name: None,
         resources: Box::new([]),
         number: 1,
-        name: Box::from(b"chat".as_slice()),
+        shown: Box::from(b"chat".as_slice()),
         executor: people::TemplateExecutor::Charter(1),
         contract: tasks::Contract::Report { words: 1 },
         shallower: 0,
@@ -316,7 +317,9 @@ fn fault_case(fault: Fault) {
                 .unwrap();
             Setting::Template(65)
         }
-        Fault::Accounts | Fault::Linked | Fault::Judged => unreachable!("an application's setting: apps-core"),
+        Fault::Accounts | Fault::Linked | Fault::Judged | Fault::Name => {
+            unreachable!("an application's setting: apps-core")
+        }
     };
     let detail = if fault == Fault::Shape {
         let charter = current.charter(1).unwrap();
@@ -1853,4 +1856,74 @@ fn providers_with_accounts_are_not_removed_and_fixed_providers_are_references_on
     for value in providers_told(&out).unwrap() {
         assert_ne!(value.provider.number, 3);
     }
+}
+
+fn named_item(current: &Current, source: Setting, number: u32, name: Option<&[u8]>) -> Item {
+    let (setting, mut value) = numbered_value(current, source, number);
+    value.set_name(name);
+    Item { setting, edit: Edit::Set(value) }
+}
+
+#[test]
+fn setting_names_reserve_defaults_even_when_removed() {
+    let (mut current, settings, limits, connectors) = numbered_defaults();
+    let goal = Setting::Template(2);
+    let chat = Setting::Template(1);
+    let (_, mut chat_value) = numbered_value(&current, goal, 1);
+    chat_value.set_name(Some(b"chat"));
+    current.defaults.insert(chat, Default { value: chat_value, revision: 1 }).unwrap();
+    current.defaults.get_mut(&goal).unwrap().value.set_name(Some(b"goal"));
+    for (number, name, fault) in [
+        (33, Some(b"lean-goal".as_slice()), None),
+        (33, Some(b"chat".as_slice()), Some(Fault::Name)),
+        (2, Some(b"goal".as_slice()), None),
+        (2, None, None),
+        (2, Some(b"other".as_slice()), Some(Fault::Name)),
+        (33, Some(b"Goal".as_slice()), Some(Fault::Shape)),
+        (9, Some(b"x".as_slice()), Some(Fault::Range)),
+        (9, Some(b"Goal".as_slice()), Some(Fault::Range)),
+    ] {
+        let item = named_item(&current, goal, number, name);
+        let setting = item.setting;
+        assert_eq!(
+            check_change(&current, core::slice::from_ref(&item), &settings, &connectors, &limits),
+            match fault {
+                Some(fault) => Err(Failure { setting, fault, detail: None }),
+                None => Ok(()),
+            },
+            "{number} {name:?}"
+        );
+        if number == 2 && name.is_none() {
+            apply(&mut current, &[item], 2);
+            assert_eq!(current.template(2).unwrap().name.as_deref(), Some(b"goal".as_slice()));
+        }
+    }
+    let removal = [Item { setting: chat, edit: Edit::Removed }];
+    check_change(&current, &removal, &settings, &connectors, &limits).unwrap();
+    apply(&mut current, &removal, 3);
+    assert!(current.template(1).is_none());
+    assert_eq!(
+        check_change(&current, &[named_item(&current, goal, 33, Some(b"chat"))], &settings, &connectors, &limits),
+        Err(Failure { setting: Setting::Template(33), fault: Fault::Name, detail: None })
+    );
+}
+
+#[test]
+fn an_own_name_refuses_the_later_claim_and_can_be_reused_after_rename() {
+    let (mut current, settings, mut limits, connectors) = numbered_defaults();
+    limits.tasks.charters = 3;
+    let stock = Setting::Charter(1);
+    let first = named_item(&current, stock, 33, Some(b"a"));
+    let second = named_item(&current, stock, 34, Some(b"a"));
+    let failure = Err(Failure { setting: second.setting, fault: Fault::Name, detail: None });
+    assert_eq!(check_change(&current, &[first.clone(), second.clone()], &settings, &connectors, &limits), failure);
+    check_change(&current, core::slice::from_ref(&first), &settings, &connectors, &limits).unwrap();
+    apply(&mut current, &[first], 2);
+    assert_eq!(check_change(&current, core::slice::from_ref(&second), &settings, &connectors, &limits), failure);
+    let renamed = named_item(&current, stock, 33, Some(b"b"));
+    check_change(&current, core::slice::from_ref(&renamed), &settings, &connectors, &limits).unwrap();
+    // The name can also change hands atomically, in either edit order.
+    check_change(&current, &[second.clone(), renamed.clone()], &settings, &connectors, &limits).unwrap();
+    apply(&mut current, &[renamed], 3);
+    check_change(&current, &[second], &settings, &connectors, &limits).unwrap();
 }

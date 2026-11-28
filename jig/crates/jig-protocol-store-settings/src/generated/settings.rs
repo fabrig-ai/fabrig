@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 3;
 pub const LAYOUT: [u8; 32] = [
-    0x37, 0xa4, 0xa0, 0x9d, 0x88, 0x18, 0xe3, 0x51, 0xf2, 0xb2, 0xcb, 0xf5, 0xe3, 0x19, 0x99, 0x0d, 0xda, 0x61, 0x8f,
-    0xe6, 0x9b, 0x02, 0xa7, 0x2c, 0xb2, 0xc1, 0x27, 0xf7, 0x71, 0x44, 0xa9, 0x89,
+    0x90, 0xb4, 0x56, 0x1b, 0xd9, 0xea, 0x35, 0xb6, 0xd7, 0x65, 0xa3, 0x21, 0x59, 0x0f, 0x26, 0x1e, 0x34, 0x4c, 0x3a,
+    0xfe, 0x44, 0x84, 0xf0, 0xf0, 0xa9, 0x18, 0x1e, 0xb1, 0x6a, 0x47, 0x80, 0x26,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -39,6 +39,7 @@ pub struct Limits {
     pub charter_part_instructions: u32,
     pub charter_documents: u32,
     pub charter_parts: u32,
+    pub charter_setting_name_some: u32,
     pub overlay_alternatives_some: u32,
     pub overlay_documents_some: u32,
     pub overlay_instructions: u32,
@@ -88,6 +89,7 @@ pub struct Limits {
     pub policy_requirements: u32,
     pub configured_policy_permissions: u32,
     pub configured_policy_templates: u32,
+    pub configured_policy_setting_name_some: u32,
     pub field_rule_name: u32,
     pub verdict_fields: u32,
     pub part_path_segments: u32,
@@ -98,6 +100,7 @@ pub struct Limits {
     pub llm_choice_subagents: u32,
     pub template_name: u32,
     pub template_resources: u32,
+    pub template_setting_name_some: u32,
     pub override_name: u32,
     pub override_reason: u32,
     pub limits_value_overrides: u32,
@@ -135,6 +138,7 @@ pub const CEILINGS: Limits = Limits {
     charter_part_instructions: 65_536,
     charter_documents: 2,
     charter_parts: 8,
+    charter_setting_name_some: 32,
     overlay_alternatives_some: 64,
     overlay_documents_some: 2,
     overlay_instructions: 65_536,
@@ -184,6 +188,7 @@ pub const CEILINGS: Limits = Limits {
     policy_requirements: 32,
     configured_policy_permissions: 65_536,
     configured_policy_templates: 32,
+    configured_policy_setting_name_some: 32,
     field_rule_name: 524_288,
     verdict_fields: 1_048_576,
     part_path_segments: 8,
@@ -194,6 +199,7 @@ pub const CEILINGS: Limits = Limits {
     llm_choice_subagents: 64,
     template_name: 65_536,
     template_resources: 32,
+    template_setting_name_some: 32,
     override_name: 64,
     override_reason: 120,
     limits_value_overrides: 256,
@@ -231,6 +237,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "charter_part_instructions",
     "charter_documents",
     "charter_parts",
+    "charter_setting_name_some",
     "overlay_alternatives_some",
     "overlay_documents_some",
     "overlay_instructions",
@@ -280,6 +287,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "policy_requirements",
     "configured_policy_permissions",
     "configured_policy_templates",
+    "configured_policy_setting_name_some",
     "field_rule_name",
     "verdict_fields",
     "part_path_segments",
@@ -290,6 +298,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "llm_choice_subagents",
     "template_name",
     "template_resources",
+    "template_setting_name_some",
     "override_name",
     "override_reason",
     "limits_value_overrides",
@@ -330,6 +339,7 @@ impl Limits {
             self.charter_part_instructions,
             self.charter_documents,
             self.charter_parts,
+            self.charter_setting_name_some,
             self.overlay_alternatives_some,
             self.overlay_documents_some,
             self.overlay_instructions,
@@ -379,6 +389,7 @@ impl Limits {
             self.policy_requirements,
             self.configured_policy_permissions,
             self.configured_policy_templates,
+            self.configured_policy_setting_name_some,
             self.field_rule_name,
             self.verdict_fields,
             self.part_path_segments,
@@ -389,6 +400,7 @@ impl Limits {
             self.llm_choice_subagents,
             self.template_name,
             self.template_resources,
+            self.template_setting_name_some,
             self.override_name,
             self.override_reason,
             self.limits_value_overrides,
@@ -430,6 +442,7 @@ impl Limits {
             charter_part_instructions: self.charter_part_instructions.min(most),
             charter_documents: self.charter_documents.min(most),
             charter_parts: self.charter_parts.min(most),
+            charter_setting_name_some: self.charter_setting_name_some.min(most),
             overlay_alternatives_some: self.overlay_alternatives_some.min(most),
             overlay_documents_some: self.overlay_documents_some.min(most),
             overlay_instructions: self.overlay_instructions.min(most),
@@ -479,6 +492,7 @@ impl Limits {
             policy_requirements: self.policy_requirements.min(most),
             configured_policy_permissions: self.configured_policy_permissions.min(most),
             configured_policy_templates: self.configured_policy_templates.min(most),
+            configured_policy_setting_name_some: self.configured_policy_setting_name_some.min(most),
             field_rule_name: self.field_rule_name.min(most),
             verdict_fields: self.verdict_fields.min(most),
             part_path_segments: self.part_path_segments.min(most),
@@ -489,6 +503,7 @@ impl Limits {
             llm_choice_subagents: self.llm_choice_subagents.min(most),
             template_name: self.template_name.min(most),
             template_resources: self.template_resources.min(most),
+            template_setting_name_some: self.template_setting_name_some.min(most),
             override_name: self.override_name.min(most),
             override_reason: self.override_reason.min(most),
             limits_value_overrides: self.limits_value_overrides.min(most),
@@ -528,6 +543,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CHARTER_PART_INSTRUCTIONS,
     paths::CHARTER_DOCUMENTS,
     paths::CHARTER_PARTS,
+    paths::CHARTER_SETTING_NAME,
     paths::OVERLAY_ALTERNATIVES,
     paths::OVERLAY_DOCUMENTS,
     paths::OVERLAY_INSTRUCTIONS,
@@ -577,6 +593,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::POLICY_REQUIREMENTS,
     paths::CONFIGURED_POLICY_PERMISSIONS,
     paths::CONFIGURED_POLICY_TEMPLATES,
+    paths::CONFIGURED_POLICY_SETTING_NAME,
     paths::FIELD_RULE_NAME,
     paths::VERDICT_FIELDS,
     paths::PART_PATH_SEGMENTS,
@@ -587,6 +604,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::LLM_CHOICE_SUBAGENTS,
     paths::TEMPLATE_NAME,
     paths::TEMPLATE_RESOURCES,
+    paths::TEMPLATE_SETTING_NAME,
     paths::OVERRIDE_NAME,
     paths::OVERRIDE_REASON,
     paths::LIMITS_VALUE_OVERRIDES,
@@ -693,6 +711,7 @@ pub mod paths {
     pub const CHARTER_WAKE: Path = Path::new("Charter.wake");
     pub const CHARTER_DOCUMENTS: Path = Path::new("Charter.documents");
     pub const CHARTER_PARTS: Path = Path::new("Charter.parts");
+    pub const CHARTER_SETTING_NAME: Path = Path::new("Charter.setting_name");
     pub const CHARTER_TAIL: Path = Path::new("Charter (tail)");
     pub const OVERLAY_REST: Path = Path::new("Overlay.rest");
     pub const OVERLAY_MODEL: Path = Path::new("Overlay.model");
@@ -919,6 +938,7 @@ pub mod paths {
     pub const CONFIGURED_POLICY_POLICY: Path = Path::new("ConfiguredPolicy.policy");
     pub const CONFIGURED_POLICY_PERMISSIONS: Path = Path::new("ConfiguredPolicy.permissions");
     pub const CONFIGURED_POLICY_TEMPLATES: Path = Path::new("ConfiguredPolicy.templates");
+    pub const CONFIGURED_POLICY_SETTING_NAME: Path = Path::new("ConfiguredPolicy.setting_name");
     pub const CONFIGURED_POLICY_TAIL: Path = Path::new("ConfiguredPolicy (tail)");
     pub const FIELD_RULE_NAME: Path = Path::new("FieldRule.name");
     pub const FIELD_RULE_MAX: Path = Path::new("FieldRule.max");
@@ -988,6 +1008,7 @@ pub mod paths {
     pub const TEMPLATE_GRACE: Path = Path::new("Template.grace");
     pub const TEMPLATE_LLM: Path = Path::new("Template.llm");
     pub const TEMPLATE_RESOURCES: Path = Path::new("Template.resources");
+    pub const TEMPLATE_SETTING_NAME: Path = Path::new("Template.setting_name");
     pub const TEMPLATE_TAIL: Path = Path::new("Template (tail)");
     pub const OVERRIDE_NAME: Path = Path::new("Override.name");
     pub const OVERRIDE_VALUE: Path = Path::new("Override.value");
@@ -2028,6 +2049,7 @@ pub struct Charter {
     pub wake: WakePolicy,
     pub documents: List<Document>,
     pub parts: List<CharterPart>,
+    pub setting_name: Option<Box<[u8]>>,
 }
 
 // Record: Charter.
@@ -2043,11 +2065,13 @@ impl Charter {
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, charter_documents), item: 6, size: size_of::<Document>() },
         skein_codec::bounds::Node::Named("CharterPart"),
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, charter_parts), item: 8, size: size_of::<CharterPart>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 7, 9] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, charter_setting_name_some) },
+        skein_codec::bounds::Node::Option { item: 10 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 7, 9, 11] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 214;
+    pub const ENCODED_AT_ZERO: u64 = 219;
 }
 
 impl Record for Charter {
@@ -2080,6 +2104,7 @@ impl Record for Charter {
         field::write(field::Nested, &self.wake, limits, out, paths::CHARTER_WAKE)?;
         field::write(field::Sequence { limit: limits.charter_documents.min(CEILINGS.charter_documents), minimum: 11, item: field::Nested }, &self.documents, limits, out, paths::CHARTER_DOCUMENTS)?;
         field::write(field::Sequence { limit: limits.charter_parts.min(CEILINGS.charter_parts), minimum: 8, item: field::Nested }, &self.parts, limits, out, paths::CHARTER_PARTS)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.charter_setting_name_some.min(CEILINGS.charter_setting_name_some) } }, &self.setting_name, limits, out, paths::CHARTER_SETTING_NAME)?;
         Ok(())
     }
 
@@ -2093,6 +2118,7 @@ impl Record for Charter {
             wake: field::read(field::Nested, limits, reader, paths::CHARTER_WAKE)?,
             documents: field::read(field::Sequence { limit: limits.charter_documents.min(CEILINGS.charter_documents), minimum: 11, item: field::Nested }, limits, reader, paths::CHARTER_DOCUMENTS)?,
             parts: field::read(field::Sequence { limit: limits.charter_parts.min(CEILINGS.charter_parts), minimum: 8, item: field::Nested }, limits, reader, paths::CHARTER_PARTS)?,
+            setting_name: field::read(field::Optional { item: field::Bytes { limit: limits.charter_setting_name_some.min(CEILINGS.charter_setting_name_some) } }, limits, reader, paths::CHARTER_SETTING_NAME)?,
         })
     }
 }
@@ -5652,6 +5678,7 @@ pub struct ConfiguredPolicy {
     pub policy: Policy,
     pub permissions: List<PermissionRole>,
     pub templates: List<TemplateOverride>,
+    pub setting_name: Option<Box<[u8]>>,
 }
 
 // Record: ConfiguredPolicy.
@@ -5662,11 +5689,13 @@ impl ConfiguredPolicy {
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, configured_policy_permissions), item: 1, size: size_of::<PermissionRole>() },
         skein_codec::bounds::Node::Named("TemplateOverride"),
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, configured_policy_templates), item: 3, size: size_of::<TemplateOverride>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, configured_policy_setting_name_some) },
+        skein_codec::bounds::Node::Option { item: 5 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 6] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 88;
+    pub const ENCODED_AT_ZERO: u64 = 93;
 }
 
 impl Record for ConfiguredPolicy {
@@ -5694,6 +5723,7 @@ impl Record for ConfiguredPolicy {
         field::write(field::Nested, &self.policy, limits, out, paths::CONFIGURED_POLICY_POLICY)?;
         field::write(field::Sequence { limit: limits.configured_policy_permissions.min(CEILINGS.configured_policy_permissions), minimum: 8, item: field::Nested }, &self.permissions, limits, out, paths::CONFIGURED_POLICY_PERMISSIONS)?;
         field::write(field::Sequence { limit: limits.configured_policy_templates.min(CEILINGS.configured_policy_templates), minimum: 8, item: field::Nested }, &self.templates, limits, out, paths::CONFIGURED_POLICY_TEMPLATES)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.configured_policy_setting_name_some.min(CEILINGS.configured_policy_setting_name_some) } }, &self.setting_name, limits, out, paths::CONFIGURED_POLICY_SETTING_NAME)?;
         Ok(())
     }
 
@@ -5702,6 +5732,7 @@ impl Record for ConfiguredPolicy {
             policy: field::read(field::Nested, limits, reader, paths::CONFIGURED_POLICY_POLICY)?,
             permissions: field::read(field::Sequence { limit: limits.configured_policy_permissions.min(CEILINGS.configured_policy_permissions), minimum: 8, item: field::Nested }, limits, reader, paths::CONFIGURED_POLICY_PERMISSIONS)?,
             templates: field::read(field::Sequence { limit: limits.configured_policy_templates.min(CEILINGS.configured_policy_templates), minimum: 8, item: field::Nested }, limits, reader, paths::CONFIGURED_POLICY_TEMPLATES)?,
+            setting_name: field::read(field::Optional { item: field::Bytes { limit: limits.configured_policy_setting_name_some.min(CEILINGS.configured_policy_setting_name_some) } }, limits, reader, paths::CONFIGURED_POLICY_SETTING_NAME)?,
         })
     }
 }
@@ -6881,6 +6912,7 @@ pub struct Template {
     pub grace: Option<skein_lib::Duration>,
     pub llm: Option<LlmChoice>,
     pub resources: List<Symbol>,
+    pub setting_name: Option<Box<[u8]>>,
 }
 
 // Record: Template.
@@ -6903,11 +6935,13 @@ impl Template {
         skein_codec::bounds::Node::Option { item: 13 },
         skein_codec::bounds::Node::Named("Symbol"),
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, template_resources), item: 15, size: size_of::<Symbol>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 14, 16] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, template_setting_name_some) },
+        skein_codec::bounds::Node::Option { item: 17 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 14, 16, 18] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 116;
+    pub const ENCODED_AT_ZERO: u64 = 121;
 }
 
 impl Record for Template {
@@ -6945,6 +6979,7 @@ impl Record for Template {
         field::write(field::Optional { item: field::Span }, &self.grace, limits, out, paths::TEMPLATE_GRACE)?;
         field::write(field::Optional { item: field::Nested }, &self.llm, limits, out, paths::TEMPLATE_LLM)?;
         field::write(field::Sequence { limit: limits.template_resources.min(CEILINGS.template_resources), minimum: 4, item: field::Nested }, &self.resources, limits, out, paths::TEMPLATE_RESOURCES)?;
+        field::write(field::Optional { item: field::Bytes { limit: limits.template_setting_name_some.min(CEILINGS.template_setting_name_some) } }, &self.setting_name, limits, out, paths::TEMPLATE_SETTING_NAME)?;
         Ok(())
     }
 
@@ -6963,6 +6998,7 @@ impl Record for Template {
             grace: field::read(field::Optional { item: field::Span }, limits, reader, paths::TEMPLATE_GRACE)?,
             llm: field::read(field::Optional { item: field::Nested }, limits, reader, paths::TEMPLATE_LLM)?,
             resources: field::read(field::Sequence { limit: limits.template_resources.min(CEILINGS.template_resources), minimum: 4, item: field::Nested }, limits, reader, paths::TEMPLATE_RESOURCES)?,
+            setting_name: field::read(field::Optional { item: field::Bytes { limit: limits.template_setting_name_some.min(CEILINGS.template_setting_name_some) } }, limits, reader, paths::TEMPLATE_SETTING_NAME)?,
         })
     }
 }
@@ -7114,7 +7150,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 215;
+    pub const ENCODED_AT_ZERO: u64 = 220;
 }
 
 impl Record for Value {
@@ -7530,7 +7566,7 @@ impl Set {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 215;
+    pub const ENCODED_AT_ZERO: u64 = 220;
 }
 
 impl Record for Set {
@@ -7584,7 +7620,7 @@ impl Edit {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 216;
+    pub const ENCODED_AT_ZERO: u64 = 221;
 }
 
 impl Record for Edit {
@@ -7643,7 +7679,7 @@ impl Item {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 229;
+    pub const ENCODED_AT_ZERO: u64 = 234;
 }
 
 impl Record for Item {
@@ -7701,7 +7737,7 @@ impl Replaced {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 216;
+    pub const ENCODED_AT_ZERO: u64 = 221;
 }
 
 impl Record for Replaced {
@@ -7764,7 +7800,7 @@ impl RevisionItem {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 445;
+    pub const ENCODED_AT_ZERO: u64 = 455;
 }
 
 impl Record for RevisionItem {
@@ -8299,7 +8335,7 @@ impl Default {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 225;
+    pub const ENCODED_AT_ZERO: u64 = 230;
 }
 
 impl Record for Default {
@@ -8361,7 +8397,7 @@ impl Changed {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 226;
+    pub const ENCODED_AT_ZERO: u64 = 231;
 }
 
 impl Record for Changed {
@@ -8543,7 +8579,7 @@ impl CharterVersion {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 403;
+    pub const ENCODED_AT_ZERO: u64 = 408;
 }
 
 impl Record for CharterVersion {
@@ -8805,6 +8841,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.charter_part_instructions,
     CEILINGS.charter_documents,
     CEILINGS.charter_parts,
+    CEILINGS.charter_setting_name_some,
     CEILINGS.overlay_alternatives_some,
     CEILINGS.overlay_documents_some,
     CEILINGS.overlay_instructions,
@@ -8854,6 +8891,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.policy_requirements,
     CEILINGS.configured_policy_permissions,
     CEILINGS.configured_policy_templates,
+    CEILINGS.configured_policy_setting_name_some,
     CEILINGS.field_rule_name,
     CEILINGS.verdict_fields,
     CEILINGS.part_path_segments,
@@ -8864,6 +8902,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.llm_choice_subagents,
     CEILINGS.template_name,
     CEILINGS.template_resources,
+    CEILINGS.template_setting_name_some,
     CEILINGS.override_name,
     CEILINGS.override_reason,
     CEILINGS.limits_value_overrides,

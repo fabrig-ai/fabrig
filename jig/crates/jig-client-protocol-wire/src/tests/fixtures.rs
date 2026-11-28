@@ -9,7 +9,10 @@ pub use delivery_values::delivery_values;
 pub use read_values::read_values;
 use skein_lib::{List, Writer};
 pub use stream::*;
-pub use task_values::task;
+pub use task_values::{authority, task};
+
+// Shortest current Me: fixed fields and empty values, including the charter-list count.
+const ME_ZERO_BYTES: u32 = 95;
 
 // The all-zero Task includes two absent option tags, a four-byte empty waits list prefix,
 // and a four-byte zero wait count.
@@ -345,6 +348,7 @@ pub fn chip_details_fields() -> ChipDetailsFields {
 
 pub fn frame_at_ceilings(limits: &Limits) -> Me {
     Me {
+        charters: List::with_capacity(0),
         providers: Box::new([]),
         providers_cut: false,
         key_bytes: 256,

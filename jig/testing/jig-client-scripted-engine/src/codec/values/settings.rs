@@ -19,8 +19,9 @@ pub fn wire_settings_document(value: &c::SettingsDocument) -> w::SettingsDocumen
 
 pub(in crate::codec) fn wire_setting_line(value: &c::SettingLine) -> w::SettingLine {
     w::SettingLine {
+        name: value.name.clone(),
         setting: wire_setting(&value.setting),
-        name: value.name.as_ref().map(wire_document_text),
+        shown: value.shown.as_ref().map(wire_document_text),
         follows: wire_setting_follows(&value.follows),
         last: value.last,
         application: value.application.as_ref().map(wire_application_state),
@@ -123,6 +124,7 @@ pub(in crate::codec) fn wire_setting_value(
 
 pub(in crate::codec) fn wire_charter(value: &c::Charter) -> w::Charter {
     w::Charter {
+        name: value.name.clone(),
         parts: list(
             value
                 .parts
@@ -203,6 +205,7 @@ pub(in crate::codec) fn wire_setting_policy(
     limits: &w::Limits,
 ) -> Result<w::SettingPolicy, w::Problem> {
     Ok(w::SettingPolicy {
+        name: value.name.clone(),
         escalation_role: value.escalation_role,
         ceiling: wire_authority(&value.ceiling, limits)?,
         projections: list(value.projections.iter().map(wire_grant)),
@@ -341,6 +344,7 @@ pub(in crate::codec) fn wire_setting_fault(value: &c::SettingFault) -> w::Settin
         c::SettingFault::Linked => w::SettingFault::Linked,
         c::SettingFault::Accounts => w::SettingFault::Accounts,
         c::SettingFault::Range => w::SettingFault::Range,
+        c::SettingFault::Name => w::SettingFault::Name,
         c::SettingFault::Owner => w::SettingFault::Owner,
     }
 }

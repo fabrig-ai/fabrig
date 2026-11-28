@@ -32,15 +32,15 @@ pub fn ways(me: &c::Me, project: u32, words: &Words) -> List<Way> {
         order.sort_unstable();
         for (_, index) in &order {
             let template = member.templates.get(*index).expect("ordered template");
-            let way = match template.name.bytes() {
+            let way = match template.shown.bytes() {
                 b"goal" => Way {
                     number: template.number,
-                    name: way_name(template.name.bytes(), words),
+                    name: way_name(template.shown.bytes(), words),
                     line: Some(words.say(Word::GoalTaskByTaskLine, &[])),
                 },
                 b"goal for a draft" => Way {
                     number: template.number,
-                    name: way_name(template.name.bytes(), words),
+                    name: way_name(template.shown.bytes(), words),
                     line: Some(words.say(Word::GoalLandWholeLine, &[])),
                 },
                 name => Way { number: template.number, name: way_name(name, words), line: None },

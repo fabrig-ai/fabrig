@@ -1136,6 +1136,10 @@ fn settings_document_bytes(limits: &Limits) -> u64 {
     // The closer adds 2 * 8 * (16 + 8) bytes to the Template and New carriers.
     // The inventory shares one model range. The fixed subtotal leaves the
     // charters' run bytes and their inline speed fields to the count below.
+    // The inventory retains 64 names each for charters, templates and policies.
+    // 88 inventory rows not priced separately gain a 16-byte name carrier, as
+    // do one charter, eight templates and two policies in each review set.
+    const NAMED_SETTINGS_BYTES: u64 = 3 * 64 * 32 + (88 + VALUE_SETS * (1 + 8 + 2)) * 16;
     const OTHER: u64 = 119_504
         + 4 * 72
         + 16 * 8
@@ -1160,7 +1164,8 @@ fn settings_document_bytes(limits: &Limits) -> u64 {
         // Each Template and New grows inline; the New bound prices both
         // sub-agent arrays, one larger than before and one newly counted.
         + 2 * 8 * (2 * CHOICE_CARRIER_GROWTH + 64 * (MODEL_EFFORT_GROWTH + MODEL_EFFORT_BYTES))
-        + 2 * (256 * (40 + 64 + 120) + 88);
+        + 2 * (256 * (40 + 64 + 120) + 88)
+        + NAMED_SETTINGS_BYTES;
     // Each set's one charter reserves the fixture's run bytes and includes
     // the speed fields in its inline model.
     let charter = u64::from(limits.run_bytes).checked_add(MODEL_SPEED_FIELDS).unwrap();
@@ -1188,8 +1193,9 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     // eight templates per line, and sixteen bytes per slice carrier. Each
     // template also carries its 24-byte optional later choice.
     // The closer adds sixteen bytes to each template carrier.
+    // Each template name adds a 16-byte carrier and up to 32 bytes of text.
     const TEMPLATE_ENVELOPES: u64 =
-        989_184 + 32 * 8 * (16 + 24 + 16 + CHOICE_CARRIER_GROWTH + 64 * MODEL_EFFORT_GROWTH);
+        989_184 + 32 * 8 * (16 + 24 + 16 + 16 + 32 + CHOICE_CARRIER_GROWTH + 64 * MODEL_EFFORT_GROWTH);
 
     let (mut core, limits) = fixture();
     waiting(

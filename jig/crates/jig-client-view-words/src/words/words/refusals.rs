@@ -155,6 +155,7 @@ impl Words {
                         self.setting_range(b, &value.setting);
                         return;
                     }
+                    SettingFault::Name => Self::setting_name_fault(value.setting),
                     SettingFault::Linked => JigPhrase::SettingFaultLinked,
                     SettingFault::Accounts => JigPhrase::SettingFaultAccounts,
                     SettingFault::Shape => JigPhrase::SettingFaultShape,
@@ -270,6 +271,25 @@ impl Words {
 }
 
 impl Words {
+    fn setting_name_fault(setting: jig_client::contract::Setting) -> JigPhrase {
+        use jig_client::contract::{STOCK_NUMBERS, Setting};
+        match setting {
+            Setting::Charter(n) if n.number > STOCK_NUMBERS => JigPhrase::SettingNameCharter,
+            Setting::Template(n) if n.number > STOCK_NUMBERS => JigPhrase::SettingNameTemplate,
+            Setting::Policy(n) if n.number > STOCK_NUMBERS => JigPhrase::SettingNamePolicy,
+            Setting::Charter(_)
+            | Setting::Template(_)
+            | Setting::Policy(_)
+            | Setting::Model(_)
+            | Setting::Worker(_)
+            | Setting::Provider(_)
+            | Setting::Application { .. }
+            | Setting::ProjectPolicy { .. }
+            | Setting::Rules
+            | Setting::Limits => JigPhrase::SettingNameStock,
+        }
+    }
+
     fn setting_range(&self, b: &mut Builder, setting: &jig_client::contract::Setting) {
         use jig_client::contract::{NUMBERS, STOCK_NUMBERS, Setting};
         let (number, stock, past) = match *setting {

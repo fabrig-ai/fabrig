@@ -1,12 +1,17 @@
 //! Pure section assembly (temper/docs/design/domain/agent/ask-temper.md, 3).
-use crate::{DocumentAction, DocumentRefusal};
 use alloc::boxed::Box;
 use skein_lib::{List, Writer};
+use temper_engine_domain_store::{DocumentAction, DocumentRefusal};
 
-use super::Made;
+/// The note a document call leaves: its description and whole body.
+#[derive(Debug)]
+pub struct Made {
+    pub description: Box<[u8]>,
+    pub body: Box<[u8]>,
+}
 
 /// Make the whole note from the document read and one section call.
-pub(crate) fn made(
+pub fn made(
     read: Option<(&[u8], &[u8])>,
     action: DocumentAction,
     body: &[u8],
@@ -70,7 +75,8 @@ pub(crate) fn made(
 }
 
 /// The title or section heading as the caller gave it, without the Markdown prefix.
-pub(crate) fn heading(action: DocumentAction, body: &[u8]) -> Box<[u8]> {
+#[must_use]
+pub fn heading(action: DocumentAction, body: &[u8]) -> Box<[u8]> {
     let prefix = match action {
         DocumentAction::Write => b"# ".as_slice(),
         DocumentAction::Append | DocumentAction::Replace => b"## ".as_slice(),

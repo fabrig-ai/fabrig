@@ -260,12 +260,13 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["account", "import", "record", "--key", "move-in"],
     &["settings", "show"],
     &["settings", "show", "provider"],
-    &["settings", "show", "charter", "3"],
+    &["settings", "show", "charter", "goal"],
+    &["settings", "show", "model", "4"],
     &["settings", "show", "rules"],
     &["settings", "show", "landing-rule", "1", "--project", "shop"],
     &["settings", "show", "forge-charter", "1"],
     &["settings", "show", "project-classes", "shop"],
-    &["settings", "show", "template-goal", "4"],
+    &["settings", "show", "template-goal", "draft-goal"],
     &["settings", "show", "follow", "1", "--project", "shop"],
     &["settings", "show", "welcome"],
     &["settings", "show", "limits"],
@@ -501,6 +502,7 @@ pub(crate) fn me(party: u64) -> c::Me {
         })
         .expect("one project");
     c::Me {
+        charters: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,

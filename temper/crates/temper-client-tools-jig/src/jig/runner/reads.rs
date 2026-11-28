@@ -3,7 +3,7 @@ use super::{Called, Out, Printed, Runner};
 use crate::jig::{
     Limits,
     call::{Call, Project, Value, cursor, number, value},
-    render, rows,
+    names, render, rows, settings_file,
 };
 use alloc::{
     boxed::Box,
@@ -436,9 +436,17 @@ fn accept_page(
     {
         super::providers::defaults(&mut reading, inventory);
     }
-    if setting_page(runner, &mut reading, local, &page, out) {
-        complete(runner, client, env, reading, out);
-        return;
+    match setting_page(runner, &mut reading, local, &page, out) {
+        Ok(true) => {
+            complete(runner, client, env, reading, out);
+            return;
+        }
+        Err(missing) => {
+            let printed = render::failure(&missing.words(reading.parts), reading.called.json, 1);
+            finish(reading, printed, out);
+            return;
+        }
+        Ok(false) => {}
     }
     if let Some(reply) = &mut reading.talk {
         let Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) = &page else {
@@ -489,28 +497,28 @@ fn accept_page(
     complete(runner, client, env, reading, out);
 }
 // An omitted setting revision means the newest authorized inventory revision.
-fn setting_page(runner: &Runner, reading: &mut Reading, local: u32, page: &Readout, out: &mut Queue<Out>) -> bool {
-    if reading.called.call.tool == rows::SETTING_AT
-        && local == 6
-        && let Readout::Jig(c::ReadResult::Value(c::ReadValue::Settings(settings))) = &page
-    {
-        let setting = match reading.parts.setting_selector(&reading.called.call) {
-            Some(setting) => setting,
-            None => super::super::settings_file::selector(&reading.called.call),
-        };
-        if let c::Setting::Application { .. } = setting {
-            super::application::inventory(reading, settings, setting);
-            super::application::read(runner, reading, super::application::Query::Setting(setting), out);
-            return true;
-        }
-        if let c::Setting::Provider(_) = setting {
-            super::providers::defaults(reading, settings);
-        }
-        let what = c::Read::Setting(c::ReadSetting { setting, revision: settings.newest, proposal: None });
-        read(runner, reading, 1, what, out);
-        return true;
+fn setting_page(
+    runner: &Runner,
+    reading: &mut Reading,
+    local: u32,
+    page: &Readout,
+    out: &mut Queue<Out>,
+) -> Result<bool, names::Missing> {
+    if reading.called.call.tool != rows::SETTING_AT || local != 6 {
+        return Ok(false);
     }
-    false
+    let Readout::Jig(c::ReadResult::Value(c::ReadValue::Settings(settings))) = page else { return Ok(false) };
+    let call = &mut reading.called.call;
+    if let Some(Value::Text(name)) = value(call, 1) {
+        let kind = match reading.parts.setting_name_kind(call) {
+            Some(kind) => kind,
+            None => settings_file::name_kind(call).expect("named setting form"),
+        };
+        let Some(number) = kind.number(settings, name) else { return Err(names::Missing::new(kind, name)) };
+        names::resolved(call, 1, number);
+    }
+    setting_read(runner, reading, Some(settings), out);
+    Ok(true)
 }
 fn person_page(
     runner: &mut Runner,
@@ -843,31 +851,44 @@ fn settings_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) 
 }
 
 fn setting_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) {
+    if let Some(Value::Text(_)) = value(&reading.called.call, 1) {
+        read(runner, reading, 6, c::Read::Settings, out);
+    } else {
+        setting_read(runner, reading, None, out);
+    }
+}
+
+fn setting_read(runner: &Runner, reading: &mut Reading, inventory: Option<&c::SettingsDocument>, out: &mut Queue<Out>) {
     let call = &reading.called.call;
     let setting = match reading.parts.setting_selector(call) {
         Some(setting) => setting,
-        None => super::super::settings_file::selector(call),
+        None => settings_file::selector(call),
     };
-    if let c::Setting::Application { .. } = setting {
-        if let Some(revision) = crate::jig::settings_file::revision(call) {
-            super::application::historical(
-                runner,
-                reading,
-                setting,
-                u32::try_from(revision).expect("parsed revision"),
-                out,
-            );
-        } else {
-            read(runner, reading, 6, c::Read::Settings, out);
+    let revision =
+        if let c::Setting::Application { .. } = setting { settings_file::revision(call) } else { number(call, 2) };
+    let revision = match revision {
+        Some(number) => Some(u32::try_from(number).expect("parsed revision")),
+        None => None,
+    };
+    match (setting, revision, inventory) {
+        (c::Setting::Application { .. }, Some(revision), _) => {
+            super::application::historical(runner, reading, setting, revision, out);
         }
-        return;
-    }
-    match number(call, 2) {
-        Some(n) => {
-            let revision = u32::try_from(n).expect("parsed revision");
+        (c::Setting::Application { .. }, None, Some(inventory)) => {
+            super::application::inventory(reading, inventory, setting);
+            super::application::read(runner, reading, super::application::Query::Setting(setting), out);
+        }
+        (_, Some(revision), _) => {
             read(runner, reading, 1, c::Read::Setting(c::ReadSetting { setting, revision, proposal: None }), out);
         }
-        None => read(runner, reading, 6, c::Read::Settings, out),
+        (_, None, Some(inventory)) => {
+            if let c::Setting::Provider(_) = setting {
+                super::providers::defaults(reading, inventory);
+            }
+            let what = c::Read::Setting(c::ReadSetting { setting, revision: inventory.newest, proposal: None });
+            read(runner, reading, 1, what, out);
+        }
+        (_, None, None) => read(runner, reading, 6, c::Read::Settings, out),
     }
 }
 

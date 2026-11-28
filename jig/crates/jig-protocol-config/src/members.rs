@@ -359,7 +359,7 @@ pub static SHAPES: [Shape; 66] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 287] = [
+pub static MEMBERS: [Member; 290] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -1379,6 +1379,15 @@ pub static MEMBERS: [Member; 287] = [
     },
     Member {
         shape: "charter",
+        name: "name",
+        kind: "text",
+        bound: "1 to 32 lowercase ASCII letters, digits or hyphens; starts with a letter",
+        required: false,
+        line: "Names the charter beside its number.",
+        gone: None,
+    },
+    Member {
+        shape: "charter",
         name: "instructions",
         kind: "text",
         bound: "4096 bytes; configuration path",
@@ -1739,11 +1748,20 @@ pub static MEMBERS: [Member; 287] = [
     },
     Member {
         shape: "template",
-        name: "name",
+        name: "shown",
         kind: "text",
         bound: "documents.text_bytes",
         required: true,
-        line: "Gives the template's name for showing.",
+        line: "Gives the template's name for showing; required unless given as the earlier form.",
+        gone: None,
+    },
+    Member {
+        shape: "template",
+        name: "name",
+        kind: "text",
+        bound: "with shown: 1 to 32 lowercase ASCII letters, digits or hyphens; starts with a letter; otherwise documents.text_bytes",
+        required: false,
+        line: "Names the template beside its number when shown is present; otherwise gives its shown name alone.",
         gone: None,
     },
     Member {
@@ -2212,6 +2230,15 @@ pub static MEMBERS: [Member; 287] = [
         bound: "1 to 4294967295",
         required: true,
         line: "Gives the policy's stable unique number.",
+        gone: None,
+    },
+    Member {
+        shape: "configured-policy",
+        name: "name",
+        kind: "text",
+        bound: "1 to 32 lowercase ASCII letters, digits or hyphens; starts with a letter",
+        required: false,
+        line: "Names the policy beside its number.",
         gone: None,
     },
     Member {

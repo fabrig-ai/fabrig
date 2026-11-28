@@ -200,9 +200,10 @@ fn kept_rows(core: &Core) -> [(Setting, Value); 4] {
     };
     let template = |number, executor| {
         Value::Template(Box::new(crate::Template {
+            name: None,
             resources: Box::new([]),
             number,
-            name: b"kept".as_slice().into(),
+            shown: b"kept".as_slice().into(),
             executor: people::TemplateExecutor::Charter(executor),
             contract: crate::tasks::Contract::Report { words: 1 },
             shallower: 0,
@@ -268,9 +269,10 @@ fn stored_numbers_are_collected_before_the_whole_check() {
     let mut charter = core.charter(1).unwrap().clone();
     charter.number = 70;
     let template = crate::Template {
+        name: None,
         resources: Box::new([]),
         number: 65,
-        name: b"old".as_slice().into(),
+        shown: b"old".as_slice().into(),
         executor: people::TemplateExecutor::Charter(31),
         contract: crate::tasks::Contract::Report { words: 1 },
         shallower: 0,
@@ -761,4 +763,110 @@ fn an_overlay_is_checked_whole_over_the_new_default_before_start() {
     assert_eq!(failure.setting, Setting::Charter(1));
     assert_eq!(failure.fault, Fault::Shape);
     assert!(changed);
+}
+
+#[test]
+fn duplicate_default_setting_names_refuse_start_as_shape() {
+    for restoring in [false, true] {
+        let (mut core, env) = loaded_with_charters(2);
+        let rows = settings_rows(&core);
+        let mut charter = core.charter(1).unwrap().clone();
+        charter.name = Some(Box::from(b"same".as_slice()));
+        core.current.defaults.get_mut(&Setting::Charter(1)).unwrap().value = Value::Charter(Box::new(charter.clone()));
+        charter.number = 2;
+        core.current
+            .defaults
+            .insert(
+                Setting::Charter(2),
+                crate::settings::Default { value: Value::Charter(Box::new(charter)), revision: 1 },
+            )
+            .unwrap();
+        let mut out = Queue::uncapped();
+        if restoring {
+            for row in rows.into_boxed() {
+                assert_eq!(restore(&mut core, &env, row), Restored::Live);
+            }
+            let Action::Refused(_) = core.start_done(&env, Phase::LoadCore, &mut out) else {
+                panic!("duplicate defaults refused");
+            };
+        } else {
+            assert!(!crate::settings::restart::first_start(&mut core, &env, &mut out));
+        }
+        assert_eq!(
+            core.start_failure(),
+            Some(Failure::Settings {
+                failure: crate::settings::Failure { setting: Setting::Charter(2), fault: Fault::Shape, detail: None },
+                changed: false,
+            })
+        );
+    }
+}
+
+#[test]
+fn a_release_offers_a_colliding_stored_charter_without_its_name() {
+    let (mut core, env) = loaded_with_charters(2);
+    let mut rows = settings_rows(&core);
+    let mut own = core.charter(1).unwrap().clone();
+    own.number = 33;
+    own.name = Some(Box::from(b"x".as_slice()));
+    rows.push(Record::Changed {
+        setting: Setting::Charter(33),
+        changed: Changed { revision: 1, value: Some(Value::Charter(Box::new(own))) },
+    })
+    .unwrap();
+    core.current.defaults.get_mut(&Setting::Charter(1)).unwrap().value.set_name(Some(b"x"));
+    for row in rows.into_boxed() {
+        assert_eq!(restore(&mut core, &env, row), Restored::Live);
+    }
+    let mut out = Queue::uncapped();
+    let action = core.start_done(&env, Phase::LoadCore, &mut out);
+    if let Action::Refused(failure) = action {
+        panic!("settings start refused: {failure:?}");
+    }
+    drop(core.commit_restored_settings(&env, crate::settings::writes_bound(&env.limits).unwrap()));
+    assert_eq!(core.start_failure(), None);
+    assert_eq!(core.charter(33).unwrap().name, None);
+    assert_eq!(core.charter_named(b"x"), Some(1));
+    assert_eq!(core.settings_unnamed(), &[Setting::Charter(33)]);
+}
+
+#[test]
+fn charter_named_reads_the_stock_name_over_a_stored_change_and_follows_own_renames() {
+    use crate::settings::{Edit, Item};
+    let (mut core, env) = loaded_with_charters(2);
+    let rows = settings_rows(&core);
+    let mut stock_change = core.charter(1).unwrap().clone();
+    stock_change.policy.instructions = Box::from(b"changed stock".as_slice());
+    let mut own = core.charter(1).unwrap().clone();
+    own.number = 33;
+    own.name = Some(Box::from(b"old".as_slice()));
+    core.current.defaults.get_mut(&Setting::Charter(1)).unwrap().value.set_name(Some(b"chat"));
+    for row in rows.into_boxed() {
+        assert_eq!(restore(&mut core, &env, row), Restored::Live);
+    }
+    for charter in [stock_change, own.clone()] {
+        let row = Record::Changed {
+            setting: Setting::Charter(charter.number),
+            changed: Changed { revision: 1, value: Some(Value::Charter(Box::new(charter))) },
+        };
+        assert_eq!(restore(&mut core, &env, row), Restored::Live);
+    }
+    let mut out = Queue::uncapped();
+    let action = core.start_done(&env, Phase::LoadCore, &mut out);
+    if let Action::Refused(failure) = action {
+        panic!("settings start refused: {failure:?}");
+    }
+    drop(core.commit_restored_settings(&env, crate::settings::writes_bound(&env.limits).unwrap()));
+    assert_eq!(core.start_failure(), None);
+    assert_eq!(core.charter(1).unwrap().policy.instructions.as_ref(), b"changed stock");
+    assert_eq!(core.charter_named(b"chat"), Some(1));
+    assert_eq!(core.charter_named(b"old"), Some(33));
+    assert_eq!(core.charter_named(b"missing"), None);
+    own.name = Some(Box::from(b"new".as_slice()));
+    let rename = [Item { setting: Setting::Charter(33), edit: Edit::Set(Value::Charter(Box::new(own))) }];
+    crate::settings::check_change(&core.current, &rename, &core.settings, &core.connectors, &env.limits).unwrap();
+    drop(crate::settings::apply(&mut core.current, &rename, 2));
+    crate::settings::charters::rebuild(&mut core.current, &env.limits);
+    assert_eq!(core.charter_named(b"new"), Some(33));
+    assert_eq!(core.charter_named(b"old"), None);
 }

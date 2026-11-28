@@ -156,6 +156,61 @@ fn a_refusal_carries_the_forges_words() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the refusal table assembles its expected text independently")]
+fn a_named_charter_owner_is_judged_by_form_not_existence() {
+    use settings::{Area, AreaOwner, ProjectAreas, ProjectTriager};
+    let (mut domain, env) = root();
+    assert_eq!(domain.engine.core().charter_named(b"nobody"), None);
+    for (owner, owner_bytes, refused) in [
+        (AreaOwner::CharterNamed(b"Triager".as_slice().into()), 1 + 4 + 7, Some("charter Triager")),
+        (AreaOwner::Charter(65), 1 + 4, Some("charter 65")),
+        (AreaOwner::CharterNamed(b"nobody".as_slice().into()), 1 + 4 + 6, None),
+        (AreaOwner::Charter(64), 1 + 4, None),
+    ] {
+        for (kind, value, size, label) in [
+            (
+                14,
+                settings::Value::ProjectAreas(ProjectAreas {
+                    areas: Box::new([Area {
+                        name: b"tests".as_slice().into(),
+                        words: b"C tests".as_slice().into(),
+                        owner: owner.clone(),
+                    }]),
+                }),
+                4 + (4 + 5) + (4 + 7) + owner_bytes,
+                "area tests",
+            ),
+            (15, settings::Value::ProjectTriager(ProjectTriager { owner }), owner_bytes, "triager"),
+        ] {
+            domain.kinds =
+                Box::new([KindValue { kind, scope: PROJECT, number: 1, value: settings::SizedValue { value, size } }]);
+            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+            judge(
+                &mut domain,
+                &env,
+                &mut decision,
+                None,
+                Box::new([application::Item {
+                    kind,
+                    scope: PROJECT,
+                    number: 1,
+                    edit: application::Edit::Set(Box::default()),
+                }]),
+            );
+            let expected = if let Some(owner) = refused {
+                connector::Judged::Refuse {
+                    why: format!("{label}: owner {owner} is not of the project").into_bytes().into_boxed_slice(),
+                }
+            } else {
+                connector::Judged::Accept { size, charters: Box::default() }
+            };
+            assert_eq!(answer(&mut domain).as_ref(), &[expected]);
+            crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+        }
+    }
+}
+
+#[test]
 fn a_set_without_its_typed_value_is_refused_as_another_kind() {
     let (mut domain, env) = root();
     // None of kind, scope and number can substitute for another item's value.
@@ -1169,8 +1224,9 @@ fn root_with_way() -> (Domain, Env<RootLimits>) {
     use jig_domain_tasks as tasks;
     let mut config = resume_fixture::config(7);
     config.core.defaults.templates = Box::new([jig_domain_core::Template {
+        name: None,
         number: 1,
-        name: b"way".as_slice().into(),
+        shown: b"way".as_slice().into(),
         executor: people::TemplateExecutor::Chosen,
         contract: tasks::Contract::Report { words: 32 },
         shallower: 1,

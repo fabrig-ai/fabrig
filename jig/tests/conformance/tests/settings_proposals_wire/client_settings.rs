@@ -218,8 +218,9 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     let mut settings = List::with_capacity(1);
     settings
         .push(d::SettingLine {
-            setting: s::Setting::Rules,
             name: None,
+            setting: s::Setting::Rules,
+            shown: None,
             follows: d::Follows::Default,
             last: Some(6),
             application: None,

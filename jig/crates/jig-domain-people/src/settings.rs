@@ -7,6 +7,24 @@ pub const NUMBERS: u32 = 64;
 /// (jig/docs/design/domain/engine/settings.md, 1).
 pub const STOCK_NUMBERS: u32 = 32;
 
+/// The byte bound for a charter, template or policy's name (jig/docs/design/domain/engine/settings.md, 1).
+pub const NAME_BYTES: u32 = 32;
+
+/// A name starts with a lowercase ASCII letter, followed by letters, digits or hyphens.
+#[must_use]
+pub fn is_name(bytes: &[u8]) -> bool {
+    let Some((first, rest)) = bytes.split_first() else { return false };
+    if !first.is_ascii_lowercase() || bytes.len() > skein_lib::usize_of(NAME_BYTES) {
+        return false;
+    }
+    for byte in rest {
+        if !byte.is_ascii_lowercase() && !byte.is_ascii_digit() && *byte != b'-' {
+            return false;
+        }
+    }
+    true
+}
+
 /// A core or application setting (jig/docs/design/domain/engine/settings.md, 1, jig/docs/design/domain/engine/settings-application.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Setting {
@@ -44,6 +62,8 @@ pub enum SettingFault {
     Accounts,
     /// A charter, template, policy or model numbered out of its range.
     Range,
+    /// A reserved or already offered charter, template or policy name.
+    Name,
 }
 
 /// Whether an accepted settings revision moves running work (domain/engine/settings.md, 2).
@@ -100,6 +120,16 @@ pub struct SettingDetail {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn setting_name_form() {
+        for valid in [b"goal".as_slice(), b"draft-goal", b"a1", &[b'a'; 32]] {
+            assert!(super::is_name(valid), "{valid:?}");
+        }
+        for invalid in [b"".as_slice(), b"Goal", b"1goal", b"-goal", b"goal_x", b"12", &[b'a'; 33]] {
+            assert!(!super::is_name(invalid), "{invalid:?}");
+        }
+    }
+
     #[test]
     fn settings_number_constants_bound_stock_and_deployment() {
         let numbers: u32 = crate::NUMBERS;

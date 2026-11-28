@@ -192,6 +192,7 @@ fn inbox_across_projects_stories() {
             number,
             name: format!("Project {number}").into_boxed_str(),
             policy: core::ConfiguredPolicy {
+                name: None,
                 policy: policy.clone(),
                 permissions: config.core.seed_projects[0].policy.permissions.clone(),
                 templates: Box::new([]),

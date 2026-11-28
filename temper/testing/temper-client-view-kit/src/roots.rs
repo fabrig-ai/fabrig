@@ -1083,6 +1083,7 @@ pub fn fixture_me(project_name: &[u8]) -> c::Me {
     second.name = DocumentText::complete(contract::Text::new(Box::from(*b"Second"), 32).expect("name fits"));
     projects.push(second).expect("second project");
     Me {
+        charters: skein_lib::List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,
@@ -1724,7 +1725,7 @@ pub fn asking_me(mut me: c::Me) -> c::Me {
     };
     let mut asking = stock.clone();
     asking.number = 5;
-    asking.name = c::DocumentText::complete(first_run::text(b"A renamed role"));
+    asking.shown = c::DocumentText::complete(first_run::text(b"A renamed role"));
     asking.executor = c::TemplateExecutor::Charter(37);
     let mut custom = stock.clone();
     custom.number = 7;

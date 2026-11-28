@@ -674,6 +674,30 @@ fn deliver_document(root: &mut f::Harness, subject: &client::Watchable, document
     });
 }
 #[test]
+fn finding_list_prints_named_charter_owners_in_text_and_json() {
+    let mut doc = document();
+    let owner = w::AreaOwner::CharterNamed(w::AreaCharterNamed { name: b"triager".as_slice().into() });
+    doc.areas.get_mut(0).unwrap().owner = owner.clone();
+    doc.triager = Some(owner);
+    let subject = filtered(doc.project, w::FindingsFilter::Triage(w::FindingsTriage { state: None, mine: false }));
+    for json in [false, true] {
+        let mut root = root();
+        let call = root.submit_call(f::call(&["finding", "list", "--project", "shop"]), json);
+        deliver_document(&mut root, &subject, &doc);
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 0);
+        if json {
+            f::unique_keys(&printed.stdout).unwrap();
+            assert!(f::has(&printed, br#""owner":{"charter":"triager"}"#));
+            assert!(f::has(&printed, br#""triager":{"charter":"triager"}"#));
+        } else {
+            assert!(f::has(&printed, b"tests owner charter triager, held by task 40"));
+            assert!(f::has(&printed, b"triager owner charter triager, held by task 41"));
+        }
+    }
+}
+
+#[test]
 fn finding_list_filters_blame_and_prints_clearing_and_row_fields() {
     for (flag, task, filter) in [
         ("--goal", "820", w::FindingsFilter::Goal(w::FindingsGoal { goal: 820 })),

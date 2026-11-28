@@ -464,6 +464,7 @@ pub(crate) fn settings_restore_setting_policy(
         templates.push(settings_restore_template_override(item)).expect("same capacity");
     }
     Ok(c::SettingPolicy {
+        name: value.name.clone(),
         escalation_role: value.escalation_role,
         ceiling: documents_owner_authority_fields(&value.ceiling, limits)?,
         projections,
@@ -531,9 +532,10 @@ pub(crate) fn documents_me_template(value: &w::Template, limits: &Limits) -> Res
         resources.push(c::Symbol { connector: resource.connector, symbol: resource.symbol }).expect("same capacity");
     }
     Ok(c::Template {
+        name: value.name.clone(),
         resources,
         number: value.number,
-        name: facts_document_text(&value.name, limits)?,
+        shown: facts_document_text(&value.shown, limits)?,
         executor: operations_restore_executor(&value.executor),
         contract: documents_task_contract_document_fields(&value.contract, limits)?,
         shallower: value.shallower,
@@ -877,6 +879,7 @@ pub(crate) fn settings_restore_charter(value: &w::Charter) -> Result<c::Charter,
             .expect("same capacity");
     }
     Ok(c::Charter {
+        name: value.name.clone(),
         parts,
         rest: value.rest,
         documents,
@@ -1036,8 +1039,9 @@ pub(crate) fn settings_restore_setting_line(
     limits: &Limits,
 ) -> Result<c::SettingLine, w::Problem> {
     Ok(c::SettingLine {
+        name: value.name.clone(),
         setting: settings_restore_setting(&value.setting),
-        name: match &value.name {
+        shown: match &value.shown {
             Some(item) => Some(facts_document_text(item, limits)?),
             None => None,
         },
@@ -1344,6 +1348,7 @@ pub(crate) fn settings_wire_setting_policy(
         templates.push(settings_wire_template_override(item)).expect("same capacity");
     }
     Ok(w::SettingPolicy {
+        name: value.name.clone(),
         escalation_role: value.escalation_role,
         ceiling: asks_wire_owner_authority(&value.ceiling, limits)?,
         projections,
@@ -1420,9 +1425,10 @@ pub(crate) fn settings_wire_template(value: &c::Template, limits: &w::Limits) ->
         resources.push(w::Symbol { connector: resource.connector, symbol: resource.symbol }).expect("same capacity");
     }
     Ok(w::Template {
+        name: value.name.clone(),
         resources,
         number: value.number,
-        name: settings_wire_document_text(&value.name),
+        shown: settings_wire_document_text(&value.shown),
         executor: operations_executor(value.executor),
         contract: settings_wire_task_contract(&value.contract, limits)?,
         shallower: value.shallower,
@@ -1590,6 +1596,7 @@ pub(crate) fn settings_wire_charter(value: &c::Charter) -> w::Charter {
             .expect("same capacity");
     }
     w::Charter {
+        name: value.name.clone(),
         parts,
         documents,
         rest: value.rest,

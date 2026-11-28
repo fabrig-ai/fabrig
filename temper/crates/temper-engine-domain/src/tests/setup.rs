@@ -488,6 +488,7 @@ fn runtime_project_root() -> (Domain, Env<Limits>) {
     let mut configured = super::resume_fixture::config_with_project_room(1, 2);
     let seed = &configured.core.seed_projects.first().unwrap().policy;
     let policy = jig_domain_core::ConfiguredPolicy {
+        name: None,
         policy: seed.policy.clone(),
         permissions: seed.permissions.clone(),
         templates: seed.templates.clone(),
@@ -885,9 +886,10 @@ fn seed_with_landing() -> crate::Config {
     use jig_domain_tasks as tasks;
     let mut configured = config(1);
     configured.core.defaults.templates = Box::new([jig_domain_core::Template {
+        name: None,
         resources: Box::new([]),
         number: 1,
-        name: b"goal".as_slice().into(),
+        shown: b"goal".as_slice().into(),
         executor: people::TemplateExecutor::Chosen,
         contract: tasks::Contract::Report { words: 32 },
         shallower: 1,

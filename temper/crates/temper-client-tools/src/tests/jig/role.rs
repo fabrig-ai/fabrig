@@ -253,20 +253,26 @@ pub(super) fn me() -> c::Me {
     template.tracked = None;
     template.label = 3;
     let creating = project.creating.as_mut().unwrap();
-    creating.within.charters = List::from_boxed(Box::new([9, 13]));
+    creating.within.charters = List::from_boxed(Box::new([9, 13, 14]));
+    me.charters = List::from_boxed(Box::new([c::MeCharter { number: 14, name: b"triager".as_slice().into() }]));
     me
 }
 #[test]
 fn role_start_fills_the_named_template() {
-    for charter in [None, Some("9")] {
-        let argv = f::extended(START, if charter.is_some() { &["--charter", "9"] } else { &[] });
+    for (extra, charter) in [
+        (&[][..], 13),
+        (&["--charter", "9"][..], 9),
+        (&["--charter", "14"][..], 14),
+        (&["--charter", "triager"][..], 14),
+    ] {
+        let argv = f::extended(START, extra);
         let mut root = f::choice_root(me());
         let call = root.submit(argv.as_slice());
         let c::Ask::Create { project, tasks } = f::act_ask(&root, call) else { panic!("create") };
         assert_eq!(*project, 2);
         assert_eq!(tasks.len(), 1);
         let task = tasks.get(0).unwrap();
-        assert_eq!(task.executor, c::Executor::Agent { charter: if charter.is_some() { 9 } else { 13 } });
+        assert_eq!(task.executor, c::Executor::Agent { charter });
         assert_eq!(task.spec.words.bytes(), b"Owns the tests");
         assert_eq!(task.contract, c::NewContract::Report { words: crate::limits::TEXT });
         assert_eq!(task.authority.spend, 50);

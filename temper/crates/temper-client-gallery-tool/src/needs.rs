@@ -176,8 +176,9 @@ pub fn domain(name: &str) -> Domain {
                     c::Delivery::Settings(Box::new(c::SettingsDocument {
                         newest: 1,
                         settings: List::from_boxed(Box::new([c::SettingLine {
-                            setting: c::Setting::Application { kind: 8, scope: 1, number: 1 },
                             name: None,
+                            setting: c::Setting::Application { kind: 8, scope: 1, number: 1 },
+                            shown: None,
                             follows: c::SettingFollows::Change,
                             last: Some(1),
                             application: None,

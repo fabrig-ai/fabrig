@@ -501,8 +501,9 @@ impl World {
         for project in 1..=self.projects {
             settings
                 .push(c::SettingLine {
+                    name: None,
                     setting: c::Setting::Application { kind: 2, scope: project, number: 1 },
-                    name: Some(text(if self.ways[usize::try_from(project - 1).expect("generated project")] == 0 {
+                    shown: Some(text(if self.ways[usize::try_from(project - 1).expect("generated project")] == 0 {
                         b"You approve"
                     } else {
                         b"Agents review"
@@ -514,8 +515,9 @@ impl World {
                 .expect("uncapped setting lines");
             settings
                 .push(c::SettingLine {
+                    name: None,
                     setting: c::Setting::Application { kind: 7, scope: project, number: 1 },
-                    name: Some(text(
+                    shown: Some(text(
                         if self.ways[usize::try_from(project - 1).expect("bounded density fixture")] == 0 {
                             b"You approve"
                         } else {
@@ -1089,6 +1091,7 @@ fn frame(projects: u32) -> c::Me {
         })
         .collect::<Vec<_>>();
     c::Me {
+        charters: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,
@@ -1109,9 +1112,10 @@ fn frame(projects: u32) -> c::Me {
 // The chat template follows the domain's fixtures::chats::me, so Home's task reads settle.
 fn chat_template() -> c::Template {
     c::Template {
+        name: None,
         resources: List::with_capacity(0),
         number: 1,
-        name: text(b"Chat"),
+        shown: text(b"Chat"),
         executor: c::TemplateExecutor::Charter(1),
         contract: c::TaskContractDocument::Report { words: 512 },
         shallower: 1,

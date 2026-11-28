@@ -212,9 +212,9 @@ fn named_value_text(
     limits: &Limits,
     out: &mut Text,
 ) {
-    if let c::Setting::Application { kind: 22, .. } = setting
+    if let c::Setting::Application { kind: kind @ (14 | 15 | 22), .. } = setting
         && let c::SettingValue::Application(bytes) = value
-        && application_value_text(22, bytes, out)
+        && application_value_text(kind, bytes, out)
     {
         out.put(b"\n");
         return;
@@ -560,6 +560,10 @@ pub fn encode(value: &c::ReadValue, out: &mut Encoder) {
 }
 /// Word a fault with the setting's kind and number (jig/docs/design/domain/engine/settings.md, 1).
 pub fn setting_fault(setting: c::Setting, fault: c::SettingFault, out: &mut Text) {
+    if fault == c::SettingFault::Name {
+        setting_name_fault(setting, out);
+        return;
+    }
     if fault != c::SettingFault::Range {
         out.put(fault_word(fault));
         return;
@@ -591,6 +595,29 @@ pub fn setting_fault(setting: c::Setting, fault: c::SettingFault, out: &mut Text
     out.put(b" to ");
     out.number(u64::from(c::NUMBERS));
 }
+fn setting_name_fault(setting: c::Setting, out: &mut Text) {
+    setting_text(setting, out);
+    let (number, kind): (u32, &[u8]) = match setting {
+        c::Setting::Charter(n) => (n.number, b"charter"),
+        c::Setting::Template(n) => (n.number, b"template"),
+        c::Setting::Policy(n) => (n.number, b"policy"),
+        c::Setting::Model(_)
+        | c::Setting::Worker(_)
+        | c::Setting::Provider(_)
+        | c::Setting::Application { .. }
+        | c::Setting::ProjectPolicy { .. }
+        | c::Setting::Rules
+        | c::Setting::Limits => (0, b"item"),
+    };
+    if number <= c::STOCK_NUMBERS {
+        out.put(b" keeps the stock's name");
+    } else {
+        out.put(b"'s name is taken, by a stock ");
+        out.put(kind);
+        out.put(b" or another of your own");
+    }
+}
+
 #[must_use]
 pub const fn fault_word(fault: c::SettingFault) -> &'static [u8] {
     match fault {
@@ -605,6 +632,16 @@ pub const fn fault_word(fault: c::SettingFault) -> &'static [u8] {
         c::SettingFault::Linked => b"linked: stop it first",
         c::SettingFault::Accounts => b"provider still has accounts: remove its accounts first",
         c::SettingFault::Range => b"range",
+        c::SettingFault::Name => b"name",
+    }
+}
+
+/// Render an inventory row's item name separately from its key and shown title.
+pub fn inventory_name_text(name: Option<&[u8]>, out: &mut Text) {
+    if let Some(name) = name {
+        out.put(b", name \"");
+        out.words(name);
+        out.put(b"\"");
     }
 }
 
@@ -615,9 +652,9 @@ fn inventory_text(document: &c::SettingsDocument, out: &mut Text) {
     for line in &document.settings {
         out.put(b"  ");
         setting_text(line.setting, out);
-        if let Some(name) = &line.name {
+        if let Some(shown) = &line.shown {
             out.put(b" \"");
-            out.words(name.bytes());
+            out.words(shown.bytes());
             out.put(b"\"");
         }
         out.put(b": ");
@@ -639,6 +676,7 @@ fn inventory_text(document: &c::SettingsDocument, out: &mut Text) {
                 }
             }
         }
+        inventory_name_text(line.name.as_deref(), out);
         out.put(b"\n");
     }
     out.put(b"held revisions:\n");
@@ -774,9 +812,10 @@ fn encode_inventory(document: &c::SettingsDocument, out: &mut Encoder) {
         out.object_start();
         out.key(b"setting");
         encode_setting(line.setting, out);
-        out.key(b"name");
-        match &line.name {
-            Some(name) => values::encode_document_text(name, out),
+        values::encode_setting_name(line.name.as_deref(), out);
+        out.key(b"shown");
+        match &line.shown {
+            Some(shown) => values::encode_document_text(shown, out),
             None => out.null(),
         }
         out.key(b"follows");
@@ -1017,8 +1056,11 @@ pub fn setting_detail(detail: &c::SettingDetail, out: &mut Text) {
 pub fn application_value(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     crate::kinds::render(kind, bytes, out)
 }
-/// Render classes and limit overrides in words; other application kinds use inline JSON.
+/// Render classes, limit overrides and named owners in words; other application values use inline JSON.
 pub fn application_value_text(kind: u32, bytes: &[u8], out: &mut Text) -> bool {
+    if kind == 14 || kind == 15 {
+        return crate::kinds::named_owners_text(kind, bytes, out);
+    }
     if kind == 22 {
         let Some(values) = crate::kinds::limits::decoded(bytes) else { return false };
         for (at, value) in values.iter().enumerate() {
@@ -1168,5 +1210,25 @@ pub fn limits_text(values: &[(c::Setting, c::SettingValue)], out: &mut Text) {
         out.put(b" [");
         out.put(kind);
         out.put(b"]\n");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_name_fault_words_the_setting_and_its_range() {
+        for (number, expected) in [
+            (2, "template 2 keeps the stock's name"),
+            (33, "template 33's name is taken, by a stock template or another of your own"),
+        ] {
+            let setting = c::Setting::Template(c::SettingNumber { number });
+            let mut measured = Text::measure();
+            setting_fault(setting, c::SettingFault::Name, &mut measured);
+            let mut line = Text::writing_exact(measured);
+            setting_fault(setting, c::SettingFault::Name, &mut line);
+            assert_eq!(line.finish().as_ref(), expected.as_bytes());
+        }
     }
 }

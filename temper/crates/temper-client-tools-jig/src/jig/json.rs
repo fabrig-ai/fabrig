@@ -203,9 +203,10 @@ fn decode_value(table: &[&Tool], doc: &Document, at: u32, spec: &Argument, limit
         Kind::Amount | Kind::Number | Kind::NumberRange { .. } | Kind::Count | Kind::Places | Kind::Duration => {
             require(doc, at, JsonKind::Number)?;
         }
-        Kind::Project { .. } if kind == JsonKind::Number => {}
+        Kind::Project { .. } | Kind::NameOrNumber { .. } if kind == JsonKind::Number => {}
         Kind::Word { .. }
         | Kind::Text
+        | Kind::NameOrNumber { .. }
         | Kind::NamedNumber { .. }
         | Kind::Literal
         | Kind::File
@@ -364,6 +365,7 @@ pub fn encode_tool(tool: &Tool, limits: &Limits, out: &mut Encoder) {
 fn kind_word(kind: Kind) -> &'static [u8] {
     match kind {
         Kind::Number | Kind::NumberRange { .. } => b"number",
+        Kind::NameOrNumber { .. } => b"name_or_number",
         Kind::Amount => b"amount",
         Kind::Count | Kind::Places => b"count",
         Kind::Word { .. } => b"word",
@@ -461,7 +463,7 @@ fn encode_argument(spec: &Argument, limits: &Limits, out: &mut Encoder) {
             }
             out.array_end();
         }
-        Kind::NumberRange { min, max } => {
+        Kind::NumberRange { min, max } | Kind::NameOrNumber { min, max } => {
             out.key(b"min");
             out.unsigned(min);
             out.key(b"max");

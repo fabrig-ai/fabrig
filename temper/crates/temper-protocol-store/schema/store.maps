@@ -617,7 +617,8 @@ record AreaTask stands for number
 record AreaParty stands for number
 record AreaRole stands for number
 record AreaCharter stands for number
-enum AreaOwner = d::settings::AreaOwner { task tuple, party tuple, role tuple, charter tuple }
+record AreaCharterNamed stands for name
+enum AreaOwner = d::settings::AreaOwner { task tuple, party tuple, role tuple, charter tuple, charter_named tuple }
 record Area = d::settings::Area
 record ProjectAreas = d::settings::ProjectAreas { areas slice }
 record ProjectTriager = d::settings::ProjectTriager

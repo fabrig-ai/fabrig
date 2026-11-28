@@ -273,6 +273,19 @@ impl Core {
         self.current.resolved_charter(number)
     }
 
+    /// The newest offered charter under this name (domain/engine/settings.md, 1).
+    #[must_use]
+    pub fn charter_named(&self, name: &[u8]) -> Option<u32> {
+        for number in 1..=super::NUMBERS {
+            if let Some(charter) = self.charter(number)
+                && charter.name.as_deref() == Some(name)
+            {
+                return Some(number);
+            }
+        }
+        None
+    }
+
     /// An admitted live agent task's run revision, or its own when no run lives.
     #[must_use]
     pub fn charter_of(&self, task: u64) -> &Charter {

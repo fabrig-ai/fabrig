@@ -424,6 +424,13 @@ pub struct FrameProjectRole {
     pub public: bool,
 }
 
+/// A named charter offered by the settings.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FrameCharter {
+    pub number: u32,
+    pub name: Box<[u8]>,
+}
+
 /// Party identity, current roles, bounded counts and contract configuration.
 /// Deployment membership is supplied independently of the bounded project rows
 /// (`client/domain/contract/README.md`, section 2 and `client/domain/contract/documents.md` and `client/domain/contract/watches.md`, section 1.1).
@@ -435,6 +442,7 @@ pub struct Frame {
     pub name: Text,
     pub deployment_role: Option<people::Role>,
     pub projects: List<FrameProjectRole>,
+    pub charters: List<FrameCharter>,
     pub needs: u32,
     /// Exact kinds, including needs beyond the recent inbox prefix.
     pub need_counts: people::Needs,
@@ -532,7 +540,9 @@ pub fn document_bound(limits: &DocumentLimits) -> Option<u64> {
         .checked_add(u64::from(limits.lines).checked_mul(creating)?)?
         .checked_add(u64::from(limits.lines).checked_mul(u64::from(limits.text_bytes))?)?
         .checked_add(u64::from(limits.text_bytes).checked_mul(2)?)?
-        .checked_add(catalogue::offers_bound(limits)?)?;
+        .checked_add(catalogue::offers_bound(limits)?)?
+        .checked_add(List::<FrameCharter>::price(people::NUMBERS)?)?
+        .checked_add(u64::from(people::NUMBERS).checked_mul(u64::from(people::settings::NAME_BYTES))?)?;
     u64::try_from(size_of::<Document>()).ok()?.checked_add(
         chips
             .max(frame)

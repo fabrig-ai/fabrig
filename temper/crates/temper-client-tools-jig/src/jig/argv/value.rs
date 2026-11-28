@@ -23,6 +23,13 @@ pub(super) fn valid(
         Kind::Amount | Kind::Number | Kind::Count | Kind::Places | Kind::NumberRange { .. } => {
             return valid_number(spec, value, argument, limits);
         }
+        Kind::NameOrNumber { .. } => {
+            if let Value::Text(name) = value {
+                !decimal_digits(name)
+            } else {
+                return valid_number(spec, value, argument, limits);
+            }
+        }
         Kind::NamedNumber { words, prefixes, .. } => {
             let Value::Text(bytes) = value else {
                 return Err(Usage::Kind { tool: 0, form: 0, argument });
@@ -119,6 +126,7 @@ pub fn decode(table: &[&Tool], kind: Kind, bounds: Bound, word: &[u8]) -> Option
             let Bound::Numbers { least, most } = bounds else { return None };
             Value::Number(bounded_number(word, least, most)?)
         }
+        Kind::NameOrNumber { .. } => name_or_number(bounds, word)?,
         Kind::NamedNumber { words, prefixes, .. } => {
             let Bound::Numbers { least, most } = bounds else { return None };
             Value::Text(named_text(word, words, prefixes, least, most)?)
@@ -146,11 +154,7 @@ pub fn decode(table: &[&Tool], kind: Kind, bounds: Bound, word: &[u8]) -> Option
             if word.is_empty() {
                 return if empty { Some(Value::Project(Project::Name(Box::default()))) } else { None };
             }
-            let mut digits = true;
-            for byte in word {
-                digits &= byte.is_ascii_digit();
-            }
-            Value::Project(if digits {
+            Value::Project(if decimal_digits(word) {
                 Project::Number(u32::try_from(number(word)?).ok()?)
             } else {
                 Project::Name(Box::from(word))
@@ -210,6 +214,25 @@ pub fn decode(table: &[&Tool], kind: Kind, bounds: Bound, word: &[u8]) -> Option
         Kind::Condition => Value::Condition(subject::parse(word)?),
         Kind::Tool => Value::Tool(super::tool_index(table, word)?),
     })
+}
+fn name_or_number(bounds: Bound, word: &[u8]) -> Option<Value> {
+    if decimal_digits(word) {
+        let Bound::Numbers { least, most } = bounds else { return None };
+        Some(Value::Number(bounded_number(word, least, most)?))
+    } else {
+        Some(Value::Text(Box::from(word)))
+    }
+}
+fn decimal_digits(word: &[u8]) -> bool {
+    if word.is_empty() {
+        return false;
+    }
+    for byte in word {
+        if !byte.is_ascii_digit() {
+            return false;
+        }
+    }
+    true
 }
 pub(super) fn number(word: &[u8]) -> Option<u64> {
     if word.is_empty() {
@@ -438,11 +461,11 @@ fn valid_project(value: &Value, argument: u8, empty: bool) -> Result<(), Usage> 
             if name.is_empty() && empty {
                 return Ok(());
             }
-            let mut digits = true;
-            for byte in name {
-                digits &= byte.is_ascii_digit();
+            if name.is_empty() || decimal_digits(name) {
+                Err(Usage::Kind { tool: 0, form: 0, argument })
+            } else {
+                Ok(())
             }
-            if name.is_empty() || digits { Err(Usage::Kind { tool: 0, form: 0, argument }) } else { Ok(()) }
         }
     }
 }
@@ -545,4 +568,21 @@ pub fn finding(word: &[u8]) -> Option<(&[u8], u32)> {
         u32::try_from(self::number(project)?).ok()?;
     }
     Some((project, number))
+}
+
+#[cfg(test)]
+#[test]
+fn only_decimal_digits_make_a_setting_reference_numeric() {
+    let kind = Kind::NameOrNumber { min: 0, max: u64::MAX };
+    let bounds = Bound::Numbers { least: 0, most: u64::MAX };
+    for (argument, expected) in [
+        (b"0004".as_slice(), Some(Value::Number(4))),
+        (b"18446744073709551615", Some(Value::Number(u64::MAX))),
+        (b"18446744073709551616", None),
+        (b"draft-4", Some(Value::Text(Box::from(b"draft-4".as_slice())))),
+        (b"4draft", Some(Value::Text(Box::from(b"4draft".as_slice())))),
+        (b"+4", Some(Value::Text(Box::from(b"+4".as_slice())))),
+    ] {
+        assert_eq!(decode(&[], kind, bounds, argument), expected, "{argument:?}");
+    }
 }

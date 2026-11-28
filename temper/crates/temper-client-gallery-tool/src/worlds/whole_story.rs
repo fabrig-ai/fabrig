@@ -466,8 +466,9 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                         for project in &me.projects {
                             settings
                                 .push(c::SettingLine {
-                                    setting: c::Setting::Application { kind: 2, scope: project.project, number: 1 },
                                     name: None,
+                                    setting: c::Setting::Application { kind: 2, scope: project.project, number: 1 },
+                                    shown: None,
                                     follows: c::SettingFollows::Change,
                                     last: None,
                                     application: None,

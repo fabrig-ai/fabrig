@@ -47,22 +47,25 @@ fn inventory() -> c::ReadResult {
         newest: 5,
         settings: list([
             c::SettingLine {
-                setting: identity(1),
                 name: None,
+                setting: identity(1),
+                shown: None,
                 follows: c::SettingFollows::Default,
                 last: None,
                 application: None,
             },
             c::SettingLine {
-                setting: identity(3),
                 name: None,
+                setting: identity(3),
+                shown: None,
                 follows: c::SettingFollows::Change,
                 last: Some(5),
                 application: None,
             },
             c::SettingLine {
-                setting: c::Setting::Worker(c::SettingNumber { number: 2 }),
                 name: None,
+                setting: c::Setting::Worker(c::SettingNumber { number: 2 }),
+                shown: None,
                 follows: c::SettingFollows::Change,
                 last: Some(5),
                 application: None,

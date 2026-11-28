@@ -86,6 +86,7 @@ mod tests {
         second.name = DocumentText::complete(contract::Text::new(Box::from(*b"Second"), 32).expect("name fits"));
         projects.push(second).expect("second project");
         Me {
+            charters: List::with_capacity(0),
             providers: List::with_capacity(0),
             providers_cut: false,
             key_bytes: 256,

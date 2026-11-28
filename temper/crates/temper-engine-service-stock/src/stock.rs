@@ -515,7 +515,7 @@ pub fn floors(defaults: &Defaults, limits: &jig_protocol_config::Limits) -> Resu
     }
     for template in &defaults.templates {
         let setting = Setting::Template(template.number);
-        floor(b"documents.text_bytes", u64::from(core.documents.text_bytes), count(template.name.len()), setting)?;
+        floor(b"documents.text_bytes", u64::from(core.documents.text_bytes), count(template.shown.len()), setting)?;
         if let Contract::Report { words } = template.contract {
             floor(b"tasks.result_bytes", u64::from(core.tasks.result_bytes), u64::from(words), setting)?;
         }
@@ -672,6 +672,7 @@ pub fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> Option<
 
 fn project_policy(period_spend: u64, pool_spend: u64, task_spend: u64) -> ConfiguredPolicy {
     ConfiguredPolicy {
+        name: Some(bytes::copy_of(b"stock")),
         policy: authority::Policy {
             escalation_role: Some(0),
             ceiling: ceiling(pool_spend),
@@ -767,7 +768,23 @@ fn charter(
     for alternative in ordered {
         alternatives.push(alternative).expect("one per remaining configured model");
     }
+    let name: &[u8] = match number {
+        1 => b"chat",
+        2 => b"implementer",
+        4 => b"reviewer",
+        5 => b"goal",
+        9 => b"status",
+        10 => b"trial",
+        11 => b"ask-temper",
+        12 => b"drafter",
+        13 => b"standing-role",
+        14 => b"triager",
+        15 => b"prover",
+        16 => b"porter",
+        _ => unreachable!("only stock charters"),
+    };
     Charter {
+        name: Some(bytes::copy_of(name)),
         parts: Box::new([]),
         rest: true,
         wake: WakePolicy::DEFAULT,
@@ -986,7 +1003,8 @@ fn chat(result_bytes: u32) -> Template {
     Template {
         resources: Box::new([]),
         number: 1,
-        name: bytes::copy_of(b"chat"),
+        name: Some(bytes::copy_of(b"chat")),
+        shown: bytes::copy_of(b"chat"),
         executor: TemplateExecutor::Charter(1),
         contract: Contract::Report { words: result_bytes },
         shallower: 1,
@@ -1000,13 +1018,20 @@ fn chat(result_bytes: u32) -> Template {
     }
 }
 fn ask(result_bytes: u32) -> Template {
-    Template { number: 5, name: bytes::copy_of(b"ask"), executor: TemplateExecutor::Charter(11), ..chat(result_bytes) }
+    Template {
+        number: 5,
+        name: Some(bytes::copy_of(b"ask-temper")),
+        shown: bytes::copy_of(b"ask"),
+        executor: TemplateExecutor::Charter(11),
+        ..chat(result_bytes)
+    }
 }
 // A design session is a chat (temper/docs/design/protocol/configuration/stock.md).
 fn design(result_bytes: u32) -> Template {
     Template {
         number: 6,
-        name: bytes::copy_of(b"design session"),
+        name: Some(bytes::copy_of(b"design-session")),
+        shown: bytes::copy_of(b"design session"),
         executor: TemplateExecutor::Charter(12),
         ..chat(result_bytes)
     }
@@ -1014,7 +1039,8 @@ fn design(result_bytes: u32) -> Template {
 fn draft_goal(result_bytes: u32) -> Template {
     Template {
         number: 4,
-        name: bytes::copy_of(b"goal for a draft"),
+        name: Some(bytes::copy_of(b"draft-goal")),
+        shown: bytes::copy_of(b"goal for a draft"),
         executor: TemplateExecutor::Charter(5),
         resources: Box::new([jig_domain_people::Symbol { connector: 1, symbol: 1 }]),
         flags: Flags {
@@ -1027,7 +1053,8 @@ fn draft_goal(result_bytes: u32) -> Template {
 fn role(result_bytes: u32) -> Template {
     Template {
         number: 7,
-        name: bytes::copy_of(b"standing role"),
+        name: Some(bytes::copy_of(b"standing-role")),
+        shown: bytes::copy_of(b"standing role"),
         deadline: TemplateDeadline::None,
         tracked: None,
         flags: Flags { ended_by: EndedBy::Standing, conversation: false, listed: true, retention: Retention::Kept },
@@ -1038,7 +1065,8 @@ fn role(result_bytes: u32) -> Template {
 fn milestone(result_bytes: u32) -> Template {
     Template {
         number: 8,
-        name: bytes::copy_of(b"milestone"),
+        name: Some(bytes::copy_of(b"milestone")),
+        shown: bytes::copy_of(b"milestone"),
         shallower: 1,
         deadline: TemplateDeadline::None,
         flags: Flags { ended_by: EndedBy::Requester, conversation: false, listed: true, retention: Retention::Kept },
@@ -1050,7 +1078,8 @@ fn goal(result_bytes: u32) -> Template {
     Template {
         resources: Box::new([]),
         number: 2,
-        name: bytes::copy_of(b"goal"),
+        name: Some(bytes::copy_of(b"goal")),
+        shown: bytes::copy_of(b"goal"),
         executor: TemplateExecutor::Chosen,
         contract: Contract::Report { words: result_bytes },
         shallower: 1,

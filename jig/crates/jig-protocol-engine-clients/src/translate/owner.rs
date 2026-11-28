@@ -106,7 +106,12 @@ pub(crate) fn frame_named(
     for item in &value.projects {
         projects.push(project(item, models, names, limits)?).expect("supplied projects");
     }
+    let mut charters = List::with_capacity(value.charters.len());
+    for item in &value.charters {
+        charters.push(mapped::me_charter_to_record(item)).expect("supplied charters");
+    }
     Ok(w::Me {
+        charters,
         providers: super::catalogue::offers(&value.providers, limits.me_providers, limits)?,
         providers_cut: value.providers_cut,
         key_bytes: value.key_bytes,

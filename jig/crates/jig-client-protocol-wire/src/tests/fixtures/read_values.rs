@@ -1,5 +1,5 @@
 //! Every contract read variant, including a task's non-zero remaining delegation.
-use super::TASK_ZERO_BYTES;
+use super::{ME_ZERO_BYTES, TASK_ZERO_BYTES};
 use crate::*;
 use skein_lib::{List, Reader};
 
@@ -23,7 +23,7 @@ pub fn read_values(limits: &Limits) -> List<(&'static str, ReadValue)> {
     let mut values = List::with_capacity(26);
     value!(values, limits, Project, Project, 116);
     value!(values, limits, Ended, Ended, ENDED_ZERO_BYTES, Box::new);
-    value!(values, limits, Me, Me, 91);
+    value!(values, limits, Me, Me, ME_ZERO_BYTES);
     value!(values, limits, Turn, ArchivedTurn, 42);
     values.push(("Task", ReadValue::Task(super::task(limits)))).expect("26 read variants");
     value!(values, limits, Proposal, Proposal, 61);

@@ -153,7 +153,11 @@ pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> Lis
         let write = match value {
             Some(value) => {
                 let changed = Changed { value, revision };
-                drop(current.changes.insert(item.setting, changed.clone()).expect("checked changed count"));
+                let mut offered = changed.clone();
+                if let Some(value) = &mut offered.value {
+                    jig_domain_core_vocabulary::settings::names::fill(current, item.setting, value);
+                }
+                drop(current.changes.insert(item.setting, offered).expect("checked changed count"));
                 Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Changed {
                     setting: item.setting,
                     changed,

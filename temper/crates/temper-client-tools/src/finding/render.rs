@@ -38,6 +38,10 @@ fn owner(value: &w::AreaOwner, out: &mut Text) {
             out.put(b"charter ");
             out.number(u64::from(charter.number));
         }
+        w::AreaOwner::CharterNamed(charter) => {
+            out.put(b"charter ");
+            out.put(&charter.name);
+        }
     }
 }
 fn reference(project: u32, number: u32, out: &mut Text) {
@@ -451,6 +455,10 @@ fn owner_json(value: &w::AreaOwner, out: &mut Encoder) {
         w::AreaOwner::Charter(value) => {
             out.key(b"charter");
             out.unsigned(u64::from(value.number));
+        }
+        w::AreaOwner::CharterNamed(value) => {
+            out.key(b"charter");
+            out.string(&value.name);
         }
     }
     out.object_end();
