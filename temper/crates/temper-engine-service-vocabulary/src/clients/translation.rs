@@ -212,7 +212,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Refuse { .. }
         | root::Delivery::PartBusy { .. }
         | root::Delivery::TurnBusy { .. }
-        | root::Delivery::Start(_)
+        | root::Delivery::Resume(_)
         | root::Delivery::Load { .. } => None,
     }
 }

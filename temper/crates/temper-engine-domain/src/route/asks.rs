@@ -417,7 +417,10 @@ pub(super) fn connector_ask(
                 super::kinds::ask(domain, env, decision, ask);
             }
         }
-        Ask::Lifecycle(lifecycle::Ask::Restore) => {}
+        Ask::Lifecycle(lifecycle::Ask::Restore) => {
+            assert_eq!(connector, domain.config.forge_connector, "the configured restore connector");
+            crate::store_route::load_forge(domain, env, decision, None);
+        }
         ask @ (Ask::Lifecycle(lifecycle::Ask::CatchUp | lifecycle::Ask::ReleaseProject { .. })
         | Ask::Resources(resources::Ask::Hold { .. } | resources::Ask::Unname { .. })
         | Ask::Effects(effects::Ask::Resolve { .. } | effects::Ask::DropProposal { .. })

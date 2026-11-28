@@ -151,7 +151,7 @@ pub(crate) fn loaded(
         Ok(Some(range)) => {
             *domain.archive_reads.get_mut(Id::from_token(waiter)).expect("report read slot") =
                 Some(Read::CloserReport(flight));
-            crate::restart::request_load(domain, waiter, range, None, out);
+            crate::store_route::request_load(domain, waiter, range, None, out);
         }
         Ok(None) => {
             let fields = match flight.newest {

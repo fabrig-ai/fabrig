@@ -3476,10 +3476,6 @@ pub enum Request {
         owner: Token,
         result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
     },
-    /// The requested restart phase finished; the root may request the next.
-    RestartDone {
-        stage: RestartStage,
-    },
     /// Run a Replace: Check on a connected Forgejo, Paste with the kept App id on GitHub
     /// (protocol/forge/engine.md, 2).
     Replace {

@@ -596,7 +596,7 @@ impl World {
                     engine_store::Out::Switch
                     | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. },
                 )) => {
-                    unreachable!("the root drives its own start");
+                    unreachable!("start requests use the bounded page and switch adapter");
                 }
                 engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
                     load,

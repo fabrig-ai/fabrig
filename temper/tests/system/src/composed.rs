@@ -1139,7 +1139,7 @@ impl World {
             engine::StoreRequest::Engine(
                 engine_store::Out::Switch | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. },
             ) => {
-                unreachable!("the root drives its own start");
+                unreachable!("start requests use the bounded page and switch adapter");
             }
             engine::StoreRequest::Engine(engine_store::Out::Load {
                 load,
@@ -1681,7 +1681,7 @@ impl World {
             | Delivery::Restarting { .. }
             | Delivery::LimitSettingsCommitted { .. }
             | Delivery::Drained
-            | Delivery::Start(_)
+            | Delivery::Resume(_)
             | Delivery::Load { .. }
             | Delivery::CarriedUnused { .. }) => panic!("unscripted released delivery: {other:?}"),
         }

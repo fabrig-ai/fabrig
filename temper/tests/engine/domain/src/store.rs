@@ -498,7 +498,7 @@ impl Store {
         let mut answers = Vec::new();
         for _ in 0..count {
             let engine_store::Out::Load { load, range } = self.engine_loads.pop_front().expect("counted loads") else {
-                unreachable!("the root drives its own start");
+                unreachable!("start requests use the bounded page and switch adapter");
             };
             if let engine_store::Range::Window { task, from } = range {
                 answers.extend(self.window(load, task, from).into_iter().map(engine::StoreInput::Engine));
@@ -621,7 +621,7 @@ impl Store {
                         | engine_store::In::Fill { .. }
                         | engine_store::In::Census(..),
                     ) => {
-                        unreachable!("the root drives its own start");
+                        unreachable!("start requests use the bounded page and switch adapter");
                     }
                     // These read helpers do not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,

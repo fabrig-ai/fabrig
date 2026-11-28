@@ -379,13 +379,17 @@ fn missing_forge_links_refuse_the_start_before_startup_wires() {
     }
     let link =
         MissingLink { kind: RecordKind::Names, key: Key::Names(KEPT_TASK), need: Need::Repository(ABSENT_REPOSITORY) };
-    let phase = Some(jig_domain_core::start::Phase::Link);
+    let phase = Some(jig_domain_core::start::Phase::RestoreConnector { connector: 1 });
     assert_eq!(service.end(), Some(&End::Stopped(Stop::ForgeLink { phase, link: link.clone() })));
     let engine = service.engine.as_ref().expect("linking engine");
     assert_eq!(engine.domain.forge_missing_link(), Some(link.clone()));
     assert_eq!(engine.domain.start_stop(), Some(temper_engine_domain::StartStop::ForgeLink { phase, link }));
     assert!(!engine.store.host.mark_durable(), "no start wires before link");
-    assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::Link), "no adoption before link");
+    assert_eq!(
+        engine.domain.start_phase(),
+        Some(jig_domain_core::start::Phase::RestoreConnector { connector: 1 }),
+        "no adoption before link"
+    );
     assert!(!engine.domain.ready(), "no decisions before link");
 }
 

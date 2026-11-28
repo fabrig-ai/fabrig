@@ -358,7 +358,11 @@ fn a_restart_resends_only_the_unanswered_steps() {
             if !box_removed {
                 expected.push(Request::BoxRemove { forge: 1 }).unwrap();
             }
-            expected.push(Request::RestartDone { stage: RestartStage::Restored }).unwrap();
+            expected
+                .push(Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+                    stage: RestartStage::Restored,
+                })))
+                .unwrap();
             if secrets_erased && box_removed {
                 expected.push(Request::Erase { key: Key::Forge(1) }).unwrap();
             }

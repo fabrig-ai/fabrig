@@ -42,7 +42,12 @@ fn a_half_change_fails_at_its_commit() {
     driver.advance(true);
     driver.broken("the writer defect's ForgeRow finding is read below");
     let error = driver.check_store().expect_err("the writer saved only the cold part");
-    assert_eq!(error, format!("store check: commit {commit}: start refused at Link: ForgeRow(ChangeCold(51))"));
+    assert_eq!(
+        error,
+        format!(
+            "store check: commit {commit}: start refused at RestoreConnector {{ connector: 0 }}: ForgeRow(ChangeCold(51))"
+        )
+    );
     assert_eq!(driver.store_check_counts().checked(), 1);
 }
 
@@ -157,7 +162,12 @@ fn a_kept_half_change_fails_only_as_the_story_ends() {
     );
     driver.broken("the fixture repaired the store directly, outside the live root's commit sequence");
     let error = driver.close_erasing(None).expect_err("the kept store saved only the cold part");
-    assert_eq!(error, format!("store check: commit {commit}: start refused at Link: ForgeRow(ChangeCold(51))"));
+    assert_eq!(
+        error,
+        format!(
+            "store check: commit {commit}: start refused at RestoreConnector {{ connector: 0 }}: ForgeRow(ChangeCold(51))"
+        )
+    );
     assert_eq!(driver.store_check_counts().checked(), 1);
     driver.close_erasing(None).expect("the finding is not emitted again at Drop");
 }

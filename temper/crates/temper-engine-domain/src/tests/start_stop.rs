@@ -1,18 +1,9 @@
-//! The lib phase fixture can hold synchronous Link and `AdoptRuns`; the world driver runs them through.
+//! Stop at each suspended port exchange, before or after the Wires continuation.
 use super::{resume::at_phase, resume_fixture as fixture};
 use crate::{Domain, Event, Request, StoreInput, StoreRequest, Write};
-use jig_domain_core::start::{Action, Phase};
+use jig_domain_core::start::Phase;
 use skein_lib::{Env, Queue};
 use temper_engine_domain_forge as forge;
-
-fn serve(domain: &mut Domain, env: &Env<crate::Limits>, phase: Phase) {
-    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
-    crate::restart::start_action(domain, env, &mut decision, Action::Step(phase));
-    crate::route::route_into(domain, env, &mut decision);
-    let mut out = Queue::uncapped();
-    crate::domain::close(domain, env, decision, &mut out);
-    assert!(out.is_empty());
-}
 
 fn seeded() -> fixture::StartStore {
     let limits = fixture::limits();
@@ -29,8 +20,7 @@ fn forge_input(domain: &mut Domain, env: &Env<crate::Limits>, event: forge::Even
     forge::step(&mut domain.forge, &crate::translate::environment_forge(env), event, &mut out);
     // Restore's report is the completed Link work supplied by at_phase.
     for request in &out {
-        let (forge::Request::RestartDone { .. }
-        | forge::Request::Up(jig_domain_contract::Up::Lifecycle(jig_domain_contract::lifecycle::Up::Done {
+        let (forge::Request::Up(jig_domain_contract::Up::Lifecycle(jig_domain_contract::lifecycle::Up::Done {
             ..
         }))
         | forge::Request::Save { .. }
@@ -177,6 +167,9 @@ fn held_work(
                     skein_forge::api::Answer::Items { cut: false, items: Box::new([]), more: false, now: env.now },
                 );
             }
+            Some(
+                Request::Store(StoreRequest::Catalogue { .. }) | Request::Party(crate::PartyRequest::Catalogue { .. }),
+            ) => {}
             Some(request) => held.push(request),
             None if before_mark || phase == Some(Phase::AdoptRuns) || expected == 0 => break,
             None => {
@@ -194,27 +187,45 @@ fn held_work(
 
 #[test]
 #[expect(clippy::wildcard_enum_match_arm, reason = "every unlisted held request fails the phase contract")]
+#[expect(clippy::too_many_lines, reason = "one table follows each suspended start through the stop and cold reopen")]
 fn a_stop_at_each_start_step_drains_and_the_next_start_opens() {
     for (phase, before_mark, held_count, catching_up) in [
         (Some(Phase::LoadCore), true, 1, None),
         (Some(Phase::LoadInbox), true, 1, None),
         (Some(Phase::RestoreConnector { connector: 0 }), true, 1, None),
-        (Some(Phase::Link), true, 0, None),
+        (Some(Phase::Link), true, 1, None),
         (Some(Phase::Sweep), true, 1, None),
         (Some(Phase::Switch), true, 1, None),
         (Some(Phase::Wires), true, 1, None),
-        (Some(Phase::AdoptRuns), false, 0, None),
+        // Adoption and opening run in one decision. Hold the durable Wires
+        // continuation to stop at its entry, rather than inventing a pause inside it.
+        (Some(Phase::Wires), true, 0, None),
         (None, false, 1, Some(false)),
         (None, false, 2, Some(true)),
         (None, false, 0, None),
     ] {
         let mut store = seeded();
         let (mut domain, env) = match phase {
+            Some(Phase::Link) => {
+                // Declared application defaults make the first Link a writing decision.
+                let limits = fixture::limits();
+                let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
+                let mut domain = Domain::new(super::kinds::connector_restore_config(&limits, true), &limits).unwrap();
+                store = fixture::StartStore::new();
+                crate::step(&mut domain, &env, Event::Restart { pending: true });
+                store.advance(&mut domain, &env, fixture::Until::Phase(Phase::Link));
+                (domain, env)
+            }
+            Some(Phase::Wires) if held_count == 0 => {
+                let (mut domain, env) = at_phase(false, Phase::Wires);
+                store.run(&mut domain, &env, true);
+                (domain, env)
+            }
             Some(phase) => at_phase(true, phase),
             None => fixture::root(),
         };
         assert_eq!(domain.start_runtime(), !before_mark, "the root owns the mark boundary");
-        let mut owed = Queue::uncapped();
+        let owed = Queue::uncapped();
         if let Some(outbox) = catching_up {
             assert!(domain.ready(), "catching up follows the opening");
             prepare_forge(&mut domain, &env, outbox);
@@ -228,15 +239,13 @@ fn a_stop_at_each_start_step_drains_and_the_next_start_opens() {
             }
             crate::step(&mut domain, &env, Event::Forge(Box::new(forge::Event::CatchUp)));
         }
-        match phase {
-            Some(Phase::Link | Phase::AdoptRuns) | None => {}
-            Some(phase) => {
-                serve(&mut domain, &env, phase);
-                crate::release(&mut domain, &env, &mut owed);
-                crate::release(&mut domain, &env, &mut owed);
-            }
-        }
-        let held = held_work(&mut domain, &env, &mut store, phase, owed, before_mark, held_count);
+        // Do not feed the durable Wires continuation into adoption for this row.
+        let held = if phase == Some(Phase::Wires) && held_count == 0 {
+            assert!(domain.start_phase() == Some(Phase::Wires) && !domain.ready());
+            owed
+        } else {
+            held_work(&mut domain, &env, &mut store, phase, owed, before_mark, held_count)
+        };
         let mut owed = held;
         let steps = domain.start_phases.len();
         crate::try_step(&mut domain, &env, Event::Stop).unwrap();
@@ -276,14 +285,19 @@ fn a_stop_at_each_start_step_drains_and_the_next_start_opens() {
         let words = drain(&mut domain, &env, &mut store, out);
         assert_eq!(words, u32::from(!before_mark), "restart word at {phase:?}");
         assert_eq!(domain.start_phases.len(), steps, "no further phase at {phase:?}");
-        assert_eq!(store.wires, wires.checked_add(u32::from(phase == Some(Phase::Wires))).unwrap());
+        assert_eq!(store.wires, wires.checked_add(u32::from(phase == Some(Phase::Wires) && held_count != 0)).unwrap());
         assert_eq!(domain.engine.core().counters.deployment().restart_wait_ms.is_some(), !before_mark);
         assert!(domain.engine.core().stopping());
         assert_eq!(domain.start_phase(), phase, "a stopped start is no refused start");
         assert!(domain.start_stop().is_none());
         assert!(domain.work.is_empty());
         let limits = env.limits;
-        let mut next = Domain::new(fixture::config(7), &limits).unwrap();
+        let config = if phase == Some(Phase::Link) {
+            super::kinds::connector_restore_config(&limits, true)
+        } else {
+            fixture::config(7)
+        };
+        let mut next = Domain::new(config, &limits).unwrap();
         crate::step(&mut next, &env, Event::Restart { pending: true });
         store.run(&mut next, &env, false);
         assert!(next.ready(), "the cold next start opens after {phase:?}");

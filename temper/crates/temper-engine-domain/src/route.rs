@@ -13,6 +13,7 @@ mod making;
 mod opened;
 pub(crate) mod playground;
 pub(crate) mod standing;
+mod start_report;
 pub use host_route::{AskHow, HostDelivery, HostRequest};
 mod decided;
 pub(crate) mod document;
@@ -45,7 +46,7 @@ use crate::domain::{
     Domain, close, emit, forge_release_ending, internal, journal_outputs, now, route, save, step_released,
 };
 use crate::limits::{Limits, core_limits, environment_core};
-use crate::restart::{accept_load, load_decision, load_outputs, start_action};
+use crate::store_route::{accept_load, load_decision, load_outputs};
 use crate::translate::{
     call_needs_input, checked_call, connector_answer, core_call, environment_forge, keep_connector_answer, named_call,
     relay_call, tool_kind,
@@ -55,7 +56,7 @@ use alloc::boxed::Box;
 pub use forge_route::adopt_repository_ask;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
-use jig_domain_core::engine::{In, Out, Peer};
+use jig_domain_core::engine::{In, Out, Peer, store};
 use jig_domain_core::{Delegate, ProcedureStep, StepEnd};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -302,12 +303,13 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             checkpoints::terminal(domain, token, Err(why));
         }
         Event::Store(crate::StoreInput::Census(census)) => {
-            if domain.start_runtime() {
-                domain.work.push(Work::EngineStore(core::engine::store::In::Census(census)));
-            } else {
-                domain.startup_census = Some(census);
+            // Open is the engine's first input. A report that reached the
+            // root before it travels with the other queued store answers.
+            if domain.start_wall.is_none() && !domain.opened {
+                domain.store_answers.push(Event::Store(crate::StoreInput::Census(census)));
                 return;
             }
+            domain.work.push(Work::EngineStore(store::In::Census(census)));
         }
         Event::Store(crate::StoreInput::Committed { number, fill }) => {
             crate::committed(&mut domain.journal, number);
@@ -321,14 +323,12 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
                 return;
             }
             domain.durable_commit = number;
-            if domain.start_runtime() {
-                let _filled = crate::engine::step(
-                    &mut domain.engine,
-                    env,
-                    In::Store(core::engine::store::In::Fill { bytes: fill }),
-                );
-            } else {
-                domain.startup_fill = Some(fill);
+            let filled = crate::engine::step(&mut domain.engine, env, In::Store(store::In::Fill { bytes: fill }));
+            if !filled.is_empty() {
+                let mut decision = load_decision(domain, &env.limits);
+                route_engine_requests(domain, env, &mut decision, filled);
+                route_into(domain, env, &mut decision);
+                close(domain, env, decision, out);
             }
             return;
         }
@@ -355,17 +355,11 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             return;
         }
         Event::Store(crate::StoreInput::MissingLink { owner, record, target }) => {
-            if loads::startup_owner(&domain.loads, owner) {
-                domain.engine.core_mut().start_missing(record, target);
-            }
+            crate::store_route::missing(domain, owner, record, target);
             return;
         }
         Event::Store(crate::StoreInput::Switched) => {
-            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-            domain.work.push(Work::StartDone(core::start::Phase::Switch));
-            route_into(domain, env, &mut decision);
-            close(domain, env, decision, out);
-            return;
+            domain.work.push(Work::EngineStore(store::In::Switched));
         }
         Event::Store(crate::StoreInput::PartLoaded { waiter, result }) => {
             domain.work.push(Work::PartsLoaded { waiter, result });
@@ -377,14 +371,15 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             }
             domain.start_wall = Some(env.wall);
             domain.start_pending = pending;
+            // A setup host may hand the forge a kept record before its store walk.
             domain.forge.restore_begin(env.wall);
-            domain.settled = None;
-            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-            let action = domain.engine.core_mut().start_begin(pending, env.wall);
-            start_action(domain, env, &mut decision, action);
-            route_into(domain, env, &mut decision);
-            close(domain, env, decision, out);
-            return;
+            domain.work.push(Work::EngineStore(store::In::Opened { pending }));
+            while let Some(Event::Store(crate::StoreInput::Census(_))) = domain.store_answers.iter().next() {
+                let Some(Event::Store(crate::StoreInput::Census(census))) = domain.store_answers.pop() else {
+                    unreachable!("queued census is first");
+                };
+                domain.work.push(Work::EngineStore(store::In::Census(census)));
+            }
         }
         Event::Worker(crate::WorkerInput::Admit { asking, tag, branch, expected, commit }) => {
             let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -490,24 +485,11 @@ fn route_engine_with_job(
     standing::saved(domain, env, decision, &outputs);
     let note_projects = parts::note_projects(&outputs);
     for _ in 0..outputs.len() {
-        let request = match outputs.pop().expect("engine output count") {
-            Out::Core(request) => request,
-            Out::Write(write) => core::Request::Write(write),
-            Out::Now(_) | Out::Held(Peer::Application(_) | Peer::Resume(_)) => {
-                unreachable!("the root drives its own start")
+        let Some(request) = engine_output(domain, env, decision, outputs.pop().expect("engine output count")) else {
+            if domain.start_stop.is_some() {
+                return;
             }
-            Out::Ask(connector, ask) => {
-                asks::connector_ask(domain, env, decision, connector, ask);
-                continue;
-            }
-            Out::Held(Peer::Connector(connector, released)) => {
-                asks::connector_released(domain, env, decision, connector, released);
-                continue;
-            }
-            Out::Held(Peer::Store(load)) => {
-                emit(decision, &env.limits, Delivery::EngineStore(load));
-                continue;
-            }
+            continue;
         };
         match request {
             core::Request::Write(core::Write::Wires) => {
@@ -581,14 +563,45 @@ fn route_engine_with_job(
     crate::assemble::retire_document_titles(domain);
 }
 
-#[expect(clippy::too_many_lines, reason = "one exhaustive internal work dispatch, including startup refusals")]
+/// Consume port outputs at their mark. The core's other requests use the common route below.
+fn engine_output(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    output: Out,
+) -> Option<core::Request> {
+    match output {
+        Out::Core(request) => return Some(request),
+        Out::Write(write) => return Some(core::Request::Write(write)),
+        Out::Now(Peer::Application(report)) => start_report::record(domain, env, report),
+        Out::Held(Peer::Resume(resume)) => emit(decision, &env.limits, Delivery::Resume(resume)),
+        Out::Now(Peer::Store(_) | Peer::Connector(..) | Peer::Resume(_)) | Out::Held(Peer::Application(_)) => {
+            unreachable!("engine port marks determine their delivery")
+        }
+        Out::Ask(connector, ask) => asks::connector_ask(domain, env, decision, connector, ask),
+        Out::Held(Peer::Connector(connector, released)) => {
+            asks::connector_released(domain, env, decision, connector, released);
+        }
+        Out::Held(Peer::Store(load)) => {
+            if let store::Out::Load { range: store::Range::Start { ranges, after }, .. } = &load {
+                domain.start_page = domain.start_walk.waiting(ranges, after.as_ref());
+                if let Some(after) = after
+                    && domain.start_walk.at_core_end(after)
+                    && let Err(failure) = domain.check_room()
+                {
+                    domain.stop_start(crate::StartStop::Room(failure));
+                    return None;
+                }
+            }
+            emit(decision, &env.limits, Delivery::EngineStore(load));
+        }
+    }
+    None
+}
+
 pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
     loop {
         if domain.start_stop().is_some() {
-            return;
-        }
-        if domain.engine.core().start_failure().is_some() {
-            domain.stop_core();
             return;
         }
         if refuse_forge_fit(domain) {
@@ -604,27 +617,10 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
         match work {
             Work::PartsFailed { waiter } => parts::failed(domain, env, decision, waiter, core::PartFailure::Busy),
             Work::PartsLoaded { waiter, result } => parts::joined(domain, env, decision, waiter, result),
-            Work::StartDone(phase) => {
-                if phase == core::start::Phase::LoadCore
-                    && let Err(refusal) = domain.check_room()
-                {
-                    domain.stop_start(crate::StartStop::Room(refusal));
-                    return;
-                }
-                let mut output = Queue::uncapped();
-                let action = domain.engine.core_mut().start_done(&environment_core(env), phase, &mut output);
-                route_core_requests(domain, env, decision, output);
-                if phase == core::start::Phase::Open && domain.start_phase().is_none() {
-                    domain.opened = true;
-                    if domain.rehearsal.is_some() {
-                        domain.rehearsal = Some(true);
-                    }
-                    // Open admits task control; a later resume takes the first due task.
-                    trials::restarted(domain);
-                }
-                domain.work.push(Work::Start(action));
+            Work::EngineResume(resume) => {
+                let routed = forge_route::step_engine(domain, env, In::Resume(resume));
+                route_engine_requests(domain, env, decision, routed);
             }
-            Work::Start(action) => start_action(domain, env, decision, action),
             Work::CheckResults { task, attempt, results } => {
                 forge_route::reds::check_results(domain, env, decision, task, attempt, results);
             }
@@ -679,43 +675,6 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             }
             Work::ForgeLimitRelease { task, revision } => {
                 forge_route::limit_holds::release(domain, env, decision, task, revision);
-            }
-            Work::ForgeRestored => {
-                settings_parts::restored(domain);
-                let mut output = Queue::uncapped();
-                let convert_branch_writes = domain.convert_branch_writes;
-                domain.convert_branch_writes = false;
-                let links = domain.forge.start_links(
-                    &domain.engine.core().tasks,
-                    &environment_forge(env),
-                    convert_branch_writes,
-                    &mut output,
-                );
-                forge_route::outputs(domain, env, decision, &mut output);
-                if let Err(failure) = links {
-                    let stop = match failure {
-                        forge::StartLink::Row(key) => crate::StartStop::ForgeRow(key),
-                        forge::StartLink::Fit(failure) => {
-                            crate::StartStop::ForgeFit { phase: domain.start_phase(), failure }
-                        }
-                        forge::StartLink::BranchWrites(name, count) => crate::StartStop::BranchWrites(name, count),
-                        forge::StartLink::Link(link) => {
-                            crate::StartStop::ForgeLink { phase: domain.start_phase(), link }
-                        }
-                    };
-                    domain.stop_start(stop);
-                    return;
-                }
-                kinds::restored_figures(domain, env, decision);
-                let party = domain.engine.core().people.sole_owner();
-                forge_event(domain, env, decision, forge::Event::Owner { party });
-                forge_event(
-                    domain,
-                    env,
-                    decision,
-                    forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Wall },
-                );
-                kinds::restored_repairs(domain, env.limits.tasks.spec_bytes);
             }
             Work::Forge(forge::Event::StatusTask { project, party, task }) => {
                 let event = forge_route::status_route::admission(domain, project, party, task);

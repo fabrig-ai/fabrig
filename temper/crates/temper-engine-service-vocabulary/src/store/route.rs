@@ -246,7 +246,7 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
         engine::StoreRequest::Engine(
             engine_store::Out::Switch | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. },
         ) => {
-            unreachable!("the root drives its own start")
+            unreachable!("startup store requests pass through the root's bounded page and switch adapter")
         }
         engine::StoreRequest::Engine(engine_store::Out::Load { load, range: engine_store::Range::Read(range) }) => {
             let owner = routes.token()?;

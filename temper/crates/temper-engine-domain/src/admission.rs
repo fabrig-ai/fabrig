@@ -238,6 +238,10 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             step(domain, env, event);
             Ok(())
         }
+        Event::Restart { pending } => {
+            step(domain, env, Event::Restart { pending });
+            Ok(())
+        }
         Event::Released(released) => {
             step(domain, env, Event::Released(released));
             Ok(())
@@ -258,7 +262,6 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
         | Event::Credential { .. }
         | Event::Forge(_)
         | Event::Setup { .. }
-        | Event::Restart { .. }
         | Event::Stop) => {
             let ordered = domain.work.is_empty() && domain.store_answers.is_empty();
             let admitted = if completes(&event) { ordered } else { admits(domain, &env.limits) };
