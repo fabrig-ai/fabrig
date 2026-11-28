@@ -464,7 +464,7 @@ fn reference_lede_names_the_worlds_templates_in_number_order() {
         goals,
         vec![
             (2, b"goal".as_slice()),
-            (4, b"goal for a draft".as_slice()),
+            (4, b"goal landed whole".as_slice()),
             (6, b"Plan, then wait for me".as_slice()),
             (7, b"One agent, one branch".as_slice()),
         ]

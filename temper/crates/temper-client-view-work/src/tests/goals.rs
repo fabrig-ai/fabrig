@@ -23,6 +23,7 @@ use temper_client_domain::{
 
 // The mock's row has six landed tasks out of nine (client/pages/README.md).
 
+use super::fixtures::goals::named_template;
 pub(super) use super::fixtures::goals::{TEXT_BYTES, TOTAL, line, template};
 
 const EMPTY: u32 = 0;
@@ -840,14 +841,14 @@ fn the_lede_names_the_projects_ways() {
     for (templates, expected) in [
         ([].as_slice(), "A goal turns a draft into landed work."),
         (
-            [template(TASK_WAY, b"goal", true)].as_slice(),
+            [named_template(TASK_WAY, b"goal", b"goal", true)].as_slice(),
             "A goal turns a draft into landed work, its own way: task by task.",
         ),
         (
             [
                 template(OTHER_WAY, "ÉTAPES".as_bytes(), true),
-                template(WHOLE_WAY, b"goal for a draft", true),
-                template(TASK_WAY, b"goal", true),
+                named_template(WHOLE_WAY, b"draft-goal", b"goal landed whole", true),
+                named_template(TASK_WAY, b"goal", b"goal", true),
                 template(UNTRACKED_WAY, b"unused", false),
             ]
             .as_slice(),

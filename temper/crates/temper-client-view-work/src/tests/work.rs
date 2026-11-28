@@ -1,5 +1,5 @@
 //! Work's three read lists, five filters and both shells (client/pages/README.md).
-use super::{chats, fixtures as f, goals};
+use super::{chats, fixtures as f};
 
 use crate::{
     bindings::Bindings,
@@ -95,9 +95,9 @@ impl Fixture {
             true,
         );
         let mut frame = root.pages().me(root.client()).unwrap().clone();
-        let mut goal = goals::template(jig_client::shapes::GOAL, b"goal", true);
+        let mut goal = f::goals::named_template(jig_client::shapes::GOAL, b"goal", b"Separate goals", true);
         goal.label = 8;
-        let mut chat = goals::template(jig_client::shapes::CHAT, b"chat", false);
+        let mut chat = f::goals::template(jig_client::shapes::CHAT, b"chat", false);
         chat.label = 7;
         frame.projects.get_mut(0).unwrap().templates = list(&[chat, goal]);
         f::deliver_me(&mut root, me, frame);

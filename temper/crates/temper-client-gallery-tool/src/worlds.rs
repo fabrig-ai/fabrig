@@ -102,18 +102,18 @@ fn frame(w: World, connecting: bool, asking: bool) -> c::Me {
         let chat = member.templates.get(0).expect("chat template").clone();
         let mut templates = List::with_capacity(6);
         templates.push(chat.clone()).expect("chat template");
-        templates.push(goal_template(&chat, 2, "goal")).expect("goal template");
+        templates.push(goal_template(&chat, 2, Some(b"goal"), "goal")).expect("goal template");
         if matches!(w, Solo | Reference) {
-            templates.push(goal_template(&chat, 4, "goal for a draft")).expect("draft goal template");
+            templates.push(goal_template(&chat, 4, Some(b"draft-goal"), "goal landed whole")).expect("whole goal");
         }
         if w != Solo {
             templates.push(asking_template(&chat)).expect("Ask temper template");
         }
-        for (number, name) in [(6, "Plan, then wait for me"), (7, "One agent, one branch")] {
+        for (number, shown) in [(6, "Plan, then wait for me"), (7, "One agent, one branch")] {
             if w != Reference {
                 continue;
             }
-            templates.push(goal_template(&chat, number, name)).expect("reference goal templates");
+            templates.push(goal_template(&chat, number, None, shown)).expect("reference goal templates");
         }
         member.templates = templates;
     }
@@ -192,10 +192,11 @@ fn frame(w: World, connecting: bool, asking: bool) -> c::Me {
     }
     me
 }
-fn goal_template(chat: &c::Template, number: u32, name: &str) -> c::Template {
+fn goal_template(chat: &c::Template, number: u32, name: Option<&[u8]>, shown: &str) -> c::Template {
     let mut template = chat.clone();
     template.number = number;
-    template.shown = doc(name);
+    template.name = name.map(Into::into);
+    template.shown = doc(shown);
     template.tracked = Some(1);
     template.label = 2;
     template.flags.conversation = false;
@@ -5526,7 +5527,8 @@ fn settings_chat_frame(me: &mut c::Me) {
     }
     let mut way = member.templates.get(0).expect("chat template").clone();
     way.number = 4;
-    way.shown = doc("goal for a draft");
+    way.name = Some(b"draft-goal".as_slice().into());
+    way.shown = doc("goal landed whole");
     way.tracked = Some(1);
     way.flags.conversation = false;
     way.flags.listed = true;
