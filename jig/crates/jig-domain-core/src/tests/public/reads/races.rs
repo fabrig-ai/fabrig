@@ -1,6 +1,7 @@
 //! Revocation decisions finish independently of readers (jig/docs/design/domain/people/public-reading.md, 6).
 use super::*;
 use crate::tests::new_core;
+use jig_domain_contract as contract;
 
 #[derive(Clone, Copy, Debug)]
 enum Change {
@@ -19,10 +20,19 @@ enum While {
 
 fn change(core: &mut Core, limits: &Limits, change: Change) {
     match change {
-        Change::Private => visibility(core, limits, false),
-        Change::Deleting => deleting(core, limits),
-        Change::Untracked => amend(core, limits, 1, Some(tasks::Tracking::Untracked), None),
-        Change::Moved => send(
+        Change::Private => visibility_in_decision(core, limits, false),
+        Change::Deleting => deleting_in_decision(core, limits),
+        Change::Untracked => {
+            amend_in_decision(
+                core,
+                limits,
+                1,
+                Some(tasks::Tracking::Untracked),
+                None,
+                Wall::from_nanos(10_000_000_000),
+            );
+        }
+        Change::Moved => send_in_decision(
             core,
             limits,
             tasks::Event::Move {
@@ -51,6 +61,7 @@ fn race(revocation: Change) {
             };
             if before {
                 change(&mut core, &limits, revocation);
+                finish_changes(&mut core, &limits);
                 // A board still exists when a task is removed; only its card is a miss.
                 let task_only = match revocation {
                     Change::Untracked | Change::Moved => true,
@@ -69,21 +80,17 @@ fn race(revocation: Change) {
             };
             let answer = PublicApplication { tasks: Box::new([2]), record: Box::new([5]) };
             let token = match stage {
-                While::Durable => answered(&mut core, &limits, token, Some(answer.clone())),
+                While::Durable => answered(&mut core, &limits, 1, token, Some(answer.clone())),
                 While::Asking | While::Board | While::Card => token,
             };
             change(&mut core, &limits, revocation);
             let token = match stage {
-                While::Asking => answered(&mut core, &limits, token, Some(answer)),
+                While::Asking => answered(&mut core, &limits, 1, token, Some(answer)),
                 While::Durable | While::Board | While::Card => token,
             };
-            let token = match stage {
-                While::Asking => token,
-                While::Durable | While::Board | While::Card => {
-                    // A later writing decision extends the earlier callback's barrier.
-                    wait(crate::step(&mut core, &environment(&limits), Event::PublicDurable { read: token }))
-                }
-            };
+            finish_changes(&mut core, &limits);
+            // The writing decision extends the callback's commit barrier.
+            let token = wait(crate::step(&mut core, &environment(&limits), Event::PublicDurable { read: token }));
             finish(&mut core, &limits, token, 94, PublicAnswer::Unknown, Time::from_nanos(99));
         }
     }
@@ -174,21 +181,23 @@ fn the_pending_table_is_separate_from_authenticated_loads_and_reclaims() {
     assert_eq!(core.public_reads.len(), limits.load_slots);
     assert_eq!(core.loads.reads(), 0);
     outputs(start(&mut core, &limits, 100, read), &[terminal(100, PublicAnswer::Busy)]);
+    let first = answered(&mut core, &limits, 1, first, None);
+    let second = answered(&mut core, &limits, 1, second, None);
     for (token, reply) in [(first, 98), (second, 99)] {
-        let token = answered(&mut core, &limits, token, None);
         finish(&mut core, &limits, token, reply, PublicAnswer::Unknown, Time::ZERO);
     }
     let token = asking(start(&mut core, &limits, 101, read), read, &[]);
     assert_ne!(token, first, "stale connector replies cannot name the new read");
     outputs(
-        crate::step(
+        crate::tests::connector_step(
             &mut core,
             &environment(&limits),
-            Event::PublicAnswered { reply: ReplyTo::new(first), answer: None },
+            1,
+            contract::Up::Parts(contract::parts::Up::Public { reply: ReplyTo::new(first), answer: None }),
         ),
         &[],
     );
-    let token = answered(&mut core, &limits, token, None);
+    let token = answered(&mut core, &limits, 1, token, None);
     finish(&mut core, &limits, token, 101, PublicAnswer::Unknown, Time::ZERO);
 }
 

@@ -1,4 +1,5 @@
 //! Effects tests.
+use jig_domain_contract as contract;
 pub(in crate::tests) mod deployment_connectors;
 pub(in crate::tests) mod hold_origin;
 
@@ -223,7 +224,10 @@ fn projection_feed_writes_hot_header_and_last_settlement_erases_every_part() {
                 let R::GoalHot { changed: false, fed_at: Some(_), .. } = &row else { panic!("fed hot header") };
                 keys.push(row.key()).expect("uncapped test keys");
             }
-            Request::Ask { connector, ask: crate::Ask::ProjectGoal { feed } } => {
+            Request::Ask {
+                connector,
+                ask: crate::Ask::Connector(contract::Ask::Projections(contract::projections::Ask::Project { feed })),
+            } => {
                 assert_eq!(connector, 1);
                 assert_eq!(feed.plan, plan);
                 assert_eq!(feed.milestones.as_ref(), core::slice::from_ref(&milestone));
@@ -249,7 +253,10 @@ fn projection_feed_writes_hot_header_and_last_settlement_erases_every_part() {
             Request::Write(Write::Erase(Key::Core(CoreKey::Projection(key)))) => {
                 erased.push(key).expect("uncapped test erasures");
             }
-            Request::Ask { connector: 1, ask: crate::Ask::ForgetProjection { goal: 1 } } => {}
+            Request::Ask {
+                connector: 1,
+                ask: crate::Ask::Connector(contract::Ask::Projections(contract::projections::Ask::Forget { goal: 1 })),
+            } => {}
             other @ (Request::Write(_)
             | Request::Ask { .. }
             | Request::ProjectMade { .. }

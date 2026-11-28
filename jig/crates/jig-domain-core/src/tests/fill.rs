@@ -1,5 +1,6 @@
 //! Store fill and admission at the high-water mark (protocol/store/growth.md, 1.2).
 use super::*;
+use jig_domain_contract as contract;
 
 pub(super) fn filled_core(bytes: u64) -> (Core, Env<Limits>) {
     let (mut core, limits) = core();
@@ -96,7 +97,11 @@ fn a_goal_below_the_fill_mark_is_made() {
     signed_in(&mut core, &env);
     let out = ask(&mut core, &env, goal());
     for request in &out {
-        if let Request::Ask { ask: Ask::TaskHoldings { .. }, .. } = request {
+        if let Request::Ask {
+            ask: Ask::Connector(contract::Ask::Resources(contract::resources::Ask::Holdings { .. })),
+            ..
+        } = request
+        {
             panic!("no connector declares holdings");
         }
     }
@@ -193,7 +198,11 @@ fn a_taking_tells_each_write_holds_connector_with_a_fresh_entry() {
     let mut entries = List::with_capacity(2);
     let mut resources = List::with_capacity(2);
     while let Some(request) = out.pop() {
-        if let Request::Ask { connector, ask: Ask::Hold { task, resource, entry } } = request {
+        if let Request::Ask {
+            connector,
+            ask: Ask::Connector(contract::Ask::Resources(contract::resources::Ask::Hold { task, resource, entry })),
+        } = request
+        {
             assert_eq!(task, 1);
             assert_eq!(connector, 2);
             assert_eq!(resource.connector, connector);
@@ -219,18 +228,33 @@ fn a_taking_tells_each_write_holds_connector_with_a_fresh_entry() {
     );
     let mut closes = 0_u32;
     for request in &close {
-        if let Request::Ask { connector, ask: Ask::Close { task, .. } } = request {
+        if let Request::Ask {
+            connector,
+            ask: Ask::Connector(contract::Ask::Effects(contract::effects::Ask::Close { task, .. })),
+        } = request
+        {
             assert_eq!((*connector, *task), (1, 1));
             closes += 1;
         }
     }
     assert_eq!(closes, 1);
+    assert!(core.judgements.outstanding().is_none(), "close may be answered later");
+    drop(finish_decision(&mut core, &env));
     let before = core.counters.deployment().connector_rows;
     let mut releases = 0_u32;
     for connector in [2, 1] {
-        let mut out = step(&mut core, &env, Event::EffectConnector(connector::Event::Closed { task: 1, connector }));
+        let mut out = connector_step(
+            &mut core,
+            &env,
+            connector,
+            contract::Up::Effects(contract::effects::Up::Closed { task: 1 }),
+        );
         while let Some(request) = out.pop() {
-            if let Request::Ask { connector: number, ask: Ask::Release { task, entry, .. } } = request {
+            if let Request::Ask {
+                connector: number,
+                ask: Ask::Connector(contract::Ask::Effects(contract::effects::Ask::Release { task, entry, .. })),
+            } = request
+            {
                 assert_eq!((connector, number, task), (1, 1, 1));
                 assert_ne!(entry, 0);
                 assert!(!entries.as_slice().contains(&entry));
@@ -240,7 +264,7 @@ fn a_taking_tells_each_write_holds_connector_with_a_fresh_entry() {
     }
     assert_eq!(releases, 1);
     assert_eq!(core.counters.deployment().connector_rows, before.checked_add(1).unwrap());
-    drop(step(&mut core, &env, Event::Tasks(tasks::Event::Settled { task: 1 })));
+    drop(connector_step(&mut core, &env, 1, contract::Up::Effects(contract::effects::Up::Released { task: 1 })));
     assert!(core.tasks.task(1).is_none(), "one declarer's answer closes the task");
 }
 
@@ -252,7 +276,11 @@ fn an_exhausted_taking_holds_the_task_without_telling_any_connector() {
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         let mut out = take_write_holdings(&mut core, &env);
         while let Some(request) = out.pop() {
-            if let Request::Ask { ask: Ask::Hold { .. }, .. } = request {
+            if let Request::Ask {
+                ask: Ask::Connector(contract::Ask::Resources(contract::resources::Ask::Hold { .. })),
+                ..
+            } = request
+            {
                 panic!("an exhausted taking sends no hold asks");
             }
         }

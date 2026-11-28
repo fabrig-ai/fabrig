@@ -1,5 +1,6 @@
 //! Pool-funded automatic work (jig/docs/design/domain/authority.md, 6.2).
 use super::*;
+use jig_domain_contract as contract;
 
 pub(super) const POOL_PROJECT: u32 = 1;
 pub(super) const OTHER_ACCOUNT: u32 = 30;
@@ -194,7 +195,11 @@ fn a_pool_the_period_cannot_carve_refuses_the_repair_make() {
     let number = seed.number();
     let out = step(&mut core, &env, repair(seed));
     for request in &out {
-        if let Request::Ask { ask: Ask::RepairRefused { .. }, .. } = request {
+        if let Request::Ask {
+            ask: Ask::Connector(contract::Ask::Resources(contract::resources::Ask::RepairRefused { .. })),
+            ..
+        } = request
+        {
             panic!("the configured connector does not declare resources");
         }
     }

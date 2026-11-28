@@ -18,6 +18,7 @@ mod ended_groups;
 pub mod engine;
 mod funding;
 mod inbox;
+mod judgements;
 mod limits;
 mod loads;
 use jig_domain_core_vocabulary::numbers;
@@ -148,6 +149,7 @@ pub struct Core {
     pub(crate) start: start::Script,
     person_answers: bool,
     routes: u32,
+    judgements: judgements::Pending,
     run_inbox: u32,
     /// Configured task depth and tree size used by proposal-holder inspection.
     proposal_bounds: (u32, u32),
@@ -418,6 +420,7 @@ impl Core {
             erasures: erase::Erasures::new(),
             deletions: deletion::Deletions::new(limits.people.projects),
             routes: limits.routes,
+            judgements: judgements::Pending::new(limits.routes),
             run_inbox: limits.tasks.run_inbox,
             proposal_bounds: (limits.tasks.depth, limits.tasks.tree_tasks),
             wait_limits: *limits,

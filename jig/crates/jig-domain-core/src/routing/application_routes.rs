@@ -2,14 +2,16 @@
 //! (`domain/connectors-facts.md`, section 1.5; `domain/model.md`, section 5).
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 
+use crate::vocabulary::connector_ask;
 use crate::{
-    Ask, Core, Event, Family, Held, Limits, Request, fresh,
+    Core, Event, Family, Held, Limits, Request, fresh,
     routing::{
         Work,
         party::dispatch::{Party, Routed, Signed},
     },
 };
 use alloc::boxed::Box;
+use jig_domain_contract as contract;
 use jig_domain_people as people;
 use skein_lib::{Env, Queue, Token};
 
@@ -53,7 +55,10 @@ pub(crate) fn start(
             reply: people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Role { held: None })),
         })));
         if core.connectors.contains(&input.connector) {
-            out.push(Request::Ask { connector: input.connector, ask: Ask::DropApplication { owner: input.owner } });
+            out.push(connector_ask(
+                input.connector,
+                contract::Ask::Requests(contract::requests::Ask::Drop { owner: input.owner }),
+            ));
         }
         return first(input.carried, out);
     }
@@ -80,7 +85,10 @@ pub(crate) fn start(
     };
     let mut out = first(unused, routed);
     if core.connectors.contains(&connector) {
-        out.push(Request::Ask { connector, ask: Ask::DropApplication { owner: input.owner } });
+        out.push(connector_ask(
+            connector,
+            contract::Ask::Requests(contract::requests::Ask::Drop { owner: input.owner }),
+        ));
     }
     out
 }
@@ -153,9 +161,9 @@ pub(crate) fn admitted(
     let token = Token::new(number);
     let request = core
         .fly(super::flight::Flight::Application { request, route: Flight { connector, token, part: false, carried } });
-    routed.out.push(Request::Ask {
+    routed.out.push(connector_ask(
         connector,
-        ask: Ask::Application {
+        contract::Ask::Requests(contract::requests::Ask::Decide {
             request,
             token,
             owner,
@@ -163,8 +171,8 @@ pub(crate) fn admitted(
             scope,
             role,
             retention: env.limits.people.request_retention,
-        },
-    });
+        }),
+    ));
 }
 
 pub(crate) fn part(
@@ -192,7 +200,10 @@ pub(crate) fn part(
 
 pub(crate) fn answer(connector: u16, request: Token, outcome: people::Outcome) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    out.push(Request::Ask { connector, ask: Ask::ApplicationPartAnswered { request, outcome } });
+    out.push(connector_ask(
+        connector,
+        contract::Ask::Requests(contract::requests::Ask::PartAnswered { request, outcome }),
+    ));
     out
 }
 

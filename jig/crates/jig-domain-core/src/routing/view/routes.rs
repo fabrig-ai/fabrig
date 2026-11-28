@@ -10,11 +10,13 @@
 //! | Delivered | child clears its in-flight mark | next current held delivery if changed |
 //! | Unwatch | child closes after outstanding terminals | held watch ending |
 
+use crate::vocabulary::connector_ask;
 use crate::{
     Core, Held, Limits, Now, Request, WatchBinding, WatchRefusal, WatchedSubject,
     documents::{self, Missing, Subject, SubjectShape, Watched, Window},
 };
 use alloc::boxed::Box;
+use jig_domain_contract as contract;
 use jig_domain_views as views;
 use skein_lib::{Env, List, Map, Queue, Token};
 
@@ -148,10 +150,10 @@ pub(crate) fn made_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<
                 if let Some((connector, subject, scope, party, window)) = application_subject(core, watcher)
                     && !watch_closed(core, watcher)
                 {
-                    out.push(Request::Ask {
+                    out.push(connector_ask(
                         connector,
-                        ask: crate::Ask::Document { watcher, scope, subject, party, window },
-                    });
+                        contract::Ask::Parts(contract::parts::Ask::Document { watcher, scope, subject, party, window }),
+                    ));
                     continue;
                 }
                 let outcome = match watch_document(core, &env.limits, watcher, env.now, env.wall) {
@@ -251,7 +253,7 @@ fn refused_subject(watcher: Token, subject: &Subject, why: WatchRefusal) -> Queu
     match subject.shape() {
         SubjectShape::Application { connector, subject, .. } => {
             let mut out = Queue::uncapped();
-            out.push(Request::Ask { connector, ask: crate::Ask::DropDocument { subject } });
+            out.push(connector_ask(connector, contract::Ask::Parts(contract::parts::Ask::DropDocument { subject })));
             out.push(Request::Now(Box::new(Now::WatchRefused { watcher, why })));
             out
         }

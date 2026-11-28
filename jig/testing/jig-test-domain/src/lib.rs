@@ -1148,6 +1148,7 @@ fn release_core(domain: &mut Domain, env: &Env<Limits>, held: core::Held, out: &
             unreachable!("store loads cross the engine port (jig/docs/design/domain/engine/vocabulary.md, 2.4)")
         }
         other @ (core::Held::Acted { .. }
+        | core::Held::Connector(_, _)
         | core::Held::ConnectorActed { .. }
         | core::Held::Drained
         | core::Held::Restarting { .. }

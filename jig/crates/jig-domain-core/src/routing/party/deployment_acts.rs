@@ -1,8 +1,10 @@
 //! Deployment acts retain the same child decisions as party requests (domain/people/acts.md, 3).
 use super::dispatch::Party;
-use crate::{Ask, Carried, Core, Event, Held, Limits, PersonTaskRoute, Request, routing::Work};
+use crate::vocabulary::connector_ask;
+use crate::{Carried, Core, Event, Held, Limits, PersonTaskRoute, Request, routing::Work};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
+use jig_domain_contract as contract;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
@@ -56,7 +58,9 @@ pub(crate) fn answer(
 pub(super) fn acted(reply_to: Option<ReplyTo>, key: people::ActKey, outcome: people::Outcome) -> Held {
     match reply_to {
         Some(to) => Held::Acted { to, outcome },
-        None => Held::ConnectorActed { connector: key.connector, key: key.key, outcome },
+        None => {
+            Held::Connector(contract::Connector(key.connector), contract::Released::Answered { key: key.key, outcome })
+        }
     }
 }
 
@@ -106,10 +110,10 @@ pub(crate) fn route(
             if !core.open_project(project) {
                 return refused(work, request, people::Refusal::Unknown);
             }
-            out.push(Request::Ask {
-                connector: adoption.resource.connector,
-                ask: Ask::Adopt { request, project, adoption },
-            });
+            out.push(connector_ask(
+                adoption.resource.connector,
+                contract::Ask::Lifecycle(contract::lifecycle::Ask::Adopt { request, project, adoption }),
+            ));
         }
     }
 }

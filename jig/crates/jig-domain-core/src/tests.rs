@@ -36,6 +36,7 @@ use crate::{
     *,
 };
 use fixtures::CurrentFixtures;
+use jig_domain_contract as contract;
 use jig_domain_link::{Form, Hello, Hosting, Phase, Problem, Scheme};
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
@@ -203,16 +204,27 @@ fn a_busy_effect_description_gives_back_only_its_own_place() {
             origin: EffectOrigin::Call { to: ReplyTo::new(ROOM_REPLY), key: ROOM_NEXT, deadline: Wall::EPOCH },
         },
     );
-    let [Request::Ask { ask: Ask::Effect(connector::Ask::Describe { owner: asked }), .. }] = out.as_ref() else {
+    let [
+        Request::Ask {
+            ask: Ask::Connector(contract::Ask::Effects(contract::effects::Ask::Describe { owner: asked })),
+            ..
+        },
+    ] = out.as_ref()
+    else {
         panic!("the admitted call asks for a description: {out:?}")
     };
     assert_eq!(*asked, owner);
     assert!(!core.reserve_connector_call(ROOM_FRESH));
 
-    let busy = || Event::EffectConnector(connector::Event::DescribeBusy { owner });
-    let out = watch_outputs(&mut core, &limits, busy());
-    let [Request::Ask { ask: Ask::Effect(connector::Ask::Drop { owner: dropped, .. }), .. }, Request::Now(now)] =
-        out.as_ref()
+    let busy = || contract::Up::Effects(contract::effects::Up::Busy { owner });
+    let out = watch_connector_outputs(&mut core, &limits, 1, busy());
+    let [
+        Request::Ask {
+            ask: Ask::Connector(contract::Ask::Effects(contract::effects::Ask::Drop { owner: dropped, .. })),
+            ..
+        },
+        Request::Now(now),
+    ] = out.as_ref()
     else {
         panic!("busy, without a call row: {out:?}")
     };
@@ -222,7 +234,7 @@ fn a_busy_effect_description_gives_back_only_its_own_place() {
     assert_eq!(*to, ReplyTo::new(ROOM_REPLY));
     assert!(core.replay_call(ROOM_NEXT).is_none());
     assert!(core.reserve_connector_call(ROOM_FRESH));
-    assert!(watch_outputs(&mut core, &limits, busy()).is_empty(), "the late description owns nothing");
+    assert!(watch_connector_outputs(&mut core, &limits, 1, busy()).is_empty(), "the late description owns nothing");
     assert!(!core.call_room(ROOM_NEXT));
     assert_retained(&core, ROOM_CALL, CallPart::Controlled);
 }
@@ -2211,23 +2223,28 @@ fn documents_project_exposes_two_roles_members_pool_and_resource_parts() {
     );
     let name = tasks::Name { connector: 2, path: Box::new([Box::from(&b"resource"[..])]) };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut work = Queue::uncapped();
-    connector(
+    let connector = jig_domain_contract::Connector(name.connector);
+    let _adopted = crate::routing::step_connector(
         &mut core,
         &env,
-        &mut work,
-        connector::Event::Adopted { project: 1, name: name.clone(), role: connector::AdoptionRole::Owned, home: true },
+        connector,
+        jig_domain_contract::Up::Lifecycle(jig_domain_contract::lifecycle::Up::Adopted {
+            project: 1,
+            name: name.clone(),
+            role: connector::AdoptionRole::Owned,
+            home: true,
+        }),
     );
-    connector(
+    let _resource = crate::routing::step_connector(
         &mut core,
         &env,
-        &mut work,
-        connector::Event::Resource {
+        connector,
+        jig_domain_contract::Up::Resources(jig_domain_contract::resources::Up::Resource {
             project: 1,
             name,
             role: connector::ResourceRole::Owned,
             hold: connector::HoldKind::Shared,
-        },
+        }),
     );
     let Document::Project(project) =
         make(&core, &limits, 1, &Subject::Project { project: 1 }, &window(), Wall::EPOCH).unwrap()
@@ -2630,6 +2647,14 @@ fn watch_core() -> (Core, Limits) {
     (core, limits)
 }
 
+pub(crate) fn connector_step(core: &mut Core, env: &Env<Limits>, connector: u16, up: contract::Up) -> Queue<Request> {
+    crate::routing::step_connector(core, env, contract::Connector(connector), up)
+}
+
+fn watch_connector_outputs(core: &mut Core, limits: &Limits, connector: u16, up: contract::Up) -> Box<[Request]> {
+    watch_decision(connector_step(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, connector, up))
+}
+
 fn watch_outputs(core: &mut Core, limits: &Limits, event: Event) -> Box<[Request]> {
     watch_decision(step(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, event))
 }
@@ -2856,7 +2881,14 @@ fn an_application_watch_asks_its_connector_with_the_clamped_window() {
     assert_eq!(out.len(), 1);
     let Request::Ask {
         connector: owner,
-        ask: Ask::Document { watcher: got, scope: got_scope, subject: got_subject, party, window },
+        ask:
+            Ask::Connector(contract::Ask::Parts(contract::parts::Ask::Document {
+                watcher: got,
+                scope: got_scope,
+                subject: got_subject,
+                party,
+                window,
+            })),
     } = &out[0]
     else {
         panic!("connector construction")

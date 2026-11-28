@@ -2,6 +2,7 @@
 use crate::engine::store as engine_store;
 use crate::tests::new_core;
 use crate::tests::*;
+use jig_domain_contract as contract;
 
 fn core() -> (Core, Limits) {
     let (mut core, limits) = tests::core();
@@ -72,7 +73,11 @@ fn only_decided(out: Queue<Request>) {
 fn released_connectors(requests: &[Request]) -> Box<[u16]> {
     let mut connectors = List::uncapped();
     for request in requests {
-        if let Request::Ask { connector, ask: Ask::ReleaseProject { project } } = request {
+        if let Request::Ask {
+            connector,
+            ask: Ask::Connector(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project })),
+        } = request
+        {
             assert_eq!(*project, 1);
             connectors.push(*connector).unwrap();
         }

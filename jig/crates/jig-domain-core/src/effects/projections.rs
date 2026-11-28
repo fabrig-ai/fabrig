@@ -11,9 +11,11 @@
 //! | Changed | Decision finishing | Open or closing | Save and one feed per connector |
 //! | Closing | Last connector settles | Absent | Erase and forget asks |
 
+use crate::vocabulary::connector_ask;
+use jig_domain_contract as contract;
 pub use jig_domain_core_vocabulary::effects::projections::*;
 
-use crate::{Ask, Core, CoreKey, CoreRecord, Limits, Record, Request, Write};
+use crate::{Core, CoreKey, CoreRecord, Limits, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue};
@@ -245,8 +247,12 @@ pub(crate) fn owed(core: &Core) -> bool {
 /// retain subsequent changes but never feed a goal twice under one commit.
 pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     core.start_runtime_input();
+    let outstanding = core.judgements.outstanding();
+    assert!(outstanding.is_none(), "connector judgements must be answered within their decision: {outstanding:?}");
     if !owed(core) {
-        return crate::routing::finish_watches(core, env);
+        let out = crate::routing::finish_watches(core, env);
+        core.judgements.issued(&out);
+        return out;
     }
     let mut out = Queue::uncapped();
     let commit = core.counters.deployment().commits;
@@ -302,9 +308,15 @@ pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
             && let Some((&last, earlier)) = core.connector_recipients.projections.split_last()
         {
             for &connector in earlier {
-                out.push(Request::Ask { connector, ask: Ask::ProjectGoal { feed: Box::new(feed.clone()) } });
+                out.push(connector_ask(
+                    connector,
+                    contract::Ask::Projections(contract::projections::Ask::Project { feed: Box::new(feed.clone()) }),
+                ));
             }
-            out.push(Request::Ask { connector: last, ask: Ask::ProjectGoal { feed: Box::new(feed) } });
+            out.push(connector_ask(
+                last,
+                contract::Ask::Projections(contract::projections::Ask::Project { feed: Box::new(feed) }),
+            ));
         }
         let ended = match state.goal.phase {
             tasks::Phase::Ended(_) => true,
@@ -323,6 +335,7 @@ pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
             out.push(request);
         }
     }
+    core.judgements.issued(&out);
     out
 }
 
@@ -366,7 +379,7 @@ fn forget(core: &mut Core, goal: u64, out: &mut Queue<Request>) {
     out.push(Request::Write(Write::Erase(crate::Key::Core(CoreKey::Projection(ProjectionKey::GoalWords(goal))))));
     out.push(Request::Write(Write::Erase(crate::Key::Core(CoreKey::Projection(ProjectionKey::Goal(goal))))));
     for &connector in core.connector_recipients.projections.as_ref() {
-        out.push(Request::Ask { connector, ask: Ask::ForgetProjection { goal } });
+        out.push(connector_ask(connector, contract::Ask::Projections(contract::projections::Ask::Forget { goal })));
     }
 }
 

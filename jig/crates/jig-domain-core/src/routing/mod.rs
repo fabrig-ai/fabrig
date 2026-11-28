@@ -6,6 +6,8 @@
 
 pub(crate) mod application_routes;
 pub(crate) mod children;
+mod compatibility;
+pub(crate) mod connectors;
 pub(crate) mod effect;
 pub(crate) mod ended_marks;
 pub(crate) mod flight;
@@ -25,19 +27,12 @@ pub use crate::vocabulary::{Event, Held, HoldingsNeed, Limits, Request, Timer, T
 use crate::{
     CallHolder, CallKey, CallPart, Core, RoutedCall,
     routing::{
-        children::{
-            route_account, route_brief, route_fleet, route_projection_settled, tag_account, tag_brief, tag_fleet,
-        },
+        children::{route_account, route_brief, route_fleet, tag_account, tag_brief, tag_fleet},
         effect::note::route_notes,
-        party::{
-            holdings::route_holdings,
-            people::{route_people, sign_in},
-        },
+        party::people::{route_people, sign_in},
         run::{
             calls::{named_action, route_named_answer, route_refused_payload},
-            delegation::{
-                delegate, delegate_holdings, procedure_holdings, procedure_step, route_period, route_start_recurring,
-            },
+            delegation::{delegate, route_period, route_start_recurring},
             payloads::{route_answer_payload, route_turn_payload},
             preparation::{
                 brief_assembled, plan_brief, route_activate, route_claim_prepared, route_claim_refused,
@@ -345,17 +340,10 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> 
             assert!(core.start_loading(), "rows load before Link and outside a seed commit");
         }
         Event::SettingsCommit { .. } if phase.is_some() => unreachable!("the start commits settings itself"),
-        Event::EffectConnector(
-            crate::effects::connector::Event::Resource { name, .. }
-            | crate::effects::connector::Event::Adopted { name, .. },
-        ) => {
-            if let Some(phase) = phase {
-                assert!(takes_connector_resource(phase, name.connector), "connector resources load before Link");
-            }
-        }
         _ => {}
     }
-    decide(core, env, Work::Event(event))
+    let first = compatibility::connector(event);
+    decide(core, env, first)
 }
 
 /// Store completions take the same decision entrance, including during stopping.
@@ -371,18 +359,21 @@ pub(crate) fn step_store(core: &mut Core, env: &Env<Limits>, input: crate::engin
     decide(core, env, Work::Store(input))
 }
 
-pub(crate) fn step_connector_act(
+pub(crate) fn step_connector(
     core: &mut Core,
     env: &Env<Limits>,
-    key: people::ActKey,
-    act: Box<people::Act>,
-    carried: Option<crate::Carried>,
+    jig_domain_contract::Connector(connector): jig_domain_contract::Connector,
+    up: jig_domain_contract::Up,
 ) -> Queue<Request> {
+    if let jig_domain_contract::Up::Lifecycle(jig_domain_contract::lifecycle::Up::Done { stage }) = up {
+        core.catch_up_done(connector, stage);
+        return Queue::uncapped();
+    }
     core.start_input();
     if core.start_failure().is_some() {
         return Queue::uncapped();
     }
-    decide(core, env, Work::ConnectorAct { key, act, carried })
+    decide(core, env, Work::Connector(Some(connector), up))
 }
 
 fn decide(core: &mut Core, env: &Env<Limits>, first: Work) -> Queue<Request> {
@@ -420,6 +411,7 @@ fn decide(core: &mut Core, env: &Env<Limits>, first: Work) -> Queue<Request> {
     if core.start_failure().is_some() {
         return Queue::uncapped();
     }
+    core.judgements.issued(&out);
     out
 }
 
@@ -453,6 +445,7 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
         core.start_collect_failure();
         return writes;
     }
+    core.judgements.issued(&out);
     out
 }
 
@@ -476,6 +469,7 @@ pub(crate) fn start_task_outputs(
     out: &mut Queue<Request>,
 ) {
     let mut routed = tag_task_outputs(core, env, child);
+    core.judgements.issued(&routed);
     for _ in 0..routed.len() {
         let request = routed.pop().expect("bounded restored task outputs");
         out.push(request);
@@ -504,6 +498,7 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     crate::loads::resume_waiting(core, &env.limits, &mut out);
     crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
+    core.judgements.issued(&out);
     out
 }
 
@@ -515,17 +510,7 @@ fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Wo
             stopping::empty()
         }
         Work::Event(event) => step_one(core, env, event, work),
-        Work::ConnectorAct { key, act, carried } => {
-            if core.stopping {
-                return party::deployment_acts::answer(
-                    None,
-                    key,
-                    carried,
-                    people::Outcome::Again(people::Again::NotReady),
-                );
-            }
-            party::deployment_acts::start(core, env, work, None, key, act, carried)
-        }
+        Work::Connector(connector, up) => connectors::step(core, env, work, connector, up),
         Work::Store(event) => crate::loads::loaded(core, env, work, event),
         Work::Resources(batch) => {
             let mut out = task::resume_resources(core, env, work, batch);
@@ -571,9 +556,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             *change,
         ),
         Event::SettingsCommit { room } => core.commit_restored_settings(env, room.saturating_sub(1)),
-        Event::ProjectReleased { connector, project } => {
-            crate::admission::deletion::released(core, env, connector, project)
-        }
         Event::Fill { bytes } => {
             core.fill = bytes;
             stopping::empty()
@@ -591,8 +573,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         | Event::WorkspacePrepared { .. }
         | Event::ClaimPrepared { .. }
         | Event::ClaimRefused { .. }
-        | Event::ProcedureStep { .. }
-        | Event::ProcedureHoldings { .. }
         | Event::StartRecurring { .. }
         | Event::Period { .. }
             if core.settling =>
@@ -600,13 +580,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             stopping::empty()
         }
         Event::Stopping => stopping::start(core, env),
-        Event::Parts { connector, token, parts } => crate::reads::parts::answered(core, env, connector, token, parts),
-        Event::PartsMarked { connector, tasks } => {
-            view::part_marks::records(core, connector, &tasks);
-            stopping::empty()
-        }
-        Event::Waits { connector, task, waits } => crate::runs::waits::report(core, env, connector, task, waits),
-        Event::Marked { connector, subjects } => view::routes::marked(core, connector, subjects),
         Event::Act { reply_to, connector, key, act, carried } => party::deployment_acts::start(
             core,
             env,
@@ -631,16 +604,14 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
                 input,
             )
         }
-        Event::ApplicationPart { request, ask } => application_routes::part(core, env, work, request, *ask),
-        Event::ApplicationFinished { request, outcome } => {
-            application_routes::finished(core, env, work, request, outcome)
+        Event::ApplicationPart { request, ask } => {
+            core.judgements.answered(None, crate::judgements::Subject::Application(request));
+            application_routes::part(core, env, work, request, *ask)
         }
-        Event::ProjectionSettled { goal, connector } => route_projection_settled(core, goal, connector),
         Event::SettledCall { to, key, name, call } => {
             crate::runs::conversation::settle(core, &env.limits, to, key, name, call)
         }
         Event::EffectStart { owner, connector, origin } => crate::effects::start(core, env, owner, connector, origin),
-        Event::EffectConnector(event) => crate::effects::connector(core, env, work, event),
         Event::SubscribeTopic { to, key, connector, topic, resources } => {
             effect::topics::subscribe(core, env, work, to, key, (connector, topic), &resources)
         }
@@ -656,7 +627,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         }
         Event::SignIn { until, reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held, until),
         Event::PublicRead { reply, read } => crate::public::reads::start(core, reply, read),
-        Event::PublicAnswered { reply, answer } => crate::public::reads::answered(core, reply, answer),
         Event::PublicDurable { read } => crate::public::reads::durable(core, env, read),
         Event::Read { reply, sign_in, read } => crate::reads::start(core, env, reply, sign_in, read),
         Event::Watch { watcher, sign_in, subject, window } => open(core, env, watcher, sign_in, subject, window),
@@ -719,9 +689,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         }
         Event::Period { project, period, budget, next } => route_period(core, work, project, period, budget, next),
         Event::People(event) => route_people(core, env, work, event),
-        Event::Holdings { request, connector, holdings, refused } => {
-            route_holdings(core, env, work, request, connector, holdings, refused)
-        }
         Event::Fleet(event) => {
             let mut out = route_fleet(core, env, work, event);
             crate::admission::deletion::advance(core, env, &mut out);
@@ -781,24 +748,30 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::NamedAnswer { to, key, part } => route_named_answer(core, to, key, part),
         Event::NamedAction { to, key, action } => named_action(core, env, work, to, key, action),
         Event::Delegate { to, key, batch } => delegate(core, env, work, to, key, batch),
-        Event::DelegateHoldings { request, connector, holdings, refused } => {
-            delegate_holdings(core, env, work, request, connector, holdings, refused)
-        }
-        Event::ProcedureStep { task, step, connector, code, decision: action } => {
-            procedure_step(core, env, work, effect::procedure::ProcedureCall { task, step, connector }, code, action)
-        }
-        Event::ProcedureHoldings { task, step, connector, holdings, refused } => procedure_holdings(
-            core,
-            env,
-            work,
-            effect::procedure::ProcedureCall { task, step, connector },
-            holdings,
-            refused,
-        ),
         Event::Brief(event) => route_brief(core, env, event),
         Event::Account(event) => route_account(core, env, work, event),
         Event::View(event) => route_view(core, env, event),
         Event::Notes(event) => route_notes(core, env, work, event),
+        Event::EffectConnector(
+            crate::effects::connector::Event::Procedure { .. }
+            | crate::effects::connector::Event::SectionReady { .. }
+            | crate::effects::connector::Event::WorkspaceReady { .. },
+        ) => stopping::empty(),
+        Event::EffectConnector(_)
+        | Event::ProjectReleased { .. }
+        | Event::Parts { .. }
+        | Event::PartsMarked { .. }
+        | Event::Waits { .. }
+        | Event::Marked { .. }
+        | Event::ApplicationFinished { .. }
+        | Event::ProjectionSettled { .. }
+        | Event::PublicAnswered { .. }
+        | Event::Holdings { .. }
+        | Event::DelegateHoldings { .. }
+        | Event::ProcedureStep { .. }
+        | Event::ProcedureHoldings { .. } => {
+            unreachable!("connector answers enter through the connector route")
+        }
     }
 }
 
@@ -893,6 +866,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
     crate::loads::resume_waiting(core, &env.limits, &mut out);
     crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
+    core.judgements.issued(&out);
     out
 }
 

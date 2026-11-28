@@ -1,3 +1,4 @@
+use jig_core_world::test_support::bridged_step;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
@@ -116,12 +117,12 @@ fn a_procedure_hears_its_step_refused_for_a_model_outside_its_charter() {
     let env = world.env().with(world.env().limits.core);
     let mut recovered = super::start_links::recovered(&world, configuration.core, &env);
     let mut requests =
-        core::step(&mut recovered, &env, core::Event::ProcedureStep { task, step, connector, code, decision });
+        bridged_step(&mut recovered, &env, core::Event::ProcedureStep { task, step, connector, code, decision });
     let mut refusal = None;
     while let Some(request) = requests.pop() {
         match request {
             core::Request::Ask { connector, ask: core::Ask::ProcedureHoldings { .. } } => {
-                let mut answered = core::step(
+                let mut answered = bridged_step(
                     &mut recovered,
                     &env,
                     core::Event::ProcedureHoldings {

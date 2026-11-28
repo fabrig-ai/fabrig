@@ -271,6 +271,7 @@ fn core_held(engine: &mut Engine, held: core::Held) {
         // The application's use of need arrivals is its own.
         core::Held::NeedArrived { .. } | core::Held::Restarting { .. } => {}
         held @ (core::Held::Acted { .. }
+        | core::Held::Connector(_, _)
         | core::Held::ConnectorActed { .. }
         | core::Held::Result { .. }
         | core::Held::SourceSignedOut { .. }) => {

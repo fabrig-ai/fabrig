@@ -983,6 +983,7 @@ impl Observer {
             core::Held::NeedArrived { .. }
             | core::Held::Acted { .. }
             | core::Held::ConnectorActed { .. }
+            | core::Held::Connector(_, _)
             | core::Held::Drained
             | core::Held::Restarting { .. }
             | core::Held::ApplicationDelivery { .. }

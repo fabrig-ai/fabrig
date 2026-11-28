@@ -1,10 +1,12 @@
 //! Successful task continuations and their named-call terminals
 //! (jig/docs/design/domain/engine/vocabulary.md, 1.4).
 
+use crate::vocabulary::connector_ask;
 use crate::{
-    Ask, CallPart, Core, GoalRoute, Limits, PersonProposalRoute, PersonTaskRoute, Request, RoutedCall,
+    CallPart, Core, GoalRoute, Limits, PersonProposalRoute, PersonTaskRoute, Request, RoutedCall,
     routing::{children::append_people, flight::Flight, run::calls::call_decision},
 };
+use jig_domain_contract as contract;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Token};
@@ -144,15 +146,15 @@ fn call_done(
     let (key, part) = match route {
         RoutedCall::Propose { key, proposal } => {
             if let Some((connector, owner)) = effect {
-                out.push(Request::Ask {
+                out.push(connector_ask(
                     connector,
-                    ask: Ask::Effect(crate::effects::connector::Ask::KeepProposal {
+                    contract::Ask::Effects(contract::effects::Ask::KeepProposal {
                         owner,
                         proposal,
                         task: key.task,
                         project: core.tasks.task(key.task).expect("proposing task exists").project,
                     }),
-                });
+                ));
             }
             let tasks::ProposalState::Pending { holder, .. } =
                 core.tasks.proposal(key.task, proposal).expect("admitted proposal").state
@@ -192,7 +194,10 @@ fn call_done(
         RoutedCall::Subscribe { key, subscription, connector } => {
             if let Some(connector) = connector {
                 core.handoff_call(key, crate::CallHolder::Routed, crate::CallHolder::Application);
-                out.push(Request::Ask { connector, ask: Ask::SubscriptionDone { request, key, subscription } });
+                out.push(connector_ask(
+                    connector,
+                    contract::Ask::Topics(contract::topics::Ask::Subscribed { request, key, subscription }),
+                ));
                 return;
             }
             (key, CallPart::Subscribed { subscription })
@@ -200,7 +205,10 @@ fn call_done(
         RoutedCall::Unsubscribe { key, connector } => {
             if let Some(connector) = connector {
                 core.handoff_call(key, crate::CallHolder::Routed, crate::CallHolder::Application);
-                out.push(Request::Ask { connector, ask: Ask::UnsubscriptionDone { request, key } });
+                out.push(connector_ask(
+                    connector,
+                    contract::Ask::Topics(contract::topics::Ask::Unsubscribed { request, key }),
+                ));
                 return;
             }
             (key, CallPart::Unsubscribed)

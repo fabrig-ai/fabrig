@@ -1,6 +1,7 @@
 //! A task query's live group, its keys, order, window and marks.
 use crate::tests::*;
 use fixtures::{make_batch, query_fixture, restore};
+use jig_domain_contract as contract;
 
 const REQUESTER: u64 = 1;
 const OTHER_REQUESTER: u64 = 2;
@@ -254,7 +255,12 @@ fn generated_commits_mark_each_query_whose_lines_change() {
         let ending = if let Event::Tasks(tasks::Event::EffectsSettled { task }) = &event { Some(*task) } else { None };
         watch_outputs(&mut core, &limits, event);
         if let Some(task) = ending {
-            watch_outputs(&mut core, &limits, Event::Tasks(tasks::Event::Settled { task }));
+            watch_connector_outputs(
+                &mut core,
+                &limits,
+                1,
+                contract::Up::Effects(contract::effects::Up::Released { task }),
+            );
         }
         for (offset, query) in queries().iter().enumerate() {
             let after = lines(&core, &limits, REQUESTER, query, &window()).unwrap();

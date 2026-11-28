@@ -2,8 +2,10 @@
 //! A read's Pending owns its page; a watch also waits there, keeping the views child Making.
 
 use super::{Answer, Destination, EndedGroup, Pending, Range, Scope, TaskPage, Why};
+use crate::vocabulary::connector_ask;
 use crate::{Core, Limits, MadePart, PartAsk, PartFailure, PartsAsk, Request, RowPart, documents};
 use alloc::{boxed::Box, vec::IntoIter};
+use jig_domain_contract as contract;
 use skein_lib::{Env, List, Map, Queue, Token};
 
 pub(crate) fn assert_kinds(kinds: &[documents::parts::PartKind], connectors: &[u16]) {
@@ -99,10 +101,15 @@ fn emit(core: &Core, name: Token) -> Queue<Request> {
         for row in page.live.iter().chain(ended.iter()) {
             rows.push(row.clone()).expect("answer rows");
         }
-        out.push(Request::Ask {
-            connector: *connector,
-            ask: crate::Ask::Parts(PartsAsk { token: name, party: pending.party, kinds, rows }),
-        });
+        out.push(connector_ask(
+            *connector,
+            contract::Ask::Parts(contract::parts::Ask::Lines(PartsAsk {
+                token: name,
+                party: pending.party,
+                kinds,
+                rows,
+            })),
+        ));
     }
     out
 }

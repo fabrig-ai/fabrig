@@ -1,5 +1,6 @@
 //! Carried ownership precedes the whole admission output (skein's programming-model.md, 7.2).
 use crate::tests::*;
+use jig_domain_contract as contract;
 
 const REPLY: Token = Token::new(9705);
 const VALUE: u64 = 1_u64 << 63;
@@ -54,7 +55,10 @@ fn an_unused_carried_value_leaves_before_the_rest_of_a_wide_route() {
         Request::Write(Write::Erase(Key::People(people::Key::Answer(erased)))),
         Request::Write(Write::Save(Record::People(people::Stored::Answer { key, outcome, .. }))),
         Request::Held(answer),
-        Request::Ask { connector: CONNECTOR, ask: Ask::DropApplication { owner: OWNER } },
+        Request::Ask {
+            connector: CONNECTOR,
+            ask: Ask::Connector(contract::Ask::Requests(contract::requests::Ask::Drop { owner: OWNER })),
+        },
     ] = outputs.as_slice()
     else {
         panic!("unused, erase, save, answer, owner drop: {outputs:?}")

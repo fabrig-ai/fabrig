@@ -68,6 +68,8 @@ pub enum Request {
 /// A question or retained-section command for a numbered connector.
 #[derive(Hash, Debug)]
 pub enum Ask {
+    /// Connector port output; the engine forwards it without translation.
+    Connector(jig_domain_contract::Ask),
     /// Replace the admission table whole (domain/engine/workers.md, 4).
     Workers(Box<[crate::settings::WorkerSetting]>),
     /// Keep current providers for the next start (domain/engine/llm-providers.md, 5).
@@ -313,6 +315,8 @@ pub enum Write {
 /// Core output that must follow the decision's commit.
 #[derive(Hash, Debug)]
 pub enum Held {
+    /// A contract release held until this decision is durable.
+    Connector(jig_domain_contract::Connector, jig_domain_contract::Released),
     /// Terminal deployment act answer, released once its decision is durable.
     Acted {
         to: ReplyTo,

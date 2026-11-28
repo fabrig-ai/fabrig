@@ -14,8 +14,10 @@ use super::{
     PublicProjects, PublicRead,
     index::{Entry, Project},
 };
-use crate::{Ask, Core, Held, Limits, Request};
+use crate::vocabulary::connector_ask;
+use crate::{Core, Held, Limits, Request};
 use alloc::boxed::Box;
+use jig_domain_contract as contract;
 use skein_lib::{Env, Id, List, Queue, ReplyTo, Token};
 
 /// One read, bounded by `Limits::load_slots`, apart from authenticated loads.
@@ -84,17 +86,21 @@ fn keep(core: &mut Core, reply: ReplyTo, read: PublicRead, mut state: State) -> 
     };
     let pending = core.public_reads.get(id).expect("inserted public read").as_ref().expect("live public read");
     let request = match &pending.state {
-        State::Asking { public } => Request::Ask {
-            connector: read.owner.checked_sub(1).expect("application owner"),
-            ask: Ask::Public {
-                reply: ReplyTo::new(id.token()),
-                kind: read.kind,
-                version: read.version,
-                project: project_number(&read).expect("admitted project"),
-                task: read.task,
-                public: public.clone(),
-            },
-        },
+        State::Asking { public } => {
+            let connector = read.owner.checked_sub(1).expect("application owner");
+            core.judgements.asked(connector, crate::judgements::Subject::Public(id.token()));
+            connector_ask(
+                connector,
+                contract::Ask::Parts(contract::parts::Ask::Public {
+                    reply: ReplyTo::new(id.token()),
+                    kind: read.kind,
+                    version: read.version,
+                    project: project_number(&read).expect("admitted project"),
+                    task: read.task,
+                    public: public.clone(),
+                }),
+            )
+        }
         State::Waiting { .. } => Request::Held(Box::new(Held::PublicWait { read: id.token() })),
     };
     let mut out = Queue::uncapped();
@@ -102,8 +108,8 @@ fn keep(core: &mut Core, reply: ReplyTo, read: PublicRead, mut state: State) -> 
     out
 }
 
-pub(crate) fn answered(core: &mut Core, reply: ReplyTo, answer: Option<PublicApplication>) -> Queue<Request> {
-    let id = Id::from_token(reply.into_token());
+pub(crate) fn answered(core: &mut Core, token: Token, answer: Option<PublicApplication>) -> Queue<Request> {
+    let id = Id::from_token(token);
     let Some(Some(pending)) = core.public_reads.get_mut(id) else { return Queue::uncapped() };
     let public = match &pending.state {
         State::Asking { public } => public,

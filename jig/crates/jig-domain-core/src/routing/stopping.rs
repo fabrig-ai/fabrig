@@ -1,6 +1,8 @@
 //! Admission while the engine drains (domain/engine/restart.md, 5).
+use crate::vocabulary::connector_ask;
 use crate::{CallHolder, CallKey, Core, Event, Held, Limits, Now, Request, effects::projections, routing};
 use alloc::boxed::Box;
+use jig_domain_contract as contract;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -153,7 +155,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
             let unused = routing::application_routes::number(carried);
             let mut out = routing::application_routes::first(unused, party(reply_to));
             if core.connectors.contains(&connector) {
-                out.push(Request::Ask { connector, ask: crate::Ask::DropApplication { owner } });
+                out.push(connector_ask(connector, contract::Ask::Requests(contract::requests::Ask::Drop { owner })));
             }
             Err(out)
         }

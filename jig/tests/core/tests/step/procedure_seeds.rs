@@ -2,6 +2,7 @@
 use crate::first_support::{effect_kind, first_with_core, with_effects};
 use core::effects::connector;
 use jig_core_world::fixtures::{CONNECTOR, PROJECT};
+use jig_core_world::test_support::bridged_step;
 use jig_core_world::world::fixture;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
@@ -21,7 +22,7 @@ const POOL_FUNDER: tasks::Funder = tasks::Funder::Pool { project: PROJECT, perso
 const EXECUTOR: tasks::Executor = tasks::Executor::Procedure { connector: CONNECTOR, code: PROCEDURE };
 
 fn outputs(domain: &mut core::Core, env: &Env<core::Limits>, event: core::Event) -> Vec<core::Request> {
-    let mut out = core::step(domain, env, event);
+    let mut out = bridged_step(domain, env, event);
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {
         requests.push(request);

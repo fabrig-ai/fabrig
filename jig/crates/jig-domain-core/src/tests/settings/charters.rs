@@ -1,4 +1,5 @@
 use crate::tests::*;
+use jig_domain_contract as contract;
 
 #[test]
 fn a_charter_whose_default_spend_misses_its_floor_is_refused() {
@@ -68,7 +69,11 @@ fn a_full_store_work_lane_does_not_delay_a_procedure() {
     let context = core.take_due().expect("a procedure has no window to load");
     let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
     for request in out {
-        if let Request::Ask { connector: 1, ask: Ask::StartProcedure { context, step: 1 } } = request {
+        if let Request::Ask {
+            connector: 1,
+            ask: Ask::Connector(contract::Ask::Procedures(contract::procedures::Ask::Start { context, step: 1 })),
+        } = request
+        {
             assert_eq!(context.task, 2);
             return;
         }

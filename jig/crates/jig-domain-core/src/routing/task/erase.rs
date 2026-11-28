@@ -2,8 +2,10 @@
 //! (jig/docs/design/protocol/store/growth.md, 1.1; retention.md, 5–6).
 mod retention;
 use crate::engine::store as engine_store;
+use crate::vocabulary::connector_ask;
 use crate::{Core, Key, Limits, Request, Write, reads};
 use alloc::boxed::Box;
+use jig_domain_contract as contract;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Queue, Time, Token};
@@ -231,7 +233,7 @@ fn task_rows(
 }
 fn unname(core: &Core, task: u64, out: &mut Queue<Request>) {
     for &connector in core.connector_recipients.resources.as_ref() {
-        out.push(Request::Ask { connector, ask: crate::Ask::Effect(crate::effects::connector::Ask::Unname { task }) });
+        out.push(connector_ask(connector, contract::Ask::Resources(contract::resources::Ask::Unname { task })));
     }
 }
 fn finish(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, select: Select) {

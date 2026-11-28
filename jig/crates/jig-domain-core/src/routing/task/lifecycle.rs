@@ -1,9 +1,11 @@
 //! Recurring batches, ended tasks, and connector cleanup
 //! (jig/docs/design/domain/engine/vocabulary.md, 1.4).
 
-use crate::{Ask, Core, CoreKey, Held, Key, Limits, Now, Request, Write};
+use crate::vocabulary::connector_ask;
+use crate::{Core, CoreKey, Held, Key, Limits, Now, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
+use jig_domain_contract as contract;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, Token};
 
@@ -168,7 +170,14 @@ pub(crate) fn close(
     let ancestor_number = core.tasks.root(task).unwrap_or(task);
     for &connector in core.connector_recipients.effects.as_ref() {
         core.closing_connectors.insert((task, connector), ()).expect("bounded closing connectors");
-        out.push(Request::Ask { connector, ask: Ask::Close { task, root: ancestor_number, ending: ending.clone() } });
+        out.push(connector_ask(
+            connector,
+            contract::Ask::Effects(contract::effects::Ask::Close {
+                task,
+                root: ancestor_number,
+                ending: ending.clone(),
+            }),
+        ));
     }
 }
 
@@ -207,10 +216,15 @@ pub(crate) fn release(
         return;
     }
     for &(connector, entry) in &entries {
-        out.push(Request::Ask {
+        out.push(connector_ask(
             connector,
-            ask: Ask::Release { task, root: ancestor_number, ending: ending.clone(), entry },
-        });
+            contract::Ask::Effects(contract::effects::Ask::Release {
+                task,
+                root: ancestor_number,
+                ending: ending.clone(),
+                entry,
+            }),
+        ));
     }
 }
 

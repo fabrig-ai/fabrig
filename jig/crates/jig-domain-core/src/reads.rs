@@ -14,6 +14,8 @@
 //! | loading | missing transport range | retired | held gone |
 //! | retired | late duplicate terminal | retired | nothing |
 
+use crate::vocabulary::connector_ask;
+use jig_domain_contract as contract;
 pub use jig_domain_core_vocabulary::reads::*;
 
 pub(crate) mod activity;
@@ -234,7 +236,10 @@ fn refused_application(destination: Destination, read: &Read, why: Why) -> Queue
     match read {
         Read::Application { connector, read, .. } => {
             let mut out = Queue::uncapped();
-            out.push(Request::Ask { connector: *connector, ask: crate::Ask::DropDocument { subject: *read } });
+            out.push(connector_ask(
+                *connector,
+                contract::Ask::Parts(contract::parts::Ask::DropDocument { subject: *read }),
+            ));
             let mut terminal = answer(destination, Answer::None(why));
             while let Some(request) = terminal.pop() {
                 out.push(request);
@@ -300,16 +305,16 @@ fn application(core: &Core, destination: Destination, party: u64, read: &Read) -
         return refused_application(destination, read, Why::Unknown);
     }
     let mut out = Queue::uncapped();
-    out.push(Request::Ask {
-        connector: *connector,
-        ask: crate::Ask::Read {
+    out.push(connector_ask(
+        *connector,
+        contract::Ask::Parts(contract::parts::Ask::Read {
             reply: application_reply(destination),
             scope: *scope,
             read: *name,
             party,
             window: *window,
-        },
-    });
+        }),
+    ));
     out
 }
 

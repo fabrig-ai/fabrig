@@ -357,6 +357,7 @@ fn core_held(
                 .expect("kept people token has its retained connector outcome");
             held(decision, Output::Application { to, outcome });
         }
+        core::Held::Connector(_, _) => unreachable!("connector port releases pass through the bridge"),
         core::Held::ConnectorActed { .. } => unreachable!("this root sends acts with reply tokens"),
         core::Held::Acted { to, outcome } => {
             let token = to.into_token();
@@ -492,6 +493,9 @@ fn core_ask(
 ) {
     let destination = jig_ops_domain_connectors::connector(number);
     match (destination, ask) {
+        (Some(Connector::Infrastructure | Connector::Observability) | None, core::Ask::Connector(_)) => {
+            unreachable!("connector port asks pass through the bridge")
+        }
         (Some(Connector::Infrastructure | Connector::Observability) | None, core::Ask::Parts(ask)) => {
             let mut parts = List::uncapped();
             for _row in &ask.rows {

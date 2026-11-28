@@ -1,12 +1,14 @@
 //! Task records, their projections, and the people entries they update
 //! (jig/docs/design/domain/engine/vocabulary.md, 1.4).
 
+use crate::vocabulary::connector_ask;
 use crate::{
     Ask, Core, CoreRecord, Limits, Record, Request, Write,
     routing::{children::append_people, view::routes::touch_task},
 };
 use alloc::boxed::Box;
 use jig_domain_brief as brief;
+use jig_domain_contract as contract;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, Token};
@@ -111,12 +113,12 @@ fn prepare_record(
                     match proposal.action {
                         tasks::ProposalAction::Effect { connector, .. }
                         | tasks::ProposalAction::ProcedureEffect { connector, .. } => {
-                            out.push(Request::Ask {
+                            out.push(connector_ask(
                                 connector,
-                                ask: Ask::Effect(crate::effects::connector::Ask::DropProposal {
+                                contract::Ask::Effects(contract::effects::Ask::DropProposal {
                                     proposal: proposal.number,
                                 }),
-                            });
+                            ));
                         }
                         tasks::ProposalAction::Settings { .. }
                         | tasks::ProposalAction::Batch(_)

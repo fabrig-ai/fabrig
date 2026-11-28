@@ -1,5 +1,6 @@
 //! The procedure refusal and its durable room condition leave the core together.
 use crate::tests::*;
+use jig_domain_contract as contract;
 
 #[test]
 fn a_refused_procedure_batch_keeps_its_room_wait_write_with_the_refusal() {
@@ -49,7 +50,11 @@ fn a_refused_procedure_batch_keeps_its_room_wait_write_with_the_refusal() {
                 assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Idle));
                 saved = saved.checked_add(1).unwrap();
             }
-            Request::Ask { connector: 1, ask: Ask::StepRefused { task: 1, step, why } } => {
+            Request::Ask {
+                connector: 1,
+                ask:
+                    Ask::Connector(contract::Ask::Procedures(contract::procedures::Ask::StepRefused { task: 1, step, why })),
+            } => {
                 assert_eq!(step, step_number);
                 let StepRefusal::Refused(problem) = why else { panic!("task refusal") };
                 assert_eq!(tasks::freeing_count(&problem), Some(tasks::LiveRoom::Deployment));
@@ -91,8 +96,15 @@ fn ending_a_procedure_releases_its_memory_only_wait_report() {
         since: env.wall,
         bound: ReportedBound::None(Unbounded::OperatorHold),
     };
-    let out =
-        step(&mut core, &env, Event::Waits { connector: 1, task: 1, waits: List::from_boxed(Box::new([report])) });
+    let out = connector_step(
+        &mut core,
+        &env,
+        1,
+        contract::Up::Procedures(contract::procedures::Up::Waits {
+            task: 1,
+            waits: List::from_boxed(Box::new([report])),
+        }),
+    );
     assert!(out.is_empty());
     assert!(core.reported_waits.contains_key(&1));
     drop(step(
@@ -105,9 +117,9 @@ fn ending_a_procedure_releases_its_memory_only_wait_report() {
         }),
     ));
     for number in core.connectors.clone() {
-        drop(step(&mut core, &env, Event::EffectConnector(connector::Event::Closed { task: 1, connector: number })));
+        drop(connector_step(&mut core, &env, number, contract::Up::Effects(contract::effects::Up::Closed { task: 1 })));
     }
-    drop(step(&mut core, &env, Event::Tasks(tasks::Event::Settled { task: 1 })));
+    drop(connector_step(&mut core, &env, 1, contract::Up::Effects(contract::effects::Up::Released { task: 1 })));
     assert!(core.tasks.task(1).is_none());
     assert!(core.reported_waits.is_empty(), "the ended task's report must not occupy a slot");
 }

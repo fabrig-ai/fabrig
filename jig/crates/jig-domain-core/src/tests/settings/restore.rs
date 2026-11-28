@@ -8,6 +8,7 @@ use crate::engine::store as engine_store;
 use crate::reads::{Range, Row, Scope};
 use crate::settings::{self as s, application as app};
 use crate::tests::*;
+use jig_domain_contract as contract;
 
 fn fixture(newest: u32) -> (Core, Limits) {
     fixture_with_count(newest, 2)
@@ -63,6 +64,11 @@ fn fixture_with_count(newest: u32, count: u32) -> (Core, Limits) {
 }
 fn send(core: &mut Core, limits: &Limits, event: Event) -> Box<[Request]> {
     let out = step(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, event);
+    finish(core, out)
+}
+fn send_connector(core: &mut Core, limits: &Limits, connector: u16, up: contract::Up) -> Box<[Request]> {
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
+    let out = connector_step(core, &env, connector, up);
     finish(core, out)
 }
 fn send_store(core: &mut Core, limits: &Limits, event: engine_store::In) -> Box<[Request]> {
@@ -367,7 +373,7 @@ fn a_restore_asks_the_connector_for_an_applications_replaced_values() {
     for request in &output {
         if let Request::Ask {
             connector: 1,
-            ask: Ask::Effect(connector::Ask::RestoreSettings { owner, proposal, items }),
+            ask: Ask::Connector(contract::Ask::Settings(contract::settings::Ask::Restore { owner, proposal, items })),
         } = request
         {
             assert_eq!(
@@ -381,10 +387,11 @@ fn a_restore_asks_the_connector_for_an_applications_replaced_values() {
         }
     }
     let (owner, key) = ask.unwrap();
-    let output = send(
+    let output = send_connector(
         &mut core,
         &limits,
-        Event::EffectConnector(connector::Event::SettingsRestored {
+        1,
+        contract::Up::Settings(contract::settings::Up::Restored {
             owner,
             judged: Box::new([
                 connector::Judged::Accept { size: 7, charters: Box::new([1]) },
@@ -407,7 +414,9 @@ fn a_restore_asks_the_connector_for_an_applications_replaced_values() {
         assert!(match request {
             Request::Ask {
                 ask:
-                    Ask::Effect(connector::Ask::KeepProposalSettings { .. } | connector::Ask::DropProposalSettings { .. }),
+                    Ask::Connector(contract::Ask::Settings(
+                        contract::settings::Ask::KeepProposal { .. } | contract::settings::Ask::DropProposal { .. },
+                    )),
                 ..
             } => false,
             _ => true,
@@ -437,7 +446,11 @@ fn erasing_a_revision_from_the_history_tells_connectors_to_forget_what_it_replac
     assert_eq!(outcome(&output), people::Outcome::SettingsChanged { revision: 3 });
     let mut forgets = 0_u32;
     for request in &output {
-        if let Request::Ask { connector: 1, ask: Ask::Effect(connector::Ask::ForgetReplaced { before }) } = request {
+        if let Request::Ask {
+            connector: 1,
+            ask: Ask::Connector(contract::Ask::Settings(contract::settings::Ask::ForgetReplaced { before })),
+        } = request
+        {
             assert_eq!(*before, 3);
             forgets = forgets.checked_add(1).unwrap();
         }
@@ -546,10 +559,11 @@ fn a_connectors_refusal_drops_its_restore_proposal_values() {
     let output = ask(&mut core, &limits, 1, 1);
     let output = page(&mut core, &limits, &output, Box::new([revision]));
     let (owner, key) = connector_restore(&output);
-    let output = send(
+    let output = send_connector(
         &mut core,
         &limits,
-        Event::EffectConnector(connector::Event::SettingsRestored {
+        1,
+        contract::Up::Settings(contract::settings::Up::Restored {
             owner,
             judged: Box::new([
                 connector::Judged::Refuse { why: b"unavailable".as_slice().into() },
@@ -603,10 +617,11 @@ fn application_sizes_and_charter_counts_are_checked_before_the_proposal_is_kept(
         let output = ask(&mut core, &limits, 1, 1);
         let output = page(&mut core, &limits, &output, Box::new([revision]));
         let (owner, key) = connector_restore(&output);
-        let output = send(
+        let output = send_connector(
             &mut core,
             &limits,
-            Event::EffectConnector(connector::Event::SettingsRestored {
+            1,
+            contract::Up::Settings(contract::settings::Up::Restored {
                 owner,
                 judged: Box::new([
                     connector::Judged::Accept { size, charters },
@@ -649,7 +664,11 @@ fn a_whole_application_kind_is_bounded_by_its_declared_count() {
     let output = page(&mut core, &limits, &output, Box::new([revision]));
     let (owner, _) = connector_restore(&output);
     for request in &output {
-        if let Request::Ask { ask: Ask::Effect(connector::Ask::RestoreSettings { items, .. }), .. } = request {
+        if let Request::Ask {
+            ask: Ask::Connector(contract::Ask::Settings(contract::settings::Ask::Restore { items, .. })),
+            ..
+        } = request
+        {
             assert_eq!(items.len(), 16);
             for item in items {
                 assert_eq!(item.edit, app::RestoredEdit::Remove);
@@ -660,17 +679,21 @@ fn a_whole_application_kind_is_bounded_by_its_declared_count() {
     for _ in 0_u32..16 {
         judged.push(connector::Judged::Accept { size: 0, charters: Box::default() }).unwrap();
     }
-    let output = send(
+    let output = send_connector(
         &mut core,
         &limits,
-        Event::EffectConnector(connector::Event::SettingsRestored { owner, judged: judged.into_boxed() }),
+        1,
+        contract::Up::Settings(contract::settings::Up::Restored { owner, judged: judged.into_boxed() }),
     );
     assert_eq!(restored(&core, &output).1.applications.len(), 16);
 }
 
 fn connector_restore(output: &[Request]) -> (Token, u64) {
     for request in output {
-        if let Request::Ask { ask: Ask::Effect(connector::Ask::RestoreSettings { owner, proposal, .. }), .. } = request
+        if let Request::Ask {
+            ask: Ask::Connector(contract::Ask::Settings(contract::settings::Ask::Restore { owner, proposal, .. })),
+            ..
+        } = request
         {
             return (*owner, *proposal);
         }
@@ -680,7 +703,10 @@ fn connector_restore(output: &[Request]) -> (Token, u64) {
 fn drops(output: &[Request]) -> Box<[(u16, u64)]> {
     let mut drops = List::with_capacity(u32::try_from(output.len()).unwrap());
     for request in output {
-        if let Request::Ask { connector, ask: Ask::Effect(connector::Ask::DropProposalSettings { proposal }) } = request
+        if let Request::Ask {
+            connector,
+            ask: Ask::Connector(contract::Ask::Settings(contract::settings::Ask::DropProposal { proposal })),
+        } = request
         {
             drops.push((*connector, *proposal)).unwrap();
         }

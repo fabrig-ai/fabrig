@@ -1,5 +1,6 @@
 use jig_core_world::fixtures::{CONNECTOR, PARTY as OWNER, PROJECT, live_row};
 use jig_core_world::stories::delegates::delegate_pair;
+use jig_core_world::test_support::bridged_step;
 use jig_core_world::world::Cut;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
@@ -178,7 +179,7 @@ fn a_connector_adopts_its_own_resource_into_a_project() {
     // This story scripts the root at the core boundary: it answers the routed Ask::Adopt.
     let (mut core, env) = adoption_core(1804);
     let adoption = adoption();
-    let mut out = core::step(
+    let mut out = bridged_step(
         &mut core,
         &env,
         core::Event::Act {
@@ -200,7 +201,7 @@ fn a_connector_adopts_its_own_resource_into_a_project() {
             routed = Some(request);
         }
     }
-    let mut out = core::step(
+    let mut out = bridged_step(
         &mut core,
         &env,
         core::Event::People(people::Event::Decided {
@@ -348,7 +349,7 @@ fn adoption() -> people::Adoption {
 #[test]
 fn a_deployment_adoption_of_an_unknown_project_is_refused() {
     let (mut core, env) = adoption_core(1810);
-    let mut out = core::step(
+    let mut out = bridged_step(
         &mut core,
         &env,
         core::Event::Act {

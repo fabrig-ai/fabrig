@@ -3,11 +3,13 @@
 
 use super::Proposing;
 use crate::routing::{HoldingsNeed, Work, effect::procedure::ProcedureCall};
+use crate::vocabulary::connector_ask;
+use jig_domain_contract as contract;
 
 use crate::loads::point::Point;
 use crate::{
-    Ask, CallHolder, CallKey, CallPart, Core, Delegate, Dependency, Event, HoldingsRefusal, Limits, ProcedureStep,
-    Request, StepRefusal, ToolKind,
+    CallHolder, CallKey, CallPart, Core, Delegate, Dependency, Event, HoldingsRefusal, Limits, ProcedureStep, Request,
+    StepRefusal, ToolKind,
     routing::{
         BatchKind, DelegateCreation, ProcedureCreation,
         run::calls::{admit_named_call, call_decision, named_propose, proposal_refused},
@@ -259,10 +261,14 @@ fn delegate_validated(
     let request = core.fly(crate::routing::flight::Flight::CreatingDelegates { request, route });
     let mut out = Queue::uncapped();
     for &connector in core.connector_recipients.resources.as_ref() {
-        out.push(Request::Ask {
+        out.push(connector_ask(
             connector,
-            ask: Ask::DelegateHoldings { request, from: key.task, members: asked.as_slice().into() },
-        });
+            contract::Ask::Resources(contract::resources::Ask::DelegateHoldings {
+                request,
+                from: key.task,
+                members: asked.as_slice().into(),
+            }),
+        ));
     }
     out
 }
@@ -456,10 +462,14 @@ pub(crate) fn propose_batch(
     let request = core.fly(crate::routing::flight::Flight::CreatingDelegates { request, route });
     let mut out = Queue::uncapped();
     for &connector in core.connector_recipients.resources.as_ref() {
-        out.push(Request::Ask {
+        out.push(connector_ask(
             connector,
-            ask: Ask::DelegateHoldings { request, from: key.task, members: asked.as_slice().into() },
-        });
+            contract::Ask::Resources(contract::resources::Ask::DelegateHoldings {
+                request,
+                from: key.task,
+                members: asked.as_slice().into(),
+            }),
+        ));
     }
     out
 }
@@ -647,10 +657,14 @@ pub(crate) fn procedure_step(
                 },
             });
             for &connector in core.connector_recipients.resources.as_ref() {
-                out.push(Request::Ask {
+                out.push(connector_ask(
                     connector,
-                    ask: Ask::ProcedureHoldings { task, step, members: asked.as_slice().into() },
-                });
+                    contract::Ask::Resources(contract::resources::Ask::ProcedureHoldings {
+                        task,
+                        step,
+                        members: asked.as_slice().into(),
+                    }),
+                ));
             }
         }
     }

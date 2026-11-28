@@ -202,7 +202,7 @@ impl Harness {
 
     fn outputs(&mut self, out: &mut Queue<core::Request>) {
         for _ in 0..out.len() {
-            match out.pop().expect("core output") {
+            match jig_core_world::test_support::bridge(out.pop().expect("core output")) {
                 core::Request::Write(_)
                 | core::Request::Ask {
                     ask: core::Ask::Catalogue { .. } | core::Ask::Workers(_) | core::Ask::Providers(_),

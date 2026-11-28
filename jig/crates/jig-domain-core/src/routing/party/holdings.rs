@@ -3,8 +3,9 @@
 //! (`domain/people/acts.md`, section 1). Controls and decisions are separate
 //! families so each route file stays under 1,500 lines.
 
+use crate::vocabulary::connector_ask;
 use crate::{
-    Ask, Core, Event, HoldingsRefusal, Limits, PersonTaskRoute, Record, Request, Write,
+    Core, Event, HoldingsRefusal, Limits, PersonTaskRoute, Record, Request, Write,
     routing::{
         Creation, CreationKind, Work,
         party::dispatch::{Party, Routed},
@@ -12,6 +13,7 @@ use crate::{
     },
 };
 use alloc::boxed::Box;
+use jig_domain_contract as contract;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
@@ -455,10 +457,10 @@ pub(crate) fn adopt_request(
 
     match core.role_allowed(person, project, env.limits.tasks.tree_tasks) {
         Ok(()) => {
-            routed.out.push(Request::Ask {
-                connector: adoption.resource.connector,
-                ask: Ask::Adopt { request, project, adoption },
-            });
+            routed.out.push(connector_ask(
+                adoption.resource.connector,
+                contract::Ask::Lifecycle(contract::lifecycle::Ask::Adopt { request, project, adoption }),
+            ));
         }
         Err(why) => {
             routed.work.push(Work::Event(Event::People(people::Event::Decided {
@@ -537,9 +539,9 @@ fn creation_holdings(
                 named.push(symbol.symbol).expect("at most the member symbols");
             }
         }
-        out.push(Request::Ask {
+        out.push(connector_ask(
             connector,
-            ask: Ask::TaskHoldings {
+            contract::Ask::Resources(contract::resources::Ask::Holdings {
                 request,
                 project: new.project,
                 root,
@@ -548,7 +550,7 @@ fn creation_holdings(
                 spec: new.spec.clone(),
                 tracked: new.tracked.is_some(),
                 symbols: named.into_boxed(),
-            },
-        });
+            }),
+        ));
     }
 }

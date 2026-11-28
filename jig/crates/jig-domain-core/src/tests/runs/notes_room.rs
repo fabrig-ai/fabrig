@@ -1,6 +1,7 @@
 //! A store-room refusal defers only the next activation; a real notes
 //! operation still wakes its waiting briefs when that operation completes.
 use crate::tests::*;
+use jig_domain_contract as contract;
 use jig_domain_link::{Form, Scheme};
 
 const FIRST: u64 = 1;
@@ -427,7 +428,12 @@ fn a_tasks_end_clears_its_unused_activation_marker() {
         }),
     );
     watch_outputs(&mut core, &limits, Event::Tasks(tasks::Event::EffectsSettled { task: FIRST }));
-    watch_outputs(&mut core, &limits, Event::Tasks(tasks::Event::Settled { task: FIRST }));
+    watch_connector_outputs(
+        &mut core,
+        &limits,
+        1,
+        contract::Up::Effects(contract::effects::Up::Released { task: FIRST }),
+    );
     assert!(core.tasks.task(FIRST).is_none());
     assert!(core.pending_note_briefs.is_empty());
 }

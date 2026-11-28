@@ -121,6 +121,7 @@ pub(crate) fn document(
                 | core::Held::StopRun { .. }
                 | core::Held::NotesWritten { .. }
                 | core::Held::Acted { .. }
+                | core::Held::Connector(_, _)
                 | core::Held::ConnectorActed { .. }
                 | core::Held::NotesDeleted { .. }) => {
                     route_request(domain, env, decision, core::Request::Held(Box::new(held)), work);

@@ -43,9 +43,11 @@ fn an_unasked_public_answer_changes_nothing() {
     core.start_input();
     let before = format!("{core:?}");
     for answer in [None, Some(PublicApplication { tasks: Box::new([1]), record: Box::new([7]) })] {
-        let event = Event::PublicAnswered { reply: ReplyTo::new(Token::new(91)), answer };
-        assert!(!event.new_work());
-        assert!(step(&mut core, &env, event).is_empty());
+        let up = jig_domain_contract::Up::Parts(jig_domain_contract::parts::Up::Public {
+            reply: ReplyTo::new(Token::new(91)),
+            answer,
+        });
+        assert!(crate::tests::connector_step(&mut core, &env, 1, up).is_empty());
         assert_eq!(format!("{core:?}"), before, "an unsolicited answer changes no state");
         assert!(crate::finish_decision(&mut core, &env).is_empty());
         assert_eq!(format!("{core:?}"), before);

@@ -119,8 +119,8 @@ pub enum Ask {
     Unname { task: u64 },
     /// Notification: a task took a write hold under this outbox entry; no answer.
     Hold { task: u64, resource: Name, entry: u64 },
-    /// Notification: a fenced attempt was lost; no answer.
-    Lost { task: u64, attempt: u64 },
+    /// Notification: a fenced attempt was lost; its named writes need fresh reads.
+    Lost { task: u64, attempt: u64, resources: Box<[Name]> },
     /// Judgement: which holdings a task needs, answered by `Up::Holdings`.
     Holdings {
         request: Token,

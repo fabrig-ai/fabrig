@@ -3,8 +3,8 @@
 
 pub use jig_domain_core_vocabulary::engine::*;
 
-use crate::{Config, Core, Held, Limits, Request, Timer};
-use jig_domain_contract::{Connector, Declaration, Released, StartProblem};
+use crate::{Ask, Config, Core, Held, Limits, Request, Timer};
+use jig_domain_contract::{Connector, Declaration, StartProblem};
 
 mod connectors;
 pub use connectors::{bridge_ask, bridge_released};
@@ -46,20 +46,7 @@ pub fn step(engine: &mut Engine, env: &Env<Limits>, input: In, out: &mut Queue<O
     let requests = match input {
         In::Core(event) => crate::step(&mut engine.core, env, event),
         In::Store(event) => crate::routing::step_store(&mut engine.core, env, event),
-        In::Connector(connector, up) => match connectors::input(connector, up) {
-            connectors::Input::Event(event) => crate::step(&mut engine.core, env, event),
-            connectors::Input::CatchUp(stage) => {
-                engine.core.catch_up_done(connector.0, stage);
-                Queue::uncapped()
-            }
-            connectors::Input::Act { key, act, carried } => crate::routing::step_connector_act(
-                &mut engine.core,
-                env,
-                jig_domain_people::ActKey { connector: connector.0, key },
-                act,
-                carried,
-            ),
-        },
+        In::Connector(connector, up) => crate::routing::step_connector(&mut engine.core, env, connector, up),
     };
     append(requests, out);
 }
@@ -99,19 +86,13 @@ pub fn append(mut requests: Queue<Request>, out: &mut Queue<Out>) {
     for _ in 0..requests.len() {
         let request = requests.pop().expect("core request count");
         let output = match request {
-            Request::Ask { connector, ask } => match connectors::ask(ask) {
-                Ok(ask) => Out::Ask(Connector(connector), ask),
-                Err(ask) => Out::Core(Request::Ask { connector, ask }),
-            },
+            Request::Ask { connector, ask: Ask::Connector(ask) } => Out::Ask(Connector(connector), ask),
             Request::Held(held) => match *held {
                 Held::Store(load) => Out::Held(Peer::Store(load)),
-                Held::MakeEffect { connector, entry } => {
-                    Out::Held(Peer::Connector(Connector(connector), Released::Make { entry }))
-                }
-                Held::ConnectorActed { connector, key, outcome } => {
-                    Out::Held(Peer::Connector(Connector(connector), Released::Answered { key, outcome }))
-                }
-                Held::Acted { .. }
+                Held::Connector(connector, released) => Out::Held(Peer::Connector(connector, released)),
+                Held::MakeEffect { .. }
+                | Held::ConnectorActed { .. }
+                | Held::Acted { .. }
                 | Held::Drained
                 | Held::Restarting { .. }
                 | Held::ApplicationDelivery { .. }
@@ -154,7 +135,9 @@ pub fn append(mut requests: Queue<Request>, out: &mut Queue<Out>) {
                 | Held::PublicWait { .. }
                 | Held::NeedArrived { .. } => Out::Core(Request::Held(held)),
             },
-            other @ (Request::ProjectMade { .. } | Request::Write(_) | Request::Now(_)) => Out::Core(other),
+            other @ (Request::ProjectMade { .. } | Request::Ask { .. } | Request::Write(_) | Request::Now(_)) => {
+                Out::Core(other)
+            }
         };
         out.push(output);
     }

@@ -4,6 +4,7 @@ use crate::{
     routing::task::erase::{Select, scan},
     tests::*,
 };
+use jig_domain_contract as contract;
 
 fn env(limits: &Limits) -> Env<Limits> {
     Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }
@@ -68,7 +69,11 @@ fn erases(out: &Queue<Request>) -> Box<[Key]> {
 fn unnamed(out: &Queue<Request>) -> Box<[(u16, u64)]> {
     let mut asks = List::with_capacity(out.len());
     for request in out {
-        if let Request::Ask { connector, ask: Ask::Effect(connector::Ask::Unname { task }) } = request {
+        if let Request::Ask {
+            connector,
+            ask: Ask::Connector(contract::Ask::Resources(contract::resources::Ask::Unname { task })),
+        } = request
+        {
             asks.push((*connector, *task)).unwrap();
         }
     }

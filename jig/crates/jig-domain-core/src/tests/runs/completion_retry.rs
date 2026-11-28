@@ -83,6 +83,7 @@ fn has_watch_end(out: &[Request]) -> bool {
                 | Held::CarriedUnused { .. }
                 | Held::Delivery { .. }
                 | Held::MakeEffect { .. }
+                | Held::Connector(_, _)
                 | Held::SettledCall { .. }
                 | Held::Assign { .. }
                 | Held::Grant { .. }

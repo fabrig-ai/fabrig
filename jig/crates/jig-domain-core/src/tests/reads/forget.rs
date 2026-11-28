@@ -2,6 +2,7 @@ use crate::{
     reads::forget::{Owner, Reading, forgets},
     tests::*,
 };
+use jig_domain_contract as contract;
 
 const TASK: u64 = 1;
 const PARTY: u64 = 1;
@@ -50,7 +51,11 @@ fn a_forget_tells_only_resource_connectors_the_task_is_erased() {
             if let Request::Write(Write::Erase(key)) = request {
                 erases.push(key.clone()).unwrap();
             }
-            if let Request::Ask { connector, ask: Ask::Effect(connector::Ask::Unname { task }) } = request {
+            if let Request::Ask {
+                connector,
+                ask: Ask::Connector(contract::Ask::Resources(contract::resources::Ask::Unname { task })),
+            } = request
+            {
                 unnamed.push((*connector, *task)).unwrap();
             }
         }

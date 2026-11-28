@@ -146,6 +146,7 @@ pub(super) fn route_request(
             | core::Held::NotesWritten { .. }
             | core::Held::Acted { .. }
             | core::Held::ConnectorActed { .. }
+            | core::Held::Connector(_, _)
             | core::Held::NotesDeleted { .. }) => hold(decision, crate::link::down(domain, Delivery::Core(other))),
         },
         core::Request::Now(now) => route_now(domain, env, decision, *now, work),
@@ -164,6 +165,7 @@ fn route_ask(
     work: &mut Queue<Work>,
 ) {
     match ask {
+        core::Ask::Connector(_) => unreachable!("connector port asks pass through the bridge"),
         core::Ask::Parts(ask) => {
             if let Some(pending) = &mut domain.scripted_parts {
                 pending.push((number, ask));

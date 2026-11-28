@@ -15,6 +15,7 @@ pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
         core::Held::WatchEnded { watcher, why } => Some(kit::Event::WatchEnded { watcher, why }),
         core::Held::CarriedUnused { number } => Some(kit::Event::Application(kit::FromApplication::Unused { number })),
         core::Held::Acted { .. }
+        | core::Held::Connector(_, _)
         | core::Held::ConnectorActed { .. }
         | core::Held::Drained
         | core::Held::Restarting { .. }

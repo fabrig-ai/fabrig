@@ -1,5 +1,6 @@
 //! Application subjects use core admission and the existing pacing entry points.
 use crate::tests::*;
+use jig_domain_contract as contract;
 use jig_domain_people::ApplicationScope;
 
 fn application_subject(scope: ApplicationScope) -> Watched {
@@ -8,7 +9,10 @@ fn application_subject(scope: ApplicationScope) -> Watched {
 fn document_asks(out: &[Request]) -> usize {
     let mut count = 0_usize;
     for request in out {
-        if let Request::Ask { ask: Ask::Document { .. }, .. } = request {
+        if let Request::Ask {
+            ask: Ask::Connector(contract::Ask::Parts(contract::parts::Ask::Document { .. })), ..
+        } = request
+        {
             count = count.checked_add(1).unwrap();
         }
     }
@@ -18,11 +22,19 @@ fn mark(core: &mut Core, limits: &Limits, connector: u16) {
     let mut subjects = List::with_capacity(2);
     subjects.push(Token::new(500)).unwrap();
     subjects.push(Token::new(500)).unwrap();
-    let out = watch_outputs(core, limits, Event::Marked { connector, subjects });
+    let out = watch_connector_outputs(
+        core,
+        limits,
+        connector,
+        contract::Up::Requests(contract::requests::Up::Marked { subjects }),
+    );
     assert_eq!(document_asks(&out), 0);
     let mut out = finish_decision(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits });
     while let Some(request) = out.pop() {
-        if let Request::Ask { ask: Ask::Document { .. }, .. } = request {
+        if let Request::Ask {
+            ask: Ask::Connector(contract::Ask::Parts(contract::parts::Ask::Document { .. })), ..
+        } = request
+        {
             panic!("a mark waits for the delivery acknowledgement");
         }
     }
@@ -52,7 +64,11 @@ fn application_watch_and_read_admission_checks_the_scope_before_any_document_han
                 read: crate::reads::Read::Application { scope, connector: 1, read: Token::new(501), window: window() },
             },
         );
-        let Request::Ask { connector: 1, ask: Ask::Read { party: 1, .. } } = &out[0] else {
+        let Request::Ask {
+            connector: 1,
+            ask: Ask::Connector(contract::Ask::Parts(contract::parts::Ask::Read { party: 1, .. })),
+        } = &out[0]
+        else {
             panic!("admitted application read reaches its owner");
         };
     }
@@ -64,7 +80,10 @@ fn application_watch_and_read_admission_checks_the_scope_before_any_document_han
         Event::Watch { watcher: Token::new(30), sign_in: 10, subject: application_subject(scope), window: window() },
     );
     assert_eq!(document_asks(&out), 0);
-    let Request::Ask { ask: Ask::DropDocument { subject }, .. } = &out[0] else {
+    let Request::Ask {
+        ask: Ask::Connector(contract::Ask::Parts(contract::parts::Ask::DropDocument { subject })), ..
+    } = &out[0]
+    else {
         panic!("refusal drops the prepared name")
     };
     assert_eq!(*subject, Token::new(500));
@@ -80,7 +99,9 @@ fn application_watch_and_read_admission_checks_the_scope_before_any_document_han
             read: crate::reads::Read::Application { scope, connector: 1, read: Token::new(501), window: window() },
         },
     );
-    let Request::Ask { ask: Ask::DropDocument { .. }, .. } = &out[0] else {
+    let Request::Ask { ask: Ask::Connector(contract::Ask::Parts(contract::parts::Ask::DropDocument { .. })), .. } =
+        &out[0]
+    else {
         panic!("read refusal drops its prepared name")
     };
     let Request::Held(value) = &out[1] else { panic!("read refusal is held") };
@@ -104,10 +125,11 @@ fn connector_marks_twice_in_flight_make_one_more_whole_document() {
     );
     assert_eq!(document_asks(&out), 1);
     let internal = core.watch_token(watcher).unwrap();
-    let out = watch_outputs(
+    let out = watch_connector_outputs(
         &mut core,
         &limits,
-        Event::View(views::Event::Made { watcher: internal, outcome: views::Made::Ready }),
+        1,
+        contract::Up::Parts(contract::parts::Up::Made { watcher: internal, outcome: views::Made::Ready }),
     );
     let Request::Held(value) = &out[0] else { panic!("delivery is held") };
     let Held::ApplicationDelivery { subject, .. } = value.as_ref() else { panic!("connector construction") };
@@ -118,10 +140,11 @@ fn connector_marks_twice_in_flight_make_one_more_whole_document() {
     let out = watch_outputs(&mut core, &limits, Event::Delivered { watcher });
     assert_eq!(document_asks(&out), 1);
     let internal = core.watch_token(watcher).unwrap();
-    let out = watch_outputs(
+    let out = watch_connector_outputs(
         &mut core,
         &limits,
-        Event::View(views::Event::Made { watcher: internal, outcome: views::Made::Ready }),
+        1,
+        contract::Up::Parts(contract::parts::Up::Made { watcher: internal, outcome: views::Made::Ready }),
     );
     let Request::Held(value) = &out[0] else { panic!("replacement delivery is held") };
     let Held::ApplicationDelivery { .. } = value.as_ref() else { panic!("one replacement whole document") };
@@ -144,10 +167,11 @@ fn a_connector_refusal_ends_its_watch_and_drops_the_owner_binding() {
         },
     );
     let internal = core.watch_token(watcher).unwrap();
-    let out = watch_outputs(
+    let out = watch_connector_outputs(
         &mut core,
         &limits,
-        Event::View(views::Event::Made {
+        1,
+        contract::Up::Parts(contract::parts::Up::Made {
             watcher: internal,
             outcome: views::Made::Gone { why: views::End::NotAllowed },
         }),
@@ -175,10 +199,11 @@ fn a_connector_delivery_waits_for_the_last_commit_the_root_made() {
         },
     );
     let internal = core.watch_token(watcher).unwrap();
-    let out = watch_outputs(
+    let out = watch_connector_outputs(
         &mut core,
         &limits,
-        Event::View(views::Event::Made { watcher: internal, outcome: views::Made::Ready }),
+        1,
+        contract::Up::Parts(contract::parts::Up::Made { watcher: internal, outcome: views::Made::Ready }),
     );
     let mut delivery = None;
     for request in out {

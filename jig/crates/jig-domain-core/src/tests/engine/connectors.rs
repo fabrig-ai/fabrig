@@ -46,19 +46,11 @@ fn port_twins() -> (Core, Engine, Env<Limits>) {
     (core, engine, env)
 }
 
-fn compare(core: &Core, engine: &Engine, mut expected: Queue<Request>, mut actual: Queue<Out>) {
+fn compare(core: &Core, engine: &Engine, expected: Queue<Request>, actual: Queue<Out>) {
+    let mut expected_out = Queue::uncapped();
+    engine::append(expected, &mut expected_out);
     let hash = BuildHasherDefault::<DefaultHasher>::default();
-    assert_eq!(expected.len(), actual.len(), "{actual:?}");
-    while let Some(request) = expected.pop() {
-        let output = actual.pop().expect("parallel decision output");
-        let returned = match output {
-            Out::Core(request) => request,
-            Out::Ask(connector, ask) => engine::bridge_ask(connector, ask),
-            Out::Held(Peer::Connector(connector, released)) => engine::bridge_released(connector, released),
-            Out::Held(Peer::Store(load)) => Request::Held(Box::new(Held::Store(load))),
-        };
-        assert_eq!(hash.hash_one(&returned), hash.hash_one(&request), "{returned:?} at the place of {request:?}");
-    }
+    assert_eq!(hash.hash_one(&expected_out), hash.hash_one(&actual), "{expected_out:?} differs from {actual:?}");
     assert_eq!(hash.hash_one(core), hash.hash_one(engine.core()), "same core state after the decision");
 }
 
@@ -75,16 +67,15 @@ fn answer(up: Up, event: Event) {
 fn ask(old: Ask, expected: contract::Ask) {
     let mut requests = Queue::uncapped();
     requests.push(Request::ProjectMade { project: 1 });
-    requests.push(Request::Ask { connector: DECLARER.0, ask: old });
+    requests.push(Request::Ask { connector: DECLARER.0, ask: Ask::Connector(expected) });
     requests.push(Request::Held(Box::new(Held::Drained)));
     let hash = BuildHasherDefault::<DefaultHasher>::default();
-    let old = hash.hash_one(requests.iter().nth(1).expect("ask"));
+    let old = hash.hash_one(Request::Ask { connector: DECLARER.0, ask: old });
     let mut out = Queue::uncapped();
     engine::append(requests, &mut out);
     let Some(Out::Core(Request::ProjectMade { project: 1 })) = out.pop() else { panic!("core output first") };
     let Some(Out::Ask(number, actual)) = out.pop() else { panic!("ask crosses by its port") };
     assert_eq!(number, DECLARER);
-    assert_eq!(hash.hash_one(&actual), hash.hash_one(&expected), "{actual:?} is {expected:?}");
     assert_eq!(hash.hash_one(engine::bridge_ask(number, actual)), old);
     let Some(Out::Core(Request::Held(held))) = out.pop() else { panic!("held after the ask") };
     let Held::Drained = *held else { panic!("unchanged held") };
@@ -122,7 +113,7 @@ fn lifecycle_port() {
 fn resources_port() {
     ask(
         Ask::Lost { task: TASK, attempt: 1 },
-        contract::Ask::Resources(resources::Ask::Lost { task: TASK, attempt: 1 }),
+        contract::Ask::Resources(resources::Ask::Lost { task: TASK, attempt: 1, resources: Box::new([]) }),
     );
     let resource = tasks::Name { connector: DECLARER.0, path: Box::new([Box::from(b"live".as_slice())]) };
     answer(
@@ -135,26 +126,61 @@ fn resources_port() {
     );
 }
 
-#[test]
-fn effects_port() {
-    ask(
-        Ask::Effect(connector::Ask::Describe { owner: OWNER }),
-        contract::Ask::Effects(effects::Ask::Describe { owner: OWNER }),
+fn open_period(core: &mut Core, env: &Env<Limits>) -> tasks::Funder {
+    crate::tests::send_task(
+        core,
+        &env.limits,
+        tasks::Event::OpenPeriod { reply_to: ReplyTo::new(OWNER), project: 1, period: 1, budget: 1000 },
     );
-    answer(Up::Effects(effects::Up::Released { task: TASK }), Event::Tasks(tasks::Event::Settled { task: TASK }));
+    tasks::Funder::Period { project: 1, period: 1 }
+}
+
+#[test]
+fn a_description_is_outstanding_until_its_owner_answers_on_either_entrance() {
+    use crate::judgements::Subject;
     let (mut core, mut engine, env) = port_twins();
+    for core in [&mut core, engine.core_mut()] {
+        let funder = open_period(core, &env);
+        let goal = crate::tests::new_row(core, TASK, funder, Some(1));
+        fixtures::make_batch(core, &env.limits, tasks::Party::Person(1), Box::new([goal]));
+        assert!(core.projections.contains_key(&TASK));
+        drop(crate::finish_decision(core, &env));
+    }
     let owner = core.effect_owner();
     assert_eq!(engine.core_mut().effect_owner(), owner);
-    let origin = || effects::EffectOrigin::Projection { goal: TASK, entry: None };
-    let event = Event::EffectStart { owner, connector: DECLARER.0, origin: origin() };
-    let expected = crate::step(&mut core, &env, event);
+    let start = || {
+        Up::Effects(effects::Up::Start { owner, origin: effects::EffectOrigin::Projection { goal: TASK, entry: None } })
+    };
     let mut out = Queue::uncapped();
-    let input = In::Connector(DECLARER, Up::Effects(effects::Up::Start { owner, origin: origin() }));
-    assert!(input.new_work());
-    engine::step(&mut engine, &env, input, &mut out);
-    let Some(Out::Ask(number, _)) = out.iter().next() else { panic!("effect owner asked") };
-    assert_eq!(*number, DECLARER);
-    compare(&core, &engine, expected, out);
+    engine::step(&mut engine, &env, In::Connector(DECLARER, start()), &mut out);
+    let Some(Out::Ask(DECLARER, contract::Ask::Effects(effects::Ask::Describe { owner: asked }))) = out.pop() else {
+        panic!("effect owner asked")
+    };
+    assert_eq!(asked, owner);
+    assert!(out.is_empty());
+    drop(crate::routing::step_connector(&mut core, &env, DECLARER, start()));
+
+    engine::step(&mut engine, &env, In::Connector(DECLARER, Up::Effects(effects::Up::Busy { owner: OWNER })), &mut out);
+    assert!(out.is_empty(), "an unasked answer follows its normal route");
+    // Pin the invariant without invoking the fail-stop on an incomplete decision.
+    assert_eq!(engine.core().judgements.outstanding(), Some((DECLARER.0, Subject::Describe(owner))));
+
+    engine::step(&mut engine, &env, In::Connector(DECLARER, Up::Effects(effects::Up::Busy { owner })), &mut out);
+    let mut bridged = Engine::from_core(core);
+    let mut expected = Queue::uncapped();
+    engine::step(
+        &mut bridged,
+        &env,
+        In::Core(Event::EffectConnector(connector::Event::DescribeBusy { owner })),
+        &mut expected,
+    );
+    let hash = BuildHasherDefault::<DefaultHasher>::default();
+    assert_eq!(hash.hash_one(&out), hash.hash_one(&expected), "connector and bridge produce the same outputs");
+    assert_eq!(hash.hash_one(engine.core()), hash.hash_one(bridged.core()));
+    assert!(engine.core().judgements.outstanding().is_none());
+    let finished = crate::finish_decision(engine.core_mut(), &env);
+    let expected = crate::finish_decision(bridged.core_mut(), &env);
+    assert_eq!(hash.hash_one(&finished), hash.hash_one(&expected));
 }
 
 #[test]
@@ -266,12 +292,11 @@ fn requests_port() {
 fn released_port_round_trips_both_held_requests() {
     let outcome = people::Outcome::Again(people::Again::NotReady);
     let mut requests = Queue::uncapped();
-    requests.push(Request::Held(Box::new(Held::MakeEffect { connector: DECLARER.0, entry: ENTRY })));
-    requests.push(Request::Held(Box::new(Held::ConnectorActed {
-        connector: EMPTY.0,
-        key: KEY,
-        outcome: outcome.clone(),
-    })));
+    requests.push(Request::Held(Box::new(Held::Connector(DECLARER, Released::Make { entry: ENTRY }))));
+    requests.push(Request::Held(Box::new(Held::Connector(
+        EMPTY,
+        Released::Answered { key: KEY, outcome: outcome.clone() },
+    ))));
     let mut out = Queue::uncapped();
     engine::append(requests, &mut out);
     let Some(Out::Held(Peer::Connector(number, make))) = out.pop() else { panic!("held make") };
@@ -405,7 +430,8 @@ fn terminal_notifications_only_reach_their_declarer() {
     engine::append(requests, &mut out);
     let Some(Out::Core(Request::Held(held))) = out.pop() else { panic!("terminal acknowledgement") };
     let Held::TaskTerminalAcknowledged { task: TASK, attempt: 1 } = *held else { panic!("fenced attempt") };
-    let Some(Out::Ask(DECLARER, contract::Ask::Resources(resources::Ask::Lost { task: TASK, attempt: 1 }))) = out.pop()
+    let Some(Out::Ask(DECLARER, contract::Ask::Resources(resources::Ask::Lost { task: TASK, attempt: 1, .. }))) =
+        out.pop()
     else {
         panic!("loss belongs to resource declarers")
     };
@@ -415,6 +441,89 @@ fn terminal_notifications_only_reach_their_declarer() {
         panic!("resolution belongs to effect declarers")
     };
     assert!(out.is_empty(), "the empty declaration received no asks");
+}
+
+#[test]
+fn a_lost_attempt_names_only_each_declarers_own_writes() {
+    const ATTEMPT: u64 = 1;
+    let env = environment();
+    let mut declarations = declarations();
+    let taken = resources::Taken::Waits;
+    for declaration in &mut declarations {
+        declaration.resources =
+            Box::new([resources::ResourceKind { kind: 1, hold: resources::Rule::Exclusive { taken } }]);
+    }
+    let mut engine = Engine::new(config(SEED), &declarations, &env.limits).expect("two resource declarers");
+    let core = engine.core_mut();
+    fixtures::open_core(core, &env);
+    let names = [DECLARER, EMPTY]
+        .map(|Connector(connector)| tasks::Name { connector, path: Box::new([Box::from(b"held".as_slice())]) });
+    for name in &names {
+        crate::tests::send_task(
+            core,
+            &env.limits,
+            tasks::Event::Resource { name: name.clone(), hold: tasks::HoldKind::Exclusive { taken } },
+        );
+    }
+    let reply = || ReplyTo::new(OWNER);
+    let funder = open_period(core, &env);
+    let mut run = crate::tests::new_row(core, TASK, funder, None);
+    run.holdings = names.clone().map(|resource| tasks::Holding::Write { resource, kind: 1 }).into();
+    fixtures::make_batch(core, &env.limits, tasks::Party::Person(1), Box::new([run]));
+    crate::tests::send_task(core, &env.limits, tasks::Event::Prepare { reply_to: reply(), task: TASK });
+    crate::tests::send_task(
+        core,
+        &env.limits,
+        tasks::Event::Claim {
+            reply_to: reply(),
+            fresh: None,
+            session_end: None,
+            offered: tasks::Reasons::ALL,
+            reasons: tasks::Reasons::FIRST,
+            task: TASK,
+            attempt: ATTEMPT,
+            account: None,
+            resumed: false,
+            budget: 10,
+            writes: names.clone().into(),
+        },
+    );
+    crate::tests::send_task(core, &env.limits, tasks::Event::Started { task: TASK, attempt: ATTEMPT });
+    for name in &names {
+        assert!(core.tasks.writer(name).is_some(), "the run took the write slot for {name:?}");
+    }
+
+    let mut out = Queue::uncapped();
+    engine::step(
+        &mut engine,
+        &env,
+        In::Core(Event::Tasks(tasks::Event::Activation {
+            reply_to: reply(),
+            reads_project: false,
+            task: TASK,
+            attempt: ATTEMPT,
+            end: tasks::End::Failed(tasks::Class::Lost),
+            cause: tasks::Cause::Unpriced,
+            saved: None,
+        })),
+        &mut out,
+    );
+    let mut losses = List::with_capacity(2);
+    while let Some(output) = out.pop() {
+        if let Out::Ask(
+            connector,
+            contract::Ask::Resources(resources::Ask::Lost { task: TASK, attempt: ATTEMPT, resources }),
+        ) = output
+        {
+            losses.push((connector, resources)).expect("one loss per declarer");
+        }
+    }
+    let [first, second] = names;
+    assert_eq!(
+        losses.as_slice(),
+        [(DECLARER, Box::<[tasks::Name]>::from([first])), (EMPTY, Box::<[tasks::Name]>::from([second]))]
+    );
+    drop(crate::finish_decision(engine.core_mut(), &env));
 }
 
 #[test]

@@ -1,5 +1,6 @@
 //! Report retention and whole-batch admission (domain/tasks/holds.md, 2).
 use super::{fill::signed_in, *};
+use jig_domain_contract as contract;
 
 fn delegate_core() -> (Core, Env<Limits>) {
     with_live_names(0)
@@ -58,10 +59,11 @@ fn name(prefix: u8, number: u8) -> tasks::Name {
 }
 
 fn report(core: &mut Core, env: &Env<Limits>, prefix: u8, number: u8) -> Queue<Request> {
-    step(
+    connector_step(
         core,
         env,
-        Event::EffectConnector(connector::Event::Resource {
+        name(prefix, number).connector,
+        contract::Up::Resources(contract::resources::Up::Resource {
             project: 1,
             name: name(prefix, number),
             role: connector::ResourceRole::Owned,
@@ -115,7 +117,14 @@ fn begin_at(core: &mut Core, env: &Env<Limits>, count: usize, position: u32) -> 
         if let Request::Held(ref held) = next {
             panic!("early answer: {held:?}");
         }
-        if let Request::Ask { connector, ask: Ask::DelegateHoldings { request: token, .. } } = next {
+        if let Request::Ask {
+            connector,
+            ask:
+                Ask::Connector(contract::Ask::Resources(contract::resources::Ask::DelegateHoldings {
+                    request: token, ..
+                })),
+        } = next
+        {
             assert_eq!(connector, 1);
             assert!(request.replace(token).is_none());
         }
@@ -133,7 +142,16 @@ fn answer_names(core: &mut Core, env: &Env<Limits>, request: Token, prefix: u8, 
         holdings.push(Box::from([tasks::Holding::Write { resource: name(prefix, number), kind: 1 }])).unwrap();
     }
     let holdings = holdings.into_boxed();
-    step(core, env, Event::DelegateHoldings { request, connector: 1, holdings: Some(holdings), refused: None })
+    connector_step(
+        core,
+        env,
+        1,
+        contract::Up::Resources(contract::resources::Up::DelegateHoldings {
+            request,
+            holdings: Some(holdings),
+            refused: None,
+        }),
+    )
 }
 
 fn call_answer(mut out: Queue<Request>) -> Option<CallPart> {
@@ -309,10 +327,11 @@ fn one_report_decides_every_waiting_batch_even_when_the_first_is_refused() {
     let second = begin_at(&mut core, &env, 1, 1);
     assert_eq!(call_answer(answer(&mut core, &env, second, 1)), None);
     assert_eq!(core.awaiting_resources_flights(), 2);
-    let mut out = step(
+    let mut out = connector_step(
         &mut core,
         &env,
-        Event::EffectConnector(connector::Event::Resource {
+        name(b'c', 1).connector,
+        contract::Up::Resources(contract::resources::Up::Resource {
             project: 1,
             name: name(b'c', 1),
             role: connector::ResourceRole::Unavailable,

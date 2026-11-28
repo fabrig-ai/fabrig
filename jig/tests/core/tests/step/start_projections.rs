@@ -87,7 +87,9 @@ fn early_pieces_and_pending_closing_header_become_a_serving_feed() {
     let mut output = core::finish_decision(&mut h.core, &h.env);
     let mut feeds = 0;
     while let Some(request) = output.pop() {
-        if let core::Request::Ask { connector, ask: core::Ask::ProjectGoal { feed } } = request {
+        if let core::Request::Ask { connector, ask: core::Ask::ProjectGoal { feed } } =
+            jig_core_world::test_support::bridge(request)
+        {
             assert!(pending.contains(&connector));
             let core::ProjectionRecord::GoalHot { goal, .. } = &header else { unreachable!() };
             let core::ProjectionRecord::TaskHot { task, .. } = &task else { unreachable!() };

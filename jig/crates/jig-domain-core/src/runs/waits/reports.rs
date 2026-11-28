@@ -1,5 +1,7 @@
 //! Procedure wait reports (jig/docs/design/domain/engine/waits.md, 6).
-use crate::{Ask, Bound, Core, Figures, Limits, ReportRefusal, Reported, ReportedBound, Request, WaitKind, WaitObject};
+use crate::vocabulary::connector_ask;
+use crate::{Bound, Core, Figures, Limits, ReportRefusal, Reported, ReportedBound, Request, WaitKind, WaitObject};
+use jig_domain_contract as contract;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, List, Queue, Wall};
 
@@ -12,7 +14,10 @@ pub(crate) fn report(
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if let Err(why) = admit(core, connector, task, &waits) {
-        out.push(Request::Ask { connector, ask: Ask::WaitsRefused { task, why } });
+        out.push(connector_ask(
+            connector,
+            contract::Ask::Procedures(contract::procedures::Ask::WaitsRefused { task, why }),
+        ));
         return out;
     }
     if waits.is_empty() {

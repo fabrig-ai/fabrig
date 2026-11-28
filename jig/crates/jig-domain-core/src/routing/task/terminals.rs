@@ -1,9 +1,9 @@
 //! Task acknowledgements, holdings, and keyed terminals
 //! (jig/docs/design/domain/engine/vocabulary.md, 1.4).
 
+use crate::vocabulary::connector_ask;
 use crate::{
-    Ask, CallPart, Core, CoreRecord, Held, Key, Limits, LinkNow, Now, PersonTaskRoute, Record, Request, SentRoute,
-    Write,
+    CallPart, Core, CoreRecord, Held, Key, Limits, LinkNow, Now, PersonTaskRoute, Record, Request, SentRoute, Write,
     routing::{
         children::append_people,
         flight::{Flight, Internal},
@@ -11,6 +11,7 @@ use crate::{
     },
 };
 use alloc::boxed::Box;
+use jig_domain_contract as contract;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo};
@@ -43,10 +44,7 @@ pub(crate) fn relay(core: &mut Core, env: &Env<Limits>, task: u64, out: &mut Que
 
 pub(crate) fn resolve_uncertain(core: &mut Core, entry: u64, again: bool, out: &mut Queue<Request>) {
     for connector in &core.connector_recipients.effects {
-        out.push(Request::Ask {
-            connector: *connector,
-            ask: Ask::Effect(crate::effects::connector::Ask::ResolveUncertain { entry, again }),
-        });
+        out.push(connector_ask(*connector, contract::Ask::Effects(contract::effects::Ask::Resolve { entry, again })));
     }
 }
 
@@ -108,12 +106,15 @@ pub(crate) fn taken(
         }
     }
     for (resource, entry) in entries.into_boxed() {
-        out.push(Request::Ask { connector: resource.connector, ask: Ask::Hold { task, resource, entry } });
+        out.push(connector_ask(
+            resource.connector,
+            contract::Ask::Resources(contract::resources::Ask::Hold { task, resource, entry }),
+        ));
     }
 }
 
 pub(crate) fn end_topic(task: u64, subscription: u64, connector: u16, out: &mut Queue<Request>) {
-    out.push(Request::Ask { connector, ask: Ask::EndTopic { task, subscription } });
+    out.push(connector_ask(connector, contract::Ask::Topics(contract::topics::Ask::Ended { task, subscription })));
 }
 
 pub(crate) fn writer_waiting(
@@ -167,8 +168,22 @@ pub(crate) fn acknowledged(
         out.push(Request::Write(Write::Save(Record::Core(CoreRecord::RunProof(proof.clone())))));
     }
     out.push(Request::Held(Box::new(Held::TaskTerminalAcknowledged { task, attempt })));
+    let lost = core.tasks.lost_writes(task, attempt);
     for &connector in core.connector_recipients.resources.as_ref() {
-        out.push(Request::Ask { connector, ask: Ask::Lost { task, attempt } });
+        let mut resources = List::with_capacity(u32::try_from(lost.len()).expect("bounded lost names"));
+        for name in &lost {
+            if name.connector == connector {
+                resources.push(name.clone()).expect("one name per lost writer");
+            }
+        }
+        out.push(connector_ask(
+            connector,
+            contract::Ask::Resources(contract::resources::Ask::Lost {
+                task,
+                attempt,
+                resources: resources.into_boxed(),
+            }),
+        ));
     }
 }
 

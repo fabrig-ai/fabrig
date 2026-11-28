@@ -1,4 +1,5 @@
 use crate::first_support::{effect_kind, with_effects};
+use jig_core_world::test_support::bridged_step;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_authority as authority;
@@ -218,7 +219,7 @@ fn effect_outputs(
     wall: skein_lib::Wall,
     event: core::Event,
 ) -> Vec<core::Request> {
-    let mut out = core::step(domain, &skein_lib::Env { now: skein_lib::Time::ZERO, wall, limits: *limits }, event);
+    let mut out = bridged_step(domain, &skein_lib::Env { now: skein_lib::Time::ZERO, wall, limits: *limits }, event);
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {
         requests.push(request);
