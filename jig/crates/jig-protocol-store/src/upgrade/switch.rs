@@ -90,7 +90,7 @@ pub(crate) fn resume(store: &mut Store, env: &Env<Limits>, below: &mut Below) {
         Stage::Opening | Stage::Pending | Stage::Manifest { .. } | Stage::Switching { .. } => return,
     };
     let active = store.directory.active.expect("pending open retains old active");
-    let number = active.number.checked_add(1).expect("patch begin checked next generation");
+    let number = active.number.checked_add(1).expect("upgrade begin checked next generation");
     let bytes = generations::manifest(
         number,
         Some(active.number),

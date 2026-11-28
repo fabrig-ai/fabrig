@@ -33,7 +33,7 @@ fn event(domain: &mut Domain, seconds: u64, input: Event) -> Queue<Request> {
     let wall = seconds.checked_mul(1_000_000_000).expect("world clock fits");
     let env = Env { now: Time::from_nanos(seconds), wall: Wall::from_nanos(wall), limits: limits() };
     let mut out = Queue::uncapped();
-    step(domain, &env, input, &mut out);
+    step_system(domain, &env, input, &mut out);
     out
 }
 
@@ -111,8 +111,8 @@ fn a_watch_emits_one_triage_per_committed_batch() {
         event(&mut domain, 2, Event::StartWatch { project: 1, task: 7, services: Box::from([service()]), template: 3 })
             .is_empty()
     );
-    let wake = Event::WakeWatch { task: 7, batch: 99, alerts: Box::from([1, 2]) };
-    let mut first = event(&mut domain, 2, wake.clone());
+    let wake = || Event::WakeWatch { task: 7, batch: 99, alerts: Box::from([1, 2]) };
+    let mut first = event(&mut domain, 2, wake());
     assert_eq!(
         first.pop(),
         Some(Request::Save {
@@ -130,7 +130,7 @@ fn a_watch_emits_one_triage_per_committed_batch() {
         first.pop(),
         Some(Request::Triage { watch: 7, template: 3, batch: 99, alerts: Box::from([1, 2]), delegate: Box::new([]) })
     );
-    assert!(event(&mut domain, 2, wake).is_empty(), "same batch makes no second task");
+    assert!(event(&mut domain, 2, wake()).is_empty(), "same batch makes no second task");
 }
 
 #[test]
@@ -140,10 +140,7 @@ fn a_silence_is_saved_before_its_system_call_and_found_after_uncertainty() {
     let key = Key::procedure([1; 16], 7, 3);
     let effect = Effect { rule: Box::from(*b"checkout-errors"), until: 100 };
     let mut described = event(&mut domain, 1, Event::Describe { token, effect: effect.clone() });
-    assert_eq!(
-        described.pop(),
-        Some(Request::Described { token, effect: effect.clone(), waits_for_dependencies: false })
-    );
+    assert_eq!(described.pop(), Some(Request::Described { token, effect: effect.clone() }));
     let mut kept = event(&mut domain, 1, Event::Keep { project: Some(1), entry: 3, token, key });
     assert_eq!(
         kept.pop(),
@@ -227,7 +224,7 @@ fn an_uncertain_silence_waits_for_its_durable_deadline_before_retry() {
     assert!(early.is_empty(), "no retry before the deadline");
     let env = Env { now: Time::from_nanos(31), wall: Wall::from_nanos(31_000_000_000), limits: limits() };
     let mut due = Queue::uncapped();
-    fire(&mut domain, &env, &mut due);
+    fire_system(&mut domain, &env, &mut due);
     assert_eq!(due.pop(), Some(Request::System(SystemRequest::FindSilence { key, rule: effect.rule.clone() })));
     let mut after = event(&mut domain, 31, Event::System(SystemEvent::Found { key, found: false }));
     assert_eq!(
@@ -256,14 +253,14 @@ fn an_uncertain_silence_waits_for_its_durable_deadline_before_retry() {
 fn sustained_load_needs_a_whole_window_and_a_low_starting_sample() {
     let mut domain = Domain::new(&limits());
     event(&mut domain, 10, Event::System(SystemEvent::Fact { service: service(), fact: fact(10, 10) }));
-    let judge = Event::Judge {
+    let judge = || Event::Judge {
         token: Token::new(1),
         requirement: Requirement::LoadBelow { percent: 40, for_seconds: 30 },
         service: service(),
         freshness: 60,
     };
     assert_eq!(
-        event(&mut domain, 10, judge.clone()).pop(),
+        event(&mut domain, 10, judge()).pop(),
         Some(Request::Verdict { token: Token::new(1), verdict: Verdict::Wait })
     );
     let facts = Fact {
@@ -276,7 +273,7 @@ fn sustained_load_needs_a_whole_window_and_a_low_starting_sample() {
     };
     event(&mut domain, 40, Event::System(SystemEvent::Fact { service: service(), fact: facts }));
     assert_eq!(
-        event(&mut domain, 40, judge).pop(),
+        event(&mut domain, 40, judge()).pop(),
         Some(Request::Verdict { token: Token::new(1), verdict: Verdict::Wait })
     );
 }
@@ -598,11 +595,11 @@ fn restored_effect_timers_wait_for_read_afresh() {
     );
     let env = Env { now: Time::from_nanos(2_000_000_000), wall: Wall::from_nanos(2_000_000_000), limits: limits() };
     let mut out = Queue::uncapped();
-    fire(&mut domain, &env, &mut out);
+    fire_system(&mut domain, &env, &mut out);
     assert!(out.is_empty(), "no system lookup before the scripted post-mark step");
     assert_eq!(next_deadline(&domain), None);
     event(&mut domain, 2, Event::ReadAfresh);
-    fire(&mut domain, &env, &mut out);
+    fire_system(&mut domain, &env, &mut out);
     let Some(Request::System(SystemRequest::FindSilence { .. })) = out.pop() else {
         panic!("system lookup resumes after read afresh");
     };
@@ -837,4 +834,91 @@ fn watch_contract_and_spec_use_the_deployments_identifiers() {
     assert_eq!(watch_spec(&spec, &bounds.vocabulary), None);
     spec.parameters[2] = Parameter::Number { name: 13, value: 9 };
     assert_eq!(watch_spec(&spec, &bounds.vocabulary), Some(WatchSpec { service: service(), template: 9 }));
+}
+
+#[test]
+fn requirements_take_the_deployments_identifiers_and_thresholds() {
+    let policy = Requirements {
+        healthy_replica_requirement: 1,
+        low_load_requirement: 9,
+        scale_down_load_percent: 12,
+        scale_down_load_seconds: 600,
+        freshness_seconds: 60,
+    };
+    assert_eq!(translate::requirement(2, &policy), None);
+    assert_eq!(translate::requirement(9, &policy), Some(Requirement::LoadBelow { percent: 12, for_seconds: 600 }));
+}
+
+fn port_event(domain: &mut Domain, input: Event) -> Queue<Out> {
+    let env = Env { now: Time::from_nanos(0), wall: Wall::from_nanos(0), limits: limits() };
+    let mut out = Queue::uncapped();
+    step(domain, &env, input, &mut out);
+    out
+}
+
+#[test]
+fn the_port_describes_its_prepared_effect_and_makes_only_the_released_entry() {
+    use jig_domain_contract::{self as jig, effects};
+    let mut domain = Domain::new(&limits()).with_contract(
+        jig::Connector(1),
+        Requirements {
+            healthy_replica_requirement: 1,
+            low_load_requirement: 2,
+            scale_down_load_percent: 20,
+            scale_down_load_seconds: 1800,
+            freshness_seconds: 60,
+        },
+    );
+    let owner = Token::new(42);
+    let effect = Effect { rule: Box::from(*b"checkout-errors"), until: 120 };
+    assert!(port_event(&mut domain, Event::StageEffect { owner, effect: effect.clone() }).is_empty());
+    let mut described = port_event(&mut domain, Event::Ask(jig::Ask::Effects(effects::Ask::Describe { owner })));
+    let Some(Out::Up(jig::Up::Effects(effects::Up::Described { owner: answered, description }))) = described.pop()
+    else {
+        panic!("expected the connector's synchronous description");
+    };
+    assert_eq!((answered, description.connector, description.purpose), (owner, 1, 120));
+    assert_eq!(description.effect.name.segments, Resource::AlertRule(effect.rule.clone()).segments());
+    assert!(described.is_empty());
+    let key = effects::EffectKey {
+        deployment: [1; 16],
+        task: 7,
+        origin: effects::EffectPurpose::Procedure { purpose: 120 },
+        purpose: 120,
+    };
+    let mut kept = port_event(
+        &mut domain,
+        Event::Ask(jig::Ask::Effects(effects::Ask::Keep { owner, entry: 3, task: 7, key, project: Some(9) })),
+    );
+    let Some(Out::Save { record: Record::Outbox(entry) }) = kept.pop() else { panic!("Keep saves the outbox entry") };
+    assert_eq!(entry.project, Some(9));
+    assert_eq!(entry.effect, effect);
+    for item in &kept {
+        if let Out::System(_) = item {
+            panic!("Keep cannot send an effect to the system");
+        }
+    }
+    assert!(port_event(&mut domain, Event::Released(jig::Released::Make { entry: 4 })).is_empty());
+    let mut made = port_event(&mut domain, Event::Released(jig::Released::Make { entry: 3 }));
+    let Some(Out::Save { record: Record::Outbox(entry) }) = made.pop() else { panic!("Make saves the attempt") };
+    assert_eq!((entry.number, entry.phase), (3, Phase::Sent));
+    let Some(Out::System(SystemRequest::Silence { key, effect: sent, .. })) = made.pop() else {
+        panic!("Make sends the typed effect")
+    };
+    assert_eq!(key.task, 7);
+    assert_eq!(sent, effect);
+    assert!(made.is_empty());
+}
+
+#[test]
+fn the_port_acknowledges_a_project_release() {
+    use jig_domain_contract::{self as jig, lifecycle};
+    let mut domain = Domain::new(&limits());
+    let mut out =
+        port_event(&mut domain, Event::Ask(jig::Ask::Lifecycle(lifecycle::Ask::ReleaseProject { project: 17 })));
+    let Some(Out::Up(jig::Up::Lifecycle(lifecycle::Up::Released { project }))) = out.pop() else {
+        panic!("expected the connector's release acknowledgement");
+    };
+    assert_eq!(project, 17);
+    assert!(out.is_empty());
 }

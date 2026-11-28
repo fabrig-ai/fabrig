@@ -1,6 +1,6 @@
 # ask-temper: the reasons behind it
 
-This holds the reasons for `ask-temper.md`, moved from [`notes.md`](notes.md), section 10.
+This holds the reasons for `ask-temper.md`, moved from the shared notes file.
 
 The reasons behind `ask-temper.md`, from the user, 2026-11-07.
 

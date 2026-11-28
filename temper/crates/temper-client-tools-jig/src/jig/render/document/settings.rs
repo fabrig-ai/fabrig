@@ -125,7 +125,7 @@ pub(super) fn providers_encode(reading: &crate::jig::runner::reads::Reading, out
 pub(super) fn edit_word(edit: &c::RevisionItemEdit) -> &'static [u8] {
     settings_form::render::edit_word(&a::form_revision_item_edit(edit))
 }
-pub(super) fn encode(value: &c::ReadValue, out: &mut Encoder) {
+pub(in crate::jig::render) fn encode(value: &c::ReadValue, out: &mut Encoder) {
     settings_form::render::encode(&a::form_read_value(value), out);
 }
 
@@ -141,8 +141,12 @@ fn inventory_text(document: &c::SettingsDocument, vocabulary: &dyn Parts, out: &
         out.put(b"  ");
         setting_text(line.setting, vocabulary, out);
         if let Some(name) = &line.name {
+            out.put(b" ");
+            out.put(name);
+        }
+        if let Some(shown) = &line.shown {
             out.put(b" \"");
-            out.words(name.bytes.bytes());
+            out.words(shown.bytes.bytes());
             out.put(b"\"");
         }
         out.put(b": ");

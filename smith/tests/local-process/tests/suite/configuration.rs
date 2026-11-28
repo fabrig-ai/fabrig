@@ -50,6 +50,7 @@ fn declared_read_search_shell_and_check_bounds_reach_the_machine() {
         machine.workspace(&run::Workspace {
             directories: Box::new([run::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"repo".as_slice().into(),
                 root,

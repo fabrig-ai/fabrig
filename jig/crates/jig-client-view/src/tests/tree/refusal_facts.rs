@@ -339,6 +339,17 @@ fn settings_refusals_name_each_setting_fault_and_retained_holder_fact() {
     shared_words().outcome(&mut builder, &Outcome::SettingsChanged(OutcomeSettingsChanged { revision: 31 }));
     builder.close();
     goldens.check(&builder.finish());
+    for (number, expected) in [
+        (2, "template 2 keeps the stock's name"),
+        (33, "template 33's name is taken, by a stock template or another of your own"),
+    ] {
+        let setting = Setting::Template(SettingNumber { number });
+        let tree = render(Refusal::Malformed {
+            at: 0,
+            why: Malformed::Settings(MalformedSettings { setting, fault: SettingFault::Name, detail: None }),
+        });
+        assert!(crate::tests::kit::contains(&tree, expected.as_bytes()), "{setting:?}: {expected}");
+    }
     // Range is worded from the refusal's setting, not from any current settings document.
     for (setting, expected) in [
         (

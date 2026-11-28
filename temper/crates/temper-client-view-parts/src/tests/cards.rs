@@ -417,7 +417,7 @@ pub(crate) fn settings_root_in(page: c::ReadValue, asking: bool) -> (d::Domain, 
     for (number, name) in [(8, b"goal for a draft".as_slice()), (4, b"goal".as_slice())] {
         let mut way = templates.get(0).unwrap().clone();
         way.number = number;
-        way.name = c::DocumentText::complete(c::Text::new(name.into(), 32).unwrap());
+        way.shown = c::DocumentText::complete(c::Text::new(name.into(), 32).unwrap());
         way.tracked = Some(1);
         templates.push(way).unwrap();
     }
@@ -1017,6 +1017,8 @@ fn catalogue_model() -> c::CatalogueEntry {
             price_unit: 1_000_000,
             efforts: List::with_capacity(0),
             effort: None,
+            speeds: List::with_capacity(0),
+            speed: None,
         },
         shown: Some(c::Text::new(b"GPT-6.1 Terra".as_slice().into(), 128).unwrap()),
         description: None,

@@ -1,15 +1,17 @@
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Map, Queue, Time, Token};
 
+use crate::spec::{effect_kind, effect_kind_number, effect_kinds};
 use crate::{
-    ApplyResult, Backend, Description, Effect, Entry, Environment, EnvironmentFact, Event, Form, Hold, Key, Limits,
-    Looked, Named, Outcome, Phase, Pool, Procedure, ProcedurePhase, ProcedureSignal, ProcedureState, Record, RecordKey,
-    Recovery, Request, Resource, Service, ServiceFact, StepDecision, SystemEvent, SystemRequest,
+    ApplyResult, Backend, Description, Effect, EffectKind, Entry, Environment, EnvironmentFact, Event, Hold, Key,
+    Limits, Looked, Named, Outcome, Phase, Pool, Procedure, ProcedurePhase, ProcedureSignal, ProcedureState, Record,
+    RecordKey, Recovery, Request, Resource, Service, ServiceFact, StepDecision, SystemEvent, SystemRequest,
 };
 
 /// Infrastructure's bounded working set and durable records.
 #[derive(Debug)]
 pub struct Domain {
+    pub(crate) port: crate::port::State,
     pub(crate) client_subjects: Map<Token, crate::ClientSubject>,
     pub(crate) application: crate::application::State,
     restart: Option<crate::RestartStage>,
@@ -20,6 +22,7 @@ pub struct Domain {
     refresh: Map<Resource, bool>,
     pub(crate) backend: Backend,
     pub(crate) vocabulary: crate::Vocabulary,
+    pub(crate) effect_kinds: Box<[EffectKind]>,
     pub(crate) services: Map<Service, ServiceFact>,
     pub(crate) environments: Map<Environment, Option<EnvironmentFact>>,
     pub(crate) pools: Map<Pool, (u32, u32)>,
@@ -33,11 +36,12 @@ pub struct Domain {
 }
 
 impl Domain {
-    /// Allocates the connector's tables and chooses the backend's recovery class.
+    /// Allocates the connector's tables for this vocabulary and backend.
     #[must_use]
     pub fn new(backend: Backend, limits: &Limits) -> Self {
         assert!(crate::valid(limits), "connector limits fit");
         Self {
+            port: crate::port::State::new(),
             client_subjects: Map::with_capacity(limits.proposals),
             application: crate::application::State::new(limits),
             restart: None,
@@ -65,6 +69,7 @@ impl Domain {
             ),
             backend,
             vocabulary: limits.vocabulary,
+            effect_kinds: effect_kinds(&limits.vocabulary, backend),
             services: Map::with_capacity(limits.services),
             environments: Map::with_capacity(limits.environments),
             pools: Map::with_capacity(limits.pools),
@@ -121,53 +126,44 @@ fn effect_valid(effect: &Effect, limits: &Limits) -> bool {
     }
 }
 
-pub(crate) fn describe(effect: &Effect, backend: Backend, vocabulary: &crate::Vocabulary) -> Description {
+pub(crate) fn describe(effect: &Effect, vocabulary: &crate::Vocabulary) -> Description {
+    let kind = effect_kind_number(effect, vocabulary);
     match effect {
         Effect::Restart { service, operation } => Description {
-            kind: vocabulary.restart_effect,
+            kind,
             resources: Box::from([Resource::Service(service.clone())]),
             condition: false,
-            form: Form::Transition,
-            recovery: if backend == Backend::OperationIds { Recovery::Keyed } else { Recovery::Unrecoverable },
             price: None,
             state: *operation,
         },
         Effect::Scale { service, from: _, to } => Description {
-            kind: vocabulary.scale_effect,
+            kind,
             resources: Box::from([Resource::Service(service.clone())]),
             condition: true,
-            form: Form::Set,
-            recovery: Recovery::Conditional,
             price: None,
             state: u64::from(*to),
         },
         Effect::Rollback { service, from: _, to: _ } => Description {
-            kind: vocabulary.rollback_effect,
+            kind,
             resources: Box::from([Resource::Service(service.clone())]),
             condition: true,
-            form: Form::Transition,
-            recovery: Recovery::Conditional,
             price: None,
             state: 0,
         },
         Effect::CreateEnvironment { environment, until, price } => Description {
-            kind: vocabulary.create_environment_effect,
+            kind,
             resources: Box::from([
                 Resource::Environment(environment.clone()),
                 Resource::Pool(Pool(environment.pool.clone())),
             ]),
             condition: false,
-            form: Form::Creation,
-            recovery: Recovery::Keyed,
             price: Some(*price),
             state: *until,
         },
         Effect::TearDown { environment, created_by: _ } => Description {
-            kind: vocabulary.tear_down_effect,
+            kind,
             resources: Box::from([Resource::Environment(environment.clone())]),
             condition: true,
-            form: Form::Transition,
-            recovery: Recovery::Conditional,
             price: None,
             state: 0,
         },
@@ -512,7 +508,8 @@ fn applied(domain: &mut Domain, key: Key, attempt: u32, result: ApplyResult, out
         }
         ApplyResult::Uncertain => {
             if attempt == entry.attempt && entry.phase == Phase::Sent {
-                let recovery = describe(&entry.effect, domain.backend, &domain.vocabulary).recovery;
+                let kind = effect_kind_number(&entry.effect, &domain.vocabulary);
+                let recovery = effect_kind(&domain.effect_kinds, kind).recovery;
                 if recovery == Recovery::Unrecoverable {
                     entry.phase = Phase::Held;
                     out.push(Request::Save { record: Record::Outbox(entry.clone()) });
@@ -854,16 +851,9 @@ fn decide(
 
 fn stage(domain: &mut Domain, env: &Env<Limits>, token: Token, effect: Effect, out: &mut Queue<Request>) {
     if effect_valid(&effect, &env.limits) && domain.staged.len() < env.limits.staged {
-        let description = describe(&effect, domain.backend, &domain.vocabulary);
-        let waits_for_dependencies = match &effect {
-            Effect::Restart { .. }
-            | Effect::Scale { .. }
-            | Effect::Rollback { .. }
-            | Effect::CreateEnvironment { .. }
-            | Effect::TearDown { .. } => true,
-        };
+        let description = describe(&effect, &domain.vocabulary);
         domain.staged.insert(token, effect).expect("stage capacity checked");
-        out.push(Request::Described { token, description, waits_for_dependencies });
+        out.push(Request::Described { token, description });
     } else {
         out.push(Request::Refused { token });
     }
@@ -871,8 +861,15 @@ fn stage(domain: &mut Domain, env: &Env<Limits>, token: Token, effect: Effect, o
 
 /// Routes one event.
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the complete connector vocabulary")]
-pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+pub fn step_system(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::Ask(_)
+        | Event::Released(_)
+        | Event::StageEffect { .. }
+        | Event::RestoreDone
+        | Event::EffectOwner { .. } => {
+            unreachable!("the connector port handles engine inputs")
+        }
         Event::ProcedureAdmission { task, answer } => {
             let signal = match answer {
                 crate::Admission::Allow => ProcedureSignal::EffectMade,
@@ -1033,9 +1030,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             | SystemEvent::Environment { other_hand: true, fact: None, .. }) => {
                 let (settle, rest) = split(domain, env, whole).expect("a whole fact splits");
                 let mut parts = Queue::uncapped();
-                step(domain, env, Event::System(settle), &mut parts);
+                step_system(domain, env, Event::System(settle), &mut parts);
                 if let Some(rest) = rest {
-                    step(domain, env, Event::System(rest), &mut parts);
+                    step_system(domain, env, Event::System(rest), &mut parts);
                 }
                 while let Some(request) = parts.pop() {
                     out.push(request);
@@ -1080,7 +1077,7 @@ fn provision_deadline(domain: &Domain, state: &ProcedureState) -> Option<u64> {
 }
 
 /// Rechecks uncertain entries and wakes due procedures at their absolute deadlines.
-pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+pub fn fire_system(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if domain.restoring {
         return;
     }

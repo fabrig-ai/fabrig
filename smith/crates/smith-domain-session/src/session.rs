@@ -147,6 +147,11 @@ use accounting::{
     charge, count, delegated_credit, len, owned_credit, payload_cost, receive_completion, release_provider,
     replay_cost, reservation, reserve_provider, returned_cost, spec_cost, used,
 };
+mod inspection;
+pub use builtin::Claim as InspectionClaim;
+pub use history::{Batch as InspectionBatch, Share as InspectionShare};
+pub use inspection::{InspectionState, RoomHeld};
+
 pub(crate) use accounting::{content_cost, provider_reserve};
 use restore::restore;
 use tell::{Cursor, end_fact, next_response, next_sequence, tell, tell_turn};
@@ -164,12 +169,13 @@ use crate::domain::Domain;
 use crate::facts::{FactKind, Facts};
 use crate::limits::Limits;
 use crate::llm::{
-    Block, Completion, Decoded, Descriptor, Endpoint, Failure, Message, Problem, Prompt, Returned, Role, Stop,
-    ToolChoice, Usage,
+    Block, Completion, Decoded, Descriptor, Endpoint, Failure, Message, Problem, Prompt, Returned, Role, ServedSpeed,
+    Stop, ToolChoice, Usage,
 };
 
+/// A conversation in the session child, until its closing terminal.
 #[derive(Debug)]
-pub(crate) struct Session {
+pub struct Session {
     conversation: Conversation,
     state: State,
 }
@@ -247,6 +253,7 @@ struct Conversation {
 #[derive(Debug)]
 struct Spending {
     prices: crate::record::Prices,
+    speed: Option<crate::record::Speed>,
     limit: u64,
     total: u64,
     own: u64,
@@ -254,6 +261,19 @@ struct Spending {
     reservation: Option<u64>,
     /// Charge of the most recently accepted completion, for its fact.
     last_charge: u64,
+}
+
+impl Spending {
+    fn reservation_prices(&self) -> crate::record::Prices {
+        match &self.speed {
+            Some(speed) => speed.prices,
+            None => self.prices,
+        }
+    }
+
+    fn speed_name(&self) -> Option<Box<[u8]>> {
+        Some(self.speed.as_ref()?.name.clone())
+    }
 }
 
 #[derive(Debug)]
@@ -400,7 +420,7 @@ pub(crate) enum Slot {
 /// `block` of the session's last message, which fills `slot`, run `by` the
 /// tools or the opener.
 #[derive(Debug)]
-pub(crate) struct Run {
+pub struct Run {
     ended: bool,
     session: Id<Session>,
     slot: u32,
@@ -535,6 +555,7 @@ pub(crate) fn open(
         window_llm,
         dialect,
         prices,
+        speed,
         budget,
         mut transcript,
         answered,
@@ -546,7 +567,7 @@ pub(crate) fn open(
         refuse(&mut domain.facts, opener, End::Invalid, out);
         return;
     }
-    let spending = Spending { prices, limit: budget, total: 0, own: 0, reservation: None, last_charge: 0 };
+    let spending = Spending { prices, speed, limit: budget, total: 0, own: 0, reservation: None, last_charge: 0 };
     let cursor = Cursor { dialect, sequence: 0, told: 0, pending: None };
     let Some((mut conversation, authority)) = admit(opener, spec, spending, cursor, &env.limits, env.now) else {
         refuse(&mut domain.facts, opener, End::Invalid, out);
@@ -923,9 +944,9 @@ pub(crate) fn completed(
 
 /// Check one completion before the parent decodes any of its calls, using
 /// the same admission calculation as the accepted completion.
-pub fn preview_completion(domain: &Domain, owner: Token, usage: Usage) -> Result<u64, End> {
+pub fn preview_completion(domain: &Domain, owner: Token, usage: Usage, served: &ServedSpeed) -> Result<u64, End> {
     let session = domain.sessions.get(Id::from_token(owner)).expect("completion retains its session");
-    Ok(accounting::accepted(&session.conversation, usage)?.price)
+    Ok(accounting::accepted(&session.conversation, usage, served)?.price)
 }
 
 /// Check the maximum completion charge against this session's spend allowance.
@@ -1757,7 +1778,7 @@ fn answered(
         let Cursor { sequence, .. } = conversation.cursor;
         sequence.checked_add(1).is_some()
     } && u32::try_from(completion.content.len()).is_ok();
-    if let Err(end) = used(conversation, completion.usage, out) {
+    if let Err(end) = used(conversation, completion.usage, &completion.served, out) {
         release_provider(conversation);
         return finish(end);
     }
@@ -1805,7 +1826,7 @@ fn answered_late(
     limits: &Limits,
     out: &mut Queue<Request>,
 ) -> State {
-    if let Err(overflow) = used(conversation, completion.usage, out) {
+    if let Err(overflow) = used(conversation, completion.usage, &completion.served, out) {
         release_provider(conversation);
         return State::Closing { end: overflow, waiting: Waiting { completion: false, ..waiting }, tools: None };
     }
@@ -2410,6 +2431,10 @@ fn admit(
         .checked_add(match &spec.effort {
             Some(effort) => len(effort)?,
             None => 0,
+        })?
+        .checked_add(match &spending.speed {
+            Some(speed) => speed.owned_bytes()?,
+            None => 0,
         })?;
     if bytes > limits.history_bytes || limits.history_blocks == 0 {
         return None;
@@ -2584,6 +2609,7 @@ fn complete(id: Id<Session>, conversation: &Conversation, retry: u32, limits: &L
         affinity: conversation.affinity,
         model: conversation.model.clone(),
         effort: conversation.effort.clone(),
+        speed: conversation.spending.speed_name(),
         system: conversation.system.clone(),
         tools: conversation.tools,
         namespace: conversation.namespace.clone(),
@@ -2753,27 +2779,14 @@ pub(crate) fn exhaust_origin_for_test(domain: &mut Domain, owner: Token) {
     session.conversation.cursor.sequence = u32::MAX;
 }
 
-/// Reserved provider rights for focused settlement controls. This
-/// observes bounded retained state, never supplies a completion or price.
+/// Reserved provider rights for focused settlement controls.
 #[cfg(test)]
 pub(crate) fn provider_credit_for_test(domain: &Domain, owner: Token) -> (u64, Option<u64>) {
-    let session = domain.sessions.get(Id::from_token(owner)).expect("admitted test session before reclaim");
-    (session.conversation.reserved, session.conversation.provider.credit())
+    domain.provider_credit_for_test(owner).expect("admitted test session before reclaim")
 }
 
 /// Read the total and each holder independently at a test's observation point.
 #[cfg(test)]
 pub(crate) fn result_credit_for_test(domain: &Domain, owner: Token) -> (u64, Option<u64>, u64, u64) {
-    let session = domain.sessions.get(Id::from_token(owner)).expect("admitted test session before reclaim");
-    let tools = match &session.state {
-        State::Tooling { tools } | State::Resting { tools } => Some(tools),
-        State::Closing { tools, .. } | State::Yielded { tools } => tools.as_ref(),
-        State::Completing { .. } | State::Backoff { .. } | State::Closed => None,
-    };
-    let batch = match tools {
-        Some(Tools { batch: Some(batch), .. }) => batch.credit(),
-        Some(Tools { batch: None, .. }) | None => 0,
-    };
-    let conversation = &session.conversation;
-    (conversation.reserved, conversation.provider.credit(), batch, conversation.builtin.credit())
+    domain.result_credit_for_test(owner).expect("admitted test session with bounded credit before reclaim")
 }

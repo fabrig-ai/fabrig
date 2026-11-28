@@ -414,7 +414,7 @@ fn set_authority(limits: &mut jig_domain_authority::Limits, name: &[u8], value: 
 }
 
 fn set_brief(limits: &mut jig_domain_brief::Limits, name: &[u8], value: u64) -> Result<(), What> {
-    let jig_domain_brief::Limits { briefs, sections, read_bytes, brief_bytes } = limits;
+    let jig_domain_brief::Limits { briefs, sections, read_bytes, brief_bytes, .. } = limits;
     match name {
         b"briefs" => *briefs = count(value)?,
         b"sections" => *sections = count(value)?,

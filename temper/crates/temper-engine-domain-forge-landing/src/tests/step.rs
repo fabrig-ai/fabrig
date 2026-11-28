@@ -618,6 +618,46 @@ pub(crate) fn stacked(count: usize) -> (Landing, Facts) {
 }
 
 #[test]
+fn a_candidate_fault_closes_the_round_and_only_the_survivor_restacks() {
+    let (mut landing, mut f) = stacked(2);
+    landing.phase = Phase::Turn { at: at(0) };
+    for (member, fresh) in landing.members.iter_mut().zip(f.members.iter_mut()) {
+        member.gates = Box::new([]);
+        fresh.gates = Box::new([]);
+        fresh.failed = Box::new([]);
+    }
+    let faulted = crate::candidate_fault(landing, &f, &[true, false]);
+    assert_eq!(faulted.decision, Decision::Leave { member: 0, why: crate::Leave::Held });
+    assert_eq!(faulted.landing.round.ending, Some(crate::RoundEnd::Leave));
+    assert_eq!(decide(&faulted.landing, &f).decision, Decision::Close);
+    f.closed = Status::Passed;
+    for member in &mut f.members {
+        member.deleted = Status::Passed;
+        member.candidate = None;
+    }
+    let cleaned = decide(&faulted.landing, &f);
+    assert!(cleaned.landing.members[1].candidate.is_none());
+    f.opened = None;
+    let restacking = decide(&cleaned.landing, &f);
+    assert_eq!(restacking.decision, Decision::Prepare { member: 1, head: head(1), main: MAIN });
+    f.members[1].candidate = Some((NEW, crate::Combine::Merge));
+    f.opened = Some(100);
+    let proved = decide(&restacking.landing, &f);
+    let proved = decide(&proved.landing, &f);
+    assert_eq!(proved.decision, Decision::Proved);
+    f.turn_free = true;
+    f.round_pull = crate::RoundPull::Open;
+    let entered = decide(&proved.landing, &f);
+    let merge = decide(&entered.landing, &f);
+    assert_eq!(merge.decision, Decision::Merge { member: 1, candidate: NEW });
+    f.members[1].main = NEW;
+    f.members[1].merged = Some(NEW);
+    let made = decide(&merge.landing, &f);
+    assert_eq!(made.decision, Decision::Landed { member: 1, prefix: NEW });
+    assert_eq!(decide(&made.landing, &f).decision, Decision::Finish);
+}
+
+#[test]
 fn a_stack_of_three_prepares_once_and_proves_only_its_top() {
     let mut f = stack_facts(3);
     let prepare = decide(&stack(3), &f);

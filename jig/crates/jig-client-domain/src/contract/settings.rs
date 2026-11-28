@@ -45,6 +45,17 @@ pub struct SettingModel {
     pub price_unit: u32,
     pub efforts: List<Text>,
     pub effort: Option<Text>,
+    pub speeds: List<SettingSpeed>,
+    pub speed: Option<Text>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SettingSpeed {
+    pub name: Text,
+    pub also: List<Text>,
+    pub input_price: u64,
+    pub cached_price: u64,
+    pub cache_write_price: Option<u64>,
+    pub output_price: u64,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingHosts {
@@ -88,6 +99,7 @@ pub const REASON_NAMES: [&str; 14] = [
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[expect(clippy::struct_excessive_bools, reason = "the whole charter carries independent tool grants and resume")]
 pub struct Charter {
+    pub name: Option<Box<[u8]>>,
     pub rest: bool,
     pub documents: List<CharterDocument>,
     pub parts: List<CharterPart>,
@@ -137,6 +149,7 @@ pub struct Overlay {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingPolicy {
+    pub name: Option<Box<[u8]>>,
     pub escalation_role: Option<u32>,
     pub ceiling: Authority,
     pub projections: List<Grant>,
@@ -232,6 +245,7 @@ pub enum SettingFault {
     Linked,
     Accounts,
     Range,
+    Name,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MalformedSettings {
@@ -273,8 +287,9 @@ pub struct ApplicationState {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingLine {
+    pub name: Option<Box<[u8]>>,
     pub setting: Setting,
-    pub name: Option<DocumentText>,
+    pub shown: Option<DocumentText>,
     pub follows: SettingFollows,
     pub last: Option<u32>,
     pub application: Option<ApplicationState>,

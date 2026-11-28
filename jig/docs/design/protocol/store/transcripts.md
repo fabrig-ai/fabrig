@@ -176,14 +176,15 @@ it is read, by plans from the registry's texts, as a map value is
   plan refuses, is a frame unread (3).
 - **Before the registry:** a frame written before its value types had
   rows carries its families' versions, the body the core's 6, the turn
-  smith-transcript's 7 or 8. The open that finds no row of a frames'
-  value type registers each of its family's `texts` at its version as
-  its id, before the binary's layouts (`layouts.md`, 5.2): jig's the
-  core's `current`, at 6; smith's `SEED`, smith-transcript's one older
-  text at 7 and its current at 8 (smith's `protocol/transcript.md`, 12).
-  Each such frame's heads then name rows as any frame's do. A
-  frames' family's `texts` keep this seed until dev.fabrig.ai's store
-  holds the rows (temper's `draft/archive/store-floor.md`).
+  smith-transcript's 7 or 8, and the store holds rows of those layouts
+  at those ids, which the first open of a build with the frames'
+  registry wrote; dev.fabrig.ai's has since its open of 2026-11-25. So
+  each such frame's heads name rows as any frame's do, and no build
+  keeps those texts (temper's `draft/archive/store-floor.md`). An open
+  that finds no row of a frames' value type registers the binary's
+  layout as any value type's (`layouts.md`, 5.2): a store holding
+  frames from before the registry with no such rows is below the
+  floor, and its frames are unread (3).
 - **Planned at open,** each row of a frames' value type to the binary's
   layout, as a log-held value type's (`layouts.md`, 5.3; `logs.md`, 8):
   every layout is held, since no census counts frames, so one with no
@@ -222,7 +223,7 @@ it is read, by plans from the registry's texts, as a map value is
   frame goes up to the shell: a frame's conversion calls no owner.
 - **The formats:** a frame's layouts move as a registered value's do;
   its families' versions stay, the core's 6 and smith's 8 (temper's
-  `draft/layouts-both-ways.md`, 3). A change no plan derives refuses
+  `draft/archive/layouts-both-ways.md`, 3). A change no plan derives refuses
   the open, as a log-held value type's does (`logs.md`, 8), so temper's
   stored-layouts check holds every deployed frames' layout to a plan
   (temper's `protocol/floor.md`, 6). A frame's move is no level's:

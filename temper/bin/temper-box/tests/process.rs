@@ -1753,31 +1753,7 @@ impl ClusterChatJudge {
 fn cluster_settings(file: &std::path::Path, reads: &[support::Ended], providers: &serde_json::Value) {
     let mut fixture: serde_json::Value =
         serde_json::from_slice(&std::fs::read(file).expect("cluster settings FILE")).expect("settings JSON");
-    for read in reads {
-        let current = support::ctl::json(read);
-        let item = fixture["items"]
-            .as_array_mut()
-            .expect("settings items")
-            .iter_mut()
-            .find(|item| item["setting"] == current["setting"])
-            .expect("cluster setting override");
-        let mut overrides = item["set"].take();
-        let mut value = current["value"].clone();
-        if current["setting"]["kind"] == "charter" {
-            support::provider_setup::use_provider(&mut value, 1);
-        }
-        if current["setting"]["kind"] == "agents" {
-            value["profile"]
-                .as_object_mut()
-                .expect("agent profile")
-                .extend(overrides["profile"].as_object().expect("profile overrides").clone());
-            overrides.as_object_mut().expect("agent overrides").remove("profile");
-        }
-        value.as_object_mut().expect("whole setting").extend(
-            overrides.as_object().expect("setting overrides").iter().map(|(key, value)| (key.clone(), value.clone())),
-        );
-        item["set"] = value;
-    }
+    support::cluster::overlay_settings(&mut fixture, reads.iter().map(support::ctl::json));
     let items = fixture["items"].as_array_mut().expect("settings items");
     items.retain(|item| item["setting"]["kind"] != "worker");
     items.extend(support::provider_setup::items(providers));
@@ -2190,67 +2166,15 @@ fn a_forgejo_elsewhere_connected_as_its_admin_makes_its_first_repository_and_is_
     support::forgejo_elsewhere::restart();
 }
 
+// Linux ties both the wrapped binary and the std fixtures to their spawning thread.
+#[cfg(target_os = "linux")]
+#[path = "process/fixture_lifetime.rs"]
+mod fixture_lifetime;
+
 #[cfg(target_os = "linux")]
 #[test]
 fn a_story_box_and_its_steps_die_when_the_test_process_is_killed() {
-    use std::{
-        fs,
-        process::{Command, Stdio},
-    };
-    use support::parent::{Guard, wait};
-    if let Some(root) = temper_test_env::value(&temper_test_env::BOX_PARENT_TEST) {
-        let root = std::path::Path::new(&root);
-        let command = support::boxed::dying_with_test(skein_world::end_to_end::Command {
-            program: skein_scratch::paths::binary("temper-box"),
-            arguments: support::configuration::flags(root),
-            directory: root.into(),
-            environment: Vec::new(),
-        });
-        // The same test thread spawns and waits: PR_SET_PDEATHSIG follows it.
-        let mut box_process = Command::new(command.program)
-            .args(command.arguments)
-            .current_dir(command.directory)
-            .env_clear()
-            .envs(command.environment)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .expect("wrapped box");
-        fs::write(root.join("box.pid.tmp"), box_process.id().to_string()).expect("box pid");
-        fs::rename(root.join("box.pid.tmp"), root.join("box.pid")).expect("publish box pid");
-        let _ended = box_process.wait().expect("box wait");
-        return;
-    }
-    let scratch = support::Scratch::new("box-dies-with-test");
-    // Init before box.pid exists: a first run requires an empty configuration directory.
-    let output = Command::new(skein_scratch::paths::binary("temper-box"))
-        .arg("init")
-        .arg("--box")
-        .args(support::configuration::flags(scratch.path()))
-        .output()
-        .expect("init");
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    support::own_listener_files(scratch.path());
-    let child = Command::new(std::env::current_exe().expect("test binary"))
-        .args(["--exact", "a_story_box_and_its_steps_die_when_the_test_process_is_killed", "--nocapture"])
-        .env(temper_test_env::BOX_PARENT_TEST.name, scratch.path())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("child test");
-    let mut guard = Guard::new(child);
-    let pid_file = scratch.path().join("box.pid");
-    wait(&mut guard, |_| pid_file.exists());
-    let box_pid = fs::read_to_string(pid_file).expect("box pid").parse().expect("pid number");
-    guard.record(box_pid, guard.child.as_ref().expect("child test").id());
-    wait(&mut guard, |guard| {
-        guard.descendants(box_pid);
-        guard.has_descendants()
-    });
-    guard.child.as_mut().expect("child test").kill().expect("SIGKILL test alone");
-    guard.child.as_mut().expect("child test").wait().expect("reap test");
-    guard.wait_all();
-    scratch.remove();
+    fixture_lifetime::story();
 }
 
 fn ctl_assert_success(calls: &[support::Ended]) {

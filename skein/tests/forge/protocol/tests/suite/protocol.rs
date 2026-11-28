@@ -86,15 +86,15 @@ fn signed_deliveries_reach_the_clients_owner() {
 
 #[test]
 fn directories_and_the_root_read_through_both_http_fakes() {
-    use skein_fake_forge_domain::api::File;
     use skein_forge::api::{Entry, EntryKind};
-    // Both entries together fit the existing owner read budget.
+    // The entries in either listing fit the existing owner read budget.
     const DIRECTORY_BYTES: u32 = 128;
+    const LINK: &[u8] = b"src/linked.rs";
     for mut world in [World::new(5, 0), World::github(5, 0)] {
-        let head = world.tree(Box::new([
-            File { path: Box::from(b"README".as_slice()), content: Box::from(b"hello".as_slice()) },
-            File { path: Box::from(b"src/main.rs".as_slice()), content: Box::from(b"fn main() {}".as_slice()) },
-        ]));
+        let head = world.tree_with_links(
+            Box::new([file(b"README", b"hello"), file(b"src/main.rs", b"fn main() {}"), file(LINK, b"main.rs")]),
+            &[LINK],
+        );
         for (path, entries) in [
             (
                 b"".as_slice(),
@@ -103,7 +103,13 @@ fn directories_and_the_root_read_through_both_http_fakes() {
                     Entry { name: Box::from(b"src".as_slice()), kind: EntryKind::Directory },
                 ],
             ),
-            (b"src", vec![Entry { name: Box::from(b"main.rs".as_slice()), kind: EntryKind::File }]),
+            (
+                b"src",
+                vec![
+                    Entry { name: Box::from(b"linked.rs".as_slice()), kind: EntryKind::Link },
+                    Entry { name: Box::from(b"main.rs".as_slice()), kind: EntryKind::File },
+                ],
+            ),
         ] {
             assert_eq!(
                 world.read(Read::File { head, path: Box::from(path), max_bytes: DIRECTORY_BYTES }),

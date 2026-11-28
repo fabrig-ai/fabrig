@@ -143,6 +143,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
         forge::settings::AreaOwner::Party(u64::MAX),
         forge::settings::AreaOwner::Role(u32::MAX),
         forge::settings::AreaOwner::Charter(u32::MAX),
+        forge::settings::AreaOwner::CharterNamed(b"triager".as_slice().into()),
     ] {
         use forge::settings as s;
         for (kind, value) in [
@@ -152,7 +153,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
                     areas: Box::new([s::Area {
                         name: b"tests".as_slice().into(),
                         words: b"C tests".as_slice().into(),
-                        owner,
+                        owner: owner.clone(),
                     }]),
                 }),
             ),

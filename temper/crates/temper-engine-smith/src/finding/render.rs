@@ -66,14 +66,18 @@ fn holder(text: &mut Text, holder: f::Holder) -> Result<(), Problem> {
     text.add(kind)?;
     text.number(number)
 }
-fn owner(text: &mut Text, owner: Option<AreaOwner>) -> Result<(), Problem> {
+fn owner(text: &mut Text, owner: Option<&AreaOwner>) -> Result<(), Problem> {
     match owner {
-        Some(AreaOwner::Task(n)) => holder(text, f::Holder::Task(n)),
-        Some(AreaOwner::Party(n)) => holder(text, f::Holder::Party(n)),
-        Some(AreaOwner::Role(n)) => holder(text, f::Holder::Role(n)),
+        Some(AreaOwner::Task(n)) => holder(text, f::Holder::Task(*n)),
+        Some(AreaOwner::Party(n)) => holder(text, f::Holder::Party(*n)),
+        Some(AreaOwner::Role(n)) => holder(text, f::Holder::Role(*n)),
         Some(AreaOwner::Charter(n)) => {
             text.add(b"charter ")?;
-            text.number(u64::from(n))
+            text.number(u64::from(*n))
+        }
+        Some(AreaOwner::CharterNamed(name)) => {
+            text.add(b"charter ")?;
+            text.add(name)
         }
         None => text.add(b"-"),
     }
@@ -210,7 +214,7 @@ fn list_lines(doc: &f::Findings) -> Result<List<Box<[u8]>>, Problem> {
         let mut text = Text::new();
         text.literal(&area.name)?;
         text.add(b" (")?;
-        owner(&mut text, Some(area.owner))?;
+        owner(&mut text, Some(&area.owner))?;
         text.add(b", ")?;
         match area.holder {
             Some(held) => holder(&mut text, held)?,
@@ -222,7 +226,7 @@ fn list_lines(doc: &f::Findings) -> Result<List<Box<[u8]>>, Problem> {
     }
     let mut text = Text::new();
     text.add(b"triager (")?;
-    owner(&mut text, doc.triager)?;
+    owner(&mut text, doc.triager.as_ref())?;
     text.add(b", ")?;
     holder(&mut text, doc.holder)?;
     text.add(b")")?;

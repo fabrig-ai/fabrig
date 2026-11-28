@@ -17,6 +17,10 @@ This document holds the landing turn and its trains, split from [`landing.md`](l
   waits `read`, and a run of such waits the forge keeps answering while
   the turn stays where it was holds past the stall (`landing-waits.md`,
   3), as a round's reads at preparing do.
+- **Then `.temper/`, where a member touches temper's method:** the
+  candidate the turn will move the branch to is judged by temper's own
+  check before the merge, a fault holding the members that touch it and
+  the turn going on without them (`forge/temper-dir.md`, 4).
 - **Through the record of temper's writes** (`forge/writes.md`). The
   round's merge is admitted into the train branch's record and its pull
   request's before it is sent (2 there), and each read of the train's

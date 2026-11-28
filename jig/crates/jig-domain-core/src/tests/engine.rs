@@ -1,11 +1,15 @@
 //! Pass-through decisions and timer admission (`jig/docs/design/domain/engine/vocabulary.md`, 2).
 
+mod connectors;
+mod start;
 use crate::{
-    Config, Core, Event, Limits, Problem, Request, Timer,
+    Config, Core, Event, Limits, Request, Timer,
     engine::{self, Admit, Engine, In, Out},
     tests::{config, fixtures, limits},
 };
 use core::hash::{BuildHasher, BuildHasherDefault};
+use jig_domain_contract::StartProblem;
+use jig_domain_link::Problem;
 use jig_domain_notes as notes;
 use skein_lib::{Env, List, Queue, ReplyTo, Time, Token, Wall};
 use std::hash::DefaultHasher;
@@ -56,6 +60,9 @@ fn same_decision(core: &Core, engine: &Engine, requests: &Queue<Request>, out: &
         {
             let Out::Held(engine::Peer::Store(wrapped)) = output else { panic!("one held store load: {output:?}") };
             assert_eq!(hash.hash_one(load), hash.hash_one(wrapped), "{wrapped:?} differs from {load:?}");
+        } else if let Request::Write(write) = request {
+            let Out::Write(wrapped) = output else { panic!("one store write: {output:?}") };
+            assert_eq!(hash.hash_one(write), hash.hash_one(wrapped), "{wrapped:?} differs from {write:?}");
         } else {
             let Out::Core(wrapped) = output else { panic!("one core request: {output:?}") };
             assert_eq!(hash.hash_one(request), hash.hash_one(wrapped), "{wrapped:?} differs from {request:?}");
@@ -87,6 +94,30 @@ fn step_keeps_the_existing_output_at_the_front() {
     engine::step(&mut engine, &env, In::Core(unwatch()), &mut out);
     let Some(Out::Core(Request::ProjectMade { project })) = out.pop() else { panic!("existing output first") };
     assert_eq!(project, PROJECT);
+}
+
+#[test]
+fn append_converts_a_load_at_its_place_in_the_batch() {
+    use engine::{Peer, store};
+
+    let mut requests = Queue::uncapped();
+    requests.push(Request::ProjectMade { project: 1 });
+    requests.push(Request::Held(Box::new(crate::Held::Store(store::Out::Load {
+        load: Token::new(17),
+        range: store::Range::Window { task: 2, from: (3, 4) },
+    }))));
+    requests.push(Request::Held(Box::new(crate::Held::Drained)));
+
+    let mut out = Queue::uncapped();
+    out.push(Out::Core(Request::ProjectMade { project: 9 }));
+    engine::append(requests, &mut out);
+    let Some(Out::Core(Request::ProjectMade { project: 9 })) = out.pop() else { panic!("existing output first") };
+    let Some(Out::Core(Request::ProjectMade { project: 1 })) = out.pop() else { panic!("plain request next") };
+    let Some(Out::Held(Peer::Store(load))) = out.pop() else { panic!("load crosses the store port at its place") };
+    assert_eq!(load, store::Out::Load { load: Token::new(17), range: store::Range::Window { task: 2, from: (3, 4) } });
+    let Some(Out::Core(Request::Held(held))) = out.pop() else { panic!("the next request stays held") };
+    let crate::Held::Drained = *held else { panic!("the next held request is unchanged") };
+    assert!(out.is_empty());
 }
 
 fn arm_timer(core: &mut Core, env: &Env<Limits>) {
@@ -156,7 +187,7 @@ fn construction_preserves_the_core_membership_refusal() {
     over.fleet.configured_workers = limit;
     let declarations = super::empty_declarations(&config);
     let problem = Core::new(config.clone(), &declarations, &over).expect_err("worker membership over its bound");
-    assert_eq!(problem, Problem::Workers { limit });
+    assert_eq!(problem, StartProblem::Membership(Problem::Workers { limit }));
     assert_eq!(Engine::new(config, &declarations, &over).expect_err("same worker membership refusal"), problem);
 }
 
@@ -468,7 +499,7 @@ fn a_notes_load_refuses_full_room_once_and_a_project_drop_retries_after_the_wind
     let proof = crate::RunProof::claimed(key.task, key.attempt, 1, None, jig_domain_fleet::HostKind::Worker);
     let core = engine.core_mut();
     core.proofs.insert(key.task, proof).expect("current call proof");
-    assert!(core.reserve_call(key, crate::PendingCall::Routed));
+    assert!(core.reserve_call(key, crate::CallHolder::Routed));
     let to = ReplyTo::new(owner);
     let call = core.begin_note_route(crate::routing::NoteRoute::Call { to, key, records: Box::new([]) });
     let mut seen = false;
@@ -504,16 +535,56 @@ fn a_notes_load_refuses_full_room_once_and_a_project_drop_retries_after_the_wind
 }
 
 #[test]
+fn deletion_retries_outlive_the_table_without_reclaim() {
+    use engine::store::{Answer, Failure};
+
+    const WORK_SLOTS: u32 = 1;
+    const RETRIES: u32 = 8; // More than the four slots: three reads and one work load.
+    const OWNER: Token = Token::new(900);
+    const PROJECT: u32 = 3;
+    let mut env = environment();
+    env.limits.load_slots = WORK_SLOTS;
+    let mut engine = fresh_engine(&env.limits);
+    let range = notes::Range::Project { project: PROJECT, after: None };
+    let out = notes_request(&mut engine, &env, notes::Event::DropProject { owner: OWNER, project: PROJECT });
+    let mut load = notes_page(&out, range.clone());
+    for _ in 0..RETRIES {
+        let out = notes_terminal(&mut engine, &env, load, Answer::Failed(Failure::Busy));
+        let retry = notes_page(&out, range.clone());
+        assert_ne!(retry, load);
+        let late = notes_terminal(&mut engine, &env, load, Answer::Failed(Failure::Busy));
+        assert!(late.is_empty(), "the retired token cannot reach the pending retry");
+        load = retry;
+    }
+}
+
+#[test]
+fn terminal_work_keeps_quiescence_behind_reclaim() {
+    const TASK: u64 = 7;
+    const WINDOW: (u64, u32) = (1, 1);
+    let env = environment();
+    let mut engine = fresh_engine(&env.limits);
+    let window = super::fixture_window(engine.core_mut(), TASK, WINDOW);
+    let _out = notes_terminal(&mut engine, &env, window, engine::store::Answer::Failed(engine::store::Failure::Failed));
+    let empty_before = engine.core().loads.is_empty();
+    engine.core_mut().reclaim();
+    assert_eq!((empty_before, engine.core().loads.is_empty()), (false, true));
+}
+
+#[test]
 fn declarations_are_checked_in_construction_order() {
     use jig_domain_contract::{
-        Declaration,
+        Connector, Declaration,
         effects::{EffectForm, EffectKind, Recovery},
         resources::{ResourceKind, Rule},
     };
+    const FIRST: Connector = Connector(1);
+    const SECOND: Connector = Connector(2);
+    const UNKNOWN: Connector = Connector(3);
     let config = config(SEED);
     let mut limits = limits();
     limits.tasks.hold_kinds = 2;
-    let [first, second, unknown] = [1, 2, 3].map(Declaration::empty);
+    let [first, second, unknown] = [FIRST, SECOND, UNKNOWN].map(Declaration::empty);
     let resource = ResourceKind { kind: 4, hold: Rule::Shared };
     let other = ResourceKind { kind: 5, hold: Rule::Shared };
     let effect =
@@ -522,14 +593,14 @@ fn declarations_are_checked_in_construction_order() {
     let duplicate_effect = Declaration { effects: Box::new([effect, effect]), ..first.clone() };
     let paired = Declaration { resources: Box::new([resource]), effects: Box::new([effect]), ..first.clone() };
     let full = Declaration { resources: Box::new([resource, other]), ..second.clone() };
-    let refusals: [(Box<[Declaration]>, Problem); 7] = [
-        (Box::new([first.clone()]), Problem::Undeclared { connector: 2 }),
-        (Box::new([first.clone(), first.clone(), second.clone()]), Problem::Declared { connector: 1 }),
-        (Box::new([first, second.clone(), unknown]), Problem::Declared { connector: 3 }),
-        (Box::new([duplicate_resource, second.clone()]), Problem::ResourceKind { connector: 1, kind: 4 }),
-        (Box::new([duplicate_effect.clone(), second.clone()]), Problem::EffectKind { connector: 1, kind: 4 }),
-        (Box::new([duplicate_effect]), Problem::EffectKind { connector: 1, kind: 4 }),
-        (Box::new([paired.clone(), full]), Problem::HoldKinds { limit: 2 }),
+    let refusals: [(Box<[Declaration]>, StartProblem); 7] = [
+        (Box::new([first.clone()]), StartProblem::Undeclared { connector: SECOND }),
+        (Box::new([first.clone(), first.clone(), second.clone()]), StartProblem::Declared { connector: FIRST }),
+        (Box::new([first, second.clone(), unknown]), StartProblem::Declared { connector: UNKNOWN }),
+        (Box::new([duplicate_resource, second.clone()]), StartProblem::ResourceKind { connector: FIRST, kind: 4 }),
+        (Box::new([duplicate_effect.clone(), second.clone()]), StartProblem::EffectKind { connector: FIRST, kind: 4 }),
+        (Box::new([duplicate_effect]), StartProblem::EffectKind { connector: FIRST, kind: 4 }),
+        (Box::new([paired.clone(), full]), StartProblem::HoldKinds { limit: 2 }),
     ];
     for (declarations, problem) in refusals {
         assert_eq!(Engine::new(config.clone(), &declarations, &limits).unwrap_err(), problem, "{declarations:?}");

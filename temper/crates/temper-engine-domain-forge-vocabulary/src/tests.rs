@@ -13,6 +13,22 @@ fn stored_repository_bytes_count_its_landing() {
     assert_eq!(stored_bytes(&Stored::Repository(row)), before.checked_add(3));
 }
 
+#[test]
+fn effect_lookups_report_declared_writes_and_exclude_other_kinds() {
+    use EffectForm::{Creation, Transition};
+    use Recovery::{Conditional, Idempotent};
+    for (kind, shape, waits) in [
+        (0, None, false),
+        (1, None, false), // read, not a write
+        (3, Some((Creation, Conditional)), false),
+        (4, Some((Transition, Conditional)), true),
+        (11, Some((Transition, Idempotent)), false),
+        (18, None, false),
+    ] {
+        assert_eq!((effect_shape(kind), waits_for_dependencies(kind)), (shape, waits), "kind {kind}");
+    }
+}
+
 const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
 pub(crate) fn adopted() -> Repository {
     Repository {

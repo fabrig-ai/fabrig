@@ -303,14 +303,6 @@ length framing. A file for one pasted credential whose value is outside 1 to
 a multi-item tokens bundle must also fit the aggregate carried-value bound
 (decided 2026-11-03).
 
-## 3. LLM accounts
-
-Moved to [`credentials-llm-accounts.md`](credentials-llm-accounts.md), section 1.
-
-## 4. Git identities
-
-Moved to [`credentials-git-identities.md`](credentials-git-identities.md), section 1.
-
 ## 5. The forges' access
 
 - **One access per forge,** built at start from its records (section

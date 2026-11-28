@@ -1,5 +1,5 @@
 //! Machine requests and answers for the journeys' tools
-//! (temper/docs/design/client/journey-writer.md, 4, 6 and 7).
+//! (temper/docs/design/client/journey-writer.md, 4, and temper/docs/design/client/journey-writer-requests.md, 1, and temper/docs/design/client/journey-writer.md, 7).
 
 use std::path::PathBuf;
 

@@ -46,7 +46,7 @@ pub fn route(document: &w::Findings, about: Option<&About>) -> Goes {
         Some(w::AreaOwner::Task(owner)) => holder == team::Holder::Task(owner.number),
         Some(w::AreaOwner::Party(owner)) => holder == team::Holder::Party(owner.number),
         Some(w::AreaOwner::Role(owner)) => holder == team::Holder::Role(owner.number),
-        Some(w::AreaOwner::Charter(_)) => match holder {
+        Some(w::AreaOwner::Charter(_) | w::AreaOwner::CharterNamed(_)) => match holder {
             team::Holder::Task(_) => true,
             team::Holder::Party(_) | team::Holder::Role(_) => false,
         },

@@ -587,18 +587,6 @@ its own for any other host.
     (`../../draft/archive/claude-sign-in.md`, 8). A `claude`
     found on `PATH` is the person's, and keeps its own.
 
-## 7. The first repository
-
-Moved to [`owned-repositories.md`](owned-repositories.md), section 1.
-
-## 8. Signing in through temper
-
-Moved to [`owned-sign-in.md`](owned-sign-in.md), section 1.
-
-## 9. A repository made or copied
-
-Moved to [`owned-repositories.md`](owned-repositories.md), section 2.
-
 ## 10. Open questions
 
 - **An owned forge made managed** (`README.md`, section 2): an act that makes an

@@ -86,6 +86,7 @@ mod tests {
         second.name = DocumentText::complete(contract::Text::new(Box::from(*b"Second"), 32).expect("name fits"));
         projects.push(second).expect("second project");
         Me {
+            charters: List::with_capacity(0),
             providers: List::with_capacity(0),
             providers_cut: false,
             key_bytes: 256,
@@ -166,7 +167,7 @@ mod tests {
         for event in [
             jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
             jig_client::Event::SignIn { with: jig_client::With::Transport },
-            jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+            jig_client::Event::Up { up: jig_client::Up::Served { served: true } },
         ] {
             requests.extend(root_event(&mut root, Event::Client { event }));
         }

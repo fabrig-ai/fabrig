@@ -16,6 +16,7 @@ This document holds the checkout's git operations, split from [`git.md`](git.md)
 | `Commit` | 1 to 4; a delivery adds 2 to 5, and a scan of files for a merge | `Committed { commit }`, `Unchanged`, `Conflicted { files }` |
 | `Push` | 1, or 2 with an expected head | `Succeeded`, `Rejected` |
 | `IsAncestor` | 1 | `IsAncestor { contains }` |
+| `Message` | 1 (1.9) | `Message { message }` |
 | `Store` | 1, a clone, and two or three file operations | `Succeeded` |
 | `Point` | 1 | `Succeeded` |
 | `Pack` | 1 to 4 | `Succeeded` |
@@ -557,6 +558,23 @@ with that name or no names. A design comparison excludes names ending
 in `.md`; a prepare comparison includes them. An incomplete,
 empty or oversized path fails as `Broken`. A later code path cannot hide
 behind a long list of Markdown files or the stdout retention cap.
+
+`Message { at, commit }` reads fetched `commit`'s message: a prepare
+job's, for a squash that keeps its head's TRAILERS (`tooling.md`, 4,
+`head_trailers`; `../domain/worker/jobs.md`). It is local, changes no
+file or ref, and needs no forge credential:
+
+```
+git cat-file commit <commit>
+```
+
+The message is the bytes after the output's first empty line, the end
+of the commit's header, as git stored them, with no encoding applied.
+Exit 0 ends `Message { message }` with them. Output past `stdout_bytes`
+ends it with none, never `Broken`: a long message costs the squash its
+head's trailers alone, as a page too large does the round's
+(`../domain/landing-prepare.md`, 1.2). Any other exit, or output with no
+empty line, is `Broken`.
 
 ### 1.10 Rewrite
 

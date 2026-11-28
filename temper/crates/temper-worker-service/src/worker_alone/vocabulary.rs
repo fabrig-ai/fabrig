@@ -91,6 +91,13 @@ pub enum Note {
         ending: crate::WorkerJobEnding,
         why: Box<[u8]>,
     },
+    JobTimeCut {
+        run: u64,
+        attempt: u64,
+        kind: u32,
+        verb: Box<[u8]>,
+        line: Box<[u8]>,
+    },
     Linked {
         worker: Box<[u8]>,
         address: Box<core::net::SocketAddr>,

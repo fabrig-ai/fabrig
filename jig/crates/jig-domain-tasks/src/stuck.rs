@@ -229,7 +229,7 @@ pub(crate) fn park(domain: &mut Domain, env: &Env<Limits>, task: u64, tries: Tri
     if tries.of(Class::Run) < env.limits.retries.run.retries {
         let row = &mut task_mut(domain, task).expect("stuck task live").record;
         row.tries = tries;
-        row.tries.add(Class::Run);
+        crate::failures::add_try(&mut row.tries, Class::Run);
         row.phase = Phase::Active(Active::Due);
     } else {
         let chain = chain(domain, &walk, task, question.asker);

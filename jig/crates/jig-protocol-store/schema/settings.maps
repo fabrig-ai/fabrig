@@ -10,6 +10,7 @@ use s = skein_codec::convert
 use own = crate::codec::settings
 by hand crate::codec::settings
 context crate::settings_v3::Limits
+refuses crate::codec::convert::speed_name_to_domain
 refuses own::charter_reasons_to_domain
 refuses own::contract_to_domain
 refuses own::contract_to_record
@@ -26,7 +27,8 @@ with context own::value_to_record
 
 record Text stands for bytes
 record ModelName = v::ModelName { efforts slice }
-record Model = c::Model { efforts slice }
+record Speed = c::Speed { also slice }
+record Model = c::Model { efforts slice, speeds slice }
 record RunPolicy = c::RunPolicy { alternatives slice, tools via own::run_tools }
 enum Kinds = jig_domain_fleet::Kinds
 record WakeBatch
@@ -37,7 +39,7 @@ record WakePolicy = t::WakePolicy
 record Segment stands for bytes
 record Document by hand
 record CharterPart = c::CharterPart { on via own::charter_reasons }
-record Charter = c::Charter { documents slice, parts slice }
+record Charter = c::Charter { documents slice, parts slice, setting_name = name }
 record Overlay = v::Overlay { alternatives slice, tools via own::run_tools, documents slice, parts slice }
 enum ModelSource = v::ModelSource
 record CatalogueModel = v::CatalogueModel { first_read via s::wall }
@@ -96,7 +98,7 @@ enum TemplateBudget = p::TemplateBudget { amount tuple }
 record Span stands for span
 enum TemplateDeadline = p::TemplateDeadline { span tuple }
 record TemplateOverride = p::TemplateOverride
-record ConfiguredPolicy = c::ConfiguredPolicy { permissions slice, templates slice }
+record ConfiguredPolicy = c::ConfiguredPolicy { permissions slice, templates slice, setting_name = name }
 record FieldRule = t::FieldRule
 record Verdict by hand
 enum PartKind = t::PartKind
@@ -113,11 +115,11 @@ enum Retention = t::Retention
 record Closer = t::Closer
 enum EndedBy = t::EndedBy { closer tuple }
 record Flags = t::Flags
-record ModelEffort = t::ModelEffort
+record ModelEffort = t::ModelEffort { speed via crate::codec::convert::speed_name }
 record LlmLater = t::LlmLater { subagents slice }
 record LlmChoice = t::LlmChoice { subagents slice }
 record Symbol = p::Symbol
-record Template = c::Template { resources slice }
+record Template = c::Template { name = shown, resources slice, setting_name = name }
 record Override = v::Override
 record LimitsValue by hand
 enum Value by hand

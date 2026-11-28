@@ -77,6 +77,7 @@ pub(super) fn absent(words: &Words, owner: &w::AreaOwner, project: &[u8]) -> Box
         w::AreaOwner::Charter(charter) => {
             words.say(Word::TeamOwnerNotStarted, &[Hole::Number(u64::from(charter.number))])
         }
+        w::AreaOwner::CharterNamed(charter) => charter.name.clone(),
         w::AreaOwner::Role(role) => role_name(words, role.number),
     }
 }

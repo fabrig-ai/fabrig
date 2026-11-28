@@ -43,7 +43,7 @@ forge runs on its records are `effects.md`, section 2.
   and the goal-branch makings' reads while they are out: a making's
   read waiting for the client's room, or for its forge, is no term
   until it is out again (`branches.md`, 1). They end when every term is
-  empty; the forge then reports `RestartDone { stage: ReadAfresh }`,
+  empty; the forge then reports `lifecycle::Up::Done { stage: ReadAfresh }`,
   and from then on its **fresh reads are in**. Outside a restart they
   are in too. In code, `fresh_reads_in(d)`:
 
@@ -88,7 +88,7 @@ forge runs on its records are `effects.md`, section 2.
   with an attempt by its find, and sends each without one, as at any
   time (skein's `forge/client.md`, 8). Once each restored entry has been
   looked at once, the client answers `OutboxDone`, and the forge reports
-  `RestartDone { stage: Settled }`. An entry's later outcome, made or
+  `lifecycle::Up::Done { stage: Settled }`. An entry's later outcome, made or
   not found and sent again, comes as any entry's does.
 - **Caught up:** both reports made. The core records them by connector
   (jig's `domain/connectors.md`, 14), and the forge clears its
@@ -160,7 +160,7 @@ read waiting for room is no fresh read (`branches.md`, 1).
 | `continue_release_inner`, with `release_pull`, `pull_seen_closed`, `settle_prior_effects`, `goal_branch::landed`, `design::unpublished_branch` | heads, pulls, an issue's state, lost writers | the fresh reads |
 | `design::design_claim_permitted` and a run's write claim | owned heads, goal-branch and design waits, the writer | the fresh reads |
 | `items::workspace_item`, `items::task_workspace_item`, `items::design_workspace_waiting` | a branch's existence, a base head, an owned goal branch | the fresh reads |
-| `written::defer`, `record_written_head`, `confirm_written_head` | a writer's push against the head | its own read: the head beside, W kept beside the restored head in the stored hold and compared as `written::restart` compares it (`branches.md`, 3), so another restart reads it again |
+| `writes::readback::restart`, the record of temper's own writes | its uncertain entries: a write whose outcome is unknown, a previous build's writer, and its head beside, kept as a compare entry (`writes.md`, 7) | the fresh reads, then each entry's own readback (`writes.md`, 3), a compare entry's the one comparison of its waiting head against the head (`writes.md`, 4); an entry still uncertain at the next restart is read back again |
 | `project` (a goal's issue projection) | the issue's state | the fresh reads |
 | `rebase::read_afresh` | a branch's drift | its own read of the branch |
 | `landing::judge` | the receipts `landing::rebuild` fills | the fresh reads |

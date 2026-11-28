@@ -79,14 +79,7 @@ struct Fixture {
 fn opened() -> (Fixture, Queue<Request>) {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let me_watch = f::start(&mut root, List::with_capacity(0));
-    up(
-        &mut root,
-        Up::FamilyServed {
-            family: wire::FORGE,
-            served: true,
-            versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
-        },
-    );
+    up(&mut root, Up::FamilyServed { family: wire::FORGE, served: true });
     let out = up(
         &mut root,
         Up::Watched { watch: me_watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me()))) },
@@ -106,8 +99,9 @@ fn document(f: &mut Fixture, newest: u32, lines: &[(u32, u32, Option<u32>, c::Se
     for (kind, project, last, follows) in lines {
         settings
             .push(c::SettingLine {
-                setting: c::Setting::Application { kind: *kind, scope: *project, number: 1 },
                 name: None,
+                setting: c::Setting::Application { kind: *kind, scope: *project, number: 1 },
+                shown: None,
                 last: *last,
                 follows: follows.clone(),
                 application: None,
@@ -386,7 +380,7 @@ fn a_refused_read_hides_and_a_malformed_value_too() {
     let malformed = wire::setting_answer(&w::SettingAnswer { revision: None, value: Some(b"bad".as_slice().into()) });
     for result in [
         Readout::Limit,
-        Readout::NotServed { family: Some(wire::FORGE), served: None },
+        Readout::NotServed { family: Some(wire::FORGE) },
         Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)),
         Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
         Readout::Family { family: wire::FORGE, record: None },

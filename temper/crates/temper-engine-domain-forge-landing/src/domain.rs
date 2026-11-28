@@ -116,6 +116,25 @@ fn notify_leave(landing: &mut Landing) -> Option<Decision> {
     None
 }
 
+/// Leave the members held by the turn's candidate check, before any merge
+/// of that candidate is committed (domain/forge/temper-dir.md, 4).
+#[must_use]
+pub fn candidate_fault(mut landing: Landing, facts: &Facts, covered: &[bool]) -> Stepped {
+    assert_eq!(landing.members.len(), covered.len(), "one coverage fact per member");
+    for (member, covers) in landing.members.iter_mut().zip(covered) {
+        if *covers && active(member) {
+            mark_left(member, landing.task, crate::Leave::Held);
+        }
+    }
+    if landing.round.branch.is_empty() {
+        landing.phase = Phase::Preparing;
+    } else {
+        cascade(&mut landing, facts);
+    }
+    let decision = notify_leave(&mut landing).expect("a candidate fault holds a member");
+    done(landing, decision)
+}
+
 fn leaving(mut landing: Landing, facts: &Facts, member: u16, why: crate::Leave) -> Stepped {
     leave_at(&mut landing, usize::from(member), why);
     cascade(&mut landing, facts);

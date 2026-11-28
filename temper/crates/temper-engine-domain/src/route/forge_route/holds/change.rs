@@ -2,6 +2,80 @@
 use super::super::{Domain, Env, Limits, List, append, commit_text, forge, forge_change as change, tasks};
 use alloc::boxed::Box;
 
+// A judgement's fresh line is never part of the account it replays
+// (temper/docs/design/domain/forge/change/repairs-releases.md, 4).
+pub(in super::super) fn replay(judgement: change::Replay, account: &[u8], prior_rejection: &[u8]) -> Box<[u8]> {
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    append(&mut words, b"not measured again: ");
+    let original = match judgement {
+        change::Replay::RedStands { head } => {
+            append(&mut words, b"its red at ");
+            short_commit(&mut words, &head);
+            append(&mut words, b" stands at the same content and spec; amend this change to ask a fresh repair, measure it again, or cancel it.");
+            account
+        }
+        change::Replay::Rejected { head } => {
+            append(&mut words, b"its rejection at ");
+            short_commit(&mut words, &head);
+            append(&mut words, b" stands; it goes on once the person answers their gate again.");
+            match rejection_account(prior_rejection) {
+                Some(original) => original,
+                None => account,
+            }
+        }
+        change::Replay::CloseRefused { branch, landing } => {
+            append(&mut words, b"the goal's branch is at ");
+            short_commit(&mut words, &branch);
+            append(&mut words, b" and main at ");
+            short_commit(&mut words, &landing);
+            append(&mut words, b", as when its close check refused; it checks again once either moves.");
+            account
+        }
+    };
+    append(&mut words, b"\n\n");
+    let room = skein_lib::usize_of(words.room());
+    append(&mut words, &forge::text::fit(original, room, b""));
+    words.into_boxed()
+}
+
+fn short_commit(words: &mut List<u8>, commit: &[u8; 32]) {
+    let text = commit_text(commit);
+    append(words, text.get(..12).expect("commit prefix"));
+}
+
+fn rejection_account(mut words: &[u8]) -> Option<&[u8]> {
+    // Older holds can have several replay lines, or no account left behind them.
+    const PREFIX: &[u8] = b"not measured again: its rejection at ";
+    for _ in 0..words.len() {
+        if !words.starts_with(PREFIX) {
+            return if words.is_empty() { None } else { Some(words) };
+        }
+        let blank = skein_lib::bytes::find(words, b"\n\n")?;
+        words = words.get(blank.checked_add(2)?..)?;
+    }
+    None
+}
+
+pub(in super::super) fn questions_account(questions: Option<&change::Questions>, bound: u32) -> Box<[u8]> {
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    let bound = skein_lib::Decimal::of(u64::from(bound));
+    append(&mut words, b"its questions are spent: ");
+    append(&mut words, bound.as_bytes());
+    append(&mut words, b" of ");
+    append(&mut words, bound.as_bytes());
+    append(&mut words, b" taken");
+    if let Some(questions) = questions
+        && let Some(question) = questions.open.first()
+    {
+        append(&mut words, b"; question ");
+        append(&mut words, skein_lib::Decimal::of(question.number).as_bytes());
+        append(&mut words, b" of task ");
+        append(&mut words, skein_lib::Decimal::of(question.asker).as_bytes());
+        append(&mut words, b" waits; release it to pass the question up");
+    }
+    words.into_boxed()
+}
+
 #[expect(clippy::too_many_lines, reason = "one hold account chooses among runner, repair and forge read evidence")]
 pub(in super::super) fn account(
     domain: &Domain,

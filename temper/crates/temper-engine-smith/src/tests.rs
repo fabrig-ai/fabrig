@@ -65,6 +65,8 @@ fn assignment() -> engine::Assignment {
                     price_unit: 1000,
                     efforts: Box::new([]),
                     effort: None,
+                    speeds: Box::default(),
+                    speed: None,
                 },
                 alternatives: Box::new([]),
                 inspect: true,
@@ -92,7 +94,7 @@ fn assignment() -> engine::Assignment {
         }]),
         messages: Box::new([]),
         saved: Box::new([]),
-        workspace: engine::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
+        workspace: engine::ForgeWorkspace::default(),
         workstream: 23,
         transcript: Box::new([]),
         parts: Box::new([]),
@@ -361,9 +363,41 @@ fn a_report_run_delivers_its_repository_with_checks_and_keeps_its_report_outcome
     let deliver = charter.grants.deliver.expect("the workspace delivers");
     assert!(deliver.checks_must_pass);
     assert!(charter.grants.tools.modify);
-    assert_eq!(charter.conventions.expect("repository conventions").checks.as_ref(), b".temper/pre-pr");
+    let conventions = charter.conventions.expect("repository conventions");
+    assert_eq!(conventions.guide.as_ref(), b"AGENTS.md");
+    assert_eq!(conventions.checks.as_ref(), b".temper/pre-pr");
+    assert_eq!(conventions.hooks.as_deref(), Some(b".temper/hooks".as_slice()));
     assert!(charter.outcome.change.is_none());
     assert!(charter.outcome.report.is_some());
+}
+
+#[test]
+fn a_run_starts_with_its_models_default_speed() {
+    let mut assignment = assignment();
+    let model = &mut assignment.run.policy.model;
+    model.dialect = 3;
+    model.speeds = Box::new([jig_domain_core::Speed {
+        name: b"ultrafast".as_slice().into(),
+        also: Box::new([]),
+        input_price: 12,
+        cached_price: 6,
+        cache_write_price: None,
+        output_price: 60,
+    }]);
+    model.speed = Some(b"ultrafast".as_slice().into());
+    let smith::Event::Start(started) = start(
+        &assignment,
+        None,
+        None,
+        ReplyTo::new(Token::new(50)),
+        Token::new(23),
+        smith::Window { turns: 1, bytes: 100_000 },
+        &smith_agent_world::LIMITS.run,
+    ) else {
+        panic!("start conversion produces Smith Start");
+    };
+    let speed = started.charter.llm.speed.expect("the start carries the model's default speed");
+    assert_eq!(speed.name.as_ref(), b"ultrafast");
 }
 
 #[test]
@@ -884,7 +918,7 @@ fn the_whole_deadline_example_decodes_the_whole_authority() {
     assert!(amendment.tracked.is_none() && amendment.instructions.is_none());
 }
 
-const DELEGATE_MEMBER: &str = r#""executor":{"kind":"agent","charter":1},"spec":{"words":"x"},"contract":{"kind":"report","words":128},"authority":{"tools":1,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},"budget":{"spend":40},"notes":0}"#;
+pub(crate) const DELEGATE_MEMBER: &str = r#""executor":{"kind":"agent","charter":1},"spec":{"words":"x"},"contract":{"kind":"report","words":128},"authority":{"tools":1,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},"budget":{"spend":40},"notes":0}"#;
 
 #[test]
 fn a_delegate_deadline_in_seconds_is_a_span() {
@@ -1647,8 +1681,8 @@ fn a_delegate_keeps_its_llm_preference() {
         Some(tasks::LlmChoice {
             later: None,
             account: Some(43),
-            main: tasks::ModelEffort { model: 2, effort: Some(1) },
-            subagents: Box::new([tasks::ModelEffort { model: 3, effort: None }]),
+            main: tasks::ModelEffort { model: 2, effort: Some(1), speed: None },
+            subagents: Box::new([tasks::ModelEffort { model: 3, effort: None, speed: None }]),
         })
     );
 }
@@ -1668,8 +1702,8 @@ fn an_amendment_keeps_its_llm_preference() {
         Some(tasks::LlmChoice {
             later: None,
             account: Some(43),
-            main: tasks::ModelEffort { model: 2, effort: Some(1) },
-            subagents: Box::new([tasks::ModelEffort { model: 3, effort: None }]),
+            main: tasks::ModelEffort { model: 2, effort: Some(1), speed: None },
+            subagents: Box::new([tasks::ModelEffort { model: 3, effort: None, speed: None }]),
         })
     );
 }
@@ -2039,7 +2073,7 @@ fn change_keeps_branch_repairs_producer_and_llm_together() {
     assert_eq!(changes[0].repairs, Some([0xab; 32]));
     assert_eq!(
         changes[0].llm.producer.as_ref().expect("producer choice").main,
-        tasks::ModelEffort { model: 0, effort: Some(1) }
+        tasks::ModelEffort { model: 0, effort: Some(1), speed: None }
     );
 }
 
@@ -2147,20 +2181,24 @@ fn change_decodes_several_changes_in_order() {
 
 #[test]
 fn change_decodes_a_producer_and_llm_by_role() {
-    let input = r#"{"words":"a","producer":6,"llm":{"producer":{"main":{"model":"sol","effort":"high"},"sub_agents":[{"model":"haiku"}]},"review":{"main":{"model":"sol","effort":"medium"}}}}"#;
+    let input = r#"{"words":"a","producer":6,"llm":{"producer":{"main":{"model":"sol","effort":"high","speed":"ultrafast"},"sub_agents":[{"model":"haiku"}]},"review":{"main":{"model":"sol","effort":"medium"}}}}"#;
     let expected = engine::ChangeCall {
         producer: Some(6),
         llm: engine::ChangeLlm {
             producer: Some(tasks::LlmChoice {
                 later: None,
                 account: None,
-                main: tasks::ModelEffort { model: 0, effort: Some(1) },
-                subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
+                main: tasks::ModelEffort {
+                    model: 0,
+                    effort: Some(1),
+                    speed: Some(skein_lib::Name::from_checked(b"ultrafast").unwrap()),
+                },
+                subagents: Box::new([tasks::ModelEffort { model: 1, effort: None, speed: None }]),
             }),
             review: Some(tasks::LlmChoice {
                 later: None,
                 account: None,
-                main: tasks::ModelEffort { model: 0, effort: Some(0) },
+                main: tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
                 subagents: Box::new([]),
             }),
         },
@@ -2187,7 +2225,7 @@ fn change_decodes_a_producer_and_llm_by_role() {
                     review: Some(tasks::LlmChoice {
                         later: None,
                         account: None,
-                        main: tasks::ModelEffort { model: 1, effort: None },
+                        main: tasks::ModelEffort { model: 1, effort: None, speed: None },
                         subagents: Box::new([]),
                     }),
                 },
@@ -2199,7 +2237,7 @@ fn change_decodes_a_producer_and_llm_by_role() {
                     producer: Some(tasks::LlmChoice {
                         later: None,
                         account: None,
-                        main: tasks::ModelEffort { model: 0, effort: None },
+                        main: tasks::ModelEffort { model: 0, effort: None, speed: None },
                         subagents: Box::new([]),
                     }),
                     review: None,
@@ -2329,7 +2367,7 @@ fn change_batch_keeps_member_options(options: &str) {
         assert_eq!(change.questions, Some(engine::ChangeQuestions::Up));
         assert_eq!(
             change.llm.producer.as_ref().expect("producer choice").main,
-            tasks::ModelEffort { model: 0, effort: Some(1) }
+            tasks::ModelEffort { model: 0, effort: Some(1), speed: None }
         );
         expected.push(change.clone()).expect("four expected changes");
         members.push(member).expect("four batch members");
@@ -2755,13 +2793,14 @@ fn directory_answers_render_entries_and_the_root_header() {
                 entries: Box::new([
                     Entry { name: b"main.rs".as_slice().into(), kind: EntryKind::File },
                     Entry { name: b"lib".as_slice().into(), kind: EntryKind::Directory },
+                    Entry { name: b"linked.rs".as_slice().into(), kind: EntryKind::Link },
                     Entry { name: b"vendor".as_slice().into(), kind: EntryKind::Submodule },
                 ]),
                 truncated,
             };
             let rendered = answer(&engine::CallAnswer::ForgeRead(Box::new(Ok(value))));
             let body =
-                b" at abcdef0123456789abcdef0123456789abcdef01 (a directory):\nmain.rs\nlib/\nvendor (submodule)";
+                b" at abcdef0123456789abcdef0123456789abcdef01 (a directory):\nmain.rs\nlib/\nlinked.rs\nvendor (submodule)";
             let length = header
                 .len()
                 .checked_add(body.len())

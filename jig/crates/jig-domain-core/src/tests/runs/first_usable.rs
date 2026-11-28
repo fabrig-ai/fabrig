@@ -99,7 +99,7 @@ fn named_choice() -> tasks::LlmChoice {
     tasks::LlmChoice {
         later: None,
         account: None,
-        main: tasks::ModelEffort { model: 0, effort: Some(0) },
+        main: tasks::ModelEffort { model: 0, effort: Some(0), speed: None },
         subagents: Box::new([]),
     }
 }
@@ -502,7 +502,7 @@ fn an_unnamed_document_shows_the_current_run_choice() {
     claude(&mut core, &limits, LoginState::Usable);
     assert_eq!(document(&core, &limits).llm, core.next_llm(core.tasks.task(TASK).unwrap()));
     let llm = document(&core, &limits).llm.unwrap();
-    assert_eq!(llm.main, tasks::ModelEffort { model: 2, effort: Some(0) });
+    assert_eq!(llm.main, tasks::ModelEffort { model: 2, effort: Some(0), speed: None });
     assert_eq!(llm.subagents.iter().map(|model| model.model).collect::<Vec<_>>(), [0, 1, 3]);
 }
 
@@ -549,8 +549,13 @@ fn create_and_amend_refuse_an_authority_with_no_charter_model() {
 fn a_move_requires_an_authorized_model_and_counts_incompatibility() {
     // This unnamed task can use Claude only; a prospective charter has only OpenAI.
     let (mut core, limits) = fixture_with_models(false, tasks::Models::Named(1 << 2), false);
-    let charters: Box<[tasks::CharterModels]> =
-        Box::new([tasks::CharterModels { resumes: false, number: 1, revision: 2, models: Some(Box::new([0, 1])) }]);
+    let charters: Box<[tasks::CharterModels]> = Box::new([tasks::CharterModels {
+        resumes: false,
+        number: 1,
+        revision: 2,
+        models: Some(Box::new([0, 1])),
+        speeds: Box::default(),
+    }]);
     assert_eq!(core.tasks.incompatible_charters(&charters, 1), (Box::<[u64]>::from([TASK]), 0));
     send_task(&mut core, &limits, tasks::Event::Charters { newest: 2, charters, efforts: Box::new([2, 2, 2, 2]) });
     assert!(!core.tasks.may_move(TASK));

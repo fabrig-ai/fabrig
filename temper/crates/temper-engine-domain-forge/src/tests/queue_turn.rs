@@ -99,6 +99,7 @@ fn pending(task: u64) -> PendingStep {
         reviews_complete: true,
         paths: Box::new([]),
         paths_whole: false,
+        temper_dir: temper_dir::Check::new(),
         woken: false,
         retry_at: None,
         read: None,
@@ -354,6 +355,8 @@ fn entering_checking_arms_the_first_execution_reading() {
                 decision: change::Decision::Wait { until: Some(until) },
                 entry: None,
                 evidence: None,
+                close_at: None,
+                close_refusal: None,
             };
     }
     assert!(scheduled, "first reading within poll_max: {out:?}");
@@ -472,6 +475,8 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
             let prior = d.changes.get(&OWNER).unwrap().change.clone();
             let entry = p.entry;
             decide_step(d, &env(), p, &mut out);
+            out = fixtures::ordinary_method_probes(d, &env(), out);
+            assert!(d.entries.contains_key(&entry), "there must be a merge to veto");
             veto_change(d, &env(), OWNER, entry, prior, matches!(how, Leave::Veto), &mut out);
             fixtures::assert_write_withdrawn(d, OWNER, entry);
             if matches!(how, Leave::ReviewVeto) {
@@ -528,6 +533,23 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
         }
     }
     decide_step(d, &env(), p, &mut out);
+    if matches!(how, Leave::Conflict(true)) {
+        // The merge job finds its hook in its checkout, without a forge read.
+        assert!(step_owner(d, OWNER).is_none(), "no pending merge hooks read");
+        let mut requested = false;
+        for request in &out {
+            requested |= *request
+                == Request::ChangeDecision {
+                    task: OWNER,
+                    decision: change::Decision::Delegate(change::Delegate::Merge { base: BASE, from: Some(HEAD) }),
+                    entry: None,
+                    evidence: None,
+                    close_at: None,
+                    close_refusal: None,
+                };
+        }
+        assert!(requested, "the conflict requests a merge job in the same step: {out:?}");
+    }
     out
 }
 

@@ -56,7 +56,7 @@ class GateRoutes(unittest.TestCase):
             ([router], 0, 0, 0, False, ['routing']),
             ([router, product], 0, 0, 0, True, ['routing']),
             ([router, product], 19, 0, 1, False, ['routing']),
-            (['.forgejo/workflows/ci.yml'], 0, 0, 0, True, []),
+            (['.forgejo/workflows/tier-main.yml'], 0, 0, 0, True, []),
         ]:
             with self.subTest(paths=case[0], statuses=case[1:3]):
                 self.replay(*case)

@@ -1,14 +1,10 @@
 use crate::{Domain, Event, Fact, Limits};
-use jig_domain_core::start::{Action, Phase};
+use jig_domain_core::start::Phase;
 use skein_lib::{Duration, Env, Queue, Time};
 use temper_engine_domain_forge as forge;
 
 const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
 
-fn begin(domain: &mut Domain, env: &Env<Limits>, phase: Phase) {
-    domain.work.push(crate::boundary::Work::Start(Action::Step(phase)));
-    crate::step(domain, env, Event::Resume);
-}
 fn at(env: &mut Env<Limits>, seconds: u64) {
     env.now = Time::ZERO.saturating_add(Duration::from_secs(seconds));
 }
@@ -29,40 +25,12 @@ fn restore(domain: &mut Domain, env: &Env<Limits>, record: forge::Stored) {
     );
 }
 fn repository() -> forge::Repository {
-    forge::Repository {
-        contexts: Box::new([]),
-        landing: b"main".as_slice().into(),
-        refusals: Box::default(),
-        workflows: Box::default(),
-        project: 1,
-        home: true,
-        provider: REPO,
-        host: b"forge.example".as_slice().into(),
-        owner: b"work".as_slice().into(),
-        name: b"hello".as_slice().into(),
-        prefix: b"temper/".as_slice().into(),
-        role: forge::Role::Owned,
-        ci: true,
-        checks: Box::new([]),
-        kinds: forge::Kinds {
-            read: true,
-            push: true,
-            open: true,
-            land: true,
-            review: true,
-            status: true,
-            comment: true,
-            issue: true,
-            branch: true,
-        },
-        protection: forge::Protection::Absent,
-        settings: skein_forge::api::Settings {
-            default_branch: b"main".as_slice().into(),
-            merge: true,
-            squash: true,
-            rebase: false,
-        },
-    }
+    let mut repository = super::owned_repository(REPO.forge);
+    repository.project = 1;
+    repository.provider = REPO;
+    repository.owner = b"work".as_slice().into();
+    repository.name = b"hello".as_slice().into();
+    repository
 }
 #[test]
 fn catching_up_reports_after_opening_and_ends_without_another_start_step() {
@@ -153,7 +121,13 @@ fn forge_line(domain: &mut Domain) -> Option<Box<[u8]>> {
 #[test]
 fn an_unanswered_load_wakes_for_its_report_without_any_input() {
     let (mut domain, mut env) = super::resume::at_phase(false, Phase::LoadCore);
-    begin(&mut domain, &env, Phase::LoadCore);
+    super::resume_fixture::StartStore::new()
+        .advance(
+            &mut domain,
+            &env,
+            super::resume_fixture::Until::Load(crate::Range::Core(crate::CoreRange::Deployment)),
+        )
+        .expect("issued deployment load");
     assert_eq!(domain.next_deadline(&env), Some(Time::ZERO.saturating_add(Duration::from_secs(30))));
     // Store credit is cumulative; four unanswered commits name the oldest three.
     domain.sent_commit = 9;

@@ -38,6 +38,44 @@ mod start_stop;
 mod start_wait;
 mod validity;
 
+pub(crate) fn owned_repository(forge: u16) -> temper_engine_domain_forge::Repository {
+    use temper_engine_domain_forge as domain;
+    domain::Repository {
+        contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
+        refusals: Box::default(),
+        workflows: Box::default(),
+        project: 5,
+        home: forge == 1,
+        provider: skein_forge::api::Repository { forge, repository: 1 },
+        host: Box::from(&b"forge.example"[..]),
+        owner: Box::from(&b"org"[..]),
+        name: Box::from(&b"repo"[..]),
+        prefix: Box::from(&b"temper/"[..]),
+        role: domain::Role::Owned,
+        ci: true,
+        checks: Box::new([]),
+        kinds: domain::Kinds {
+            read: true,
+            push: true,
+            open: true,
+            land: true,
+            review: true,
+            status: true,
+            comment: true,
+            issue: true,
+            branch: true,
+        },
+        protection: domain::Protection::Absent,
+        settings: skein_forge::api::Settings {
+            default_branch: Box::from(&b"main"[..]),
+            merge: true,
+            squash: true,
+            rebase: false,
+        },
+    }
+}
+
 const LIMITS: Limits =
     Limits { commits: 2, held: 8, writes: 4, deliveries: 4, transcript_bytes: 64, result_bytes: 32, run_bytes: 1 };
 
@@ -99,6 +137,11 @@ fn accept(journal: &mut Journal, limits: &Limits, decision: Decision, out: &mut 
     }
     Ok(())
 }
+pub(crate) fn accept_step(domain: &mut crate::Domain, env: &skein_lib::Env<crate::Limits>, decision: Decision) {
+    accept_routed(&mut domain.journal, &mut domain.engine.core_mut().counters, &env.limits.journal, decision, false)
+        .unwrap();
+}
+
 fn committed(journal: &mut Journal, number: u64) {
     mark_committed(&mut journal.inner, number);
     if !journal.inner.stopped() {
@@ -708,6 +751,8 @@ fn held_assignment() -> crate::Assignment {
                     price_unit: 1,
                     efforts: Box::new([]),
                     effort: None,
+                    speeds: Box::default(),
+                    speed: None,
                 },
                 alternatives: Box::new([]),
                 inspect: false,
@@ -735,7 +780,7 @@ fn held_assignment() -> crate::Assignment {
         }]),
         messages: Box::new([]),
         saved: Box::new([]),
-        workspace: crate::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
+        workspace: crate::ForgeWorkspace::default(),
         workstream: 1,
         transcript: Box::new([]),
         answered: Box::new([]),
@@ -822,14 +867,13 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
 
     let (mut domain, env) = resume_fixture::root();
     let fixture = held_assignment();
-    domain.hub_link.keep_brief(fixture.task, Box::new([]));
     domain
         .run_workspaces
         .insert(
             fixture.task,
             WorkspacePreparation::Ready(PreparedWorkspace {
                 workspace: RunWorkspace {
-                    workspace: crate::ForgeWorkspace { rerun: None, repositories: Box::new([]) },
+                    workspace: crate::ForgeWorkspace::default(),
                     workstream: fixture.task,
                     writes: Box::new([]),
                     names: Box::new([]),
@@ -861,6 +905,7 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
         transcript: Box::new([]),
         answered: Box::new([]),
         grants: Box::new([]),
+        brief: Box::new([]),
     })));
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
@@ -946,7 +991,7 @@ fn bulk_task_drops_cross_the_journal_without_replacing_record_erases() {
     );
 }
 
-mod room_checks;
+pub(crate) mod room_checks;
 
 mod see;
 
@@ -955,33 +1000,42 @@ mod worker_pause;
 #[test]
 fn forge_declaration_offers_every_write_and_makes_merges_wait() {
     use jig_domain_contract::{
-        effects::{EffectForm, Recovery},
+        effects::{
+            EffectForm::{Creation, Set, Transition},
+            Recovery::{Conditional, Idempotent, Unrecoverable},
+        },
         resources::{ResourceKind, Rule, Taken},
     };
-    use temper_engine_domain_forge as forge;
-    let declaration = crate::translate::forge_declaration(7);
-    assert_eq!(declaration.connector, 7);
+    const FORGE: u16 = 7;
+    let declaration = crate::translate::forge_declaration(FORGE);
+    assert_eq!(declaration.connector, jig_domain_contract::Connector(FORGE));
     assert_eq!(
         declaration.resources.as_ref(),
         &[ResourceKind { kind: 1, hold: Rule::Exclusive { taken: Taken::Waits } }]
     );
-    assert_eq!(declaration.effects.len(), 16);
-    for (number, effect) in (2..=17).zip(&declaration.effects) {
-        let (form, recovery) = forge::effect_shape(number).unwrap();
-        let form = match form {
-            forge::EffectForm::Creation => EffectForm::Creation,
-            forge::EffectForm::Transition => EffectForm::Transition,
-            forge::EffectForm::Set => EffectForm::Set,
-        };
-        let recovery = match recovery {
-            forge::Recovery::Keyed => Recovery::Keyed,
-            forge::Recovery::Conditional => Recovery::Conditional,
-            forge::Recovery::Idempotent => Recovery::Idempotent,
-            forge::Recovery::Unrecoverable => Recovery::Unrecoverable,
-        };
-        assert_eq!(
-            (effect.kind, effect.form, effect.recovery, effect.waits_for_dependencies),
-            (number, form, recovery, number == 4)
-        );
+    let mut rows = List::uncapped();
+    for effect in &declaration.effects {
+        rows.push((effect.kind, effect.form, effect.recovery, effect.waits_for_dependencies)).unwrap();
     }
+    assert_eq!(
+        rows.as_slice(),
+        &[
+            (2, Transition, Unrecoverable, false),
+            (3, Creation, Conditional, false),
+            (4, Transition, Conditional, true),
+            (5, Creation, Unrecoverable, false),
+            (6, Set, Idempotent, false),
+            (7, Creation, Unrecoverable, false),
+            (8, Creation, Unrecoverable, false),
+            (9, Creation, Unrecoverable, false),
+            (10, Set, Idempotent, false),
+            (11, Transition, Idempotent, false),
+            (12, Set, Idempotent, false),
+            (13, Set, Idempotent, false),
+            (14, Set, Idempotent, false),
+            (15, Set, Idempotent, false),
+            (16, Creation, Unrecoverable, false),
+            (17, Transition, Unrecoverable, false),
+        ]
+    );
 }

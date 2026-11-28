@@ -420,10 +420,16 @@ impl<D: DriveFace, A: ArchiveFace, F: FilesFace, P: Processes> PassPlace<D, A, F
                         .map(|copy| (parent, copy))
                 };
                 let walked = self.walk(&recipe.name, from, output)?;
-                if walked.code == 3
-                    && let Some((index, copy)) = &walk_source
-                {
+                let refused_copy = match walked.code {
+                    3 => walk_source.as_ref().map(|source| (source, walked.refusal.as_deref().unwrap_or_default())),
+                    4 if index == start => source
+                        .as_ref()
+                        .zip(walked.first.as_deref().filter(|line| line.starts_with(self.paths.kind.failure_prefix()))),
+                    _ => None,
+                };
+                if let Some(((index, copy), reason)) = refused_copy {
                     remove(&copy.path, &mut self.files)?;
+                    say(output, &format!("copy {} removed: {reason}", chain[*index].name))?;
                     ceiling = *index;
                     retry = true;
                     break;

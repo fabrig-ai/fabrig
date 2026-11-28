@@ -16,9 +16,10 @@ pub fn me() -> Me {
     let mut templates = List::with_capacity(ONE);
     templates
         .push(Template {
+            name: None,
             resources: List::with_capacity(0),
             number: TEMPLATE,
-            name: DocumentText::complete(acts::text(b"Chat")),
+            shown: DocumentText::complete(acts::text(b"Chat")),
             executor: TemplateExecutor::Charter(CHARTER),
             contract: TaskContractDocument::Report { words: WORDS },
             shallower: ONE,
@@ -134,7 +135,7 @@ impl Page {
         for event in [
             Event::StartUnlinked { kept: List::with_capacity(0) },
             Event::SignIn { with: jig_client::With::Transport },
-            Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+            Event::Up { up: jig_client::Up::Served { served: true } },
             Event::Watch { handle: crate::pages::me_handle(), subject: Watchable::Jig(Subject::Me) },
         ] {
             client.step_unlinked(Time::ZERO, Wall::EPOCH, event, &mut emitted);

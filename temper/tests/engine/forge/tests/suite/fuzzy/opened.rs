@@ -1,5 +1,6 @@
 //! Taking, cancellation and source moves before batch turns (forge/change/opened.md, 4–5).
 use super::super::landing_batches::{heard, workflow};
+use jig_domain_contract as contract;
 use skein_fake_forge_domain::{Observation, api as raw};
 use skein_forge::api;
 use skein_lib::Rng;
@@ -65,7 +66,7 @@ pub(super) fn release(world: &mut World, task: u64, ending: top::ReleaseEnding) 
                 top::Request::ContinueRelease { task: due } if due == task => {
                     world.event(top::Event::ContinueRelease { task, entry });
                 }
-                top::Request::EffectsSettled { task: due } if due == task => {
+                top::Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: due })) if due == task => {
                     world.event(top::Event::Release { task, root: task, ending, reason: None, entry });
                 }
                 _ => {}

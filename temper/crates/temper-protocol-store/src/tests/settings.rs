@@ -64,6 +64,8 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
                 close_job: Some(b"tools/close".as_slice().into()),
                 landing_attempts: 7,
                 check_timeout_ms: Some(60000),
+                hook_timeout_max_seconds: 1_800,
+                temper_dir_sign_off: true,
                 flakes: Some(d::Flakes::Rerun(3)),
                 gate_retries: 3,
                 gate_timeout_ms: 70000,
@@ -159,6 +161,22 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
             }),
         ),
         (15, d::Value::ProjectTriager(d::ProjectTriager { owner: d::AreaOwner::Charter(u32::MAX) })),
+        (
+            14,
+            d::Value::ProjectAreas(d::ProjectAreas {
+                areas: Box::new([d::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: d::AreaOwner::CharterNamed(b"triager".as_slice().into()),
+                }]),
+            }),
+        ),
+        (
+            15,
+            d::Value::ProjectTriager(d::ProjectTriager {
+                owner: d::AreaOwner::CharterNamed(b"triager".as_slice().into()),
+            }),
+        ),
         (11, d::Value::Goal(d::TemplateGoal { design: false, close_out: false })),
         (11, d::Value::Goal(d::TemplateGoal { design: true, close_out: true })),
         (11, d::Value::Goal(d::TemplateGoal { design: true, close_out: false })),
@@ -519,8 +537,13 @@ fn agents_setting_round_trips_and_accounts_for_owned_bytes() {
 
 #[test]
 fn repair_settings_with_the_whole_named_llm_round_trip() {
-    let main = d::NamedModel { model: b"catalogue-model".as_slice().into(), effort: Some(b"high".as_slice().into()) };
-    let subagent = d::NamedModel { model: b"helper".as_slice().into(), effort: None };
+    let main = d::NamedModel {
+        model: b"catalogue-model".as_slice().into(),
+        effort: Some(b"high".as_slice().into()),
+        speed: Some(b"fast".as_slice().into()),
+    };
+    let subagent =
+        d::NamedModel { model: b"helper".as_slice().into(), effort: None, speed: Some(b"standard".as_slice().into()) };
     let landing = d::ProjectLanding {
         wait: temper_engine_domain_forge_change::Wait::Landed,
         flakes: Some(d::Flakes::Never),
@@ -552,5 +575,73 @@ fn repair_settings_with_the_whole_named_llm_round_trip() {
         }),
     });
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row.clone()));
+
+    let current = fixtures::layouts::BINARY;
+    let previous = current.replace(
+        "record NamedModel { model: bytes 4096 effort: option bytes 32 speed: option bytes 32 = none }",
+        "record NamedModel { model: bytes 4096 effort: option bytes 32 }",
+    );
+    assert_ne!(current, previous);
+    let mut earlier = super::dev_layouts::Dev::with_layout(&previous);
+    let old = earlier.row(&row, "setting");
+    let restored = earlier.read(&old, "setting");
+    let named = |row: forge::Stored| {
+        let forge::Stored::Setting(row) = row else { panic!("setting row") };
+        let d::Edit::Set(set) = row.edit else { panic!("set") };
+        let d::Value::Landing(landing) = set.value else { panic!("landing settings") };
+        landing.repairs.unwrap().goal.llm.unwrap()
+    };
+    let mut expected = named(row);
+    expected.main.speed = None;
+    expected.subagents[0].speed = None;
+    let later = expected.later.as_mut().unwrap();
+    later.main.speed = None;
+    later.subagents[0].speed = None;
+    assert_eq!(named(restored), expected);
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the previous schema text is a test-only store fixture")]
+fn numeric_area_and_triager_owners_read_from_the_preceding_store_layout() {
+    use skein_codec::{
+        layout::{Mode, Plan, Workspace},
+        schema::parse,
+    };
+    let before = include_bytes!("../../../../tests/codecs/tests/suite/fixtures/store-before-named-owners.schema");
+    let old = parse(before).unwrap();
+    let new = parse(crate::OWNER_SET.families.first().unwrap().current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", None).unwrap();
+    let new_root = new.root(b"Row", None).unwrap();
+    let to_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
+    let to_current = Plan::derive(&old, old_root, &[], &new, new_root, &[]).unwrap();
+    let owner = d::AreaOwner::Charter(14);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for (kind, value, size) in [
+        (
+            14,
+            d::Value::ProjectAreas(d::ProjectAreas {
+                areas: Box::new([d::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: owner.clone(),
+                }]),
+            }),
+            4 + (4 + 5) + (4 + 7) + 5,
+        ),
+        (15, d::Value::ProjectTriager(d::ProjectTriager { owner }), 5),
+    ] {
+        let row = forge::Stored::Setting(d::SettingRow {
+            key: d::SettingKey { kind, scope: 3, number: 1, slot: d::SettingSlot::Change },
+            edit: d::Edit::Set(d::SizedValue { value, size }),
+        });
+        let mut workspace = Workspace::new();
+        let mut previous = skein_lib::Buffer::with_capacity(131_072);
+        assert!(workspace.fit(&to_old));
+        to_old.convert(&records::encode(&row), &mut previous, &mut workspace).unwrap();
+        let mut converted = skein_lib::Buffer::with_capacity(131_072);
+        assert!(workspace.fit(&to_current));
+        to_current.convert(previous.as_slice(), &mut converted, &mut workspace).unwrap();
+        assert_eq!(records::decode(converted.as_slice(), &bounds), Ok(row));
+    }
 }

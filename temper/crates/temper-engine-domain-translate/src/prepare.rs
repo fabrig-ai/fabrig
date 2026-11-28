@@ -16,6 +16,7 @@ pub struct PrepareMember {
     pub head: api::Commit,
     pub message: Box<[u8]>,
     pub squash: Box<[u8]>,
+    pub head_trailers: bool,
 }
 #[derive(Debug)]
 pub struct PrepareRequest {
@@ -27,6 +28,93 @@ pub struct PrepareRequest {
     pub members: Box<[PrepareMember]>,
 }
 
+/// Assemble the unprepared suffix of the landing into the job's request.
+#[must_use]
+pub fn request(
+    forge: &forge::Domain,
+    task: u64,
+    limit: u32,
+    head_trailers: &[forge::LandingHeadTrailers],
+) -> Option<PrepareRequest> {
+    let row = forge.landing(task)?;
+    let first = row.landing.members.first()?;
+    let provider = api::Repository { forge: first.repository.forge, repository: first.repository.repository };
+    let repository = forge.repository(provider)?;
+    let mut base = None;
+    for member in &row.landing.members {
+        if member.left.is_none() && member.landed.is_none() {
+            base = member.base;
+            break;
+        }
+    }
+    let base = base?;
+    let main = row.landing.branch == repository.landing;
+    let (combine_main, combine_other) = match forge.landing_settings(row.landing.project) {
+        Some(config) => (config.combine_main, config.combine_other),
+        None => (Combine::Merge, Combine::Squash),
+    };
+    let combine = if main { combine_main } else { combine_other };
+    let mut from = base;
+    let mut members = List::with_capacity(limit);
+    for (index, member) in row.landing.members.iter().enumerate() {
+        if member.left.is_some() || member.landed.is_some() {
+            continue;
+        }
+        if let Some(prefix) = member.candidate {
+            from = prefix;
+            continue;
+        }
+        let change = forge.change(member.change)?;
+        let head = member.head?;
+        let position = u16::try_from(index).expect("bounded members");
+        let mut trailers = b"".as_slice();
+        for read in head_trailers {
+            if read.member == position {
+                trailers = &read.block;
+                break;
+            }
+        }
+        let text = temper_protocol_member_message::Member {
+            title: &change.title,
+            words: &change.report,
+            change: member.change,
+            pull: member.pull,
+            head,
+            goal: change.goal,
+            head_trailers: trailers,
+        };
+        let message = temper_protocol_member_message::commit_message(
+            &text,
+            temper_protocol_member_message::Kind::Merge { into_main: main },
+        );
+        let squash =
+            temper_protocol_member_message::commit_message(&text, temper_protocol_member_message::Kind::Squash);
+        members
+            .push(PrepareMember {
+                number: u64::try_from(index).ok()?.checked_add(1)?,
+                branch: change.branch.clone(),
+                prefix: member.branch.clone(),
+                head,
+                message,
+                squash,
+                head_trailers: combine == Combine::Squash
+                    && temper_protocol_member_message::trailers(&change.report).is_empty(),
+            })
+            .ok()?;
+    }
+    if members.is_empty() {
+        return None;
+    }
+    Some(PrepareRequest {
+        repository: repository.name.clone(),
+        main: base,
+        from,
+        combine,
+        train_upstream: row.landing.round.upstream,
+        members: members.into_boxed(),
+    })
+}
+
 /// Encode the built-in prepare job's bounded spec, with no external command.
 #[must_use]
 pub fn spec(request: &PrepareRequest, bound: u32) -> Option<Box<[u8]>> {
@@ -36,7 +124,15 @@ pub fn spec(request: &PrepareRequest, bound: u32) -> Option<Box<[u8]>> {
     let length = measure.measured().ok()?;
     let mut json = Encoder::write(length, &limits);
     encode(&mut json, request);
-    let spec = v1::JobSpec { command: Box::new([]), request: json.finish(), refusal: false };
+    let spec = v1::JobSpec {
+        command: Box::new([]),
+        request: json.finish(),
+        refusal: false,
+        result: temper_protocol_worker_wire::DEFAULT_JOB_RESULT_BYTES,
+        outdated: false,
+        find: false,
+        fallback: Box::new([]),
+    };
     if spec.measure(&v1::CEILINGS).ok()? > bound {
         return None;
     }
@@ -77,6 +173,10 @@ fn encode(json: &mut Encoder, request: &PrepareRequest) {
         json.string(&member.message);
         json.key(b"squash");
         json.string(&member.squash);
+        if member.head_trailers {
+            json.key(b"head_trailers");
+            json.boolean(true);
+        }
         json.object_end();
     }
     json.array_end();
@@ -155,9 +255,8 @@ pub fn conflict_files(bytes: &[u8]) -> Option<Box<[u8]>> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn a_prepare_spec_is_the_empty_command_and_exact_request() {
-        let request = PrepareRequest {
+    fn request(head_trailers: bool) -> PrepareRequest {
+        PrepareRequest {
             repository: b"repo".as_slice().into(),
             main: [1; 32],
             from: [1; 32],
@@ -170,14 +269,28 @@ mod tests {
                 head: [2; 32],
                 message: b"Merge \"title\"\n\nLanded".as_slice().into(),
                 squash: b"title\n\nTemper-Change: 12".as_slice().into(),
+                head_trailers,
             }]),
-        };
+        }
+    }
+
+    #[test]
+    fn a_prepare_spec_is_the_empty_command_and_exact_request() {
+        let request = request(false);
         let bytes = spec(&request, 16_384).expect("bounded prepare");
         let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("encoded spec");
         assert_eq!(decoded.command.as_ref(), b"");
         assert!(!decoded.refusal);
         assert_eq!(decoded.request.as_ref(), br#"{"version":1,"repository":"repo","main":"0101010101010101010101010101010101010101010101010101010101010101","from":"0101010101010101010101010101010101010101010101010101010101010101","combine":"squash","train_upstream":"0303030303030303030303030303030303030303030303030303030303030303","members":[{"number":12,"branch":"temper/7/c12","prefix":"temper/7/l13","head":"0202020202020202020202020202020202020202020202020202020202020202","message":"Merge \"title\"\n\nLanded","squash":"title\n\nTemper-Change: 12"}],"upstreams":[],"gates":[]}"#);
         assert!(spec(&request, u32::try_from(bytes.len()).expect("length") - 1).is_none());
+    }
+
+    #[test]
+    fn a_flagged_prepare_member_encodes_head_trailers_after_squash() {
+        let bytes = spec(&request(true), 16_384).expect("bounded prepare");
+        let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("encoded spec");
+        let member_end = br#""squash":"title\n\nTemper-Change: 12","head_trailers":true}]"#;
+        assert!(skein_lib::bytes::find(&decoded.request, member_end).is_some());
     }
 
     #[test]

@@ -30,8 +30,8 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
 - **Bare `temper`** runs the TUI when stdin and stdout are both
   terminals (skein-shell's `terminal_modes` answers for descriptors 0
   and 1), at the address of the engine's link file its environment
-  names, when the binary reads one there (2, *The engine's link, kept
-  at rest*), else at the origin its directory keeps (2), an engine on
+  names, when the binary reads one there (`directory.md`, 1, *The engine's link, kept
+  at rest*), else at the origin its directory keeps (`directory.md`, 1), an engine on
   loopback or a deployment by name, else at
   `http://127.0.0.1:8367`, the clients' port `temper-box init` prefers
   (`../../../help/reference/commands.md`). So on a machine with no box
@@ -75,7 +75,7 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   }
   ```
 
-  `parse` is the one reader, of the argument, of the origin kept (2)
+  `parse` is the one reader, of the argument, of the origin kept (`directory.md`, 1)
   and of a recording's (`journeys.md`, 3.2): it takes what `print`
   prints, a final `/` or none, NAME in any case and `:443` written out,
   and refuses the rest by `Unaddressed`'s cause (the table below). A
@@ -85,7 +85,7 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   configured public origin, which no client crate links and which holds
   no loopback address the TUI reaches, so the TUI keeps its own.
 - **At a name, resolved at start:** for an `https://` origin, after its
-  directory (2), the binary resolves NAME once, before the loop, through
+  directory (`directory.md`, 1), the binary resolves NAME once, before the loop, through
   the platform's resolver, `(NAME, PORT)` as `std`'s `ToSocketAddrs`
   takes it, as skein's shells resolve their configured peers (skein's
   `runtime/io/README.md`, section 3), and gives every address found, in
@@ -121,7 +121,7 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   | ADDRESS a sign-in link | `temper: a sign-in link is never an argument: run temper http://HOST:PORT and paste it` |
   | `http://` HOST not on loopback (`OffLoopback`) | `temper: the engine's address must be on loopback` |
   | two arguments or more | `temper: invalid arguments` and the usage, `usage: temper [ADDRESS]` |
-  | the directory unresolved or refused (2) | `temper: DIRECTORY: ` and what was refused |
+  | the directory unresolved or refused (`directory.md`, 1) | `temper: DIRECTORY: ` and what was refused |
   | NAME not resolved at start, or resolved to no address | `temper: can't find NAME: WHY`, WHY the resolver's words or "no address" |
   | the machine's roots not read | `temper: the machine's trust roots: WHY`, WHY skein-shell's refusal |
 
@@ -134,22 +134,14 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   an ADDRESS that isn't one is refused, exit 2, as its table's refusals
   are. Its `temper-client-shell` captures arguments, environment and
   working directory once and gives them to the TUI's start. Its
-  directory, its `address` and each origin's directory are the same (2)
+  directory, its `address` and each origin's directory are the same (`directory.md`, 1)
   whether it runs on an engine or in front of a box (`box.md`), and it
   reads the engine's link file (`../../protocol/binaries.md`).
-
-## 2. Its directory
-
-Moved to [`directory.md`](directory.md), section 1.
-
-## 3. Its host and the seam
-
-Moved to [`host.md`](host.md), section 1.
 
 ## 4. Its loop and closing
 
 - **One host on skein's loop** (skein-shell's `drive`),
-  `temper-client-shell-tui`'s `run::Run`: the host (3);
+  `temper-client-shell-tui`'s `run::Run`: the host (`host.md`, 1);
   `jig-client-shell-native`'s `Shell`, its transport and its files, as
   `temper-box open`'s; skein's full-screen terminal on stdin and stdout
   (skein's `ui/screen.md`, section 8); and SIGINT, SIGTERM and SIGWINCH
@@ -172,24 +164,24 @@ Moved to [`host.md`](host.md), section 1.
   engine, the native shell's `Engine` (jig's `protocol/client/shells.md`,
   section 1: `Plain` at an `http://` origin, `Tls` at a name, with the
   addresses resolved and the machine's roots, 1), the origin's
-  directory (2), the origin, the depth, the size, the limits
+  directory (`directory.md`, 1), the origin, the depth, the size, the limits
   and the opener, the scheme where `COLORFGBG` decided it, or none for
   the terminal's answer to decide (`theme.md`); the path of the engine's link
-  file, or none where the platform keeps none (2); whether the TUI is
-  on a box, `boxed` (2, *On a box*); and the note the binary
-  read (2).
+  file, or none where the platform keeps none (`directory.md`, 1); whether the TUI is
+  on a box, `boxed` (`directory.md`, 1, *On a box*); and the note the binary
+  read (`directory.md`, 1).
 - **Each iteration:** the native shell iterates; once it has loaded the
   token and the small store, and the terminal's background is no longer
   awaited (`Terminal::background`, skein's `ui/screen.md`, section 8),
   `Start`, at the terminal's size, in the scheme chosen, with the
   terminal's background where it answered (`theme.md`) and whether the TUI is
-  on a box (2); then the
+  on a box (`directory.md`, 1); then the
   credential's write ended, the transport's events, the native shell's
-  last TLS failure when it changed (3, *The handshake*), the window's size
+  last TLS failure when it changed (`host.md`, 1, *The handshake*), the window's size
   when it changed, the keys, and the root's deadline when it is due,
   each a report whose duties are carried at once, the root settled
   first (jig's `client/domain/root.md`, section 3): the requests to the
-  native shell, the credential kept or erased, the note written (2),
+  native shell, the credential kept or erased, the note written (`directory.md`, 1),
   the address noted for the binary, the engine's link file read and
   reported at once as `Local`, the loopback listener opened or closed,
   a request's answer written, closing. Once anything was reported, the
@@ -215,7 +207,7 @@ Moved to [`host.md`](host.md), section 1.
   finishes the write it began and writes its `LEAVE`; the native shell
   finishes the small store's last write, then closes its connections
   and files; the binary sets the terminal's modes back, writes the
-  address (2) and exits 0. What is pending stays in the small store,
+  address (`directory.md`, 1) and exits 0. What is pending stays in the small store,
   as `temper-box open`'s does (`../line.md`, 6).
 - **Its startup** is the binary's (skein's `ui/screen.md`, section 8):
   the input set raw with the interrupt keys passed as bytes
@@ -262,7 +254,7 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
 - **The TUI after landing** (`README.md`, 1, and `directory.md`, 1, and `host.md`, 1 and `pages/README.md` and `theme.md` and `README.md`, 4): on a fresh box, start bare
   `temper` in another terminal before opening the printed link and read
   the launchpad with nothing pasted, then open the printed link in the
-  browser and see it sign in, with no fresh link printed (2); check
+  browser and see it sign in, with no fresh link printed (`directory.md`, 1); check
   renewal after expiry and refusal to renew after a
   sign-out noted before the expiry slack. With no usable engine's link
   file, paste the printed link, then sign in through the browser's
@@ -280,7 +272,8 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
   (`tui/whole-story/launchpad.html` and `pair/` beside it): the brief
   and `/brief`, *Where you left off* with a goal among its rows, each
   mark under Needs you and its walk by `/needs` and from a need's row, `/change` and
-  `/ask` with words, `/chats N`, and `/open` opening the browser on the
+  `/ask` with words, Up from the box to a chat's row and Enter opening
+  it, and `/open` opening the browser on the
   page in focus; and a reply's views printed in a chat beside the web's
   drawing of them (`../../draft/surfaces.md`, 11.1, 11.4 and 11.5). The
   user takes the recorded frames, `launchpad-drawn`'s among them, and

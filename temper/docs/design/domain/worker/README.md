@@ -315,14 +315,6 @@ capped edge; a host's channel and the kernel's queues stay capped.
   dispatched before the next; a run's progress before its watchdog; and
   the link's records after the assignment they name, as above.
 
-## 4. Hosted runs
-
-Moved to [`hosted-runs.md`](hosted-runs.md), section 1.
-
-## 5. Agent processes
-
-Moved to [`agent-processes.md`](agent-processes.md), section 1.
-
 ## 6. Facts
 
 - **A run's facts** go up to the engine as jig's activity, through the

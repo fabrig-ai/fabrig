@@ -2,9 +2,7 @@
 use super::{Decision, Domain, Env, Filer, FindingRefusal, Holder, Limits, Work, forge, forge_route, tasks};
 use jig_domain_core::effects::connector::SeededGoal;
 use skein_lib::{Decimal, List};
-use temper_engine_domain_translate::{
-    goal_authority, repair_goal_spec, repair_goal_template, resource_report, stamp_repair,
-};
+use temper_engine_domain_translate::{goal_authority, repair_goal_spec, repair_goal_template, stamp_repair};
 
 pub(super) fn repair(
     domain: &mut Domain,
@@ -128,11 +126,12 @@ fn report_holdings(
         let Some((role, hold)) = domain.forge.resource_facts(name) else {
             return Err(refused(tasks::Refusal::Unreported));
         };
-        let Some(event) = resource_report(domain.config.forge_connector, &env.limits.tasks, project, name, role, hold)
-        else {
+        let connector = domain.config.forge_connector;
+        let Some(up) = forge_route::resource_report(connector, &env.limits.tasks, project, name, role, hold) else {
             return Err(refused(tasks::Refusal::Holds));
         };
-        let routed = forge_route::step_core(domain, env, event);
+        let input = jig_domain_core::engine::In::Connector(jig_domain_contract::Connector(connector), up);
+        let routed = forge_route::step_engine(domain, env, input);
         super::super::route_engine_requests(domain, env, decision, routed);
     }
     Ok(())

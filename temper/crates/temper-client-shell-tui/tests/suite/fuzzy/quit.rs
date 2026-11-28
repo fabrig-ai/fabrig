@@ -169,7 +169,8 @@ fn host_with_open_chat(hosts: &Hosts, seed: u64, hello: &[u8], left_off: &w::Own
     }).unwrap_or_else(|| panic!("seed {seed}: no left-off chat watch"));
     read_document(&mut host, watch, left_off, seed, Read::Starting);
     host.frame();
-    host.report(Report::Key(Key::Paste(b"/chats 1".as_slice().into())));
+    host.report(Report::Key(Key::Up));
+    host.frame();
     let duties = host.report(Report::Key(Key::Enter));
     let watch = watch_where(&duties, |subject| matches!(subject, w::Subject::Task(task) if task.task == CHAT))
         .unwrap_or_else(|| {
@@ -220,8 +221,9 @@ fn hello() -> Box<[u8]> {
 
 fn me() -> w::Me {
     let template = w::Template {
+        name: None,
         number: jig_client::shapes::CHAT,
-        name: records::wire_text(b"Chat"),
+        shown: records::wire_text(b"Chat"),
         executor: w::TemplateExecutor::Charter(w::TemplateCharter { value: 7 }),
         contract: w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: 32 }),
         shallower: 1,

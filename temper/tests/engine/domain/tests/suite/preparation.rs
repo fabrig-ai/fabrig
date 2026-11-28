@@ -6,7 +6,7 @@ use jig_domain_core::{self as core, engine::store as engine_store};
 use jig_domain_host as host;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Duration, ReplyTo, Time, Token};
+use skein_lib::{Duration, ReplyTo, Token};
 use temper_engine_domain as engine;
 use temper_engine_domain::{CoreRange, Range};
 use temper_engine_domain_world::direct::{Driver, answer_token, say_ask};
@@ -903,15 +903,14 @@ fn a_transcript_read_landing_after_a_message_ended_its_preparation_is_dropped() 
         }
         driver.settle();
         assert!(driver.root.quiescent(), "root quiescence includes Loads::quiescent after reclaim");
-        assert_eq!(
-            driver.windows.iter().filter(|(_, task)| *task == first.task).count(),
-            1,
-            "stale pages issue no new load"
-        );
-        // The message ended that preparation; the task backs off and prepares again.
-        driver.advance_to(Time::from_nanos(Duration::from_secs(1).as_nanos()));
-        engine::fire(&mut driver.root, &driver.env);
-        driver.settle();
+        let loads: Vec<_> =
+            driver.windows.iter().filter_map(|(load, task)| (*task == first.task).then_some(*load)).collect();
+        let [abandoned, replacement] = loads.as_slice() else {
+            panic!("only the original and replacement preparations issue window loads: {loads:?}")
+        };
+        assert_eq!(*abandoned, owner);
+        assert_ne!(*replacement, owner, "stale pages issue no new load under the abandoned token");
+        // The message made the preparation stale; the replacement needs no timer.
         let next = driver.last_assignment();
         assert_eq!((next.task, next.attempt), (first.task, 2));
         let expected: Vec<Box<[u8]>> =

@@ -26,7 +26,7 @@ pub struct Member {
 }
 
 /// Every object shape the engine and worker decoders read.
-pub static SHAPES: [Shape; 64] = [
+pub static SHAPES: [Shape; 66] = [
     Shape { name: "engine", paths: &["engine"], line: "The engine's configuration, read before startup." },
     Shape {
         name: "limits",
@@ -65,6 +65,12 @@ pub static SHAPES: [Shape; 64] = [
         name: "model",
         paths: &["engine.llm.models[]"],
         line: "A document model default, numbered by position from 1, with its context bounds, efforts and prices.",
+    },
+    Shape { name: "speed", paths: &["engine.llm.models[].speeds[]"], line: "One faster speed the model serves." },
+    Shape {
+        name: "speed-prices",
+        paths: &["engine.llm.models[].speeds[].prices"],
+        line: "Prices in the model's token unit.",
     },
     Shape { name: "prices", paths: &["engine.llm.models[].prices"], line: "Model prices and their token unit." },
     Shape {
@@ -353,7 +359,7 @@ pub static SHAPES: [Shape; 64] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 277] = [
+pub static MEMBERS: [Member; 290] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -842,6 +848,51 @@ pub static MEMBERS: [Member; 277] = [
     },
     Member {
         shape: "model",
+        name: "speeds",
+        kind: "list of speed",
+        bound: "4 speeds",
+        required: false,
+        line: "Lists the model's faster speeds in order, with none when absent.",
+        gone: None,
+    },
+    Member {
+        shape: "model",
+        name: "speed",
+        kind: "text",
+        bound: "1 to 32 bytes",
+        required: false,
+        line: "Names the model's default speed, with standard speed when absent.",
+        gone: None,
+    },
+    Member {
+        shape: "speed",
+        name: "name",
+        kind: "text",
+        bound: "1 to 32 bytes",
+        required: true,
+        line: "Names the speed as the provider takes it.",
+        gone: None,
+    },
+    Member {
+        shape: "speed",
+        name: "also",
+        kind: "list of text",
+        bound: "2 names; 1 to 32 bytes each",
+        required: false,
+        line: "Lists other names the provider may report it served under.",
+        gone: None,
+    },
+    Member {
+        shape: "speed",
+        name: "prices",
+        kind: "speed-prices",
+        bound: "",
+        required: true,
+        line: "Gives the speed's prices, each at least the standard rate.",
+        gone: None,
+    },
+    Member {
+        shape: "model",
         name: "description",
         kind: "text",
         bound: "1 to 512 bytes",
@@ -905,6 +956,42 @@ pub static MEMBERS: [Member; 277] = [
     },
     Member {
         shape: "prices",
+        name: "cache_write",
+        kind: "integer",
+        bound: "1 to 18446744073709551615",
+        required: false,
+        line: "Prices cache writes separately when the provider charges for them.",
+        gone: None,
+    },
+    Member {
+        shape: "speed-prices",
+        name: "input",
+        kind: "integer",
+        bound: "1 to 18446744073709551615",
+        required: true,
+        line: "Prices input tokens per price unit.",
+        gone: None,
+    },
+    Member {
+        shape: "speed-prices",
+        name: "cached",
+        kind: "integer",
+        bound: "1 to 18446744073709551615",
+        required: true,
+        line: "Prices cached input tokens per price unit.",
+        gone: None,
+    },
+    Member {
+        shape: "speed-prices",
+        name: "output",
+        kind: "integer",
+        bound: "1 to 18446744073709551615",
+        required: true,
+        line: "Prices output tokens per price unit.",
+        gone: None,
+    },
+    Member {
+        shape: "speed-prices",
         name: "cache_write",
         kind: "integer",
         bound: "1 to 18446744073709551615",
@@ -1292,6 +1379,15 @@ pub static MEMBERS: [Member; 277] = [
     },
     Member {
         shape: "charter",
+        name: "name",
+        kind: "text",
+        bound: "1 to 32 lowercase ASCII letters, digits or hyphens; starts with a letter",
+        required: false,
+        line: "Names the charter beside its number.",
+        gone: None,
+    },
+    Member {
+        shape: "charter",
         name: "instructions",
         kind: "text",
         bound: "4096 bytes; configuration path",
@@ -1652,11 +1748,20 @@ pub static MEMBERS: [Member; 277] = [
     },
     Member {
         shape: "template",
-        name: "name",
+        name: "shown",
         kind: "text",
         bound: "documents.text_bytes",
         required: true,
-        line: "Gives the template's name for showing.",
+        line: "Gives the template's name for showing; required unless given as the earlier form.",
+        gone: None,
+    },
+    Member {
+        shape: "template",
+        name: "name",
+        kind: "text",
+        bound: "with shown: 1 to 32 lowercase ASCII letters, digits or hyphens; starts with a letter; otherwise documents.text_bytes",
+        required: false,
+        line: "Names the template beside its number when shown is present; otherwise gives its shown name alone.",
         gone: None,
     },
     Member {
@@ -1881,7 +1986,7 @@ pub static MEMBERS: [Member; 277] = [
         kind: "model-effort",
         bound: "",
         required: true,
-        line: "Chooses the main model and its effort.",
+        line: "Chooses the main model, its effort and optionally its speed.",
         gone: None,
     },
     Member {
@@ -1890,7 +1995,7 @@ pub static MEMBERS: [Member; 277] = [
         kind: "list of model-effort",
         bound: "64 models; no model twice",
         required: true,
-        line: "Chooses the models and efforts the run's sub-agents may use.",
+        line: "Chooses the models, efforts and optional speeds the run's sub-agents may use.",
         gone: None,
     },
     Member {
@@ -1899,7 +2004,7 @@ pub static MEMBERS: [Member; 277] = [
         kind: "llm-later",
         bound: "",
         required: false,
-        line: "Gives the models and efforts for runs after the first activation.",
+        line: "Gives the models, efforts and optional speeds for runs after the first activation.",
         gone: None,
     },
     Member {
@@ -1908,7 +2013,7 @@ pub static MEMBERS: [Member; 277] = [
         kind: "model-effort",
         bound: "",
         required: true,
-        line: "Names the main model and its effort for later runs.",
+        line: "Names the main model, its effort and optionally its speed for later runs.",
         gone: None,
     },
     Member {
@@ -1917,7 +2022,7 @@ pub static MEMBERS: [Member; 277] = [
         kind: "list of model-effort",
         bound: "64; each model once",
         required: true,
-        line: "Names each model later runs may delegate to, with its effort.",
+        line: "Names each model later runs may delegate to, with its effort and optional speed.",
         gone: None,
     },
     Member {
@@ -1936,6 +2041,15 @@ pub static MEMBERS: [Member; 277] = [
         bound: "32 bytes; null only when the model takes none",
         required: true,
         line: "Names an effort the model takes, or none for a model without efforts.",
+        gone: None,
+    },
+    Member {
+        shape: "model-effort",
+        name: "speed",
+        kind: "text",
+        bound: "32 bytes; a declared speed or standard",
+        required: false,
+        line: "Names a speed the model declares, or standard; omitted takes the charter's resolved speed.",
         gone: None,
     },
     Member {
@@ -2116,6 +2230,15 @@ pub static MEMBERS: [Member; 277] = [
         bound: "1 to 4294967295",
         required: true,
         line: "Gives the policy's stable unique number.",
+        gone: None,
+    },
+    Member {
+        shape: "configured-policy",
+        name: "name",
+        kind: "text",
+        bound: "1 to 32 lowercase ASCII letters, digits or hyphens; starts with a letter",
+        required: false,
+        line: "Names the policy beside its number.",
         gone: None,
     },
     Member {

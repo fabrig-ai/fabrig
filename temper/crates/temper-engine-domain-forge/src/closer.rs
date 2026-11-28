@@ -1,4 +1,4 @@
-//! Durable goal closer progress and fresh containment (temper/docs/design/domain/forge/branches.md, 2).
+//! Durable goal closer progress and fresh containment (temper/docs/design/domain/forge/branches-closer.md, 1).
 use crate::{Domain, Key, Limits, Name, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Commit, Error, Read, Repository};
@@ -49,7 +49,7 @@ pub(crate) struct Reading {
     pub(crate) task: u64,
     step: u64,
     repository: Repository,
-    base: Box<[u8]>,
+    base_branch: Box<[u8]>,
     read: Box<[u8]>,
     covered: Option<(Commit, Commit)>,
     stage: Stage,
@@ -202,7 +202,10 @@ fn idle(d: &mut Domain, task: u64) {
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "a fresh check carries the procedure step and both branch names")]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "a fresh check carries the procedure step, repository, branch and purpose"
+)]
 pub(crate) fn check(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -210,7 +213,7 @@ pub(crate) fn check(
     step: u64,
     repository: Repository,
     branch: Box<[u8]>,
-    base: Box<[u8]>,
+    base_branch: Box<[u8]>,
     out: &mut Queue<Request>,
 ) {
     for (_, reading) in &d.closing.reads {
@@ -236,7 +239,7 @@ pub(crate) fn check(
         .reads
         .insert(
             owner,
-            Reading { task, step, repository, base, read: branch_words(&branch), covered, stage: Stage::Branch },
+            Reading { task, step, repository, base_branch, read: branch_words(&branch), covered, stage: Stage::Branch },
         )
         .expect("one fresh check per closer");
     crate::domain::child(
@@ -254,6 +257,7 @@ pub(crate) fn answered(
     out: &mut Queue<Request>,
 ) {
     let Some(mut reading) = d.closing.reads.remove(&owner) else { return };
+    let base_branch = &reading.base_branch;
     match reading.stage {
         Stage::Contains { .. } => {
             let refused = result.as_ref().err().copied();
@@ -290,7 +294,7 @@ pub(crate) fn answered(
                     Some(_) | None => commit,
                 };
                 reading.stage = Stage::Base { head };
-                Read::Branch { branch: reading.base.clone() }
+                Read::Branch { branch: base_branch.clone() }
             }
             Observed::Other => {
                 read_result(d, &reading, None);
@@ -306,7 +310,7 @@ pub(crate) fn answered(
                     skein_forge_client::Event::Hint {
                         hint: skein_forge::api::Hint {
                             repository: reading.repository,
-                            change: skein_forge::api::Change::Branch(reading.base.clone()),
+                            change: skein_forge::api::Change::Branch(base_branch.clone()),
                             key: None,
                         },
                     },
@@ -330,8 +334,8 @@ pub(crate) fn answered(
     let repository = reading.repository;
     let what = match reading.stage {
         Stage::Branch => unreachable!("a branch answer asks for the base"),
-        Stage::Base { .. } => branch_words(&reading.base),
-        Stage::Contains { head, base } => contains_words(&reading.base, base, head),
+        Stage::Base { .. } => branch_words(base_branch),
+        Stage::Contains { head, base } => contains_words(base_branch, base, head),
     };
     let task = reading.task;
     reading.read = what;
@@ -387,24 +391,28 @@ fn observation(answer: Answer) -> Observed {
 }
 
 fn finish(d: &mut Domain, env: &Env<Limits>, reading: Reading, result: Result<bool, Error>, out: &mut Queue<Request>) {
-    if result.is_err() {
-        let wait = match d.closing.backoffs.get(&reading.task) {
-            Some(previous) => Duration::from_nanos(previous.as_nanos().saturating_mul(2)),
-            None => env.limits.client.backoff,
-        };
-        let wait = core::cmp::min(wait, env.limits.client.poll_max);
-        d.closing.backoffs.insert(reading.task, wait).expect("one wait per closer");
-        let until = Wall::from_nanos(env.wall.as_nanos().saturating_add(wait.as_nanos()));
-        d.wait_change(env, reading.task, Some(until));
-    } else {
-        d.closing.backoffs.remove(&reading.task);
-        set_idle(d, reading.task);
-    }
+    finish_wait(d, env, reading.task, result.is_err());
     d.closing.checked.insert(reading.task, (reading.step, result)).expect("one answer per closer");
     out.push(Request::CloserChecked { task: reading.task });
 }
 
-// A squash's merge proves coverage of the head it landed (temper/docs/design/domain/forge/branches.md, 2).
+fn finish_wait(d: &mut Domain, env: &Env<Limits>, task: u64, retry: bool) {
+    if retry {
+        let wait = match d.closing.backoffs.get(&task) {
+            Some(previous) => Duration::from_nanos(previous.as_nanos().saturating_mul(2)),
+            None => env.limits.client.backoff,
+        };
+        let wait = core::cmp::min(wait, env.limits.client.poll_max);
+        d.closing.backoffs.insert(task, wait).expect("one wait per closer");
+        let until = Wall::from_nanos(env.wall.as_nanos().saturating_add(wait.as_nanos()));
+        d.wait_change(env, task, Some(until));
+    } else {
+        d.closing.backoffs.remove(&task);
+        set_idle(d, task);
+    }
+}
+
+// A squash's merge proves coverage of the head it landed (temper/docs/design/domain/forge/branches-closer.md, 1).
 fn covered(d: &Domain, task: u64) -> Option<(Commit, Commit)> {
     let landing = d.closing.rows.get(&task)?.closer.landing?;
     let row = d.change(landing)?;

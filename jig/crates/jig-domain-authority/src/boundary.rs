@@ -1,7 +1,9 @@
 //! Owned questions and answers (domain/authority-checks.md, section 1, and domain/authority.md, section 9).
 
 use alloc::boxed::Box;
-pub use jig_domain_contract::effects::{Answer, Effect, EffectAccess, EffectResource, Finding, Source, Verdict};
+pub use jig_domain_contract::effects::{
+    Answer, Effect, EffectAccess, EffectResource, Finding, Source, Verdict, Writer,
+};
 
 use skein_lib::Wall;
 
@@ -70,20 +72,6 @@ pub struct Given {
     pub at: Wall,
     /// The exact effect state the connector was asked to judge.
     pub state: [u8; 32],
-}
-
-/// Root-verified writer-hold relationship for a run's written resource; authority performs no
-/// ownership discovery. (domain/authority-checks.md, section 1.3).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Writer {
-    /// Hold belongs to the running task.
-    Task,
-    /// Hold belongs to a root-verified ancestor of the running task.
-    Ancestor,
-    /// Hold is unresolved; run admission waits.
-    Pending,
-    /// Another task holds the writer; run admission waits.
-    Other,
 }
 
 /// One workspace resource and its root-verified writer relationship, admitted under run write/name

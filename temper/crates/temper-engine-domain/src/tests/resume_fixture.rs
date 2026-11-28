@@ -183,6 +183,8 @@ pub fn root_with_config_and_limits(
     root_with_records(config, limits, &[])
 }
 
+/// Build a runtime fixture without startup IO or a Wires commit. Tests of
+/// startup itself drive `StartStore` through the ports instead.
 pub fn root_with_records(
     config: engine::Config,
     limits: &engine::Limits,
@@ -221,28 +223,23 @@ pub fn root_with_records(
             engine::Record::Core(_) | engine::Record::Forge { .. } => {}
         }
     }
-    engine::restart::restore_page_row(
+    restore_fixture_row(
         &mut root,
         &env,
         engine::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(deployment))),
     );
     for record in projects.into_boxed() {
-        engine::restart::restore_page_row(
-            &mut root,
-            &env,
-            engine::Record::Core(jig_domain_core::Record::People(record)),
-        );
+        restore_fixture_row(&mut root, &env, engine::Record::Core(jig_domain_core::Record::People(record)));
     }
     let mut decision = engine::Decision::decide(&mut root.journal, &limits.journal);
     for record in records {
         if let engine::Record::Forge { .. } = record {
             root.forge.restore_begin(env.wall);
         }
-        engine::restart::restore_page_row(&mut root, &env, record.clone());
+        restore_fixture_row(&mut root, &env, record.clone());
         engine::route::route_into(&mut root, &env, &mut decision);
     }
-    // In production the page's own write-free decision takes the header's
-    // commit count while the journal is still idle.
+    // This fixture discards the restoration route rather than simulating startup IO.
     if let Some(commits) = root.restored_commits.take() {
         root.journal = engine::Journal::uncapped(1, commits);
         root.sent_commit = commits;
@@ -282,16 +279,61 @@ pub fn root_with_records(
     (root, env)
 }
 
+fn restore_fixture_row(root: &mut engine::Domain, env: &Env<engine::Limits>, row: engine::Record) {
+    use jig_domain_core::Restore;
+    use temper_engine_domain_forge as forge;
+    match row {
+        engine::Record::Core(row) => {
+            engine::store_route::observe_row(root, env, &row);
+            let core_env = crate::limits::environment_core(env);
+            match root.engine.core_mut().restore(&core_env, row) {
+                Restore::Deployment { commits } => {
+                    root.core_header_loaded = true;
+                    root.restored_commits = Some(commits);
+                }
+                Restore::Kept | Restore::Swept => {}
+                Restore::Refused => panic!("fixture could not restore: {:?}", root.engine.core().start_failure()),
+            }
+        }
+        engine::Record::Forge { row } => {
+            if let forge::Stored::Repository(repository) = row.as_ref() {
+                let connector = root.config.forge_connector;
+                root.work.push(engine::Work::Connector(
+                    jig_domain_contract::Connector(connector),
+                    forge::adoption_up(connector, repository),
+                ));
+            }
+            if let forge::Stored::LimitHold(row) = *row {
+                engine::route::forge_route::limit_holds::restore(root, row);
+            } else {
+                root.work.push(engine::Work::Forge(forge::Event::Restore { record: *row }));
+            }
+        }
+    }
+}
+
 /// A typed durable store for the root's startup protocol; every release is an input.
 pub struct StartStore {
     pub rows: alloc::collections::BTreeMap<engine::Key, engine::Record>,
     pub wires: u32,
     pub switches: u32,
+    pub fill: u64,
+}
+
+pub enum Until {
+    Open,
+    WiresDurable,
+    Phase(jig_domain_core::start::Phase),
+    Load(engine::Range),
 }
 
 impl StartStore {
     pub fn new() -> Self {
-        Self { rows: alloc::collections::BTreeMap::new(), wires: 0, switches: 0 }
+        Self { rows: alloc::collections::BTreeMap::new(), wires: 0, switches: 0, fill: 0 }
+    }
+
+    pub fn keep(&mut self, row: engine::Record) {
+        self.rows.insert(row.key(), row);
     }
 
     pub fn apply(&mut self, writes: &[engine::Write]) {
@@ -327,7 +369,7 @@ impl StartStore {
         }
     }
 
-    fn load(
+    pub fn load(
         &self,
         range: &engine::Range,
         after: Option<&engine::Key>,
@@ -358,8 +400,29 @@ impl StartStore {
     }
 
     pub fn run(&mut self, root: &mut engine::Domain, env: &Env<engine::Limits>, pause_at_wires: bool) {
+        let until = if pause_at_wires { Until::WiresDurable } else { Until::Open };
+        assert!(self.advance(root, env, until).is_none());
+        assert_eq!(root.start_stop(), None, "start did not refuse");
+    }
+
+    pub fn advance(
+        &mut self,
+        root: &mut engine::Domain,
+        env: &Env<engine::Limits>,
+        until: Until,
+    ) -> Option<skein_lib::Token> {
         let mut out = skein_lib::Queue::uncapped();
         for _ in 0_u32..1024 {
+            if root.start_stop().is_some() {
+                return None;
+            }
+            if let Until::Phase(target) = &until
+                && root.start_phase() == Some(*target)
+            {
+                assert!(out.is_empty(), "no released work kept by the fixture at a phase boundary");
+                root.reclaim();
+                return None;
+            }
             engine::release(root, env, &mut out);
             engine::release(root, env, &mut out);
             if let Some(request) = out.pop() {
@@ -381,10 +444,11 @@ impl StartStore {
                         engine::step(
                             root,
                             env,
-                            engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }),
+                            engine::Event::Store(engine::StoreInput::Committed { number, fill: self.fill }),
                         );
-                        if wires && pause_at_wires {
-                            return;
+                        if wires && let Until::WiresDurable = until {
+                            root.reclaim();
+                            return None;
                         }
                     }
                     engine::Request::Store(engine::StoreRequest::Switch) => {
@@ -392,6 +456,13 @@ impl StartStore {
                         engine::step(root, env, engine::Event::Store(engine::StoreInput::Switched));
                     }
                     engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
+                        if let Until::Load(wanted) = &until
+                            && *wanted == range
+                        {
+                            assert!(out.is_empty(), "only one startup load in flight");
+                            root.reclaim();
+                            return Some(owner);
+                        }
                         let (rows, next) = self.load(&range, after.as_ref(), most);
                         engine::step(root, env, engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next }));
                     }
@@ -427,7 +498,7 @@ impl StartStore {
                 }
             } else if root.ready() {
                 assert_eq!(root.start_phase(), None);
-                return;
+                return None;
             } else {
                 engine::step(root, env, engine::Event::Resume);
             }

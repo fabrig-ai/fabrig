@@ -1,4 +1,5 @@
 use crate::tests::*;
+use jig_domain_contract::parts;
 use skein_lib::length::len_u64;
 
 /// A preparation counts at its allowance until its load is in, then at
@@ -12,7 +13,7 @@ fn transcript_bytes_follow_a_preparation_from_allowance_to_zero() {
         (FIRST_TURN, b"first opaque turn", b"first turn's text"),
         (FIRST_TURN + 1, b"second opaque turn", b"second turn's longer text"),
     ];
-    let (mut core, limits) = core();
+    let (mut core, limits) = super::briefs::tree_core_with_sections(&[1], limits().brief);
     make_task(&mut core, &limits, TASK);
     send_task(&mut core, &limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(TASK)), task: TASK });
     core.contexts.insert(TASK, core.tasks.run_context(TASK).expect("preparing task")).unwrap();
@@ -58,17 +59,30 @@ fn transcript_bytes_follow_a_preparation_from_allowance_to_zero() {
     );
     assert!(stale.is_empty(), "a late terminal cannot fail the brief");
     assert_eq!(core.transcript_bytes(), retained);
-    let _requests = watch_outputs(
+    super::briefs::plan_fixture(&mut core, &limits, TASK);
+    let section = Token::new(9);
+    watch_connector_outputs(
         &mut core,
         &limits,
-        Event::BriefAssembled {
+        1,
+        contract::Up::Parts(parts::Up::Planned {
             task: TASK,
-            failure: Some(brief::GatherFailure {
-                fate: brief::GatherFate::Transient,
+            sections: Box::new([super::briefs::section(b"fixture", section, 1, 16)]),
+        }),
+    );
+    watch_connector_outputs(
+        &mut core,
+        &limits,
+        1,
+        contract::Up::Parts(parts::Up::Failed {
+            task: TASK,
+            section,
+            failure: parts::Failure {
+                fate: parts::Fate::Transient,
                 section: b"fixture",
                 words: b"brief stopped".as_slice().into(),
-            }),
-        },
+            },
+        }),
     );
     assert_eq!(core.transcript_bytes(), 0);
 }

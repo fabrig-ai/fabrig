@@ -406,6 +406,12 @@ merge, kind 4, on a pattern of landing branches (jig's
   (a gate's number, an approval's role); its panel shows it (`panel.md`, 1), and
   its hold says it, in the forge's words.
 
+- **Temper's own check of `.temper/`,** and the owners' sign-off where a
+  project turns it on, are no rule's requirements: a change into a
+  landing branch touching temper's method waits for both whatever the
+  rules ask, and is made up to date for the check under the queue
+  whatever `requires` says (`../temper-dir.md`, 4 and 5).
+
 ## 3. The landing rules as settings
 
 As `../../../protocol/configuration/settings.md` has them, the forge owns

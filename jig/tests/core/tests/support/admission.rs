@@ -47,6 +47,7 @@ pub fn project_maker(seed: u64) -> World {
         .insert(
             1,
             core::ConfiguredPolicy {
+                name: None,
                 policy: seed.policy.clone(),
                 permissions: Box::new([]),
                 templates: seed.templates.clone(),

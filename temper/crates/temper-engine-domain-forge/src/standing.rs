@@ -7,7 +7,7 @@ use temper_engine_domain_forge_change as change;
 
 use crate::{
     ChangeEvidence, Criterion, Domain, GateCandidate, JudgeFreshness, JudgeVerdict, Limits, Repository, Requires,
-    Reviewer, Touched, domain::branch_resource_name, gates, judge, landing, settings,
+    Reviewer, TemperDirEvidence, Touched, domain::branch_resource_name, gates, judge, landing, settings,
 };
 
 impl Domain {
@@ -236,6 +236,19 @@ impl Domain {
         judge::sign_offs(&approvals.into_boxed(), head, clean.as_slice(), reviewers)
     }
 
+    /// A project's one clean owner approval for a change covered by the check.
+    pub(crate) fn temper_dir_sign_off(&self, project: u32, evidence: TemperDirEvidence) -> Option<Criterion> {
+        if evidence != TemperDirEvidence::Uncovered && self.landing_settings(project)?.temper_dir_sign_off {
+            Some(Criterion::Approval {
+                role: jig_domain_people::Role::Owner.number(),
+                people: 1,
+                freshness: JudgeFreshness::Clean,
+            })
+        } else {
+            None
+        }
+    }
+
     fn landing_criteria(
         &self,
         row: &crate::ChangeRow,
@@ -278,6 +291,9 @@ impl Domain {
                     .ok()?;
             }
         }
+        if !up_to_date && let Some(criterion) = self.temper_dir_sign_off(repository.project, evidence.temper_dir) {
+            criteria.push(criterion).ok()?;
+        }
         Some(criteria.into_boxed())
     }
 
@@ -293,6 +309,17 @@ impl Domain {
         let row = self.landing_change(task, head)?;
         let repository = self.repositories.get(&row.repository)?;
         let criteria = self.landing_criteria(row, head, evidence, up_to_date)?;
+        let checked = match evidence.temper_dir {
+            TemperDirEvidence::Uncovered => true,
+            TemperDirEvidence::Pending => false,
+            TemperDirEvidence::Passed { tree } => match landing {
+                Some(landing) => landing::temper_dir_tree(landing, head, evidence.base_tip) == Some(tree),
+                None => tree == head,
+            },
+        };
+        if !up_to_date && !checked {
+            return Some((JudgeVerdict::Wait, None));
+        }
         let mut result = JudgeVerdict::Met;
         // An effect's evidence can predate an amendment, including a member of
         // a landing whose own task did not change. No stale blocking review

@@ -60,6 +60,7 @@ pub fn env(limits: &Limits) -> Env<Limits> {
 }
 pub fn frame(party: u64) -> WatchEvent {
     WatchEvent::Delivered(Delivery::Me(Box::new(Me {
+        charters: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,
@@ -233,17 +234,7 @@ fn starting(root: &mut crate::Domain, kept: List<skein_lib::RequestRecord<jig_cl
     crate::step(
         root,
         &env(&limits),
-        Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::Served {
-                    served: true,
-                    versions: Some(contract::VersionRange {
-                        first: jig_client_protocol_wire::VERSION,
-                        last: jig_client_protocol_wire::VERSION,
-                    }),
-                },
-            },
-        },
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
         &mut out,
     );
     out

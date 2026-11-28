@@ -21,7 +21,7 @@ pub(crate) const SAVED: &[u8] = checkout::SAVED;
 /// holding task's number in eight big-endian bytes; the same repositories, in
 /// the same order, each reached as its identity.
 pub(crate) fn spec(workstream: u64, workspace: wire::Workspace) -> checkout::Spec {
-    let wire::Workspace { rerun, repositories } = workspace;
+    let wire::Workspace { rerun, repositories, .. } = workspace;
     let count = u32::try_from(repositories.len()).expect("the root checked the repositories against its limits");
     let mut specs = List::with_capacity(count);
     for repository in repositories {
@@ -379,7 +379,7 @@ pub(crate) fn grant(value: jig_domain_link::Grant) -> Option<agent::Grant> {
 
 /// Preserve agent start policy separately from its diagnostic bytes.
 #[must_use]
-pub const fn start_cause(why: agent::RunInvalid) -> host::StartCause {
+pub const fn start_cause(why: &agent::RunInvalid) -> host::StartCause {
     match why {
         agent::RunInvalid::Grants => host::StartCause::Grants,
         agent::RunInvalid::HostPart { .. }
@@ -396,6 +396,7 @@ pub const fn start_cause(why: agent::RunInvalid) -> host::StartCause {
         | agent::RunInvalid::Budget(_)
         | agent::RunInvalid::Price(_)
         | agent::RunInvalid::Llm
+        | agent::RunInvalid::ProgramSpeed { .. }
         | agent::RunInvalid::Effort
         | agent::RunInvalid::Conversation
         | agent::RunInvalid::Endpoint => host::StartCause::Other,

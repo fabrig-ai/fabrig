@@ -1698,6 +1698,37 @@ fn a_released_change_with_a_declined_approval_is_held_again() {
 }
 
 #[test]
+fn releasing_the_same_rejection_twice_keeps_its_account() {
+    use temper_engine_domain_forge_change::{Cause, State};
+    let (mut world, task, head) = held_for(Cause::Rejected);
+    world.advance_ticks(MAX_TICKS);
+    let hex = forge_top::commit_text(&head);
+    let expected = [
+        b"not measured again: its rejection at ".as_slice(),
+        &hex[..12],
+        b" stands; it goes on once the person answers their gate again.\n\n",
+        b"a person rejected its required gate; resolve the rejection before releasing; change was gating",
+    ]
+    .concat();
+    let assigned = world.assigned.len();
+    for release in 1..=2 {
+        let revision = live_task(&world, task).revisions.hold;
+        release_held(&mut world, task, true);
+        world.advance_ticks(MAX_TICKS);
+        let State::Held { hold, .. } = change_row(&world, task).change.state else { panic!("rejection re-held") };
+        assert_eq!(hold.cause, Cause::Rejected);
+        assert_eq!(hold.words.as_ref(), expected, "saved hold after release {release}");
+        let task = live_task(&world, task);
+        assert!(task.revisions.hold > revision);
+        let tasks::Phase::Held { source: Some(source), .. } = &task.phase else { panic!("task re-held") };
+        let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("rejection account") };
+        assert_eq!(words.as_ref(), expected, "task account after release {release}");
+        assert_eq!(world.assigned.len(), assigned);
+    }
+    world.close();
+}
+
+#[test]
 fn a_released_change_checks_its_moved_branch_afresh() {
     let (mut world, task, old) = held_for(temper_engine_domain_forge_change::Cause::BranchMoved);
     let branch = change_row(&world, task).branch.clone();

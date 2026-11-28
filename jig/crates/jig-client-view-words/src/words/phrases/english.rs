@@ -80,6 +80,16 @@ pub fn language() -> Language {
             JigPhrase::SettingFaultJudged => Box::new([Segment::Text(copy_of(b"refused by its owner"))]),
             JigPhrase::SettingLimits => Box::new([Segment::Text(copy_of(b"limits"))]),
             JigPhrase::SettingRules => Box::new([Segment::Text(copy_of(b"the rules"))]),
+            JigPhrase::SettingNameStock => Box::new([Segment::Text(copy_of(b" keeps the stock's name"))]),
+            JigPhrase::SettingNameCharter => {
+                Box::new([Segment::Text(copy_of(b"'s name is taken, by a stock charter or another of your own"))])
+            }
+            JigPhrase::SettingNameTemplate => {
+                Box::new([Segment::Text(copy_of(b"'s name is taken, by a stock template or another of your own"))])
+            }
+            JigPhrase::SettingNamePolicy => {
+                Box::new([Segment::Text(copy_of(b"'s name is taken, by a stock policy or another of your own"))])
+            }
             JigPhrase::SettingFaultShape => {
                 Box::new([Segment::Text(copy_of(b"Setting is out of shape or past its bound"))])
             }

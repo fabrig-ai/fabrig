@@ -3,7 +3,6 @@ use super::super::close_change::finish_job_on;
 use super::*;
 use jig_domain_core::{documents, reads, settings::WorkerSetting};
 use jig_domain_fleet::{Figures, JobRefusal, JobShort, JobShortfall};
-use temper_service_core::limits::CLOSE_DEADLINE;
 
 const FIRST_WORKER: u32 = 1;
 const COVERING_WORKER: u32 = 2;
@@ -11,6 +10,7 @@ const COVERING_POSITION: u32 = 1;
 const COVERING_CHANNEL: Token = Token::new(8);
 const LANDING: &[u8] = b"main";
 const WORK_GOAL: u32 = 4;
+const KIND_DEADLINE: Duration = Duration::from_secs(86_400);
 const SHORT_DEADLINE: Duration = Duration::from_secs(60);
 const UNTRANSLATED: &[u8] = b"the worker's layout cannot keep jig-channel Job.workspace: field";
 
@@ -88,7 +88,7 @@ fn a_close_job_waits_for_a_worker_with_enough_time() {
         job,
         Some(JobShortfall {
             why: JobShort::Deadline,
-            figures: Some(Figures { required: CLOSE_DEADLINE.as_millis(), offered: SHORT_DEADLINE.as_millis() }),
+            figures: Some(Figures { required: KIND_DEADLINE.as_millis(), offered: SHORT_DEADLINE.as_millis() }),
         }),
     );
     assert!(attempts(&world, job).is_empty(), "no close job attempt was committed");
@@ -100,10 +100,21 @@ fn a_close_job_wait_survives_a_cold_restart() {
     let short = JobBound { deadline: SHORT_DEADLINE, ..close_bound() };
     let Close { mut world, goal, change, job } = closing(Box::new([short]));
     let before = refused_close_wait(&mut world, job);
-    let snapshot = temper_engine_domain_world::oracle::Snapshot::new(&waiting_rows(&world, job), world.env.wall);
+    let issue_writes = world.issue_write_times.len();
+    let mut expected = waiting_rows(&world, job);
+    // Re-stepping the close change updates the goal issue, allocating one connector entry.
+    let key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment));
+    let Some(engine::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header)))) =
+        expected.get_mut(&key)
+    else {
+        panic!("deployment row")
+    };
+    header.connector_rows += 1;
+    let snapshot = temper_engine_domain_world::oracle::Snapshot::new(&expected, world.env.wall);
 
     world.restart_same();
     assert_eq!(refused_close_wait(&mut world, job), before);
+    assert_eq!(world.issue_write_times.len(), issue_writes + 1, "only the goal's issue projection is written");
     snapshot.compare_rows(&waiting_rows(&world, job)).unwrap_or_else(|finding| panic!("{finding}"));
 
     finish_with_covering_worker(world, goal, change, job);

@@ -379,10 +379,6 @@ service, over HTTP, rather than joined to the engine's root.
   harness of the caller's, its processes and their order unchanged;
   `world`, `world_metered` and `slices` stay, at `()`.
 
-## 4. A walk in a world
-
-Moved to [`journey-walks-world.md`](journey-walks-world.md), section 1.
-
 ## 5. The program
 
 `temper-client-walk`, `temper/bin/temper-client-walk` and its crate
@@ -454,7 +450,7 @@ is built from, as `temper-client-journeys` does, under both roots.
 - **A request** is compared by `scripts/look-compare.sh NAME C`, which
   prints its journeys into scratch, `temper-client-walk print --out
   DIR`, and compares DIR's pages three ways with the request's commit's
-  (`journey-writer.md`, 6.1; `web/look-requests.md`, 3).
+  (`journey-writer-requests.md`, 1.1; `web/look-requests.md`, 3).
 - **`welcome-playground`:** the welcome seen and marked, "Try the
   playground" pressed, the playground's New chat seen and marked.
   Two pages.
@@ -495,14 +491,14 @@ is built from, as `temper-client-journeys` does, under both roots.
   - **`launchpad-drawn`:** `/change Add a CSV export to the report`
     typed and marked, Enter its key; the chat's reply seen, `/new` typed
     and marked, Enter its key; the launchpad with the chat's question
-    under Needs you seen and marked, `n` its key; the walk's prompt seen
+    under Needs you seen and marked, `/needs` typed, Enter its key; the walk's prompt seen
     and marked, Enter, taking Comma, its key; the launchpad marked once
     it says "Nothing else needs you.". Five pages. Its scripts are the
     chat's reply starting a goal, and that goal's question to the chat,
     its wait and its finish once answered.
   - **`design-session`:** Hello's launchpad marked; `/draft Plan a
     farewell line for hello.` typed and marked, Enter its key; the
-    session marked at half, at all and folded, each linked by Ctrl-P
+    session marked at half, at all and folded, each linked by Ctrl-o
     (`tui/pages/design-session.md`, 1); half with "1" typed and marked,
     Enter its key; the reply saying nothing blocks the work marked;
     `/goal` typed and marked, Enter its key; its ways' prompt marked,
@@ -589,10 +585,10 @@ its own process.
 - **The TUI's longer walks,** simulated, in the program's suite, each a
   TUI journey of the tests' own after a walk of its own that reaches a
   project, with its own `scripts.json`: a `/change` whose chat starts a
-  goal that asks the person, walked by `n` and answered by Enter, the
-  launchpad then needing nothing, its marks linked by `n` and Enter;
+  goal that asks the person, walked by `/needs` and answered by Enter, the
+  launchpad then needing nothing, its marks linked by Enter;
   and a `/draft` session at half, all, folded and half again, each of
-  the first three marks linked by Ctrl-P. Each printed twice, the same
+  the first three marks linked by Ctrl-o. Each printed twice, the same
   bytes.
 - **Each journey's scripts read:** every journey of the
   checkout read by `walk::read`, its chain's scripts joined as the
@@ -634,7 +630,7 @@ its own process.
 - **The gallery's states as walks,** once a world reaches them, their
   answers then the engine's own (`web/gallery.md`).
 - **A recorded file printed across layouts,** by the plans of
-  `../draft/layouts-both-ways.md`, 4, so that printing a person's
+  `../draft/archive/layouts-both-ways.md`, 4, so that printing a person's
   recording needs no build of the deployment's commit.
 - **The writer's future** is `journey-writer.md`, 8: temper running it,
   and the playground's `story-a.log` made by a test rather than kept.

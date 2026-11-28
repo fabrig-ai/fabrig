@@ -308,6 +308,7 @@ impl Backend {
             arguments(
                 &prompt.model,
                 prompt.effort.as_deref(),
+                prompt.speed.as_deref(),
                 &instructions,
                 &mcp_file,
                 &schema,
@@ -353,6 +354,7 @@ impl Backend {
 pub(super) fn arguments(
     model: &[u8],
     effort: Option<&[u8]>,
+    speed: Option<&[u8]>,
     instructions: &[u8],
     mcp_file: &[u8],
     schema: &[u8],
@@ -382,6 +384,10 @@ pub(super) fn arguments(
     if let Some(effort) = effort {
         arguments.push(Box::from(b"--effort".as_slice())).ok()?;
         arguments.push(Box::from(effort)).ok()?;
+    }
+    if speed == Some(b"fast".as_slice()) {
+        arguments.push(Box::from(b"--settings".as_slice())).ok()?;
+        arguments.push(Box::from(br#"{"fastMode": true}"#.as_slice())).ok()?;
     }
     let permission = skein_lib::bytes::concat(&[b"mcp__", mcp::SERVER, b"__", mcp::PROMPT_TOOL]);
     let prompt_flag: &[u8] = if keep_program_prompt { b"--append-system-prompt-file" } else { b"--system-prompt-file" };

@@ -79,6 +79,9 @@ fn assignment(decoded: bool, writable: bool) -> Event {
             command: Box::from(b"home/tools/check".as_slice()),
             request: Box::from(b"request".as_slice()),
             refusal: false,
+            result: 512,
+            outdated: false,
+            fallback: None,
         })
     } else {
         Err(wire::Undecodable)
@@ -111,6 +114,7 @@ fn git(h: &mut Harness, initial: Box<[Request]>, stale: bool) -> Box<[Request]> 
                 }
                 Op::DiffPaths { .. } => panic!("this job scripts no design delivery"),
                 Op::Brings { .. } => Done::Brings { brings: false },
+                Op::Message { .. } => panic!("this fixture has no commit messages"),
                 Op::Look { .. } | Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
                 Op::Reds { .. }
                 | Op::Reset { .. }

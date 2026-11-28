@@ -752,6 +752,14 @@ fn a_restart_keeps_an_open_question_where_it_stood() {
     let (mut world, requester, change, producer) = up_world(None);
     ask(&mut world, &producer, change);
     world.until(Until::Ready);
+    // A quiescent root can still owe an API terminal. Cut only after it arrives.
+    for _ in 0..TICKS {
+        if world.pending.is_empty() {
+            break;
+        }
+        world.tick();
+    }
+    world.until(Until::Ready);
     let questions = row(&world, change).questions.clone();
     world.restart(true, true);
     world.until(Until::Ready);

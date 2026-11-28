@@ -79,6 +79,8 @@ fn run() -> Box<core::RunCharter> {
                 price_unit: 1_000_000,
                 efforts: Box::new([]),
                 effort: None,
+                speeds: Box::default(),
+                speed: None,
             },
             alternatives: Box::new([]),
             inspect: true,
@@ -331,25 +333,6 @@ fn settled_answers_relay_host_bytes_and_return_delivery_evidence() {
     let delivery =
         core::SettledAnswer::Delivery { outcome: core::DeliveryOutcome::Stale, evidence: Box::from(&b"evidence"[..]) };
     assert_eq!(settled_answer(delivery.clone()), Err(delivery));
-}
-
-#[test]
-fn a_brief_plan_keeps_its_task_sections_budget_and_deadline() {
-    let section = jig_domain_brief::Planned::Core {
-        kind: jig_domain_brief::Core::Task,
-        text: Box::from(&b"task"[..]),
-        limit: 32,
-        priority: 1,
-        required: true,
-    };
-    let mut sections = skein_lib::List::uncapped();
-    sections.push(section.clone()).expect("uncapped sections");
-    let deadline = Time::from_nanos(91);
-    let core::Event::Brief(plan) = brief_plan(RUN.raw(), sections, 64, deadline) else { panic!("brief plan") };
-    assert_eq!(
-        plan,
-        jig_domain_brief::GatherEvent::Plan { brief: RUN, budget: 64, deadline, sections: Box::new([section]) }
-    );
 }
 
 /// jig/docs/design/domain/engine/executors.md, 5: a job crosses the committed assignment door, including retries.
@@ -815,11 +798,10 @@ fn a_version_refusal_pauses_with_its_reason_and_keeps_history_usable() {
     let ending = host::Ending::Refused(host::Refusal::Version(host::Mismatch {
         wire: b"smith-charter".as_slice().into(),
         version: 5,
-        lowest: 4,
-        highest: 4,
+        worker_version: 4,
     }));
     let end = tasks::End::RefusedWithReason {
-        reason: b"version mismatch: smith-charter 5, the worker reads 4..4".as_slice().into(),
+        reason: b"version mismatch: smith-charter 5, the worker reads 4".as_slice().into(),
     };
     assert_eq!(payload::ending(&ending, None, skein_lib::Duration::ZERO), end);
     assert!(!payload::unusable_history(&ending));

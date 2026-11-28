@@ -37,11 +37,18 @@ fn refuses_before_switch(row: forge::Stored, expected: forge::MissingLink) {
     assert_eq!(driver.root.forge_missing_link(), Some(expected.clone()));
     assert_eq!(
         driver.root.start_stop(),
-        Some(engine::StartStop::ForgeLink { phase: Some(jig_domain_core::start::Phase::Link), link: expected })
+        Some(engine::StartStop::ForgeLink {
+            phase: Some(jig_domain_core::start::Phase::RestoreConnector { connector: 0 }),
+            link: expected
+        })
     );
     assert!(driver.switches.is_empty(), "no switch asked");
     assert!(!driver.transactions.iter().flatten().any(|write| matches!(write, Write::Wires)), "no mark");
-    assert_eq!(driver.root.start_phase(), Some(jig_domain_core::start::Phase::Link), "no adoption stage");
+    assert_eq!(
+        driver.root.start_phase(),
+        Some(jig_domain_core::start::Phase::RestoreConnector { connector: 0 }),
+        "no adoption stage"
+    );
     assert!(!driver.root.ready(), "no decisions");
     assert!(driver.delivered.is_empty(), "no run adopted or delivered");
     assert!(driver.immediate.is_empty(), "no external requests");
@@ -160,6 +167,8 @@ fn unmade_rows() -> Box<[forge::Stored]> {
         panic!("repository")
     };
     repository.project = 1;
+    // This repository supplies link rows, not a home with a live forge peer.
+    repository.home = false;
     repository.provider.repository = 7;
     let changes: Vec<_> = [8975, 9104, 9885]
         .into_iter()
@@ -454,7 +463,10 @@ fn an_unmade_landings_hold_with_a_live_writer_still_refuses_the_start() {
         };
         assert_eq!(
             driver.root.start_stop(),
-            Some(engine::StartStop::ForgeLink { phase: Some(jig_domain_core::start::Phase::Link), link: expected })
+            Some(engine::StartStop::ForgeLink {
+                phase: Some(jig_domain_core::start::Phase::RestoreConnector { connector: 0 }),
+                link: expected
+            })
         );
         assert!(!driver.root.ready());
         assert!(driver.switches.is_empty(), "no switch asked");
@@ -512,7 +524,7 @@ fn a_taskless_landing_with_an_outbox_entry_still_refuses_the_start() {
     assert_eq!(
         driver.root.start_stop(),
         Some(engine::StartStop::ForgeLink {
-            phase: Some(jig_domain_core::start::Phase::Link),
+            phase: Some(jig_domain_core::start::Phase::RestoreConnector { connector: 0 }),
             link: forge::MissingLink {
                 kind: forge::RecordKind::Entry,
                 key: forge::Key::Entry(ABSENT_ENTRY),

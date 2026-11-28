@@ -130,6 +130,7 @@ impl<T: Transport> Git<T> {
                 | Command::WriteTree
                 | Command::CommitTree { .. }
                 | Command::MergeBases { .. }
+                | Command::ReadMessage { .. }
                 | Command::BringsList { .. }
                 | Command::IsAncestor { .. }
                 | Command::Push { .. } => jobs.push_back(match &checked.git_dir {
@@ -219,6 +220,7 @@ impl<T: Transport> Git<T> {
             Command::Create { .. }
             | Command::DiffPaths { .. }
             | Command::MergeBases { .. }
+            | Command::ReadMessage { .. }
             | Command::BringsList { .. }
             | Command::Push { .. } => name == b"objects",
         }

@@ -1,6 +1,8 @@
 # stock: status
 
-2026-11-27. Where the tree's code lags or departs from [stock.md](stock.md).
+2026-11-28. Where the tree's code lags or departs from [stock.md](stock.md).
+
+
 
 
 
@@ -8,6 +10,7 @@
 
 
 - **Not yet:** "Claude's cache prices are Anthropic's": the stock prices Claude's cached input as input and no cache write, so C is still 10,896 ("Budgets in runs of the costliest model") [in flight: change 913].
+
 
 - **Not yet:** charter 13 and template 7, a standing role's, its host families and wake policy, and the stock models' prompt cache's life, `cache_life_ms` 300,000 but the scripted model's (`../../domain/agent/standing.md`, sections 2 and 4).
 
@@ -25,7 +28,7 @@ The startup table holds the derived carriers, including the forge answer's
 cuts past the receiving room. The larger pair and real-program observation
 remain `README.md`, section 9's deferred work.
 
-- **Not yet:** the whole document: the reference status-agent gap remains `reference.status.md` (Not yet, the whole document).  the turn's project settings remain `engine.status.md` (Not yet, the whole document).  the Connect and restored-forge checks remain `engine.status.md` (Not yet, the whole document).  the elsewhere-forge git-program gap remains `directories.status.md`, 1. `settings-kinds.md`, 1, `settings.md`, 5 step 2: the landing and gate setting kinds remain `settings-kinds.status.md`, 1, and `settings.status.md`, 5. the whole document: the charter's host-tool families remain `../../domain/agent/tools.status.md` (Not yet, the whole document). the whole document: a coordinator's note in the repository's scope, which both stock and reference charter 5 ask of a flake or an inherited failure: the rules' note scope is the goal's alone and their `note_resources` empty (`temper-service/src/stock.rs`), and `reference.md`'s change of them adds the family, no scope; seen by reading, no test holds it.  the reference's CI and tier workflows remain `reference.status.md` (Not yet, the whole document).  the reference project-settings walk remains `reference.status.md` (Not yet, the whole document).
+- **Not yet:** the whole document: the reference status-agent gap remains `reference.status.md` (Not yet, the whole document).  the turn's project settings remain `engine.status.md` (Not yet, the whole document).  the Connect and restored-forge checks remain `engine.status.md` (Not yet, the whole document).  the elsewhere-forge git-program gap remains `directories.status.md`, 1. `settings-kinds.md`, 1, `settings.md`, 5 step 2: the landing and gate setting kinds remain `settings-kinds.status.md`, 1, and `settings.status.md`, 5. the whole document: the charter's host-tool families remain `../../domain/agent/tools.status.md` (Not yet, the whole document). the reference's CI and tier workflows remain `reference.status.md` (Not yet, the whole document).  the reference project-settings walk remains `reference.status.md` (Not yet, the whole document).
 - **Design departs:** the whole document: the requested message and report sizes remain `settings-output.status.md`, 1. the whole document: the requested brief size remains `settings-output.status.md`, 1.
 
 - **Departs:**  the kept-GitHub remote departure remains `engine.status.md` (Departs, the whole document).  the fixture-forge settings-path departure remains `README.status.md`, 1. The elsewhere-forge configuration-advice gap remains `../../client/forge/deployment.status.md` (Not yet, the whole document).

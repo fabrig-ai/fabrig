@@ -845,7 +845,7 @@ fn a_retained_create_distinguishes_its_account_preference() {
     batch[0].llm = Some(LlmChoice {
         later: None,
         account: Some(41),
-        main: ModelEffort { model: 0, effort: None },
+        main: ModelEffort { model: 0, effort: None, speed: None },
         subagents: Box::new([]),
     });
     let first = world.request(SIGN_IN, [CREATE; 16], ask.clone());

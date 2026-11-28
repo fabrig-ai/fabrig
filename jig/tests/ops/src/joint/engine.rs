@@ -265,7 +265,9 @@ impl Application for OpsApplication {
         };
         if let root::Output::Store(engine_store::Out::Load { load, range }) = delivery {
             let result = match range {
-                range @ (engine_store::Range::Window { .. } | engine_store::Range::Notes(_)) => {
+                range @ (engine_store::Range::Start { .. }
+                | engine_store::Range::Window { .. }
+                | engine_store::Range::Notes(_)) => {
                     return Ops::deliver(
                         &mut peers.conformance,
                         systems,
@@ -293,8 +295,7 @@ impl Application for OpsApplication {
             | root::Output::IncidentAssociationRefused { .. }
             | root::Output::Application { .. }
             | root::Output::Commit { .. }
-            | root::Output::Switch
-            | root::Output::Load { .. }
+            | root::Output::ConnectorLoad(_)
             | root::Output::ReadResult { .. }
             | root::Output::CoreLoad(_)
             | root::Output::Store(_)
@@ -337,7 +338,6 @@ impl Application for OpsApplication {
                 | core::Held::PublicRead { .. }
                 | core::Held::PublicWait { .. }
                 | core::Held::Applied { .. }
-                | core::Held::MakeEffect { .. }
                 | core::Held::SettledCall { .. }
                 | core::Held::Assign { .. }
                 | core::Held::Grant { .. }
@@ -369,6 +369,7 @@ impl Application for OpsApplication {
                 | core::Held::StopRun { .. }
                 | core::Held::NotesWritten { .. }
                 | core::Held::Acted { .. }
+                | core::Held::Connector(_, _)
                 | core::Held::NotesDeleted { .. },
             )
             | root::Output::Now(
@@ -392,8 +393,6 @@ impl Application for OpsApplication {
                 | core::Now::NoteBusy { .. }
                 | core::Now::DropAssignment { .. }
                 | core::Now::Activate { .. }
-                | core::Now::CompleteBrief { .. }
-                | core::Now::BriefCorePlanned { .. }
                 | core::Now::WorkspaceRequest { .. }
                 | core::Now::RunPreparationFailed { .. }
                 | core::Now::BriefFailed { .. }
@@ -403,8 +402,7 @@ impl Application for OpsApplication {
             )
             | root::Output::IncidentAssociationRefused { .. }
             | root::Output::Commit { .. }
-            | root::Output::Switch
-            | root::Output::Load { .. }
+            | root::Output::ConnectorLoad(_)
             | root::Output::ReadResult { .. }
             | root::Output::CoreLoad(_)
             | root::Output::Store(_)

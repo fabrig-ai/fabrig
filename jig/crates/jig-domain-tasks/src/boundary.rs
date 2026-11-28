@@ -2,6 +2,12 @@
 //! (domain/tasks/README.md, sections 2–4 and domain/tasks/lifecycle.md).
 //! Inputs have no protocol bytes or connector events. Root authorizes them,
 //! owns exact transport replay and commits related rows/effects atomically.
+pub use jig_domain_contract::ops::{
+    Added, DelegateState, InvalidResult, PersonOffer, PersonStallNotice, PersonWait, Problem, QuestionAnswerer,
+    Refusal, Revisions, RunContext, Status,
+};
+pub use jig_domain_contract::resources::{SavedResource, Writer};
+
 use crate::{Authority, Class, Funder, Numbers, Tries};
 use crate::{HoldKind, ResourceKind};
 use alloc::boxed::Box;
@@ -87,14 +93,6 @@ pub enum Separate {
     NothingAwaited,
 }
 
-/// A connector resource on which a run left state for its next activation.
-/// The path is opaque to tasks and ordered by literal segment bytes.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct SavedResource {
-    pub connector: u16,
-    pub path: Box<[Box<[u8]>]>,
-}
-
 /// An unanswered question, its first answerer, and its current offer if passed up.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct QuestionCredit {
@@ -121,23 +119,6 @@ pub struct QuestionRelay {
     pub words: Box<[u8]>,
 }
 
-/// An answer names its first writer, not the party on whose behalf it was sent.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum QuestionAnswerer {
-    Task(u64),
-    Person(u64),
-}
-
-impl QuestionAnswerer {
-    #[must_use]
-    pub fn party(self) -> Party {
-        match self {
-            Self::Task(task) => Party::Task(task),
-            Self::Person(person) => Party::Person(person),
-        }
-    }
-}
-
 /// Root-numbered notices for one asker's retired questions.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct QuestionNotice {
@@ -153,34 +134,6 @@ pub struct RecurringState {
     pub last_batch: Box<[u64]>,
     pub last_period: u64,
     pub pending_period: Option<u64>,
-}
-
-/// Why an agent's proposed result failed its current admitted contract.
-/// The next run receives this durable reason in its attempt summary.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum InvalidResult {
-    /// The successful result used a different contract form.
-    Form,
-    /// A verdict named a code absent from the current closed choices.
-    Verdict,
-    /// The result's words exceeded their admitted bound.
-    Words,
-    /// A change named a different connector or result kind.
-    Change,
-    /// The verdict proposed more follow-up tasks than its contract permits.
-    Followups,
-}
-
-/// Content-free terminal classification used in observations and dependency readiness.
-/// (domain/tasks/lifecycle.md, section 1).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Status {
-    /// Task completed successfully; dependents can become due after settlement.
-    Done,
-    /// Task failed; waiting dependents are held.
-    Failed,
-    /// Task was cancelled; waiting dependents are held.
-    Cancelled,
 }
 
 /// Bounded working-set pointer to an ended result still named by live work.
@@ -265,15 +218,6 @@ pub enum ResultFollowups {
 /// The most bytes a wait source can carry.
 pub const WAIT_WORDS: u32 = 512;
 
-/// The one writer of an exclusively held resource (domain/tasks/holds.md, 3).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Writer {
-    /// A claimed agent run, fenced by its attempt.
-    Run { task: u64, attempt: u64 },
-    /// A connector-owned outbox effect.
-    Effect { entry: u64 },
-}
-
 /// Durable writer slot. A lost run retains the slot until its connector reads afresh.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct WriterSlot {
@@ -291,60 +235,11 @@ pub struct PoolSlots {
     pub slots: u32,
 }
 
-/// Revisions of the individual things a party decides, independent of history,
-/// spend and executor progress (client/domain/contract/documents.md, section 2).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Revisions {
-    /// Moves when a hold begins or its reason changes, never when it passes up.
-    pub hold: u64,
-    /// Moves when an amendment changes the task's specification or policy.
-    pub spec: u64,
-    /// Moves when a person task's question or displayed results change.
-    pub person: u64,
-}
-
 /// The first accepted person answer, independent of the temporary role claim.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct PersonAnswer {
     pub by: u64,
     pub at: Wall,
-}
-
-/// One waiting interval of a person task, retained through claims and restart.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct PersonWait {
-    pub since: Wall,
-    pub stall: Duration,
-    pub deadline: Wall,
-    pub notice: Option<PersonStallNotice>,
-    pub offer: Option<PersonOffer>,
-}
-
-/// The current offer, alongside (not instead of) the task's first address.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct PersonOffer {
-    pub holder: PersonAddress,
-    pub since: Wall,
-}
-
-impl PersonWait {
-    /// The stall is counted from arrival at the current holder.
-    #[must_use]
-    pub(crate) fn stall_deadline(self) -> Wall {
-        match self.offer {
-            Some(offer) => Wall::from_nanos(offer.since.as_nanos().saturating_add(self.stall.as_nanos())),
-            None => self.deadline,
-        }
-    }
-}
-
-/// One numbered news item issued when a person task passed its wait.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct PersonStallNotice {
-    pub message: u64,
-    pub at: Wall,
-    /// Exact immutable outgoing activity in this task's ordered tail.
-    pub activity: u64,
 }
 
 /// One committed turn's reply reference (domain/people/README.md, section 5).
@@ -667,190 +562,6 @@ impl Stored {
             Stored::Writer(slot) => Key::Writer(slot.number),
             Stored::Pool(row) => Key::Pool(row.number),
         }
-    }
-}
-
-/// Terminal bounded admission reason; refusal makes no requested lifecycle or financial mutation.
-/// (domain/tasks/README.md, section 4 and domain/tasks/lifecycle.md).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Refusal {
-    /// No delegate joins a concluded gathering (domain/tasks/gatherings.md, 3).
-    Concluded {
-        at: Wall,
-    },
-    NotStanding,
-    TalkOpen {
-        party: u64,
-    },
-    NoTalk,
-    /// A standing placed hold forbids delegation into its scope or detachment from it.
-    Placed {
-        hold: u64,
-    },
-    /// The task caller may not lift this placed hold.
-    HoldOwner {
-        hold: u64,
-    },
-    /// The named placed hold revision moved.
-    HoldRevision {
-        revision: u64,
-    },
-    /// An explicit account preference was refused before the task changes.
-    Account {
-        account: u32,
-        why: crate::AccountWhy,
-    },
-    /// A cancel gave a grace longer than the configured span.
-    Grace,
-    /// The project has no room for more live tracked tasks.
-    Goals,
-    /// No policy role may accept this proposal kind; nothing of it is committed.
-    Unproposable,
-    /// The address edit names an older person task revision.
-    PersonRevision {
-        revision: u64,
-    },
-    /// A required resource is unavailable in this project.
-    ResourceUnavailable,
-    /// A batch's reports did not all come within `tasks.hold_wait`;
-    /// `blocked_by` names its missing members in batch order (domain/tasks/holds.md, 2).
-    Unreported,
-    /// Startup is restoring, checked or failed; no mutation is admitted.
-    NotReady,
-    /// Named creator/task is not in the live arena.
-    Unknown,
-    /// Finite source table has no room before source creation/carving.
-    Busy,
-    /// Task/source identity is already retained or a task number repeats within the batch.
-    Duplicate,
-    /// `Make` batch is empty.
-    Empty,
-    /// `Batch` exceeds the configured direct-child count.
-    Batch,
-    /// `Batch` cannot fit the live task slab/name set, including slots not yet reclaimed.
-    Live,
-    /// Creator/project identity or per-project live task count is invalid.
-    Project,
-    /// Lifetime requester-tree task count would exceed its configured bound.
-    Tree,
-    /// A `new` child's structural depth would exceed the configured bound.
-    Depth,
-    /// Creator's live delegate list cannot fit the batch.
-    Delegates,
-    /// A sender lacks a live delegation or introduced reference to the target.
-    Reference,
-    /// Subscription count, identity, target or timer shape was refused.
-    Subscription,
-    /// `Dependency` count, uniqueness or current-live/same-batch identity is invalid.
-    /// An unreachable dependency is named in `blocked_by`; count and duplicate refusals name none.
-    Dependencies,
-    /// The new waits would close a circle of waits; `blocked_by` names its tasks in order, each
-    /// waiting for the next, at most `Limits::circle` (domain/tasks/holds.md, 7).
-    Circle {
-        cut: bool,
-    },
-    /// A dependency a party's batch names or an amendment adds has ended failed or cancelled;
-    /// `blocked_by` names it (jig/docs/design/domain/tasks/README.md, 4).
-    DependencyEnded {
-        how: Status,
-    },
-    /// The task is kept by pending dependencies, which `blocked_by` names, the oldest first: a
-    /// person's answer, a procedure's step ending it done, or an effect that waits for them
-    /// (domain/tasks/lifecycle-endings.md, 1).
-    Kept,
-    /// Its own unanswered question keeps it (domain/tasks/lifecycle-endings.md, 1).
-    KeptQuestion {
-        question: u64,
-    },
-    /// Its person answers this question in their inbox (domain/people/README.md, 5).
-    QuestionAnswered {
-        question: u64,
-        by: QuestionAnswerer,
-    },
-    PersonAnswers {
-        question: u64,
-    },
-    /// `Agent` charter is absent from the admitted configured table.
-    Executor,
-    /// Specification count or aggregate owned bytes are invalid.
-    Spec,
-    /// `TaskResult`-contract shape or a priced terminal's result-byte admission is invalid.
-    Contract,
-    /// Carried authority collections or aggregate bytes exceed the configured shape bounds.
-    AuthorityShape,
-    /// Retained inputs exceed their bound or cannot be resolved for the requesting task.
-    Inputs,
-    /// Current task phase does not permit the requested admission.
-    State,
-    /// `Attempt` is stale, zero or incompatible with the current phase.
-    Attempt,
-    /// Valid finishing declines to cancel still-live delegates; activation and charge remain
-    /// unadmitted.
-    LiveDelegates,
-    /// A retained row does not fit the configured bounds.
-    /// Ended families stay outside startup.
-    Restore,
-    /// A turn's read fence was not an offered unread message.
-    Read,
-    /// `Turn` is not the next contiguous current-attempt turn, or cumulative expense decreases.
-    Turn,
-    /// Authentic finite source/reservation or eventual funding-chain arithmetic cannot admit the
-    /// whole decision.
-    Funding,
-    /// A task names an unknown, malformed, or mismatched resource kind.
-    HoldKind,
-    /// A required exclusive resource is busy and its kind refuses waiting.
-    HoldTaken,
-    /// A task's hold list or a resource's waiting queue exceeds its bound.
-    Holds,
-    /// An LLM choice names `model`, which it may not, and why (domain/tasks/README.md, sections 3 and 4).
-    Llm {
-        model: u8,
-        why: crate::LlmFault,
-    },
-}
-
-/// `Refusal` location and reason returned to the root; batch-wide failures may have no single task
-/// identity. (domain/tasks/README.md, section 4 and domain/tasks/lifecycle.md).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Problem {
-    /// Offending task identity when one exists; `None` denotes a batch/source/global failure.
-    pub task: Option<u64>,
-    /// Bounded structural, lifecycle, financial or restore admission reason.
-    pub why: Refusal,
-    /// The tasks the refusal names: the live delegates that prevented a finish, in the requester's
-    /// current order; a circle's tasks; an unreachable dependency; an ended dependency;
-    /// omitted dependencies marked started from; or the
-    /// pending dependencies keeping the task; or `Unreported` members whose resources
-    /// lack reports, in batch order. Absent for every other refusal.
-    pub blocked_by: Option<Box<[u64]>>,
-    /// Exact room check metadata; absent for shape, state and other refusals.
-    pub capacity: Option<crate::Capacity>,
-}
-
-impl Problem {
-    /// A refusal with no live-delegate blockers.
-    #[must_use]
-    pub const fn new(task: Option<u64>, why: Refusal) -> Self {
-        Self { task, why, blocked_by: None, capacity: None }
-    }
-
-    /// An unchanged refusal carrying owner-proven capacity metadata.
-    #[must_use]
-    pub const fn capacity(task: Option<u64>, why: Refusal, capacity: crate::Capacity) -> Self {
-        Self { task, why, blocked_by: None, capacity: Some(capacity) }
-    }
-
-    /// A finish refused until these named delegates end or are cancelled.
-    #[must_use]
-    pub fn live_delegates(task: u64, delegates: &[u64]) -> Self {
-        Self::naming(Some(task), Refusal::LiveDelegates, delegates)
-    }
-
-    /// A refusal naming these tasks.
-    #[must_use]
-    pub fn naming(task: Option<u64>, why: Refusal, tasks: &[u64]) -> Self {
-        Self { task, why, blocked_by: Some(Box::from(tasks)), capacity: None }
     }
 }
 
@@ -1791,81 +1502,6 @@ pub enum Cause {
     Unpriced,
     /// The core cancelled a waiting attempt at a turn boundary.
     Parked { cumulative: Option<u64> },
-}
-
-/// A dependency an amendment added to a live task (domain/tasks/changes.md).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Added {
-    pub task: u64,
-    /// When the amendment was committed.
-    pub at: Wall,
-    /// The amendment's maker: a party, or a task amending one below it.
-    pub by: Party,
-}
-
-/// Owned semantic preparation snapshot emitted to root, bounded by task limits; not a
-/// second mutable `TaskRecord` or `funding` ledger. (domain/tasks/README.md, section 3).
-/// (domain/engine/executors.md, section 1, and domain/engine/briefs.md, section 1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct RunContext {
-    /// A standing task's wake, rather than a retry or continuation (standing.md, 5.1).
-    pub session_wake: bool,
-    /// Kinds waking it, excluding entries and words that are always offered.
-    pub session_kinds: crate::Reasons,
-    /// Why this run runs (jig/docs/design/domain/tasks/messages.md, 6).
-    pub reasons: crate::Reasons,
-    pub ended_by: crate::EndedBy,
-    pub llm: Option<crate::LlmChoice>,
-    /// Current financial payer; preparations must recheck it before admission.
-    pub payer: crate::Payer,
-    pub task: u64,
-    /// Newest admitted inbox identity, including words already taken.
-    pub last_message: u64,
-    /// Whole unread words carried into a newly prepared run brief.
-    pub inbox: Box<[Word]>,
-    /// Current direct children and their lifecycle at preparation time.
-    pub delegates: Box<[DelegateState]>,
-    /// Dependency identities whose ended results the root loads; those still pending are in
-    /// `pending`.
-    pub dependencies: Box<[u64]>,
-    /// The dependencies an amendment added, with when and by whom, for the brief's account of
-    /// what the task waited for (domain/engine/briefs.md, section 1).
-    pub added: Box<[Added]>,
-    /// Pending dependencies keeping the task, the oldest first; a procedure steps knowing them
-    /// (domain/tasks/lifecycle-endings.md, 1; domain/connectors-procedures.md, 1.1).
-    pub pending: Box<[u64]>,
-    /// Resources whose next activation resumes saved state.
-    pub saved: Box<[SavedResource]>,
-    /// Last claimed attempt; a task-wide transcript load must not use turns from a later claim.
-    pub previous_attempt: u64,
-    /// Whether a committed conversation exists across this task's attempts.
-    pub ever_turned: bool,
-    /// Failure classes seen before this preparation, for the brief's attempt summary.
-    pub tries: Tries,
-    /// Contract reason given to this next run after an invalid terminal.
-    pub invalid_result: Option<InvalidResult>,
-    pub project: u32,
-    /// Task executor selected by the root.
-    pub executor: Executor,
-    /// Bounded owned semantic description; not rendered brief bytes.
-    pub spec: Spec,
-    /// Bounded result contract root includes in the brief.
-    pub contract: Contract,
-    /// Requester included in preparation semantics.
-    pub requester: Party,
-    /// `Exact` carried permission value root translates to authority's independent vocabulary.
-    pub authority: Authority,
-    /// Borrowed-then-copied authentic financial snapshot for this preparation; root does not mutate
-    /// or persist it as a shadow ledger.
-    pub numbers: Numbers,
-}
-
-/// One direct child's current lifecycle in its requester's next brief.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct DelegateState {
-    pub task: u64,
-    pub phase: Phase,
-    pub revisions: Revisions,
 }
 
 /// Authority and accounting view for a run's delegation call.

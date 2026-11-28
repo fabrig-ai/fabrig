@@ -1,6 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use skein_browser::boundary::{Element, Node, Property, Rect, Refusal, Trouble};
+use skein_browser::{
+    Limits,
+    boundary::{Element, Node, Property, Rect, Refusal, Trouble},
+};
 use skein_lib::Token;
 
 use crate::{
@@ -11,9 +14,11 @@ use crate::{
     look_compare::tests::{NAME, ON_DISK_WALK, PARENT, ROOT, SHELL_WEB, SHORT, SIGN_IN_PAGE, Steps, TIP, TUI, WEB},
 };
 
-use crate::look_git::{look_step_tests, record};
+use crate::look_git::{check_lists, look_step_tests, record};
 
 use super::run;
+
+pub(crate) mod lines;
 
 const SCRATCH: &str = "/landing tree/.git/look-render";
 const PROFILE: &str = "/landing tree/.git/look-render/browser";
@@ -63,7 +68,7 @@ const HEADER: &str =
 const COMPARABLE_HEADER: &str =
     "<!doctype html>\n<html\n>\n<head\n><title\n>Sign in</title\n></head\n>\n<!-- press to continue -->\n<body\n>\n";
 const DIFF_LINE: usize = LINE + 6; // Six tag boundaries in HEADER put the button on a later line in the diff.
-const WIDTHS: [u32; 3] = [1440, 1000, 420]; // journey-writer.md, 6.2, step 7.
+const WIDTHS: [u32; 3] = [1440, 1000, 420]; // client/journey-writer-requests.md, 1.2, step 7.
 const HEIGHT: u32 = 900;
 const BOX: Rect = Rect { x: -5, y: 20, width: 80, height: 30 };
 const BOX_STYLE_CHANGE: [&[(&str, &str)]; 2] = [
@@ -323,13 +328,17 @@ impl Effects {
 
     fn edit(&mut self, parent: &str, [from, to]: [&str; 2], patch: &str) {
         self.0.blob(PARENT, SIGN_IN_PAGE, Some(parent));
-        self.diff(from, to, patch);
+        self.diff_files([("parent", from), ("requested", to)], patch);
     }
 
     fn diff(&mut self, from: &str, to: &str, patch: &str) {
-        self.0.write(DIFF, "landed", from);
-        self.0.write(DIFF, "requested", to);
-        self.0.diff(DIFF, "requested", patch);
+        self.diff_files([("requested", from), ("landed", to)], patch);
+    }
+
+    fn diff_files(&mut self, [(from_file, from), (to_file, to)]: [(&str, &str); 2], patch: &str) {
+        self.0.write(DIFF, from_file, from);
+        self.0.write(DIFF, to_file, to);
+        self.0.diff(DIFF, [from_file, to_file], patch);
     }
 
     fn viewport(&mut self, width: u32) {
@@ -381,8 +390,10 @@ impl Effects {
         let args = [NAME.as_bytes().into(), SHORT.as_bytes().into()];
         assert_eq!(run(&args, &mut host), code);
         let Gathered { stdout, stderr } = host.finish();
-        assert_eq!(String::from_utf8(stdout).expect("fixture output is text"), out);
-        assert_eq!(String::from_utf8(stderr).expect("fixture diagnostics are text"), err);
+        let stdout = std::str::from_utf8(&stdout).expect("fixture output is text");
+        assert_eq!(stdout, out);
+        assert_eq!(std::str::from_utf8(&stderr).expect("fixture diagnostics are text"), err);
+        lines::record(stdout);
     }
 }
 
@@ -522,19 +533,6 @@ fn overlay(requested: &str) -> Effects {
     steps
 }
 
-pub(crate) fn report_with_printed_and_hand_made_pages() -> Vec<u8> {
-    use super::{Page, PageReport, Report};
-
-    let hand_made = Page::from_path(DRAWN_PAGE).expect("hand-made HTML page");
-    let printed = Page::from_path("temper/docs/design/client/web/journeys/welcome/01.html").expect("printed HTML page");
-    let mut report = Report::default();
-    report.uncompared(&hand_made, "hand-made");
-    let mut differences = PageReport::default();
-    differences.difference(&printed.item(), "1440", "41 button.temper-chip", b"color", (b"red", b"blue"));
-    report.compared(&printed, differences);
-    report.finish()
-}
-
 const INSERTION: usize = 3; // Between <body> and <details> in STATE_TAGS.
 const NEW_RULE: &str = ".new { color: red }";
 
@@ -576,7 +574,32 @@ fn inline_alignment(steps: &mut Effects) {
     );
 }
 
-look_step_tests! {
+fn check_step(name: &str, run: impl FnOnce()) {
+    check_lists(name, || lines::check(name, run));
+}
+
+fn page_with_truncated_elements(truncated: Token) {
+    let document = page("button", "temper-chip");
+    let (mut steps, _) = fixture(Some(&document));
+    steps.start();
+    steps.opened_pair();
+    for page in [REQUEST, PRINT] {
+        if page == truncated {
+            // The names from an incomplete reply must not be judged.
+            const ONE_PAST_LIMIT: u32 = 1;
+            steps.chrome(
+                Command::Elements { page, selector: None },
+                Reply::Elements { elements: Vec::new(), more: ONE_PAST_LIMIT },
+            );
+        } else {
+            steps.elements(page, "button");
+        }
+    }
+    let limit = Limits::default().elements;
+    steps.verdict(&uncompared(ITEM, &format!("too large to compare, over {limit} elements")));
+}
+
+look_step_tests! { @check check_step;
 #[test]
 fn a_locally_held_request_is_render_checked_without_fetching() {
     let mut steps = Effects::default();
@@ -714,6 +737,16 @@ fn a_dom_not_following_start_tags_is_not_compared() {
     let (mut steps, _) = prepared(&document, "a");
     steps.close_pair();
     steps.stop_and_check(0, &uncompared(ITEM, "its markup doesn't parse as written"), "");
+}
+
+#[test]
+fn a_truncated_request_dom_is_too_large_to_compare() {
+    page_with_truncated_elements(REQUEST);
+}
+
+#[test]
+fn a_truncated_print_dom_is_too_large_to_compare() {
+    page_with_truncated_elements(PRINT);
 }
 
 #[test]
@@ -917,7 +950,7 @@ fn field_values_escape_backslash_tab_and_line_endings() {
 
 #[test]
 fn reports_list_fifty_differences_then_count_the_rest() {
-    const ALL: u32 = 52; // Two past the page's fifty listed differences (journey-writer.md, 6.2).
+    const ALL: u32 = 52; // Two past the page's fifty listed differences (client/journey-writer-requests.md, 1.2).
     const LISTED: u32 = 50;
     let mut steps = edited_button();
     let names = (0..ALL).rev().map(|at| format!("property-{at:02}")).collect::<Vec<_>>();

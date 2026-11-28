@@ -48,6 +48,72 @@ fn released_continuations_are_taken_in_arrival_order_at_the_watermark() {
 }
 
 #[test]
+fn a_resumed_core_load_leaves_once_in_held_order() {
+    use crate::{Delivery, StoreRequest, decision};
+    use jig_domain_core as core;
+    use jig_domain_core::engine::{self, In, store};
+    use jig_domain_notes as notes;
+
+    const PROJECT: u32 = 1;
+    // Temper releases one held delivery per pass; the last pass checks for duplicates.
+    const RELEASE_PASSES: u32 = 4;
+    let (mut domain, env) = root();
+    let core_env = crate::limits::environment_core(&env);
+    let mut full = core_env.with(core_env.limits);
+    full.limits.load_slots = 0;
+    let mut blocked = Queue::uncapped();
+    engine::step(
+        &mut domain.engine,
+        &full,
+        In::Core(core::Event::Notes(notes::Event::DropProject { owner: skein_lib::Token::new(1), project: PROJECT })),
+        &mut blocked,
+    );
+    assert!(blocked.is_empty(), "the notes page waits for load room");
+
+    let mut decision = decision::Decision::decide(&mut domain.journal, &env.limits.journal);
+    let mut requests = Queue::uncapped();
+    requests.push(core::Request::Write(core::Write::Erase(core::Key::Notes(notes::Key::Entry { name: 1 }))));
+    requests.push(core::Request::ProjectMade { project: 2 });
+    let resumed = core::resume_fleet(domain.engine.core_mut(), &core_env);
+    for request in resumed.into_boxed() {
+        requests.push(request);
+    }
+    requests.push(core::Request::ProjectMade { project: 3 });
+    crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
+    decision::accept_routed(
+        &mut domain.journal,
+        &mut domain.engine.core_mut().counters,
+        &env.limits.journal,
+        decision,
+        true,
+    )
+    .unwrap();
+
+    let mut out = Queue::uncapped();
+    crate::release(&mut domain, &env, &mut out);
+    let Some(Request::Store(StoreRequest::Commit { number, .. })) = out.pop() else {
+        panic!("the write commits first")
+    };
+    assert!(out.is_empty(), "nothing held leaves before the commit is durable");
+    crate::step(&mut domain, &env, Event::Store(StoreInput::Committed { number, fill: 0 }));
+    for _ in 0..RELEASE_PASSES {
+        crate::release(&mut domain, &env, &mut out);
+    }
+    let released = out.into_boxed();
+    let [
+        Request::ToChild(crate::Released(Delivery::ProjectMade { project: 2 })),
+        Request::Store(StoreRequest::Engine(store::Out::Load {
+            range: store::Range::Notes(notes::Range::Project { project: PROJECT, after: None }),
+            ..
+        })),
+        Request::ToChild(crate::Released(Delivery::ProjectMade { project: 3 })),
+    ] = released.as_ref()
+    else {
+        panic!("one held load at its place: {released:?}");
+    };
+}
+
+#[test]
 fn every_public_mutating_entry_advances_the_root_revision() {
     let (mut domain, env) = root();
     let mut out = Queue::uncapped();
@@ -784,7 +850,48 @@ fn a_crash_after_wires_commit_drops_its_delivery_and_cold_loads_the_same_state()
     assert_eq!(store.wires, 2);
 }
 
-/// The phase fixture supplies completed transport work; the root serves Switch and Wires.
+#[test]
+fn restored_numbering_keeps_the_next_page_held_and_numbers_the_first_commit() {
+    use super::resume_fixture::Until;
+    use jig_domain_core::start::Phase;
+    const COMMITS: u64 = 37;
+    let (mut store, env) = restored_start_store();
+    stored_deployment(&mut store).commits = COMMITS;
+    let (mut domain, _) = cold();
+    crate::step(&mut domain, &env, Event::Restart { pending: false });
+    let owner =
+        store.advance(&mut domain, &env, Until::Load(crate::Range::Core(crate::CoreRange::Deployment))).unwrap();
+    let header = store
+        .rows
+        .get(&crate::Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment)))
+        .unwrap()
+        .clone();
+    crate::step(&mut domain, &env, Event::Store(StoreInput::Loaded { owner, rows: Box::new([header]), next: None }));
+    assert_eq!(domain.sent_commit, COMMITS);
+    assert_eq!(domain.durable_commit, COMMITS);
+    let settings = take_start(&mut domain, &env);
+    crate::step(&mut domain, &env, Event::Released(settings));
+    let mut out = Queue::uncapped();
+    crate::release(&mut domain, &env, &mut out);
+    let Some(Request::Store(crate::StoreRequest::Load {
+        owner,
+        range: crate::Range::Core(crate::CoreRange::Settings),
+        after: None,
+        most,
+        ..
+    })) = out.pop()
+    else {
+        panic!("restoring the numbering must not discard the settings load");
+    };
+    let (rows, next) = store.load(&crate::Range::Core(crate::CoreRange::Settings), None, most);
+    crate::step(&mut domain, &env, Event::Store(StoreInput::Loaded { owner, rows, next }));
+    domain.reclaim();
+    store.advance(&mut domain, &env, Until::Phase(Phase::Switch));
+    serve_switch(&mut domain, &env);
+    assert_eq!(wires_commit(&mut domain, &env), COMMITS + 1);
+}
+
+/// Pause the real start at the Switch request, before releasing it to its adapter.
 fn at_switch(pending: bool) -> (Domain, Env<Limits>) {
     at_phase(pending, jig_domain_core::start::Phase::Switch)
 }
@@ -798,45 +905,20 @@ pub(super) fn at_phase_with_limits(
     target: jig_domain_core::start::Phase,
     limits: &Limits,
 ) -> (Domain, Env<Limits>) {
-    use jig_domain_core::start::{Action, Phase, SweepInput};
+    use super::resume_fixture::{StartStore, Until};
     let mut domain = Domain::new(super::resume_fixture::config(7), limits).unwrap();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
-    domain.start_wall = Some(env.wall);
-    domain.start_pending = pending;
-    domain.core_header_loaded = true;
-    domain.forge.restore_begin(env.wall);
-    let core_env = crate::limits::environment_core(&env);
-    let mut action = domain.engine.core_mut().start_begin(pending, env.wall);
-    for _ in 0_u32..20 {
-        let mut output = Queue::uncapped();
-        action = match action {
-            Action::Step(phase) if phase == target => {
-                domain.engine.core_mut().counters = crate::Counters::new(domain.deployment());
-                return (domain, env);
-            }
-            Action::Step(Phase::Sweep) => {
-                domain.engine.core_mut().start_sweep(&core_env, SweepInput::Finished, &mut output)
-            }
-            Action::Step(phase) => domain.engine.core_mut().start_done(&core_env, phase, &mut output),
-            Action::Commit(continuation) => domain.engine.core_mut().start_resume(&core_env, continuation, &mut output),
-            Action::Idle | Action::Refused(_) => panic!("fixture stopped before Switch"),
-        };
-    }
-    panic!("fixture did not reach Switch");
+    crate::step(&mut domain, &env, Event::Restart { pending });
+    StartStore::new().advance(&mut domain, &env, Until::Phase(target));
+    assert_eq!(domain.start_stop(), None);
+    assert_eq!(domain.start_phase(), Some(target));
+    (domain, env)
 }
 
 fn serve_switch(domain: &mut Domain, env: &Env<Limits>) {
-    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
-    crate::restart::start_action(
-        domain,
-        env,
-        &mut decision,
-        jig_domain_core::start::Action::Step(jig_domain_core::start::Phase::Switch),
-    );
-    crate::route::route_into(domain, env, &mut decision);
-    let mut immediate = Queue::uncapped();
-    crate::domain::close(domain, env, decision, &mut immediate);
-    assert!(immediate.is_empty());
+    let delivery = take_start(domain, env);
+    assert_eq!(delivery.0, crate::Delivery::EngineStore(jig_domain_core::engine::store::Out::Switch));
+    crate::step(domain, env, Event::Released(delivery));
 }
 
 fn wires_commit(domain: &mut Domain, env: &Env<Limits>) -> u64 {
@@ -859,18 +941,20 @@ fn a_start_without_pending_still_takes_switch_and_commits_wires_with_its_continu
     let (mut domain, env) = at_switch(false);
     serve_switch(&mut domain, &env);
     let phases = start_phases(&domain);
-    assert_eq!(phases.as_slice(), [Phase::Switch, Phase::Wires]);
+    assert!(phases.as_slice().ends_with(&[Phase::Switch, Phase::Wires]));
     let number = wires_commit(&mut domain, &env);
     assert_eq!(domain.start_phase(), Some(Phase::Wires));
     crate::step(&mut domain, &env, Event::Store(StoreInput::Committed { number, fill: 23 }));
-    assert_eq!(domain.startup_fill, Some(23));
+    assert_eq!(domain.engine.core().fill, 0, "the engine keeps fill before adoption");
     let mut out = Queue::uncapped();
     crate::release(&mut domain, &env, &mut out);
     crate::release(&mut domain, &env, &mut out);
-    let Some(Request::ToChild(crate::Released(crate::Delivery::Start(_)))) = out.pop() else {
+    let Some(Request::ToChild(released @ crate::Released(crate::Delivery::Resume(_)))) = out.pop() else {
         panic!("held start continuation");
     };
     assert!(out.is_empty());
+    crate::step(&mut domain, &env, Event::Released(released));
+    assert_eq!(domain.engine.core().fill, 23, "the engine applies fill as it adopts");
 }
 
 #[test]
@@ -919,7 +1003,9 @@ fn the_sweep_keeps_the_rest_of_its_page_until_each_erase_continuation_is_release
     use jig_domain_core::start::Phase;
     use jig_domain_people as people;
     let (mut domain, env) = at_phase(false, Phase::Sweep);
-    domain.startup_range = Some(crate::Range::Core(crate::CoreRange::Sweep));
+    let owner = super::resume_fixture::StartStore::new()
+        .advance(&mut domain, &env, super::resume_fixture::Until::Load(crate::Range::Core(crate::CoreRange::Sweep)))
+        .expect("issued sweep load");
     let rows = Box::new([
         crate::Record::Core(jig_domain_core::Record::People(people::Stored::SignIn {
             number: 1,
@@ -932,11 +1018,8 @@ fn the_sweep_keeps_the_rest_of_its_page_until_each_erase_continuation_is_release
             expires: Wall::EPOCH,
         })),
     ]);
-    let decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
-    let mut immediate = Queue::uncapped();
-    crate::restart::startup_page(&mut domain, &env, rows, None, decision, &mut immediate);
-    assert!(immediate.is_empty());
-    assert_eq!(domain.sweep_rows.len(), 1);
+    crate::step(&mut domain, &env, Event::Store(StoreInput::Loaded { owner, rows, next: None }));
+    domain.reclaim();
     for sign_in in [1, 2] {
         let mut out = Queue::uncapped();
         crate::release(&mut domain, &env, &mut out);
@@ -952,8 +1035,9 @@ fn the_sweep_keeps_the_rest_of_its_page_until_each_erase_continuation_is_release
         crate::step(&mut domain, &env, Event::Store(StoreInput::Committed { number, fill: 0 }));
         let delivery = take_start(&mut domain, &env);
         crate::step(&mut domain, &env, Event::Released(delivery));
-        assert_eq!(domain.sweep_rows.len(), 0);
+        assert_eq!(domain.start_phase(), Some(if sign_in == 1 { Phase::Sweep } else { Phase::Switch }));
     }
+    serve_switch(&mut domain, &env);
     assert_eq!(domain.start_phase(), Some(Phase::Wires));
     assert!(!domain.ready());
     let _number = wires_commit(&mut domain, &env);
@@ -989,13 +1073,9 @@ fn accepted_statement() -> crate::WorkerStatement {
 fn accepted_openings_commit_separately_after_the_starts_wires_are_durable() {
     for early in [true, false] {
         let (mut domain, mut env) = at_switch(false);
-        let mut restored = Queue::uncapped();
-        temper_engine_domain_forge::step(
-            &mut domain.forge,
-            &env.with(env.limits.forge),
-            temper_engine_domain_forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
-            &mut restored,
-        );
+        // The engine has asked to switch; leave that callback unreleased to
+        // the engine until after the early statement has had a chance to wait.
+        let switch = take_start(&mut domain, &env);
         let heard = Wall::from_nanos(123_456_789);
         env.wall = heard;
         if early {
@@ -1010,7 +1090,7 @@ fn accepted_openings_commit_separately_after_the_starts_wires_are_durable() {
             crate::release(&mut domain, &env, &mut out);
             assert!(out.is_empty(), "opening before wires waits");
         }
-        serve_switch(&mut domain, &env);
+        crate::step(&mut domain, &env, Event::Released(switch));
         let wires = wires_commit(&mut domain, &env);
         crate::step(&mut domain, &env, Event::Resume);
         let mut out = Queue::uncapped();
@@ -1125,7 +1205,6 @@ fn a_store_census_reaches_the_cores_deployment_document() {
         let report = census(commit);
         crate::try_step(&mut domain, &env, Event::Store(StoreInput::Census(report.clone()))).unwrap();
         assert_eq!(deployment_census(&domain, &env), Some(report));
-        assert_eq!(domain.startup_census, None);
     }
 }
 
@@ -1139,13 +1218,15 @@ fn only_the_last_startup_census_is_handed_to_the_core_with_the_kept_fill() {
     crate::try_step(&mut domain, &env, Event::Store(StoreInput::Census(census(10)))).unwrap();
     crate::step(&mut domain, &env, Event::Restart { pending: false });
     crate::try_step(&mut domain, &env, Event::Store(StoreInput::Census(census(11)))).unwrap();
-    assert_eq!(domain.startup_census, Some(census(11)));
+
+    store.fill = 24;
     store.run(&mut domain, &env, true);
     assert_eq!(domain.start_phase(), Some(jig_domain_core::start::Phase::Wires));
+    assert_eq!(domain.engine.core().fill, 0);
     crate::try_step(&mut domain, &env, Event::Store(StoreInput::Census(census(12)))).unwrap();
-    assert_eq!(domain.startup_census, Some(census(12)));
+    assert_eq!(deployment_census(&domain, &env), None);
     store.run(&mut domain, &env, false);
     assert!(domain.ready());
-    assert_eq!(domain.startup_census, None);
+    assert_eq!(domain.engine.core().fill, 24);
     assert_eq!(deployment_census(&domain, &env), Some(census(12)));
 }

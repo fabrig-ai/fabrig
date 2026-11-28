@@ -120,6 +120,7 @@ fn workspace() -> run::Workspace {
     run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: b"work".as_slice().into(),
             root: Token::new(7),
@@ -161,6 +162,7 @@ fn charter(restoring: bool) -> run::Charter {
         budget: LIMITS.run.budget,
         llm: run::charter::Llm {
             effort: None,
+            speed: None,
             prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
             account: Some(0),
             endpoint: run::charter::Endpoint(0),
@@ -366,6 +368,7 @@ fn copy_prompt(prompt: &llm::Prompt) -> llm::Prompt {
         .collect();
     let copied = llm::Prompt {
         effort: None,
+        speed: None,
         purpose: prompt.purpose,
         choice: prompt.choice.clone(),
         namespace: prompt.namespace.clone(),
@@ -608,6 +611,7 @@ impl Counted {
                     | smith_domain::Lower::Io { .. }
                     | smith_domain::Lower::Job { .. }
                     | smith_domain::Lower::CancelIo { .. }
+                    | smith_domain::Lower::ProbeHooks { .. }
                     | smith_domain::Lower::Check { .. }
                     | smith_domain::Lower::Abort { .. },
                 ) => {
@@ -744,6 +748,7 @@ impl Counted {
         let event = Event::Below(smith_domain::Below::Completed {
             owner: complete.owner,
             completion: llm::Completion {
+                served: smith_domain::llm::ServedSpeed::Unreported,
                 reasoning_dropped: Box::new([]),
                 content: Box::new([content]),
                 stop: if waiting { llm::Stop::ToolUse } else { llm::Stop::EndTurn },
@@ -1105,6 +1110,7 @@ fn maximum_workspace(limits: &run::Limits) -> run::Workspace {
         directories: Box::new([
             run::Directory {
                 results: None,
+                hooks: None,
                 host: format!(
                     "/{:h<width$}",
                     "",
@@ -1132,6 +1138,7 @@ fn maximum_workspace(limits: &run::Limits) -> run::Workspace {
             },
             run::Directory {
                 results: None,
+                hooks: None,
                 host: format!(
                     "/{:h<width$}",
                     "",
@@ -1211,7 +1218,7 @@ fn maximum_convention_charter() -> run::Charter {
     };
     run::Charter {
         reserve: run::charter::Reserve { turns: 0, time: bounds(16).run.check_timeout },
-        conventions: Some(run::Conventions { guide: make_path(b'g'), checks: make_path(b'c') }),
+        conventions: Some(run::Conventions { guide: make_path(b'g'), checks: make_path(b'c'), hooks: None }),
         outcome: run::outcome::OutcomeSpec {
             change: Some(run::outcome::ChangeSpec { checks_must_pass: true, fields: Box::new([]) }),
             ..charter(false).outcome

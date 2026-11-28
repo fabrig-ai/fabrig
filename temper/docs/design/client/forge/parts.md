@@ -92,9 +92,9 @@ versioned record MilestonePart { whole: option u64 totals: MilestoneTotals goals
 ## 4. Made by the engine's root
 
 - **Asked once per answer** (jig's `domain/engine/views.md`, 2): the
-  core's `Ask::Parts` for the forge's connector reaches
+  core's `parts::Ask::Lines` for the forge's connector reaches
   `temper-engine-domain`'s root, which makes the parts in a module of
-  its own, `route/parts.rs`, and answers `Event::Parts`: in the same
+  its own, `route/parts.rs`, and answers `parts::Up::Lines`: in the same
   decision where all it needs is in memory, else after its loads. It
   encodes each record itself, synchronously, through a pure encoding in
   a crate below it (the root can't name the service's vocabulary, which
@@ -129,7 +129,7 @@ versioned record MilestonePart { whole: option u64 totals: MilestoneTotals goals
 - **Marked by its inputs** (jig's `domain/engine/views.md`, 2): a goal's
   and a chat's part by their notes; a milestone's by its line, its
   goals' lines and their notes, by its forge row, and by its reds: the
-  root sends `PartsMarked { connector: FORGE, tasks }` naming M wherever
+  root sends the forge's `parts::Up::Marked { tasks }` naming M wherever
   the forge's row of M changes (its last landing, its end), and wherever
   a decision writes a finding whose blame names M, before the write or
   after (`../../domain/red-findings.md`, section 10).

@@ -81,7 +81,7 @@ fn every_operational_entrance_consumes_input() {
         Entrance {
             name: "reserve_connector_subscription",
             input: |core, _| {
-                assert!(core.reserve_connector_subscription(Token::new(1), call_key(), 1).is_some());
+                assert!(core.reserve_connector_subscription(Token::new(1), call_key(), 1, 1, 1).is_some());
             },
         },
         Entrance {
@@ -94,7 +94,7 @@ fn every_operational_entrance_consumes_input() {
         Entrance {
             name: "record_call",
             input: |core, _| {
-                assert!(core.reserve_call(call_key(), crate::PendingCall::Routed));
+                assert!(core.reserve_call(call_key(), crate::CallHolder::Routed));
                 core.record_call(call_key(), crate::CallPart::Controlled);
             },
         },
@@ -302,7 +302,7 @@ fn every_operational_entrance_consumes_input() {
         Entrance {
             name: "step",
             input: |core, env| {
-                let _out = crate::step(core, env, crate::Event::Fill { bytes: 0 });
+                let _out = crate::routing::step_store(core, env, crate::engine::store::In::Fill { bytes: 0 });
             },
         },
         Entrance {

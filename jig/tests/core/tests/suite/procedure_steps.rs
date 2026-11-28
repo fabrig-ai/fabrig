@@ -1,6 +1,7 @@
 use jig_core_world::fixtures::{CONNECTOR, PARTY, finish_chat, live_row, member};
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_core::engine::{self, In, Out};
 use jig_domain_tasks as tasks;
@@ -67,13 +68,10 @@ fn program_world_with_batch(
 
 fn decide(world: &mut World, task: u64, decision: core::ProcedureStep) {
     let (step, number, code, _) = world.procedure_inputs.last().expect("procedure input");
-    world.send(root::Event::Core(core::Event::ProcedureStep {
-        task,
-        step: *step,
-        connector: *number,
-        code: u32::from(*code),
-        decision,
-    }));
+    world.send(root::Event::connector_up(
+        *number,
+        jig::Up::Procedures(jig::procedures::Up::Step { task, step: *step, code: u32::from(*code), decision }),
+    ));
 }
 
 fn make_delegate(world: &mut World, procedure: u64) -> u64 {
@@ -138,7 +136,7 @@ fn a_step_naming_a_moved_revision_is_refused_and_told_what_it_is_now() {
             amendment: amendment.clone(),
         },
     }));
-    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task: procedure })));
+    world.send(root::Event::connector_up(1, jig::Up::Procedures(jig::procedures::Up::Wake { task: procedure })));
     let before = live_row(&world, child).clone();
     decide(
         &mut world,
@@ -186,7 +184,7 @@ fn run_program(world: &mut World, task: u64) {
 }
 
 fn next_program_step(world: &mut World, task: u64) {
-    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task })));
+    world.send(root::Event::connector_up(1, jig::Up::Procedures(jig::procedures::Up::Wake { task })));
     run_program(world, task);
 }
 
@@ -277,7 +275,7 @@ fn a_procedure_program_proposes_a_widening() {
 fn a_procedure_proposes_a_widening_while_its_message_commits() {
     let (mut world, procedure) = procedure_world(467);
     let child = make_delegate(&mut world, procedure);
-    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task: procedure })));
+    world.send(root::Event::connector_up(1, jig::Up::Procedures(jig::procedures::Up::Wake { task: procedure })));
     let mut authority = live_row(&world, procedure).authority.clone();
     authority.budget.spend += 5;
     let action = tasks::ProposalAction::Widen { task: procedure, authority };
@@ -426,7 +424,7 @@ fn a_procedures_priority_change_names_no_revision_and_commits_after_a_spec_chang
 }
 
 fn assert_cancel_refused(world: &mut World, procedure: u64, child: u64, cancels: Box<[core::StepCancel]>) {
-    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task: procedure })));
+    world.send(root::Event::connector_up(1, jig::Up::Procedures(jig::procedures::Up::Wake { task: procedure })));
     let before = live_row(world, child).clone();
     let parent = live_row(world, procedure).clone();
     decide(
@@ -627,7 +625,8 @@ fn a_party_amendment_dropping_a_started_from_dependency_is_refused_naming_it() {
     );
     let problem = tasks::Problem::naming(Some(procedure), tasks::Refusal::Dependencies, &[dependency]);
     let mut named = false;
-    while let Some(Out::Core(output)) = outputs.pop() {
+    while let Some(next) = outputs.pop() {
+        let Out::Core(output) = next else { continue };
         if let core::Request::Now(now) = output
             && let core::Now::Link(core::LinkNow::RefusedPayload { problem: refused, .. }) = *now
         {
@@ -706,16 +705,19 @@ fn procedure_words_require_the_due_task_connector_and_code() {
         (procedure, connector, u32::from(code) + 1),
         (world.assignments[0].0, connector, u32::from(code)),
     ] {
-        world.send(root::Event::Core(core::Event::ProcedureStep {
-            task,
-            step,
-            connector: owner,
-            code: program,
-            decision: core::ProcedureStep {
-                words: Some(b"refused words".as_slice().into()),
-                ..core::ProcedureStep::new(core::StepEnd::Wait)
-            },
-        }));
+        world.send(root::Event::connector_up(
+            owner,
+            jig::Up::Procedures(jig::procedures::Up::Step {
+                task,
+                step,
+
+                code: program,
+                decision: core::ProcedureStep {
+                    words: Some(b"refused words".as_slice().into()),
+                    ..core::ProcedureStep::new(core::StepEnd::Wait)
+                },
+            }),
+        ));
         assert_eq!(live_row(&world, procedure), &before);
         assert_ne!(live_row(&world, task).spec.words.as_ref(), b"refused words");
     }

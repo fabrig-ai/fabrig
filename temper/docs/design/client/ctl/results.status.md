@@ -1,6 +1,6 @@
 # results: status
 
-2026-11-26. Where the tree's code lags or departs from [results.md](results.md).
+2026-11-28. Where the tree's code lags or departs from [results.md](results.md).
 
 
 - **Not yet:** 1: ctl's amount: text prints spend raw but in `task show`, and argv's AMOUNT takes spend units; 2: a `--call`'s AMOUNT and `help --json`'s type `amount` [in flight: change 7671].
@@ -86,11 +86,11 @@ unknown-proposal explanation; the generated help states the same limit.
   pinned to an account that holds no source for this work waits on that account
   with the why `Empty` (jig's `select_source`), and prints `next run: account 43
   source unknown: empty`, then `no account serving this work yet`
-  (`render/document/llm.rs`, `wait_explanation`), then `waiting on: Nothing
-  awaited`: the `wait-words` request of 2026-11-06 has `waiting on:` name an
-  account when the next run has none to run on. Its plan held "no account" to
-  the wait that printed the words the request drops, to keep this one's number,
-  so these lines can still say opposite things (`README.md`, section 11). A person task's
+  (`render/document/llm.rs`, `wait_explanation`), then `waiting on:` naming
+  that account wait, its first: the `wait-words` request of 2026-11-06 has
+  `waiting on:` print `an account` when the next run has none to run on. Its
+  plan held `an account` to the wait that names no account, to keep this one's
+  number (`README.md`, section 11). A person task's
   `task amend` prints `task amend 41 --key KEY`, where that request has the act
   and its arguments, as an agent task's `--rev 8 CHANGE... REASON` does:
   `person_call` (`render/document.rs`) gives an answer alone its arguments.  the authority-entry bound remains `bounds.status.md`, 1.

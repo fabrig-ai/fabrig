@@ -72,6 +72,7 @@ fn needs() -> Needs {
 }
 pub(crate) fn frame(party: u64) -> Me {
     Me {
+        charters: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,

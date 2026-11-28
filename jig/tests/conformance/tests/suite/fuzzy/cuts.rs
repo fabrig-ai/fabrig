@@ -1,9 +1,15 @@
+use std::convert::Infallible;
+
 use jig_conformance::Cut;
 use jig_conformance_world::actions;
+use skein_world::{
+    sweep::{Case, cases},
+    this_test,
+};
 
 #[test]
-fn every_durable_cut_and_random_cuts_replay_the_same_effect_story() {
-    for seed in [1, 29, 74, 233] {
+fn every_durable_cut_and_random_cuts_replay_the_same_effect_story() -> Result<(), Case<Infallible>> {
+    cases(this_test!("every_durable_cut_and_random_cuts_replay_the_same_effect_story"), [1, 29, 74, 233], |seed| {
         let mut baseline = actions::world(seed, false);
         baseline.drain().expect("baseline startup");
         actions::effect(&mut baseline, 1);
@@ -30,5 +36,6 @@ fn every_durable_cut_and_random_cuts_replay_the_same_effect_story() {
                 "seed {seed}, cut {cut:?}"
             );
         }
-    }
+        Ok(())
+    })
 }

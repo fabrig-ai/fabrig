@@ -5,6 +5,7 @@ use s = skein_codec::convert
 use h = crate::codec::tasks
 by hand crate::codec::tasks
 context crate::codec::tasks::Context
+refuses crate::codec::convert::speed_name_to_domain
 refuses h::authority_to_domain
 refuses h::authority_to_record
 refuses h::name_to_domain
@@ -83,7 +84,7 @@ record ChangeContract
 enum Contract by hand # cross-field budgets, with framed verdict rules
 record Tools stands for bits via h::tools
 record Models by hand # bits and all jointly represent one selector
-record ModelEffort = d::ModelEffort
+record ModelEffort = d::ModelEffort { speed via crate::codec::convert::speed_name }
 record LlmLater = d::LlmLater { subagents slice }
 record LlmChoice = d::LlmChoice { subagents slice }
 record Scopes stands for bits via h::scopes

@@ -2,6 +2,7 @@ use crate::{
     reads::forget::{Owner, Reading, forgets},
     tests::*,
 };
+use jig_domain_contract as contract;
 
 const TASK: u64 = 1;
 const PARTY: u64 = 1;
@@ -35,8 +36,8 @@ const CASES: [(&str, tasks::Retention, tasks::Party, Reading, Option<u64>); 6] =
 ];
 
 #[test]
-fn a_forget_tells_every_connector_the_task_is_erased() {
-    let (mut core, _) = make_tree();
+fn a_forget_tells_only_resource_connectors_the_task_is_erased() {
+    let (mut core, _) = tree_core_with_write_hold();
     let mut row = fixtures::ended_report(TASK, tasks::Party::Person(PARTY));
     row.flags.retention = tasks::Retention::ForgottenOnceRead;
     let owner = Owner::of_row(&row).unwrap();
@@ -50,13 +51,17 @@ fn a_forget_tells_every_connector_the_task_is_erased() {
             if let Request::Write(Write::Erase(key)) = request {
                 erases.push(key.clone()).unwrap();
             }
-            if let Request::Ask { connector, ask: Ask::Effect(connector::Ask::Unname { task }) } = request {
+            if let Request::Ask {
+                connector,
+                ask: Ask::Connector(contract::Ask::Resources(contract::resources::Ask::Unname { task })),
+            } = request
+            {
                 unnamed.push((*connector, *task)).unwrap();
             }
         }
         if messages == 7 {
             assert!(erases.into_boxed().contains(&Key::Tasks(tasks::Key::Ended(TASK))));
-            assert_eq!(unnamed.into_boxed().as_ref(), &[(1, TASK), (2, TASK)]);
+            assert_eq!(unnamed.into_boxed().as_ref(), &[(2, TASK)]);
         } else {
             assert!(out.is_empty());
             assert!(work.is_empty());

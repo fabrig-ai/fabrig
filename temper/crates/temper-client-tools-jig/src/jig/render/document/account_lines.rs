@@ -111,6 +111,7 @@ impl Panel {
         } else {
             self.word(effort, out);
         }
+        self.speeds(model, out);
         out.put(b"\n    accounts:");
         let accounts = self.rows(model, b"accounts");
         if accounts.is_empty() {
@@ -124,6 +125,24 @@ impl Panel {
         self.print(model, b"picker", out);
         out.put(b"\n");
         self.prices(self.document.member(model, b"prices").expect("projected prices"), out);
+    }
+    fn speeds(&self, model: u32, out: &mut Text) {
+        let speeds = self.rows(model, b"speeds");
+        if speeds.is_empty() {
+            return;
+        }
+        out.put(b"\n    speeds:");
+        for speed in &speeds {
+            out.put(b" ");
+            self.word(*speed, out);
+        }
+        out.put(b"\n    default speed: ");
+        let speed = self.document.member(model, b"speed").expect("projected default speed");
+        if self.document.token(speed).expect("default speed").kind == Kind::Null {
+            out.put(b"standard");
+        } else {
+            self.word(speed, out);
+        }
     }
     fn prices(&self, prices: u32, out: &mut Text) {
         out.put(b"    prices (per ");

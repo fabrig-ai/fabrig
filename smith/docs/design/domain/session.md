@@ -467,6 +467,27 @@ child domain `smith-domain-session`, whose own child is the tools domain
   Overflow is a typed failure ending the session with a report of it,
   never a saturated charge: the charge that cannot be added is not, and
   the spend reported is what was charged before it.
+- **Charged at the speed that served.** An LLM with a speed
+  (`../protocol/charter.md`, section 2) has two sets of prices: its own,
+  the provider's standard speed's, and its speed's. Each completion is
+  charged by the speed its provider reports served it (skein's
+  `llm/vocabulary.md`, 1.3; Claude Code's stream,
+  `../protocol/programs-claude-code.md`, 1.7):
+  - the speed's name, or one of its `also` names, takes the speed's
+    prices;
+  - the dialect's name for its standard speed
+    (`Provider::standard_speed`: `default` for OpenAI's, `standard`
+    for Anthropic's) takes the LLM's own, as when a provider serves a
+    faster speed's request at standard past its own limit;
+  - any other name, or none, takes the speed's, so that a budget stops
+    early rather than late.
+
+  An LLM without a speed is charged at its own prices, whatever is
+  reported. Every reservation, the run's reserve and its check price a
+  completion of an LLM with a speed at the speed's prices, the dearest
+  it may be charged (budget.md). A provider's refusal of the speed is a
+  completion's failure as any other (section 4): nothing asks again at
+  another speed.
 - **Spend is cumulative** within an activation, sub-agents included. A
   delegated terminal, answered or withdrawn, carries the sub-agent's
   cumulative spend once under its call's identity; a duplicate or stale

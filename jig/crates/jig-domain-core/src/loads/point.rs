@@ -95,7 +95,7 @@ pub(super) fn loaded(
             inputs::loaded(core, env, &mut routed, inputs::Loaded { request, row: ended_task(row), busy });
             routed.finish(work)
         }
-        Point::DelegateInput(read) => delegation::input_loaded(core, env, *read, ended_task(row)),
+        Point::DelegateInput(read) => delegation::input_loaded(core, env, work, *read, ended_task(row)),
         Point::ProposalDecision { party, proposer, proposal } => {
             let row = if let Some(Record::Core(CoreRecord::ProposalDecision(row))) = row { Some(row) } else { None };
             ended::route_ended_proposal(core, work, party, proposer, proposal, row, busy)
@@ -130,7 +130,7 @@ fn checked_row(range: &store::Range, row: Option<Record>) -> Option<Record> {
             }
             None
         }
-        store::Range::Read(_) | store::Range::Window { .. } | store::Range::Notes(_) => {
+        store::Range::Read(_) | store::Range::Window { .. } | store::Range::Notes(_) | store::Range::Start { .. } => {
             unreachable!("point load range")
         }
     }

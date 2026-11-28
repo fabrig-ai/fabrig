@@ -1,32 +1,9 @@
 //! Bounded deployment facts read independently of the diagnostic drain
 //! (client/domain/pages.md, section 7; domain/engine/fleet.md).
 
+pub use jig_domain_contract::ops::{Figures, HelloRefusal};
+
 use skein_lib::{Duration, Time, Token, Wall};
-
-/// The owner's reason for refusing a worker's hello.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum HelloRefusal {
-    /// Channel zero belongs to the engine's configured host.
-    ReservedChannel,
-    /// The hello's job kinds are not ascending and distinct.
-    JobKinds,
-    /// The agent cannot hold a configured charter for this host kind.
-    Agent { why: crate::AgentShortfall },
-    /// The connected worker set has no admission room.
-    Workers { limit: u32 },
-    /// The position is unconfigured or already held by a live channel.
-    Position { worker: u32 },
-    /// A worker must stop strictly before the engine's grace expires.
-    StopBound { grace: Duration },
-}
-
-/// What each side holds of an agent's shortfall (domain/engine/fleet.md):
-/// in the bound's own unit, a duration in milliseconds.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Figures {
-    pub required: u64,
-    pub offered: u64,
-}
 
 /// Why the fleet refuses a hello, for the refusal's text (protocol/channel/README.md, 4.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

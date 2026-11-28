@@ -1,4 +1,4 @@
-//! People act throughout seeded goal work (`temper/docs/design/testing/workloads.md`, 8.1).
+//! People act throughout seeded goal work (`temper/docs/design/testing/workloads-sweeps.md`, 1.1).
 use skein_world::{
     streams::Streams,
     sweep::{Exclusion, Sweep},
@@ -177,7 +177,7 @@ fn the_engines_tables_reach_their_bounds() {
         sweep.configure(kind);
     }
     // A milestone starts its later goal only after its predecessor ends, so
-    // A_CHANGE_WAITS_ON_ANOTHER_GOAL cannot fall (workloads.md, 8.1).
+    // A_CHANGE_WAITS_ON_ANOTHER_GOAL cannot fall (testing/workloads-sweeps.md, 1.1).
     temper_engine_forge_world::open::exclude(&mut sweep, &kinds).expect("engine exclusions");
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     // Seed 4's branch goal and three-member train reach these capacities.

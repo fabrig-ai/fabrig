@@ -315,7 +315,7 @@ fn prepared_settings(directory: &Path, settings: &Path) -> serde_json::Value {
     let items = value["items"].as_array_mut().expect("items");
     items.extend(limit_items(&figures));
     let wanted = temper_agent_fixtures::providers::read(directory);
-    // The seven stock entries; the box adds its own fixed provider's model separately.
+    // The box adds its fixed provider's model separately.
     let llm = jig_protocol_config::Llm { models: Box::new([]), providers: Box::new([]), endpoints: Box::new([]) };
     for model in temper_engine_service_stock::stock::models(&llm) {
         let mut read = model_json(Setting::Model(model.number), Value::Model(Box::new(model)));
@@ -325,13 +325,13 @@ fn prepared_settings(directory: &Path, settings: &Path) -> serde_json::Value {
     value
 }
 
-/// Use the same wire translation and JSON renderer as the owner's `settings show model`.
+/// Translate a first-start model to the engine's wire answer, restore it through jig's
+/// client link, and render it with ctl's `settings show model --json` renderer.
 fn model_json(
     setting: jig_domain_core_vocabulary::settings::Setting,
     value: jig_domain_core_vocabulary::settings::Value,
 ) -> serde_json::Value {
-    use skein_json::writer::{Encoder, Limits};
-    let limits = settings_form::Limits::standard();
+    let limits = temper_client_tools::limits::tools();
     let read = jig_domain_core_vocabulary::reads::SettingDocument {
         overlay: None,
         setting,
@@ -342,15 +342,12 @@ fn model_json(
     };
     let record = jig_protocol_engine_clients::translate::settings::setting_document(&read, &[], &limits.settings)
         .expect("stock model on the client wire");
-    let read = settings_form::view::ReadValue::Setting(Box::new(
-        settings_form::wire::restore_setting_document(&record, &limits).expect("stock setting value"),
-    ));
-    let json = Limits { depth: 32, length: u32::try_from(limits.result_bytes).expect("settings result bound") };
-    let mut measure = Encoder::measure(&json);
-    settings_form::render::encode(&read, &mut measure);
-    let mut write = Encoder::write(measure.measured().expect("model JSON fits"), &json);
-    settings_form::render::encode(&read, &mut write);
-    serde_json::from_slice(&write.finish()).expect("stock model JSON")
+    let client = temper_client_tools::limits::client().client;
+    let link = jig_client_protocol_link::Limits::new(client.domain, client.exchanges).expect("client limits");
+    let restored = jig_client_protocol_link::translate::settings::restore_setting_document(&record, &link)
+        .expect("stock setting value");
+    let read = jig_client::contract::ReadValue::Setting(Box::new(restored));
+    serde_json::from_slice(&temper_client_tools::jig::render::settings_json(&read, &limits)).expect("stock model JSON")
 }
 
 fn limit_items(figures: &serde_json::Value) -> Vec<serde_json::Value> {
@@ -597,8 +594,13 @@ mod tests {
     #[test]
     fn prepared_settings_preserve_world_inputs_and_rendered_stock_models() {
         use jig_domain_core::settings::{Current, Setting};
+        use jig_domain_core_vocabulary::reads::SettingDocument;
         use serde_json::{Value, json};
-        const STOCK_MODELS: std::ops::RangeInclusive<u32> = 1..=7; // stock.md, the numbered catalogue before demo.
+        // stock.md: stock numbers, with 8 reserved for the fake's demo model.
+        const STOCK_MODELS: [u32; 8] = [1, 2, 3, 4, 5, 6, 7, 9];
+        let limits = temper_client_tools::limits::tools();
+        let client = temper_client_tools::limits::client().client;
+        let link = jig_client_protocol_link::Limits::new(client.domain, client.exchanges).expect("client limits");
         for welcome in [false, true] {
             let scratch = skein_scratch::Scratch::new("browser-settings-form");
             let directory = scratch.path();
@@ -623,16 +625,34 @@ mod tests {
             let rows = value["items"].as_array().expect("settings items");
             let (non_models, models) = rows.split_at(expected.len());
             assert_eq!(non_models, expected, "agents, providers and both kinds of limits");
-            assert_eq!(models.len(), STOCK_MODELS.count());
+            assert_eq!(models.len(), STOCK_MODELS.len());
 
             // Settings show reads the current value of each numbered stock model at first start.
             let engine = stock_engine(&world);
             let core = jig_protocol_config::core(&engine, [0; 16], 1);
             let current = Current::new(core.defaults, &engine.limits.core, &[]);
-            for (number, row) in STOCK_MODELS.zip(models) {
+            for (number, row) in STOCK_MODELS.into_iter().zip(models) {
                 let setting = Setting::Model(number);
-                let stock = current.value(setting).expect("stock setting").clone();
-                let mut read = super::model_json(setting, stock);
+                let document = SettingDocument {
+                    overlay: None,
+                    setting,
+                    revision: current.newest(),
+                    value: Some(current.value(setting).expect("stock setting").clone()),
+                    application: None,
+                    proposed: None,
+                };
+                let wire = jig_protocol_engine_clients::translate::settings::setting_document(
+                    &document,
+                    &[],
+                    &limits.settings,
+                )
+                .expect("first-start wire answer");
+                let restored = jig_client_protocol_link::translate::settings::restore_setting_document(&wire, &link)
+                    .expect("first-start model read");
+                let reading = jig_client::contract::ReadValue::Setting(Box::new(restored));
+                let mut read: Value =
+                    serde_json::from_slice(&temper_client_tools::jig::render::settings_json(&reading, &limits))
+                        .expect("ctl model JSON");
                 let model = &mut read["value"]["model"];
                 let endpoint = match model["provider"].as_u64() {
                     Some(provider) if provider == u64::from(super::PROVIDER) => Some(super::ENDPOINT),

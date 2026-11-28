@@ -242,7 +242,8 @@ fn plans_start_in_order_and_sign_in_with_closed_stdin() {
         ),
     ];
     for (program, (name, args)) in programs.iter().zip(expected) {
-        assert_eq!(program.program, PathBuf::from("/build/bin").join(name));
+        let (binary, args) = deployment_command(name, &args);
+        assert_eq!(program.program, binary);
         assert_eq!(program.args, args);
         assert_eq!(program.input, Input::Null);
         assert_eq!(program.directory, PathBuf::from("/scratch"));
@@ -259,8 +260,23 @@ fn plans_start_in_order_and_sign_in_with_closed_stdin() {
     assert_eq!(sign_in.input, Input::Null);
     plan.options.scripts.clear();
     plan.options.strict = false;
-    assert_eq!(
-        plan.deployment_programs()[1].args,
-        ["fake", "llm", "--document", "/scratch/config/model.json", "--ready", "listening "]
+    let (_, args) = deployment_command(
+        "temper-box",
+        &["fake", "llm", "--document", "/scratch/config/model.json", "--ready", "listening "],
     );
+    assert_eq!(plan.deployment_programs()[1].args, args);
+}
+
+fn deployment_command(name: &str, args: &[&str]) -> (PathBuf, Vec<OsString>) {
+    let child = PathBuf::from("/build/bin").join(name);
+    let mut words = vec![];
+    let binary = if cfg!(target_os = "linux") {
+        words.extend(["internal", "forge-child", "--parent", "42", "--signal", "kill", "--"].map(OsString::from));
+        words.push(child.into_os_string());
+        PathBuf::from("/build/bin/temper-box")
+    } else {
+        child
+    };
+    words.extend(args.iter().map(OsString::from));
+    (binary, words)
 }

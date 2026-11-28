@@ -68,7 +68,21 @@ fn model() -> c::SettingModel {
         price_unit: 1000,
         efforts: list([words("high")]),
         effort: Some(words("high")),
+        speeds: list([]),
+        speed: None,
     }
+}
+fn stock_model(number: u32, model: c::SettingModel) -> c::SettingValue {
+    c::SettingValue::Model(Box::new(c::CatalogueEntry {
+        number,
+        model,
+        shown: Some(words("GPT-6.1 Terra")),
+        description: None,
+        picker: false,
+        withdrawn: false,
+        source: c::ModelSource::Stock,
+        estimated: false,
+    }))
 }
 fn documents() -> List<c::CharterDocument> {
     list([
@@ -197,8 +211,8 @@ fn settings_show_charter_renders_its_documents() {
     ] {
         let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
         template.llm.as_mut().expect("choice").later = Some(c::LlmLater {
-            main: c::ModelEffort { model: words("claude-opus-5-5"), effort: effort.map(words) },
-            subagents: list([c::ModelEffort { model: words("later-agent"), effort: None }]),
+            main: c::ModelEffort { model: words("claude-opus-5-5"), effort: effort.map(words), speed: None },
+            subagents: list([c::ModelEffort { model: words("later-agent"), effort: None, speed: None }]),
         });
         cases.push((setting, c::SettingValue::Template(template), name, suffix));
     }
@@ -456,6 +470,7 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
         (
             c::Setting::Charter(c::SettingNumber { number: 3 }),
             c::SettingValue::Charter(Box::new(c::Charter {
+                name: None,
                 parts: List::with_capacity(0),
                 rest: false,
                 documents: documents(),
@@ -491,9 +506,10 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
         (
             c::Setting::Template(c::SettingNumber { number: 4 }),
             c::SettingValue::Template(Box::new(c::Template {
+                name: None,
                 resources: List::with_capacity(0),
                 number: 4,
-                name: c::DocumentText::complete(words("work")),
+                shown: c::DocumentText::complete(words("work")),
                 executor: c::TemplateExecutor::Charter(3),
                 contract: c::TaskContractDocument::Report { words: 1024 },
                 shallower: 1,
@@ -511,14 +527,15 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
                 llm: Some(c::LlmChoice {
                     later: None,
                     account: Some(9),
-                    main: c::ModelEffort { model: words("model"), effort: Some(words("high")) },
-                    subagents: list([c::ModelEffort { model: words("model"), effort: None }]),
+                    main: c::ModelEffort { model: words("model"), effort: Some(words("high")), speed: None },
+                    subagents: list([c::ModelEffort { model: words("model"), effort: None, speed: None }]),
                 }),
             })),
         ),
         (
             c::Setting::Policy(c::SettingNumber { number: 5 }),
             c::SettingValue::Policy(Box::new(c::SettingPolicy {
+                name: None,
                 escalation_role: Some(1),
                 ceiling: authority(),
                 projections: list([authority().grants.get(0).expect("grant").clone()]),
@@ -600,6 +617,31 @@ fn serve_review(root: &mut fixtures::Harness, call: u32, value: c::ReadValue) {
         newest_for_setting(root, call);
     }
 }
+const STOCK_NAME_ROWS: [(&str, &str, &str, c::Setting); 5] = [
+    ("charter", "goal", "5", c::Setting::Charter(c::SettingNumber { number: 5 })),
+    ("charter", "implementer", "2", c::Setting::Charter(c::SettingNumber { number: 2 })),
+    ("template", "milestone", "8", c::Setting::Template(c::SettingNumber { number: 8 })),
+    ("template", "draft-goal", "4", c::Setting::Template(c::SettingNumber { number: 4 })),
+    ("policy", "stock", "1", c::Setting::Policy(c::SettingNumber { number: 1 })),
+];
+fn stock_name_line(setting: c::Setting, name: &str) -> c::SettingLine {
+    c::SettingLine {
+        name: Some(name.as_bytes().into()),
+        setting,
+        shown: None,
+        follows: c::SettingFollows::Default,
+        last: None,
+        application: None,
+    }
+}
+fn stock_name_inventory() -> c::ReadResult {
+    c::ReadResult::Value(c::ReadValue::Settings(Box::new(c::SettingsDocument {
+        newest: 5,
+        settings: list(STOCK_NAME_ROWS.map(|(_, name, _, setting)| stock_name_line(setting, name))),
+        held: list([]),
+        pending: list([]),
+    })))
+}
 fn newest_for_setting(root: &mut fixtures::Harness, call: u32) {
     if root.reads.get(&call).expect("setting read").1 == c::Read::Settings {
         root.serve(
@@ -613,23 +655,23 @@ fn newest_for_setting(root: &mut fixtures::Harness, call: u32) {
         );
     }
 }
+fn setting_read(setting: c::Setting, value: c::SettingValue) -> c::ReadValue {
+    c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
+        setting,
+        revision: 5,
+        value: Some(value),
+        application: None,
+        proposed: None,
+    }))
+}
 fn setting_json(setting: c::Setting, value: c::SettingValue) -> Vec<u8> {
     let mut root = fixtures::signed_in(fixtures::PARTY);
     let mut call = fixtures::call(&["settings", "show", "rules"]);
     call.tool = rows::SETTING_AT;
     let number = root.submit_prepared(call, true, None);
     newest_for_setting(&mut root, number);
-    root.serve(
-        number,
-        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
-            overlay: None,
-            setting,
-            revision: 5,
-            value: Some(value),
-            application: None,
-            proposed: None,
-        }))),
-    );
+    root.serve(number, c::ReadResult::Value(setting_read(setting, value)));
     root.answer(number).expect("setting answered").stdout.to_vec()
 }
 fn file_from_setting(bytes: &[u8]) -> Vec<u8> {
@@ -702,9 +744,15 @@ fn each_whole_setting_json_is_exactly_the_set_value_and_sends_under_its_name() {
     charter.resume = false;
     cases.push((setting, c::SettingValue::Charter(charter)));
     let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
-    template.llm.as_mut().expect("choice").later = Some(c::LlmLater {
-        main: c::ModelEffort { model: words("later-model"), effort: Some(words("medium")) },
-        subagents: list([c::ModelEffort { model: words("later-agent"), effort: None }]),
+    let llm = template.llm.as_mut().expect("choice");
+    llm.main.speed = Some(words("fast"));
+    llm.later = Some(c::LlmLater {
+        main: c::ModelEffort {
+            model: words("later-model"),
+            effort: Some(words("medium")),
+            speed: Some(words("ultrafast")),
+        },
+        subagents: list([c::ModelEffort { model: words("later-agent"), effort: None, speed: None }]),
     });
     cases.push((setting, c::SettingValue::Template(template)));
     for (setting, value) in cases {
@@ -725,6 +773,11 @@ fn each_whole_setting_json_is_exactly_the_set_value_and_sends_under_its_name() {
             Some(jig::form_setting_value(&value))
         );
         let json = setting_json(setting, value.clone());
+        if let c::SettingValue::Template(template) = &value
+            && template.llm.as_ref().expect("fixture choice").later.is_none()
+        {
+            assert!(!core::str::from_utf8(&json).unwrap().contains(r#""speed""#));
+        }
         let file = file_from_setting(&json);
         let items = settings_file::decode(&file, &crate::limits::tools()).expect("whole setting round trip");
         assert_eq!(items.as_slice(), &[c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value }) }]);
@@ -783,16 +836,20 @@ fn whole_settings_document_renderings_are_stable() {
     let inventory = c::ReadValue::Settings(Box::new(c::SettingsDocument {
         newest: 5,
         settings: list([
+            stock_name_line(c::Setting::Charter(c::SettingNumber { number: 2 }), "implementer"),
+            stock_name_line(c::Setting::Policy(c::SettingNumber { number: 1 }), "stock"),
             c::SettingLine {
-                setting: c::Setting::Charter(c::SettingNumber { number: 3 }),
-                name: Some(c::DocumentText::complete(words("worker"))),
+                name: Some(b"lean-goal".as_slice().into()),
+                setting: c::Setting::Template(c::SettingNumber { number: 33 }),
+                shown: Some(c::DocumentText::complete(words("goal for a lean design"))),
                 follows: c::SettingFollows::Change,
                 last: Some(5),
                 application: None,
             },
             c::SettingLine {
-                setting: c::Setting::Rules,
                 name: None,
+                setting: c::Setting::Rules,
+                shown: None,
                 follows: c::SettingFollows::Default,
                 last: Some(0),
                 application: None,
@@ -893,6 +950,26 @@ fn settings_change_outcomes_name_the_revision_and_refusal_facts() {
             },
             "out of shape; item 0; template 9: is among the stock's numbers, 1 to 32; your own templates take 33 to 64",
         ),
+        (
+            c::Refusal::Malformed {
+                at: 0,
+                why: super::malformed_setting(
+                    c::Setting::Model(c::SettingNumber { number: 4 }),
+                    c::SettingFault::Shape,
+                ),
+            },
+            "out of shape; item 0; model 4: shape",
+        ),
+        (
+            c::Refusal::Malformed {
+                at: 0,
+                why: super::malformed_setting(
+                    c::Setting::Template(c::SettingNumber { number: 2 }),
+                    c::SettingFault::Name,
+                ),
+            },
+            "out of shape; item 0; template 2 keeps the stock's name",
+        ),
         (c::Refusal::Role { held: None }, "role"),
     ] {
         for json in [false, true] {
@@ -942,7 +1019,7 @@ fn settings_values_refuse_each_nonempty_byte_and_list_bound_on_both_sides() {
         (0, "setting_model_efforts", 1),
         (0, "setting_model_efforts_item", 4),
         (0, "setting_model_effort_some", 4),
-        (1, "document_text_bytes", 4),
+        (1, "shown", 4),
         (1, "model_effort_model", 5),
         (1, "model_effort_effort_some", 4),
         (2, "setting_policy_roles", 1),
@@ -974,7 +1051,7 @@ fn settings_values_refuse_each_nonempty_byte_and_list_bound_on_both_sides() {
                 "setting_model_efforts" => wire.setting_model_efforts = bound,
                 "setting_model_efforts_item" => wire.setting_model_efforts_item = bound,
                 "setting_model_effort_some" => wire.setting_model_effort_some = bound,
-                "document_text_bytes" => wire.document_text_bytes = bound,
+                "shown" => wire.document_text_bytes = bound,
                 "model_effort_model" => wire.model_effort_model = bound,
                 "model_effort_effort_some" => wire.model_effort_effort_some = bound,
                 "setting_policy_roles" => wire.setting_policy_roles = bound,
@@ -1045,21 +1122,69 @@ fn an_unqualified_setting_reads_the_inventoried_revision_before_its_value() {
 }
 
 #[test]
+fn stock_setting_names_send_the_inventoried_numbers() {
+    for (kind, name, digits, setting) in STOCK_NAME_ROWS {
+        for selector in [name, digits] {
+            let (mut root, call) = fixtures::read_call(&["settings", "show", kind, selector]);
+            assert_eq!(root.reads.get(&call).expect("inventory read").1, c::Read::Settings);
+            root.serve(call, stock_name_inventory());
+            assert_eq!(
+                root.reads.get(&call).expect("value read").1,
+                c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+            );
+        }
+    }
+}
+
+#[test]
+fn a_setting_name_must_belong_to_its_kind() {
+    for (selector, item, name) in [
+        ("policy", "policy", "goal"),
+        ("charter", "charter", "milestone"),
+        ("template-goal", "template", "implementer"),
+        ("charter-words", "charter", "draft-goal"),
+    ] {
+        let (mut root, call) = fixtures::read_call(&["settings", "show", selector, name]);
+        root.serve(call, stock_name_inventory());
+        assert!(root.reads.is_empty() && root.family_reads.is_empty());
+        let answer = root.answer(call).expect("unknown name is usage");
+        let why = format!("temper ctl: no {item} is named {name}; temper ctl settings show lists them\n");
+        assert_eq!((answer.status, answer.stderr.as_ref()), (1, why.as_bytes()));
+    }
+}
+
+#[test]
 fn settings_reads_keep_their_neighbours_not_served_and_role_statuses() {
     for argv in [
         vec!["settings", "show"],
         vec!["settings", "show", "rules"],
+        vec!["settings", "show", "charter", "goal"],
+        vec!["settings", "show", "charter-words", "implementer"],
         vec!["revision", "show", "5"],
         vec!["revision", "list"],
     ] {
         for (page, status) in [
-            (jig_client::Readout::NotServed { family: None, served: None }, 1),
+            (jig_client::Readout::NotServed { family: None }, 1),
             (jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)), 2),
         ] {
             let (mut root, call) = fixtures::read_call(&argv);
             root.serve_readout(call, page);
             assert_eq!(root.answer(call).expect("terminal read").status, status);
         }
+    }
+}
+
+#[test]
+fn model_show_json_matches_the_settings_renderer_byte_for_byte() {
+    const MODEL: u32 = 9;
+    let setting = c::Setting::Model(c::SettingNumber { number: MODEL });
+    let limits = crate::limits::tools();
+    for model in [model(), c::SettingModel { program: None, ..model() }] {
+        let reading = setting_read(setting, stock_model(MODEL, model));
+        let expected = jig::render::settings_json(&reading, &limits);
+        let answer = read(&["settings", "show", "model", "9", "--json"], reading);
+        // ctl writes these JSON bytes as-is, without adding a line end.
+        assert_eq!((answer.status, answer.stdout), (0, expected));
     }
 }
 
@@ -1544,7 +1669,7 @@ fn proposal_reads_use_one_exact_read_and_keep_not_served_and_role_statuses() {
     );
     assert_eq!(root.watches.len(), 0);
     for (page, status) in [
-        (jig_client::Readout::NotServed { family: None, served: None }, 1),
+        (jig_client::Readout::NotServed { family: None }, 1),
         (jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)), 2),
     ] {
         let (mut root, call) = fixtures::read_call(&["proposal", "show", "p73/7"]);
@@ -2169,7 +2294,7 @@ fn unknown_settings_decisions_explain_that_the_proposal_is_not_waiting() {
 
 fn forge_value(kind: u32) -> Box<[u8]> {
     let json = if kind == 4 {
-        br#"{"items":[{"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":4}}]}"#.as_slice()
+        br#"{"items":[{"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":4,"temper_dir_sign_off":true}}]}"#.as_slice()
     } else if kind == 5 {
         br#"{"items":[{"setting":{"kind":"project-gates","project":1},"set":{"repositories":[{"forge":1,"repository":7,"gates":[{"name":"gate","workflow":"gate.yml","blocking":true,"report":{"artifact":"report","format":"lines","fuzzy":"fuzzy_"}}],"tiers":[{"name":"slow","workflow":"slow.yml","artifact":"report","format":"junit","branch":"goal"}]}]}}]}"#.as_slice()
     } else if kind == 8 {
@@ -2229,8 +2354,9 @@ fn forge_inventory(setting: c::Setting, follows: c::ApplicationFollows) -> c::Re
     c::ReadResult::Value(c::ReadValue::Settings(Box::new(c::SettingsDocument {
         newest: 5,
         settings: list([c::SettingLine {
-            setting,
             name: None,
+            setting,
+            shown: None,
             follows: if follows == c::ApplicationFollows::Default {
                 c::SettingFollows::Default
             } else {
@@ -2243,6 +2369,27 @@ fn forge_inventory(setting: c::Setting, follows: c::ApplicationFollows) -> c::Re
         pending: list([]),
     })))
 }
+#[test]
+fn settings_words_and_work_names_select_the_numbered_values() {
+    use temper_client_protocol_wire::v1 as w;
+    for (selector, name, digits, kind, number, heading) in [
+        ("charter-words", "implementer", "2", 9, 2, "charter-words 2, revision 5\n"),
+        ("template-goal", "draft-goal", "4", 11, 4, "template-goal 4, revision 5\n"),
+    ] {
+        for reference in [name, digits] {
+            let (mut root, call) = fixtures::read_call(&["settings", "show", selector, reference]);
+            assert_eq!(root.reads.get(&call).expect("inventory read").1, c::Read::Settings);
+            root.serve(call, stock_name_inventory());
+            let w::Read::Setting(query) = forge_query(&root, call) else { panic!("setting value read") };
+            assert_eq!((query.kind, query.scope, query.number), (kind, 0, number));
+            root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
+            let answer = root.answer(call).expect("setting value");
+            assert_eq!(answer.status, 0);
+            assert!(answer.stdout.starts_with(heading.as_bytes()));
+        }
+    }
+}
+
 #[test]
 #[expect(
     clippy::too_many_lines,
@@ -2321,6 +2468,9 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             let answer = root.answer(call).expect("joined setting");
             assert_eq!(answer.status, 0);
             let text = core::str::from_utf8(&answer.stdout).unwrap();
+            if kind == 4 {
+                assert!(text.contains("\"temper_dir_sign_off\":true"), "{text}");
+            }
             if json {
                 let expected = match kind {
                     3 => "\"value\":6",
@@ -2503,7 +2653,7 @@ fn forge_setting_commands_print_removed_and_unset_values_and_preserve_refusals()
         }
         for page in [
             jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)),
-            jig_client::Readout::NotServed { family: Some(1), served: None },
+            jig_client::Readout::NotServed { family: Some(1) },
             jig_client::Readout::Family { family: 1, record: Some(Box::new([0])) },
         ] {
             let mut root = fixtures::signed_in(fixtures::PARTY);
@@ -3103,6 +3253,78 @@ fn revision_show_prints_what_each_item_replaced() {
 }
 
 #[test]
+fn settings_apply_and_show_keep_names_separate_from_shown() {
+    let file = br#"{"items":[{"setting":{"kind":"template","number":33},"set":{"number":33,"name":"lean-goal","shown":"goal for a lean design","executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null}}]}"#;
+    let (mut root, call) = changed(file, true);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    let item = change.items.get(0).unwrap();
+    let setting = c::Setting::Template(c::SettingNumber { number: 33 });
+    assert_eq!(item.setting, setting);
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let c::SettingValue::Template(template) = &set.value else { panic!("template") };
+    assert_eq!(template.name.as_deref(), Some(b"lean-goal".as_slice()));
+    assert_eq!(template.shown.bytes(), b"goal for a lean design");
+    let value = set.value.clone();
+    let line = c::SettingLine {
+        setting,
+        name: template.name.clone(),
+        shown: Some(template.shown.clone()),
+        follows: c::SettingFollows::Change,
+        last: Some(6),
+        application: None,
+    };
+    root.done(call, c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: 6 }));
+    assert_eq!(root.answer(call).expect("applied").stdout.as_ref(), br#"{"revision":6}"#);
+    let inventory = c::ReadValue::Settings(Box::new(c::SettingsDocument {
+        newest: 6,
+        settings: list([line]),
+        held: list([]),
+        pending: list([]),
+    }));
+    let shown = read(&["settings", "show"], inventory);
+    assert_eq!(shown.status, 0);
+    let text = core::str::from_utf8(&shown.stdout).unwrap();
+    assert!(text.contains("template 33 lean-goal \"goal for a lean design\": changed in revision 6"), "{text}");
+    let shown = read(&["settings", "show", "template", "33", "--json"], setting_read(setting, value));
+    assert_eq!(shown.status, 0);
+    assert!(
+        core::str::from_utf8(&shown.stdout).unwrap().contains(r#""name":"lean-goal","shown":"goal for a lean design""#)
+    );
+}
+
+#[test]
+fn settings_apply_reports_an_own_charters_taken_name() {
+    let file = String::from_utf8(charter_file("[]"))
+        .unwrap()
+        .replace(r#""number":3"#, r#""number":34"#)
+        .replace(r#""instructions":"#, r#""name":"implementer","instructions":"#);
+    let (mut root, call) = changed(file.as_bytes(), false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    let item = change.items.get(0).unwrap();
+    let setting = c::Setting::Charter(c::SettingNumber { number: 34 });
+    assert_eq!(item.setting, setting);
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let c::SettingValue::Charter(value) = &set.value else { panic!("charter") };
+    assert_eq!(value.name.as_deref(), Some(b"implementer".as_slice()));
+    root.answered(
+        call,
+        c::Answer::Refused {
+            refusal: c::Refusal::Malformed { at: 0, why: super::malformed_setting(setting, c::SettingFault::Name) },
+            at: None,
+        },
+    );
+    let answer = root.answer(call).expect("refused");
+    assert_eq!(answer.status, 2);
+    assert!(
+        core::str::from_utf8(&answer.stderr)
+            .unwrap()
+            .contains("charter 34's name is taken, by a stock charter or another of your own")
+    );
+}
+
+#[test]
 fn a_settings_file_template_sends_its_resources_to_jig() {
     let file = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"name":{"bytes":"draft","cut":false},"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null,"resources":[{"connector":1,"symbol":1}]}}]}"#;
     let (root, call) = changed(file, false);
@@ -3129,6 +3351,7 @@ fn a_settings_file_template_sends_its_resources_to_jig() {
 #[test]
 fn settings_show_template_resources_apply_again_unchanged() {
     let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
+    template.name = Some(b"draft".as_slice().into());
     template.resources = list([c::Symbol { connector: 1, symbol: 1 }, c::Symbol { connector: 1, symbol: 2 }]);
     let value = c::SettingValue::Template(template);
     let json = setting_json(setting, value.clone());
@@ -3159,6 +3382,34 @@ fn settings_show_template_resources_apply_again_unchanged() {
         Some(jig::form_setting_value(&value))
     );
 }
+#[test]
+fn settings_show_project_areas_prints_the_named_charter_without_resolving_it() {
+    let setting = c::Setting::Application { kind: 14, scope: 7, number: 1 };
+    let value = br#"{"areas":[{"name":"tests","words":"C tests","owner":{"charter":"triager"}}]}"#;
+    let mut input = br#"{"items":[{"setting":{"kind":"project-areas","project":7},"set":"#.to_vec();
+    input.extend_from_slice(value);
+    input.extend_from_slice(b"}]}");
+    let items = settings_file::decode(&input, &fixtures::limits()).expect("area settings fixture");
+    let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(bytes) }) = &items.get(0).unwrap().edit
+    else {
+        panic!("area settings bytes")
+    };
+    for json in [false, true] {
+        let mut root = fixtures::signed_in(fixtures::PARTY);
+        let call = root.submit_prepared(fixtures::call(&["settings", "show", "project-areas", "7"]), json, None);
+        root.serve(call, forge_inventory(setting, c::ApplicationFollows::Changed { revision: 5 }));
+        root.serve_readout(call, forge_setting_page(Some(bytes.clone())));
+        let answer = root.answer(call).expect("joined setting");
+        assert_eq!(answer.status, 0);
+        let text = core::str::from_utf8(&answer.stdout).unwrap();
+        if json {
+            assert!(text.contains(core::str::from_utf8(value).unwrap()), "{text}");
+        } else {
+            assert!(text.contains("tests: charter triager\n  C tests\n"), "{text}");
+        }
+    }
+}
+
 #[test]
 fn settings_show_template_resources_are_readable_when_present() {
     for resources in [list([]), list([c::Symbol { connector: 1, symbol: 1 }, c::Symbol { connector: 2, symbol: 3 }])] {
@@ -3538,6 +3789,43 @@ fn revision_show_hydrates_replaced_values_for_every_edit() {
 }
 
 #[test]
+fn revision_show_distinguishes_application_and_jig_removals_in_json() {
+    let document = c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
+        head: head(c::RevisionDecider::Release),
+        items: list([
+            c::RevisionItem {
+                setting: c::Setting::Application { kind: 21, scope: 0, number: 1 },
+                edit: c::RevisionEdit::Application(c::SizedEdit::Remove),
+                replaced: c::RevisionReplaced::Default,
+            },
+            c::RevisionItem {
+                setting: c::Setting::Charter(c::SettingNumber { number: 9 }),
+                edit: c::RevisionEdit::Removed,
+                replaced: c::RevisionReplaced::Default,
+            },
+        ]),
+    })));
+
+    let json = read(&["revision", "show", "5", "--json"], document.clone());
+    assert_eq!(json.status, 0);
+    let value: serde_json::Value = serde_json::from_slice(&json.stdout).expect("revision JSON");
+    assert_eq!(
+        value["items"],
+        serde_json::json!([
+            {"setting": {"kind": "agents"}, "application": "removed", "replaced": "default"},
+            {"setting": {"kind": "charter", "number": 9_u32}, "edit": "removed", "replaced": "default"},
+        ])
+    );
+
+    let text = read(&["revision", "show", "5"], document);
+    assert_eq!(text.status, 0);
+    let words = core::str::from_utf8(&text.stdout).expect("revision text");
+    for line in ["  agents: removed", "  charter 9: removed"] {
+        assert!(words.lines().any(|words| words == line), "missing revision line: {line}\n{words}");
+    }
+}
+
+#[test]
 fn revision_show_preserves_unavailable_and_oversized_replaced_values() {
     let preset = crate::limits::tools();
     let forgotten =
@@ -3570,54 +3858,75 @@ fn revision_show_preserves_unavailable_and_oversized_replaced_values() {
 }
 
 #[derive(Clone, Copy, Debug)]
-enum EffortPlace {
+enum ModelPlace {
     Main,
     Subagent,
+    LaterMain,
+    LaterSubagent,
     Charter,
     Alternative,
 }
+const CHOICE_PLACES: [ModelPlace; 6] = [
+    ModelPlace::Main,
+    ModelPlace::Subagent,
+    ModelPlace::LaterMain,
+    ModelPlace::LaterSubagent,
+    ModelPlace::Charter,
+    ModelPlace::Alternative,
+];
 
-fn effort_file(place: EffortPlace, name: &str, effort: Option<&str>) -> Vec<u8> {
-    let choice = fixtures::model_effort(name.as_bytes(), effort.map(str::as_bytes));
+fn choice_setting(place: ModelPlace, choice: c::ModelEffort) -> (c::Setting, c::SettingValue) {
     let valid = fixtures::model_effort(fixtures::MODEL_NAME, Some(fixtures::EFFORT_NAME));
-    let (setting, value) = match place {
-        EffortPlace::Main | EffortPlace::Subagent => {
+    match place {
+        ModelPlace::Main | ModelPlace::Subagent | ModelPlace::LaterMain | ModelPlace::LaterSubagent => {
             let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else {
                 panic!("template fixture")
             };
-            template.llm = Some(match place {
-                EffortPlace::Main => c::LlmChoice { later: None, account: None, main: choice, subagents: list([]) },
-                EffortPlace::Subagent => {
-                    c::LlmChoice { later: None, account: None, main: valid, subagents: list([choice]) }
+            let mut llm = c::LlmChoice { later: None, account: None, main: valid.clone(), subagents: list([]) };
+            match place {
+                ModelPlace::Main => llm.main = choice,
+                ModelPlace::Subagent => llm.subagents = list([choice]),
+                ModelPlace::LaterMain => {
+                    llm.later = Some(c::LlmLater { main: choice, subagents: list([]) });
                 }
-                EffortPlace::Charter | EffortPlace::Alternative => unreachable!("template position"),
-            });
+                ModelPlace::LaterSubagent => {
+                    llm.later = Some(c::LlmLater { main: valid, subagents: list([choice]) });
+                }
+                ModelPlace::Charter | ModelPlace::Alternative => unreachable!("template position"),
+            }
+            template.llm = Some(llm);
             (setting, c::SettingValue::Template(template))
         }
-        EffortPlace::Charter | EffortPlace::Alternative => {
+        ModelPlace::Charter | ModelPlace::Alternative => {
             let (setting, c::SettingValue::Charter(mut charter)) = values().remove(0) else {
                 panic!("charter fixture")
             };
             let mut selected = model();
             selected.name = choice.model;
             selected.effort = choice.effort;
+            selected.speed = choice.speed;
             let mut valid_model = model();
             valid_model.name = valid.model;
             valid_model.effort = valid.effort;
             match place {
-                EffortPlace::Charter => {
+                ModelPlace::Charter => {
                     charter.model = selected;
                     charter.alternatives = list([]);
                 }
-                EffortPlace::Alternative => {
+                ModelPlace::Alternative => {
                     charter.model = valid_model.clone();
                     charter.alternatives = list([valid_model, selected]);
                 }
-                EffortPlace::Main | EffortPlace::Subagent => unreachable!("charter position"),
+                ModelPlace::Main | ModelPlace::Subagent | ModelPlace::LaterMain | ModelPlace::LaterSubagent => {
+                    unreachable!("charter position")
+                }
             }
             (setting, c::SettingValue::Charter(charter))
         }
-    };
+    }
+}
+fn effort_file(place: ModelPlace, name: &str, effort: Option<&str>) -> Vec<u8> {
+    let (setting, value) = choice_setting(place, fixtures::model_effort(name.as_bytes(), effort.map(str::as_bytes)));
     file_from_setting(&setting_json(setting, value))
 }
 
@@ -3632,7 +3941,7 @@ fn effort_me() -> c::Me {
     me
 }
 
-fn effort_call(file: &[u8], propose: bool, me: c::Me, json: bool) -> (fixtures::Harness, u32) {
+fn choice_call(file: &[u8], propose: bool, me: c::Me, json: bool) -> (fixtures::Harness, u32) {
     let mut root = fixtures::choice_root(me);
     let argv = if propose {
         vec!["settings", "propose", "FILE", "Choose effort", "--against", "5", "--key", "effort-file"]
@@ -3647,7 +3956,7 @@ fn effort_call(file: &[u8], propose: bool, me: c::Me, json: bool) -> (fixtures::
 
 #[test]
 fn settings_efforts_are_refused_at_every_choice_before_apply_or_propose_sends() {
-    for place in [EffortPlace::Main, EffortPlace::Subagent, EffortPlace::Charter, EffortPlace::Alternative] {
+    for place in CHOICE_PLACES {
         for propose in [false, true] {
             for (name, offered) in [("chosen-model", "high, medium"), ("plain-model", "none")] {
                 let file = effort_file(place, name, Some("xhigh"));
@@ -3656,7 +3965,7 @@ fn settings_efforts_are_refused_at_every_choice_before_apply_or_propose_sends() 
                     "\"items\":[",
                     r#""items":[{"setting":{"kind":"charter","number":7},"edit":"removed"},{"setting":{"kind":"rules"},"edit":"reset"},"#,
                 );
-                let (mut root, call) = effort_call(file.as_bytes(), propose, effort_me(), false);
+                let (mut root, call) = choice_call(file.as_bytes(), propose, effort_me(), false);
                 assert!(root.sends.is_empty(), "{place:?}, propose {propose}");
                 assert!(root.saved.is_empty(), "a local refusal keeps no request");
                 let answer = root.answer(call).expect("local effort refusal");
@@ -3674,7 +3983,7 @@ fn settings_efforts_are_refused_at_every_choice_before_apply_or_propose_sends() 
 
 #[test]
 fn settings_offered_absent_and_unshown_efforts_send_unchanged() {
-    for place in [EffortPlace::Main, EffortPlace::Subagent, EffortPlace::Charter, EffortPlace::Alternative] {
+    for place in CHOICE_PLACES {
         for propose in [false, true] {
             for (name, effort) in [
                 ("chosen-model", Some("high")),
@@ -3685,7 +3994,7 @@ fn settings_offered_absent_and_unshown_efforts_send_unchanged() {
             ] {
                 let file = effort_file(place, name, effort);
                 let items = settings_file::decode(&file, &crate::limits::tools()).expect("items");
-                let (mut root, call) = effort_call(&file, propose, effort_me(), false);
+                let (mut root, call) = choice_call(&file, propose, effort_me(), false);
                 let ask = fixtures::act_ask(&root, call);
                 let expected = if propose {
                     c::Ask::Propose {
@@ -3732,8 +4041,8 @@ fn settings_effort_names_use_the_terminal_name_cut() {
                 let model = me.projects.get_mut(1).expect("other project").models.get_mut(0).expect("model");
                 model.name = words(&name);
                 model.efforts = list([words(&name)]);
-                let file = effort_file(EffortPlace::Main, &name, Some("xhigh"));
-                let (mut root, call) = effort_call(&file, propose, me, json);
+                let file = effort_file(ModelPlace::Main, &name, Some("xhigh"));
+                let (mut root, call) = choice_call(&file, propose, me, json);
                 assert!(root.sends.is_empty());
                 let answer = root.answer(call).expect("cut name refusal");
                 let text = format!("settings file item 1: model {cut} offers no effort xhigh; it offers {cut}");
@@ -3744,8 +4053,8 @@ fn settings_effort_names_use_the_terminal_name_cut() {
                 if name.len() > 32 {
                     continue;
                 }
-                let file = effort_file(EffortPlace::Main, "chosen-model", Some(&name));
-                let (mut root, call) = effort_call(&file, propose, effort_me(), json);
+                let file = effort_file(ModelPlace::Main, "chosen-model", Some(&name));
+                let (mut root, call) = choice_call(&file, propose, effort_me(), json);
                 assert!(root.sends.is_empty());
                 let answer = root.answer(call).expect("cut effort refusal");
                 let text =
@@ -3758,34 +4067,94 @@ fn settings_effort_names_use_the_terminal_name_cut() {
 }
 
 #[test]
+fn settings_speeds_are_refused_at_every_choice_before_apply_or_propose_sends() {
+    for place in CHOICE_PLACES {
+        for propose in [false, true] {
+            for (name, speed, declared) in
+                [("chosen-model", "priority", "fast, ultrafast"), ("plain-model", "fast", "none")]
+            {
+                let (setting, value) = speed_setting(place, name, Some(speed));
+                let file = file_from_setting(&setting_json(setting, value));
+                let (mut root, call) = choice_call(&file, propose, speed_me(), false);
+                assert!(root.sends.is_empty(), "{place:?}, propose {propose}");
+                assert!(root.saved.is_empty(), "a local refusal keeps no request");
+                let answer = root.answer(call).expect("local speed refusal");
+                assert_eq!(answer.status, 1);
+                assert_eq!(
+                    answer.stderr.as_ref(),
+                    format!("settings file item 1: model {name} declares no speed {speed}; it declares {declared}\n")
+                        .as_bytes(),
+                    "{place:?}, propose {propose}",
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn settings_declared_standard_absent_and_unshown_speeds_send_unchanged() {
+    for (place, name, speed) in [
+        (ModelPlace::Main, "chosen-model", Some("fast")),
+        (ModelPlace::LaterMain, "chosen-model", Some("ultrafast")),
+        (ModelPlace::Subagent, "plain-model", Some("standard")),
+        (ModelPlace::LaterSubagent, "plain-model", None),
+        (ModelPlace::Charter, "plain-model", Some("standard")),
+        (ModelPlace::Alternative, "unshown-model", Some("fast")),
+    ] {
+        let (setting, value) = speed_setting(place, name, speed);
+        let file = file_from_setting(&setting_json(setting, value.clone()));
+        let items = list([c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value }) }]);
+        for propose in [false, true] {
+            let (root, call) = choice_call(&file, propose, speed_me(), false);
+            let ask = fixtures::act_ask(&root, call);
+            let expected = if propose {
+                c::Ask::Propose {
+                    project: 0,
+                    reason: words("Choose effort"),
+                    action: c::ProposeAction::Settings(c::ProposeSettings { against: 5, items: items.clone() }),
+                }
+            } else {
+                c::Ask::ChangeSettings(c::ChangeSettings {
+                    against: 5,
+                    items: items.clone(),
+                    running: c::Running::Stays,
+                })
+            };
+            assert_eq!(ask, &expected, "{place:?}, propose {propose}");
+        }
+    }
+}
+
+fn speed_me() -> c::Me {
+    let mut me = effort_me();
+    let chosen = me.projects.get_mut(1).expect("other project").models.get_mut(0).expect("chosen model");
+    let fast = c::SettingSpeed {
+        name: words("fast"),
+        also: list([words("priority")]),
+        input_price: 4,
+        cached_price: 1,
+        cache_write_price: None,
+        output_price: 5,
+    };
+    let ultrafast = c::SettingSpeed { name: words("ultrafast"), also: list([]), ..fast.clone() };
+    chosen.speeds = list([fast, ultrafast]);
+    chosen.speed = Some(words("fast"));
+    me
+}
+fn speed_setting(place: ModelPlace, name: &str, speed: Option<&str>) -> (c::Setting, c::SettingValue) {
+    choice_setting(place, c::ModelEffort { model: words(name), effort: None, speed: speed.map(words) })
+}
+
+#[test]
 fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
     let setting = c::Setting::Model(c::SettingNumber { number: 4 });
-    let value = c::SettingValue::Model(Box::new(c::CatalogueEntry {
-        number: 4,
-        model: model(),
-        shown: Some(words("GPT-6.1 Terra")),
-        description: None,
-        picker: false,
-        withdrawn: false,
-        source: c::ModelSource::Stock,
-        estimated: false,
-    }));
+    let value = stock_model(4, model());
     let (mut root, call) = fixtures::read_call(&["settings", "show", "model", "4", "--revision", "5"]);
     assert_eq!(
         root.reads.get(&call).unwrap().1,
         c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
     );
-    root.serve(
-        call,
-        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
-            overlay: None,
-            setting,
-            revision: 5,
-            value: Some(value.clone()),
-            application: None,
-            proposed: None,
-        }))),
-    );
+    root.serve(call, c::ReadResult::Value(setting_read(setting, value.clone())));
     let answer = root.answer(call).unwrap();
     let text = core::str::from_utf8(&answer.stdout).unwrap();
     assert!(text.starts_with("model 4, revision 5\n"), "{text}");
@@ -3802,8 +4171,9 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
     let inventory = c::ReadValue::Settings(Box::new(c::SettingsDocument {
         newest: 5,
         settings: list([c::SettingLine {
+            name: None,
             setting,
-            name: Some(c::DocumentText::complete(words("GPT-6.1 Terra"))),
+            shown: Some(c::DocumentText::complete(words("GPT-6.1 Terra"))),
             follows: c::SettingFollows::Change,
             last: Some(5),
             application: None,
@@ -3814,6 +4184,70 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
     let bytes = jig::render::settings_text(&inventory, None, &crate::limits::tools());
     let text = core::str::from_utf8(&bytes).unwrap();
     assert!(text.contains("model 4") && text.contains("GPT-6.1 Terra"), "{text}");
+}
+
+#[test]
+fn ctl_shows_applies_and_proposes_a_models_speeds() {
+    let setting = c::Setting::Model(c::SettingNumber { number: 4 });
+    let mut model = model();
+    model.speeds = list([
+        c::SettingSpeed {
+            name: words("fast"),
+            also: list([words("priority")]),
+            input_price: 4000,
+            cached_price: 200,
+            cache_write_price: Some(5000),
+            output_price: 20_000,
+        },
+        c::SettingSpeed {
+            name: words("ultrafast"),
+            also: list([]),
+            input_price: 12_000,
+            cached_price: 600,
+            cache_write_price: Some(15_000),
+            output_price: 60_000,
+        },
+    ]);
+    model.speed = Some(words("ultrafast"));
+    let value = c::SettingValue::Model(Box::new(c::CatalogueEntry {
+        number: 4,
+        model,
+        shown: None,
+        description: None,
+        picker: true,
+        withdrawn: false,
+        source: c::ModelSource::Stock,
+        estimated: false,
+    }));
+    let (mut root, call) = fixtures::read_call(&["settings", "show", "model", "4", "--json"]);
+    newest_for_setting(&mut root, call);
+    assert_eq!(
+        root.reads.get(&call).unwrap().1,
+        c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+    );
+    root.serve(
+        call,
+        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
+            setting,
+            revision: 5,
+            value: Some(value.clone()),
+            application: None,
+            proposed: None,
+        }))),
+    );
+    let answer = root.answer(call).unwrap();
+    assert_eq!(answer.status, 0);
+    let file = file_from_setting(&answer.stdout);
+    let expected = [c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value }) }];
+    let (root, call) = changed(&file, false);
+    let c::Ask::ChangeSettings(change) = fixtures::act_ask(&root, call) else { panic!("settings change") };
+    assert_eq!(change.items.as_slice(), &expected);
+    let (root, call) = proposed(&file, false);
+    let c::Ask::Propose { action: c::ProposeAction::Settings(proposal), .. } = fixtures::act_ask(&root, call) else {
+        panic!("settings proposal")
+    };
+    assert_eq!(proposal.items.as_slice(), &expected);
 }
 
 #[path = "settings_overlays.rs"]

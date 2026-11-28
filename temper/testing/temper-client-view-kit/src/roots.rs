@@ -401,9 +401,7 @@ fn root_at_with_classes_from(
         temper_client_domain::step(
             &mut root,
             &env,
-            Event::Client {
-                event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
-            },
+            Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
             &mut out,
         );
     } else {
@@ -1051,7 +1049,7 @@ pub fn out_of_date() -> temper_client_domain::Domain {
     root_event(
         &mut root,
         temper_client_domain::Event::Client {
-            event: jig_client::Event::Up { up: jig_client::Up::Served { served: false, versions: None } },
+            event: jig_client::Event::Up { up: jig_client::Up::Served { served: false } },
         },
     );
     root
@@ -1085,6 +1083,7 @@ pub fn fixture_me(project_name: &[u8]) -> c::Me {
     second.name = DocumentText::complete(contract::Text::new(Box::from(*b"Second"), 32).expect("name fits"));
     projects.push(second).expect("second project");
     Me {
+        charters: skein_lib::List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,
@@ -1182,6 +1181,8 @@ pub fn playground_frame_with_watch(
                 window: 1024,
                 output: 128,
                 efforts: List::with_capacity(0),
+                speeds: List::with_capacity(0),
+                speed: None,
             })
             .unwrap();
     }
@@ -1194,6 +1195,7 @@ pub fn playground_frame_with_watch(
             main: c::ModelEffort {
                 model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(),
                 effort: None,
+                speed: None,
             },
             subagents: List::with_capacity(0),
         },
@@ -1309,6 +1311,7 @@ pub fn playground_kept_root() -> temper_client_domain::Domain {
         main: c::ModelEffort {
             model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(),
             effort: None,
+            speed: None,
         },
         subagents: List::with_capacity(0),
     });
@@ -1343,6 +1346,7 @@ pub fn hidden_playground_root(ready: Option<c::Readiness>, payer: u64) -> temper
         main: c::ModelEffort {
             model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(),
             effort: None,
+            speed: None,
         },
         subagents: List::with_capacity(0),
     });
@@ -1691,7 +1695,7 @@ pub fn reading_me_at(address: temper_client_domain::Address) -> temper_client_do
     for event in [
         Event::Client { event: jig_client::Event::StartUnlinked { kept: List::uncapped() } },
         Event::Start { address, kept: List::uncapped(), with: Some(jig_client::With::Transport) },
-        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
     ] {
         root_event(&mut root, event);
     }
@@ -1721,7 +1725,7 @@ pub fn asking_me(mut me: c::Me) -> c::Me {
     };
     let mut asking = stock.clone();
     asking.number = 5;
-    asking.name = c::DocumentText::complete(first_run::text(b"A renamed role"));
+    asking.shown = c::DocumentText::complete(first_run::text(b"A renamed role"));
     asking.executor = c::TemplateExecutor::Charter(37);
     let mut custom = stock.clone();
     custom.number = 7;
@@ -1823,13 +1827,7 @@ pub fn away_toggle(root: &mut temper_client_domain::Domain) -> Token {
     root_event(
         root,
         temper_client_domain::Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::FamilyServed {
-                    family: wire::FORGE,
-                    served: true,
-                    versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
-                },
-            },
+            event: jig_client::Event::Up { up: jig_client::Up::FamilyServed { family: wire::FORGE, served: true } },
         },
     );
     let mut out = Queue::uncapped();
@@ -1880,7 +1878,7 @@ impl ReadPage {
             reads: List::uncapped(),
         };
         page.event(Event::Start { address, kept: List::with_capacity(0), with: Some(jig_client::With::Transport) });
-        page.up(Up::Served { served: true, versions: None });
+        page.up(Up::Served { served: true });
         let source = chat::messaging_root();
         let mut me = source.pages().me(source.client()).unwrap().clone();
         me.projects.get_mut(0).unwrap().name = fixture_me(b"Shop").projects.get(0).unwrap().name.clone();

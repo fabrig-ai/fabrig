@@ -145,6 +145,7 @@ pub(super) fn hello_prepare(slots: u32) -> engine::Event {
     };
     let mut bound = protocol::merge_bound();
     bound.kind = jig_domain_link::JobKind(1);
+    bound.deadline = Duration::from_secs(600);
     hello.jobs = Box::new([bound]);
     event
 }

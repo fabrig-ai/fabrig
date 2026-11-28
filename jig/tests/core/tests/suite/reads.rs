@@ -7,6 +7,7 @@ use jig_core_world::reads::complete;
 use jig_core_world::reads::latest;
 use jig_core_world::world::Cut;
 use jig_core_world::world::Setup;
+use jig_domain_contract as jig;
 use jig_domain_core::engine::store as engine_store;
 use jig_domain_core::{self as core, documents, reads};
 use jig_domain_people as people;
@@ -1183,15 +1184,17 @@ fn a_finish_parked_for_its_closer_makes_it_and_numbers_no_notice() {
             .any(|(_, connector, code, context)| *connector == 1 && *code == 6 && context.task == closer)
     );
     let (step, connector, code, _) = world.procedure_inputs.last().expect("closer offered");
-    world.send(root::Event::Core(core::Event::ProcedureStep {
-        task: closer,
-        step: *step,
-        connector: *connector,
-        code: u32::from(*code),
-        decision: core::ProcedureStep::new(core::StepEnd::Result(tasks::TaskResult::Report {
-            words: b"closed".as_slice().into(),
-        })),
-    }));
+    world.send(root::Event::connector_up(
+        *connector,
+        jig::Up::Procedures(jig::procedures::Up::Step {
+            task: closer,
+            step: *step,
+            code: u32::from(*code),
+            decision: core::ProcedureStep::new(core::StepEnd::Result(tasks::TaskResult::Report {
+                words: b"closed".as_slice().into(),
+            })),
+        }),
+    ));
     assert!(world.domain.core().tasks.task(task).is_none());
     assert_eq!(world.assignments.len(), before);
     world.restart(seed, false);

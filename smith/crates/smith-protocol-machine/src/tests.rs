@@ -33,6 +33,7 @@ fn configured_component(variables: &[crate::Variable]) -> Component {
     component.workspace(&run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: Box::from(&b"code"[..]),
             root: Token::new(10),
@@ -770,6 +771,7 @@ fn every_operation_translates_the_directory_itself_and_nested_paths_once() {
                     | file::Request::OpenWriteNoFollow { .. }
                     | file::Request::OpenRead { .. }
                     | file::Request::OpenReadNoFollow { .. }
+                    | file::Request::OpenSiblingFile { .. }
                     | file::Request::OpenDirectory { .. }
                     | file::Request::Stat { .. }
                     | file::Request::WriteAt { .. }
@@ -1073,7 +1075,11 @@ fn listed(output: &[u8], depth: tools::Depth, maximum: u32, bytes: u64, glob: Op
     }
     match terminals.pop().expect("one listing terminal") {
         ToDomain::Done { done, .. } => done,
-        ToDomain::Read { .. } | ToDomain::Probed { .. } | ToDomain::Checked { .. } | ToDomain::Aborted { .. } => {
+        ToDomain::Read { .. }
+        | ToDomain::Probed { .. }
+        | ToDomain::HooksProbed { .. }
+        | ToDomain::Checked { .. }
+        | ToDomain::Aborted { .. } => {
             panic!("listing terminal")
         }
     }

@@ -102,6 +102,7 @@ const EXTRAS: &[(&str, &str, &[u8])] = &[
     ("charters.0", "parts", br#"[{"on":["first","question"],"instructions":"part.md"}]"#),
     ("charters.0", "models", br#"["small"]"#),
     ("charters.0", "rest", b"true"),
+    ("charters.0", "name", br#""chat""#),
     ("", "acts", br#"[{"connector":1,"may":["close","add_key","remove_account","adopt","make_project","remove_project"]}]"#),
     ("limits", "overrides", b"{}"),
     ("llm.endpoints.0", "transport", br#""tls""#),
@@ -116,6 +117,8 @@ const EXTRAS: &[(&str, &str, &[u8])] = &[
     ("llm.models.0", "picker", b"false"),
     ("llm.models.0", "cache_life_ms", b"300000"),
     ("llm.models.0.prices", "cache_write", b"1"),
+    ("llm.models.0", "speeds", br#"[{"name":"fast","also":["priority"],"prices":{"input":1,"cached":1,"output":1,"cache_write":1}}]"#),
+    ("llm.models.0", "speed", br#""fast""#),
     ("llm.providers.0", "endpoint", br#""fake""#),
     ("llm.providers.0", "direct", br#""anthropic-api""#),
     ("llm.providers.0", "keep", br#"["*"]"#),
@@ -130,7 +133,7 @@ const EXTRAS: &[(&str, &str, &[u8])] = &[
     ("templates.0", "ended_by", br#""requester""#),
     ("templates.0", "resources", br#"[{"connector":1,"symbol":1}]"#),
     ("templates.0", "deadline", br#"{"span_ms":1000}"#),
-    ("templates.0", "llm", br#"{"main":{"model":"small","effort":"medium"},"sub_agents":[{"model":"small","effort":"medium"}]}"#),
+    ("templates.0", "llm", br#"{"main":{"model":"small","effort":"medium","speed":"fast"},"sub_agents":[{"model":"small","effort":"medium","speed":"standard"}]}"#),
     ("templates.0.llm", "later", br#"{"main":{"model":"small","effort":"medium"},"sub_agents":[{"model":"small","effort":"medium"}]}"#),
     ("projects.0", "name", br#""Project One""#),
     ("projects.0.policy", "templates", br#"[{"template":1,"executor":{"charter":1},"budget":{"amount":10},"deadline":{"span_ms":1000},"priority":5}]"#),
@@ -177,7 +180,7 @@ fn expanded_engine() -> Document {
     let policy =
         Document::from_tokens(&policy, &skein_json::document::Limits { tokens: LIMITS.tokens, text: LIMITS.bytes })
             .unwrap();
-    // A configured policy has no project name.
+    // A configured policy takes a setting name, not the seed project's name.
     let mut all = tokens(&policy);
     let name = policy.member(1, b"name").unwrap();
     all.drain(
@@ -188,8 +191,12 @@ fn expanded_engine() -> Document {
     let start = base.member(0, b"policies").unwrap();
     base_tokens
         .splice(usize::try_from(start).unwrap()..usize::try_from(read::after(&base, start).unwrap()).unwrap(), all);
-    Document::from_tokens(&base_tokens, &skein_json::document::Limits { tokens: LIMITS.tokens, text: LIMITS.bytes })
-        .unwrap()
+    let base = Document::from_tokens(
+        &base_tokens,
+        &skein_json::document::Limits { tokens: LIMITS.tokens, text: LIMITS.bytes },
+    )
+    .unwrap();
+    put(&base, "policies.0", "name", br#""stock""#)
 }
 
 struct Example {
@@ -202,6 +209,8 @@ fn examples() -> Vec<Example> {
     let base = expanded_engine();
     assert!(engine(&base, Defaults::Document).is_empty(), "expanded fixture: {:?}", engine(&base, Defaults::Document));
     let mut examples = vec![Example { document: base.clone(), worker: false, confidential: false }];
+    let shown = fixtures::with(fixtures::ENGINE_SMALL, br#""name": "chat""#, br#""shown": "chat""#);
+    examples.push(Example { document: document(&shown), worker: false, confidential: false });
     for (parent, name, value) in [
         ("templates.0", "contract", br#"{"change":{"connector":1,"kind":1,"words":512}}"#.as_slice()),
         (

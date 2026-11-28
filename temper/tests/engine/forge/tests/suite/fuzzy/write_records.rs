@@ -1,4 +1,5 @@
 //! Writes and lagging reads through the connector (temper/docs/design/domain/forge/writes.md, 3–6).
+use jig_domain_contract as contract;
 use std::collections::BTreeMap;
 
 use skein_fake_forge_domain::{self as forge, Lag, Observation, api as raw};
@@ -137,7 +138,12 @@ fn sent_push(world: &mut World, git: raw::Git) -> Commit {
 fn producer(world: &mut World, lane: &Lane, attempt: u64) -> Commit {
     let branch = name(lane.branch);
     let task = lane.task + 100;
-    world.event(top::Event::Delegated { task: lane.task, child: task, kind: change::Delegate::Produce });
+    world.event(top::Event::Delegated {
+        task: lane.task,
+        child: task,
+        kind: change::Delegate::Produce,
+        close_at: None,
+    });
     world.event(top::Event::Claim {
         task,
         attempt,
@@ -529,7 +535,7 @@ fn change_request(world: &mut World, lane: &mut Lane, next: &mut u64, request: &
             world.event(top::Event::ContinueRelease { task: lane.task, entry });
             world.event(top::Event::Committed { entry });
         }
-        top::Request::Released { .. } => lane.stage = Stage::Done,
+        top::Request::Up(contract::Up::Effects(contract::effects::Up::Released { .. })) => lane.stage = Stage::Done,
         _ => {}
     }
 }
@@ -575,7 +581,8 @@ fn requests(world: &mut World, lanes: &mut [Lane], driver: &mut Driver, point: &
                 lanes[0].merge = Merge::Disputed;
                 continue;
             }
-            top::Request::ContinueRelease { task } | top::Request::Released { task } => *task,
+            top::Request::ContinueRelease { task }
+            | top::Request::Up(contract::Up::Effects(contract::effects::Up::Released { task })) => *task,
             top::Request::ReleaseFailed { .. } | top::Request::MakeFailed { .. } => {
                 return Err(format!("temper's own write failed: {request:?}"));
             }

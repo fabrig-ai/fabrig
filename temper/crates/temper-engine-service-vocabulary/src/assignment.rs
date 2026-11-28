@@ -489,6 +489,69 @@ mod tests {
     }
 
     #[test]
+    fn a_charter_with_speeds_is_measured_and_fitted_at_the_same_bound() {
+        use crate::tests::fixtures;
+        let settings = fixtures::engine();
+        let mut encoding = fixtures::encoding(&settings);
+        let mut configured = settings.jig.charters[0].clone();
+        configured.parts = Box::new([]);
+        let main = &mut configured.policy.model;
+        main.cache_write_price = Some(1);
+        let mut alternative = main.clone();
+        alternative.name = b"small-alternative".as_slice().into();
+        configured.policy.alternatives = Box::new([alternative]);
+        let mut assignment = fixtures::assignment_with_settings(fixtures::repository(7, b"acme", b"shop"), &settings);
+        assignment.run.sources = Box::new([Some(1), Some(1)]);
+        assignment.run.policy = configured.policy.clone();
+        let baseline = temper_engine_smith::charter(&assignment);
+        let budgets = &settings.jig.limits.core.brief_core_budgets;
+        let table = temper_engine_smith::room::host_part(None, encoding.charter_bytes, &encoding.endpoints, budgets);
+        let base_cost = table.on_wake(&configured, tasks::Reasons::FIRST);
+
+        let fast = core::Speed {
+            name: b"fast".as_slice().into(),
+            also: Box::new([b"priority".as_slice().into(), b"express".as_slice().into()]),
+            input_price: 2,
+            cached_price: 2,
+            cache_write_price: Some(2),
+            output_price: 2,
+        };
+        configured.policy.model.speeds = Box::new([fast.clone()]);
+        configured.policy.model.speed = Some(fast.name.clone());
+        configured.policy.alternatives[0].speeds = Box::new([fast]);
+        assignment.run.policy = configured.policy.clone();
+        let mut charter = temper_engine_smith::charter(&assignment);
+        let cost = table.on_wake(&configured, tasks::Reasons::FIRST);
+        let owned = charter.owned_bytes().unwrap();
+        let bytes = skein_lib::len_u64(encode_charter(&charter, &encoding).unwrap().len());
+        let base_bytes = skein_lib::len_u64(encode_charter(&baseline, &encoding).unwrap().len());
+        assert!(owned > baseline.owned_bytes().unwrap());
+        assert_eq!(cost.owned - base_cost.owned, owned - baseline.owned_bytes().unwrap());
+        assert!(bytes > base_bytes);
+        assert_eq!(cost.encoded - base_cost.encoded, bytes - base_bytes);
+
+        // At the table's admission edge, the fitter can keep the full fixed part
+        // and a bounded brief without losing either LLM's speed.
+        let bound = (cost.owned + table.floor.owned).max(cost.encoded + table.floor.encoded);
+        let table = root::room::HostPart { allowance: bound, ..table };
+        assert_eq!(table.check_fixed(&configured), Ok(()));
+        assert!(root::room::HostPart { allowance: bound - 1, ..table }.check_fixed(&configured).is_err());
+        encoding.charter_bytes = bound;
+        let text_len = usize::try_from(bound).unwrap();
+        let mut text = skein_lib::bytes::zeroed(text_len);
+        text.fill(b'x');
+        charter.brief.sections = Box::new([smith_domain_run::Section { title: b"Task".as_slice().into(), text }]);
+        let fitted = fitted_charter(charter, &encoding).expect("the measured fixed part and a brief fit");
+        let decoded =
+            smith_protocol_translate::decode_charter(&fitted, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
+        assert!(skein_lib::len_u64(fitted.len()) <= bound);
+        assert!(decoded.owned_bytes().unwrap() <= bound);
+        assert!(decoded.brief.sections[0].text.len() < text_len);
+        assert_eq!(decoded.llm.speed.unwrap().name.as_ref(), b"fast");
+        assert_eq!(decoded.models[0].speed.as_ref().unwrap().name.as_ref(), b"default");
+    }
+
+    #[test]
     fn a_fixed_charters_ownership_names_its_figure() {
         let settings = crate::tests::fixtures::engine();
         let mut encoding = crate::tests::fixtures::encoding(&settings);

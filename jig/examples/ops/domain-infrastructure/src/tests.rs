@@ -36,19 +36,18 @@ fn event(domain: &mut Domain, seconds: u64, input: Event) -> Queue<Request> {
     let wall = seconds.checked_mul(1_000_000_000).expect("world time fits");
     let env = Env { now: Time::from_nanos(seconds), wall: Wall::from_nanos(wall), limits: limits() };
     let mut out = Queue::uncapped();
-    step(domain, &env, input, &mut out);
+    step_system(domain, &env, input, &mut out);
     out
 }
 
 #[test]
-fn effect_descriptions_name_their_recovery_and_price() {
+fn effect_descriptions_name_instance_resources_price_and_state() {
     let mut domain = Domain::new(Backend::OperationIds, &limits());
     let effect = Effect::CreateEnvironment { environment: environment(), until: 100, price: 50 };
     let mut out = event(&mut domain, 1, Event::Describe { token: Token::new(1), effect });
     assert_eq!(
         out.pop(),
         Some(Request::Described {
-            waits_for_dependencies: true,
             token: Token::new(1),
             description: Description {
                 kind: 4,
@@ -57,8 +56,6 @@ fn effect_descriptions_name_their_recovery_and_price() {
                     Resource::Pool(Pool(Box::from(*b"staging")))
                 ]),
                 condition: false,
-                form: Form::Creation,
-                recovery: Recovery::Keyed,
                 price: Some(50),
                 state: 100,
             }
@@ -73,19 +70,51 @@ fn effect_descriptions_name_their_recovery_and_price() {
     assert_eq!(
         restart.pop(),
         Some(Request::Described {
-            waits_for_dependencies: true,
             token: Token::new(2),
             description: Description {
                 kind: 1,
                 resources: Box::from([Resource::Service(service())]),
                 condition: false,
-                form: Form::Transition,
-                recovery: Recovery::Unrecoverable,
                 price: None,
                 state: 9,
             }
         })
     );
+}
+
+#[test]
+fn effect_kinds_declare_policy_for_each_backend() {
+    let vocabulary = Vocabulary::reference();
+    for (backend, restart_recovery) in
+        [(Backend::OperationIds, Recovery::Keyed), (Backend::NoOperationIds, Recovery::Unrecoverable)]
+    {
+        assert_eq!(
+            effect_kinds(&vocabulary, backend).as_ref(),
+            &[
+                EffectKind {
+                    kind: 1,
+                    form: Form::Transition,
+                    recovery: restart_recovery,
+                    waits_for_dependencies: true
+                },
+                EffectKind { kind: 2, form: Form::Set, recovery: Recovery::Conditional, waits_for_dependencies: true },
+                EffectKind {
+                    kind: 3,
+                    form: Form::Transition,
+                    recovery: Recovery::Conditional,
+                    waits_for_dependencies: true
+                },
+                EffectKind { kind: 4, form: Form::Creation, recovery: Recovery::Keyed, waits_for_dependencies: true },
+                EffectKind {
+                    kind: 5,
+                    form: Form::Transition,
+                    recovery: Recovery::Conditional,
+                    waits_for_dependencies: true
+                },
+            ],
+            "{backend:?}",
+        );
+    }
 }
 
 #[test]
@@ -376,7 +405,11 @@ fn a_committed_person_retry_opens_restart_but_waits_for_the_old_deadline() {
     assert_eq!(restart.pop(), Some(Request::Restarted { stage: RestartStage::Outbox }));
     assert!(event(&mut restored, 3, Event::Make { key: key() }).is_empty());
     let mut out = Queue::uncapped();
-    fire(&mut restored, &Env { now: Time::ZERO, wall: Wall::from_nanos(30_000_000_000), limits: limits() }, &mut out);
+    fire_system(
+        &mut restored,
+        &Env { now: Time::ZERO, wall: Wall::from_nanos(30_000_000_000), limits: limits() },
+        &mut out,
+    );
     let Some(Request::Save { record: Record::Outbox(row) }) = out.pop() else {
         panic!("new attempt saved before write");
     };
@@ -508,7 +541,7 @@ fn provision_wakes_at_supplied_readiness_and_keeps_deadline_and_holding_behavior
                 limits: limits(),
             };
             let mut timer = Queue::uncapped();
-            fire(&mut domain, &env, &mut timer);
+            fire_system(&mut domain, &env, &mut timer);
             if seconds == 4 {
                 assert!(timer.is_empty());
             } else {
@@ -560,7 +593,7 @@ fn assert_restored_provision_timer(domain: &Domain, fact: Option<EnvironmentFact
     assert_eq!(next_deadline(&restored), Some(Time::from_nanos(5_000_000_000)));
     let env = Env { now: Time::from_nanos(5_000_000_000), wall: Wall::from_nanos(5_000_000_000), limits: limits() };
     let mut out = Queue::uncapped();
-    fire(&mut restored, &env, &mut out);
+    fire_system(&mut restored, &env, &mut out);
     assert_eq!(out.pop(), Some(Request::Wake { task: 7 }));
     assert!(out.is_empty(), "restoring a time condition makes no effect and invents no fact change");
 }
@@ -657,11 +690,11 @@ fn restored_effect_timers_wait_for_read_afresh() {
     );
     let env = Env { now: Time::from_nanos(2_000_000_000), wall: Wall::from_nanos(2_000_000_000), limits: limits() };
     let mut out = Queue::uncapped();
-    fire(&mut domain, &env, &mut out);
+    fire_system(&mut domain, &env, &mut out);
     assert!(out.is_empty(), "no system lookup before the scripted post-mark step");
     assert_eq!(next_deadline(&domain), None);
     event(&mut domain, 2, Event::ReadAfresh);
-    fire(&mut domain, &env, &mut out);
+    fire_system(&mut domain, &env, &mut out);
     let Some(Request::System(SystemRequest::Look { .. })) = out.pop() else {
         panic!("system lookup resumes after read afresh");
     };
@@ -939,11 +972,7 @@ fn spec_hold_and_effect_identifiers_come_from_configuration() {
     let held = holdings(&vocabulary, 2, Executor::Procedure { connector: 2, code: PROVISION_CODE }, &spec).unwrap();
     assert_eq!(held[0], Holding::Write { resource: Resource::Environment(environment()), kind: 12 });
     assert_eq!(held[1], Holding::Slot { pool: Pool(environment().pool), kind: 13 });
-    assert_eq!(
-        domain::describe(&Effect::Restart { service: service(), operation: 1 }, Backend::OperationIds, &vocabulary)
-            .kind,
-        11
-    );
+    assert_eq!(domain::describe(&Effect::Restart { service: service(), operation: 1 }, &vocabulary).kind, 11);
 }
 
 #[test]
@@ -988,4 +1017,124 @@ fn outbox_outcomes_select_the_owning_procedures_input() {
     }
     let call = Key { origin: Purpose::Call { attempt: 1, completion: 1, position: 0 }, ..key() };
     assert_eq!(procedure_outcome(call, Outcome::Made), None);
+}
+
+fn port_event(domain: &mut Domain, input: Event) -> Queue<Out> {
+    let env = Env { now: Time::from_nanos(0), wall: Wall::from_nanos(0), limits: limits() };
+    let mut out = Queue::uncapped();
+    step(domain, &env, input, &mut out);
+    out
+}
+
+#[test]
+fn the_port_describes_its_prepared_effect_and_makes_only_the_released_entry() {
+    use jig_domain_contract::{self as jig, effects};
+    let number = jig::Connector(2);
+    let mut domain = Domain::new(Backend::OperationIds, &limits()).with_contract(
+        number,
+        [1; 16],
+        Box::new([]),
+        skein_lib::Duration::from_secs(1),
+    );
+    let owner = Token::new(19);
+    let effect = Effect::Restart { service: service(), operation: 123 };
+    assert!(port_event(&mut domain, Event::StageEffect { owner, effect: effect.clone() }).is_empty());
+    let mut refused =
+        port_event(&mut domain, Event::Ask(jig::Ask::Effects(effects::Ask::Describe { owner: Token::new(20) })));
+    let Some(Out::Up(jig::Up::Effects(effects::Up::Refused { owner: refused_owner }))) = refused.pop() else {
+        panic!("an unknown owner must be refused");
+    };
+    assert_eq!(refused_owner, Token::new(20));
+    assert!(refused.is_empty());
+    let mut described = port_event(&mut domain, Event::Ask(jig::Ask::Effects(effects::Ask::Describe { owner })));
+    let Some(Out::Up(jig::Up::Effects(effects::Up::Described { owner: answered, description }))) = described.pop()
+    else {
+        panic!("expected the connector's synchronous description");
+    };
+    assert_eq!((answered, description.connector, description.purpose), (owner, number.0, 123));
+    assert_eq!(description.effect.name.segments, Resource::Service(service()).segments());
+    assert!(described.is_empty());
+    let key = effects::EffectKey {
+        deployment: [1; 16],
+        task: 7,
+        origin: effects::EffectPurpose::Procedure { purpose: 123 },
+        purpose: 123,
+    };
+    let mut kept = port_event(
+        &mut domain,
+        Event::Ask(jig::Ask::Effects(effects::Ask::Keep { owner, entry: 3, task: 7, key, project: Some(9) })),
+    );
+    let Some(Out::Save { record: Record::Outbox(entry) }) = kept.pop() else { panic!("Keep saves the outbox entry") };
+    assert_eq!(entry.project, Some(9));
+    assert_eq!(entry.effect, effect);
+    for item in &kept {
+        if let Out::System(_) = item {
+            panic!("Keep cannot send an effect to the system");
+        }
+    }
+    assert!(port_event(&mut domain, Event::Released(jig::Released::Make { entry: 4 })).is_empty());
+    let mut made = port_event(&mut domain, Event::Released(jig::Released::Make { entry: 3 }));
+    let Some(Out::Save { record: Record::Outbox(entry) }) = made.pop() else { panic!("Make saves the attempt") };
+    assert_eq!((entry.number, entry.phase), (3, Phase::Sent));
+    let Some(Out::System(SystemRequest::Apply { key, effect: sent, .. })) = made.pop() else {
+        panic!("Make sends the typed effect")
+    };
+    assert_eq!(key.task, 7);
+    assert_eq!(sent, effect);
+    assert!(made.is_empty());
+}
+
+#[test]
+fn the_port_acknowledges_a_project_release() {
+    use jig_domain_contract::{self as jig, lifecycle};
+    let mut domain = Domain::new(Backend::OperationIds, &limits());
+    let mut out =
+        port_event(&mut domain, Event::Ask(jig::Ask::Lifecycle(lifecycle::Ask::ReleaseProject { project: 17 })));
+    let Some(Out::Up(jig::Up::Lifecycle(lifecycle::Up::Released { project }))) = out.pop() else {
+        panic!("expected the connector's release acknowledgement");
+    };
+    assert_eq!(project, 17);
+    assert!(out.is_empty());
+}
+
+#[test]
+fn the_port_settles_only_the_close_named_by_the_durable_answer() {
+    use jig_domain_contract::{self as jig, ops};
+    let mut domain = Domain::new(Backend::OperationIds, &limits()).with_contract(
+        jig::Connector(2),
+        [1; 16],
+        Box::from(*b"environment torn down"),
+        skein_lib::Duration::from_secs(2),
+    );
+    let key = [9; 16];
+    assert!(
+        port_event(&mut domain, Event::Restore { record: Record::Closing { key, project: 8, chat: 14 } }).is_empty()
+    );
+    let mut sent = port_event(&mut domain, Event::SendCloses);
+    let Some(Out::Up(jig::Up::Act { key: sent_key, act, carried: None })) = sent.pop() else {
+        panic!("expected a keyed act")
+    };
+    assert_eq!(sent_key, key);
+    assert_eq!(
+        *act,
+        ops::Act::Close {
+            project: 8,
+            task: 14,
+            grace: Some(skein_lib::Duration::from_secs(2)),
+            reason: Box::from(*b"environment torn down")
+        }
+    );
+    assert!(sent.is_empty());
+    let outcome = ops::Outcome::Compound { project: 8, operations: 3, first_message: 41 };
+    assert!(
+        port_event(&mut domain, Event::Released(jig::Released::Answered { key: [8; 16], outcome: outcome.clone() }))
+            .is_empty()
+    );
+    let mut settled = port_event(&mut domain, Event::Released(jig::Released::Answered { key, outcome }));
+    let Some(Out::Erase { key: RecordKey::Closing(removed) }) = settled.pop() else {
+        panic!("the named retained close must be erased");
+    };
+    assert_eq!(removed, key);
+    assert!(settled.is_empty());
+    assert!(port_event(&mut domain, Event::SendCloses).is_empty());
 }

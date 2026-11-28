@@ -1,6 +1,6 @@
 # engine: status
 
-2026-11-26. Where jig's code lags or departs from [README.md](README.md).
+2026-11-28. Where jig's code lags or departs from [README.md](README.md).
 
 
 `executors.md`, section 5's failed-job cause accompanies its retry class through the hub
@@ -66,7 +66,7 @@ and the engine's link fits their answers to its room
 (`../../protocol/channel/liveness.status.md`, 1).
 
 `executors-transcripts.md`, section 1, and `briefs.md`, section 1 have no known gap in *A turn too large for a page*.
-`TranscriptLoad::Cut` hands the core a turn's fields and length.
+The store's answer `Answer::Cut` (`vocabulary.md`, 2.4) hands the core a turn's fields and length.
 `Core::append_cut_transcript` admits it as `append_transcript` admits a
 turn, counting its length and 4 bytes. It keeps `CUT_TURN_TEXT`,
 `[a turn too large to load]`, in the tail and sets `Transcript.cut`, so
@@ -214,7 +214,7 @@ a due expiry marks and delivers the changed offer.
 `settings-application.md`, section 1 has no known gap in a default its connector no longer
 gives: `jig-domain-core/src/settings/application.rs`, `prepare_start`,
 erases, with a removal in the release's revision, only a default-following
-state its connector names in `SettingsDefaults`' `dropped`, and a reset
+state its connector names in `settings::Up::Defaults`' `dropped`, and a reset
 to a default no connector reports or names keeps its state, size and
 slot (`jig-domain-core/src/tests/settings/application_start.rs`). temper's two restore
 stories that met it run (`temper/docs/design/protocol/configuration/README.status.md`).

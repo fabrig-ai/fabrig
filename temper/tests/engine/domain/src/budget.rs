@@ -103,7 +103,7 @@ pub fn ask_person(driver: &mut Driver, key: u8, ask: people::Ask) {
 pub fn choice(model: u8, effort: u8) -> tasks::LlmChoice {
     tasks::LlmChoice {
         account: None,
-        main: tasks::ModelEffort { model, effort: Some(effort) },
+        main: tasks::ModelEffort { model, effort: Some(effort), speed: None },
         subagents: Box::new([]),
         later: None,
     }

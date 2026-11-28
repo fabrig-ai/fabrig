@@ -1,4 +1,4 @@
-//! People's actions, drawn independently by party (`temper/docs/design/testing/workloads.md`, 3.3).
+//! People's actions, drawn independently by party (`temper/docs/design/testing/workloads-kit.md`, 1.3).
 
 use std::collections::BTreeSet;
 

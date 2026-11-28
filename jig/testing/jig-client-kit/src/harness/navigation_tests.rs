@@ -208,9 +208,7 @@ fn a_new_navigation_does_not_discard_a_current_epoch_engine_callback() {
         super::Due {
             client,
             epoch: 0,
-            event: Event::Client {
-                event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
-            },
+            event: Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
             navigation: None,
         },
     );

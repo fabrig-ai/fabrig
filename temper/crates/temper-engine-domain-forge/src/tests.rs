@@ -1,4 +1,5 @@
 use crate::*;
+use jig_domain_contract as contract;
 use jig_domain_core_vocabulary::waits::{
     Reported as WaitReport, ReportedBound, Thing as WaitThing, WaitKind, WaitObject,
 };
@@ -16,8 +17,11 @@ mod catching_up_releases;
 mod catching_up_repositories;
 mod catching_up_state;
 mod change;
+#[path = "tests/temper_dir.rs"]
+mod check_temper_dir;
 #[path = "tests/brief.rs"]
 mod ci_brief;
+mod close_delegate;
 mod closer;
 mod completed_reads;
 mod connect;
@@ -41,11 +45,11 @@ mod limits;
 mod link;
 mod make;
 mod making;
-mod member_message;
 mod milestones;
 mod outbox_room;
 mod panel;
 mod playground;
+mod port;
 mod projection;
 pub(crate) mod read_line;
 pub(crate) mod reconcile;
@@ -63,6 +67,7 @@ mod seen_closed;
 mod settings;
 mod standing;
 mod stopping;
+pub(crate) mod temper_revision;
 pub(crate) mod tiers;
 mod unpushed;
 mod views;
@@ -387,6 +392,10 @@ fn resume(d: &mut Domain, environment: &Env<Limits>, out: &mut Queue<Request>) {
     crate::resume(d, environment, out);
     accept_landings(d, environment, out);
 }
+pub(crate) fn project_released(project: u32) -> Request {
+    Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Released { project }))
+}
+
 pub(crate) fn outputs(d: &mut Domain, event: Event) -> Box<[Request]> {
     if let Event::Restore { .. } = &event {
         d.restore_begin(Wall::EPOCH);
@@ -604,7 +613,7 @@ fn an_outbox_entry_waits_for_its_commit() {
     assert_eq!(
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
         &[
-            Request::RestartDone { stage: RestartStage::Restored },
+            Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage: RestartStage::Restored })),
             Request::MarkedForges,
             Request::Marked { tasks: Box::new([changes_subject(5)]) },
         ],
@@ -612,8 +621,8 @@ fn an_outbox_entry_waits_for_its_commit() {
     assert_eq!(
         outputs(&mut d, Event::CatchUp).as_ref(),
         &[
-            Request::RestartDone { stage: RestartStage::ReadAfresh },
-            Request::RestartDone { stage: RestartStage::Settled },
+            Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage: RestartStage::ReadAfresh })),
+            Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage: RestartStage::Settled })),
             Request::MarkedForges,
             Request::Marked { tasks: Box::new([changes_subject(5)]) },
         ],
@@ -670,12 +679,9 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::LostReadFailed { .. }
         | Request::MakeFailed { .. }
         | Request::Outcome { .. }
-        | Request::ProjectionOutcome { .. }
-        | Request::NotMade { .. }
         | Request::ContinueRelease { .. }
         | Request::ContinueGoalBranch { .. }
-        | Request::Released { .. }
-        | Request::ProjectReleased { .. }
+        | Request::Up(_)
         | Request::Retained { .. }
         | Request::ReleaseFailed { .. }
         | Request::News { .. }
@@ -686,13 +692,13 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
-        | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingNews { .. }
         | Request::AskDropped { .. }
         | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
-        | Request::CloseDecision { .. }
+        | Request::ReplayJudgement { .. }
+        | Request::RelayRefusal { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
         | Request::Read { .. }
@@ -700,7 +706,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::BriefReady { .. }
         | Request::BriefReadRefused { .. }
         | Request::BriefSized { .. }
-        | Request::EffectsSettled { .. }
         | Request::BriefTaken { .. }
         | Request::ApplicationPart { .. }
         | Request::ApplicationDone { .. }
@@ -739,8 +744,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::MakingAct { .. }
         | Request::Decided { .. }
         | Request::LoadHistory { .. }
-        | Request::HistoryPage { .. }
-        | Request::RestartDone { .. } => panic!("permission call"),
+        | Request::HistoryPage { .. } => panic!("permission call"),
     };
     assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Permission { user: 7 }));
     let result = outputs(
@@ -786,12 +790,9 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::LostReadFailed { .. }
         | Request::MakeFailed { .. }
         | Request::Outcome { .. }
-        | Request::ProjectionOutcome { .. }
-        | Request::NotMade { .. }
         | Request::ContinueRelease { .. }
         | Request::ContinueGoalBranch { .. }
-        | Request::Released { .. }
-        | Request::ProjectReleased { .. }
+        | Request::Up(_)
         | Request::Retained { .. }
         | Request::ReleaseFailed { .. }
         | Request::News { .. }
@@ -802,13 +803,13 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
-        | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingNews { .. }
         | Request::AskDropped { .. }
         | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
-        | Request::CloseDecision { .. }
+        | Request::ReplayJudgement { .. }
+        | Request::RelayRefusal { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
         | Request::Read { .. }
@@ -816,7 +817,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::BriefReady { .. }
         | Request::BriefReadRefused { .. }
         | Request::BriefSized { .. }
-        | Request::EffectsSettled { .. }
         | Request::BriefTaken { .. }
         | Request::ApplicationPart { .. }
         | Request::ApplicationDone { .. }
@@ -855,8 +855,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::MakingAct { .. }
         | Request::Decided { .. }
         | Request::LoadHistory { .. }
-        | Request::HistoryPage { .. }
-        | Request::RestartDone { .. } => panic!("branches call"),
+        | Request::HistoryPage { .. } => panic!("branches call"),
     };
     assert!(
         outputs(
@@ -895,12 +894,9 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::LostReadFailed { .. }
         | Request::MakeFailed { .. }
         | Request::Outcome { .. }
-        | Request::ProjectionOutcome { .. }
-        | Request::NotMade { .. }
         | Request::ContinueRelease { .. }
         | Request::ContinueGoalBranch { .. }
-        | Request::Released { .. }
-        | Request::ProjectReleased { .. }
+        | Request::Up(_)
         | Request::Retained { .. }
         | Request::ReleaseFailed { .. }
         | Request::News { .. }
@@ -911,13 +907,13 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
-        | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingNews { .. }
         | Request::AskDropped { .. }
         | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
-        | Request::CloseDecision { .. }
+        | Request::ReplayJudgement { .. }
+        | Request::RelayRefusal { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
         | Request::Read { .. }
@@ -925,7 +921,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::BriefReady { .. }
         | Request::BriefReadRefused { .. }
         | Request::BriefSized { .. }
-        | Request::EffectsSettled { .. }
         | Request::BriefTaken { .. }
         | Request::ApplicationPart { .. }
         | Request::ApplicationDone { .. }
@@ -964,8 +959,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::MakingAct { .. }
         | Request::Decided { .. }
         | Request::LoadHistory { .. }
-        | Request::HistoryPage { .. }
-        | Request::RestartDone { .. } => panic!("settings follows collision read"),
+        | Request::HistoryPage { .. } => panic!("settings follows collision read"),
     }
 }
 
@@ -995,7 +989,8 @@ fn adoption_without_ci_refuses_an_empty_check_policy() {
 #[test]
 fn restored_ci_subscriptions_are_read_in_the_fresh_step_and_delay_its_completion() {
     let mut d = domain();
-    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let repository = Repository { home: false, ..adopted() };
+    outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
     outputs(
         &mut d,
         Event::Restore {
@@ -1012,7 +1007,7 @@ fn restored_ci_subscriptions_are_read_in_the_fresh_step_and_delay_its_completion
     assert_eq!(
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
         &[
-            Request::RestartDone { stage: RestartStage::Restored },
+            Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage: RestartStage::Restored })),
             Request::MarkedForges,
             Request::Marked { tasks: Box::new([changes_subject(5)]) },
         ]
@@ -1021,7 +1016,7 @@ fn restored_ci_subscriptions_are_read_in_the_fresh_step_and_delay_its_completion
     assert_eq!(
         fresh.as_ref(),
         &[
-            Request::RestartDone { stage: RestartStage::Settled },
+            Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage: RestartStage::Settled })),
             Request::MarkedForges,
             Request::Marked { tasks: Box::new([changes_subject(5)]) },
         ],
@@ -1044,7 +1039,9 @@ fn restored_ci_subscriptions_are_read_in_the_fresh_step_and_delay_its_completion
             result: Ok(fixtures::checks(skein_forge::api::Check::Passed)),
         }),
     );
-    assert!(done.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
+    assert!(done.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: RestartStage::ReadAfresh
+    }))));
 }
 
 #[test]
@@ -1464,7 +1461,7 @@ fn a_held_effect_survives_a_restart_out_of_the_clients_outbox() {
     assert_eq!(
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
         &[
-            Request::RestartDone { stage: RestartStage::Restored },
+            Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage: RestartStage::Restored })),
             Request::MarkedForges,
             Request::Marked { tasks: Box::new([changes_subject(5)]) },
         ]
@@ -1472,8 +1469,8 @@ fn a_held_effect_survives_a_restart_out_of_the_clients_outbox() {
     assert_eq!(
         outputs(&mut d, Event::CatchUp).as_ref(),
         &[
-            Request::RestartDone { stage: RestartStage::ReadAfresh },
-            Request::RestartDone { stage: RestartStage::Settled },
+            Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage: RestartStage::ReadAfresh })),
+            Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage: RestartStage::Settled })),
             Request::MarkedForges,
             Request::Marked { tasks: Box::new([changes_subject(5)]) },
         ]
@@ -1491,7 +1488,14 @@ fn a_held_effect_settled_as_not_made_is_erased_and_reported() {
     let mut d = held_creation();
     assert_eq!(
         outputs(&mut d, Event::Resolve { entry: 11, again: false }).as_ref(),
-        &[Request::Erase { key: Key::Entry(11) }, Request::NotMade { entry: 11, task: 7 }]
+        &[
+            Request::Erase { key: Key::Entry(11) },
+            Request::Up(contract::Up::Effects(contract::effects::Up::Outbox {
+                entry: 11,
+                task: 7,
+                outcome: contract::effects::OutboxOutcome::NotMade
+            }))
+        ]
     );
 }
 
@@ -1569,7 +1573,11 @@ fn closing_a_task_settles_its_held_effect_not_made_and_frees_its_room() {
         &[
             Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) },
             Request::Erase { key: Key::Entry(11) },
-            Request::NotMade { entry: 11, task: 7 },
+            Request::Up(contract::Up::Effects(contract::effects::Up::Outbox {
+                entry: 11,
+                task: 7,
+                outcome: contract::effects::OutboxOutcome::NotMade
+            })),
             Request::ContinueRelease { task: 7 },
         ]
     );
@@ -1586,7 +1594,7 @@ fn closing_a_task_settles_its_held_effect_not_made_and_frees_its_room() {
         outputs(&mut d, Event::ContinueRelease { task: 7, entry: 20 }).as_ref(),
         &[
             Request::Save { read_afresh: None, release: None, record: Stored::Release(settled) },
-            Request::EffectsSettled { task: 7 },
+            Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: 7 })),
         ]
     );
 }
@@ -2048,7 +2056,7 @@ fn a_lost_writers_outage_keeps_the_release_waiting_without_a_hold() {
     let releasing =
         outputs(&mut d, Event::Release { task: 7, root: 7, ending: ReleaseEnding::Cancelled, reason: None, entry: 20 });
     assert!(!release_failed(&releasing, 7));
-    assert!(!releasing.contains(&Request::Released { task: 7 }));
+    assert!(!releasing.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 7 }))));
     fixtures::advance(&mut d, &mut env, CLIENT.backoff);
     let (again, asked) = fixtures::next_at(&mut d, &env);
     assert_eq!(asked, op);
@@ -2070,7 +2078,7 @@ fn a_release_waits_for_its_lost_writers_read_until_its_forge_connects() {
     let closing =
         outputs(&mut d, Event::Release { task: 7, root: 7, ending: ReleaseEnding::Cancelled, reason: None, entry: 20 });
     assert!(!release_failed(&closing, 7));
-    assert!(!closing.contains(&Request::Released { task: 7 }));
+    assert!(!closing.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 7 }))));
     assert!(outputs(&mut d, Event::ContinueRelease { task: 7, entry: 20 }).is_empty());
     assert!(!d.is_ready());
     outputs(
@@ -2109,7 +2117,10 @@ fn a_release_waits_for_its_lost_writers_read_until_its_forge_connects() {
     );
     let deleted = fixtures::answer(&mut d, call, Ok(skein_forge::api::Answer::Done));
     assert!(deleted.contains(&Request::ContinueRelease { task: 7 }));
-    assert!(outputs(&mut d, Event::ContinueRelease { task: 7, entry: 21 }).contains(&Request::Released { task: 7 }));
+    assert!(
+        outputs(&mut d, Event::ContinueRelease { task: 7, entry: 21 })
+            .contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 7 })))
+    );
     assert!(d.hold(&run_branch(b"7")).is_none());
 }
 
@@ -2146,7 +2157,7 @@ fn a_release_waits_while_its_lost_writer_is_waiting_for_read_room() {
     let closing =
         outputs(&mut d, Event::Release { task: 8, root: 8, ending: ReleaseEnding::Done, reason: None, entry: 20 });
     assert!(!release_failed(&closing, 8));
-    assert!(!closing.contains(&Request::Released { task: 8 }));
+    assert!(!closing.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 8 }))));
     let call = admit_waiting_slot_read(&mut d, first);
     let answered = fixtures::answer(&mut d, call, Ok(skein_forge::api::Answer::Commit([2; 32])));
     assert!(answered.contains(&Request::ContinueRelease { task: 8 }));
@@ -2173,7 +2184,7 @@ fn a_holders_release_waits_for_a_running_writer_or_a_lost_writer_without_a_read(
         let closing =
             outputs(&mut d, Event::Release { task: 7, root: 7, ending: ReleaseEnding::Done, reason: None, entry: 20 });
         assert!(!release_failed(&closing, 7));
-        assert!(!closing.contains(&Request::Released { task: 7 }));
+        assert!(!closing.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 7 }))));
         assert_eq!(d.hold(&run_branch(b"7")).unwrap().writer, Some(writer));
     }
 }
@@ -3451,7 +3462,7 @@ fn a_closing_failed_projection_settles_and_keeps_its_failed_row() {
     view.finished = Some("Goal finished".into());
     let goal = view.goal;
     let settled = outputs(&mut d, Event::Project { entry: ENTRY, repository: REPO, view });
-    assert!(settled.contains(&Request::ProjectionSettled { goal }));
+    assert!(settled.contains(&Request::Up(contract::Up::Projections(contract::projections::Up::Settled { goal }))));
     assert!(!has_projection_effect(&settled));
     outputs(&mut d, Event::ForgetProjection { goal });
     assert!(d.issue(goal).expect("retained diagnostic").failed);
@@ -3464,7 +3475,9 @@ fn an_untranslatable_closing_feed_settles_a_failed_projection() {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let settled = outputs(&mut d, Event::FailProjection { goal: GOAL, repository: REPO, closing: true });
     assert!(settled.contains(&Request::ProjectionFailed { goal: GOAL }));
-    assert!(settled.contains(&Request::ProjectionSettled { goal: GOAL }));
+    assert!(
+        settled.contains(&Request::Up(contract::Up::Projections(contract::projections::Up::Settled { goal: GOAL })))
+    );
     assert!(d.issue(GOAL).expect("failed diagnostic").failed);
 }
 

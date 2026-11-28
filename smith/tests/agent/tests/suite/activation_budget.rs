@@ -139,6 +139,7 @@ fn charter(settings: &Settings, cue: &[u8], rates: &[Rate]) -> run::Charter {
 
     let model = |rate: Rate| Llm {
         effort: None,
+        speed: None,
         prices: run::Prices {
             input: rate.input,
             cached: rate.cached,
@@ -188,6 +189,7 @@ fn charter(settings: &Settings, cue: &[u8], rates: &[Rate]) -> run::Charter {
         conventions: Some(run::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: None,
         }),
         resume: settings.resume,
         waiting: settings.waiting,
@@ -206,6 +208,7 @@ fn workspace(writable: bool) -> (Checkout, run::Workspace) {
         run::Workspace {
             directories: Box::new([run::Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root,

@@ -1,5 +1,6 @@
 //! The public world stories (jig/docs/design/domain/people/public-reading.md, 6).
 use jig_core_world::stories::public as story;
+use jig_domain_contract as jig;
 use jig_domain_core::{self as core, PublicAnswer, PublicDocument};
 use jig_domain_people as people;
 use jig_test_domain as root;
@@ -205,7 +206,7 @@ fn a_deleted_public_project_is_unknown_from_its_deletions_decision() {
     story::delete(&mut world);
     assert_eq!(story::answer(&mut world, 500, story::read(2, None)), PublicAnswer::Unknown);
     world.hold_project_releases.clear();
-    world.send(root::Event::Core(core::Event::ProjectReleased { connector: 1, project: 1 }));
+    world.send(root::Event::connector_up(1, jig::Up::Lifecycle(jig::lifecycle::Up::Released { project: 1 })));
     super::deletion::finish(&mut world);
     assert!(world.domain.core().people.deletions().is_empty());
     assert!(world.domain.core().people.deleted(1));

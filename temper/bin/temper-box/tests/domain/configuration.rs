@@ -73,7 +73,7 @@ fn the_retained_cluster_overrides_name_no_charter_documents() {
     }
 }
 
-fn process_engine() -> jig_protocol_config::Engine {
+pub(super) fn process_engine() -> jig_protocol_config::Engine {
     let mut value = support::configuration(Path::new("/fixture/process"), &support::Forge::Unreached);
     // Forge::Unreached omits Forgejo's overrides; include its whole-authority bounds here.
     value.jig_over("authority.grants", 15);

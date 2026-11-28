@@ -103,7 +103,6 @@ mod index;
 mod inspect;
 mod questions;
 mod reasons;
-mod refusal_words;
 pub use index::{Edge, EndedByParty, EndedByProject, Endings, Newest, ResultRow, Update, UpdateObject};
 pub use reasons::{ALWAYS_OFFERED_NAMES, REASON_NAMES, Reasons, offered};
 mod limits;
@@ -127,7 +126,7 @@ mod recurring;
 mod refs;
 mod retire;
 mod room;
-pub use room::{LiveRoom, RoomWait};
+pub use room::{LiveRoom, RoomWait, freeing_count};
 mod run;
 mod runtime;
 mod session;
@@ -191,7 +190,9 @@ pub use funders::FundingRecord;
 pub use grace::Grace;
 pub use holds::{Report as ResourceReport, valid_name};
 pub use limits::{Limits, VERDICT_FIELDS, valid};
-pub use llm::{AccountWhy, CharterModels, LlmChoice, LlmFault, LlmLater, MODELS, ModelEffort};
+pub use llm::{
+    AccountWhy, CharterModels, DeclaredSpeed, LlmChoice, LlmFault, LlmLater, MODELS, ModelEffort, STANDARD_SPEED,
+};
 pub use moving::Move;
 pub use owned::{batch_bytes, phase_bound, phase_bytes, stored_bytes, task_bytes, terminal_bytes};
 pub use parts::{Part, PartKey, PartKind};

@@ -100,7 +100,6 @@ fn report_list(value: Result<List<u32>, What>, path: &Path, problems: &mut Probl
         }
     }
 }
-#[expect(clippy::too_many_lines, reason = "one template reads and checks its complete configuration shape")]
 fn template(
     document: &Document,
     at: u32,
@@ -111,16 +110,12 @@ fn template(
 ) -> Option<Template> {
     let mut object = check::object(document, at, path, problems, "template")?;
     let number = check::count(&mut object, document, b"number", path, problems);
-    let name = match object.required(document, b"name", path, problems) {
-        Some(at) => match read::text(document, at, limits.core.documents.text_bytes) {
-            Ok(name) => Some(name),
-            Err(what) => {
-                problems.push(path.member(b"name"), what);
-                None
-            }
-        },
-        None => None,
+    let (member, text, name) = if let Some(at) = object.member(document, b"shown") {
+        (b"shown".as_slice(), Some(at), check::setting_name(&mut object, document, path, problems))
+    } else {
+        (b"name".as_slice(), object.member(document, b"name"), None)
     };
+    let shown = shown(document, path, limits.core.documents.text_bytes, member, text, problems);
     let executor = match object.required(document, b"executor", path, problems) {
         Some(at) => executor(document, at, &path.member(b"executor"), problems),
         None => None,
@@ -181,9 +176,10 @@ fn template(
         }
     };
     let template = Template {
+        name,
         resources: resources?,
         number: number?,
-        name: name?,
+        shown: shown?,
         executor: executor?,
         contract: contract?,
         shallower: shallower?,
@@ -211,6 +207,26 @@ fn template(
         problems.push(path.member(b"grace_ms"), What::Grace { template: template.number });
     }
     Some(template)
+}
+fn shown(
+    document: &Document,
+    path: &Path,
+    max: u32,
+    member: &[u8],
+    at: Option<u32>,
+    problems: &mut Problems,
+) -> Option<Box<[u8]>> {
+    let Some(at) = at else {
+        problems.push(path.member(b"shown"), What::Missing);
+        return None;
+    };
+    match read::text(document, at, max) {
+        Ok(text) => Some(text),
+        Err(what) => {
+            problems.push(path.member(member), what);
+            None
+        }
+    }
 }
 fn resources(document: &Document, at: u32, path: &Path, limit: u32, problems: &mut Problems) -> Option<Box<[Symbol]>> {
     let items = report_list(read::list(document, at, limit), path, problems)?;
@@ -435,8 +451,8 @@ fn choice_models(
         Some(_) | None => Err(What::Refers),
     }
 }
-/// One model a template's choice names, with an effort it takes: `null` only for a model that
-/// declares none (protocol/configuration-templates.md, 1, and protocol/configuration.md, 7).
+/// One model a template's choice names, with its effort and optional speed
+/// (jig/docs/design/protocol/configuration-templates.md, 1).
 fn model_effort(
     document: &Document,
     at: u32,
@@ -457,6 +473,7 @@ fn model_effort(
         },
         None => None,
     };
+    let speed = object.member(document, b"speed");
     object.finish(document, path, problems);
     let name = name?;
     let mut configured = None;
@@ -493,7 +510,33 @@ fn model_effort(
             return None;
         }
     };
-    Some(tasks::ModelEffort { model: u8::try_from(index).expect("models bounded by `MODELS`"), effort })
+    let speed = match speed {
+        Some(at) => Some(model_speed(document, at, &path.member(b"speed"), model, problems)?),
+        None => None,
+    };
+    Some(tasks::ModelEffort { model: u8::try_from(index).expect("models bounded by `MODELS`"), effort, speed })
+}
+
+fn model_speed(
+    document: &Document,
+    at: u32,
+    path: &Path,
+    model: &Model,
+    problems: &mut Problems,
+) -> Option<skein_lib::Name<32>> {
+    use jig_domain_core_vocabulary::settings::catalogue::SPEED_NAME_BYTES;
+    let name = match read::text(document, at, SPEED_NAME_BYTES) {
+        Ok(name) => name,
+        Err(what) => {
+            problems.push(path.clone(), what);
+            return None;
+        }
+    };
+    if !model.takes_speed(Some(&name)) {
+        problems.push(path.clone(), What::Refers);
+        return None;
+    }
+    skein_lib::Name::from_checked(&name)
 }
 /// Refuse each model a template's choice names that its charter does not: its main model or one
 /// of its alternatives (protocol/configuration-engine.md, 1, and protocol/configuration-templates.md, 1).

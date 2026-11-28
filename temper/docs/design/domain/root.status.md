@@ -1,6 +1,6 @@
 # root: status
 
-2026-11-26. Where temper's code lags or departs from [root.md](root.md).
+2026-11-28. Where temper's code lags or departs from [root.md](root.md).
 
 
 

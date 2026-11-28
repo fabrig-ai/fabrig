@@ -4,8 +4,10 @@ use crate::routing::{
     Work,
     party::dispatch::{Party, Routed},
 };
+use crate::vocabulary::connector_ask;
 use crate::{Core, Event, Limits, Request, effects::connector, reads, settings as s};
 use alloc::boxed::Box;
+use jig_domain_contract as contract;
 use jig_domain_people as people;
 use skein_lib::{Decimal, Env, Id, List, Map, Queue, Token, Writer};
 
@@ -360,10 +362,10 @@ fn propose(core: &mut Core, env: &Env<Limits>, routed: &mut Routed) {
             .insert(Some(s::RestoreGroup { connector, items: items.clone(), judged: None }))
             .expect("one group per connector")
             .token();
-        routed.out.push(Request::Ask {
+        routed.out.push(connector_ask(
             connector,
-            ask: crate::Ask::Effect(connector::Ask::RestoreSettings { owner, proposal, items }),
-        });
+            contract::Ask::Settings(contract::settings::Ask::Restore { owner, proposal, items }),
+        ));
     }
 }
 fn connector_of(core: &Core, number: u32) -> u16 {
@@ -539,10 +541,10 @@ fn finish_groups(core: &mut Core, drop_proposal: Option<u64>, out: &mut Queue<Re
     let mut names = List::with_capacity(core.restoring.groups.len());
     for (id, group) in &core.restoring.groups {
         if let Some(proposal) = drop_proposal {
-            out.push(Request::Ask {
-                connector: group.as_ref().expect("active group").connector,
-                ask: crate::Ask::Effect(connector::Ask::DropProposalSettings { proposal }),
-            });
+            out.push(connector_ask(
+                group.as_ref().expect("active group").connector,
+                contract::Ask::Settings(contract::settings::Ask::DropProposal { proposal }),
+            ));
         }
         names.push(id).expect("active groups");
     }

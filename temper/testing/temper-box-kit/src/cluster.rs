@@ -132,6 +132,31 @@ pub fn settings_change(file: &Path) -> super::ctl::Call {
 fn private_directory(path: &Path) {
     fs::DirBuilder::new().recursive(true).mode(0o700).create(path).expect("private cluster directory");
 }
+/// Lay the cluster story's overrides over whole settings read through ctl.
+pub fn overlay_settings(fixture: &mut Value, reads: impl IntoIterator<Item = Value>) {
+    let items = fixture["items"].as_array_mut().expect("cluster settings items");
+    for current in reads {
+        let item =
+            items.iter_mut().find(|item| item["setting"] == current["setting"]).expect("cluster setting override");
+        let mut overrides = item["set"].take();
+        let mut value = current["value"].clone();
+        if current["setting"]["kind"] == "charter" {
+            super::provider_setup::use_provider(&mut value, 1);
+        }
+        if current["setting"]["kind"] == "agents" {
+            value["profile"]
+                .as_object_mut()
+                .expect("agent profile")
+                .extend(overrides["profile"].as_object().expect("profile overrides").clone());
+            overrides.as_object_mut().expect("agent overrides").remove("profile");
+        }
+        value.as_object_mut().expect("whole setting").extend(
+            overrides.as_object().expect("setting overrides").iter().map(|(key, value)| (key.clone(), value.clone())),
+        );
+        item["set"] = value;
+    }
+}
+
 /// Worker settings from a description, applied by its owner after sign-in.
 #[must_use]
 pub fn worker_settings(file: &Path) -> Vec<Value> {
@@ -723,17 +748,24 @@ impl Member {
         }
     }
 }
+pub(super) fn member_fixture(saved: &Command) -> Command {
+    super::fixture::dying_with_test(
+        Command {
+            program: saved.program.clone(),
+            arguments: saved.arguments.clone(),
+            environment: saved.environment.clone(),
+            directory: saved.directory.clone(),
+        },
+        skein_io::kernel::Signal::Kill,
+    )
+}
+
 impl Host for Member {
     fn iterate(&mut self, now: Time, wall: Wall) {
         if self.starting {
             self.starting = false;
             let saved = self.command.as_ref().expect("rendered member command");
-            let command = Command {
-                program: saved.program.clone(),
-                arguments: saved.arguments.clone(),
-                environment: saved.environment.clone(),
-                directory: saved.directory.clone(),
-            };
+            let command = member_fixture(saved);
             let mut binary = Binary::start_with_tree(command, Mode::Pipes, 65_536, Expectation::Supervise, false)
                 .expect("cluster member starts");
             let Streams::Pipes { input, output } = binary.take_streams().expect("cluster pipes") else {

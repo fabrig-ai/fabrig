@@ -69,6 +69,10 @@ pub(crate) fn model(value: &core::Model) -> Result<w::SettingModel, w::Problem> 
     for effort in &value.efforts {
         efforts.push(effort.clone()).expect("effort count");
     }
+    let mut speeds = List::with_capacity(super::count(value.speeds.len())?);
+    for speed in &value.speeds {
+        speeds.push(mapped::setting_speed_to_record(speed)?).expect("speed count");
+    }
     Ok(w::SettingModel {
         provider: value.provider,
         dialect: value.dialect,
@@ -84,6 +88,8 @@ pub(crate) fn model(value: &core::Model) -> Result<w::SettingModel, w::Problem> 
         price_unit: value.price_unit,
         efforts,
         effort: value.effort.clone(),
+        speeds,
+        speed: value.speed.clone(),
     })
 }
 pub(crate) fn charter(value: &core::Charter) -> Result<w::Charter, w::Problem> {
@@ -101,6 +107,7 @@ pub(crate) fn charter(value: &core::Charter) -> Result<w::Charter, w::Problem> {
         parts.push(mapped::charter_part_to_record(item)).expect("part count");
     }
     Ok(w::Charter {
+        name: value.name.clone(),
         parts,
         documents,
         rest: value.rest,
@@ -198,6 +205,7 @@ pub(super) fn policy(
         overrides.push(v.clone()).expect("template override count");
     }
     Ok(w::SettingPolicy {
+        name: value.name.clone(),
         escalation_role: p.escalation_role,
         ceiling: authority(&p.ceiling, models, limits)?,
         projections,

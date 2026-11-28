@@ -1,10 +1,18 @@
 //! Recount rows and the period's operations, retaining only overflow assignments.
+//! Cases take their seeds as in skein/docs/design/testing/sweeps.md, 4.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    convert::Infallible,
+};
 
 use skein_kv::{CENSUS_HEADS, CENSUS_KEYSPACES, Census, CensusRule, Event, Limits, Op, Page, Request, Store};
 use skein_kv_tests::world::World;
 use skein_lib::{Duration, Token};
+use skein_world::{
+    sweep::{cases, gate},
+    this_test,
+};
 
 const OWNER: Token = Token::new(1);
 const SEEDS: u64 = 16;
@@ -223,7 +231,9 @@ fn crossing_bounds(seed: &mut u64) -> Vec<Op> {
 
 #[test]
 fn generated_commits_snapshots_and_reopens_match_the_census_recount() {
-    for initial in 1..=SEEDS {
+    let at_gate = gate();
+    let test = this_test!("generated_commits_snapshots_and_reopens_match_the_census_recount");
+    cases::<_, Infallible, _>(test, 1..=SEEDS, |initial| {
         let mut seed = initial;
         let mut world = World::untraced(limits(), &[]);
         world.store.count(CensusRule { prefix: [2; 256] });
@@ -278,7 +288,11 @@ fn generated_commits_snapshots_and_reopens_match_the_census_recount() {
                 reopens += 1;
             }
         }
-        assert!(snapshots > 0 && reopens > 0, "seed {initial} crosses both lifecycle transitions");
+        if at_gate {
+            assert!(snapshots > 0 && reopens > 0, "seed {initial} crosses both lifecycle transitions");
+        }
         close(&mut world);
-    }
+        Ok(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
 }

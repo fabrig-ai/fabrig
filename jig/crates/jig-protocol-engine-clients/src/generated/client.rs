@@ -1709,18 +1709,6 @@ pub fn name_rule_to_record(value: &jig_domain_people::NameRule) -> jig_client_pr
 }
 
 #[must_use]
-pub fn llm_why_to_record(value: &jig_domain_people::LlmWhy) -> jig_client_protocol_wire::v44::LlmWhy {
-    match value {
-        jig_domain_people::LlmWhy::Unconfigured => jig_client_protocol_wire::v44::LlmWhy::Unconfigured,
-        jig_domain_people::LlmWhy::Effort => jig_client_protocol_wire::v44::LlmWhy::Effort,
-        jig_domain_people::LlmWhy::Charter => jig_client_protocol_wire::v44::LlmWhy::Charter,
-        jig_domain_people::LlmWhy::Authority => jig_client_protocol_wire::v44::LlmWhy::Authority,
-        jig_domain_people::LlmWhy::Procedure => jig_client_protocol_wire::v44::LlmWhy::Procedure,
-        jig_domain_people::LlmWhy::Repeated => jig_client_protocol_wire::v44::LlmWhy::Repeated,
-    }
-}
-
-#[must_use]
 pub fn account_why_to_record(value: &jig_domain_people::AccountWhy) -> jig_client_protocol_wire::v44::AccountWhy {
     match value {
         jig_domain_people::AccountWhy::Unknown => jig_client_protocol_wire::v44::AccountWhy::Unknown,
@@ -2947,6 +2935,61 @@ pub fn model_source_to_domain(record: jig_client_protocol_wire::v44::ModelSource
     }
 }
 
+pub fn setting_speed_to_record(value: &jig_domain_core_vocabulary::Speed) -> Result<jig_client_protocol_wire::v44::SettingSpeed, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::Speed { name: field_000000, also: field_000001, input_price: field_000002, cached_price: field_000003, cache_write_price: field_000004, output_price: field_000005 } = value;
+    Ok(jig_client_protocol_wire::v44::SettingSpeed {
+        name: field_000000.clone(),
+        also: {
+            let source = field_000001;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::SETTING_SPEED_ALSO.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = item.clone();
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        input_price: *field_000002,
+        cached_price: *field_000003,
+        cache_write_price: match field_000004 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        output_price: *field_000005
+    })
+}
+
+#[must_use]
+pub fn setting_speed_to_domain(record: jig_client_protocol_wire::v44::SettingSpeed) -> jig_domain_core_vocabulary::Speed {
+    let jig_client_protocol_wire::v44::SettingSpeed { name: field_000000, also: field_000001, input_price: field_000002, cached_price: field_000003, cache_write_price: field_000004, output_price: field_000005 } = record;
+    jig_domain_core_vocabulary::Speed {
+        name: field_000000,
+        also: {
+            let source = field_000001;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = item;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        input_price: field_000002,
+        cached_price: field_000003,
+        cache_write_price: match field_000004 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        output_price: field_000005
+    }
+}
+
 #[must_use]
 pub fn provider_offer_to_record(value: &jig_domain_core_vocabulary::documents::ProviderOffer) -> jig_client_protocol_wire::v44::ProviderOffer {
     let jig_domain_core_vocabulary::documents::ProviderOffer { provider: field_000000, name: field_000001, sign_in: field_000002, key: field_000003, programs: field_000004, programs_cut: field_000005, none: field_000006, signed_in_plan: field_000007, manage_usage: field_000008, key_bytes: field_000009 } = value;
@@ -2976,6 +3019,15 @@ pub fn readiness_to_record(value: &jig_domain_core_vocabulary::documents::Readin
         jig_domain_core_vocabulary::documents::Readiness::Usable => jig_client_protocol_wire::v44::Readiness::Usable,
         jig_domain_core_vocabulary::documents::Readiness::Unavailable => jig_client_protocol_wire::v44::Readiness::Unavailable,
         jig_domain_core_vocabulary::documents::Readiness::Unknown => jig_client_protocol_wire::v44::Readiness::Unknown,
+    }
+}
+
+#[must_use]
+pub fn me_charter_to_record(value: &jig_domain_core_vocabulary::documents::FrameCharter) -> jig_client_protocol_wire::v44::MeCharter {
+    let jig_domain_core_vocabulary::documents::FrameCharter { number: field_000000, name: field_000001 } = value;
+    jig_client_protocol_wire::v44::MeCharter {
+        number: *field_000000,
+        name: field_000001.clone()
     }
 }
 
@@ -5133,6 +5185,7 @@ pub fn setting_fault_to_record(value: &jig_domain_people::SettingFault) -> jig_c
         jig_domain_people::SettingFault::Linked => jig_client_protocol_wire::v44::SettingFault::Linked,
         jig_domain_people::SettingFault::Accounts => jig_client_protocol_wire::v44::SettingFault::Accounts,
         jig_domain_people::SettingFault::Range => jig_client_protocol_wire::v44::SettingFault::Range,
+        jig_domain_people::SettingFault::Name => jig_client_protocol_wire::v44::SettingFault::Name,
     }
 }
 
@@ -5212,10 +5265,10 @@ pub fn application_state_to_record(value: &jig_domain_core_vocabulary::settings:
 }
 
 pub fn setting_line_to_record(value: &jig_domain_core_vocabulary::documents::SettingLine) -> Result<jig_client_protocol_wire::v44::SettingLine, jig_client_protocol_wire::v44::Problem> {
-    let jig_domain_core_vocabulary::documents::SettingLine { setting: field_000000, name: field_000001, follows: field_000002, last: field_000003, application: field_000004 } = value;
+    let jig_domain_core_vocabulary::documents::SettingLine { setting: field_000000, shown: field_000001, follows: field_000002, last: field_000003, application: field_000004, name: field_000005 } = value;
     Ok(jig_client_protocol_wire::v44::SettingLine {
         setting: setting_to_record(field_000000),
-        name: match field_000001 {
+        shown: match field_000001 {
             Some(item) => {
                 let converted = document_text_to_record(item);
                 Some(converted)
@@ -5233,6 +5286,13 @@ pub fn setting_line_to_record(value: &jig_domain_core_vocabulary::documents::Set
         application: match field_000004 {
             Some(item) => {
                 let converted = application_state_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
+        },
+        name: match field_000005 {
+            Some(item) => {
+                let converted = item.clone();
                 Some(converted)
             }
             None => None,

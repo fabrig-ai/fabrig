@@ -1,5 +1,5 @@
 //! Exact member messages and their recognition (temper/docs/design/protocol/tooling.md, 4).
-use temper_engine_domain_forge::member_message::{Kind, Member, commit_message, names_head};
+use temper_protocol_member_message::{Kind, Member, commit_message, names_head};
 
 const HEAD: &str = "1111111111111111111111111111111111111111";
 const TITLE: &[u8] = b"Add the squash trailers";

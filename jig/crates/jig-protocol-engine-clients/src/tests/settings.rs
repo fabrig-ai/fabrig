@@ -14,8 +14,9 @@ fn settings() -> d::Settings {
     let mut settings = List::with_capacity(1);
     settings
         .push(d::SettingLine {
+            name: None,
             setting: s::Setting::Template(1),
-            name: Some(d::Text { bytes: Box::from(b"chat".as_slice()), cut: false }),
+            shown: Some(d::Text { bytes: Box::from(b"chat".as_slice()), cut: false }),
             follows: d::Follows::Default,
             last: Some(6),
             application: None,
@@ -100,8 +101,9 @@ fn the_inventory_at_profile_bounds_fits_one_wire_document() {
         document
             .settings
             .push(d::SettingLine {
+                name: None,
                 setting: s::Setting::Template(number),
-                name: if number < NAMED {
+                shown: if number < NAMED {
                     Some(d::Text { bytes: Box::from([b'x'; NAME_BYTES].as_slice()), cut: false })
                 } else {
                     None
@@ -142,6 +144,7 @@ fn charter() -> jig_domain_core_vocabulary::Charter {
     use jig_domain_core_vocabulary as core;
     use skein_lib::Duration;
     core::Charter {
+        name: None,
         parts: Box::new([
             jig_domain_core_vocabulary::CharterPart {
                 on: jig_domain_tasks::Reasons::FIRST,
@@ -199,6 +202,8 @@ fn charter() -> jig_domain_core_vocabulary::Charter {
                 price_unit: 1000,
                 efforts: Box::new([Box::from(b"high".as_slice())]),
                 effort: Some(Box::from(b"high".as_slice())),
+                speeds: Box::default(),
+                speed: None,
             },
             alternatives: Box::new([]),
             inspect: true,
@@ -218,16 +223,17 @@ fn values() -> [s::Value; 4] {
             let mut template = f::template();
             template.llm = Some(jig_domain_tasks::LlmChoice {
                 account: Some(21),
-                main: jig_domain_tasks::ModelEffort { model: 0, effort: Some(1) },
+                main: jig_domain_tasks::ModelEffort { model: 0, effort: Some(1), speed: None },
                 subagents: Box::new([]),
                 later: Some(jig_domain_tasks::LlmLater {
-                    main: jig_domain_tasks::ModelEffort { model: 1, effort: None },
-                    subagents: Box::new([jig_domain_tasks::ModelEffort { model: 0, effort: Some(0) }]),
+                    main: jig_domain_tasks::ModelEffort { model: 1, effort: None, speed: None },
+                    subagents: Box::new([jig_domain_tasks::ModelEffort { model: 0, effort: Some(0), speed: None }]),
                 }),
             });
             template
         })),
         s::Value::Policy(Box::new(jig_domain_core_vocabulary::ConfiguredPolicy {
+            name: None,
             policy: a::Policy {
                 escalation_role: Some(1),
                 ceiling: authority(),
@@ -303,7 +309,7 @@ fn whole_setting_kinds_reach_the_clients_as_their_values() {
                 assert_eq!(value.hosts, c::SettingHosts::Both);
             }
             (s::Value::Template(source), c::SettingValue::Template(value)) => {
-                assert_eq!(value.name.bytes.bytes(), source.name.as_ref());
+                assert_eq!(value.shown.bytes.bytes(), source.shown.as_ref());
             }
             (s::Value::Policy(source), c::SettingValue::Policy(value)) => {
                 assert_eq!(value.roles.len(), u32::try_from(source.policy.roles.len()).unwrap());
@@ -545,8 +551,9 @@ fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
     for (number, follows, last) in [(1, Follows::Default, None), (2, Follows::Changed { revision: 5 }, Some(5))] {
         settings
             .push(d::SettingLine {
-                setting: s::Setting::Application { kind: 7, scope: 0, number },
                 name: None,
+                setting: s::Setting::Application { kind: 7, scope: 0, number },
+                shown: None,
                 follows: if last.is_some() { d::Follows::Change } else { d::Follows::Default },
                 last,
                 application: Some(State { follows, size: 23, charters: Box::new([1, 3]) }),
@@ -558,7 +565,7 @@ fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
     let document = link::restore_settings_document(&document, &client_limits).unwrap();
     for (number, line) in (1..).zip(&document.settings) {
         assert_eq!(line.setting, c::Setting::Application { kind: 7, scope: 0, number });
-        assert!(line.name.is_none());
+        assert!(line.shown.is_none());
         let state = line.application.as_ref().unwrap();
         assert_eq!(state.size, 23);
         assert_eq!(state.charters.as_slice(), &[1, 3]);

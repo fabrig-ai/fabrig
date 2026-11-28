@@ -184,9 +184,10 @@ pub fn project_document() -> d::Project {
 
 pub fn template() -> jig_domain_core_vocabulary::Template {
     jig_domain_core_vocabulary::Template {
+        name: None,
         resources: Box::new([]),
         number: 1,
-        name: b"task".as_slice().into(),
+        shown: b"task".as_slice().into(),
         executor: jig_domain_people::TemplateExecutor::Charter(1),
         contract: t::Contract::Report { words: 32 },
         shallower: 1,

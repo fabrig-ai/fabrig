@@ -191,6 +191,7 @@ fn owner_declared_counts_accept_the_boundary_and_refuse_one_more_by_name() {
                 content: alloc::vec![block.clone(); 3].into(),
             }]),
             reasoning_effort: None,
+            speed: None,
             affinity: None,
             choice: crate::ToolChoice::Auto,
             max_output_tokens: None,

@@ -7,11 +7,11 @@ Goals: start one from a project template, or read one and its reds after landing
 ## goal start
 
 ```
-goal start --project PROJECT [--template TEMPLATE] TEXT [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT] [--as-allowed] [--deadline TIME] [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... [--milestone TASK] [--after TASK]... [--no-deadline] --key KEY
+goal start --project PROJECT [--template TEMPLATE] TEXT [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT] [--as-allowed] [--deadline TIME] [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... [--milestone TASK] [--after TASK]... [--no-deadline] [--speed SPEED] [--sub-agent-speed MODEL:SPEED]... --key KEY
   --project PROJECT: a project's name or number; required. The project
-  --template TEMPLATE: a number from 1 to 4294967295; optional. An offered template; stock goal template 2 when absent
+  --template TEMPLATE: a name or number from 1 to 4294967295; optional. An offered template by name or number; stock goal template 2 when absent
   TEXT (text): text, at most 1048576 bytes, or - to read stdin; required. The goal's words; the first line, at most 60 characters, is its title
-  --charter CHARTER: a number from 1 to 4294967295; optional. Required when the template lets its creator choose; omit when it fixes a charter
+  --charter CHARTER: a name or number from 1 to 4294967295; optional. A charter by name or number, required when the template lets its creator choose; omit when it fixes a charter
   --priority PRIORITY: a number from 0 to 4294967295; optional. Override the template's tracked priority
   --budget AMOUNT: an amount with at most two decimals, as 130 or 1.25; optional. The spend, as task show prints budgets; required for a given budget unless --as-allowed
   --as-allowed: a switch. Take all you may give from your pool, or with --milestone all the milestone has left, instead of a named budget: none is left for the next start while this goal is live
@@ -22,28 +22,28 @@ goal start --project PROJECT [--template TEMPLATE] TEXT [--charter CHARTER] [--p
   --milestone TASK: a number; optional. Start beneath this live milestone of the project
   --after TASK: a number; repeated, at most 64. Wait on this task; repeatable, each task once, in order
   --no-deadline: a switch. Give the goal no deadline; the alternative to --deadline
+  --speed SPEED: text, at most 1048576 bytes, or - to read stdin; optional. The main model's speed; needs --model
+  --sub-agent-speed MODEL:SPEED: text, at most 1048576 bytes, or - to read stdin; repeated, at most 64. A sub-agent's speed; repeatable, each model once
 Start a goal from a project's template
 Prints: `done: task N, goal`, or `proposed: PROPOSAL, to RECIPIENT` when another party must agree
 --json: the record goal_create.
 Key: --key KEY, required.
-Template sets charter, contract, tracking, label, flags, models
-and symbolic resources. TEXT's first line is the goal's title, as Home
-and Work show it: at most 60 characters naming the work for a person,
-as "Store shape: history in task logs"; the rest of TEXT follows
-on the lines below.
-Given budget: --budget or --as-allowed; given deadline: --deadline
-or --no-deadline. Defaults otherwise.
-A goal waiting on tasks counts its deadline from when it was made.
-With --milestone, --as-allowed takes all the milestone has left, so
-a second --as-allowed goal in it is refused for its budget: give each
-goal in a milestone --budget AMOUNT.
---effort needs --model, defaults if absent. --model wins each run
-and replaces the later choice; only --sub-agent replaces sub-agents.
-Without --model the choice holds whole.
-Refused model flags name value and bound; nothing made.
-Within bounds: created; past but proposable: proposed (exit 0);
-not offered or past ceilings, nothing sent (exit 1).
-task show TASK --until replied.
+Template: charter, contract, tracking, label, flags, models, symbolic resources.
+TEXT's first line is the goal's title, as Home and Work show it: at most
+60 characters naming the work for a person, as "Store shape: history in
+task logs"; the rest of TEXT follows on the lines below.
+Budget: --budget or --as-allowed. Deadline: --deadline or --no-deadline.
+Defaults otherwise. Waiting deadlines count from creation.
+With --milestone, --as-allowed takes the remainder; a second fails for
+budget. Give each --budget AMOUNT.
+--effort and --speed need --model. Defaults: model effort and the
+charter's speed or model default. Pick from model list or standard;
+faster costs more.
+--model wins each run, later too; without it the choice holds whole.
+Only --sub-agent replaces sub-agents; --sub-agent-speed must name one.
+Flag refusal names flag, value, bound; nothing made.
+Within bounds: created; past but proposable: proposed (exit 0); not offered or past
+ceilings: nothing sent (exit 1). task show TASK --until replied.
 ```
 
 ## goal show

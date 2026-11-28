@@ -90,6 +90,7 @@ fn change_row() -> top::ChangeRow {
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        temper_dir_fault: None,
         runner_ci: None,
         close_at: None,
         report: Box::new([]),
@@ -579,7 +580,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::SetUp { .. }
                 | top::Request::ChoosePlace { .. }
                 | top::Request::ChangeDecision { .. }
-                | top::Request::CloseDecision { .. }
+                | top::Request::ReplayJudgement { .. }
+                | top::Request::RelayRefusal { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
@@ -597,13 +599,9 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
-                | top::Request::ProjectionOutcome { .. }
-                | top::Request::NotMade { .. }
                 | top::Request::ContinueRelease { .. }
                 | top::Request::ContinueGoalBranch { .. }
-                | top::Request::EffectsSettled { .. }
-                | top::Request::Released { .. }
-                | top::Request::ProjectReleased { .. }
+                | top::Request::Up(_)
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
                 | top::Request::ProjectionEffect { .. }
@@ -611,7 +609,6 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::CloserChecked { .. }
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
-                | top::Request::ProjectionSettled { .. }
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::News { .. }
@@ -625,7 +622,6 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::ApplicationPart { .. }
                 | top::Request::ApplicationDone { .. }
                 | top::Request::ApplicationAgain { .. }
-                | top::Request::RestartDone { .. }
                 | top::Request::LandingNews { .. }
                 | top::Request::AskDropped { .. }
                 | top::Request::LandingReady { .. }
@@ -956,6 +952,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                         change::Decision::Failed => panic!("unexpected source failure"),
                         change::Decision::Wait { until: at } => until = at,
                         change::Decision::Hold(why) => hold_reason = Some(why),
+                        change::Decision::ReplayJudgement(replay) => hold_reason = Some(replay.cause()),
                         change::Decision::Finish { .. } => finished = true,
                         change::Decision::None
                         | change::Decision::CancelProducer
@@ -1275,7 +1272,7 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
                                 }
                                 other => panic!("unexpected delegate: {other:?}"),
                             };
-                            world.event(top::Event::Delegated { task: 51, child, kind });
+                            world.event(top::Event::Delegated { task: 51, child, kind, close_at: None });
                             world.event(top::Event::DelegateResult {
                                 ended_at: None,
                                 task: 51,

@@ -4,6 +4,7 @@ use jig_core_world::{
     reads,
     world::{Setup, World},
 };
+use jig_domain_contract as jig;
 use jig_domain_core::{
     self as core, AtBound, Bound, Nearest, Reported, ReportedBound, Thing, Unbounded, WaitKind, WaitObject,
 };
@@ -47,7 +48,10 @@ fn at(since: Wall, after: Duration) -> Wall {
 }
 
 fn report(world: &mut World, connector: u16, task: u64, waits: Box<[Reported]>) {
-    world.send(root::Event::Core(core::Event::Waits { connector, task, waits: List::from_boxed(waits) }));
+    world.send(root::Event::connector_up(
+        connector,
+        jig::Up::Procedures(jig::procedures::Up::Waits { task, waits: List::from_boxed(waits) }),
+    ));
 }
 
 fn reported(kind: WaitKind, since: Wall, bound: ReportedBound, things: Box<[Thing]>) -> Reported {
@@ -85,7 +89,7 @@ fn a_fake_procedures_clock_is_its_own_on_the_document_and_line() {
     assert_eq!(line.nearest, Some(Nearest { at: due, then: AtBound::Hold, kind: WaitKind::Step }));
 
     world.domain.script_wait_reports();
-    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task })));
+    world.send(root::Event::connector_up(1, jig::Up::Procedures(jig::procedures::Up::Wake { task })));
     assert!(world.domain.take_wait_report().is_none(), "the same clock is not reported again");
 }
 
@@ -207,10 +211,16 @@ fn a_restart_waits_for_one_fresh_report_per_live_procedure_at_catch_up() {
     for (task, previous) in [(first, first_wait), (next, next_wait)] {
         assert_eq!(world.domain.core().waits(task).first.expect("cold news").kind, WaitKind::News);
         let event = world.domain.take_wait_report().expect("one catch-up report for each live procedure");
-        let core::Event::Waits { connector: 1, task: named, ref waits } = event else { panic!("connector report") };
+        let core::engine::In::Connector(
+            jig::Connector(1),
+            jig::Up::Procedures(jig::procedures::Up::Waits { task: named, ref waits }),
+        ) = event
+        else {
+            panic!("connector report")
+        };
         assert_eq!(named, task);
         assert_eq!(waits.get(0).expect("reconstructed clock").since, previous.since);
-        world.send(root::Event::Core(event));
+        world.send(root::Event::Engine(event));
         assert_eq!(step_wait(&world, task), previous);
     }
     assert!(world.domain.take_wait_report().is_none());

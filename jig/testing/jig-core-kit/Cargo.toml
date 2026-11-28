@@ -11,6 +11,7 @@ publish.workspace = true
 doctest = false
 
 [dependencies]
+jig-domain-contract.workspace = true
 jig-inspect.workspace = true
 jig-test-profile.workspace = true
 jig-client-test-records = { path = "../../testing/jig-client-test-records" }
@@ -37,6 +38,7 @@ jig-domain-views.workspace = true
 jig-protocol-tools.workspace = true
 jig-protocol-charter.workspace = true
 smith-channel.workspace = true
+smith-faults.workspace = true
 skein-lib.workspace = true
 skein-world.workspace = true
 skein-fork.workspace = true

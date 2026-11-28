@@ -2,6 +2,7 @@
 pub(in crate::tests) mod brief_documents;
 pub(in crate::tests) mod brief_failure;
 pub(in crate::tests) mod brief_revisions;
+mod briefs;
 pub(in crate::tests) mod closed_unread;
 pub(in crate::tests) mod completion_retry;
 pub(in crate::tests) mod conversation;

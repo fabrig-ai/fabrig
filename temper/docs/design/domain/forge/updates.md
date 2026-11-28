@@ -108,7 +108,9 @@ instead (`../landing-prepare.md`, section 1).
   dropped is that hand's to make again, the hold saying the branch moved.
 - **A conflict** makes the forge refuse the update, a merge's or a
   preparation's rebase alike, and the change is
-  resolved (`change/repairs.md`): by the merge job, where its project names one, then
+  resolved (`change/repairs.md`): by the merge job, which finds its
+  repository's merge command in its checkout of the update's head, none
+  there leaving every conflict (`../../protocol/hooks.md`, 4.2 and 5), then
   a resolution for what the job leaves. The job's result names each file
   it leaves with its kind and, for a file one side deleted, the side and
   the commit that deleted it (`../../protocol/tooling.md`, 4.1). It settles no
@@ -122,11 +124,18 @@ instead (`../landing-prepare.md`, section 1).
   tip as it reads it, only for a change of the goal that needs what the
   base gained (`../../draft/squash-in.md`, 4); its producer
   the merge job, which merges the commit into a branch made at the
-  landing branch's tip (`change/README.md`, 2, step 1); its project must name a
-  `merge_job`. It lands as any change into the branch does; under
+  landing branch's tip (`change/README.md`, 2, step 1), made once the
+  change finds the commit not yet contained. The job finds its merge
+  command in its checkout, `.temper/hooks/merge` or, where it holds no
+  `.temper/hooks/`, its project's `merge_job`; with none, a clean merge
+  is committed and delivered all the same, and one in conflict goes to
+  its resolution at once (`../../protocol/hooks.md`, 4.2). Where the
+  change can make no merge job, the kind undeclared or outside its
+  authority, it holds, its words naming why. It lands as any change into the branch does; under
   `turn` its train merges it, never squashing it (`../landing-prepare.md`, 1.2),
   so the goal's branch shows it as a merge of the base. Nothing makes
-  one but its requester's call.
+  one but its requester's call, and a goal's closer's for a close found
+  outdated (`branches-closer.md`, 1, *A close found outdated*).
 - **A semantic conflict** is CI failing on a change's head after a clean
   update. The name records that order, not proof that the base caused
   the failure. Its repair's brief carries the failed check and its output

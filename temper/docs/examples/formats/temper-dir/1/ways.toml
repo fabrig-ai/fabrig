@@ -1,0 +1,5 @@
+offer = ["pair", "hand-it-over"]
+
+[default]
+chat = "pair"
+change = "hand-it-over"

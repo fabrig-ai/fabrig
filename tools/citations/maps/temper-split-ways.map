@@ -1,0 +1,6 @@
+title temper/docs/design/draft/ways-recipes.md: A way's recipes
+temper/docs/design/draft/ways.md 3 -> temper/docs/design/draft/ways-recipes.md
+title temper/docs/design/draft/ways-charters.md: A project's charters
+temper/docs/design/draft/ways.md 6 -> temper/docs/design/draft/ways-charters.md
+title temper/docs/design/draft/ways-temper-dir.md: A repository's .temper/
+temper/docs/design/draft/ways.md 8 -> temper/docs/design/draft/ways-temper-dir.md

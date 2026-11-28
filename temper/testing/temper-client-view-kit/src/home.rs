@@ -124,6 +124,8 @@ pub fn home_documents_with_status(
             window: 200_000,
             output: 16_384,
             efforts: List::with_capacity(0),
+            speeds: List::with_capacity(0),
+            speed: None,
         })
         .unwrap();
     let mut out = drive(
@@ -192,8 +194,9 @@ pub fn home_documents_with_status(
     let mut lines = List::with_capacity(1);
     lines
         .push(c::SettingLine {
-            setting: c::Setting::Application { kind: 2, scope: f::PROJECT, number: 1 },
             name: None,
+            setting: c::Setting::Application { kind: 2, scope: f::PROJECT, number: 1 },
+            shown: None,
             follows: if configured { c::SettingFollows::Change } else { c::SettingFollows::Default },
             last: None,
             application: None,
@@ -801,13 +804,7 @@ pub fn overturn_answer(outcome: w::Outcome, message: Option<c::Answer>) -> d::Do
     overturn_drive(
         &mut root,
         d::Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::FamilyServed {
-                    family: wire::FORGE,
-                    served: true,
-                    versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
-                },
-            },
+            event: jig_client::Event::Up { up: jig_client::Up::FamilyServed { family: wire::FORGE, served: true } },
         },
     );
     let out = overturn_drive(

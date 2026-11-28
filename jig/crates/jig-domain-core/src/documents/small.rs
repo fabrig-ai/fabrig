@@ -3,7 +3,7 @@
 
 use crate::{
     Core, Limits,
-    documents::{Chip, Count, Frame, FrameProjectRole, Missing, Run},
+    documents::{Chip, Count, Frame, FrameCharter, FrameProjectRole, Missing, Run},
 };
 pub use jig_domain_core_vocabulary::documents::small::*;
 use jig_domain_people as people;
@@ -134,6 +134,7 @@ pub(super) fn frame(core: &Core, limits: &Limits, party: u64) -> Result<Frame, M
     let updates = if counts.more_unread { Count::AtLeast(counts.unread) } else { Count::Known(counts.unread) };
     let (providers, providers_cut) = super::catalogue::offers(core, &limits.documents)?;
     Ok(Frame {
+        charters: named_charters(core),
         providers,
         providers_cut,
         key_bytes: core.settings.key_bytes,
@@ -152,6 +153,18 @@ pub(super) fn frame(core: &Core, limits: &Limits, party: u64) -> Result<Frame, M
         results_seen: core.people.results_seen(party).ok_or(Missing::Unknown)?,
         retention: limits.people.request_retention,
     })
+}
+
+fn named_charters(core: &Core) -> List<FrameCharter> {
+    let mut charters = List::with_capacity(people::NUMBERS);
+    for number in 1..=people::NUMBERS {
+        if let Some(charter) = core.charter(number)
+            && let Some(name) = &charter.name
+        {
+            charters.push(FrameCharter { number, name: name.clone() }).expect("one per charter number");
+        }
+    }
+    charters
 }
 
 pub(super) fn run(core: &Core, limits: &Limits, party: u64, number: u64) -> Result<Run, Missing> {

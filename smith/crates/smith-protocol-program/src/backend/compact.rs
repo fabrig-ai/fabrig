@@ -25,6 +25,7 @@ pub(super) fn arguments(
     let ordinary = start::arguments(
         &prompt.model,
         prompt.effort.as_deref(),
+        prompt.speed.as_deref(),
         instructions,
         b"",
         b"",

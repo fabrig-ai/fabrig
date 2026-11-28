@@ -1,56 +1,10 @@
 //! Per-class task failure history and configured equal-jitter backoff
 //! (domain/tasks/lifecycle-holds.md, section 1). Root classifies external failures;
 //! this module uses injected randomness and owns no clock or peer state.
+pub use jig_domain_contract::ops::Tries;
+
 pub use jig_domain_contract::ops::Class;
 use skein_lib::{Duration, Rng};
-
-/// Task's per-class failure counters, updated with saturation; counts describe history rather
-/// than a retry permission. (domain/tasks/lifecycle-holds.md, section 1).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Tries {
-    pub transient: u32,
-    /// Count of failures awaiting an external correction.
-    pub permanent: u32,
-    pub run: u32,
-    pub agent: u32,
-    pub lost: u32,
-    /// Count of results that violated the task contract.
-    pub invalid: u32,
-    pub infrastructure: u32,
-}
-
-impl Tries {
-    /// All failure counters zero; a `new` task and a successful park start with this value.
-    pub const NONE: Tries =
-        Tries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 };
-
-    /// Pure selection of the counter or retry policy for `class`; no allocation, mutation, output
-    /// or lifecycle transition.
-    #[must_use]
-    pub const fn of(&self, class: Class) -> u32 {
-        match class {
-            Class::Transient => self.transient,
-            Class::Permanent => self.permanent,
-            Class::Run => self.run,
-            Class::Agent => self.agent,
-            Class::Lost => self.lost,
-            Class::Invalid => self.invalid,
-            Class::Infrastructure => self.infrastructure,
-        }
-    }
-
-    pub(crate) fn add(&mut self, class: Class) {
-        match class {
-            Class::Transient => self.transient = self.transient.saturating_add(1),
-            Class::Permanent => self.permanent = self.permanent.saturating_add(1),
-            Class::Run => self.run = self.run.saturating_add(1),
-            Class::Agent => self.agent = self.agent.saturating_add(1),
-            Class::Lost => self.lost = self.lost.saturating_add(1),
-            Class::Invalid => self.invalid = self.invalid.saturating_add(1),
-            Class::Infrastructure => self.infrastructure = self.infrastructure.saturating_add(1),
-        }
-    }
-}
 
 /// Root-configured retry count and equal-jitter exponential delay bounds; startup validates
 /// representable usable settings. (domain/tasks/lifecycle-holds.md, section 1).
@@ -101,4 +55,16 @@ pub(crate) fn backoff(times: u32, retry: Retry, rng: &mut Rng) -> Duration {
     let ceiling = retry.base.saturating_mul(factor).min(retry.max);
     let half = ceiling.as_nanos().div_euclid(2);
     Duration::from_nanos(half.saturating_add(rng.below(half.saturating_add(1))))
+}
+
+pub(crate) fn add_try(tries: &mut Tries, class: Class) {
+    match class {
+        Class::Transient => tries.transient = tries.transient.saturating_add(1),
+        Class::Permanent => tries.permanent = tries.permanent.saturating_add(1),
+        Class::Run => tries.run = tries.run.saturating_add(1),
+        Class::Agent => tries.agent = tries.agent.saturating_add(1),
+        Class::Lost => tries.lost = tries.lost.saturating_add(1),
+        Class::Invalid => tries.invalid = tries.invalid.saturating_add(1),
+        Class::Infrastructure => tries.infrastructure = tries.infrastructure.saturating_add(1),
+    }
 }

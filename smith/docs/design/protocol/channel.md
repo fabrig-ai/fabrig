@@ -81,7 +81,7 @@ of domain/host.md, section 2.
   started without smith's tools to a run's failures, and version 8 a
   model failure's status to its report.
   Its version is frozen at 14, as every wire's is (temper's
-  `draft/layouts-both-ways.md`, 3, which the user approved on
+  `draft/archive/layouts-both-ways.md`, 3, which the user approved on
   2026-11-18, in place of the owner's rule of 2026-11-12 that moved it
   with every change to its layout): a change is made in its current text
   alone, its `schema/` holds that text and no other, and no older text
@@ -158,6 +158,16 @@ of domain/host.md, section 2.
     where it sits on the agent's file system, at most 4,096 bytes, kept
     by the host as long as the directory's tree (`domain/run-delivery.md`, 1.1);
     from version 14;
+  - its hooks' times, `hooks`, if the host names them, a record of
+    `deliver` and `finish`, each an optional time, `time` and `asked`,
+    two `duration`s, `asked` past `time` where the host cut what the
+    directory asked at its ceiling; `ceiling`, a `duration`, the host's
+    ceiling on a hook's time; and `fault`, at most 1,024 bytes, a line
+    saying why the directory's times can't be read, empty where they
+    can (`domain/run-delivery.md`, 1.1). temper's worker reads them from
+    the directory's `.temper/hooks/config.toml`
+    (`temper/docs/design/protocol/hooks.md`, 4.1). A host and its agents are one
+    build (section 2), so it moves no version;
 - **the transcript,** if the run resumes: its turns' bytes, in order, as
   they were told, from the last turn whose record had `opens_window`
   (section 4; transcript.md, section 3). Earlier windows are never sent.

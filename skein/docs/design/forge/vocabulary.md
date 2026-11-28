@@ -84,7 +84,7 @@ and no policy. Every type is a plain value.
   attempt's log: `End`, the end of its failed step's log, or of its
   whole log when no step failed; or `Start`, the first bytes of its
   whole log, where a CI's opening lines are, such as the selection line
-  a goal's report quotes (temper's `domain/forge/branches.md`, 2). `File {
+  a goal's report quotes (temper's `domain/forge/branches-closer.md`, 1). `File {
   head, path, max_bytes }` asks for the start of one file at a commit.
   Both are cut to `max_bytes`, or to what the answer has left (`forgejo.md`, 1.3), and
   say when they cut: a `Start` that cut kept the log's first bytes and
@@ -178,6 +178,14 @@ and no policy. Every type is a plain value.
   follows.
 - **`Pull` answers both `Pull` and `PullFor`;** the `Commit` answer is a
   branch's tip.
+- **`File` at a directory answers `Directory`:** its call's head and
+  path, its immediate entries in the forge's order, each a name and an
+  `EntryKind`, and `truncated` where the answer's bytes left some out.
+  The kinds are `File`, a regular file; `Link`, a symbolic link, whose
+  target the listing doesn't give; `Directory`; and `Submodule`. Both
+  dialects' listings name a link apart (`symlink`), so neither reads it
+  as a file, and a reader that wants a link's bytes or a file's asks for
+  them by kind. An entry of any other kind is left out.
 - **`Compare`** carries `ahead`, the commits `after` has that `before`
   lacks; `behind`, those `before` has that `after` lacks, 0 when `after`
   contains `before`; `files`, the changed paths in the forge's order, as

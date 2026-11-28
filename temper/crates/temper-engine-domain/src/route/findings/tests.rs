@@ -203,6 +203,68 @@ fn blame_checks_ownership_without_news_and_repair_checks_settings_first_in_any_s
     }
 }
 
+fn name_own_charter(domain: &mut Domain, env: &Env<Limits>, name: &[u8], key: u8) {
+    use jig_domain_core::settings as s;
+    use jig_domain_people::{Outcome, Reply};
+    let mut charter = domain.engine.core().charter(1).unwrap().clone();
+    charter.number = 33;
+    charter.name = Some(name.into());
+    let against = domain.engine.core().current.newest();
+    assert_eq!(
+        crate::tests::room_checks::settled(
+            domain,
+            env,
+            crate::PartyInput::ChangeSettings {
+                reply_to: ReplyTo::new(Token::new(1)),
+                sign_in: 1,
+                key: [key; 16],
+                digest: [key; 32],
+                kinds: Box::default(),
+                change: Box::new(s::Change {
+                    against,
+                    items: Box::new([s::Item {
+                        setting: s::Setting::Charter(33),
+                        edit: s::Edit::Set(s::Value::Charter(Box::new(charter)))
+                    }]),
+                    running: s::Running::Stays,
+                }),
+            }
+        ),
+        Reply::Outcome(Outcome::SettingsChanged { revision: against.checked_add(1).unwrap() })
+    );
+}
+
+#[test]
+fn an_area_falls_back_when_its_own_charter_is_renamed() {
+    let (source, source_env, source_task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
+    let template = source.engine.core().tasks.task(source_task).unwrap();
+    let mut limits = source_env.limits;
+    limits.tasks.charters = 33;
+    limits.tasks.tasks = 2;
+    limits.tasks.project_tasks = 2;
+    let (mut domain, env) = crate::tests::room_checks::owner_root_with_limits(&limits);
+    name_own_charter(&mut domain, &env, b"x", 1);
+    task_event(
+        &mut domain,
+        &env,
+        tasks::Event::OpenPeriod { reply_to: ReplyTo::new(Token::new(2)), project: 1, period: 1, budget: 100 },
+    );
+    add(&mut domain, &env, 33, 33, 3, template);
+    let named = AreaOwner::CharterNamed(b"x".as_slice().into());
+    set_area(&mut domain, &env, named.clone());
+    set_triager(&mut domain, &env, named.clone());
+    assert_eq!(stands(&domain, 1, &named), Some(Holder::Task(33)));
+    assert_eq!(holder(&domain, 1, Some(b"tests")), Holder::Task(33));
+    assert_eq!(holder(&domain, 1, None), Holder::Task(33));
+    set_triager(&mut domain, &env, AreaOwner::Role(1));
+    name_own_charter(&mut domain, &env, b"renamed", 2);
+    assert_eq!(stands(&domain, 1, &AreaOwner::Charter(33)), Some(Holder::Task(33)));
+    assert_eq!(stands(&domain, 1, &named), None);
+    assert_eq!(holder(&domain, 1, Some(b"tests")), Holder::Role(1));
+    set_triager(&mut domain, &env, named);
+    assert_eq!(holder(&domain, 1, Some(b"tests")), Holder::Role(0));
+}
+
 #[test]
 fn task_hand_news_and_charter_standing_use_the_same_decision() {
     let (source, source_env, source_task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
@@ -217,6 +279,7 @@ fn task_hand_news_and_charter_standing_use_the_same_decision() {
     let mut config = crate::tests::resume_fixture::config(91);
     let mut charter = config.core.defaults.charters.first().unwrap().clone();
     charter.number = 14;
+    charter.name = Some(b"triager".as_slice().into());
     config.core.defaults.charters = Box::new([config.core.defaults.charters.first().unwrap().clone(), charter]);
     let (mut domain, env) = crate::tests::resume_fixture::root_with_config_and_limits(config, &limits);
     let task = 40;
@@ -228,8 +291,11 @@ fn task_hand_news_and_charter_standing_use_the_same_decision() {
     add(&mut domain, &env, task, 1, 0, &template);
     add(&mut domain, &env, 52, 14, 3, &template);
     add(&mut domain, &env, 47, 14, 3, &template);
-    assert_eq!(stands(&domain, 1, AreaOwner::Charter(14)), Some(Holder::Task(47)));
-    set_area(&mut domain, &env, AreaOwner::Charter(14));
+    assert_eq!(stands(&domain, 1, &AreaOwner::Charter(14)), Some(Holder::Task(47)));
+    let named = AreaOwner::CharterNamed(b"triager".as_slice().into());
+    assert_eq!(stands(&domain, 1, &named), Some(Holder::Task(47)));
+    set_area(&mut domain, &env, named);
+    assert_eq!(holder(&domain, 1, Some(b"tests")), Holder::Task(47));
     set_triager(&mut domain, &env, AreaOwner::Task(task));
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     let call = forge::FileFinding {
@@ -299,7 +365,7 @@ fn task_hand_news_and_charter_standing_use_the_same_decision() {
             operation: tasks::Cancel { task: 40, reason: b"ended".as_slice().into(), grace: None, message: None },
         },
     );
-    assert_eq!(stands(&domain, 1, AreaOwner::Task(40)), None);
+    assert_eq!(stands(&domain, 1, &AreaOwner::Task(40)), None);
     assert_eq!(holder(&domain, 1, Some(b"tests")), Holder::Task(47));
 }
 fn triager() -> (Domain, Env<Limits>, u64) {
@@ -473,7 +539,7 @@ fn a_cancelled_routed_red_returns_through_release_to_its_holder_with_back_news()
         &env,
         &mut decision,
         connector,
-        jig_domain_core::Ask::Release {
+        jig_domain_contract::Ask::Effects(jig_domain_contract::effects::Ask::Release {
             task: goal,
             root: goal,
             ending: tasks::Ending::Cancelled {
@@ -483,7 +549,7 @@ fn a_cancelled_routed_red_returns_through_release_to_its_holder_with_back_news()
                 result: None,
             },
             entry: 80,
-        },
+        }),
     );
     let finding = domain.forge.finding(1, number).unwrap();
     assert_eq!(finding.state, forge::FindingState::New);

@@ -117,11 +117,11 @@ pub(super) fn ask(
 }
 
 fn answer(domain: &mut Domain, flight: Flight) {
-    domain.work.push(Work::Core(core::Event::Parts {
-        connector: flight.connector,
-        token: flight.ask.token,
-        parts: flight.made,
-    }));
+    use jig_domain_contract::{Connector, Up, parts};
+    domain.work.push(Work::Connector(
+        Connector(flight.connector),
+        Up::Parts(parts::Up::Lines { token: flight.ask.token, parts: flight.made }),
+    ));
 }
 fn push(flight: &mut Flight, part: MadePart) {
     flight.made.push(part).expect("ask shape");
@@ -241,7 +241,7 @@ fn make(domain: &mut Domain, env: &Env<Limits>, party: u64, row: &TaskLine, kind
 pub(super) fn marked(domain: &mut Domain, task: u64) {
     let mut tasks = List::with_capacity(1);
     tasks.push(task).expect("one milestone mark");
-    domain.work.push(Work::Core(core::Event::PartsMarked { connector: domain.config.forge_connector, tasks }));
+    super::forge_up(domain, jig_domain_contract::Up::Parts(jig_domain_contract::parts::Up::Marked { tasks }));
 }
 
 pub(super) fn saved(domain: &mut Domain, record: &core::Record) {
@@ -285,15 +285,13 @@ pub(super) fn erased(domain: &mut Domain, key: &core::Key, projects: &skein_lib:
 pub(super) fn note_projects(requests: &Queue<core::engine::Out>) -> skein_lib::Set<u32> {
     let mut projects = skein_lib::Set::with_capacity(requests.len());
     for output in requests {
-        let core::engine::Out::Core(request) = output else { continue };
-        let scope = if let core::Request::Write(core::Write::Save(core::Record::Notes(record))) = request {
+        let core::engine::Out::Write(write) = output else { continue };
+        let scope = if let core::Write::Save(core::Record::Notes(record)) = write {
             match record {
                 notes::Record::Entry(entry) => Some(&entry.scope),
                 notes::Record::Line(line) => Some(&line.scope),
             }
-        } else if let core::Request::Write(core::Write::Erase(core::Key::Notes(notes::Key::Line { scope, .. }))) =
-            request
-        {
+        } else if let core::Write::Erase(core::Key::Notes(notes::Key::Line { scope, .. })) = write {
             Some(scope)
         } else {
             None

@@ -1,5 +1,6 @@
 //! Away and decision rules (temper/docs/design/domain/forge/attention.md, 4, 5).
 use super::*;
+use jig_domain_contract as contract;
 use jig_domain_people::ApplicationScope;
 use skein_lib::ReplyTo;
 use temper_client_protocol_wire::v1::Record;
@@ -526,20 +527,28 @@ fn both_are_erased_with_the_project() {
         Stored::Decided(Decided { project: 2, ..decision(1) }),
     ]);
     assert_eq!(
-        outputs(&mut d, Event::ReleaseProject { project: PROJECT, request: REQUEST }).as_ref(),
+        outputs(
+            &mut d,
+            Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: PROJECT }))
+        )
+        .as_ref(),
         [
             mark(AWAY_SUBJECT),
             mark(decided_subject(PROJECT)),
             Request::Erase { key: Key::Away { party: PARTY, project: PROJECT } },
             Request::Erase { key: Key::Decided { project: PROJECT, number: 1 } },
-            Request::ProjectReleased { request: REQUEST }
+            project_released(PROJECT)
         ]
     );
     assert_eq!(d.aways.len(), 1);
     assert_eq!(d.decisions.len(), 1);
     assert_eq!(
-        outputs(&mut d, Event::ReleaseProject { project: PROJECT, request: REQUEST }).as_ref(),
-        [Request::ProjectReleased { request: REQUEST }]
+        outputs(
+            &mut d,
+            Event::Ask(contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project: PROJECT }))
+        )
+        .as_ref(),
+        [project_released(PROJECT)]
     );
 }
 #[test]

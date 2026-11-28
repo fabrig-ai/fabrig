@@ -306,7 +306,11 @@ configuring form's calls (`tools.md`) decode as they do, and one answer serves b
   ). Ask temper's instructions say so (`ask.txt`'s *Configuring*); the
   tool picks nothing, and jig refuses a proposal below 33 at a number the
   stock has no item at, as *range*, in the words any refused proposal
-  is given back in.
+  is given back in. It gives such a template, charter or policy a name
+  of its own, one the inventory shows no item of its kind has and never
+  a stock item's, which jig refuses as *name* (jig's
+  `domain/engine/settings.md`, 1, Names), and leaves a stock item's name
+  as it is.
 - **Approvals at the call:** for an asking charter's run, each landing rule of
   the set, held or its own, that enforces approvals is judged as acceptance judges
   it (`../../protocol/configuration/settings-kinds.md`, 1; `../forge/change/gates.md`, 3), for the chat's

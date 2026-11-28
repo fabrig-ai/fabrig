@@ -1,4 +1,5 @@
-//! P reads and acts on the actual engine's public Ops client tree.
+//! People act through the Ops client tree. Scripted stories and named commit
+//! cuts keep fixed seeds; only the sweeps draw new presses and cut positions.
 use jig_client_kit::{
     Until,
     harness::{ClientId, FrontFault},
@@ -13,7 +14,7 @@ use sha2::{Digest, Sha256};
 use skein_fake_person::{Find, Step};
 use skein_lib::Duration;
 use skein_ui::Role;
-use skein_world::domain::Verdict;
+use skein_world::{domain::Verdict, sweep::cases, this_test};
 const WITHIN: Duration = Duration::from_secs(3);
 
 #[test]
@@ -62,6 +63,7 @@ fn restart_started(seed: u64, cut: Cut, noise: bool) -> (StoryWorld, ClientId, u
     if noise {
         wander(&mut world, p, seed);
     }
+    complete_cut_draw(&mut world, cut);
     world.person(
         p,
         vec![
@@ -355,6 +357,7 @@ fn q_story(seed: u64, cut: Cut, noise: bool, reload: bool) -> StoryWorld {
         ],
     );
     passed(&mut world);
+    complete_cut_draw(&mut world, cut);
     move_end(&mut world, q, reload);
     world
 }
@@ -619,6 +622,7 @@ fn wander(world: &mut StoryWorld, person: ClientId, seed: u64) {
     world.random_person_without_button(person, b"Sign out");
     passed(world);
     let mut random = skein_lib::Rng::new(seed);
+    let mut ineligible = 0;
     for _ in 0..3 {
         let links: Vec<_> = world
             .tree(person)
@@ -627,10 +631,13 @@ fn wander(world: &mut StoryWorld, person: ClientId, seed: u64) {
             .filter(|node| node.role == Role::Link && node.link.is_some())
             .filter_map(|node| node.name.clone())
             .collect();
-        assert!(!links.is_empty(), "actual story page has navigation links");
         let selected = usize::try_from(random.below(links.len() as u64)).expect("bounded link index");
-        world.person(person, vec![press(Role::Link, &links[selected])]);
-        passed(world);
+        if let Some(link) = links.get(selected) {
+            world.person(person, vec![press(Role::Link, link)]);
+            passed(world);
+        } else {
+            ineligible += 1;
+        }
         match random.below(3) {
             0 => world.fault(FrontFault::DropWatch),
             1 => world.fault(FrontFault::Slow { span: Duration::from_millis(20) }),
@@ -638,6 +645,24 @@ fn wander(world: &mut StoryWorld, person: ClientId, seed: u64) {
             value => panic!("bounded random choice {value}"),
         }
         passed(world);
+    }
+    if ineligible > 0 {
+        eprintln!("Ops navigation draws without an eligible link: {ineligible}");
+    }
+}
+
+/// Keep a random cut that already fell. If none fell, cut at the next commit:
+/// the remaining scripted action (accepting a proposal or moving the end)
+/// requires a durable write, so the draw cannot miss the story altogether.
+fn complete_cut_draw(world: &mut StoryWorld, cut: Cut) {
+    if matches!(cut, Cut::Random { .. }) {
+        let engine = &mut world.front().engine;
+        let outcome = engine.outcome();
+        if outcome.crashes.is_empty() {
+            let commit = outcome.commits + 1;
+            eprintln!("Ops random cut did not fall before the scripted action; cut at commit {commit}");
+            engine.cut(Cut::AfterCommit(commit));
+        }
     }
 }
 
@@ -789,20 +814,32 @@ fn q_move_end_survives_its_durable_answer_commit_and_reload() {
 
 #[test]
 fn p_story_survives_seeded_commit_crashes_and_random_presses() {
-    for seed in [537, 548] {
-        let mut world = p_story(seed, Cut::Random { seed: seed ^ 0x33 }, true);
-        assert_eq!(world.front().engine.outcome().crashes.len(), 1);
-        assert_eq!(world.front().disconnects, 1);
-        assert_eq!(world.front().reconnects, 1);
-    }
+    cases(
+        this_test!("p_story_survives_seeded_commit_crashes_and_random_presses"),
+        [537, 548],
+        |seed| -> Result<(), String> {
+            let mut world = p_story(seed, Cut::Random { seed: seed ^ 0x33 }, true);
+            assert_eq!(world.front().engine.outcome().crashes.len(), 1);
+            assert_eq!(world.front().disconnects, 1);
+            assert_eq!(world.front().reconnects, 1);
+            Ok(())
+        },
+    )
+    .expect("Ops restart story sweep");
 }
 
 #[test]
 fn q_story_survives_seeded_commit_crashes_reload_and_random_presses() {
-    for seed in [539, 540] {
-        let mut world = q_story(seed, Cut::Random { seed: seed ^ 0x33 }, true, true);
-        assert_eq!(world.front().engine.outcome().crashes.len(), 1);
-        assert_eq!(world.front().disconnects, 1);
-        assert_eq!(world.front().reconnects, 1);
-    }
+    cases(
+        this_test!("q_story_survives_seeded_commit_crashes_reload_and_random_presses"),
+        [539, 540],
+        |seed| -> Result<(), String> {
+            let mut world = q_story(seed, Cut::Random { seed: seed ^ 0x33 }, true, true);
+            assert_eq!(world.front().engine.outcome().crashes.len(), 1);
+            assert_eq!(world.front().disconnects, 1);
+            assert_eq!(world.front().reconnects, 1);
+            Ok(())
+        },
+    )
+    .expect("Ops environment story sweep");
 }

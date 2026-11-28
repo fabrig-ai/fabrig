@@ -120,12 +120,18 @@ pub fn decode_request(value: &Json, limits: &Limits) -> Result<Request, DecodeEr
         tools: tools.into_boxed(),
         messages: messages.into_boxed(),
         reasoning_effort: None,
+        speed: json::optional_text(tokens, b"speed")?,
         affinity: None,
         choice: tool_choice(tokens)?,
         max_output_tokens: Some(max),
     };
-    match super::request::validate(&prompt, u32::MAX, limits) {
-        Ok(()) => Ok(Request { prompt, marks }),
+    admit_prompt(&prompt, limits)?;
+    Ok(Request { prompt, marks })
+}
+
+fn admit_prompt(prompt: &Prompt, limits: &Limits) -> Result<(), DecodeError> {
+    match super::request::validate(prompt, u32::MAX, limits) {
+        Ok(()) => Ok(()),
         Err(crate::Error::Limit { which, bound }) => Err(DecodeError::TooLarge { which, bound }),
         Err(crate::Error::Invalid { .. } | crate::Error::Unsupported { .. }) => Err(DecodeError::Malformed),
     }
@@ -342,31 +348,7 @@ fn write_event(out: &mut Encoder, event: &Event, limits: &Limits) {
     out.object_start();
     out.key(b"type");
     match event {
-        Event::Started { usage } => {
-            out.string(b"message_start");
-            out.key(b"message");
-            out.object_start();
-            out.key(b"id");
-            out.string(b"synthetic-message");
-            out.key(b"type");
-            out.string(b"message");
-            out.key(b"role");
-            out.string(b"assistant");
-            out.key(b"content");
-            out.array_start();
-            out.array_end();
-            out.key(b"usage");
-            usage_fields(
-                out,
-                UsagePatch {
-                    input: usage.input,
-                    output: usage.output,
-                    cache_read: usage.cache_read,
-                    cache_write: usage.cache_write,
-                },
-            );
-            out.object_end();
-        }
+        Event::Started { usage, served } => write_start(out, *usage, served.as_deref()),
         Event::Added { index, block } => {
             out.string(b"content_block_start");
             out.key(b"index");
@@ -397,7 +379,7 @@ fn write_event(out: &mut Encoder, event: &Event, limits: &Limits) {
             out.key(b"index");
             out.unsigned(u64::from(*index));
         }
-        Event::MessageDelta { stop, usage } => {
+        Event::MessageDelta { stop, usage, speed } => {
             out.string(b"message_delta");
             out.key(b"delta");
             out.object_start();
@@ -411,7 +393,19 @@ fn write_event(out: &mut Encoder, event: &Event, limits: &Limits) {
             }
             out.object_end();
             out.key(b"usage");
-            usage_fields(out, *usage);
+            begin_usage(out, *usage);
+            match speed {
+                super::SpeedPatch::Omitted => {}
+                super::SpeedPatch::Unusable => {
+                    out.key(b"speed");
+                    out.null();
+                }
+                super::SpeedPatch::Reported(name) => {
+                    out.key(b"speed");
+                    out.string(name);
+                }
+            }
+            out.object_end();
         }
         Event::Completed => out.string(b"message_stop"),
         Event::Failed { error } => {
@@ -427,6 +421,37 @@ fn write_event(out: &mut Encoder, event: &Event, limits: &Limits) {
         Event::Progress => out.string(b"ping"),
         Event::Unknown => out.string(b"synthetic-extension"),
     }
+    out.object_end();
+}
+
+fn write_start(out: &mut Encoder, usage: super::Usage, served: Option<&[u8]>) {
+    out.string(b"message_start");
+    out.key(b"message");
+    out.object_start();
+    out.key(b"id");
+    out.string(b"synthetic-message");
+    out.key(b"type");
+    out.string(b"message");
+    out.key(b"role");
+    out.string(b"assistant");
+    out.key(b"content");
+    out.array_start();
+    out.array_end();
+    out.key(b"usage");
+    begin_usage(
+        out,
+        UsagePatch {
+            input: usage.input,
+            output: usage.output,
+            cache_read: usage.cache_read,
+            cache_write: usage.cache_write,
+        },
+    );
+    if let Some(name) = served {
+        out.key(b"speed");
+        out.string(name);
+    }
+    out.object_end();
     out.object_end();
 }
 
@@ -459,7 +484,7 @@ fn write_block(out: &mut Encoder, block: &BlockStart, limits: &Limits) {
     }
 }
 
-fn usage_fields(out: &mut Encoder, usage: UsagePatch) {
+fn begin_usage(out: &mut Encoder, usage: UsagePatch) {
     out.object_start();
     for (name, amount) in [
         (b"input_tokens".as_slice(), usage.input),
@@ -472,5 +497,4 @@ fn usage_fields(out: &mut Encoder, usage: UsagePatch) {
             out.unsigned(amount);
         }
     }
-    out.object_end();
 }

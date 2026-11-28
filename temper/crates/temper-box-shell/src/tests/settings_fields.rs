@@ -16,7 +16,12 @@ fn the_page_leaves_room_for_more_fields() {
 #[test]
 fn the_page_is_what_fields_renders() {
     let checked_in = include_str!("../../../../docs/help/reference/settings-fields.md");
-    let rendered = fields::page(&temper_client_tools::limits::form());
+    let limits = temper_client_tools::limits::form();
+    let speed = fields::resolve(b"template.llm.main.speed").expect("model_effort speed field");
+    assert_eq!(speed.shape, Shape::ModelEffort);
+    assert!(matches!(speed.value, Value::Text(fields::Bound::Limit(fields::Limit::ModelEffortSpeedSome))));
+    assert!(!speed.null);
+    let rendered = fields::page(&limits);
     let rendered = std::str::from_utf8(&rendered).expect("printable ASCII page");
     if temper_test_env::rewrite() {
         let path = skein_scratch::paths::tree().join("docs/help/reference/settings-fields.md");
@@ -54,6 +59,8 @@ fn llm() -> jig_protocol_config::Llm {
             price_unit: 1000,
             efforts: Box::new([]),
             effort: None,
+            speeds: Box::default(),
+            speed: None,
         }]))
         .into_iter()
         .enumerate()
@@ -98,6 +105,8 @@ fn models(llm: &jig_protocol_config::Llm) -> Box<[jig_protocol_engine_clients::M
                 output: model.output_price,
                 unit: model.price_unit,
             },
+            speeds: Box::default(),
+            speed: None,
         });
     }
     models.into_boxed_slice()
@@ -166,6 +175,14 @@ fn scalar(value: &Json, field: &Field, limits: &Limits, pending: &mut Vec<(Shape
             };
             assert!(number <= max, "integer fits {width:?}");
         }
+        Value::CharterOwner => {
+            if let Some(name) = value.as_str() {
+                assert!(jig_domain_people::is_name(name.as_bytes()), "charter name fits");
+            } else {
+                let number = value.as_u64().expect("unsigned charter number or name");
+                assert!((1..=u64::from(jig_domain_people::NUMBERS)).contains(&number));
+            }
+        }
         Value::Nanoseconds | Value::Time => {
             value.as_u64().expect("nanoseconds");
         }
@@ -191,6 +208,11 @@ fn walk(shape: Shape, value: Json) {
     let limits = temper_client_tools::limits::form();
     let mut pending = vec![(shape, value)];
     while let Some((shape, value)) = pending.pop() {
+        if shape == Shape::Text && value.is_string() {
+            let field = fields::resolve(b"template.shown.bytes").expect("whole text uses the text object's byte bound");
+            scalar(&value, field, &limits, &mut pending);
+            continue;
+        }
         if let Choice::One { words } = fields::form(shape).choice {
             if value.is_string() {
                 word(&value, words);

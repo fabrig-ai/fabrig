@@ -5,6 +5,8 @@ family smith-channel 14
 # are bounded here before their own versioned decoders read them.
 record CallName { activation: u64 completion: u32 position: u32 }
 record Window { turns: u32 bytes: u64 }
+record HookTime { time: duration asked: duration }
+record HookTimes { deliver: option HookTime finish: option HookTime ceiling: duration fault: text 1024 }
 record Directory {
     name: text 1024
     path: text 4096
@@ -12,6 +14,7 @@ record Directory {
     git: bool
     conflicts: list 1024 text 4096
     results: option text 4096
+    hooks: option HookTimes = none
 }
 record Workspace { directories: list 64 Directory }
 enum Scheme { bearer, key }

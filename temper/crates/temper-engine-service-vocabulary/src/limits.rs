@@ -345,8 +345,8 @@ const BRIEF: engine::BriefLimits = engine::BriefLimits {
         now: 4096,
     },
     // Three 131,584-byte task, pull and review sections, cut within charter 5’s
-    // 319,324-byte stock host room after 64 titles and framing, with 66 bytes spare.
-    brief_bytes: 319_324 - 64 * (16 + 7) - 66,
+    // 317,043-byte stock host room after 64 titles and framing, with 66 bytes spare.
+    brief_bytes: 317_043 - 64 * (16 + 7) - 66,
     // Fabrig’s development of 2026-11-16: 300 seconds to gather sequential forge reads.
     gather: Duration::from_secs(300),
 };
@@ -604,8 +604,8 @@ pub fn server(jig: &jig_protocol_config::Limits) -> crate::server::Limits {
 }
 
 pub use temper_service_core::limits::{
-    CLOSE_DEADLINE, CLOSE_RESULT_BYTES, CLOSE_SPEC_BYTES, MERGE_DEADLINE, MERGE_KIND, MERGE_RESULT_BYTES,
-    MERGE_SPEC_BYTES, TOOLING_PATH, merge_bound, merge_jobs, prepare_bound,
+    CLOSE_PLACED_RESULT_BYTES, CLOSE_RESULT_BYTES, CLOSE_SPEC_BYTES, MERGE_KIND, MERGE_RESULT_BYTES, MERGE_SPEC_BYTES,
+    TOOLING_PATH, merge_bound, merge_jobs, prepare_bound,
 };
 
 /// Declare prepare only where the tasks child holds its bounds
@@ -626,8 +626,8 @@ pub fn close_bound() -> JobBound {
     JobBound {
         kind: JobKind(temper_engine_domain_forge::CLOSE_KIND),
         spec: CLOSE_SPEC_BYTES,
-        result: CLOSE_RESULT_BYTES,
-        deadline: CLOSE_DEADLINE,
+        result: CLOSE_PLACED_RESULT_BYTES,
+        deadline: temper_service_core::limits::hook_job_deadline_limit(),
     }
 }
 
@@ -636,7 +636,7 @@ pub fn close_bound() -> JobBound {
 #[must_use]
 pub fn close_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     let bound = close_bound();
-    if bound.spec <= jig.core.tasks.spec_bytes && bound.result <= jig.core.tasks.result_bytes {
+    if bound.spec <= jig.core.tasks.spec_bytes && CLOSE_RESULT_BYTES <= jig.core.tasks.result_bytes {
         Box::new([bound])
     } else {
         Box::new([])
@@ -655,6 +655,14 @@ pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
 
 #[cfg(test)]
 mod making_tests {
+    #[test]
+    fn the_stock_engine_declares_both_hook_kinds_at_the_ceiling_limit() {
+        let jobs = jobs(&jig_protocol_config::stock());
+        let [_, merge, close] = jobs.as_ref() else { panic!("stock declares prepare, merge and close") };
+        let deadline = Duration::from_secs(86_400);
+        assert_eq!((merge.kind, merge.deadline), (JobKind(MERGE_KIND), deadline));
+        assert_eq!((close.kind, close.deadline), (JobKind(temper_engine_domain_forge::CLOSE_KIND), deadline));
+    }
     #[test]
     fn stock_tier_failures_fit_the_finding_signature() {
         let tiers = stock().forge.tiers;

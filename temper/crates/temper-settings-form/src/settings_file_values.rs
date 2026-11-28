@@ -152,12 +152,20 @@ pub(super) fn overlay(d: &Decoder<'_>, at: u32, number: u32) -> Result<c::Overla
         },
     })
 }
+fn setting_name(d: &Decoder<'_>, at: Option<u32>) -> Result<Option<Box<[u8]>>, Error> {
+    match at {
+        Some(at) => Ok(Some(d.words(at, crate::SETTING_NAME_BYTES, b"name")?.into_bytes())),
+        None => Ok(None),
+    }
+}
+
 pub(super) fn charter(d: &Decoder<'_>, at: u32) -> Result<c::Charter, Error> {
     let fields = d.object(
         at,
         &[
             b"rest",
             b"number",
+            b"name",
             b"instructions",
             b"waiting",
             b"resume",
@@ -183,6 +191,7 @@ pub(super) fn charter(d: &Decoder<'_>, at: u32) -> Result<c::Charter, Error> {
     let resume = d.boolean(field(&fields, b"resume")?)?;
     let parts = charter_parts(d, optional(&fields, b"parts"))?;
     Ok(c::Charter {
+        name: setting_name(d, optional(&fields, b"name"))?,
         parts,
         rest: match optional(&fields, b"rest") {
             Some(at) => d.boolean(at)?,
@@ -526,6 +535,7 @@ pub(super) fn template(d: &Decoder<'_>, at: u32) -> Result<c::Template, Error> {
         &[
             b"resources",
             b"number",
+            b"shown",
             b"name",
             b"executor",
             b"contract",
@@ -540,10 +550,14 @@ pub(super) fn template(d: &Decoder<'_>, at: u32) -> Result<c::Template, Error> {
         ],
     )?;
     Ok(c::Template {
+        name: match optional(&fields, b"shown") {
+            Some(_) => setting_name(d, optional(&fields, b"name"))?,
+            None => None,
+        },
         resources: template_resources(d, optional(&fields, b"resources"))?,
         number: u32::try_from(d.number(field(&fields, b"number")?)?)
             .or(Err(error(b"template_number", b"integer bound")))?,
-        name: d.document_text(field(&fields, b"name")?)?,
+        shown: template_shown(d, &fields)?,
         executor: template_executor(d, field(&fields, b"executor")?)?,
         contract: task_contract_document(d, field(&fields, b"contract")?)?,
         shallower: u32::try_from(d.number(field(&fields, b"shallower")?)?)
@@ -572,6 +586,16 @@ pub(super) fn template(d: &Decoder<'_>, at: u32) -> Result<c::Template, Error> {
             Some(llm_choice(d, field(&fields, b"llm")?)?)
         },
     })
+}
+fn template_shown(d: &Decoder<'_>, fields: &super::Fields) -> Result<c::DocumentText, Error> {
+    let at = match optional(fields, b"shown") {
+        Some(at) => at,
+        None => optional(fields, b"name").ok_or(error(b"shown", b"missing member"))?,
+    };
+    if d.kind(at)? == Kind::String {
+        return Ok(c::DocumentText::complete(d.words(at, d.limits.document_text_bytes, b"shown")?));
+    }
+    d.document_text(at)
 }
 fn template_resources(d: &Decoder<'_>, at: Option<u32>) -> Result<List<c::Symbol>, Error> {
     let Some(at) = at else { return Ok(List::with_capacity(0)) };
@@ -611,6 +635,7 @@ pub(super) fn setting_policy(d: &Decoder<'_>, at: u32) -> Result<c::SettingPolic
     let fields = d.object(
         at,
         &[
+            b"name",
             b"escalation_role",
             b"ceiling",
             b"projections",
@@ -622,6 +647,7 @@ pub(super) fn setting_policy(d: &Decoder<'_>, at: u32) -> Result<c::SettingPolic
         ],
     )?;
     Ok(c::SettingPolicy {
+        name: setting_name(d, optional(&fields, b"name"))?,
         escalation_role: if d.kind(field(&fields, b"escalation_role")?)? == Kind::Null {
             None
         } else {
@@ -735,6 +761,8 @@ fn setting_model(d: &Decoder<'_>, at: u32) -> Result<c::SettingModel, Error> {
             b"price_unit",
             b"efforts",
             b"effort",
+            b"speeds",
+            b"speed",
         ],
     )?;
     Ok(c::SettingModel {
@@ -790,6 +818,51 @@ fn setting_model(d: &Decoder<'_>, at: u32) -> Result<c::SettingModel, Error> {
                 b"setting_model_effort_some",
             )?)
         },
+        speeds: match optional(&fields, b"speeds") {
+            Some(at) => {
+                let positions = d.array(at, d.limits.setting_model_speeds, b"setting_model_speeds")?;
+                let mut speeds = List::with_capacity(positions.len());
+                for at in &positions {
+                    speeds.push(setting_speed(d, *at)?).expect("checked list length");
+                }
+                speeds
+            }
+            None => List::with_capacity(0),
+        },
+        speed: match optional(&fields, b"speed") {
+            Some(at) if d.kind(at)? != Kind::Null => {
+                Some(d.words(at, d.limits.setting_model_speed_some, b"setting_model_speed_some")?)
+            }
+            Some(_) | None => None,
+        },
+    })
+}
+fn setting_speed(d: &Decoder<'_>, at: u32) -> Result<c::SettingSpeed, Error> {
+    let fields =
+        d.object(at, &[b"name", b"also", b"input_price", b"cached_price", b"cache_write_price", b"output_price"])?;
+    let also = match optional(&fields, b"also") {
+        Some(at) if d.kind(at)? != Kind::Null => {
+            let positions = d.array(at, d.limits.setting_speed_also, b"setting_speed_also")?;
+            let mut names = List::with_capacity(positions.len());
+            for at in &positions {
+                names
+                    .push(d.words(*at, d.limits.setting_speed_also_item, b"setting_speed_also_item")?)
+                    .expect("checked list length");
+            }
+            names
+        }
+        Some(_) | None => List::with_capacity(0),
+    };
+    Ok(c::SettingSpeed {
+        name: d.words(field(&fields, b"name")?, d.limits.setting_speed_name, b"setting_speed_name")?,
+        also,
+        input_price: d.number(field(&fields, b"input_price")?)?,
+        cached_price: d.number(field(&fields, b"cached_price")?)?,
+        cache_write_price: match optional(&fields, b"cache_write_price") {
+            Some(at) if d.kind(at)? != Kind::Null => Some(d.number(at)?),
+            Some(_) | None => None,
+        },
+        output_price: d.number(field(&fields, b"output_price")?)?,
     })
 }
 fn setting_hosts(d: &Decoder<'_>, at: u32) -> Result<c::SettingHosts, Error> {
@@ -958,13 +1031,19 @@ pub(crate) fn llm_choice(d: &Decoder<'_>, at: u32) -> Result<c::LlmChoice, Error
                     .or(Err(error(b"llm_choice_account_some", b"integer bound")))?,
             )
         },
-        main: model_effort(d, field(&fields, b"main")?)?,
+        main: match model_effort(d, field(&fields, b"main")?) {
+            Ok(main) => main,
+            Err(why) => return Err(why.at(b"llm.main")),
+        },
         subagents: {
             let positions =
                 d.array(field(&fields, b"subagents")?, d.limits.llm_choice_subagents, b"llm_choice_subagents")?;
             let mut values = List::with_capacity(positions.len());
-            for at in &positions {
-                values.push(model_effort(d, *at)?).expect("checked list length");
+            for (index, at) in positions.iter().enumerate() {
+                match model_effort(d, *at) {
+                    Ok(value) => values.push(value).expect("checked list length"),
+                    Err(why) => return Err(indexed_error(b"llm.subagents", index, why)),
+                }
             }
             values
         },
@@ -990,7 +1069,7 @@ fn llm_later(d: &Decoder<'_>, at: u32) -> Result<c::LlmLater, Error> {
     Ok(c::LlmLater { main, subagents })
 }
 fn later_model_effort(d: &Decoder<'_>, at: u32) -> Result<c::ModelEffort, Error> {
-    let fields = d.object(at, &[b"model", b"effort"])?;
+    let fields = d.object(at, &[b"model", b"effort", b"speed"])?;
     let model = match d.words(field(&fields, b"model")?, d.limits.model_effort_model, b"model") {
         Ok(model) => model,
         Err(why) => return Err(why.named(b"model")),
@@ -1002,7 +1081,7 @@ fn later_model_effort(d: &Decoder<'_>, at: u32) -> Result<c::ModelEffort, Error>
             Err(why) => return Err(why.named(b"effort")),
         },
     };
-    Ok(c::ModelEffort { model, effort })
+    Ok(c::ModelEffort { model, effort, speed: model_speed(d, optional(&fields, b"speed"))? })
 }
 fn owner_authority(d: &Decoder<'_>, at: u32) -> Result<c::Authority, Error> {
     let fields = d.object(
@@ -1193,7 +1272,7 @@ fn ended_by(d: &Decoder<'_>, at: u32) -> Result<c::EndedBy, Error> {
     }))
 }
 fn model_effort(d: &Decoder<'_>, at: u32) -> Result<c::ModelEffort, Error> {
-    let fields = d.object(at, &[b"model", b"effort"])?;
+    let fields = d.object(at, &[b"model", b"effort", b"speed"])?;
     Ok(c::ModelEffort {
         model: d.words(field(&fields, b"model")?, d.limits.model_effort_model, b"model_effort_model")?,
         effort: if d.kind(field(&fields, b"effort")?)? == Kind::Null {
@@ -1201,7 +1280,15 @@ fn model_effort(d: &Decoder<'_>, at: u32) -> Result<c::ModelEffort, Error> {
         } else {
             Some(d.words(field(&fields, b"effort")?, d.limits.model_effort_effort_some, b"model_effort_effort_some")?)
         },
+        speed: model_speed(d, optional(&fields, b"speed"))?,
     })
+}
+fn model_speed(d: &Decoder<'_>, at: Option<u32>) -> Result<Option<c::Text>, Error> {
+    let Some(at) = at else { return Ok(None) };
+    match d.words(at, d.limits.model_effort_speed_some, b"speed") {
+        Ok(speed) => Ok(Some(speed)),
+        Err(why) => Err(why.named(b"speed")),
+    }
 }
 fn authority_models(d: &Decoder<'_>, at: u32) -> Result<c::AuthorityModels, Error> {
     if d.kind(at)? == Kind::String {

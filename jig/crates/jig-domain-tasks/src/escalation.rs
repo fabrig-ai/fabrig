@@ -1,6 +1,8 @@
 //! Held person-chat decisions, independent of root authentication, policy and
 //! transport history (domain/tasks/proposals.md).
 
+pub use jig_domain_contract::ops::{EscalationDecider, EscalationHolder};
+
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{Hold, Limits, Party, Phase, Request, Tries, Was};
 use alloc::boxed::Box;
@@ -205,37 +207,6 @@ pub(crate) fn wake_restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
         }
         wake_holder(domain, env, number, out);
     }
-}
-
-/// Semantic recipient of one held chat decision. Root verifies current membership
-/// and coverage; tasks keeps only this bounded identity.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum EscalationHolder {
-    /// Nearest live ancestor task with authority to decide this hold.
-    Task(u64),
-    /// The chat's person requester, eligible under current policy.
-    Person(
-        /// Positive requester identity, supplied by root.
-        u64,
-    ),
-    /// Final project policy role; any authenticated current holder may decide
-    /// first, and passing further refuses.
-    Role {
-        /// Project of the held chat, checked by tasks.
-        project: u32,
-        /// Policy role selected and checked by root, bounded by authority roles.
-        role: u32,
-    },
-}
-
-/// The task or person that decided an escalation while its task remains held
-/// (domain/tasks/proposals.md, "An escalation's decider has its kind").
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum EscalationDecider {
-    /// The live ancestor task that decided.
-    Task(u64),
-    /// The authenticated person that decided, including through a policy role.
-    Person(u64),
 }
 
 /// One semantic state per task; no receipt table, inbox or decision archive.

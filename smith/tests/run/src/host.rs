@@ -431,6 +431,7 @@ impl Host {
         let writable = self.rng.chance(script.writable);
         let mut repositories = vec![Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: Box::from(&b"temper"[..]),
             root: self.name(),
@@ -441,6 +442,7 @@ impl Host {
         if self.rng.chance(500) {
             repositories.push(Directory {
                 results: None,
+                hooks: None,
                 host: Box::from(b"/host".as_slice()),
                 name: Box::from(&b"docs"[..]),
                 root: self.name(),
@@ -479,6 +481,7 @@ impl Host {
         let agents = self.rng.chance(script.agents);
         let llm = |model: &[u8]| Llm {
             effort: None,
+            speed: None,
             prices: smith_domain_run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
             account: Some(0),
             endpoint: Endpoint(0),
@@ -531,6 +534,7 @@ impl Host {
             conventions: Some(smith_domain_run::Conventions {
                 guide: b"AGENTS.md".as_slice().into(),
                 checks: b".temper/pre-pr".as_slice().into(),
+                hooks: None,
             }),
             resume: false,
             waiting: Duration::from_secs(30),

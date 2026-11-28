@@ -1,6 +1,6 @@
 # whole-story: the reasons behind it
 
-This holds the reasons for `whole-story.md`, moved from [`notes.md`](notes.md), section 12.
+This holds the reasons for `whole-story.md`, moved from the shared notes file.
 
 The reasons behind `whole-story.md` and the four drafts written with it,
 from the user, 2026-11-08.

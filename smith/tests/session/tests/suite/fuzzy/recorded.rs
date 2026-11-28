@@ -14,6 +14,7 @@ fn randomized_priced_turns_and_terminal_races() {
     for seed in 0..64 {
         let mut rng = Rng::new(seed);
         let mut world = Scripted::with_shapes(seed);
+        world.omit_replay();
         world.open(opening(None, 20));
         let usage = llm::Usage {
             input_tokens: Some(rng.below(30)),

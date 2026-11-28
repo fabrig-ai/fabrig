@@ -148,6 +148,50 @@ fn an_empty_ci_repairs_later_red_holds_without_spending_the_bound() {
     world.close();
 }
 
+#[test]
+fn repeated_releases_keep_the_reds_own_account() {
+    let (mut world, repair, change) = repair();
+    let assigned = world.assigned.len();
+    let initial_revision = live_task(&world, change).revisions.hold;
+    answer(&mut world, &repair);
+    let mut revision = reheld(&mut world, change, initial_revision);
+    let first = row(&world, change);
+    let State::Held { hold, .. } = &first.change.state else { panic!("red held") };
+    let measured = first.ci_recheck.expect("one check of the same content");
+    assert!(measured.taken.is_some_and(|taken| taken > measured.job.attempt));
+    let head = forge_top::commit_text(&measured.job.head);
+    let mut expected = format!(
+        "not measured again: its red at {} stands at the same content and spec; amend this change to ask a fresh repair, measure it again, or cancel it.\n\n",
+        std::str::from_utf8(&head[..12]).unwrap(),
+    );
+    expected.push_str(std::str::from_utf8(&hold.words).unwrap());
+    let bound = usize::try_from(tasks::HOLD_ACCOUNT_BYTES).unwrap();
+    expected.truncate(expected.floor_char_boundary(expected.len().min(bound)));
+
+    for release in 0..4 {
+        red_act(
+            &mut world,
+            [80 + release; 16],
+            780 + u64::from(release),
+            people::Ask::Release { project: 1, task: change, revision, again: None },
+        );
+        revision = reheld(&mut world, change, revision);
+        let retained = row(&world, change);
+        let State::Held { hold, .. } = &retained.change.state else { panic!("red re-held") };
+        assert_eq!(hold.cause, Cause::RedStands);
+        assert_eq!(std::str::from_utf8(&hold.words).unwrap(), expected, "saved hold after release {}", release + 1);
+        let tasks::Phase::Held { source, .. } = &live_task(&world, change).phase else { panic!("task re-held") };
+        let tasks::HoldSource::Account { words, .. } = source.as_deref().expect("hold account") else {
+            panic!("red stands account")
+        };
+        assert_eq!(std::str::from_utf8(words).unwrap(), expected, "task account after release {}", release + 1);
+        assert_eq!(retained.ci_recheck, Some(measured), "ordinary release measures nothing");
+        assert_eq!(retained.change.repairs, first.change.repairs);
+        assert_eq!(world.assigned.len(), assigned);
+    }
+    world.close();
+}
+
 fn red_act(world: &mut World, key: [u8; 16], token: u64, ask: people::Ask) {
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),

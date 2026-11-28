@@ -48,6 +48,21 @@ pub(crate) enum Internal {
 }
 
 impl Core {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn inspection_flight_capacity(&self) -> u32 {
+        self.flights.capacity()
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    /// Returns the next slot cursor, the continuation's token, kind, and owning task if any.
+    #[must_use]
+    pub fn inspection_flight(&self, from: u32) -> Option<(u32, Token, &'static str, Option<u64>)> {
+        let (next, id, flight) = self.flights.live_from(from)?;
+        let (kind, owner) = flight.inspection_owner()?;
+        Some((next, id.token(), kind, owner))
+    }
+
     // Party requests may wait on external actions; their active work has separate flights.
     pub(crate) fn flights_idle(&self) -> bool {
         for (_, flight) in &self.flights {
@@ -121,6 +136,100 @@ impl Core {
         self.flights.retire(id);
         self.flights.reclaim();
         Some(flight)
+    }
+}
+
+impl Flight {
+    // A request can name a task without being owned by it. For example, a
+    // party's read of an ended conversation still owes a reply to the party.
+    fn inspection_owner(&self) -> Option<(&'static str, Option<u64>)> {
+        use super::{party::amendment_reads::Replay, run::results::ReadFor};
+        use crate::{RoutedCall, effects::resources::Kind as Batch, routing::NoteRoute};
+        Some(match self {
+            Self::Party { .. } => ("party", None),
+            Self::PartyPart { .. } => ("party part", None),
+            Self::PersonTask { .. } => ("person task", None),
+            Self::Goal { .. } => ("goal", None),
+            Self::PersonProposal(_) => ("person proposal", None),
+            Self::Call { route, .. } => {
+                let key = match route {
+                    RoutedCall::Escalation { key, .. }
+                    | RoutedCall::Propose { key, .. }
+                    | RoutedCall::Decide { key, .. }
+                    | RoutedCall::Withdraw { key, .. }
+                    | RoutedCall::Accepting { key, .. }
+                    | RoutedCall::Message(key)
+                    | RoutedCall::MarkRead(key)
+                    | RoutedCall::RecordNote { key, .. }
+                    | RoutedCall::Introduce(key)
+                    | RoutedCall::Subscribe { key, .. }
+                    | RoutedCall::Unsubscribe { key, .. }
+                    | RoutedCall::Control { key, .. } => key,
+                };
+                ("call", Some(key.task))
+            }
+            Self::Made { .. } => ("made", None),
+            Self::PersonEscalation(_) => ("person escalation", None),
+            Self::ProcedureProposal { route, .. } => ("procedure proposal", Some(route.task)),
+            Self::Internal(reason) => (
+                match reason {
+                    Internal::Admission => "admission",
+                    Internal::Deletion { .. } => "deletion",
+                    Internal::Delegate => "delegate",
+                    Internal::Repair { .. } => "repair",
+                    Internal::Acknowledge => "acknowledge",
+                },
+                None,
+            ),
+            Self::Moving { task, .. } => ("moving", Some(*task)),
+            Self::EndedMark { .. } => ("ended mark", None),
+            Self::Key { .. } => ("key", None),
+            Self::Application { .. } => ("application", None),
+            Self::Watch { .. } => ("watch", None),
+            Self::Delegating { route, .. } => ("delegating", Some(route.0.task)),
+            Self::Saying { .. } => ("saying", None),
+            Self::ResultRead(read) => (
+                "result read",
+                match &read.why {
+                    ReadFor::Preparation { task, .. } => Some(*task),
+                    ReadFor::Amendment(read) => match read.replay {
+                        Replay::Agent { key, .. } => Some(key.task),
+                        Replay::Person { .. } => None,
+                    },
+                    ReadFor::Delegate { .. }
+                    | ReadFor::Conclude { .. }
+                    | ReadFor::DeploymentClose { .. }
+                    | ReadFor::Batch(_) => None,
+                },
+            ),
+            Self::CreatingInputs { .. } => ("creating inputs", None),
+            Self::Creating { .. } => ("creating", None),
+            Self::AwaitingResources(batch) => (
+                "awaiting resources",
+                match &batch.kind {
+                    Batch::Creation { creator: jig_domain_tasks::Party::Task(task), .. }
+                    | Batch::Result { proposer: task, .. } => Some(*task),
+                    Batch::Creation { .. } => None,
+                },
+            ),
+            Self::CreatingDelegates { route, .. } => ("creating delegates", Some(route.key.task)),
+            Self::Workspace { task, .. } => ("workspace", Some(*task)),
+            Self::ProcedureCreation { task, .. } => ("procedure creation", Some(*task)),
+            Self::EffectStaging => ("effect staging", None),
+            Self::Effect { route } => ("effect", route.inspection_owner()),
+            Self::Note(route) => (
+                "note",
+                match route {
+                    NoteRoute::Call { key, .. } => Some(key.task),
+                    NoteRoute::Brief { task } | NoteRoute::Preferences { task } | NoteRoute::Now { task } => {
+                        Some(*task)
+                    }
+                    NoteRoute::Deletion { .. } | NoteRoute::Person { .. } | NoteRoute::AbandonedPreparation => None,
+                },
+            ),
+            Self::SettingsOffering { .. } => ("settings offering", None),
+            Self::Retired => return None,
+        })
     }
 }
 

@@ -6,7 +6,7 @@
   version and layout; every message names its owner and the version of
   its record, and a streamed message's record is in the version its
   watch was opened in.
-- **Versions are frozen** (`temper/docs/design/draft/layouts-both-ways.md`,
+- **Versions are frozen** (`temper/docs/design/draft/archive/layouts-both-ways.md`,
   3). Each client family keeps the version it has, and a layout change
   moves none: jig's `jig-client-wire` and `jig-public-wire`, in
   `jig-client-protocol-wire`; `jig-engine-cursor`, in
@@ -40,30 +40,33 @@
   the hello alone, the stream's first variant, tag 0: the stream's
   name, the ranges served and the heartbeat, encoded as version 27
   encodes them, which an engine sends a stream whose opening names no
-  version it serves, so that a client of any version reads the ranges
-  and is refused by name (`wire.md`, section 2). So is `Opened`'s head,
+  version it serves, so that a client of any version reads it and is
+  refused by name (`wire.md`, section 2). So is `Opened`'s head,
   the stream's variant `opened`, tag 4: its `hello`, then its `layouts`,
   each `Layout { owner, layout }`, an owner and its 32-byte layout, at
   most the hello's bound of ranges, ahead of `me`; so a client of any
   layout reads the engine's layouts before anything that may differ.
-- **The engine serves one layout of each owner,** at one version of it,
-  which its stream states: the version in the hello's ranges
-  (`../../client/domain/contract/README.md`, section 6), and the layout in `Opened`'s
-  `layouts`, for jig and for each owner the application declares, with
-  its version and its layout. To serve a layout is to hold its
-  generated codecs and their translations.
-- **A version not served** is answered so, typed, before the record is
-  read: *version not served*, naming the owner and the ranges the engine
-  serves. A keyed request, a read and a watch's opening are each
-  answered so; nothing is done.
-- **Layouts are judged at the hello.** The client compares each layout
-  `Opened` names with its own. Another layout of jig's wire, or none
-  named, makes the link out of date, refused by name, as a version of
-  jig's not served does; another layout of a declared owner's, or none,
-  makes that owner not served, as a range that leaves out its version
-  does (`../../client/domain/client/watches.md`, 2). A hello alone names no layout:
-  the engine sends it only to a stream whose opening names a version it
-  doesn't serve, and it is judged by its ranges.
+- **The engine serves one layout of each owner,** at its one frozen
+  version, which its stream states: the layout in `Opened`'s `layouts`,
+  for jig and for each owner the application declares, with its version
+  and its layout. To serve a layout is to hold its generated codecs and
+  their translations. The hello's `served` keeps its bytes: each owner's
+  one version written as both ends of its range
+  (`../../client/domain/contract/README.md`, section 6), which no client
+  reads.
+- **A message of another version** than the engine's one of its owner
+  is answered so, typed, before the record is read: *version not
+  served*, naming the owner, its range written as the hello's is. A
+  keyed request, a read and a watch's opening are each answered so;
+  nothing is done. No client of a frozen family sends one.
+- **Layouts alone are judged at the hello.** The client compares each
+  layout `Opened` names with its own. Another layout of jig's wire, or
+  none named, makes the link out of date, refused by name; another
+  layout of a declared owner's, or none, makes that owner not served
+  (`../../client/domain/client/watches.md`, 2). A hello alone names no
+  layout, so it is judged as one naming none: the engine sends it only
+  to a stream whose opening names a version not its own. No client
+  reads a range, from a hello or from an answer.
 - **Nothing of an owner leaves unjudged.** A keyed request waits for
   `me` and a watch's opening for the stream's name, as they do; a read,
   alone or in a batch, waits too, until a hello since the stream last
@@ -80,13 +83,14 @@
   dropped, or answered as one of another version is.
 - **The client's versions and layouts:** jig's are its wire's; each
   family owner's, the application declares as it makes the client, with
-  its limits, and the client judges each hello against them, whole
+  its limits. Its messages name the version; the client judges each
+  hello's layouts against its own, whole
   (`../../client/domain/client/watches.md`, 2). A hello names at most its wire's
   bound of ranges, jig's among them: an engine serves no more owners
   than that, and a client declares no more family owners than that bound
   less jig's.
-- **A client outside a range or at another layout,** from the hello or
-  from such an answer, sends nothing more of that owner: its requests
+- **A client at another layout,** from the hello, or answered *version
+  not served*, sends nothing more of that owner: its requests
   stay kept and unsent, its reads are answered at once, unsent, and its
   watches end, as version not served. Outside jig's, the link is out of
   date, and the client sends nothing at all
@@ -119,7 +123,7 @@
 
 - **Clients bridged:** the engine converting for a client at another
   layout, so that a client outlives a redeploy without reloading
-  (`temper/docs/design/draft/layouts-both-ways.md`, 10).
+  (`temper/docs/design/draft/archive/layouts-both-ways.md`, 10).
 - **The exchanges no hello judges:** signing in and out, approvals and
   the link's asks may reach the engine before any hello, so a client at
   another layout may meet a refusal there that names no layout, where a

@@ -201,10 +201,10 @@ pub fn landing_stock(
     crate::route::policy_translate::landing_stock(deployment, projects, change, review)
 }
 
-/// The forge's connector kinds, in the engine's vocabulary.
+/// The forge's connector capabilities, in the engine's vocabulary.
 pub(crate) fn forge_declaration(connector: u16) -> jig_domain_contract::Declaration {
     use jig_domain_contract::{
-        Declaration,
+        Connector, Declaration,
         effects::{EffectForm, EffectKind, Recovery},
         resources::{ResourceKind, Rule, Taken},
     };
@@ -215,25 +215,31 @@ pub(crate) fn forge_declaration(connector: u16) -> jig_domain_contract::Declarat
         }
         forge::resources::HoldKind::Shared => unreachable!("private branch kind takes exclusive holds"),
     };
-    let mut effects = skein_lib::List::with_capacity(16);
-    for kind in 2..=17 {
-        let (form, recovery) = forge::effect_shape(kind).expect("each forge write kind has a shape");
-        let form = match form {
+    let count = u32::try_from(forge::EFFECT_KINDS.len()).expect("bounded forge kinds");
+    let mut effects = skein_lib::List::with_capacity(count);
+    for row in forge::EFFECT_KINDS {
+        let form = match row.form {
             forge::EffectForm::Creation => EffectForm::Creation,
             forge::EffectForm::Transition => EffectForm::Transition,
             forge::EffectForm::Set => EffectForm::Set,
         };
-        let recovery = match recovery {
+        let recovery = match row.recovery {
             forge::Recovery::Keyed => Recovery::Keyed,
             forge::Recovery::Conditional => Recovery::Conditional,
             forge::Recovery::Idempotent => Recovery::Idempotent,
             forge::Recovery::Unrecoverable => Recovery::Unrecoverable,
         };
         effects
-            .push(EffectKind { kind, form, recovery, waits_for_dependencies: forge::waits_for_dependencies(kind) })
+            .push(EffectKind { kind: row.kind, form, recovery, waits_for_dependencies: row.waits_for_dependencies })
             .expect("one declaration per forge write kind");
     }
-    Declaration { connector, resources: Box::new([ResourceKind { kind: 1, hold }]), effects: effects.into_boxed() }
+    Declaration {
+        connector: Connector(connector),
+        resources: Box::new([ResourceKind { kind: 1, hold }]),
+        effects: effects.into_boxed(),
+        projects_goals: true,
+        sections: true,
+    }
 }
 
 #[cfg(test)]

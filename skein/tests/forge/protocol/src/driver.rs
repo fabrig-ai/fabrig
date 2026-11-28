@@ -129,8 +129,12 @@ impl Driver {
                 .expect("changed tree")
         )
     }
-    pub fn commit_tree(&mut self, parent: u64, tree: Box<[raw::File]>) -> u64 {
-        self.prepare_commit(parent, tree, b"directory fixture")
+    pub(crate) fn commit_tree(&mut self, parent: u64, tree: Box<[raw::File]>, links: &[&[u8]]) -> u64 {
+        let head = self.prepare_commit(parent, tree, b"directory fixture");
+        for path in links {
+            dispatch!(self, w, fake::directory_link(&mut w.domain, head, path).expect("link path in fixture"));
+        }
+        head
     }
 
     pub fn direct(&mut self, op: raw::Op) -> Result<raw::Answer, raw::Error> {

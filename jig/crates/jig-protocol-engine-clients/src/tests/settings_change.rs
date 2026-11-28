@@ -62,7 +62,7 @@ fn all_four_whole_values_translate_and_the_component_passes_the_exact_asks_diges
     assert_eq!(template.grace, Some(skein_lib::Duration::from_secs(18)));
     assert_eq!(
         template.llm.as_ref().expect("settings fixture").main,
-        jig_domain_tasks::ModelEffort { model: 0, effort: Some(1) }
+        jig_domain_tasks::ModelEffort { model: 0, effort: Some(1), speed: None }
     );
     assert_eq!(template.llm.as_ref().expect("settings fixture").account, Some(21));
     assert!(template.flags.conversation);
@@ -76,6 +76,102 @@ fn all_four_whole_values_translate_and_the_component_passes_the_exact_asks_diges
     assert_eq!(rules.maximum_run_spend, 90);
     assert!(exchange.out.is_empty());
 }
+#[test]
+fn a_model_settings_change_and_read_keep_its_speeds() {
+    let limits = f::wire();
+    let fast = w::SettingSpeed {
+        name: b"fast".as_slice().into(),
+        also: List::from_boxed(Box::new([b"priority".as_slice().into()])),
+        input_price: 4000,
+        cached_price: 200,
+        cache_write_price: Some(5000),
+        output_price: 20_000,
+    };
+    let ultrafast = w::SettingSpeed {
+        name: b"ultrafast".as_slice().into(),
+        also: List::with_capacity(0),
+        input_price: 12_000,
+        cached_price: 600,
+        cache_write_price: None,
+        output_price: 60_000,
+    };
+    let entry = w::CatalogueEntry {
+        number: 40,
+        model: w::SettingModel {
+            provider: 1,
+            dialect: 3,
+            endpoint: 1,
+            program: None,
+            name: b"model".as_slice().into(),
+            window: 4096,
+            output: 1024,
+            input_price: 1000,
+            cached_price: 100,
+            cache_write_price: None,
+            output_price: 5000,
+            price_unit: 1_000_000,
+            efforts: List::with_capacity(0),
+            effort: None,
+            speeds: List::from_boxed(Box::new([fast, ultrafast])),
+            speed: Some(b"ultrafast".as_slice().into()),
+        },
+        shown: None,
+        description: None,
+        picker: true,
+        withdrawn: false,
+        source: w::ModelSource::Person,
+        estimated: false,
+    };
+    let setting = w::Setting::Model(w::SettingNumber { number: 40 });
+    let item = w::SettingItem {
+        setting,
+        edit: w::SettingEdit::Set(w::SettingSet { value: w::SettingValue::Model(Box::new(entry.clone())) }),
+    };
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(item.measure(&limits).unwrap()));
+    item.write(&limits, &mut writer).unwrap();
+    let bytes = f::pieces(&[writer.finish()]);
+    let request = w::ChangeSettings { against: 5, items: bytes.clone(), running: w::Running::Stays };
+    let change = translate::settings::change(request, &f::models(), &limits).unwrap();
+    assert_eq!(translate::settings::items(bytes, &f::models(), &limits).unwrap(), change.items);
+    let [s::Item { setting: setting @ s::Setting::Model(40), edit: s::Edit::Set(s::Value::Model(model)) }] =
+        change.items.as_ref()
+    else {
+        panic!("one model set")
+    };
+    assert_eq!(
+        &*model.model.speeds,
+        &[
+            core::Speed {
+                name: b"fast".as_slice().into(),
+                also: Box::new([b"priority".as_slice().into()]),
+                input_price: 4000,
+                cached_price: 200,
+                cache_write_price: Some(5000),
+                output_price: 20_000,
+            },
+            core::Speed {
+                name: b"ultrafast".as_slice().into(),
+                also: Box::new([]),
+                input_price: 12_000,
+                cached_price: 600,
+                cache_write_price: None,
+                output_price: 60_000,
+            },
+        ]
+    );
+    assert_eq!(model.model.speed.as_deref(), Some(b"ultrafast".as_slice()));
+    let read = core::reads::SettingDocument {
+        setting: *setting,
+        overlay: None,
+        revision: 6,
+        value: Some(s::Value::Model(model.clone())),
+        application: None,
+        proposed: None,
+    };
+    let read = translate::settings::setting_document(&read, &f::models(), &limits).unwrap();
+    assert_eq!(read.value, Some(w::SettingValue::Model(Box::new(entry))));
+}
+
 #[test]
 fn resets_and_removals_translate_and_bad_pieces_reach_no_core() {
     let limits = f::wire();
@@ -148,6 +244,7 @@ fn settings_answers_and_each_fault_keep_their_facts() {
             (p::SettingFault::Judged, w::SettingFault::Judged),
             (p::SettingFault::Linked, w::SettingFault::Linked),
             (p::SettingFault::Range, w::SettingFault::Range),
+            (p::SettingFault::Name, w::SettingFault::Name),
         ] {
             let value = translate::refusals::refusal(
                 p::Refusal::NotWellFormed { at: 0, why: p::Malformed::Settings { setting, fault, detail: None } },
@@ -194,11 +291,13 @@ fn template_choice(model: &[u8], effort: &[u8]) -> jig_client_domain::contract::
     c::ModelEffort {
         model: c::Text::new(model.into(), f::wire().model_effort_model).unwrap(),
         effort: Some(c::Text::new(effort.into(), f::wire().model_effort_effort_some).unwrap()),
+        speed: None,
     }
 }
 fn template_requests(
     main: jig_client_domain::contract::ModelEffort,
     subagents: List<jig_client_domain::contract::ModelEffort>,
+    later: Option<jig_client_domain::contract::LlmLater>,
 ) -> [w::Ask; 2] {
     use jig_client_domain::contract as c;
     let mut item = jig_client_test_records::settings::settings_change()
@@ -211,7 +310,7 @@ fn template_requests(
     let c::SettingEdit::Set(set) = &mut item.edit else { panic!("set") };
     let c::SettingValue::Template(template) = &mut set.value else { panic!("template") };
     template.number = 4;
-    template.llm = Some(c::LlmChoice { later: None, account: None, main, subagents });
+    template.llm = Some(c::LlmChoice { later, account: None, main, subagents });
     let change =
         c::ChangeSettings { against: 5, running: c::Running::Stays, items: List::from_boxed(Box::new([item])) };
     let change = jig_client_protocol_link::translate::settings::wire_change_settings(&change, &f::wire()).unwrap();
@@ -249,7 +348,7 @@ fn unsupported_template_efforts_receive_a_final_refusal() {
         ),
         (template_choice(b"absent", b"high"), List::with_capacity(0), b"absent".as_slice(), w::LlmWhy::Unconfigured),
     ] {
-        for ask in template_requests(main, subagents) {
+        for ask in template_requests(main, subagents, None) {
             let (exchange, owner) = send_template(&ask);
             assert!(exchange.out.is_empty(), "invalid settings reached the core: {ask:?}");
             let w::Final::Refused(value) = exchange.final_answer(owner) else { panic!("final refusal: {ask:?}") };
@@ -262,10 +361,11 @@ fn unsupported_template_efforts_receive_a_final_refusal() {
 }
 #[test]
 fn supported_template_efforts_reach_the_core() {
-    let expected = jig_domain_tasks::ModelEffort { model: 0, effort: Some(0) };
+    let expected = jig_domain_tasks::ModelEffort { model: 0, effort: Some(0), speed: None };
     for ask in template_requests(
         template_choice(b"careful", b"high"),
         List::from_boxed(Box::new([template_choice(b"careful", b"high")])),
+        None,
     ) {
         let (mut exchange, _owner) = send_template(&ask);
         let Some(Request::Core(event)) = exchange.out.pop() else { panic!("core entrance: {ask:?}") };
@@ -281,6 +381,55 @@ fn supported_template_efforts_reach_the_core() {
         assert!(exchange.out.is_empty());
     }
 }
+#[test]
+fn template_speeds_survive_direct_and_proposed_settings() {
+    use jig_client_domain::contract as c;
+    let choice = template_choice(b"careful", b"high");
+    let named = c::ModelEffort {
+        speed: Some(c::Text::new(b"fast".as_slice().into(), f::wire().model_effort_speed_some).unwrap()),
+        ..choice.clone()
+    };
+    let standard = c::ModelEffort {
+        speed: Some(c::Text::new(b"standard".as_slice().into(), f::wire().model_effort_speed_some).unwrap()),
+        ..choice
+    };
+    let from_charter = c::ModelEffort {
+        model: c::Text::new(b"quick".as_slice().into(), f::wire().model_effort_model).unwrap(),
+        effort: None,
+        speed: None,
+    };
+    for ask in template_requests(
+        named.clone(),
+        List::from_boxed(Box::new([standard.clone()])),
+        Some(c::LlmLater { main: standard, subagents: List::from_boxed(Box::new([from_charter, named])) }),
+    ) {
+        let models = f::models();
+        let limits = f::wire();
+        let items = if let w::Ask::ChangeSettings(change) = ask {
+            translate::settings::change(change, &models, &limits).unwrap().items
+        } else {
+            let w::Ask::Propose(propose) = ask else { panic!("settings entrance") };
+            translate::settings::proposed(propose, &models, &limits).unwrap().items
+        };
+        let [s::Item { setting: s::Setting::Template(4), edit: s::Edit::Set(s::Value::Template(template)) }] =
+            items.as_ref()
+        else {
+            panic!("only template 4")
+        };
+        let llm = template.llm.as_ref().expect("template choice");
+        let later = llm.later.as_ref().expect("later choice");
+        let fast = skein_lib::Name::from_checked(b"fast");
+        let standard = skein_lib::Name::from_checked(b"standard");
+        let [subagent] = llm.subagents.as_ref() else { panic!("one first sub-agent") };
+        let [omitted, named] = later.subagents.as_ref() else { panic!("two later sub-agents") };
+        assert_eq!(llm.main.speed, fast);
+        assert_eq!(subagent.speed, standard);
+        assert_eq!(later.main.speed, standard);
+        assert_eq!(omitted.speed, None);
+        assert_eq!(named.speed, fast);
+    }
+}
+
 #[test]
 fn settings_proposals_reach_the_core_with_the_whole_set_and_exact_digest() {
     let mut exchange = whole_settings_exchange();

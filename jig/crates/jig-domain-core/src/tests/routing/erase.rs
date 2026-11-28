@@ -4,6 +4,7 @@ use crate::{
     routing::task::erase::{Select, scan},
     tests::*,
 };
+use jig_domain_contract as contract;
 
 fn env(limits: &Limits) -> Env<Limits> {
     Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }
@@ -50,7 +51,7 @@ fn page(
         core,
         &env(limits),
         &mut Queue::uncapped(),
-        skein_lib::Id::from_token(load),
+        load,
         engine_store::Answer::Rows(engine_store::Rows::Read { rows: rows.into_boxed(), next }),
     )
 }
@@ -68,7 +69,11 @@ fn erases(out: &Queue<Request>) -> Box<[Key]> {
 fn unnamed(out: &Queue<Request>) -> Box<[(u16, u64)]> {
     let mut asks = List::with_capacity(out.len());
     for request in out {
-        if let Request::Ask { connector, ask: Ask::Effect(connector::Ask::Unname { task }) } = request {
+        if let Request::Ask {
+            connector,
+            ask: Ask::Connector(contract::Ask::Resources(contract::resources::Ask::Unname { task })),
+        } = request
+        {
             asks.push((*connector, *task)).unwrap();
         }
     }
@@ -98,8 +103,8 @@ fn finish_rows(core: &mut Core, limits: &Limits, rows: &Queue<Request>) -> (Queu
 }
 
 #[test]
-fn every_connector_is_told_in_the_decision_that_erases_the_record() {
-    let (mut core, limits) = make_tree();
+fn the_resource_connector_is_told_in_the_decision_that_erases_the_record() {
+    let (mut core, limits) = tree_core_with_write_hold();
     let record = fixtures::ended_report(9, tasks::Party::Person(1));
     let out = ended(&mut core, &limits, record);
     assert!(unnamed(&out).is_empty());
@@ -108,7 +113,7 @@ fn every_connector_is_told_in_the_decision_that_erases_the_record() {
     let (cleanup, record_out) = finish_rows(&mut core, &limits, &rows);
     assert!(unnamed(&cleanup).is_empty());
     assert_eq!(erases(&record_out).as_ref(), &[Key::Tasks(tasks::Key::Ended(9)), Key::Tasks(tasks::Key::Summary(9))]);
-    assert_eq!(unnamed(&record_out).as_ref(), &[(1, 9), (2, 9)]);
+    assert_eq!(unnamed(&record_out).as_ref(), &[(2, 9)]);
     assert!(drops_history(&record_out));
     assert!(!drops_history(&cleanup), "not before owner");
 }
@@ -347,7 +352,7 @@ fn a_busy_page_is_asked_again() {
         &mut core,
         &env(&limits),
         &mut Queue::uncapped(),
-        skein_lib::Id::from_token(token),
+        token,
         engine_store::Answer::Failed(engine_store::Failure::Busy),
     );
     let (new, retried) = load(&out);
@@ -368,7 +373,7 @@ fn a_busy_page_is_asked_again() {
         &mut core,
         &env(&limits),
         &mut Queue::uncapped(),
-        skein_lib::Id::from_token(token),
+        token,
         engine_store::Answer::Failed(engine_store::Failure::Busy),
     );
     assert_eq!(load(&out).1, range, "a busy task page also retries");
@@ -432,7 +437,7 @@ fn an_erasure_can_load_and_retry_while_client_read_slots_are_full() {
         &mut core,
         &env(&limits),
         &mut Queue::uncapped(),
-        skein_lib::Id::from_token(token),
+        token,
         engine_store::Answer::Failed(engine_store::Failure::Busy),
     );
     assert_eq!(load(&retry).1, range);

@@ -1,6 +1,7 @@
 //! Landing writes join the shared line without keeping their decision (forge/room.md, 3–4).
 use super::*;
 use crate::room;
+use jig_domain_contract as contract;
 use jig_domain_core_vocabulary::waits::{AtBound, Reported, ReportedBound, Thing, Unbounded, WaitKind, WaitObject};
 use skein_forge::api::{self, Answer, Error, Op, Read, Write};
 use skein_lib::List;
@@ -194,6 +195,9 @@ fn answer_for(op: Op, base: api::Commit, run: Option<&api::Run>) -> Result<Answe
             let run = run.expect("read gate run");
             assert_eq!(id, run.id);
             Ok(Answer::Run(run.clone()))
+        }
+        Op::Read(Read::Compare { before, after }) => {
+            Ok(Answer::Compare { before, after, ahead: 1, behind: 0, changed: 0, files: Box::new([]) })
         }
         Op::Read(_) | Op::Write(_) => panic!("unexpected landing read {op:?}"),
     }
@@ -663,9 +667,13 @@ fn dispatch_failures_free_room_at_settlement_not_at_the_hold() {
             assert!(d.entries.get(&FRESH).unwrap().held);
             let settled =
                 outputs(&mut d, Event::SettleEffects { task: TASK, root: TASK, ending: ReleaseEnding::Cancelled });
-            assert!(settled.contains(&Request::NotMade { task: TASK, entry: FRESH }));
+            assert!(settled.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Outbox {
+                task: TASK,
+                entry: FRESH,
+                outcome: contract::effects::OutboxOutcome::NotMade
+            }))));
             let out = outputs(&mut d, Event::ContinueRelease { task: TASK, entry: FRESH + 1 });
-            assert!(out.contains(&Request::EffectsSettled { task: TASK }));
+            assert!(out.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: TASK }))));
         }
         assert!(!d.entries.contains_key(&FRESH));
         assert_eq!(d.landing(TASK).unwrap().entries.as_ref(), []);
@@ -830,7 +838,7 @@ fn ending_a_landing_withdraws_its_unsent_write() {
         }
         let out = outputs(&mut d, Event::SettleEffects { task: TASK, root: TASK, ending });
         assert_eq!(write_outcome(&out), Some(skein_forge_client::Outcome::Withdrawn));
-        assert!(out.contains(&Request::EffectsSettled { task: TASK }));
+        assert!(out.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: TASK }))));
         assert!(!d.entries.contains_key(&FRESH));
         assert!(d.landing(TASK).unwrap().entries.is_empty());
     }

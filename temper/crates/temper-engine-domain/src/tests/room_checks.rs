@@ -27,6 +27,7 @@ const HOST: crate::room::HostPart = crate::room::HostPart {
     shell: 0,
     agents: 0,
     floor: ZERO,
+    ..crate::room::HostPart::EMPTY
 };
 const CHARTER: u32 = 1;
 const REPLY: Token = Token::new(9);
@@ -209,66 +210,56 @@ fn an_overlay_is_judged_over_the_default_not_the_current_change() {
     assert_eq!(crate::route::room_refusal(&root, &overlay_items(overlay(0, None))), None);
 }
 
-fn restored_overlay(host: &crate::room::HostPart, overlay: settings::Overlay) -> (Domain, Env<Limits>) {
+fn restored_overlay(
+    host: &crate::room::HostPart,
+    overlay: settings::Overlay,
+) -> (Domain, Env<Limits>, resume_fixture::StartStore) {
     let (mut root, env) = super::resume::at_phase(false, core::start::Phase::LoadCore);
     root.host_part = *host;
     let mut old_default = resume_fixture::charter();
     old_default.policy.instructions = Box::new([]);
     let old = settings::overlaid(&old_default, &overlay);
     assert_eq!(host.check(&old), Ok(()), "the overlay fit before the default grew");
+    let mut store = resume_fixture::StartStore::new();
     let mut deployment = root.engine.core().counters.deployment();
     deployment.commits = 1;
-    root.engine.core_mut().counters = crate::Counters::new(deployment);
+    store.keep(crate::Record::Core(core::Record::Core(core::CoreRecord::Deployment(deployment))));
     for setting in root.engine.core().current.offered().into_boxed() {
         let value = if setting == Setting::Charter(CHARTER) {
             Value::Charter(Box::new(old_default.clone()))
         } else {
             root.engine.core().current.default_value(setting).unwrap().clone()
         };
-        crate::restart::restore_page_row(
-            &mut root,
-            &env,
-            crate::Record::Core(core::Record::Core(core::CoreRecord::Settings(settings::Record::Default {
-                setting,
-                default: settings::Default { value, revision: 1 },
-            }))),
-        );
+        store.keep(crate::Record::Core(core::Record::Core(core::CoreRecord::Settings(settings::Record::Default {
+            setting,
+            default: settings::Default { value, revision: 1 },
+        }))));
     }
-    crate::restart::restore_page_row(
-        &mut root,
-        &env,
-        crate::Record::Core(core::Record::Core(core::CoreRecord::Settings(settings::Record::Changed {
-            setting: Setting::Charter(CHARTER),
-            changed: settings::Changed { value: Some(Value::Overlay(Box::new(overlay))), revision: 1 },
-        }))),
-    );
+    store.keep(crate::Record::Core(core::Record::Core(core::CoreRecord::Settings(settings::Record::Changed {
+        setting: Setting::Charter(CHARTER),
+        changed: settings::Changed { value: Some(Value::Overlay(Box::new(overlay))), revision: 1 },
+    }))));
     // A persisted head makes this a restored settings set, not the first start.
-    crate::restart::restore_page_row(
-        &mut root,
-        &env,
-        crate::Record::Core(core::Record::Core(core::CoreRecord::Settings(settings::Record::Revision {
-            history: false,
-            revision: settings::Revision {
-                head: settings::Head {
-                    number: 1,
-                    against: 0,
-                    at: Wall::EPOCH,
-                    by: settings::Decider::FirstStart,
-                    proposal: None,
-                    moved: false,
-                },
-                items: Box::new([]),
-                applications: Box::new([]),
+    store.keep(crate::Record::Core(core::Record::Core(core::CoreRecord::Settings(settings::Record::Revision {
+        history: false,
+        revision: settings::Revision {
+            head: settings::Head {
+                number: 1,
+                against: 0,
+                at: Wall::EPOCH,
+                by: settings::Decider::FirstStart,
+                proposal: None,
+                moved: false,
             },
-        }))),
-    );
-    (root, env)
+            items: Box::new([]),
+            applications: Box::new([]),
+        },
+    }))));
+    (root, env, store)
 }
 
-fn finish_load_core(root: &mut Domain, env: &Env<Limits>) {
-    root.work.push(crate::Work::StartDone(core::start::Phase::LoadCore));
-    let mut decision = crate::Decision::decide(&mut root.journal, &env.limits.journal);
-    crate::route::route_into(root, env, &mut decision);
+fn finish_load_core(root: &mut Domain, env: &Env<Limits>, mut store: resume_fixture::StartStore) {
+    store.advance(root, env, resume_fixture::Until::Phase(core::start::Phase::LoadInbox));
 }
 
 #[test]
@@ -276,8 +267,8 @@ fn a_stored_overlay_is_judged_over_the_new_default_after_restore() {
     for fits in [false, true] {
         let default = resume_fixture::charter();
         let added = SHORT_INSTRUCTIONS - u32::try_from(default.policy.instructions.len()).unwrap() - 2;
-        let (mut root, env) = restored_overlay(&HOST, overlay(0, Some(added - u32::from(fits))));
-        finish_load_core(&mut root, &env);
+        let (mut root, env, store) = restored_overlay(&HOST, overlay(0, Some(added - u32::from(fits))));
+        finish_load_core(&mut root, &env, store);
         if fits {
             assert_eq!(root.start_stop(), None);
             assert_ne!(root.start_phase(), Some(core::start::Phase::LoadCore));
@@ -399,8 +390,9 @@ fn changed_row(charter: crate::Charter) -> crate::Record {
 fn a_stored_short_charter_refuses_before_the_next_start_phase() {
     let (mut root, env) = super::resume::at_phase(false, core::start::Phase::LoadCore);
     root.host_part = HOST;
-    crate::restart::restore_page_row(&mut root, &env, changed_row(short_charter()));
-    finish_load_core(&mut root, &env);
+    let mut store = resume_fixture::StartStore::new();
+    store.keep(changed_row(short_charter()));
+    finish_load_core(&mut root, &env, store);
     let mut out = Queue::uncapped();
     crate::release(&mut root, &env, &mut out);
     assert_eq!(
@@ -421,8 +413,9 @@ fn a_stored_unfit_charter_refuses_before_rendered_room() {
         let (mut root, env) = super::resume::at_phase(false, core::start::Phase::LoadCore);
         let charter = short_charter();
         root.host_part = crate::room::HostPart { bound, ..fixed_host(&charter) };
-        crate::restart::restore_page_row(&mut root, &env, changed_row(charter));
-        finish_load_core(&mut root, &env);
+        let mut store = resume_fixture::StartStore::new();
+        store.keep(changed_row(charter));
+        finish_load_core(&mut root, &env, store);
         assert_start_unfit(
             &root,
             Unfit {
@@ -446,8 +439,8 @@ fn a_stored_overlay_short_of_the_brief_floor_refuses_start() {
     const FLOOR: u64 = ALLOWANCE - FIXED + 1;
     let host =
         crate::room::HostPart { allowance: ALLOWANCE, floor: crate::room::Cost { encoded: FLOOR, ..ZERO }, ..HOST };
-    let (mut root, env) = restored_overlay(&host, overlay(0, Some(PART)));
-    finish_load_core(&mut root, &env);
+    let (mut root, env, store) = restored_overlay(&host, overlay(0, Some(PART)));
+    finish_load_core(&mut root, &env, store);
     assert_start_unfit(
         &root,
         Unfit {
@@ -706,7 +699,7 @@ fn owner_root() -> (Domain, Env<Limits>) {
     owner_root_with_limits(&resume_fixture::limits())
 }
 
-fn owner_root_with_limits(limits: &Limits) -> (Domain, Env<Limits>) {
+pub(crate) fn owner_root_with_limits(limits: &Limits) -> (Domain, Env<Limits>) {
     let mut config = resume_fixture::config(7);
     config.core.owners[0].project = people::DEPLOYMENT;
     let records = [
@@ -731,7 +724,7 @@ fn owner_root_with_limits(limits: &Limits) -> (Domain, Env<Limits>) {
 
 // Release the root's decisions against a durable store; the party is the only outside reader.
 #[expect(clippy::wildcard_enum_match_arm, reason = "this fixture only commits settings and receives party replies")]
-pub(super) fn settled(root: &mut Domain, env: &Env<Limits>, input: PartyInput) -> people::Reply {
+pub(crate) fn settled(root: &mut Domain, env: &Env<Limits>, input: PartyInput) -> people::Reply {
     // Each change needs fewer than 64 journal and child continuation handoffs.
     const HANDOFFS: u32 = 64;
     crate::try_step(root, env, Event::Party(input)).unwrap();

@@ -85,6 +85,7 @@ fn model(w: World) -> c::LlmChoice {
                 Solo | World::Bare | World::WholeStory => Some(text("high")),
                 FirstRun { .. } => None,
             },
+            speed: None,
         },
         subagents: List::with_capacity(0),
     }
@@ -144,6 +145,8 @@ fn frame(w: World, connecting: bool, asking: bool) -> c::Me {
             },
             picker: true,
             efforts,
+            speeds: List::with_capacity(0),
+            speed: None,
         })
         .expect("model");
     if matches!(w, World::Bare | FirstRun { step: 0 }) {
@@ -192,7 +195,7 @@ fn frame(w: World, connecting: bool, asking: bool) -> c::Me {
 fn goal_template(chat: &c::Template, number: u32, name: &str) -> c::Template {
     let mut template = chat.clone();
     template.number = number;
-    template.name = doc(name);
+    template.shown = doc(name);
     template.tracked = Some(1);
     template.label = 2;
     template.flags.conversation = false;
@@ -202,7 +205,7 @@ fn goal_template(chat: &c::Template, number: u32, name: &str) -> c::Template {
 fn asking_template(chat: &c::Template) -> c::Template {
     let mut template = chat.clone();
     template.number = temper_client_domain::pages::chats::ASKING_TEMPLATE;
-    template.name = doc("ask");
+    template.shown = doc("ask");
     template.executor = c::TemplateExecutor::Charter(11);
     template
 }
@@ -215,7 +218,7 @@ fn template_preview(member: &mut c::MeProject) {
             choice: c::LlmChoice {
                 later: None,
                 account: None,
-                main: c::ModelEffort { model: text("gpt-6-luna"), effort: None },
+                main: c::ModelEffort { model: text("gpt-6-luna"), effort: None, speed: None },
                 subagents: List::with_capacity(0),
             },
         })
@@ -266,7 +269,7 @@ fn ask_frame(me: &mut c::Me) {
     let stock = member.templates.get(0).expect("stock chat").clone();
     let mut asking = stock.clone();
     asking.number = 5;
-    asking.name = doc("Ask temper");
+    asking.shown = doc("Ask temper");
     asking.executor = c::TemplateExecutor::Charter(11);
     member.templates = List::with_capacity(2);
     member.templates.push(stock).expect("stock");
@@ -1272,7 +1275,7 @@ fn started(address: Address) -> (Domain, Queue<Request>) {
     for event in [
         jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
         jig_client::Event::SignIn { with: jig_client::With::Transport },
-        jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+        jig_client::Event::Up { up: jig_client::Up::Served { served: true } },
     ] {
         step(&mut root, Event::Client { event }, &mut out);
     }
@@ -2097,6 +2100,7 @@ fn tools_line(calls: &[(&str, u32)], made: &[u64], proposes: bool, number: u32) 
                     input: text(""),
                     outcome: None,
                     failed: false,
+                    answer: None,
                     objects,
                     parts: List::with_capacity(0),
                 }))
@@ -2394,6 +2398,7 @@ fn asking_activity() -> c::ActivityPage {
             input: text(""),
             outcome: Some(text("Note 1 revision 2 written · +1 −1 · line 23")),
             failed: false,
+            answer: None,
             objects: List::with_capacity(0),
             parts: List::with_capacity(0),
         }))
@@ -2990,7 +2995,7 @@ fn document(w: World, number: u64) -> c::Task {
         Some(c::LlmChoice {
             later: None,
             account: Some(f.account),
-            main: c::ModelEffort { model: text(f.model), effort: f.effort.map(text) },
+            main: c::ModelEffort { model: text(f.model), effort: f.effort.map(text), speed: None },
             subagents: List::with_capacity(0),
         })
     };
@@ -4248,9 +4253,10 @@ fn base_frame(person: &str, project: &str) -> c::Me {
     let mut templates = List::with_capacity(1);
     templates
         .push(c::Template {
+            name: None,
             resources: List::with_capacity(0),
             number: 1,
-            name: doc("chat"),
+            shown: doc("chat"),
             executor: c::TemplateExecutor::Charter(1),
             contract: c::TaskContractDocument::Report { words: limits().client.domain.text },
             shallower: 1,
@@ -4279,6 +4285,7 @@ fn base_frame(person: &str, project: &str) -> c::Me {
         })
         .expect("one project");
     c::Me {
+        charters: List::with_capacity(0),
         party: c::MeParty { number: 73, kind: c::PartyKind::Person, login: doc(person), name: doc(person) },
         projects,
         needs: c::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
@@ -5436,6 +5443,7 @@ fn settings_activity(name: &str) -> c::ActivityPage {
             input: text(""),
             outcome: None,
             failed: false,
+            answer: None,
             objects: List::with_capacity(0),
             parts: List::with_capacity(0),
         });
@@ -5518,7 +5526,7 @@ fn settings_chat_frame(me: &mut c::Me) {
     }
     let mut way = member.templates.get(0).expect("chat template").clone();
     way.number = 4;
-    way.name = doc("goal for a draft");
+    way.shown = doc("goal for a draft");
     way.tracked = Some(1);
     way.flags.conversation = false;
     way.flags.listed = true;
@@ -5707,6 +5715,7 @@ fn chat_activity() -> c::ActivityPage {
                 input: text(""),
                 outcome: Some(text(outcome)),
                 failed: false,
+                answer: None,
                 objects: List::with_capacity(0),
                 parts: List::with_capacity(0),
             }))
@@ -6009,7 +6018,7 @@ fn models_frame(me: &mut c::Me, one_account: bool, state: super::samples::ModelS
         choice: c::LlmChoice {
             later: None,
             account: None,
-            main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")) },
+            main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")), speed: None },
             subagents: List::with_capacity(0),
         },
     }]));

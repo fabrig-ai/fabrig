@@ -1,7 +1,12 @@
 # briefs: status
 
-2026-11-19. Where the tree's code lags or departs from [briefs.md](briefs.md).
+2026-11-28. Where the tree's code lags or departs from [briefs.md](briefs.md).
 
+- **Design departs:** 1.4 departs from `temper/docs/design/draft/jig-domain-api.md`, 6.3 and 6.6,
+  in three places, each with its reason in 1.4: a brief's plan is an operation that ends later,
+  not a judgement; it is asked of every connector that serves sections, not only of those the
+  task names; and a cut is answered with its size, not a notification. Decided by the goal's
+  designer, 2026-11-28.
 
 - **Not yet:** 1 and 2: a standing task's Now, its own scope, no contract and no transcript tail on a session's first run (`../tasks/standing.md`, sections 2 and 6).
 - **Not yet:** 1.2: the waiting section's open questions, with their askers, numbers, words and answer form; nothing plans `Core::Waiting` yet [in flight: change 838].

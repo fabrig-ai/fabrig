@@ -260,12 +260,13 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["account", "import", "record", "--key", "move-in"],
     &["settings", "show"],
     &["settings", "show", "provider"],
-    &["settings", "show", "charter", "3"],
+    &["settings", "show", "charter", "goal"],
+    &["settings", "show", "model", "4"],
     &["settings", "show", "rules"],
     &["settings", "show", "landing-rule", "1", "--project", "shop"],
     &["settings", "show", "forge-charter", "1"],
     &["settings", "show", "project-classes", "shop"],
-    &["settings", "show", "template-goal", "4"],
+    &["settings", "show", "template-goal", "draft-goal"],
     &["settings", "show", "follow", "1", "--project", "shop"],
     &["settings", "show", "welcome"],
     &["settings", "show", "limits"],
@@ -277,6 +278,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["revision", "list"],
     &["settings", "apply", "FILE", "--against", "5", "--key", "settings-5"],
     &["settings", "propose", "FILE", "--against", "5", "--key", "proposal-5"],
+    &["settings", "upgrade", "FILE"],
     &["proposal", "show", "p73/7"],
     &["forge", "accept", "3", "1"],
     &["revision", "advance", "7", "--key", "move-7"],
@@ -500,6 +502,7 @@ pub(crate) fn me(party: u64) -> c::Me {
         })
         .expect("one project");
     c::Me {
+        charters: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,
@@ -652,7 +655,7 @@ pub(crate) fn started_with_limits(
     };
     harness.client(client::Event::StartUnlinked { kept });
     harness.client(client::Event::SignIn { with: client::With::Transport });
-    harness.client(client::Event::Up { up: client::Up::Served { served: true, versions: None } });
+    harness.client(client::Event::Up { up: client::Up::Served { served: true } });
     harness
 }
 pub(crate) fn signed_in(party: u64) -> Harness {

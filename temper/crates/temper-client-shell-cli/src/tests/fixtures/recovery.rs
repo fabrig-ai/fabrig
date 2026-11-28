@@ -26,9 +26,10 @@ fn piece(bytes: &[u8]) -> Box<[u8]> {
 pub fn chat_me() -> w::Me {
     let text = jig_client_test_records::wire_text;
     let template = w::Template {
+        name: None,
         resources: List::with_capacity(0),
         number: jig_client::shapes::CHAT,
-        name: text(b"chat"),
+        shown: text(b"chat"),
         executor: w::TemplateExecutor::Charter(w::TemplateCharter { value: 1 }),
         contract: w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: 32 }),
         shallower: 1,

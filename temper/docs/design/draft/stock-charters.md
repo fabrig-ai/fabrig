@@ -292,10 +292,6 @@ Focused and fuzzy suites alone, each failing first:
   room, charters 5 and 2 within `root.journal.run_bytes`, tests reading
   the charter a run receives rather than an item's text.
 
-## 9. The stock's texts
-
-Moved to [`archive/stock-charters-texts.md`](archive/stock-charters-texts.md), section 1.
-
 ## 10. fabrig's texts
 
 Each file whole, as `temper/docs/charters/fabrig/` holds it, added after

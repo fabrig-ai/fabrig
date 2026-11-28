@@ -81,7 +81,7 @@ fn a_job_naming_an_llm_is_refused() {
     member.llm = Some(tasks::LlmChoice {
         later: None,
         account: None,
-        main: tasks::ModelEffort { model: 0, effort: None },
+        main: tasks::ModelEffort { model: 0, effort: None, speed: None },
         subagents: Box::new([]),
     });
     assert_eq!(job_member(&[bound()], &mut member), Err(tasks::Refusal::Executor));

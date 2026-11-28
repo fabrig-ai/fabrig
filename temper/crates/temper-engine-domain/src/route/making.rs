@@ -173,6 +173,7 @@ fn acted(domain: &mut Domain, key: forge::MakingKey, outcome: people::Outcome) {
 /// Consume making replies; pass every other held output to the root's routes.
 pub(super) fn held(domain: &mut Domain, held: core::Held) -> Option<core::Held> {
     match held {
+        core::Held::Connector(_, _) => unreachable!("connector releases use the engine port"),
         core::Held::Acted { to, outcome } => {
             let token = to.into_token();
             match domain.making_replies.remove(&token) {
@@ -193,7 +194,6 @@ pub(super) fn held(domain: &mut Domain, held: core::Held) -> Option<core::Held> 
         | core::Held::CarriedUnused { .. }
         | core::Held::Delivery { .. }
         | core::Held::WatchEnded { .. }
-        | core::Held::MakeEffect { .. }
         | core::Held::SettledCall { .. }
         | core::Held::Assign { .. }
         | core::Held::ReadUsage { .. }

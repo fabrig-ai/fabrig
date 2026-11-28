@@ -15,11 +15,17 @@ extern crate alloc;
 
 mod boundary;
 mod domain;
+#[cfg(test)]
+mod fuzzy;
 mod limits;
 #[cfg(test)]
 mod tests;
 
-pub use boundary::{End, Event, Exit, Kind, Request, Spec};
+pub use boundary::{Conflict, End, Event, Exit, Fallback, Hooks, Kind, Request, Spec};
 pub use domain::Domain;
 pub use domain::step;
 pub use limits::{Invalid, Limits, valid};
+pub use temper_protocol_hooks as hooks;
+pub use temper_protocol_hooks::{
+    CONFIG, CONFIG_BYTES, Fault, Times, cut_text, hook_failure, hook_path, tail_after_line, times,
+};

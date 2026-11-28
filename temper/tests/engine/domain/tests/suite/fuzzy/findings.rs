@@ -39,14 +39,14 @@ fn is_live(driver: &Driver, task: u64) -> bool {
                 | tasks::Phase::Held { was: tasks::Was::Waiting | tasks::Was::Active(_), .. }
         )
 }
-fn stands(driver: &Driver, owner: s::AreaOwner) -> Option<forge::Holder> {
+fn stands(driver: &Driver, owner: &s::AreaOwner) -> Option<forge::Holder> {
     match owner {
-        s::AreaOwner::Role(number) => Some(forge::Holder::Role(number)),
-        s::AreaOwner::Task(number) => is_live(driver, number).then_some(forge::Holder::Task(number)),
+        s::AreaOwner::Role(number) => Some(forge::Holder::Role(*number)),
+        s::AreaOwner::Task(number) => is_live(driver, *number).then_some(forge::Holder::Task(*number)),
         s::AreaOwner::Party(number) => {
             let row = driver.store.rows.get(&Key::Core(jig_domain_core::Key::People(people::Key::Roles(1))));
             if let Some(Record::Core(jig_domain_core::Record::People(people::Stored::Roles { holdings, .. }))) = row {
-                holdings.iter().any(|h| h.person == number).then_some(forge::Holder::Party(number))
+                holdings.iter().any(|h| h.person == *number).then_some(forge::Holder::Party(*number))
             } else {
                 None
             }
@@ -58,17 +58,23 @@ fn stands(driver: &Driver, owner: s::AreaOwner) -> Option<forge::Holder> {
             .iter()
             .filter_map(|view| {
                 let row = driver.root.tasks().task(view.number)?;
-                (is_live(driver, row.number) && row.label == 3 && row.executor == tasks::Executor::Agent { charter })
-                    .then_some(row.number)
+                (is_live(driver, row.number)
+                    && row.label == 3
+                    && row.executor == tasks::Executor::Agent { charter: *charter })
+                .then_some(row.number)
             })
             .min()
             .map(forge::Holder::Task),
+        s::AreaOwner::CharterNamed(name) => {
+            let charter = driver.root.core().charter_named(name)?;
+            stands(driver, &s::AreaOwner::Charter(charter))
+        }
     }
 }
 fn expected(driver: &Driver, finding: &forge::Finding, doc: &forge::Findings) -> forge::Holder {
     let area = doc.areas.iter().find(|area| finding.area.as_deref() == Some(area.name.as_ref()));
-    area.and_then(|area| stands(driver, area.owner))
-        .or_else(|| doc.triager.and_then(|owner| stands(driver, owner)))
+    area.and_then(|area| stands(driver, &area.owner))
+        .or_else(|| doc.triager.as_ref().and_then(|owner| stands(driver, owner)))
         .unwrap_or(forge::Holder::Role(0))
 }
 fn check(

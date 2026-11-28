@@ -106,7 +106,7 @@ pub fn starting() -> (Domain, Token) {
 }
 pub fn live(me: Option<c::Me>) -> (Domain, Token) {
     let (mut root, watch) = starting();
-    client(&mut root, jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
+    client(&mut root, jig_client::Event::Up { up: jig_client::Up::Served { served: true } });
     match me {
         Some(me) => deliver(&mut root, watch, me),
         None => {
@@ -183,6 +183,7 @@ pub fn me(names: &[&[u8]]) -> c::Me {
             .expect("project room");
     }
     Me {
+        charters: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,
@@ -326,7 +327,7 @@ impl GoalCase {
                 with: Some(jig_client::With::Transport),
             },
         );
-        append(&mut out, client(&mut root, jig_client::Event::Up { up: Up::Served { served: true, versions: None } }));
+        append(&mut out, client(&mut root, jig_client::Event::Up { up: Up::Served { served: true } }));
         let link = jig_client_protocol_link::Limits::new(limits().client.domain, 8).unwrap();
         let mut task =
             jig_client_protocol_link::translate::documents::task(jig_client_test_records::task_record(), &link)
@@ -359,7 +360,7 @@ impl GoalCase {
         if self.ways {
             for (number, name) in [(8, b"Custom".as_slice()), (4, b"goal for a draft"), (2, b"goal")] {
                 let mut way = super::foot::template(number);
-                way.name = c::DocumentText::complete(c::Text::new(name.into(), 32).unwrap());
+                way.shown = c::DocumentText::complete(c::Text::new(name.into(), 32).unwrap());
                 way.tracked = Some(1);
                 project.templates.push(way).unwrap();
             }

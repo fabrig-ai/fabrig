@@ -36,7 +36,7 @@ record ChangeContract { connector: u16 kind: u16 words: u32 choices: list 64 Ver
 enum Contract { approval: Approval, report: Report, verdict: Choices, change: ChangeContract, job: JobContract }
 record Tools { bits: u64 }
 record Models { bits: u64 all: bool }
-record ModelEffort { model: u8 effort: option u8 }
+record ModelEffort { model: u8 effort: option u8 speed: option bytes 32 = none }
 record LlmLater { main: ModelEffort subagents: list 64 ModelEffort }
 record LlmChoice { main: ModelEffort subagents: list 64 ModelEffort later: option LlmLater account: option u32 }
 record Scopes { bits: u8 }
@@ -480,7 +480,7 @@ record CapacityCauseExemptions { limit: u32 }
 enum CapacityCause { tasks: CapacityCauseTasks, creation_flights: CapacityCauseCreationFlights, resource_reports: CapacityCauseResourceReports, project_tasks: CapacityCauseProjectTasks, tree: CapacityCauseTree, delegates: CapacityCauseDelegates, inbox: CapacityCauseInbox, holdings: CapacityCauseHoldings, hold_waiters: CapacityCauseHoldWaiters, proposals: CapacityCauseProposals, references: CapacityCauseReferences, subscriptions: CapacityCauseSubscriptions, funders: CapacityCauseFunders, writers: CapacityCauseWriters, placed_holds: CapacityCausePlacedHolds, project_placed_holds: CapacityCauseProjectPlacedHolds, party_placed_holds: CapacityCausePartyPlacedHolds, exemptions: CapacityCauseExemptions }
 record Capacity { project: option u32 by: Party action: CapacityAction cause: CapacityCause }
 record RefusalPersonRevision { revision: u64 }
-enum LlmFault { unconfigured, effort, charter, authority, procedure, repeated }
+enum LlmFault { unconfigured, effort, charter, authority, procedure, repeated, speed }
 record RefusalLlm { model: u8 why: LlmFault }
 enum AccountWhy { unknown, provider, uses, limited }
 record RefusalAccount { account: u32 why: AccountWhy }

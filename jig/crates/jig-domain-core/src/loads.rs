@@ -3,99 +3,102 @@
 use crate::{Core, Held, Limits, Request, engine::store, reads, routing::Work};
 use alloc::boxed::Box;
 use jig_domain_notes as notes;
-use skein_lib::{Env, Id, Queue, Slab, Token};
+use skein_lib::{Env, Map, Queue, Token};
 
 pub(crate) mod point;
 use point::Point;
 
 #[derive(Hash, Debug)]
-#[expect(clippy::large_enum_variant, reason = "retained reads keep their pending value inline in the load table")]
-pub(crate) enum Flight {
-    // A retired read remains charged to its lane until reclaim, but cannot take a terminal.
-    Read(Option<reads::Pending>),
-    Point(Option<Point>),
-    Window(Option<u64>),
-    Notes(Option<Token>),
-}
-
-impl Flight {
-    fn uses_load_slot(&self) -> bool {
-        match self {
-            Self::Read(_) | Self::Point(None) | Self::Window(None) | Self::Notes(None) => false,
-            Self::Point(Some(_)) | Self::Window(Some(_)) | Self::Notes(Some(_)) => true,
-        }
-    }
+enum WorkFlight {
+    Point(Point),
+    Window(u64),
+    Notes(Token),
 }
 
 #[derive(Hash, Debug)]
 pub(crate) struct Loads {
-    flights: Slab<Flight>,
-    read_slots: u32,
-    reads: u32,
+    read_flights: Map<Token, reads::Pending>,
+    work_flights: Map<Token, WorkFlight>,
+    // One sequence for both lanes, so an old token cannot reach another flight.
+    next_token: u64,
     retired_reads: u32,
+    retired_work: bool,
     waiting: Queue<Point>,
     // Project deletion retries the page the child asked for after a local refusal.
     note_retry: Option<(Token, notes::Range)>,
 }
 
 impl Loads {
-    pub(crate) fn new(read_slots: u32, result_flights: u32) -> Self {
+    pub(crate) fn new(read_slots: u32, load_slots: u32, result_flights: u32) -> Self {
+        // The two lanes price the table: read room (including retired reads)
+        // plus load_slots. Work terminals free storage before any continuation.
         Self {
-            flights: Slab::with_capacity(u32::MAX),
-            read_slots,
-            reads: 0,
+            read_flights: Map::with_capacity(read_slots),
+            work_flights: Map::with_capacity(load_slots),
+            next_token: 0,
             retired_reads: 0,
+            retired_work: false,
             waiting: Queue::with_capacity(result_flights),
             note_retry: None,
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn capacity(&self) -> u64 {
+        u64::from(self.read_flights.capacity())
+            .checked_add(u64::from(self.work_flights.capacity()))
+            .expect("both lane capacities are u32")
+    }
+
     pub(crate) fn reads(&self) -> u32 {
-        self.reads
+        self.read_flights.len().checked_add(self.retired_reads).expect("read room includes retired reads")
     }
 
     pub(crate) fn is_empty(&self) -> bool {
-        self.flights.is_empty() && self.waiting.is_empty() && self.note_retry.is_none()
+        self.reads() == 0
+            && self.work_flights.is_empty()
+            && !self.retired_work
+            && self.waiting.is_empty()
+            && self.note_retry.is_none()
     }
 
     pub(crate) fn read_slots_full(&self) -> bool {
-        self.reads() == self.read_slots
+        self.reads() == self.read_flights.capacity()
+    }
+
+    pub(crate) fn name(&mut self) -> Token {
+        let load = Token::new(self.next_token);
+        self.next_token = self.next_token.checked_add(1).expect("store load tokens are never reused");
+        load
     }
 
     #[expect(clippy::result_large_err, reason = "refused reads return the original pending value without boxing it")]
-    pub(crate) fn insert_read(&mut self, pending: reads::Pending) -> Result<Id<Flight>, reads::Pending> {
+    pub(crate) fn insert_read(&mut self, pending: reads::Pending) -> Result<Token, reads::Pending> {
         if self.read_slots_full() {
-            Err(pending)
-        } else {
-            let id = self.flights.insert(Flight::Read(Some(pending))).expect("read room reserved");
-            self.reads = self.reads.checked_add(1).expect("bounded read flights");
-            Ok(id)
+            return Err(pending);
         }
+        let load = self.name();
+        let previous = self.read_flights.insert(load, pending).expect("read load room reserved");
+        assert!(previous.is_none(), "fresh read load token");
+        Ok(load)
     }
 
-    pub(crate) fn read(&self, id: Id<Flight>) -> Option<&reads::Pending> {
-        let Flight::Read(pending) = self.flights.get(id)? else { return None };
-        pending.as_ref()
+    pub(crate) fn read(&self, load: Token) -> Option<&reads::Pending> {
+        self.read_flights.get(&load)
     }
 
-    pub(crate) fn read_mut(&mut self, id: Id<Flight>) -> Option<&mut reads::Pending> {
-        let Flight::Read(pending) = self.flights.get_mut(id)? else { return None };
-        pending.as_mut()
+    pub(crate) fn read_mut(&mut self, load: Token) -> Option<&mut reads::Pending> {
+        self.read_flights.get_mut(&load)
     }
 
-    pub(crate) fn retire(&mut self, id: Id<Flight>) {
-        let Flight::Read(pending) = self.flights.get_mut(id).expect("known flight") else {
-            unreachable!("retiring a read")
-        };
-        assert!(pending.take().is_some(), "one terminal per load");
+    pub(crate) fn retire(&mut self, load: Token) {
+        drop(self.read_flights.remove(&load).expect("one terminal per read load"));
         self.retired_reads = self.retired_reads.checked_add(1).expect("bounded read flights");
-        self.flights.retire(id);
     }
 
     pub(crate) fn reclaim(&mut self) {
-        self.flights.reclaim();
-        self.reads = self.reads.checked_sub(self.retired_reads).expect("retired reads were charged");
         self.retired_reads = 0;
+        self.retired_work = false;
     }
 
     /// Reads and retired loads do not occupy a slot in the engine's own load lane.
@@ -104,12 +107,12 @@ impl Loads {
     }
 
     pub(crate) fn window(&mut self, task: u64, from: (u64, u32)) -> Request {
-        let load = self.flights.insert(Flight::Window(Some(task))).expect("window load room reserved").token();
+        let load = self.insert_work(WorkFlight::Window(task));
         Request::Held(Box::new(Held::Store(store::Out::Load { load, range: store::Range::Window { task, from } })))
     }
 
     pub(crate) fn notes(&mut self, owner: Token, range: notes::Range) -> Request {
-        let load = self.flights.insert(Flight::Notes(Some(owner))).expect("notes page room reserved").token();
+        let load = self.insert_work(WorkFlight::Notes(owner));
         Request::Held(Box::new(Held::Store(store::Out::Load { load, range: store::Range::Notes(range) })))
     }
 
@@ -123,35 +126,35 @@ impl Loads {
 
     pub(crate) fn cancel_window(&mut self, task: u64) {
         let mut name = None;
-        for (id, flight) in &self.flights {
-            if let Flight::Window(Some(owner)) = flight
+        for (load, flight) in &self.work_flights {
+            if let WorkFlight::Window(owner) = flight
                 && *owner == task
             {
-                name = Some(id);
+                name = Some(*load);
                 break;
             }
         }
-        if let Some(id) = name {
-            self.finish_window(id);
+        if let Some(load) = name {
+            let _window = self.finish_work(load);
         }
     }
 
-    fn finish_window(&mut self, id: Id<Flight>) {
-        let Flight::Window(task) = self.flights.get_mut(id).expect("known window flight") else {
-            unreachable!("only retiring a window")
-        };
-        assert!(task.take().is_some(), "one terminal per window");
-        self.flights.retire(id);
+    fn insert_work(&mut self, flight: WorkFlight) -> Token {
+        let load = self.name();
+        let previous = self.work_flights.insert(load, flight).expect("work load room reserved");
+        assert!(previous.is_none(), "fresh work load token");
+        load
+    }
+
+    fn finish_work(&mut self, load: Token) -> WorkFlight {
+        let flight = self.work_flights.remove(&load).expect("one terminal per work load");
+        // Quiescence still waits for the iteration's reclaim point.
+        self.retired_work = true;
+        flight
     }
 
     fn has_slot(&self, limits: &Limits) -> bool {
-        let mut free = limits.load_slots;
-        for (_, flight) in &self.flights {
-            if flight.uses_load_slot() {
-                free = free.saturating_sub(1);
-            }
-        }
-        free > 0
+        self.work_flights.len() < limits.load_slots.min(self.work_flights.capacity())
     }
 }
 
@@ -160,68 +163,66 @@ pub(crate) fn read(load: Token, range: reads::Range) -> Request {
 }
 
 pub(crate) fn awaited(core: &Core, load: Token) -> bool {
-    match core.loads.flights.get(Id::from_token(load)) {
-        Some(Flight::Read(Some(pending))) => pending.awaiting_store(),
-        Some(Flight::Point(Some(_)) | Flight::Window(Some(_)) | Flight::Notes(Some(_))) => true,
-        Some(Flight::Read(None) | Flight::Point(None) | Flight::Window(None) | Flight::Notes(None)) | None => false,
+    if let Some(pending) = core.loads.read(load) {
+        pending.awaiting_store()
+    } else {
+        core.loads.work_flights.contains_key(&load)
     }
 }
 
-pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, input: store::In) -> Queue<Request> {
-    let store::In::Loaded { load, result } = input;
-    let name = Id::from_token(load);
-    match core.loads.flights.get(name) {
-        Some(Flight::Read(Some(_))) => {
-            let result = match result {
-                store::Answer::Rows(store::Rows::Read { .. })
-                | store::Answer::Failed(
-                    store::Failure::Busy
-                    | store::Failure::Gone
-                    | store::Failure::TooLinked { .. }
-                    | store::Failure::TurnProblem { .. }
-                    | store::Failure::Failed,
-                ) => result,
-                store::Answer::Rows(store::Rows::Records { .. } | store::Rows::Turns { .. })
-                | store::Answer::Cut { .. }
-                | store::Answer::Failed(store::Failure::Unread) => store::Answer::Failed(store::Failure::Failed),
-            };
-            reads::loaded(core, env, work, name, result)
-        }
-        Some(Flight::Point(Some(_))) => {
-            let Flight::Point(point) = core.loads.flights.get_mut(name).expect("known point load") else {
-                unreachable!("point load flight")
-            };
-            let point = point.take().expect("one terminal per point load");
-            core.loads.flights.retire(name);
+pub(crate) fn loaded(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
+    load: Token,
+    result: store::Answer,
+) -> Queue<Request> {
+    if core.loads.read(load).is_some() {
+        let result = match result {
+            store::Answer::Rows(store::Rows::Read { .. })
+            | store::Answer::Failed(
+                store::Failure::Busy
+                | store::Failure::Gone
+                | store::Failure::TooLinked { .. }
+                | store::Failure::TurnProblem { .. }
+                | store::Failure::Failed,
+            ) => result,
+            store::Answer::Rows(
+                store::Rows::Records { .. } | store::Rows::Turns { .. } | store::Rows::Start { .. },
+            )
+            | store::Answer::Cut { .. }
+            | store::Answer::Failed(store::Failure::Unread) => store::Answer::Failed(store::Failure::Failed),
+        };
+        return reads::loaded(core, env, work, load, result);
+    }
+    match core.loads.work_flights.get(&load) {
+        Some(WorkFlight::Point(_)) => {
+            let WorkFlight::Point(point) = core.loads.finish_work(load) else { unreachable!("point load flight") };
             point::loaded(core, env, work, point, result)
         }
-        Some(Flight::Window(Some(task))) => {
+        Some(WorkFlight::Window(task)) => {
             let task = *task;
             let more = match &result {
                 store::Answer::Rows(store::Rows::Turns { more, .. }) | store::Answer::Cut { more, .. } => *more,
-                store::Answer::Rows(store::Rows::Read { .. } | store::Rows::Records { .. })
+                store::Answer::Rows(
+                    store::Rows::Read { .. } | store::Rows::Records { .. } | store::Rows::Start { .. },
+                )
                 | store::Answer::Failed(_) => false,
             };
             if !more || core.stopping || core.settling {
-                core.loads.finish_window(name);
+                let _window = core.loads.finish_work(load);
             }
             if core.stopping || core.settling {
                 return Queue::uncapped();
             }
             crate::routing::run::preparation::transcript_loaded(core, env, work, task, result)
         }
-        Some(Flight::Notes(Some(owner))) => {
+        Some(WorkFlight::Notes(owner)) => {
             let owner = *owner;
-            let Flight::Notes(pending) = core.loads.flights.get_mut(name).expect("known notes flight") else {
-                unreachable!("notes flight")
-            };
-            *pending = None;
-            core.loads.flights.retire(name);
+            let _notes = core.loads.finish_work(load);
             crate::routing::effect::note::loaded(core, env, work, owner, result)
         }
-        Some(Flight::Read(None) | Flight::Point(None) | Flight::Window(None) | Flight::Notes(None)) | None => {
-            Queue::uncapped()
-        }
+        None => Queue::uncapped(),
     }
 }
 
@@ -280,6 +281,6 @@ pub(crate) fn try_point(core: &mut Core, limits: &Limits, out: &mut Queue<Reques
 
 fn send_point(core: &mut Core, out: &mut Queue<Request>, point: Point) {
     let range = point.range();
-    let load = core.loads.flights.insert(Flight::Point(Some(point))).expect("point load room reserved").token();
+    let load = core.loads.insert_work(WorkFlight::Point(point));
     out.push(Request::Held(Box::new(Held::Store(store::Out::Load { load, range }))));
 }

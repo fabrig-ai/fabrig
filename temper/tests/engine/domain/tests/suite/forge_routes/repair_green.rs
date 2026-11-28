@@ -723,10 +723,21 @@ fn a_stop_during_the_green_read_leaves_the_next_release_safe() {
                 && history.by == tasks::Party::Deployment { project: 1 })),
         "the placed hold blocked the engine release"
     );
+    // The green poll and its observation interval can outlast the first sign-in.
+    world.signed_in = None;
+    world.request_sign_in();
+    world.until(Until::SignedIn);
     release(&mut world, change);
     world.advance_ticks(STEPS);
     assert_eq!(task(&world, change).made, MADE);
     assert_eq!(row(&world, change).change.repairs, 1);
-    assert!(!matches!(row(&world, change).change.state, State::Held { .. } | State::Repairing { .. }));
+    let after = row(&world, change);
+    assert!(
+        !matches!(after.change.state, State::Held { .. } | State::Repairing { .. }),
+        "release left the change at {:?} (released: {:?}), task at {:?}",
+        after.change.state,
+        after.change.released,
+        task(&world, change).phase
+    );
     world.close();
 }

@@ -26,9 +26,11 @@ pub mod away;
 pub mod boundary;
 pub mod brief;
 pub mod brief_words;
+pub mod change_llm_text;
 pub mod change_words;
 pub mod checks;
 pub mod closer;
+pub mod closer_words;
 pub mod commit;
 pub mod devices;
 pub mod dismissed;
@@ -198,32 +200,67 @@ pub enum Recovery {
     Unrecoverable,
 }
 
-/// Effect form and recovery class declared by the forge connector.
-///
-/// The kinds follow domain/forge/effects.md, section 1, one kind per row:
-/// 3 opens pulls, 10 edits their title/body, 11 updates from the base,
-/// 4 merges, 12 closes/reopens, 5 posts reviews, 7 posts comments,
-/// 6 sets statuses, 8 creates issues, 13 edits/closes/reopens issues,
-/// 14 sets reviewers, 9 creates branches, and 15 deletes branches.
-/// Kind 1 reads and kind 2 grants workspace pushes. The order has no
-/// implications between distinct kinds: each intended write needs a grant.
-#[must_use]
-pub const fn effect_shape(kind: u16) -> Option<(EffectForm, Recovery)> {
-    match kind {
-        2 | 17 => Some((EffectForm::Transition, Recovery::Unrecoverable)),
-        11 => Some((EffectForm::Transition, Recovery::Idempotent)),
-        4 => Some((EffectForm::Transition, Recovery::Conditional)),
-        3 => Some((EffectForm::Creation, Recovery::Conditional)),
-        5 | 7 | 8 | 9 | 16 => Some((EffectForm::Creation, Recovery::Unrecoverable)),
-        6 | 10 | 12..=15 => Some((EffectForm::Set, Recovery::Idempotent)),
-        0 | 1 | 18..=u16::MAX => None,
-    }
+/// An effect kind's declared properties (jig/docs/design/domain/connectors.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct EffectKind {
+    pub kind: u16,
+    pub form: EffectForm,
+    pub recovery: Recovery,
+    pub waits_for_dependencies: bool,
 }
 
-/// A kept change's landing waits for dependencies (domain/forge/change/README.md, 2 item 7).
+/// Forge writes, in kind order (temper/docs/design/domain/forge/effects.md, 1).
+/// Kind 1 is a read, not a write. Each intended write needs its own grant.
+pub const EFFECT_KINDS: &[EffectKind] = {
+    use EffectForm::{Creation, Set, Transition};
+    use Recovery::{Conditional, Idempotent, Unrecoverable};
+    &[
+        effect_kind(2, Transition, Unrecoverable, false),  // workspace push
+        effect_kind(3, Creation, Conditional, false),      // open pull
+        effect_kind(4, Transition, Conditional, true),     // merge pull
+        effect_kind(5, Creation, Unrecoverable, false),    // post review
+        effect_kind(6, Set, Idempotent, false),            // set commit status
+        effect_kind(7, Creation, Unrecoverable, false),    // post comment
+        effect_kind(8, Creation, Unrecoverable, false),    // create issue
+        effect_kind(9, Creation, Unrecoverable, false),    // create branch
+        effect_kind(10, Set, Idempotent, false),           // edit pull
+        effect_kind(11, Transition, Idempotent, false),    // update pull from base
+        effect_kind(12, Set, Idempotent, false),           // close or reopen pull
+        effect_kind(13, Set, Idempotent, false),           // edit, close or reopen issue
+        effect_kind(14, Set, Idempotent, false),           // set pull reviewers
+        effect_kind(15, Set, Idempotent, false),           // delete branch
+        effect_kind(16, Creation, Unrecoverable, false),   // dispatch workflow
+        effect_kind(17, Transition, Unrecoverable, false), // rerun job
+    ]
+};
+
+const fn effect_kind(kind: u16, form: EffectForm, recovery: Recovery, waits_for_dependencies: bool) -> EffectKind {
+    EffectKind { kind, form, recovery, waits_for_dependencies }
+}
+
+fn write_kind(kind: u16) -> Option<EffectKind> {
+    for row in EFFECT_KINDS {
+        if row.kind == kind {
+            return Some(*row);
+        }
+    }
+    None
+}
+
+/// Declared form and recovery class, if this is a forge write kind.
 #[must_use]
-pub const fn waits_for_dependencies(kind: u16) -> bool {
-    kind == 4
+pub fn effect_shape(kind: u16) -> Option<(EffectForm, Recovery)> {
+    let row = write_kind(kind)?;
+    Some((row.form, row.recovery))
+}
+
+/// Whether this forge write kind waits for dependencies.
+#[must_use]
+pub fn waits_for_dependencies(kind: u16) -> bool {
+    match write_kind(kind) {
+        Some(row) => row.waits_for_dependencies,
+        None => false,
+    }
 }
 
 /// Connector-owned request and the facts jig may inspect before admitting it.
@@ -232,8 +269,6 @@ pub struct AgentEffect {
     pub effect: skein_forge_client::Effect,
     pub kind: u16,
     pub state: [u8; 32],
-    pub form: EffectForm,
-    pub recovery: Recovery,
 }
 
 /// Classify and bound an agent write in the connector's own vocabulary.
@@ -244,26 +279,20 @@ pub fn describe_agent_effect(
     key: Box<[u8]>,
     op_bytes: u32,
 ) -> Result<AgentEffect, skein_forge::api::Error> {
-    let (write, kind, state, form, valid_resource) = match write {
-        skein_forge::api::Write::CreateIssue { title, body, .. } => (
-            skein_forge::api::Write::CreateIssue { key, title, body },
-            8,
-            [0; 32],
-            EffectForm::Creation,
-            *resource == What::Repository,
-        ),
+    let (write, kind, state, valid_resource) = match write {
+        skein_forge::api::Write::CreateIssue { title, body, .. } => {
+            (skein_forge::api::Write::CreateIssue { key, title, body }, 8, [0; 32], *resource == What::Repository)
+        }
         skein_forge::api::Write::Post { number, body, .. } => (
             skein_forge::api::Write::Post { number, key, body },
             7,
             [0; 32],
-            EffectForm::Creation,
             *resource == What::Issue(number) || *resource == What::Pull(number),
         ),
         skein_forge::api::Write::Status { commit, context, check, description, link } => (
             skein_forge::api::Write::Status { commit, context, check, description, link },
             6,
             commit,
-            EffectForm::Set,
             *resource == What::Repository,
         ),
         skein_forge::api::Write::OpenPull { .. }
@@ -288,17 +317,12 @@ pub fn describe_agent_effect(
         return Err(skein_forge::api::Error::Forbidden);
     }
     let effect = skein_forge_client::Effect { write, condition: skein_forge_client::Condition::None };
-    let recovery = match skein_forge_client::recovery(&effect.write) {
-        skein_forge_client::Recovery::Keyed => Recovery::Keyed,
-        skein_forge_client::Recovery::Conditional => Recovery::Conditional,
-        skein_forge_client::Recovery::Idempotent => Recovery::Idempotent,
-        skein_forge_client::Recovery::Unrecoverable => Recovery::Unrecoverable,
-    };
+    write_kind(kind).expect("permitted agent writes have declared kinds");
     match skein_forge_client::measure::effect(&effect) {
         Some(bytes) if bytes <= u64::from(op_bytes) => {}
         Some(_) | None => return Err(skein_forge::api::Error::Forbidden),
     }
-    Ok(AgentEffect { effect, kind, state, form, recovery })
+    Ok(AgentEffect { effect, kind, state })
 }
 
 /// Describe current access from the forge's adopted role and effect kinds.
@@ -354,6 +378,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
         Stored::Milestone(row) => Key::Milestone(row.task),
         Stored::ProjectFacts(row) => Key::ProjectFacts { project: row.project },
+        Stored::DotTemperRevision(row) => Key::DotTemperRevision { project: row.project },
         Stored::PersonBrief(row) => Key::PersonBrief { party: row.party, project: row.project },
         Stored::Device(row) => Key::Device { party: row.party, number: row.number },
         Stored::LandedDraft(row) => Key::LandedDraft { repository: row.repository, path: row.path.clone() },
@@ -611,7 +636,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 let mut held = skein_lib::len_u64(value.areas.len())
                     .checked_mul(u64::try_from(size_of::<settings::Area>()).ok()?)?;
                 for area in &value.areas {
-                    held = held.checked_add(bytes(&area.name))?.checked_add(bytes(&area.words))?;
+                    held = held
+                        .checked_add(bytes(&area.name))?
+                        .checked_add(bytes(&area.words))?
+                        .checked_add(skein_lib::len_u64(area.owner.owned_bytes()))?;
                 }
                 Some(held)
             }
@@ -638,6 +666,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             settings::Edit::Set(settings::SizedValue { value: settings::Value::ProjectWords(words), .. }) => {
                 bytes(&words.headline).checked_add(bytes(&words.lede))
             }
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::ProjectTriager(value), .. }) => {
+                Some(skein_lib::len_u64(value.owner.owned_bytes()))
+            }
             settings::Edit::Set(settings::SizedValue {
                 value:
                     settings::Value::Dependency(_)
@@ -645,7 +676,6 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                     | settings::Value::Questions(_)
                     | settings::Value::Ways(_)
                     | settings::Value::Welcome(_)
-                    | settings::Value::ProjectTriager(_)
                     | settings::Value::Goal(_),
                 ..
             })
@@ -859,6 +889,16 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             Some(held)
         }
+        Stored::DotTemperRevision(row) => {
+            let mut held = match &row.refused {
+                Some(refused) => bytes(&refused.words),
+                None => 0,
+            };
+            for file in &row.files {
+                held = held.checked_add(bytes(&file.path))?.checked_add(bytes(&file.bytes))?;
+            }
+            Some(held)
+        }
         Stored::PullState(row) => name(&row.name),
         Stored::LandedDraft(row) => bytes(&row.path).checked_add(bytes(&row.branch))?.checked_add(bytes(&row.title)),
         Stored::HistoryChange(_)
@@ -896,8 +936,14 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(tasks) => skein_lib::len_u64(tasks.len()),
                 None => 0,
             };
+            let caught_up = match &row.closer.caught_up {
+                Some(tasks) => skein_lib::len_u64(tasks.len()),
+                None => 0,
+            };
             let mut total = closed
+                .checked_add(caught_up)?
                 .checked_add(skein_lib::len_u64(row.close_changes.len()))?
+                .checked_add(skein_lib::len_u64(row.catch_up_changes.len()))?
                 .checked_add(skein_lib::len_u64(row.superseded.len()))?
                 .checked_add(skein_lib::len_u64(row.landing_changes.len()))?
                 .checked_mul(8)?
@@ -921,7 +967,11 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(line) => bytes(line),
                 None => 0,
             };
-            total.checked_add(row.relay.held_bytes()?)?.checked_add(goal_left)
+            let goal_asked = match &row.closer.goal_asked {
+                Some(block) => bytes(block),
+                None => 0,
+            };
+            total.checked_add(row.relay.held_bytes()?)?.checked_add(goal_left)?.checked_add(goal_asked)
         }
         Stored::Change(row) => skein_lib::len_u64(row.signed.len())
             .checked_add(match &row.source {

@@ -1,5 +1,5 @@
 //! The last upgrade commit follows the jobs (protocol/store/opening.md, 2, step 4).
-use super::{Patching, refuse, state};
+use super::{Upgrading, refuse, state};
 use crate::{Below, Event, Limits, Store, codec, commits, format, keys, open};
 use jig_domain_core_vocabulary::{CoreKey, CoreRecord, Deployment, Key, Record};
 use skein_lib::{Env, List, Queue};
@@ -49,7 +49,7 @@ pub(super) fn begin(
         }
         ops.push(skein_kv::Op::Put { key, value }).expect("two sealing puts");
     }
-    state(store, Patching::Sealing { number, before, counts });
+    state(store, Upgrading::Sealing { number, before, counts });
     commits::submit(store, env, number, ops.into_boxed(), above, below);
 }
 

@@ -1,7 +1,6 @@
 //! Routing the engine's drain without deciding connector work (domain/engine/restart.md, 5).
 use crate::{Domain, Event, Request, Work};
 use alloc::boxed::Box;
-use jig_domain_core as core;
 use skein_lib::{Queue, ReplyTo};
 
 pub(super) fn defer(domain: &mut Domain, event: Event) -> Result<Event, ()> {
@@ -9,9 +8,7 @@ pub(super) fn defer(domain: &mut Domain, event: Event) -> Result<Event, ()> {
         return Ok(event);
     }
     match event {
-        // A start interrupted at its mark must not create the mark or adopt
-        // runs after the core has reported its drain (domain/engine/restart.md, 5).
-        Event::StartDone(core::start::Phase::Switch) => Err(()),
+        Event::ConnectorPage { .. } => Err(()),
         event @ (Event::Connector { .. }
         | Event::ConnectorTimer { .. }
         | Event::WriterRead { .. }
@@ -27,13 +24,11 @@ pub(super) fn defer(domain: &mut Domain, event: Event) -> Result<Event, ()> {
         | Event::WatchApplication { .. }
         | Event::ReadApplication { .. }
         | Event::Application { .. }
-        | Event::StartBegin { .. }
-        | Event::StartRecord(_)
-        | Event::StartMissing { .. }
         | Event::StartPageRefused { .. }
-        | Event::StartDone(_)
+        | Event::StartBegin { .. }
         | Event::Timer(_)
         | Event::Store(_)
+        | Event::Engine(_)
         | Event::Core(_)
         | Event::Credential { .. }
         | Event::CallAnswered { .. }

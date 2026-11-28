@@ -188,7 +188,7 @@ fn profile() -> root::Limits {
             },
             connectors: 2,
             resume_bytes: 256,
-            run_bytes: 512,
+            run_bytes: 576, // The stock charter owns 565 bytes with speed fields.
             policy_bytes: 8192,
             escalation_reason_bytes: 128,
             load_slots: 2,
@@ -199,7 +199,13 @@ fn profile() -> root::Limits {
             authority: authority_limits(),
             people,
             fleet,
-            brief: jig_domain_brief::Limits { briefs: 2, sections: 3, read_bytes: 256, brief_bytes: 384 },
+            brief: jig_domain_brief::Limits {
+                briefs: 2,
+                sections: 3,
+                read_bytes: 256,
+                brief_bytes: 384,
+                gather: Duration::from_secs(30),
+            },
             brief_parts: 2,
             brief_core_budgets: core::CoreBriefBudgets {
                 tail: 128,
@@ -304,6 +310,8 @@ pub fn scripted_model() -> core::Model {
         price_unit: 1_000_000,
         efforts: Box::new([b"low".as_slice().into(), b"high".as_slice().into()]),
         effort: None,
+        speeds: Box::default(),
+        speed: None,
     }
 }
 
@@ -378,6 +386,7 @@ pub fn config(seed: u64) -> root::Config {
                 number: 1,
                 name: Box::from("Project 1"),
                 policy: core::ConfiguredPolicy {
+                    name: None,
                     policy,
                     permissions: Box::new([
                         people::PermissionRole { connector: 1, permission: 3, role: 1 },
@@ -437,6 +446,7 @@ pub fn config(seed: u64) -> root::Config {
                 ]),
                 models: Box::default(),
                 charters: Box::new([core::Charter {
+                    name: None,
                     parts: Box::new([]),
                     rest: false,
                     wake: jig_domain_tasks::WakePolicy::DEFAULT,
@@ -484,9 +494,14 @@ pub use funding::edit_role;
 ///
 /// # Errors
 /// Configured membership or declarations do not hold.
-pub fn new_core(config: core::Config, limits: &core::Limits) -> Result<core::Core, jig_domain_link::Problem> {
-    let declarations: Box<[_]> =
-        config.connectors.iter().copied().map(jig_domain_contract::Declaration::empty).collect();
+pub fn new_core(config: core::Config, limits: &core::Limits) -> Result<core::Core, jig_domain_contract::StartProblem> {
+    let declarations: Box<[_]> = config
+        .connectors
+        .iter()
+        .copied()
+        .map(jig_domain_contract::Connector)
+        .map(jig_domain_contract::Declaration::empty)
+        .collect();
     core::Core::new(config, &declarations, limits)
 }
 

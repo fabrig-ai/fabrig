@@ -1,4 +1,4 @@
-//! Report words and cuts (temper/docs/design/domain/forge/branches.md, 2).
+//! Report words and cuts (temper/docs/design/domain/forge/branches-closer.md, 1).
 
 use alloc::boxed::Box;
 use skein_lib::bytes::{concat, find, utf8_prefix};
@@ -15,6 +15,7 @@ pub struct Report {
     pub title: Box<[u8]>,
     pub landed: Box<[Landed]>,
     pub unlanded: Box<[Unlanded]>,
+    pub goal_asked: Option<Box<[u8]>>,
     pub goal_left: Option<Box<[u8]>>,
     pub landing: Landing,
     pub selections: Box<[Selection]>,
@@ -92,6 +93,37 @@ pub fn goal_left(body: &[u8]) -> Option<&[u8]> {
         rest = rest.get(end.saturating_add(1)..).expect("a newline has a following suffix");
     }
     left
+}
+
+/// The first `Asked: ` block, without leading spaces or the final line ending.
+#[must_use]
+pub fn goal_asked(body: &[u8]) -> Option<&[u8]> {
+    let mut start = None;
+    let mut end = 0_usize;
+    let mut offset = 0_usize;
+    for _ in 0..=body.len() {
+        let rest = body.get(offset..)?;
+        let length = find(rest, b"\n").unwrap_or(rest.len());
+        let line = rest.get(..length)?;
+        let content = line.trim_ascii_start();
+        if start.is_some() {
+            if content.is_empty()
+                || content.starts_with(b"Left: ")
+                || content.starts_with(b"Risk: ")
+                || content.starts_with(b"Decided: ")
+            {
+                break;
+            }
+        } else if content.starts_with(b"Asked: ") {
+            start = Some(offset.checked_add(line.len().checked_sub(content.len())?)?);
+        }
+        end = offset.checked_add(line.strip_suffix(b"\r").unwrap_or(line).len())?;
+        if length == rest.len() {
+            break;
+        }
+        offset = offset.checked_add(length)?.checked_add(1)?;
+    }
+    body.get(start?..end)
 }
 
 /// The first Left section, without the newline before the next heading or end.
@@ -229,11 +261,11 @@ fn landing(output: &mut Output, landing: &Landing) {
     output.put(b".\n");
 }
 
-fn indented(output: &mut Output, words: &[u8], mut prefix: &[u8]) {
+fn indented(output: &mut Output, words: &[u8], mut indent: &[u8], mut prefix: &[u8]) {
     let mut rest = words;
     for _ in 0..=words.len() {
         let end = find(rest, b"\n").unwrap_or(rest.len());
-        output.put(b"  ");
+        output.put(indent);
         output.put(prefix);
         output.put(rest.get(..end).expect("line ends inside the words"));
         output.put(b"\n");
@@ -241,6 +273,7 @@ fn indented(output: &mut Output, words: &[u8], mut prefix: &[u8]) {
             break;
         }
         rest = rest.get(end.saturating_add(1)..).expect("the newline has a following suffix");
+        indent = b"  ";
         prefix = b"";
     }
 }
@@ -254,7 +287,7 @@ fn goal_finish(output: &mut Output, finish: &GoalFinish) {
         return;
     }
     output.put(b"The goal's finish:\n");
-    indented(output, words.strip_suffix(b"\n").unwrap_or(words), prefix);
+    indented(output, words.strip_suffix(b"\n").unwrap_or(words), b"  ", prefix);
 }
 
 fn render(output: &mut Output, report: &Report) -> List<Left> {
@@ -280,7 +313,7 @@ fn render(output: &mut Output, report: &Report) -> List<Left> {
         let start = output.length;
         match &change.left {
             Some(section) => {
-                indented(output, section, b"");
+                indented(output, section, b"  ", b"");
                 let end = output.length;
                 lefts.push(Left { start, end }).expect("the report's Left count fits a list");
             }
@@ -298,6 +331,9 @@ fn render(output: &mut Output, report: &Report) -> List<Left> {
         output.put(b": ");
         reason(output, &change.why);
         output.put(b"\n");
+    }
+    if let Some(asked) = &report.goal_asked {
+        indented(output, asked, b"", b"");
     }
     if let Some(left) = &report.goal_left {
         output.put(b"Left by the goal: ");

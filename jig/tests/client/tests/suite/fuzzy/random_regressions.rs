@@ -51,8 +51,9 @@ fn signed_out_tabs_resume_the_link_obligation_only_after_confirmation() {
     assert!(outcome.faults > 0);
 }
 
-// Peak 780,211 bytes measured 11-18; testing-strategy.md 6.
-const CURRENT_PAGE_NAVIGATION_HEAP_CEILING: u64 = 980_000;
+// Peak 980,948 bytes measured 11-28 with inline menu-button attributes in the
+// view and model rows (testing-strategy.md, 6).
+const CURRENT_PAGE_NAVIGATION_HEAP_CEILING: u64 = 1_300_000;
 #[test]
 fn selecting_the_current_page_is_still_navigation_for_the_referee() {
     let outcome = random::story(111, Start::Chat, CURRENT_PAGE_NAVIGATION_HEAP_CEILING);

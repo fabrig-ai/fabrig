@@ -31,6 +31,7 @@ pub fn frame_record() -> w::Me {
 }
 pub fn frame() -> c::Me {
     c::Me {
+        charters: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,
@@ -287,6 +288,7 @@ pub fn decoded_live_call_expected() -> c::LiveCall {
         input: text(b"x"),
         outcome: Some(text(b"yes")),
         failed: false,
+        answer: None,
         objects: List::with_capacity(0),
         parts: List::with_capacity(0),
     })

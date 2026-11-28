@@ -1,4 +1,7 @@
-//! Selective collection over generated paths and corrupt peer extensions.
+//! Selective collection over generated paths and corrupt peer extensions
+//! (skein/docs/design/data/json.md, 6), with cases from the sweep seam
+//! (skein/docs/design/testing/sweeps.md, 4).
+
 use skein_json::Token;
 use skein_json::collector::{Cap, Event, Filter, Keep, Key, Limits, Node};
 use skein_json_world::{
@@ -7,7 +10,10 @@ use skein_json_world::{
     world::{self, Settings},
 };
 use skein_lib::Rng;
+use skein_world::sweep::{cases, gate};
+use skein_world::this_test;
 use std::collections::BTreeSet;
+use std::convert::Infallible;
 const CHILDREN: &[Node] = &[
     Node { key: Key::Field(b"keep"), keep: Keep::Value },
     Node { key: Key::Field(b"text"), keep: Keep::Text(Cap::new(0)) },
@@ -24,10 +30,11 @@ const FILTERS: &[Keep] =
 const NAMES: &[&[u8]] = &[b"keep", b"text", b"array", b"nested", b"omit"];
 #[test]
 fn ten_thousand_generated_mutated_and_extended_documents_obey_drawn_filters() {
+    let at_gate = gate();
     let mut seen = BTreeSet::new();
     let mut mutations = generate::MutationBatch::default();
-    for seed in 0..10_000 {
-        let mut rng = Rng::new(0xC011_EC70 + seed);
+    cases(this_test!("ten_thousand_generated_mutated_and_extended_documents_obey_drawn_filters"), 0..10_000, |seed| {
+        let mut rng = selective_rng(seed);
         let mut tokens = generate::tokens(&mut rng, Shape { depth: 4, width: 4, string: 8 });
         for token in &mut tokens {
             if matches!(token, Token::Key(_)) {
@@ -38,7 +45,9 @@ fn ten_thousand_generated_mutated_and_extended_documents_obey_drawn_filters() {
         let document = generate::render(&mut rng, &tokens);
         let filter =
             Filter { root: FILTERS[usize::try_from(rng.below(FILTERS.len() as u64)).expect("a filter index")] };
-        seen.insert(format!("{:?}", filter.root));
+        if at_gate {
+            seen.insert(format!("{:?}", filter.root));
+        }
         let mut limits = Limits {
             tokenizer: skein_json::tokenizer::Limits {
                 depth: 16,
@@ -64,8 +73,10 @@ fn ten_thousand_generated_mutated_and_extended_documents_obey_drawn_filters() {
             let run = world::collect(&document, filter, limits, &settings, seed);
             let outcome = run.outcome.expect("test value fits its admitted bounds");
             if let Some((expected, skipped, kinds)) = reference::prune(&document, filter, &limits) {
-                for kind in kinds {
-                    seen.insert(format!("skip {:?}", core::mem::discriminant(&kind)));
+                if at_gate {
+                    for kind in kinds {
+                        seen.insert(format!("skip {:?}", core::mem::discriminant(&kind)));
+                    }
                 }
                 assert_eq!(outcome, expected, "seed {seed}: {}", document.escape_ascii());
                 if matches!(outcome, Event::Collected(_)) {
@@ -75,7 +86,7 @@ fn ten_thousand_generated_mutated_and_extended_documents_obey_drawn_filters() {
                 assert!(matches!(outcome, Event::Failed(_)), "seed {seed}: corrupt JSON cannot collect");
             }
             match &outcome {
-                Event::Collected(document) => {
+                Event::Collected(document) if at_gate => {
                     seen.insert("collected".into());
                     for i in 0..document.len() {
                         if document.token(i).expect("test value fits its admitted bounds").kind
@@ -85,17 +96,26 @@ fn ten_thousand_generated_mutated_and_extended_documents_obey_drawn_filters() {
                         }
                     }
                 }
-                Event::Failed(error) => {
+                Event::Failed(error) if at_gate => {
                     seen.insert(format!("{error:?}"));
                 }
                 Event::Closed => unreachable!(),
+                Event::Collected(_) | Event::Failed(_) => {}
             }
         });
         if seed % 10 == 0 {
             unchanged_extension(&mut rng, seed, limits, &settings);
         }
-    }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
     mutations.finish();
+    if at_gate {
+        assert_filter_reach(&seen);
+    }
+}
+
+fn assert_filter_reach(seen: &BTreeSet<String>) {
     for what in ["collected", "long", "TooManyTokens", "TooMuchText { cap: None }", "SkippedTooLong", "Duplicate"] {
         assert!(seen.contains(what), "{what} fell: {seen:?}");
     }
@@ -118,6 +138,23 @@ fn ten_thousand_generated_mutated_and_extended_documents_obey_drawn_filters() {
     }
 }
 
+fn selective_rng(seed: u64) -> Rng {
+    Rng::new(seed.wrapping_add(0xC011_EC70))
+}
+
+fn tagged_rng(seed: u64) -> Rng {
+    Rng::new(seed.wrapping_add(0x007A_66ED))
+}
+
+#[test]
+fn collector_draws_accept_full_width_seeds() {
+    assert_eq!(selective_rng(u64::MAX).state(), 0xC011_EC6F);
+    assert_eq!(tagged_rng(u64::MAX).state(), 0x007A_66EC);
+    let (document, _) = tagged_document(&mut tagged_rng(u64::MAX), u64::MAX);
+    assert_eq!(tagged_length(document.len()), 4096);
+    assert_eq!(tagged_length(4097), 4097);
+}
+
 fn unchanged_extension(rng: &mut Rng, seed: u64, limits: Limits, settings: &Settings) {
     let extension =
         generate::render(rng, &generate::tokens(&mut Rng::new(seed), Shape { depth: 3, width: 3, string: 12 }));
@@ -133,6 +170,29 @@ fn unchanged_extension(rng: &mut Rng, seed: u64, limits: Limits, settings: &Sett
     );
 }
 
+fn tagged_document(rng: &mut Rng, seed: u64) -> (String, &'static str) {
+    let extension =
+        generate::render(rng, &generate::tokens(&mut Rng::new(seed), Shape { depth: 3, width: 3, string: 12 }));
+    let tag = if rng.chance(500) { "small" } else { "large" };
+    let body = "x".repeat(usize::try_from(rng.below(32)).expect("small body"));
+    let mut fields = [
+        format!("\"type\":\"{tag}\""),
+        "\"id\":1".into(),
+        format!("\"body\":\"{body}\""),
+        format!("\"extension\":{}", String::from_utf8(extension).expect("generated documents are UTF-8")),
+    ];
+    for index in (1..fields.len()).rev() {
+        fields.swap(index, usize::try_from(rng.below((index + 1) as u64)).expect("field index"));
+    }
+    (format!("{{{}}}", fields.join(",")), tag)
+}
+
+fn tagged_length(bytes: usize) -> u32 {
+    // The extension fits the stream and skip budgets; the projection still
+    // has its own token and text limits.
+    4096.max(u32::try_from(bytes).expect("the drawn extension has bounded depth, width and text"))
+}
+
 #[test]
 fn tagged_projections_ignore_random_extensions_and_field_order() {
     use skein_json::collector::{Tagged, Variant};
@@ -145,37 +205,24 @@ fn tagged_projections_ignore_random_extensions_and_field_order() {
         unknown: Cap::new(1),
     };
     let filter = Filter { root: Keep::Tagged(&TAGGED) };
+    let at_gate = gate();
     let mut long = false;
     let mut omitted = false;
-    for seed in 0..1_000 {
-        let mut rng = Rng::new(seed + 0x007A_66ED);
-        let extension = generate::render(
-            &mut rng,
-            &generate::tokens(&mut Rng::new(seed), Shape { depth: 3, width: 3, string: 12 }),
-        );
-        let tag = if rng.chance(500) { "small" } else { "large" };
-        let body = "x".repeat(usize::try_from(rng.below(32)).expect("small body"));
-        let mut fields = [
-            format!("\"type\":\"{tag}\""),
-            "\"id\":1".into(),
-            format!("\"body\":\"{body}\""),
-            format!("\"extension\":{}", String::from_utf8(extension).unwrap()),
-        ];
-        for index in (1..fields.len()).rev() {
-            fields.swap(index, usize::try_from(rng.below((index + 1) as u64)).expect("field index"));
-        }
-        let document = format!("{{{}}}", fields.join(","));
+    cases(this_test!("tagged_projections_ignore_random_extensions_and_field_order"), 0..1_000, |seed| {
+        let mut rng = tagged_rng(seed);
+        let (document, tag) = tagged_document(&mut rng, seed);
+        let length = tagged_length(document.len());
         let limits = Limits {
             tokenizer: skein_json::tokenizer::Limits {
                 depth: 8,
                 string: 32,
                 number: 64,
                 chunk: u32::try_from(rng.between(1, 8)).expect("small chunk"),
-                length: 4096,
+                length,
             },
             tokens: 6,
             text: 13,
-            skip: 4096,
+            skip: u64::from(length),
         };
         let settings = Settings::calm(&mut rng, limits.tokenizer);
         let run = world::collect(document.as_bytes(), filter, limits, &settings, seed);
@@ -183,9 +230,15 @@ fn tagged_projections_ignore_random_extensions_and_field_order() {
         assert_eq!(run.outcome, Some(expected.clone()), "seed {seed}: {document}");
         if let Event::Collected(document) = expected {
             assert_eq!(run.counts.skipped, skipped, "seed {seed}: {document:?}");
-            long |= (0..document.len()).any(|index| document.token(index).unwrap().kind == skein_json::Kind::Long);
-            omitted |= tag == "small";
+            if at_gate {
+                long |= (0..document.len()).any(|index| document.token(index).unwrap().kind == skein_json::Kind::Long);
+                omitted |= tag == "small";
+            }
         }
+        Ok::<(), Infallible>(())
+    })
+    .unwrap_or_else(|case| panic!("{case}"));
+    if at_gate {
+        assert!(long && omitted);
     }
-    assert!(long && omitted);
 }

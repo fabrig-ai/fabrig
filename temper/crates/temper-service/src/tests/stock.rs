@@ -6,6 +6,12 @@
 use super::fixtures;
 use jig_protocol_config as config;
 
+// Both policies charge the main Model inline, plus model carriers. A model
+// includes eight aligned cache-lifetime bytes, a 16-byte speeds slice and a
+// 16-byte optional default speed name; stock owns no speed payload.
+const CODING_CHARTER_BYTES: u64 = 14_216;
+const GOAL_CHARTER_BYTES: u64 = 31_056;
+
 /// Replace one engine override, keeping every other generated entry.
 pub(super) fn limited(document: &(impl fixtures::Input + ?Sized), name: &[u8], value: u64) -> fixtures::Start {
     let mut configured = fixtures::Input::configured(document);
@@ -65,8 +71,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
             run = (bytes, Setting::Charter(charter.number));
         }
     }
-    // The main model and eight alternatives each carry eight aligned cache-lifetime bytes.
-    assert_eq!(run, (27_842, Setting::Charter(5)));
+    assert_eq!(run, (GOAL_CHARTER_BYTES, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Each policy authority includes the standing roles' charter executors.
@@ -203,7 +208,7 @@ fn stock_startup_keeps_its_models_even_without_running_providers() {
     let document = fixtures::engine_alone_document();
     let given = crate::stock::Given::Stock.with_providers(Box::new([]), Box::new([]));
     let named = crate::startup::named_with(&document, &config::Directories::working(), &given).unwrap();
-    assert_eq!(named.llm.models.len(), 7);
+    assert_eq!(named.llm.models.len(), 8);
     assert!(named.llm.providers.is_empty());
     assert!(named.llm.endpoints.is_empty());
 }
@@ -373,7 +378,7 @@ fn a_fresh_box_admits_the_stock_at_inits_catalogue() {
     assert_eq!(temper_limits_fixtures::small().root.journal.run_bytes, 65_536);
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(crate::stock::floors(&defaults, &engine.limits), Ok(()));
-    for (number, expected) in [(2, 12_656), (5, 27_842)] {
+    for (number, expected) in [(2, CODING_CHARTER_BYTES), (5, GOAL_CHARTER_BYTES)] {
         let charter = defaults.charters.iter().find(|charter| charter.number == number).unwrap();
         let resolved =
             jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();

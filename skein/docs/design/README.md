@@ -59,6 +59,7 @@ code is from this design and how to roll up the status files.
 | server-sent events | `skein-http` | reader and writer machines over body streams | [net/http/sse.md](net/http/sse.md) |
 | testing HTTP | `skein-http` | step tests and worlds for HTTP and server-sent events | [net/http/testing.md](net/http/testing.md) |
 | JSON | `skein-json` | a bounded tokenizer, a sized writer | [data/json.md](data/json.md) |
+| TOML | `skein-toml` | one whole TOML 1.0 document read within bounds, each key and value with its line | [data/toml.md](data/toml.md) |
 | DEFLATE | `skein-deflate` | raw DEFLATE: a whole input compressed within a bound, at the fast or the best level, and one stream inflated within its caller's room | [data/deflate.md](data/deflate.md) |
 | gzip | `skein-deflate` | one gzip member around a DEFLATE stream: written at either level within a bound, and read back whole, its CRC-32 and length checked | [data/gzip.md](data/gzip.md) |
 | framed channels | `skein-channel` | a framed channel between two peers over a stream: an opening that agrees a version, bounds, flow control | [net/channel.md](net/channel.md) |
@@ -106,6 +107,7 @@ skein-fail-stop nothing
 skein-io       lib
 skein-http     lib
 skein-json     lib
+skein-toml     lib
 skein-channel  lib
 skein-codec    lib
 skein-codegen  codec, fail-stop (a generator, in consumers' tests)

@@ -28,6 +28,23 @@ pub fn wire_setting_model(value: &c::SettingModel) -> w::SettingModel {
     for item in &value.efforts {
         efforts.push(bytes::copy_of(item.bytes())).expect("same capacity");
     }
+    let mut speeds = List::with_capacity(value.speeds.len());
+    for speed in &value.speeds {
+        let mut also = List::with_capacity(speed.also.len());
+        for name in &speed.also {
+            also.push(bytes::copy_of(name.bytes())).expect("same capacity");
+        }
+        speeds
+            .push(w::SettingSpeed {
+                name: bytes::copy_of(speed.name.bytes()),
+                also,
+                input_price: speed.input_price,
+                cached_price: speed.cached_price,
+                cache_write_price: speed.cache_write_price,
+                output_price: speed.output_price,
+            })
+            .expect("same capacity");
+    }
     w::SettingModel {
         provider: value.provider,
         dialect: value.dialect,
@@ -52,13 +69,43 @@ pub fn wire_setting_model(value: &c::SettingModel) -> w::SettingModel {
             Some(item) => Some(bytes::copy_of(item.bytes())),
             None => None,
         },
+        speeds,
+        speed: match &value.speed {
+            Some(name) => Some(bytes::copy_of(name.bytes())),
+            None => None,
+        },
     }
 }
+pub(super) fn restore_speeds(
+    values: &List<w::SettingSpeed>,
+    limits: &w::Limits,
+) -> Result<List<c::SettingSpeed>, w::Problem> {
+    let mut speeds = List::with_capacity(values.len());
+    for speed in values {
+        let mut also = List::with_capacity(speed.also.len());
+        for name in &speed.also {
+            also.push(text(name, limits.setting_speed_also_item)?).expect("same capacity");
+        }
+        speeds
+            .push(c::SettingSpeed {
+                name: text(&speed.name, limits.setting_speed_name)?,
+                also,
+                input_price: speed.input_price,
+                cached_price: speed.cached_price,
+                cache_write_price: speed.cache_write_price,
+                output_price: speed.output_price,
+            })
+            .expect("same capacity");
+    }
+    Ok(speeds)
+}
+
 pub fn restore_setting_model(value: &w::SettingModel) -> Result<c::SettingModel, w::Problem> {
     let mut efforts = List::with_capacity(value.efforts.len());
     for item in &value.efforts {
         efforts.push(text(item, 32)?).expect("same capacity");
     }
+    let speeds = restore_speeds(&value.speeds, &w::CEILINGS)?;
     Ok(c::SettingModel {
         provider: value.provider,
         dialect: value.dialect,
@@ -81,6 +128,11 @@ pub fn restore_setting_model(value: &w::SettingModel) -> Result<c::SettingModel,
         efforts,
         effort: match &value.effort {
             Some(item) => Some(text(item, 32)?),
+            None => None,
+        },
+        speeds,
+        speed: match &value.speed {
+            Some(name) => Some(text(name, 32)?),
             None => None,
         },
     })
@@ -110,6 +162,7 @@ pub fn wire_charter(value: &c::Charter) -> w::Charter {
             .expect("same capacity");
     }
     w::Charter {
+        name: value.name.clone(),
         parts,
         documents,
         rest: value.rest,
@@ -153,6 +206,7 @@ pub fn restore_charter(value: &w::Charter) -> Result<c::Charter, w::Problem> {
             .expect("same capacity");
     }
     Ok(c::Charter {
+        name: value.name.clone(),
         parts,
         rest: value.rest,
         documents,
@@ -199,6 +253,7 @@ pub fn wire_setting_policy(value: &c::SettingPolicy, limits: &w::Limits) -> Resu
         templates.push(wire_template_override(item)).expect("same capacity");
     }
     Ok(w::SettingPolicy {
+        name: value.name.clone(),
         escalation_role: match &value.escalation_role {
             Some(item) => Some(*item),
             None => None,
@@ -234,6 +289,7 @@ pub fn restore_setting_policy(value: &w::SettingPolicy, limits: &Limits) -> Resu
         templates.push(restore_template_override(item)).expect("same capacity");
     }
     Ok(c::SettingPolicy {
+        name: value.name.clone(),
         escalation_role: match &value.escalation_role {
             Some(item) => Some(*item),
             None => None,
@@ -540,9 +596,10 @@ fn restore_template_override(value: &w::TemplateOverride) -> c::TemplateOverride
 }
 fn wire_template(value: &c::Template, limits: &w::Limits) -> Result<w::Template, w::Problem> {
     Ok(w::Template {
+        name: value.name.clone(),
         resources: super::documents::me::wire_symbols(&value.resources),
         number: value.number,
-        name: wire_document_text(&value.name),
+        shown: wire_document_text(&value.shown),
         executor: client::template_executor_to_record(&value.executor),
         contract: wire_task_contract(&value.contract, limits)?,
         shallower: value.shallower,

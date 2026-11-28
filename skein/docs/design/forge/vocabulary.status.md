@@ -1,6 +1,7 @@
 # vocabulary: status
 
-2026-11-23. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
+2026-11-28. Where the tree's code lags or departs from [vocabulary.md](vocabulary.md).
+
 
 - **Not yet:** 1.2: `Merge`'s `Recorded { commit }`, Forgejo's
   `manually-merged` and GitHub's refusal of it; `MergeHow` has the style

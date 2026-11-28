@@ -10,6 +10,7 @@ fn frame() -> c::Me {
     let text = c::Text::new(Box::from(b"party".as_slice()), 32).expect("fixture text fits");
     let text = c::DocumentText::complete(text);
     c::Me {
+        charters: skein_lib::List::with_capacity(0),
         party: c::MeParty { number: REQUESTER, kind: c::PartyKind::Person, login: text.clone(), name: text },
         projects: List::with_capacity(0),
         needs: c::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
@@ -107,6 +108,7 @@ fn committed_turns_use_the_transcript_and_client_codecs() {
             llm: Some(c::ModelEffort {
                 model: c::Text::new(Box::from(b"named-model".as_slice()), 128).unwrap(),
                 effort: Some(c::Text::new(Box::from(b"high".as_slice()), 32).unwrap()),
+                speed: None,
             }),
             cut: false,
         }),
@@ -124,6 +126,7 @@ fn committed_call_outcomes_survive_with_or_without_an_explicit_result_block() {
             input: text(b"input"),
             outcome: Some(text(b"refused")),
             failed: true,
+            answer: None,
             objects: List::with_capacity(0),
             parts: List::with_capacity(0),
         })];

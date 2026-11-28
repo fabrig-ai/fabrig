@@ -5,29 +5,15 @@ use skein_fake_forge_domain::{self as forge, Lag};
 use skein_lib::Duration;
 use skein_world::{
     streams::{Stream, Streams},
-    sweep::{Exclusion, Sweep, cases, gate},
+    sweep::{Sweep, cases, gate},
 };
-use temper_engine_forge_world::{World, fake_config};
+use temper_engine_forge_world::{World, fake_config, open};
 use temper_faults::forge::{LAGGING, MERGE_LATE};
-
-pub(super) const LATE_RECORD: &str = "a_late_manual_merge_record_finishes_the_landed_batch";
-const RECORDING_SQUASH: &[&str] = &["recording a squashed member already landed on its base"];
-
-pub(super) fn exclude_records(sweep: &mut Sweep) {
-    sweep
-        .exclude(Exclusion::new(
-            "a_late_manual_merge_record_finishes_the_landed_batch",
-            "landing train",
-            MERGE_LATE,
-            RECORDING_SQUASH,
-        ))
-        .expect("narrow late-record scenario");
-}
 
 pub(super) fn lag_world(world: &mut World, sweep: &Sweep) {
     let lag = Lag { chance: 1000, min: Duration::from_secs(1), max: Duration::from_secs(3) };
     forge::lag(world.forge_mut(), lag);
-    let exclusion = sweep.leaves_out(MERGE_LATE, RECORDING_SQUASH).expect("late-record exclusion");
+    let exclusion = sweep.leaves_out(MERGE_LATE, open::MERGE_LATE_RECORD.when).expect("late-record exclusion");
     world.exclude_lagging_records(lag, exclusion);
 }
 
@@ -37,7 +23,7 @@ fn lagging_views_keep_the_batches_invariants() {
     for kind in LAGGING {
         sweep.configure(kind);
     }
-    exclude_records(&mut sweep);
+    open::exclude(&mut sweep, &LAGGING).expect("narrow late-record scenario");
     let test = skein_world::this_test!("lagging_views_keep_the_batches_invariants");
     let mut skipped = Skipped::default();
     cases(test, 1..=2, |seed| {
@@ -55,6 +41,6 @@ fn lagging_views_keep_the_batches_invariants() {
     skipped.report(test);
     sweep.check_fell().expect("configured lagging views fell");
     if gate() {
-        assert!(sweep.left_out(LATE_RECORD) > 0, "the late-record exclusion was reached");
+        assert!(sweep.left_out(open::MERGE_LATE_RECORD.scenario) > 0, "the late-record exclusion was reached");
     }
 }

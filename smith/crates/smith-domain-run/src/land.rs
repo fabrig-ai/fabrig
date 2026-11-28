@@ -8,14 +8,15 @@
 //! emitted: the bounded host terminal settles even during shutdown.
 //! A stopped check returns its retained withdrawal cause to the run for its terminal fact.
 
-use crate::boundary::{Exit, Place, Ran, Request, Returned};
+use crate::boundary::{Exit, Hook, HookProblem, Place, Ran, Request, Returned};
 use crate::call::{self, Call, Withdrawal};
 use crate::conventions;
 use crate::delivery::{CallName, Delivery, DeliveryFailure, DeliveryReason};
 use crate::limits::Limits;
 use crate::outcome::Change;
+use crate::prepare;
 use crate::run::Run;
-use crate::workspace::{self, Directory};
+use crate::workspace::{self, Directory, HookTime, HookTimes};
 use alloc::boxed::Box;
 use core::mem;
 use skein_lib::bytes::copy_of;
@@ -89,18 +90,13 @@ pub(crate) fn jobs_cancelled(
             } else if env.now >= landing.deadline {
                 back(call, Returned::TimedOut, Settled::Cancelled, out)
             } else {
-                begin(landing, id, run, env, out);
-                Settled::Going
+                next(landing, id, call, run, 0, env, out)
             }
         }
         Stage::Checking { .. } | Stage::Aborting { .. } | Stage::Delivering | Stage::Closed => {
             unreachable!("job settlement precedes checks and submission")
         }
     }
-}
-
-pub(crate) fn begin(landing: &mut Landing, id: Id<Call>, run: &Run, env: &Env<Limits>, out: &mut Queue<Request>) {
-    landing.stage = next(landing, id, run, 0, env, out);
 }
 
 #[expect(clippy::too_many_arguments, reason = "a cell handler takes the fields it touches")]
@@ -117,15 +113,22 @@ pub(crate) fn checked(
     let stage = mem::replace(&mut landing.stage, Stage::Closed);
     match stage {
         Stage::Checking { check, given, retry } => {
+            let hooks = hook_times(run, check);
+            let time = moment_time(hooks, landing.purpose);
             if ran.exit == Exit::TimedOut
                 && !retry
                 && may_finish
                 && let Some(until) = crate::run::check_retry_deadline(run)
             {
                 let cap = landing.deadline.min(until);
-                let bound = given.saturating_add(given).min(cap.saturating_since(env.now));
+                let mut bound = given.saturating_add(given).min(cap.saturating_since(env.now));
+                if let Some(hooks) = hooks
+                    && time.is_some()
+                {
+                    bound = bound.min(hooks.ceiling);
+                }
                 if bound > given {
-                    landing.stage = start_check(id, run, check, bound, cap, true, env, out);
+                    landing.stage = start_check(id, run, landing.purpose, check, bound, cap, true, env, out);
                     return Settled::Going;
                 }
             }
@@ -141,13 +144,17 @@ pub(crate) fn checked(
             };
             if !passed && required {
                 let repository = copy_of(&repository(run, check).name);
-                let check = copy_of(conventions::checks(&run.charter));
+                let check = check_path(run, check, landing.purpose);
+                let ceiling_cut = match time {
+                    Some(time) if time.asked > time.time => Some(time.asked),
+                    Some(_) | None => None,
+                };
                 let result = match ran.exit {
                     Exit::Code { .. } if !ran.said_not_judged => {
-                        Returned::ChecksFailed { repository, check, given, ran }
+                        Returned::ChecksFailed { repository, check, given, ceiling_cut, ran }
                     }
                     Exit::Code { .. } | Exit::Signalled { .. } | Exit::TimedOut | Exit::Unstarted | Exit::Cancelled => {
-                        Returned::ChecksNotJudged { repository, check, given, ran }
+                        Returned::ChecksNotJudged { repository, check, given, ceiling_cut, ran }
                     }
                 };
                 back(owner, result, Settled::Refused, out)
@@ -156,8 +163,7 @@ pub(crate) fn checked(
             } else if !may_finish {
                 back(owner, Returned::Cancelled, Settled::Cancelled, out)
             } else {
-                landing.stage = next(landing, id, run, check.checked_add(1).expect("bounded mounted checks"), env, out);
-                Settled::Going
+                next(landing, id, owner, run, check.checked_add(1).expect("bounded mounted checks"), env, out)
             }
         }
         Stage::Aborting { why } => back(owner, call::stopped(why), Settled::Cancelled, out),
@@ -271,16 +277,55 @@ pub(crate) fn withdraw(landing: &mut Landing, id: Id<Call>, why: Withdrawal, out
     };
 }
 
-fn next(landing: &Landing, id: Id<Call>, run: &Run, check: u32, env: &Env<Limits>, out: &mut Queue<Request>) -> Stage {
+fn next(
+    landing: &mut Landing,
+    id: Id<Call>,
+    call: Token,
+    run: &Run,
+    first: u32,
+    env: &Env<Limits>,
+    out: &mut Queue<Request>,
+) -> Settled {
     run.lease.assert_workspace(id.token());
-    let check_index = if landing.purpose == Purpose::Save { None } else { run.found.checks.get(check) };
-    let Some(_) = check_index else {
-        let deadline = landing.deadline.min(env.now.saturating_add(env.limits.delivery_timeout));
-        assert!(env.now < deadline, "admission and completed checks refuse expired submission");
-        if landing.purpose == Purpose::Save {
-            out.push(Request::Save { host_run: run.host_name, owner: id.token(), name: landing.name, deadline });
-            return Stage::Delivering;
+    if landing.purpose != Purpose::Save {
+        for check in first..run.found.checks.len() {
+            let found = run.found.checks.get(check).expect("bounded mounted checks");
+            let hook = match &found.kind {
+                prepare::Kind::Legacy => Hook::Executable,
+                prepare::Kind::Hooks(hooks) => match landing.purpose {
+                    Purpose::Finish => hooks.finish,
+                    Purpose::Deliver => hooks.deliver,
+                    Purpose::Save => unreachable!("save runs no checks"),
+                },
+            };
+            let times = hook_times(run, check);
+            if hook != Hook::Missing
+                && let Some(times) = times
+                && !times.fault.is_empty()
+            {
+                return broken(run, check, landing.purpose, call, &times.fault, out);
+            }
+            match hook {
+                Hook::Missing => {}
+                Hook::Broken(problem) => return broken(run, check, landing.purpose, call, hook_problem(problem), out),
+                Hook::Executable => {
+                    let cap = landing.deadline.min(run.deadline);
+                    let bound = match moment_time(times, landing.purpose) {
+                        Some(time) => time.time,
+                        None => checks_bound(run, env),
+                    };
+                    let bound = bound.min(cap.saturating_since(env.now));
+                    landing.stage = start_check(id, run, landing.purpose, check, bound, cap, false, env, out);
+                    return Settled::Going;
+                }
+            }
         }
+    }
+    let deadline = landing.deadline.min(env.now.saturating_add(env.limits.delivery_timeout));
+    assert!(env.now < deadline, "admission and completed checks refuse expired submission");
+    if landing.purpose == Purpose::Save {
+        out.push(Request::Save { host_run: run.host_name, owner: id.token(), name: landing.name, deadline });
+    } else {
         out.push(Request::Deliver {
             host_run: run.host_name,
             owner: id.token(),
@@ -288,11 +333,63 @@ fn next(landing: &Landing, id: Id<Call>, run: &Run, check: u32, env: &Env<Limits
             deadline,
             change: landing.change.clone(),
         });
-        return Stage::Delivering;
-    };
-    let cap = landing.deadline.min(run.deadline);
-    let bound = checks_bound(run, env).min(cap.saturating_since(env.now));
-    start_check(id, run, check, bound, cap, false, env, out)
+    }
+    landing.stage = Stage::Delivering;
+    Settled::Going
+}
+
+fn broken(run: &Run, check: u32, purpose: Purpose, call: Token, output: &[u8], out: &mut Queue<Request>) -> Settled {
+    let ran = Ran { exit: Exit::Unstarted, said_not_judged: false, output: copy_of(output), cut: 0 };
+    let repository = copy_of(&repository(run, check).name);
+    let check = check_path(run, check, purpose);
+    back(
+        call,
+        Returned::ChecksFailed { repository, check, given: Duration::ZERO, ceiling_cut: None, ran },
+        Settled::Refused,
+        out,
+    )
+}
+
+fn hook_problem(problem: HookProblem) -> &'static [u8] {
+    match problem {
+        HookProblem::Unreadable => b"the hook could not be read",
+        HookProblem::NotExecutable => b"the hook is not executable",
+        HookProblem::NotFile => b"the hook is not a regular file",
+        HookProblem::BadLink => b"the hook does not link directly to an executable file beside it",
+    }
+}
+
+fn hook_times(run: &Run, check: u32) -> Option<&HookTimes> {
+    let found = run.found.checks.get(check).expect("only discovered checks run");
+    match &found.kind {
+        prepare::Kind::Legacy => None,
+        prepare::Kind::Hooks(_) => repository(run, check).hooks.as_ref(),
+    }
+}
+
+fn moment_time(hooks: Option<&HookTimes>, purpose: Purpose) -> Option<HookTime> {
+    let hooks = hooks?;
+    match purpose {
+        Purpose::Finish => hooks.finish,
+        Purpose::Deliver => hooks.deliver,
+        Purpose::Save => unreachable!("save runs no checks"),
+    }
+}
+
+fn check_path(run: &Run, check: u32, purpose: Purpose) -> Box<[u8]> {
+    let found = run.found.checks.get(check).expect("only discovered checks run");
+    match &found.kind {
+        prepare::Kind::Legacy => copy_of(conventions::checks(&run.charter)),
+        prepare::Kind::Hooks(_) => {
+            let directory = conventions::hooks(&run.charter).expect("hooks directory selected");
+            let name: &[u8] = match purpose {
+                Purpose::Finish => b"finish",
+                Purpose::Deliver => b"deliver",
+                Purpose::Save => unreachable!("save runs no checks"),
+            };
+            skein_lib::bytes::concat(&[directory, b"/", name])
+        }
+    }
 }
 
 fn checks_bound(run: &Run, env: &Env<Limits>) -> Duration {
@@ -303,6 +400,7 @@ fn checks_bound(run: &Run, env: &Env<Limits>) -> Duration {
 fn start_check(
     id: Id<Call>,
     run: &Run,
+    purpose: Purpose,
     check: u32,
     bound: Duration,
     cap: Time,
@@ -314,7 +412,7 @@ fn start_check(
     let directory = repository(run, check);
     let root = directory.root;
     let results = directory.results.clone();
-    let program = Place { root, path: copy_of(conventions::checks(&run.charter)) };
+    let program = Place { root, path: check_path(run, check, purpose) };
     let deadline = env.now.saturating_add(bound).min(cap);
     out.push(Request::Check { owner: id.token(), program, results, bound, cap, tail: env.limits.check_tail });
     out.push(Request::Checking { host_run: run.host_name, deadline });
@@ -328,7 +426,7 @@ fn back(owner: Token, result: Returned, settled: Settled, out: &mut Queue<Reques
 
 fn repository(run: &Run, check: u32) -> &Directory {
     let index = run.found.checks.get(check).expect("only discovered checks run");
-    repository_at(run, *index)
+    repository_at(run, index.directory)
 }
 
 fn repository_at(run: &Run, index: u32) -> &Directory {

@@ -222,20 +222,7 @@ impl Engine {
             && (!self.requests.is_empty() || self.ready || self.settled_revision != Some(self.domain.revision()))
     }
     pub(crate) fn start_runtime(&self) -> bool {
-        use jig_domain_core::start::Phase;
-        match self.domain.start_phase() {
-            Some(Phase::AdoptRuns | Phase::Open) => true,
-            Some(
-                Phase::LoadCore
-                | Phase::LoadInbox
-                | Phase::RestoreConnector { .. }
-                | Phase::Link
-                | Phase::Sweep
-                | Phase::Switch
-                | Phase::Wires,
-            ) => false,
-            None => !self.begin,
-        }
+        self.domain.start_runtime()
     }
     fn restored_limit_revision(&mut self) {
         if let Some(state) = &mut self.limits_in_force
@@ -337,14 +324,19 @@ impl Engine {
             self.notes.push(note);
         }
     }
-    pub(crate) fn drain_notes(&mut self) {
+    fn drain_settings_warning(&mut self) {
         if !self.settings_warned && self.domain.ready() && self.notes.room() != 0 {
             let kept = self.domain.settings_kept();
             self.settings_warned = true;
-            if !kept.is_empty() {
-                self.notes.push(crate::Note::StartupWarning { line: crate::core_wait::settings_kept(&kept) });
+            let unnamed = self.domain.settings_unnamed();
+            if !kept.is_empty() || !unnamed.is_empty() {
+                self.notes
+                    .push(crate::Note::StartupWarning { line: crate::core_wait::settings_warning(&kept, unnamed) });
             }
         }
+    }
+    pub(crate) fn drain_notes(&mut self) {
+        self.drain_settings_warning();
         self.drain_worker_notes();
         for _ in 0..self.notes.room() {
             let note = if let Some(diagnostic) = self.domain.pop_run_diagnostic() {

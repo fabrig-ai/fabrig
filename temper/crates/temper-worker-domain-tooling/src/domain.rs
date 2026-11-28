@@ -5,7 +5,7 @@ use jig_domain_link::{JobBound, JobKind};
 use skein_lib::bytes::copy_of;
 use skein_lib::{Duration, Env, List, Map, Queue, Token, Writer};
 
-use crate::{End, Event, Exit, Invalid, Kind, Limits, Request, Spec, valid};
+use crate::{End, Event, Exit, Hooks, Invalid, Kind, Limits, Request, Spec, hook_path, valid};
 
 /// The capability's entries and jobs in flight, keyed by the parent's owner.
 #[derive(Debug)]
@@ -82,7 +82,7 @@ struct Job {
 #[derive(Debug)]
 enum State {
     Preparing,
-    Writing { program: Box<[u8]>, deadline: Duration, refusal: bool },
+    Writing { program: Box<[u8]>, deadline: Duration, refusal_result: Option<u32>, outdated: bool, hooks: Hooks },
     Spawning,
     Running,
     Reading { deliver: bool, most: u32, code: u8 },
@@ -107,6 +107,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         | Event::Written { owner, .. }
         | Event::Spawned { owner }
         | Event::Exited { owner, .. }
+        | Event::TimeCut { owner, .. }
         | Event::Read { owner, .. }
         | Event::Gone { owner } => *owner,
     };
@@ -119,6 +120,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         | Event::Written { .. }
         | Event::Spawned { .. }
         | Event::Exited { .. }
+        | Event::TimeCut { .. }
         | Event::Read { .. }
         | Event::Gone { .. }) => {
             let Some(mut job) = domain.jobs.remove(&owner) else { return };
@@ -170,6 +172,11 @@ fn start(domain: &mut Domain, env: &Env<Limits>, run: Run, out: &mut Queue<Reque
         Some(b"deadline bound".as_slice())
     } else if !own && (!command_valid(&run.spec.command) || !within(&run.spec.command, limits.path_bytes)) {
         Some(b"command path".as_slice())
+    } else if let Some(fallback) = &run.spec.hooks.fallback
+        && (!found_command(run.kind, &run.spec.command)
+            || (!fallback.program.is_empty() && !command_valid(&fallback.program)))
+    {
+        Some(b"hook or fallback path".as_slice())
     } else if run.directory.is_empty() || run.directory.contains(&0) || !within(&run.directory, limits.path_bytes) {
         Some(b"directory path".as_slice())
     } else {
@@ -195,6 +202,16 @@ fn start(domain: &mut Domain, env: &Env<Limits>, run: Run, out: &mut Queue<Reque
         refuse(run.owner, b"command path bound", out);
         return;
     };
+    let mut hooks = run.spec.hooks;
+    if let Some(fallback) = &mut hooks.fallback
+        && !fallback.program.is_empty()
+    {
+        let Some(program) = path(&run.directory, b"/", &fallback.program, limits.path_bytes) else {
+            refuse(run.owner, b"fallback path bound", out);
+            return;
+        };
+        fallback.program = program;
+    }
     let Some(request_path) = path(&run.directory, b"/request.json", b"", limits.path_bytes) else {
         refuse(run.owner, b"request path bound", out);
         return;
@@ -206,7 +223,13 @@ fn start(domain: &mut Domain, env: &Env<Limits>, run: Run, out: &mut Queue<Reque
     let job = Job {
         kind: kind.clone(),
         directory: run.directory,
-        state: State::Writing { program, deadline: run.deadline, refusal: run.spec.refusal },
+        state: State::Writing {
+            program,
+            deadline: run.deadline,
+            refusal_result: if run.spec.refusal { Some(run.spec.result.min(kind.bound.result)) } else { None },
+            outdated: run.spec.outdated,
+            hooks,
+        },
         tail: Box::new([]),
         process_gone: false,
     };
@@ -218,6 +241,7 @@ fn start(domain: &mut Domain, env: &Env<Limits>, run: Run, out: &mut Queue<Reque
 fn advance(job: &mut Job, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::Run { .. } => unreachable!("Run is handled at admission"),
+        Event::TimeCut { .. } => unreachable!("the root keeps the cut line with the job's evidence"),
         Event::Prepared { owner, result, code } => {
             if !match job.state {
                 State::Preparing => true,
@@ -307,8 +331,8 @@ fn advance(job: &mut Job, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
 }
 
 fn written_job(job: &mut Job, env: &Env<Limits>, owner: Token, written: bool, out: &mut Queue<Request>) {
-    match &job.state {
-        State::Writing { program, deadline, refusal } => {
+    match &mut job.state {
+        State::Writing { program, deadline, refusal_result, outdated, hooks } => {
             if !written {
                 job.state = State::Ending;
                 job.process_gone = true;
@@ -318,7 +342,8 @@ fn written_job(job: &mut Job, env: &Env<Limits>, owner: Token, written: bool, ou
             }
             let request_path = path(&job.directory, b"/request.json", b"", env.limits.path_bytes)
                 .expect("admission checked the request path");
-            let mut environment = List::with_capacity(if *refusal { 5 } else { 4 });
+            let extra = if refusal_result.is_some() { 2 } else { 0 };
+            let mut environment = List::with_capacity(4_u32.saturating_add(extra).saturating_add(u32::from(*outdated)));
             for entry in [
                 (copy_of(b"PATH"), env.limits.path.clone()),
                 (copy_of(b"HOME"), job.directory.clone()),
@@ -327,8 +352,17 @@ fn written_job(job: &mut Job, env: &Env<Limits>, owner: Token, written: bool, ou
             ] {
                 environment.push(entry).expect("room for the command environment");
             }
-            if *refusal {
+            if let Some(result) = refusal_result {
                 environment.push((copy_of(b"TEMPER_CLOSE_REFUSAL"), copy_of(b"3"))).expect("room for the refusal ask");
+                let number = skein_lib::Decimal::of(u64::from(*result));
+                environment
+                    .push((copy_of(b"TEMPER_CLOSE_RESULT_BYTES"), copy_of(number.as_bytes())))
+                    .expect("room for the refusal result bound");
+            }
+            if *outdated {
+                environment
+                    .push((copy_of(b"TEMPER_CLOSE_OUTDATED"), copy_of(b"3")))
+                    .expect("room for the outdated ask");
             }
             let request = Request::Spawn {
                 owner,
@@ -337,6 +371,7 @@ fn written_job(job: &mut Job, env: &Env<Limits>, owner: Token, written: bool, ou
                 env: environment.into_boxed(),
                 dir: job.directory.clone(),
                 deadline: env.now.saturating_add(*deadline),
+                hooks: core::mem::replace(hooks, Hooks::new(None, hooks.ceiling)),
             };
             job.state = State::Spawning;
             out.push(request);
@@ -362,6 +397,8 @@ fn exited_job(job: &mut Job, env: &Env<Limits>, owner: Token, exit: Exit, out: &
         }
         Exit::Code(code) => End::Failed { detail: diagnostic(&exit_words(b"exit ", code), &job.tail) },
         Exit::Signal => End::Failed { detail: diagnostic(b"signal", &job.tail) },
+        Exit::Absent => End::Absent,
+        Exit::NotRun | Exit::Time => End::Failed { detail: job.tail.clone() },
         Exit::Deadline => End::Deadline,
     };
     job.state = State::Ending;
@@ -403,6 +440,11 @@ fn path(directory: &[u8], middle: &[u8], end: &[u8], most: u32) -> Option<Box<[u
     writer.put(middle).expect("the path length includes the separator");
     writer.put(end).expect("the path length includes the suffix");
     Some(writer.finish())
+}
+
+fn found_command(kind: JobKind, command: &[u8]) -> bool {
+    let Some((_, path)) = hook_path(command) else { return false };
+    (kind == JobKind(3) && path == b".temper/hooks/merge") || (kind == JobKind(4) && path == b".temper/hooks/close")
 }
 
 fn command_valid(command: &[u8]) -> bool {

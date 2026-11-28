@@ -390,7 +390,7 @@ impl Judge {
                 item["set"]["instructions"] = "Complete the earlier work carefully.".into();
             }
             if item["setting"]["kind"] == "template" && item["setting"]["number"] == 1 {
-                item["set"]["name"]["bytes"] = "Conversation".into();
+                item["set"]["shown"] = "Conversation".into();
             }
         }
         let bytes =

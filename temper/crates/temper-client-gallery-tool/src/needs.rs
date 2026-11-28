@@ -140,7 +140,7 @@ pub fn domain(name: &str) -> Domain {
     for event in [
         jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
         jig_client::Event::SignIn { with: jig_client::With::Transport },
-        jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+        jig_client::Event::Up { up: jig_client::Up::Served { served: true } },
     ] {
         driver::step(&mut root, Event::Client { event }, &mut out);
     }
@@ -176,8 +176,9 @@ pub fn domain(name: &str) -> Domain {
                     c::Delivery::Settings(Box::new(c::SettingsDocument {
                         newest: 1,
                         settings: List::from_boxed(Box::new([c::SettingLine {
-                            setting: c::Setting::Application { kind: 8, scope: 1, number: 1 },
                             name: None,
+                            setting: c::Setting::Application { kind: 8, scope: 1, number: 1 },
+                            shown: None,
                             follows: c::SettingFollows::Change,
                             last: Some(1),
                             application: None,

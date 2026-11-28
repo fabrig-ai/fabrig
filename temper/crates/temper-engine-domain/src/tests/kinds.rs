@@ -5,7 +5,7 @@ use super::*;
 use crate::{Domain, KindValue, Limits as RootLimits, Work};
 use jig_domain_authority as authority;
 use jig_domain_core::engine::store as engine_store;
-use jig_domain_core::{Event, effects::connector, settings::application};
+use jig_domain_core::{effects::connector, settings::application};
 use skein_lib::Env;
 use temper_client_protocol_wire::v1::Record as CodecRecord;
 use temper_engine_domain_forge::{self as forge, settings};
@@ -64,11 +64,11 @@ fn values(value: settings::SizedValue) -> Box<[KindValue]> {
     Box::new([KindValue { kind: 2, scope: PROJECT, number: RULE, value }])
 }
 
-fn ask(domain: &mut Domain, env: &Env<RootLimits>, decision: &mut Decision, ask: connector::Ask) {
+fn ask(domain: &mut Domain, env: &Env<RootLimits>, decision: &mut Decision, ask: jig_domain_contract::settings::Ask) {
     let mut requests = Queue::uncapped();
     requests.push(jig_domain_core::Request::Ask {
         connector: domain.config.forge_connector,
-        ask: jig_domain_core::Ask::Effect(ask),
+        ask: jig_domain_core::Ask::Connector(jig_domain_contract::Ask::Settings(ask)),
     });
     crate::route::route_core_requests(domain, env, decision, requests);
 }
@@ -80,12 +80,19 @@ fn judge(
     proposal: Option<u64>,
     items: Box<[application::Item]>,
 ) {
-    ask(domain, env, decision, connector::Ask::JudgeSettings { owner: OWNER, revision: 2, proposal, items });
+    ask(
+        domain,
+        env,
+        decision,
+        jig_domain_contract::settings::Ask::Judge { owner: OWNER, revision: 2, proposal, items },
+    );
 }
 
 fn answer(domain: &mut Domain) -> Box<[connector::Judged]> {
-    let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsJudged { owner, judged }))) =
-        domain.work.pop()
+    let Some(Work::Connector(
+        _,
+        jig_domain_contract::Up::Settings(jig_domain_contract::settings::Up::Judged { owner, judged }),
+    )) = domain.work.pop()
     else {
         panic!("the same step returns SettingsJudged to the core");
     };
@@ -99,8 +106,10 @@ fn restored(kind: u32, scope: u32, number: u32, edit: application::RestoredEdit)
 }
 
 fn restored_answer(domain: &mut Domain, expected_owner: Token) -> Box<[connector::Judged]> {
-    let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsRestored { owner, judged }))) =
-        domain.work.pop()
+    let Some(Work::Connector(
+        _,
+        jig_domain_contract::Up::Settings(jig_domain_contract::settings::Up::Restored { owner, judged }),
+    )) = domain.work.pop()
     else {
         panic!("the same step returns SettingsRestored to the core");
     };
@@ -156,6 +165,61 @@ fn a_refusal_carries_the_forges_words() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the refusal table assembles its expected text independently")]
+fn a_named_charter_owner_is_judged_by_form_not_existence() {
+    use settings::{Area, AreaOwner, ProjectAreas, ProjectTriager};
+    let (mut domain, env) = root();
+    assert_eq!(domain.engine.core().charter_named(b"nobody"), None);
+    for (owner, owner_bytes, refused) in [
+        (AreaOwner::CharterNamed(b"Triager".as_slice().into()), 1 + 4 + 7, Some("charter Triager")),
+        (AreaOwner::Charter(65), 1 + 4, Some("charter 65")),
+        (AreaOwner::CharterNamed(b"nobody".as_slice().into()), 1 + 4 + 6, None),
+        (AreaOwner::Charter(64), 1 + 4, None),
+    ] {
+        for (kind, value, size, label) in [
+            (
+                14,
+                settings::Value::ProjectAreas(ProjectAreas {
+                    areas: Box::new([Area {
+                        name: b"tests".as_slice().into(),
+                        words: b"C tests".as_slice().into(),
+                        owner: owner.clone(),
+                    }]),
+                }),
+                4 + (4 + 5) + (4 + 7) + owner_bytes,
+                "area tests",
+            ),
+            (15, settings::Value::ProjectTriager(ProjectTriager { owner }), owner_bytes, "triager"),
+        ] {
+            domain.kinds =
+                Box::new([KindValue { kind, scope: PROJECT, number: 1, value: settings::SizedValue { value, size } }]);
+            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+            judge(
+                &mut domain,
+                &env,
+                &mut decision,
+                None,
+                Box::new([application::Item {
+                    kind,
+                    scope: PROJECT,
+                    number: 1,
+                    edit: application::Edit::Set(Box::default()),
+                }]),
+            );
+            let expected = if let Some(owner) = refused {
+                connector::Judged::Refuse {
+                    why: format!("{label}: owner {owner} is not of the project").into_bytes().into_boxed_slice(),
+                }
+            } else {
+                connector::Judged::Accept { size, charters: Box::default() }
+            };
+            assert_eq!(answer(&mut domain).as_ref(), &[expected]);
+            crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+        }
+    }
+}
+
+#[test]
 fn a_set_without_its_typed_value_is_refused_as_another_kind() {
     let (mut domain, env) = root();
     // None of kind, scope and number can substitute for another item's value.
@@ -184,7 +248,7 @@ fn a_keep_ask_writes_the_forges_rows() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::KeepSettings {
+        jig_domain_contract::settings::Ask::Keep {
             revision: 2,
             proposal: None,
             items: Box::new([project_rule(application::Edit::Set(Box::default()))]),
@@ -211,7 +275,7 @@ fn a_proposal_is_kept_judged_from_its_kept_values_and_dropped() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::KeepProposalSettings { proposal: PROPOSAL, items: items.clone() },
+        jig_domain_contract::settings::Ask::KeepProposal { proposal: PROPOSAL, items: items.clone() },
     );
     let writes = committed_writes(&mut domain, &env, decision);
     assert!(writes.contains(&saved(settings::SettingSlot::Proposal(PROPOSAL), settings::Edit::Set(rule(false)))));
@@ -230,7 +294,7 @@ fn a_proposal_is_kept_judged_from_its_kept_values_and_dropped() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::KeepSettings { revision: 2, proposal: Some(PROPOSAL), items },
+        jig_domain_contract::settings::Ask::Keep { revision: 2, proposal: Some(PROPOSAL), items },
     );
     let writes = committed_writes(&mut domain, &env, decision);
     assert!(writes.contains(&saved(settings::SettingSlot::Change, settings::Edit::Set(rule(false)))));
@@ -247,14 +311,19 @@ fn a_proposal_is_kept_judged_from_its_kept_values_and_dropped() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::KeepProposalSettings {
+        jig_domain_contract::settings::Ask::KeepProposal {
             proposal: WITHDRAWN_PROPOSAL,
             items: Box::new([project_rule(application::Edit::Set(Box::default()))]),
         },
     );
     committed_writes(&mut domain, &env, decision);
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    ask(&mut domain, &env, &mut decision, connector::Ask::DropProposalSettings { proposal: WITHDRAWN_PROPOSAL });
+    ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        jig_domain_contract::settings::Ask::DropProposal { proposal: WITHDRAWN_PROPOSAL },
+    );
     let writes = committed_writes(&mut domain, &env, decision);
     assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::Setting(settings::SettingKey {
         kind: 2,
@@ -286,7 +355,7 @@ fn a_restore_ask_reaches_the_forge_and_its_answer_reaches_the_core() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::RestoreSettings {
+        jig_domain_contract::settings::Ask::Restore {
             owner: RESTORE_OWNER,
             proposal: PROPOSAL,
             items: Box::new([
@@ -348,7 +417,7 @@ fn a_forget_ask_erases_only_older_replaced_rows_in_the_roots_decision() {
         );
     }
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    ask(&mut domain, &env, &mut decision, connector::Ask::ForgetReplaced { before: 3 });
+    ask(&mut domain, &env, &mut decision, jig_domain_contract::settings::Ask::ForgetReplaced { before: 3 });
     let writes = committed_writes(&mut domain, &env, decision);
     let setting_key =
         settings::SettingKey { kind: 2, scope: PROJECT, number: RULE, slot: settings::SettingSlot::Replaced(2) };
@@ -362,7 +431,7 @@ fn a_forget_ask_erases_only_older_replaced_rows_in_the_roots_decision() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::RestoreSettings {
+        jig_domain_contract::settings::Ask::Restore {
             owner: OWNER,
             proposal: PROPOSAL,
             items: Box::new([
@@ -382,12 +451,8 @@ fn a_forget_ask_erases_only_older_replaced_rows_in_the_roots_decision() {
     assert_eq!(domain.forge.setting(2, PROJECT, RULE), Some(&rule(true)));
 }
 
-fn at_connector_restore(declared: bool) -> (Domain, Env<RootLimits>) {
-    use jig_domain_core::{
-        settings::{Kind, KindScope},
-        start::{Action, Phase},
-    };
-    let limits = resume_fixture::limits();
+pub(super) fn connector_restore_config(limits: &RootLimits, declared: bool) -> crate::Config {
+    use jig_domain_core::settings::{Kind, KindScope};
     let mut config = resume_fixture::config(7);
     config.kinds_stock = Box::new([
         settings::Stock { kind: 1, scope: 0, number: RULE, value: rule(true) },
@@ -413,23 +478,23 @@ fn at_connector_restore(declared: bool) -> (Domain, Env<RootLimits>) {
             },
         ]);
     }
+    config
+}
+
+fn at_connector_restore(declared: bool) -> (Domain, Env<RootLimits>) {
+    use jig_domain_core::start::Phase;
+    let limits = resume_fixture::limits();
+    let config = connector_restore_config(&limits, declared);
     let mut domain = Domain::new(config, &limits).unwrap();
     let env = Env { now: skein_lib::Time::ZERO, wall: Wall::EPOCH, limits };
-    domain.start_wall = Some(env.wall);
-    domain.core_header_loaded = true;
-    domain.forge.restore_begin(env.wall);
-    let core_env = crate::limits::environment_core(&env);
-    let mut action = domain.engine.core_mut().start_begin(false, env.wall);
-    for _ in 0_u32..20 {
-        let mut out = Queue::uncapped();
-        action = match action {
-            Action::Step(Phase::RestoreConnector { connector: 0 }) => return (domain, env),
-            Action::Step(phase) => domain.engine.core_mut().start_done(&core_env, phase, &mut out),
-            Action::Commit(continuation) => domain.engine.core_mut().start_resume(&core_env, continuation, &mut out),
-            Action::Idle | Action::Refused(_) => panic!("start stopped before the forge restore"),
-        };
-    }
-    panic!("start did not reach the forge restore");
+    crate::step(&mut domain, &env, crate::Event::Restart { pending: false });
+    resume_fixture::StartStore::new().advance(
+        &mut domain,
+        &env,
+        resume_fixture::Until::Phase(Phase::RestoreConnector { connector: 0 }),
+    );
+    assert_eq!(domain.start_phase(), Some(Phase::RestoreConnector { connector: 0 }));
+    (domain, env)
 }
 
 #[test]
@@ -438,26 +503,25 @@ fn a_start_gives_the_forge_its_defaults() {
     let (mut domain, env) = at_connector_restore(true);
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     for (kind, value) in [(1, rule(true)), (3, charter(2))] {
-        crate::restart::restore_page_row(
-            &mut domain,
-            &env,
-            Record::Forge {
-                row: Box::new(forge::Stored::Setting(settings::SettingRow {
+        forge::step(
+            &mut domain.forge,
+            &crate::translate::environment_forge(&env),
+            forge::Event::Restore {
+                record: forge::Stored::Setting(settings::SettingRow {
                     key: settings::SettingKey { kind, scope: 0, number: 1, slot: settings::SettingSlot::Default },
                     edit: settings::Edit::Set(value),
-                })),
+                }),
             },
+            &mut Queue::uncapped(),
         );
-        crate::route::route_into(&mut domain, &env, &mut decision);
     }
     assert_eq!(domain.forge.setting(3, 0, 1), Some(&charter(2)), "the stored default reached the forge");
-    crate::restart::restore_connector_done(&mut domain);
-    assert_eq!(domain.engine.core().start_phase(), Some(Phase::RestoreConnector { connector: 0 }));
-    let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsDefaults {
-        connector: 0,
-        defaults,
-        dropped: _,
-    }))) = domain.work.pop()
+    crate::route::forge_route::restore_page(&mut domain, &env, &mut decision, Box::new([]), None);
+    assert_eq!(domain.start_phase(), Some(Phase::RestoreConnector { connector: 0 }));
+    let Some(Work::Connector(
+        jig_domain_contract::Connector(0),
+        jig_domain_contract::Up::Settings(jig_domain_contract::settings::Up::Defaults { defaults, dropped: _ }),
+    )) = domain.work.pop()
     else {
         panic!("the core receives the defaults before the restore completes");
     };
@@ -482,7 +546,13 @@ fn a_start_gives_the_forge_its_defaults() {
             },
         ]
     );
-    let Some(Work::StartDone(Phase::RestoreConnector { connector: 0 })) = domain.work.pop() else {
+    let Some(Work::Connector(
+        jig_domain_contract::Connector(0),
+        jig_domain_contract::Up::Lifecycle(jig_domain_contract::lifecycle::Up::Done {
+            stage: forge::RestartStage::Restored,
+        }),
+    )) = domain.work.pop()
+    else {
         panic!("the forge restore completes after its defaults");
     };
     assert!(domain.work.is_empty());
@@ -495,7 +565,7 @@ fn a_start_gives_the_forge_its_defaults() {
 fn save_settings_defaults_writes_the_forges_rows() {
     let (mut domain, env) = root();
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    ask(&mut domain, &env, &mut decision, connector::Ask::SaveSettingsDefaults { revision: Some(2) });
+    ask(&mut domain, &env, &mut decision, jig_domain_contract::settings::Ask::SaveDefaults { revision: Some(2) });
     crate::route::route_into(&mut domain, &env, &mut decision);
     let writes = committed_writes(&mut domain, &env, decision);
     for (kind, number, value) in [(1, RULE, rule(true)), (3, 1, charter(2)), (3, 2, charter(4))] {
@@ -507,18 +577,28 @@ fn save_settings_defaults_writes_the_forges_rows() {
         })));
     }
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    ask(&mut domain, &env, &mut decision, connector::Ask::SaveSettingsDefaults { revision: None });
-    assert!(domain.work.is_empty(), "matching defaults need no further rows, even without a revision");
+    ask(&mut domain, &env, &mut decision, jig_domain_contract::settings::Ask::SaveDefaults { revision: None });
+    crate::route::route_into(&mut domain, &env, &mut decision);
     crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+    assert!(
+        crate::decision::commit(&mut domain.journal, &env.limits.journal).is_none(),
+        "matching defaults need no further rows, even without a revision"
+    );
 }
 
 #[test]
 fn no_kinds_declared_gives_the_forge_defaults_without_a_core_event() {
-    use jig_domain_core::start::Phase;
-    let (mut domain, _) = at_connector_restore(false);
+    let (mut domain, env) = at_connector_restore(false);
     assert!(domain.kinds_stock.is_none(), "undeclared stock goes to the forge during construction");
-    crate::restart::restore_connector_done(&mut domain);
-    let Some(Work::StartDone(Phase::RestoreConnector { connector: 0 })) = domain.work.pop() else {
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    crate::route::forge_route::restore_page(&mut domain, &env, &mut decision, Box::new([]), None);
+    let Some(Work::Connector(
+        jig_domain_contract::Connector(0),
+        jig_domain_contract::Up::Lifecycle(jig_domain_contract::lifecycle::Up::Done {
+            stage: forge::RestartStage::Restored,
+        }),
+    )) = domain.work.pop()
+    else {
         panic!("the forge restore completes after its defaults");
     };
     assert!(domain.work.is_empty(), "no SettingsDefaults precedes the restore completion");
@@ -645,6 +725,17 @@ fn reader(role: Option<jig_domain_people::Role>) -> (Domain, Env<RootLimits>) {
     reader_in(role, jig_domain_people::DEPLOYMENT)
 }
 fn reader_in(role: Option<jig_domain_people::Role>, project: u32) -> (Domain, Env<RootLimits>) {
+    reader_with_identity(
+        role,
+        project,
+        jig_domain_people::IdentityKey { provider: 0, subject: b"reader".as_slice().into() },
+    )
+}
+fn reader_with_identity(
+    role: Option<jig_domain_people::Role>,
+    project: u32,
+    key: jig_domain_people::IdentityKey,
+) -> (Domain, Env<RootLimits>) {
     use jig_domain_people as people;
     let (mut domain, env) = root();
     domain.engine.core_mut().people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
@@ -654,11 +745,7 @@ fn reader_in(role: Option<jig_domain_people::Role>, project: u32) -> (Domain, En
     for record in [
         people::Stored::Person {
             number: 1,
-            identity: people::Identity {
-                key: people::IdentityKey { provider: 0, subject: b"reader".as_slice().into() },
-                login: Box::new([]),
-                name: Box::new([]),
-            },
+            identity: people::Identity { key, login: Box::new([]), name: Box::new([]) },
         },
         people::Stored::SignIn { number: READ_SIGN_IN, person: 1, expires: Wall::from_nanos(100) },
         people::Stored::Roles {
@@ -1034,40 +1121,12 @@ fn a_proposals_items_say_whether_an_approval_covers_an_owned_forgejo() {
         let (mut reader, _) = reader(Some(Role::Member));
         let mut config = resume_fixture::config(7);
         config.forges.first_mut().unwrap().mode = mode;
-        let repository = forge::Repository {
-            contexts: Box::new([]),
-            landing: b"main".as_slice().into(),
-            refusals: Box::default(),
-            workflows: Box::default(),
-            project: PROJECT,
-            home: true,
-            provider: skein_forge::api::Repository { forge: 1, repository: 1 },
-            host: b"forge.example".as_slice().into(),
-            owner: b"org".as_slice().into(),
-            name: b"repo".as_slice().into(),
-            prefix: Box::new([]),
-            role: forge::Role::Owned,
-            ci: false,
-            checks: Box::new([]),
-            kinds: forge::Kinds {
-                read: true,
-                push: writable,
-                open: true,
-                land: true,
-                review: true,
-                status: true,
-                comment: true,
-                issue: true,
-                branch: true,
-            },
-            protection: forge::Protection::Absent,
-            settings: skein_forge::api::Settings {
-                default_branch: b"main".as_slice().into(),
-                merge: true,
-                squash: false,
-                rebase: false,
-            },
-        };
+        let mut repository = owned_repository(1);
+        repository.project = PROJECT;
+        repository.prefix = Box::new([]);
+        repository.ci = false;
+        repository.kinds.push = writable;
+        repository.settings.squash = false;
         let (mut domain, env) = resume_fixture::root_with_config(config);
         ::core::mem::swap(&mut domain.engine.core_mut().people, &mut reader.engine.core_mut().people);
         domain.forge.restore_begin(env.wall);
@@ -1147,7 +1206,7 @@ fn forge_reads_wait_for_the_preceding_settings_commit() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::KeepSettings {
+        jig_domain_contract::settings::Ask::Keep {
             revision: 2,
             proposal: None,
             items: Box::new([project_rule(application::Edit::Set(Box::default()))]),
@@ -1197,8 +1256,9 @@ fn root_with_way() -> (Domain, Env<RootLimits>) {
     use jig_domain_tasks as tasks;
     let mut config = resume_fixture::config(7);
     config.core.defaults.templates = Box::new([jig_domain_core::Template {
+        name: None,
         number: 1,
-        name: b"way".as_slice().into(),
+        shown: b"way".as_slice().into(),
         executor: people::TemplateExecutor::Chosen,
         contract: tasks::Contract::Report { words: 32 },
         shallower: 1,
@@ -1242,7 +1302,7 @@ fn a_restore_refuses_a_way_the_project_does_not_offer() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::RestoreSettings {
+        jig_domain_contract::settings::Ask::Restore {
             owner: RESTORE_OWNER,
             proposal: PROPOSAL,
             items: Box::new([restored(7, PROJECT, 1, application::RestoredEdit::Set { revision: 3 })]),
@@ -1389,44 +1449,29 @@ fn follow_value() -> settings::Follow {
 }
 
 fn follow_repository(number: u32, role: forge::Role, push: bool) -> forge::Repository {
-    forge::Repository {
-        project: 2,
-        contexts: Box::new([]),
-        home: false,
-        provider: skein_forge::api::Repository { forge: 1, repository: number },
-        host: b"forge.example".as_slice().into(),
-        owner: b"org".as_slice().into(),
-        name: b"repo".as_slice().into(),
-        prefix: Box::new([]),
-        role,
-        ci: true,
-        checks: Box::new([]),
-        kinds: forge::Kinds {
-            read: true,
-            push,
-            open: push,
-            land: push,
-            review: push,
-            status: push,
-            comment: push,
-            issue: push,
-            branch: push,
-        },
-        protection: forge::Protection::Absent,
-        settings: skein_forge::api::Settings {
-            default_branch: if role == forge::Role::Context {
-                b"main".as_slice().into()
-            } else {
-                b"stable".as_slice().into()
-            },
-            merge: true,
-            squash: false,
-            rebase: false,
-        },
-        landing: if role == forge::Role::Context { b"main".as_slice().into() } else { b"stable".as_slice().into() },
-        refusals: Box::default(),
-        workflows: Box::new([]),
+    let mut repository = owned_repository(1);
+    repository.project = 2;
+    repository.home = false;
+    repository.provider.repository = number;
+    repository.prefix = Box::new([]);
+    repository.role = role;
+    repository.kinds = forge::Kinds {
+        read: true,
+        push,
+        open: push,
+        land: push,
+        review: push,
+        status: push,
+        comment: push,
+        issue: push,
+        branch: push,
+    };
+    if role != forge::Role::Context {
+        repository.landing = b"stable".as_slice().into();
+        repository.settings.default_branch = repository.landing.clone();
     }
+    repository.settings.squash = false;
+    repository
 }
 
 fn follow_root() -> (Domain, Env<RootLimits>) {
@@ -1592,15 +1637,17 @@ fn a_task_owned_follows_hold_is_admitted_only_for_a_project_owner() {
         let mut requests = Queue::uncapped();
         requests.push(jig_domain_core::Request::Ask {
             connector: domain.config.forge_connector,
-            ask: jig_domain_core::Ask::Application {
-                request: Token::new(21),
-                token: Token::new(22),
-                owner: OWNER,
-                person: 1,
-                scope: ApplicationScope::Project(2),
-                role: Some(role),
-                retention: skein_lib::Duration::from_secs(60),
-            },
+            ask: jig_domain_core::Ask::Connector(jig_domain_contract::Ask::Requests(
+                jig_domain_contract::requests::Ask::Decide {
+                    request: Token::new(21),
+                    token: Token::new(22),
+                    owner: OWNER,
+                    person: 1,
+                    scope: ApplicationScope::Project(2),
+                    role: Some(role),
+                    retention: skein_lib::Duration::from_secs(60),
+                },
+            )),
         });
         let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
         crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
@@ -1728,7 +1775,7 @@ fn follows_resolve_adopted_branches_and_allow_member_reads_but_not_outsiders() {
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::KeepSettings {
+        jig_domain_contract::settings::Ask::Keep {
             revision: 2,
             proposal: None,
             items: Box::new([application::Item {
@@ -1809,19 +1856,19 @@ fn restoring_a_retired_setting_names_it_and_keeps_current_settings() {
         domain.forge.restore_begin(env.wall);
         let key = settings::SettingKey { kind, scope, number, slot: settings::SettingSlot::Replaced(2) };
         let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-        crate::restart::restore_page_row(
-            &mut domain,
-            &env,
-            Record::Forge { row: Box::new(forge::Stored::RefusedSetting(key)) },
+        forge::step(
+            &mut domain.forge,
+            &crate::translate::environment_forge(&env),
+            forge::Event::Restore { record: forge::Stored::RefusedSetting(key) },
+            &mut Queue::uncapped(),
         );
-        crate::route::route_into(&mut domain, &env, &mut decision);
         let before = domain.forge.setting(3, 0, 1).cloned();
         let current = domain.engine.core().current.newest();
         ask(
             &mut domain,
             &env,
             &mut decision,
-            connector::Ask::RestoreSettings {
+            jig_domain_contract::settings::Ask::Restore {
                 owner: RESTORE_OWNER,
                 proposal: PROPOSAL,
                 items: Box::new([application::Restored {
@@ -1832,8 +1879,10 @@ fn restoring_a_retired_setting_names_it_and_keeps_current_settings() {
                 }]),
             },
         );
-        let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsRestored { owner, judged }))) =
-            domain.work.pop()
+        let Some(Work::Connector(
+            _,
+            jig_domain_contract::Up::Settings(jig_domain_contract::settings::Up::Restored { owner, judged }),
+        )) = domain.work.pop()
         else {
             panic!("restore judgement")
         };
@@ -1897,7 +1946,7 @@ fn dependency_structural_refusals_name_the_dependency_and_restore_rechecks_the_t
         &mut domain,
         &env,
         &mut decision,
-        connector::Ask::RestoreSettings {
+        jig_domain_contract::settings::Ask::Restore {
             owner: RESTORE_OWNER,
             proposal: PROPOSAL,
             items: Box::new([restored(13, PROJECT, 1, application::RestoredEdit::Set { revision: 3 })]),
@@ -1934,15 +1983,17 @@ fn a_tier_act_admits_only_project_or_deployment_owners_and_carries_the_party() {
         let mut requests = Queue::uncapped();
         requests.push(jig_domain_core::Request::Ask {
             connector: domain.config.forge_connector,
-            ask: jig_domain_core::Ask::Application {
-                request: Token::new(21),
-                token: Token::new(22),
-                owner: OWNER,
-                person: 1,
-                scope: ApplicationScope::Own,
-                role: Some(role),
-                retention: skein_lib::Duration::from_secs(60),
-            },
+            ask: jig_domain_core::Ask::Connector(jig_domain_contract::Ask::Requests(
+                jig_domain_contract::requests::Ask::Decide {
+                    request: Token::new(21),
+                    token: Token::new(22),
+                    owner: OWNER,
+                    person: 1,
+                    scope: ApplicationScope::Own,
+                    role: Some(role),
+                    retention: skein_lib::Duration::from_secs(60),
+                },
+            )),
         });
         let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
         crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
@@ -1990,6 +2041,80 @@ fn judge_landing_value(
     let answer = answer(domain)[0].clone();
     crate::domain::close(domain, env, decision, &mut Queue::uncapped());
     answer
+}
+#[test]
+fn temper_dir_sign_off_requires_an_eligible_owner_on_each_writable_forge() {
+    use forge::Mode::{Connected, Fake};
+    use jig_domain_people::Role::{Maintainer, Owner};
+    for (mode, role, writable, why) in [
+        (Connected, Owner, false, None),
+        (Connected, Maintainer, false, Some(b"forge.example".as_slice())),
+        (Connected, Owner, true, Some(b"second.example".as_slice())),
+        (Fake, Owner, true, Some(b"the playground's forge has no accounts".as_slice())),
+        (Fake, Owner, false, None),
+    ] {
+        let (mut owner, _) = reader_with_identity(Some(role), PROJECT, forge::user_key(1, 7));
+        let mut config = resume_fixture::config(7);
+        let first = config.forges.first().unwrap().clone();
+        let second = forge::Configured { number: 2, mode, ..first.clone() };
+        config.forges = Box::new([first, second]);
+        let (mut domain, env) = resume_fixture::root_with_config(config);
+        ::core::mem::swap(&mut domain.engine.core_mut().people, &mut owner.engine.core_mut().people);
+        domain.forge.restore_begin(env.wall);
+        for (number, host, push) in [(1, b"forge.example".as_slice(), true), (2, b"second.example", writable)] {
+            let mut repository = owned_repository(number);
+            repository.project = PROJECT;
+            repository.host = host.into();
+            repository.kinds.push = push;
+            forge::step(
+                &mut domain.forge,
+                &env.with(env.limits.forge),
+                forge::Event::Restore { record: forge::Stored::Repository(repository) },
+                &mut Queue::uncapped(),
+            );
+        }
+        let value = settings::Value::Landing(settings::ProjectLanding {
+            temper_dir_sign_off: true,
+            ..settings::ProjectLanding::default()
+        });
+        let judged = judge_landing_value(&mut domain, &env, 4, PROJECT, value);
+        if let Some(reason) = why {
+            let connector::Judged::Refuse { why } = judged else {
+                panic!("an unsignable forge must refuse: {mode:?}, {role:?}")
+            };
+            assert!(why.starts_with(b"temper_dir_sign_off: "));
+            assert!(skein_lib::bytes::find(&why, reason).is_some(), "{why:?}");
+        } else {
+            let connector::Judged::Accept { .. } = judged else { panic!("{judged:?}") };
+        }
+        let judged = judge_landing_value(
+            &mut domain,
+            &env,
+            4,
+            PROJECT,
+            settings::Value::Landing(settings::ProjectLanding::default()),
+        );
+        let connector::Judged::Accept { .. } = judged else { panic!("off is good: {judged:?}") };
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+        judge(
+            &mut domain,
+            &env,
+            &mut decision,
+            None,
+            Box::new([application::Edit::Remove, application::Edit::Reset].map(|edit| application::Item {
+                kind: 4,
+                scope: PROJECT,
+                number: 1,
+                edit,
+            })),
+        );
+        for judgement in &answer(&mut domain) {
+            if let connector::Judged::Refuse { why } = judgement {
+                panic!("removal and reset are good: {why:?}");
+            }
+        }
+        crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+    }
 }
 #[test]
 fn turn_settings_need_the_prepare_jobs_configured_capacity() {
@@ -2062,7 +2187,7 @@ fn repairs_setting() -> settings::ProjectLanding {
                 charter: 1,
                 llm: Some(settings::NamedLlm {
                     account: Some(9),
-                    main: settings::NamedModel { model: b"scripted".as_slice().into(), effort: None },
+                    main: settings::NamedModel { model: b"scripted".as_slice().into(), effort: None, speed: None },
                     subagents: Box::new([]),
                     later: None,
                 }),
@@ -2075,7 +2200,15 @@ fn repairs_setting() -> settings::ProjectLanding {
 }
 fn repairs_config() -> crate::Config {
     let mut config = resume_fixture::config(7);
-    let first = resume_fixture::models()[0].clone();
+    let mut first = resume_fixture::models()[0].clone();
+    first.speeds = Box::new([jig_domain_core::Speed {
+        name: b"fast".as_slice().into(),
+        also: Box::default(),
+        input_price: first.input_price,
+        cached_price: first.cached_price,
+        cache_write_price: first.cache_write_price,
+        output_price: first.output_price,
+    }]);
     let mut other = first.clone();
     other.name = b"other".as_slice().into();
     // Deliberately reordered: a kept name must resolve to the new catalogue index.
@@ -2127,7 +2260,7 @@ fn repair_proposals_check_the_deployments_charter_models_efforts_and_budget() {
         }
     }
 }
-fn start_with_repairs(landing: Option<settings::ProjectLanding>, spec: u32) -> (Domain, Env<RootLimits>) {
+fn start_with_landing(landing: Option<settings::ProjectLanding>, spec: u32) -> (Domain, Env<RootLimits>) {
     let mut limits = resume_fixture::limits();
     limits.tasks.spec_bytes = spec;
     limits.journal.transcript_bytes = limits.journal.transcript_bytes.max(65_536);
@@ -2158,7 +2291,7 @@ fn start_with_repairs(landing: Option<settings::ProjectLanding>, spec: u32) -> (
     assert_eq!(domain.start_stop(), None, "incomplete repairs never stop a start");
     (domain, env)
 }
-fn keep_repairs(domain: &mut Domain, env: &Env<RootLimits>, landing: settings::ProjectLanding) {
+fn keep_landing(domain: &mut Domain, env: &Env<RootLimits>, landing: settings::ProjectLanding) {
     let value = settings::SizedValue {
         size: settings::landing_record(&landing)
             .measure(&temper_client_protocol_wire::v1::CEILINGS)
@@ -2184,8 +2317,10 @@ fn a_start_resolves_repairs_or_keeps_the_first_incomplete_field_without_stopping
         let mut landing = repairs_setting();
         let goal = &mut landing.repairs.as_mut().unwrap().goal;
         goal.charter = charter;
-        goal.llm.as_mut().unwrap().main.model = model.into();
-        let (domain, _) = start_with_repairs(Some(landing.clone()), spec);
+        let main = &mut goal.llm.as_mut().unwrap().main;
+        main.model = model.into();
+        main.speed = Some(b"fast".as_slice().into());
+        let (domain, _) = start_with_landing(Some(landing.clone()), spec);
         if let Some(expected) = expected {
             assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), expected);
         } else {
@@ -2194,11 +2329,24 @@ fn a_start_resolves_repairs_or_keeps_the_first_incomplete_field_without_stopping
             assert_eq!((held.goal.charter, held.goal.priority, held.goal.budget), (1, 42, 2_000_000));
             assert_eq!(held.goal.llm.as_ref().unwrap().main.model, 1, "resolved by name, not old position");
             assert_eq!(held.goal.llm.as_ref().unwrap().account, Some(9));
+            assert_eq!(held.goal.llm.as_ref().unwrap().main.speed.unwrap().as_bytes(), b"fast");
         }
         assert_eq!(domain.forge.landing_settings(PROJECT), Some(&landing), "taken setting is kept even when off");
     }
-    let (domain, _) = start_with_repairs(None, 8_192);
+    let (domain, _) = start_with_landing(None, 8_192);
     assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), b"repairs are off in project 1");
+}
+#[test]
+fn temper_dir_sign_off_is_taken_only_at_start() {
+    let off = settings::ProjectLanding::default();
+    let on = settings::ProjectLanding { temper_dir_sign_off: true, ..off.clone() };
+    let (mut domain, env) = start_with_landing(Some(off.clone()), 8_192);
+    keep_landing(&mut domain, &env, on.clone());
+    assert!(!domain.forge.landing_settings(PROJECT).unwrap().temper_dir_sign_off);
+    let (mut restarted, env) = start_with_landing(Some(on), 8_192);
+    assert!(restarted.forge.landing_settings(PROJECT).unwrap().temper_dir_sign_off);
+    keep_landing(&mut restarted, &env, off);
+    assert!(restarted.forge.landing_settings(PROJECT).unwrap().temper_dir_sign_off);
 }
 #[test]
 fn accepted_repair_settings_wait_for_the_next_start() {
@@ -2210,13 +2358,13 @@ fn accepted_repair_settings_wait_for_the_next_start() {
     else {
         panic!("whole repairs accepted")
     };
-    keep_repairs(&mut domain, &env, landing.clone());
+    keep_landing(&mut domain, &env, landing.clone());
     assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), b"repairs are off in project 1");
-    let (mut domain, env) = start_with_repairs(Some(landing), 8_192);
+    let (mut domain, env) = start_with_landing(Some(landing), 8_192);
     assert_eq!(domain.forge.project_repairs(PROJECT).unwrap().goal.priority, 42);
     // Saving an off setting does not change this start's resolved repairs either.
-    keep_repairs(&mut domain, &env, settings::ProjectLanding::default());
+    keep_landing(&mut domain, &env, settings::ProjectLanding::default());
     domain.forge.project_repairs(PROJECT).expect("this start still holds its repairs");
-    let (domain, _) = start_with_repairs(Some(settings::ProjectLanding::default()), 8_192);
+    let (domain, _) = start_with_landing(Some(settings::ProjectLanding::default()), 8_192);
     assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), b"repairs are off in project 1");
 }

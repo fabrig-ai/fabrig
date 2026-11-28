@@ -437,7 +437,7 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
     for event in [
         jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
         jig_client::Event::SignIn { with: jig_client::With::Transport },
-        jig_client::Event::Up { up: Up::Served { served: true, versions: None } },
+        jig_client::Event::Up { up: Up::Served { served: true } },
     ] {
         step(&mut root, name, Event::Client { event }, &mut out);
     }
@@ -466,8 +466,9 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                         for project in &me.projects {
                             settings
                                 .push(c::SettingLine {
-                                    setting: c::Setting::Application { kind: 2, scope: project.project, number: 1 },
                                     name: None,
+                                    setting: c::Setting::Application { kind: 2, scope: project.project, number: 1 },
+                                    shown: None,
                                     follows: c::SettingFollows::Change,
                                     last: None,
                                     application: None,

@@ -132,12 +132,12 @@ fn unname(domain: &mut crate::Domain, env: &Env<crate::Limits>, task: u64) -> Bo
     super::restore_forge(domain, env, forge::Stored::Names { task, resources: super::change_names(None) });
     let connector = domain.config.forge_connector;
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    super::super::effect_ask(
+    crate::route::asks::ask(
         domain,
         env,
         &mut decision,
         connector,
-        jig_domain_core::effects::connector::Ask::Unname { task },
+        jig_domain_contract::Ask::Resources(jig_domain_contract::resources::Ask::Unname { task }),
     );
     crate::route::route_into(domain, env, &mut decision);
     crate::domain::close(domain, env, decision, &mut Queue::uncapped());

@@ -143,7 +143,7 @@ pub(super) const AUTHORITY: authority::Limits = authority::Limits {
     writes: 4,
 };
 pub(super) const BRIEF: brief::Limits =
-    brief::Limits { briefs: 4, sections: 10, read_bytes: 8_192, brief_bytes: 16_384 };
+    brief::Limits { briefs: 4, sections: 10, read_bytes: 8_192, brief_bytes: 16_384, gather: Duration::from_secs(30) };
 pub(super) const ACCOUNTS: accounts::Limits = accounts::Limits {
     accounts: 4,
     holder_accounts: 4,
@@ -452,9 +452,10 @@ pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Li
 // Started-from dependencies cost a four-byte count plus 8 eight-byte numbers = 68 bytes.
 pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     key: 2079,
-    // check_commits prices settings history, including providers, limit overrides and replaced values,
-    // at CORE's effective capacities (jig's protocol/store/records.md, 4).
-    value: 39_826_916,
+    // check_commits prices settings history, including named speeds in model choices, providers,
+    // limit overrides, setting names and replaced values at CORE's effective capacities
+    // (jig/docs/design/protocol/store/records.md, 4).
+    value: 40_008_900,
     // A log append and two places per journal write, four creation rows and an orphan erase: 3 * 20,801 + 5.
     ops: 62_408,
     // 256 MiB values + 62,408 operations * (2,079 key + 9 framing) + 26 frame bytes.
@@ -465,9 +466,9 @@ pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     budget: 268_435_456,
     segment: 797_486_772,
     snapshot_after: 398_743_386,
-    chunk: 39_829_015,
+    chunk: 40_010_999,
     // The revision envelope, including what its items replaced, fits with its key.
-    page: skein_kv::Page { rows: 2, bytes: 39_828_995 },
+    page: skein_kv::Page { rows: 2, bytes: 40_010_979 },
     record: 39_828_995,
     log: 1 << 40,
     logs: 16,

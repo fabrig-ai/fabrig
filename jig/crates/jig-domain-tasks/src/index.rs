@@ -1,4 +1,5 @@
 //! Durable indexes for parties' reads (protocol/store/loads.md, section 4).
+pub use jig_domain_contract::ops::Endings;
 use skein_lib::Wall;
 
 /// A number ordered newest first by its stored complement.
@@ -182,31 +183,6 @@ pub struct ResultRow {
     pub task: u64,
 }
 
-/// Lifetime ended descendants' outcomes, saturating (domain/tasks/README.md, section 3).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Endings {
-    pub done: u32,
-    pub failed: u32,
-    pub cancelled: u32,
-}
-impl Endings {
-    pub const ZERO: Self = Self { done: 0, failed: 0, cancelled: 0 };
-    pub(crate) fn add(&mut self, other: Self) {
-        self.done = self.done.saturating_add(other.done);
-        self.failed = self.failed.saturating_add(other.failed);
-        self.cancelled = self.cancelled.saturating_add(other.cancelled);
-    }
-    pub(crate) fn ended(mut self, status: crate::Status) -> Self {
-        let count = match status {
-            crate::Status::Done => &mut self.done,
-            crate::Status::Failed => &mut self.failed,
-            crate::Status::Cancelled => &mut self.cancelled,
-        };
-        *count = count.saturating_add(1);
-        self
-    }
-}
-
 /// A requester-to-delegate edge retained until adoption (protocol/store/loads.md 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Edge {
@@ -254,4 +230,20 @@ impl EndedByProject {
             task: self.task,
         }
     }
+}
+
+pub(crate) fn add_endings(endings: &mut Endings, other: Endings) {
+    endings.done = endings.done.saturating_add(other.done);
+    endings.failed = endings.failed.saturating_add(other.failed);
+    endings.cancelled = endings.cancelled.saturating_add(other.cancelled);
+}
+
+pub(crate) fn with_ending(mut endings: Endings, status: crate::Status) -> Endings {
+    let count = match status {
+        crate::Status::Done => &mut endings.done,
+        crate::Status::Failed => &mut endings.failed,
+        crate::Status::Cancelled => &mut endings.cancelled,
+    };
+    *count = count.saturating_add(1);
+    endings
 }

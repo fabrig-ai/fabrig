@@ -10,6 +10,7 @@ pub enum Set {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Form {
+    Format,
     Table,
     Members,
     Records,
@@ -37,6 +38,7 @@ impl Form {
     #[must_use]
     pub fn words(self) -> String {
         match self {
+            Self::Format => "a whole number from 1 to the newest format".into(),
             Self::Table => "a table".into(),
             Self::Members => "an array of 1 to 64 member tables".into(),
             Self::Records => "an array of tables".into(),
@@ -106,6 +108,16 @@ use Form::{
 };
 
 pub static ROWS: &[Row] = &[
+    row!(
+        "format",
+        Public,
+        &[S, E, W],
+        Form::Format,
+        "1",
+        "the format the file is written in (written only above 1)",
+        &[],
+        No
+    ),
     row!(
         "listen",
         Public,

@@ -5,7 +5,7 @@ use crate::{
     route::{forge_route as route, host_route},
 };
 use jig_domain_authority as authority;
-use jig_domain_core::effects::connector::{Ask, EffectRefusal};
+use jig_domain_contract::effects::{Ask, EffectRefusal};
 use skein_forge::api::{self, Answer, Error, Op};
 use skein_lib::{Env, Queue, ReplyTo, Token};
 use temper_engine_domain_forge as forge;
@@ -165,7 +165,8 @@ fn owner(domain: &mut Domain) -> Token {
 }
 
 fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, ask: Ask) {
-    route::effect_ask(domain, env, decision, domain.config.forge_connector, ask);
+    let connector = domain.config.forge_connector;
+    crate::route::asks::ask(domain, env, decision, connector, jig_domain_contract::Ask::Effects(ask));
 }
 
 fn keep(
@@ -183,6 +184,7 @@ fn keep(
             owner,
             entry: ENTRY,
             task: key.task,
+            project: None,
             key: jig_domain_core::EffectKey {
                 deployment: domain.engine.core().counters.deployment().id,
                 task: key.task,
@@ -418,17 +420,19 @@ fn a_proposal_description_waits_for_room_and_reserves_its_acceptance() {
         let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
         ask(&mut domain, &env, &mut decision, Ask::DescribeProposal { owner, proposal: 71 });
         if full {
-            let Some(Work::Core(jig_domain_core::Event::EffectConnector(
-                jig_domain_core::effects::connector::Event::DescribeBusy { owner: received },
-            ))) = domain.work.pop()
+            let Some(Work::Connector(
+                _,
+                jig_domain_contract::Up::Effects(jig_domain_contract::effects::Up::Busy { owner: received }),
+            )) = domain.work.pop()
             else {
                 panic!("jig answers a busy acceptance Wait, retaining its proposal")
             };
             assert_eq!(received, owner);
         } else {
-            let Some(Work::Core(jig_domain_core::Event::EffectConnector(
-                jig_domain_core::effects::connector::Event::Described { .. },
-            ))) = domain.work.pop()
+            let Some(Work::Connector(
+                _,
+                jig_domain_contract::Up::Effects(jig_domain_contract::effects::Up::Described { .. }),
+            )) = domain.work.pop()
             else {
                 panic!("proposal is described into reserved room")
             };

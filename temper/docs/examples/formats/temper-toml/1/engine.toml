@@ -1,0 +1,31 @@
+# Engine with a separate worker. The public address is on our HTTPS proxy.
+listen = "127.0.0.1:7100"
+public = "https://temper.example.com"
+webhooks = "127.0.0.1:7110"
+workers = "127.0.0.1:7200" # The workers connect on loopback.
+owner = "sam@example.com"
+
+[sign_in.google]
+client = "fixture-engine.apps.googleusercontent.com"
+secret = "secrets/google.secret" # Relative to the data directory.
+
+[[sign_in.members]]
+address = "sam@example.com"
+login = "sam"
+
+[[sign_in.forges]]
+forge = 1
+client = "forgejo"
+
+[openid]
+key = "provider.key"
+addresses = [3] # Use Google addresses when signing in to Forgejo.
+
+[[openid.clients]]
+id = "forgejo"
+secret = "secrets/forgejo-client.secret"
+redirect = "https://forge.example.com/user/oauth2/temper/callback"
+
+[push]
+key = "push.key"
+subject = "mailto:sam@example.com"

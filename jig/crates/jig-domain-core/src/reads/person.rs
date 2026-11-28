@@ -5,7 +5,7 @@ use crate::{CallKey, Core, Limits, Now, Request, ToolKind};
 use alloc::boxed::Box;
 use jig_domain_people::{ApplicationScope, Proposer};
 use jig_domain_tasks::Party;
-use skein_lib::{Env, Queue, ReplyTo};
+use skein_lib::{Env, Queue, ReplyTo, Token};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Admission {
@@ -138,7 +138,7 @@ fn unknown(to: ReplyTo, key: CallKey) -> Queue<Request> {
 pub(super) fn owner_loaded(
     core: &mut Core,
     env: &Env<Limits>,
-    name: skein_lib::Id<crate::loads::Flight>,
+    name: Token,
     result: engine_store::Answer,
 ) -> Queue<Request> {
     let pending = core.loads.read_mut(name).expect("pending owner check");
@@ -160,7 +160,9 @@ pub(super) fn owner_loaded(
         engine_store::Answer::Rows(engine_store::Rows::Read { rows, next }) => {
             super::rows::person_owner(core, &env.limits, &range, &rows, next.as_ref(), project)
         }
-        engine_store::Answer::Rows(engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. })
+        engine_store::Answer::Rows(
+            engine_store::Rows::Records { .. } | engine_store::Rows::Turns { .. } | engine_store::Rows::Start { .. },
+        )
         | engine_store::Answer::Cut { .. }
         | engine_store::Answer::Failed(
             engine_store::Failure::Busy | engine_store::Failure::Failed | engine_store::Failure::Unread,

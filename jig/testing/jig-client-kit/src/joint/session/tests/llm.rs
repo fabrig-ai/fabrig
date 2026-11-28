@@ -87,7 +87,7 @@ fn choice(account: Option<u32>) -> c::LlmChoice {
     c::LlmChoice {
         later: None,
         account,
-        main: c::ModelEffort { model: text(b"scripted"), effort: Some(text(b"high")) },
+        main: c::ModelEffort { model: text(b"scripted"), effort: Some(text(b"high")), speed: None },
         subagents: List::with_capacity(0),
     }
 }
@@ -180,7 +180,8 @@ fn model_amendment_replaces_the_choice() {
     let me = me(&mut session, now, wall);
     let account = account(&session);
     let mut chosen = choice(Some(account));
-    chosen.subagents = crate::test::list([c::ModelEffort { model: text(b"blocked"), effort: Some(text(b"low")) }]);
+    chosen.subagents =
+        crate::test::list([c::ModelEffort { model: text(b"blocked"), effort: Some(text(b"low")), speed: None }]);
     let number = created(&ask(&mut session, now, wall, 41, creating(&me, chosen)));
     let before = task(&mut session, now, wall, number);
     let mut next = before.llm.clone().expect("current choice");

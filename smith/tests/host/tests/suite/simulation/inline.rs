@@ -328,7 +328,7 @@ fn two_inline_slots_route_each_roots_requests_to_its_own_slot_under_load() {
         let mut start = inline::workspace_start(client.raw(), Job::HostTools);
         let mut charter = start.charter.into_value();
         charter.brief.sections[0].text = cue.into();
-        charter.conventions = Some(run::Conventions { guide: guide.into(), checks: guide.into() });
+        charter.conventions = Some(run::Conventions { guide: guide.into(), checks: guide.into(), hooks: None });
         start.charter =
             host::Charter::new(charter, world.stage.env.limits.smith.run.run_bytes).expect("bounded host-work charter");
         world.event(parent::Event::Spawn { client, start });
@@ -398,6 +398,7 @@ fn workspace_start(seed: u64) -> smith_host_domain::Start {
     charter.conventions = Some(smith_domain::run::Conventions {
         guide: b"AGENTS.md".as_slice().into(),
         checks: b"check-ok".as_slice().into(),
+        hooks: None,
     });
     let mut source = inline::start(seed, smith_agent_world::Job::Coding);
     source.charter =
@@ -405,6 +406,7 @@ fn workspace_start(seed: u64) -> smith_host_domain::Start {
     source.workspace = Some(Token::new(9));
     source.directories = Box::from([smith_host_domain::Directory {
         results: None,
+        hooks: None,
         host: Box::from(b"/host".as_slice()),
         name: b"work".as_slice().into(),
         root: Token::new(1),

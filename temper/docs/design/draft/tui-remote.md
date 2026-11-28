@@ -88,7 +88,7 @@ It covers:
   the machine's roots, found by skein-shell's startup, are in the tree
   already, used by the engine's own calls out.
 - **A client of another build is refused** (`archive/redeploys.md`, 8;
-  `layouts-both-ways.md`, 3), and the browser reloads to the engine's
+  `archive/layouts-both-ways.md`, 3), and the browser reloads to the engine's
   bundle. The TUI has no words for it.
 
 ## 3. The address
@@ -396,7 +396,7 @@ code of the TUI's own:
 
 - **What would come:** the clients' wires bridged as a worker's are, the
   engine converting both ways for a client at another layout
-  (`layouts-both-ways.md`, 6.1 and 10). It is planned there as later,
+  (`archive/layouts-both-ways.md`, 6.1 and 10). It is planned there as later,
   and is in neither of that draft's milestones: their client part
   freezes the clients' versions and refuses a client by its layouts'
   fingerprints at the hello, by name, which is section 7's screen.
@@ -409,12 +409,12 @@ code of the TUI's own:
 - **How far it goes,** by layout and by value:
   - a change no plan derives, a retype or a reshape with no written
     converter, is still refused at the hello, and section 7's screen
-    still shows (`layouts-both-ways.md`, 7.3);
+    still shows (`archive/layouts-both-ways.md`, 7.3);
   - where the floor has removed a conversion a build needs, that build
-    is refused (`layouts-both-ways.md`, 7.4);
+    is refused (`archive/layouts-both-ways.md`, 7.4);
   - a variant added in the engine's build still derives a plan down to
     an older TUI, and only a value that selects it is refused
-    (`layouts-both-ways.md`, 4); what the engine then does with that
+    (`archive/layouts-both-ways.md`, 4); what the engine then does with that
     value, and how a newer TUI's request an older engine can't hold is
     answered, typed rather than left waiting, are the bridge's to design;
   - meaning moves with the code, not the layout: an older TUI shows less
@@ -425,7 +425,7 @@ code of the TUI's own:
   engine's own bundle, so native clients are the bridge's first users,
   and a remote one is the first peer to send its layouts' texts from the
   internet. The client wire's bridge and its bounds are
-  `layouts-both-ways.md`'s (10): the hello and the sign-in stay at
+  `archive/layouts-both-ways.md`'s (10): the hello and the sign-in stay at
   layouts that don't move, so a client of any build is refused by name
   or signs in, and texts are taken after sign-in alone.
 

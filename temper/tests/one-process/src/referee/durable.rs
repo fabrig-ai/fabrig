@@ -4,6 +4,7 @@ mod history;
 mod layouts;
 pub(crate) use layouts::serving_row;
 pub(crate) mod snapshots;
+pub(crate) use temper_deployment_fixtures::log::frames;
 #[cfg(test)]
 mod tests;
 use jig_channel_kit::world::store::logs;
@@ -537,54 +538,6 @@ impl Store {
         Ok(Commit { number, writes, installation, wires, turn_ends })
     }
 }
-type Frames = Vec<(u64, Box<[skein_kv::Op]>)>;
-pub(crate) fn frames(bytes: &[u8], after: u64) -> (Frames, usize) {
-    let mut reader = Reader::new(bytes);
-    let mut frames = Vec::new();
-    let mut used = 0;
-    while reader.remaining() >= 26 {
-        let start = bytes.len() - reader.remaining() as usize;
-        assert_eq!(reader.bytes(4), Some(b"SKVC".as_slice()), "real KV frame magic");
-        assert_eq!(reader.u16(), Some(1), "real KV frame version");
-        let number = reader.u64().expect("frame number");
-        let count = reader.u32().expect("frame writes");
-        let body = reader.u32().expect("frame body length");
-        if reader.remaining() < body + 4 {
-            break;
-        }
-        let end = (bytes.len() - reader.remaining() as usize) + body as usize;
-        let mut ops = Vec::new();
-        for _ in 0..count {
-            let kind = reader.u8().expect("write kind");
-            let len = reader.u32().expect("key length");
-            let key = reader.bytes(len).expect("key");
-            match kind {
-                1 => {
-                    let len = reader.u32().expect("value length");
-                    let value = reader.bytes(len).expect("value");
-                    if number > after {
-                        ops.push(skein_kv::Op::Put { key: key.into(), value: value.into() });
-                    }
-                }
-                2 => {
-                    if number > after {
-                        ops.push(skein_kv::Op::Erase { key: key.into() });
-                    }
-                }
-                _ => panic!("real KV write kind"),
-            }
-        }
-        assert_eq!((bytes.len() - reader.remaining() as usize), end, "whole frame operations");
-        let expected = transcripts::frame::crc32c(&bytes[start..end]);
-        assert_eq!(reader.u32(), Some(expected), "real KV frame checksum");
-        used = bytes.len() - reader.remaining() as usize;
-        if number > after {
-            frames.push((number, ops.into_boxed_slice()));
-        }
-    }
-    (frames, used)
-}
-
 fn in_generation(path: &[u8]) -> Option<&[u8]> {
     let rest = path.strip_prefix(b"generations/")?;
     let slash = rest.iter().position(|byte| *byte == b'/')?;

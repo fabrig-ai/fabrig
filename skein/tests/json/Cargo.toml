@@ -18,9 +18,9 @@ skein-scratch.workspace = true
 skein-lib.workspace = true
 skein-json.workspace = true
 
-# The counting allocator, for tests/memory.rs only.
 [dev-dependencies]
-skein-heap.workspace = true
+skein-heap.workspace = true # Counting allocator for the memory tests.
+skein-world.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

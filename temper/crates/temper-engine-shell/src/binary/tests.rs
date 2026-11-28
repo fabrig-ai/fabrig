@@ -1,5 +1,6 @@
 use super::{Capture, ENGINE, Reached, Reply, run, serve_command};
-use temper_config_shell::{FILE, Shape};
+use std::path::Path;
+use temper_config_shell::{FILE, FORMER, File, Shape};
 
 const VERSION: &str = "0.0.0";
 const COMMIT: &str = "0123456789ab";
@@ -78,6 +79,62 @@ pub(crate) fn refusal(words: &[&str]) -> (u8, String) {
     run(&captured(words), VERSION, COMMIT).expect_err("command refused")
 }
 
+fn config_capture(root: &Path, words: &[&str]) -> Capture {
+    let mut words = words.to_vec();
+    words.extend(["--config", "config", "--data", "data", "--cache", "cache"]);
+    Capture { working: Ok(root.into()), ..captured(&words) }
+}
+
+const CONFIG_SOURCE: &[u8] =
+    b"# mine\nlisten = '127.0.0.1:7100'\nworkers = '127.0.0.1:7200'\nowner = 'ada@localhost'\n";
+
+#[test]
+fn config_upgrade_prints_render_without_writing() {
+    let scratch = skein_scratch::Scratch::new("engine-config-upgrade");
+    let config = scratch.path().join("config");
+    std::fs::create_dir(&config).expect("config directory");
+    let path = config.join(FILE);
+    std::fs::write(&path, CONFIG_SOURCE).expect("input file");
+    let file = File {
+        listen: Some("127.0.0.1:7100".parse().expect("listen address")),
+        workers: Some("127.0.0.1:7200".parse().expect("workers address")),
+        owner: Some("ada@localhost".into()),
+        ..File::default()
+    };
+
+    let capture = config_capture(scratch.path(), &["config", "upgrade"]);
+    let expected = temper_config_shell::render(&file, Shape::EngineAlone);
+    assert_eq!(run(&capture, VERSION, COMMIT), Ok(Reply::Print(String::from_utf8_lossy(&expected).into_owned())));
+    assert_eq!(std::fs::read(&path).expect("original file"), CONFIG_SOURCE);
+    assert_eq!(std::fs::read_dir(&config).expect("config entries").count(), 1, "only the original file remains");
+    assert_eq!(std::fs::read_dir(scratch.path()).expect("root entries").count(), 1, "only config exists");
+}
+
+#[test]
+fn config_upgrade_refusals_match_the_checkpoint_read() {
+    let cases: &[&[(&str, &[u8])]] = &[
+        &[(FILE, CONFIG_SOURCE), (FORMER, b"not read")],
+        &[],
+        &[(FILE, b"workers = '127.0.0.1:7200'\nalpha = 1\nbeta = 2\n")],
+    ];
+    for files in cases {
+        let scratch = skein_scratch::Scratch::new("engine-config-upgrade-refusal");
+        let config = scratch.path().join("config");
+        std::fs::create_dir(&config).expect("config directory");
+        for (name, source) in *files {
+            std::fs::write(config.join(name), source).expect("input file");
+        }
+        let checkpoint = config_capture(scratch.path(), &["checkpoint"]);
+        let (code, refusal) = run(&checkpoint, VERSION, COMMIT).expect_err("checkpoint refuses unreadable config");
+        let upgrade = config_capture(scratch.path(), &["config", "upgrade"]);
+        assert_eq!(code, 1, "{refusal}");
+        assert_eq!(
+            run(&upgrade, VERSION, COMMIT),
+            Err((1, refusal.replace("temper-engine checkpoint:", "temper-engine config upgrade:")))
+        );
+    }
+}
+
 #[test]
 fn toml_engine_refuses_a_box_file_without_workers() {
     let capture = captured(&["serve", "--config", "/fixture"]);
@@ -107,7 +164,6 @@ fn toml_engine_refuses_a_box_file_without_workers() {
 
 #[test]
 fn engine_commands_refuse_the_former_file_by_name() {
-    use temper_config_shell::{FILE, FORMER};
     let scratch = skein_scratch::Scratch::new("engine-former-file");
     let arguments = [
         b"--config".as_slice(),
@@ -154,8 +210,10 @@ fn engine_commands_refuse_the_former_file_by_name() {
 }
 
 #[test]
-fn versions_print_each_wire_range_then_its_layout() {
+fn versions_print_each_wire_fingerprint_then_the_contract() {
     use std::fmt::Write;
+    use temper_engine_smith::wire as contract;
+
     let text = printed(&["versions"]);
     let mut lines = text.lines();
     assert!(lines.by_ref().take(4).eq(["level skein 0", "level smith 0", "level jig 6", "level temper 14"]));
@@ -172,32 +230,21 @@ fn versions_print_each_wire_range_then_its_layout() {
     ] {
         assert_eq!(lines.next(), Some(format!("family {family} {version}").as_str()));
     }
+    let names = ["jig-worker-wire", "smith-pieces", "smith-charter", "smith-transcript", "temper-worker-wire"];
     let wires = temper_engine_service::wires();
-    assert_eq!(wires.len(), 6);
-    for (worker, (name, frozen)) in wires.iter().take(5).zip([
-        ("jig-worker-wire", 22),
-        ("smith-pieces", 1),
-        ("smith-charter", 5),
-        ("smith-transcript", 8),
-        ("temper-worker-wire", 12),
-    ]) {
-        assert_eq!((worker.name, worker.lowest, worker.highest()), (name, frozen, frozen));
-    }
-    assert_eq!(wires.get(5).expect("host-tools row").name, "temper-host-tools");
-    for wire in &wires {
-        let (name, lowest, highest) = (wire.name, wire.lowest, wire.highest());
-        assert_eq!(lines.next(), Some(format!("wire {name} {lowest} {highest}").as_str()));
-        for version in lowest..=highest {
-            let layout = lines.next().expect("one layout follows for each spoken version");
-            let fingerprint =
-                layout.strip_prefix(&format!("layout {name} {version} ")).expect("layout name and version");
-            let mut expected = String::new();
-            for byte in wire.layout(version).expect("kept layout") {
-                write!(expected, "{byte:02x}").expect("writing into a string");
-            }
-            assert_eq!(fingerprint, expected);
+    assert!(wires.iter().map(|wire| wire.name).eq(names));
+    for (wire, name) in wires.iter().zip(names) {
+        let mut expected = format!("wire {name} ");
+        for byte in wire.layout {
+            write!(expected, "{byte:02x}").expect("writing into a string");
         }
+        assert_eq!(lines.next(), Some(expected.as_str()), "{text}");
     }
+    assert_eq!(
+        lines.next(),
+        Some(format!("contract temper-host-tools {} {}", contract::FLOOR, contract::VERSION).as_str()),
+        "{text}"
+    );
     assert_eq!(lines.next(), Some("bound stop 602"));
     assert_eq!(lines.next(), Some("bound report 30"));
     assert_eq!(lines.next(), None);

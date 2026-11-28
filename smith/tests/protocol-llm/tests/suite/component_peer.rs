@@ -324,6 +324,7 @@ fn run_story(
             grant: Some(GrantName { account: 0, generation: 1 }),
             prompt: llm::Prompt {
                 effort: None,
+                speed: None,
                 purpose: llm::Purpose::Ordinary { guard: None },
                 choice: smith_domain::llm::ToolChoice::Auto,
                 namespace: smith_domain::tools::Namespace::One,

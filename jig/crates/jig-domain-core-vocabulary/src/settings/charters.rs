@@ -6,17 +6,8 @@ use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use skein_lib::List;
 
-/// A charter's document (domain/engine/settings.md, 9).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Document {
-    pub connector: u16,
-    /// The resource name, within the authority's pattern bounds.
-    pub name: jig_domain_authority::Name,
-    /// 1 to `crate::DOCUMENT_PATH_BYTES` bytes.
-    pub path: Box<[u8]>,
-    /// 1 to `crate::DOCUMENT_HEADING_BYTES` bytes when present.
-    pub heading: Option<Box<[u8]>>,
-}
+pub use jig_domain_contract::parts::Document;
+
 /// A charter's part: instructions for runs whose reasons meet `on`
 /// (jig/docs/design/domain/tasks/messages.md, 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -29,6 +20,7 @@ pub struct CharterPart {
 /// (protocol/configuration-engine.md, 1; domain/engine/settings.md, 9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Charter {
+    pub name: Option<Box<[u8]>>,
     pub rest: bool,
     pub number: u32,
     pub policy: RunPolicy,
@@ -97,6 +89,14 @@ pub fn resolution(charter: &Charter, models: &[CatalogueModel], limits: &Limits)
                         && model.efforts.contains(effort)
                     {
                         model.effort = Some(effort.clone());
+                    }
+                    if let Some(speed) = &named.speed {
+                        if speed.as_ref() == tasks::STANDARD_SPEED {
+                            model.speed = None;
+                        } else if model.speed_named(speed).is_some() {
+                            model.speed = Some(speed.clone());
+                        }
+                        // Before admission, an invalid override leaves the catalogue default in place.
                     }
                     break;
                 }

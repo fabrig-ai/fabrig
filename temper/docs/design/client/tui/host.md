@@ -69,7 +69,7 @@ The TUI's host and seam are split from [the TUI](README.md).
   background where it answered (`theme.md`), the
   address, whether the TUI has an engine's link file to read
   (on Linux, `XDG_RUNTIME_DIR` absolute; on macOS, always), whether it
-  is on a box (2, *On a box*), the small
+  is on a box (`directory.md`, 1, *On a box*), the small
   store's records and the credential as the native shell loaded them,
   the note as the binary read it for this address (2), whether the
   terminal draws the header's mark, `plain` where `TERM_PROGRAM` is
@@ -230,10 +230,11 @@ The TUI's host and seam are split from [the TUI](README.md).
   | `Walk { object, step }` | a choice on the walk's prompt for the need `object` (`pages/launchpad.md`, 6): `Choose { words }`, `needs::Act::Choose`; `Open { address }`, the page opened as by `Open`; `Next`; each then marks the need shown |
   | `EndWalk` | Esc on the walk's prompt: the walk ends |
 
-  `Send` on the launchpad also takes `/change WORDS`, `/ask WORDS`,
-  `/talk WORDS` and
-  `/chats N` before the root's commands (`pages/README.md`, 2, *The TUI's own
-  commands*), and, with the walk's question set aside, answers it in
+  `Send` on the launchpad also takes `/draft WORDS`, `/change WORDS`,
+  `/ask WORDS` and `/talk WORDS` before the root's commands
+  (`pages/README.md`, 2, *The TUI's own commands*), and no other
+  command's name with words after it (`pages/README.md`, 2, *Words
+  after a command that takes none*), and, with the walk's question set aside, answers it in
   the box's words as a chat's question's are, then marks it shown. On
   the launchpad, a chat and a talk it takes `/tell WORDS` before them
   too, and on a talk it sends the box's other words as the talk's

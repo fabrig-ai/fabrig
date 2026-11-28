@@ -1,10 +1,12 @@
+use std::collections::BTreeSet;
+
 use smith_domain_session::llm::{Block, Decoded, Message, NotRun, Problem, Returned, Role, ToolCall, Usage};
 use smith_domain_session::record::{Kind, Turn, VERSION};
 use smith_domain_tools::{
     BytesClamp, Exit, Fault, JobEnd, JobNumber, Mismatch, Outcome, Resolved, SizePart, TimeoutClamp,
 };
 use smith_session_world::bytes;
-use smith_session_world::shapes::{Answer, Call, Class, Reached, Reference, Sample, Tool, answer};
+use smith_session_world::shapes::{Answer, Call, Class, Reached, Reference, Sample, Tool, VOCABULARY, answer};
 
 const JOB: JobNumber = JobNumber(1);
 
@@ -18,6 +20,37 @@ fn job(end: JobEnd) -> Outcome {
         wait: TimeoutClamp::Within,
         end,
     }
+}
+
+fn vocabulary_words<'a>(line: Option<&'a str>, field: &str) -> Vec<&'a str> {
+    let (name, text) = line.and_then(|line| line.split_once(' ')).unwrap_or_else(|| panic!("missing {field} line"));
+    assert_eq!(name, field);
+    let words: Vec<_> = text.split_ascii_whitespace().collect();
+    assert_eq!(words.join(" "), text, "spacing in {field}");
+    let unique: BTreeSet<_> = words.iter().copied().collect();
+    assert_eq!(unique.len(), words.len(), "duplicate word in {field}");
+    words
+}
+
+#[test]
+fn vocabulary_file_matches_the_kits_version_and_words() {
+    let file = include_str!("../../../../testing/smith-shapes/vocabulary.txt");
+    let mut lines = file.split_terminator('\n');
+    assert_eq!(lines.next(), Some(VOCABULARY));
+    let fields = [
+        ("tool", Tool::ALL.iter().copied().map(Tool::word).collect::<Vec<_>>()),
+        ("answer", Answer::ALL.iter().copied().map(Answer::word).collect()),
+        ("reference", Reference::ALL.iter().copied().map(Reference::word).collect()),
+        ("class", Class::ALL.iter().copied().map(Class::word).collect()),
+    ];
+    for (field, words) in fields {
+        assert_eq!(vocabulary_words(lines.next(), field), words, "words in {field}");
+    }
+    for field in ["end", "begin", "wake"] {
+        assert!(vocabulary_words(lines.next(), field).contains(&"unknown"), "missing unknown in {field}");
+    }
+    assert_eq!(lines.next(), None, "extra line after wake");
+    assert!(file.ends_with('\n'), "missing final newline");
 }
 
 #[test]
@@ -92,6 +125,18 @@ fn completion_shapes_preserve_call_order_and_attach_references() {
     assert!(reached.contains(
         "job:unknown_job:job=consumed,write:not_run_after_failure,read:ok end=unknown begin=unknown wake=unknown"
     ));
+}
+
+#[test]
+fn a_message_to_an_unissued_task_has_a_reference_refusal_shape() {
+    assert_eq!(VOCABULARY, "smith/3");
+    let mut reached = Reached::new();
+    reached.completion(&[Call {
+        tool: Tool::Message,
+        answer: Answer::NoReference,
+        references: vec![(Reference::Task, Class::Unissued)],
+    }]);
+    assert!(reached.contains("message:no_reference:task=unissued end=unknown begin=unknown wake=unknown"));
 }
 
 #[test]

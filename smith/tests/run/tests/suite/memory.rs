@@ -84,6 +84,7 @@ fn workspace() -> Workspace {
     Workspace {
         directories: Box::new([Directory {
             results: None,
+            hooks: None,
             host: format!(
                 "/{:h<width$}",
                 "",
@@ -175,6 +176,7 @@ fn charter(held: u64) -> Charter {
         budget: BUDGET,
         llm: Llm {
             effort: None,
+            speed: None,
             prices: smith_domain_run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
             account: Some(0),
             endpoint: Endpoint(0),
@@ -185,6 +187,7 @@ fn charter(held: u64) -> Charter {
         },
         models: Box::new([Llm {
             effort: None,
+            speed: None,
             prices: smith_domain_run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
             account: Some(0),
             endpoint: Endpoint(0),
@@ -196,6 +199,7 @@ fn charter(held: u64) -> Charter {
         conventions: Some(smith_domain_run::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: None,
         }),
         resume: false,
         waiting: Duration::from_secs(30),
@@ -248,6 +252,7 @@ fn observed_request(request: Request, selected: Option<&smith_domain_run::Conven
         | Request::Say { .. }
         | Request::CancelJobs { .. }
         | Request::Close { .. }
+        | Request::ProbeHooks { .. }
         | Request::Abort { .. }
         | Request::Checking { .. }
         | Request::ChecksEnded { .. }
@@ -598,6 +603,7 @@ fn delivery_memory_step(
             | Request::Answer { .. }
             | Request::Return { .. }
             | Request::Say { .. }
+            | Request::ProbeHooks { .. }
             | Request::Abort { .. }) => panic!("unexpected delivery fixture output {unexpected:?}"),
         }
     }
@@ -687,6 +693,7 @@ fn full_delivery_workspace() -> Workspace {
     let directories: Box<[Directory]> = (0..smith_domain_run::MAX_DIRECTORIES)
         .map(|directory| Directory {
             results: None,
+            hooks: None,
             host: Box::from(b"/host".as_slice()),
             name: Box::new([u8::try_from(directory + 64).expect("64 distinct names")]),
             root: Token::new(u64::from(directory)),
@@ -730,6 +737,7 @@ fn full_delivery_charter(limits: &Limits) -> Charter {
         budget: BUDGET,
         llm: Llm {
             effort: None,
+            speed: None,
             prices: smith_domain_run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
             account: Some(0),
             endpoint: Endpoint(0),
@@ -742,6 +750,7 @@ fn full_delivery_charter(limits: &Limits) -> Charter {
         conventions: Some(smith_domain_run::Conventions {
             guide: b"AGENTS.md".as_slice().into(),
             checks: b".temper/pre-pr".as_slice().into(),
+            hooks: None,
         }),
         resume: false,
         waiting: Duration::from_secs(30),
@@ -792,6 +801,7 @@ fn host_memory_take(
             | Request::Yield { .. }
             | Request::Return { .. }
             | Request::Say { .. }
+            | Request::ProbeHooks { .. }
             | Request::Abort { .. }
             | Request::Check { .. }
             | Request::Checking { .. }
@@ -907,6 +917,7 @@ fn maximum_selected_read_probe_and_check_paths_attain_the_full_run_ownership_bou
     let selected = smith_domain_run::Conventions {
         guide: vec![b'g'; capacity].into_boxed_slice(),
         checks: vec![b'c'; capacity].into_boxed_slice(),
+        hooks: None,
     };
     fill_selected(&Limits { run_bytes: 16_384, ..LIMITS }, Some(&selected), SELECTED_PATHS_CEILING);
 }

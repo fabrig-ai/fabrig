@@ -75,8 +75,10 @@ fn an_earlier_closer_defaults_to_an_unread_report() {
     use temper_engine_domain_forge_closer::{Closer, ReportCheck, relay::Relay};
     use temper_engine_domain_forge_vocabulary::{CloserRow, Stored};
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
-    let before =
-        family.current.replace("report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none ", "");
+    let before = family.current.replace(
+        "report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none goal_asked: option bytes 1048576 = none ",
+        "",
+    );
     assert_ne!(before, family.current);
     let old = schema::parse(before.as_bytes()).unwrap();
     let new = schema::parse(family.current.as_bytes()).unwrap();
@@ -88,6 +90,7 @@ fn an_earlier_closer_defaults_to_an_unread_report() {
         closer: Closer::new(),
         making: None,
         close_changes: Box::new([]),
+        catch_up_changes: Box::new([]),
         superseded: Box::new([]),
         landing_changes: Box::new([]),
         relay: Relay::new(),
@@ -96,8 +99,10 @@ fn an_earlier_closer_defaults_to_an_unread_report() {
     let expected = Stored::Closer(row.clone());
     assert_eq!(row.closer.report_check, ReportCheck::Unread);
     assert_eq!(row.closer.goal_left, None);
+    assert_eq!(row.closer.goal_asked, None);
     row.closer.report_check = ReportCheck::Held;
     row.closer.goal_left = Some(b"an earlier layout cannot retain this".as_slice().into());
+    row.closer.goal_asked = Some(b"Asked: earlier layouts\nThis one cannot retain the block.".as_slice().into());
     let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
@@ -124,6 +129,14 @@ fn a_landing_layout_without_repairs_defaults_it_to_none() {
 fn a_landing_layout_without_flakes_defaults_it_to_unset() {
     landing_layout_defaults(" flakes: option SettingsFlakes = none");
 }
+#[test]
+fn a_landing_layout_without_hook_ceiling_defaults_to_an_hour() {
+    landing_layout_defaults(" hook_timeout_max_seconds: u32 = 3600");
+}
+#[test]
+fn a_landing_layout_without_temper_dir_sign_off_defaults_to_off() {
+    landing_layout_defaults(" temper_dir_sign_off: bool = false");
+}
 fn landing_layout_defaults(field: &str) {
     use super::fixtures;
     use crate::records;
@@ -145,7 +158,11 @@ fn landing_layout_defaults(field: &str) {
     let stored = Stored::Setting(d::SettingRow {
         key: d::SettingKey { kind: 4, scope: 7, number: 1, slot: d::SettingSlot::Change },
         edit: d::Edit::Set(d::SizedValue {
-            value: d::Value::Landing(d::ProjectLanding { batch: 3, ..d::ProjectLanding::default() }),
+            value: d::Value::Landing(d::ProjectLanding {
+                batch: 3,
+                hook_timeout_max_seconds: 3_600,
+                ..d::ProjectLanding::default()
+            }),
             size: 123,
         }),
     });
@@ -234,13 +251,13 @@ fn an_earlier_change_defaults_measurements_and_runner_state_to_none() {
     assert!(row.runner_ci.is_none());
 }
 
-#[test]
-fn earlier_close_tips_default_to_not_asked_or_refused() {
-    const BRANCH: [u8; 32] = [3; 32];
-    const LANDING: [u8; 32] = [4; 32];
+const CLOSE_BRANCH: [u8; 32] = [3; 32];
+const CLOSE_LANDING: [u8; 32] = [4; 32];
+
+fn earlier_close_at(earlier_layout: &str, earlier: &[u8]) -> crate::v25::CloseAt {
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let close_at = family.current.lines().find(|line| line.starts_with("record CloseAt {")).unwrap();
-    let before = family.current.replacen(close_at, "record CloseAt { branch: fixed 32 landing: fixed 32 }", 1);
+    let before = family.current.replacen(close_at, earlier_layout, 1);
     let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
     let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
     let plan = skein_codec::layout::Plan::derive(
@@ -255,10 +272,45 @@ fn earlier_close_tips_default_to_not_asked_or_refused() {
     let mut work = skein_codec::layout::Workspace::new();
     assert!(work.fit(&plan));
     let mut out = skein_lib::Buffer::with_capacity(1024);
-    let earlier = [BRANCH, LANDING].concat();
-    plan.convert(&earlier, &mut out, &mut work).unwrap();
-    let at = crate::v25::CloseAt::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice())).unwrap();
-    assert_eq!(at, crate::v25::CloseAt { branch: BRANCH, landing: LANDING, asked: false, refused: None });
+    plan.convert(earlier, &mut out, &mut work).unwrap();
+    crate::v25::CloseAt::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice())).unwrap()
+}
+
+#[test]
+fn earlier_close_tips_default_to_not_asked_or_refused() {
+    let earlier = [CLOSE_BRANCH, CLOSE_LANDING].concat();
+    let at = earlier_close_at("record CloseAt { branch: fixed 32 landing: fixed 32 }", &earlier);
+    assert_eq!(
+        at,
+        crate::v25::CloseAt {
+            branch: CLOSE_BRANCH,
+            landing: CLOSE_LANDING,
+            asked: false,
+            refused: None,
+            outdated: None,
+        }
+    );
+}
+
+#[test]
+fn earlier_close_attempts_default_to_not_outdated() {
+    const COUNTS: [u8; 32] = [5; 32];
+    // Asked, a refusal present, and its counts present.
+    let earlier = [CLOSE_BRANCH.as_slice(), CLOSE_LANDING.as_slice(), &[1, 1, 1], COUNTS.as_slice()].concat();
+    let at = earlier_close_at(
+        "record CloseAt { branch: fixed 32 landing: fixed 32 asked: bool = false refused: option CloseRefused = none }",
+        &earlier,
+    );
+    assert_eq!(
+        at,
+        crate::v25::CloseAt {
+            branch: CLOSE_BRANCH,
+            landing: CLOSE_LANDING,
+            asked: true,
+            refused: Some(crate::v25::CloseRefused { counts: Some(COUNTS) }),
+            outdated: None,
+        }
+    );
 }
 
 #[test]
@@ -877,7 +929,8 @@ fn a_held_answer_in_an_earlier_layout_defaults_to_no_question_or_blocker() {
 }
 
 fn previous_branches_layout(current: &str) -> Box<str> {
-    let before = current.replace(", writes: Writes }", " }");
+    let before =
+        current.replace(", writes: Writes, dot_temper_revision was temper_revision: DotTemperRevision }", " }");
     assert_ne!(before, current);
     before.into_boxed_str()
 }

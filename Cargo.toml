@@ -51,6 +51,7 @@ members = [
     "skein/crates/skein-sim",
     "skein/crates/skein-sim-world",
     "skein/crates/skein-tls",
+    "skein/crates/skein-toml",
     "skein/crates/skein-rustls-std",
     "skein/crates/skein-ui",
     "skein/crates/skein-ui-bundle",
@@ -115,6 +116,7 @@ members = [
     "skein/tests/readiness",
     "skein/tests/sim",
     "skein/tests/tls",
+    "skein/tests/toml",
     "skein/tests/ui-text",
     "skein/tests/ui-screen",
     "skein/tests/ui",
@@ -128,6 +130,8 @@ members = [
     "smith/testing/smith-bench-fixtures",
     "smith/testing/smith-end-to-end-kit",
     "smith/testing/smith-faults",
+    "smith/testing/smith-inspect",
+    "smith/testing/smith-shapes",
     "smith/testing/smith-domain-tools-fixtures",
     "smith/testing/smith-domain-run-fixtures",
     "smith/testing/smith-domain-session-fixtures",
@@ -403,6 +407,9 @@ members = [
     "temper/crates/temper-protocol-store",
     "temper/crates/temper-protocol-store-codec",
     "temper/crates/temper-protocol-brief",
+    "temper/crates/temper-protocol-hooks",
+    "temper/crates/temper-protocol-member-message",
+    "temper/crates/temper-protocol-temper-dir",
     "temper/crates/temper-charter-set",
     "temper/crates/temper-engine-domain",
     "temper/crates/temper-engine-domain-see",
@@ -534,6 +541,7 @@ skein-fake-push = { path = "skein/crates/skein-fake-push" }
 skein-push = { path = "skein/crates/skein-push" }
 skein-fake-oauth = { path = "skein/crates/skein-fake-oauth" }
 skein-tls = { path = "skein/crates/skein-tls" }
+skein-toml = { path = "skein/crates/skein-toml" }
 skein-rustls-std = { path = "skein/crates/skein-rustls-std" }
 skein-shell = { path = "skein/crates/skein-shell" }
 skein-fail-stop = { path = "skein/crates/skein-fail-stop" }
@@ -586,6 +594,7 @@ smith-machine-world = { path = "smith/tests/machine" }
 smith-domain = { path = "smith/crates/smith-domain" }
 smith-domain-run = { path = "smith/crates/smith-domain-run" }
 smith-faults = { path = "smith/testing/smith-faults" }
+smith-inspect = { path = "smith/testing/smith-inspect" }
 smith-domain-session = { path = "smith/crates/smith-domain-session" }
 smith-domain-tools = { path = "smith/crates/smith-domain-tools" }
 smith-protocol-llm = { path = "smith/crates/smith-protocol-llm" }
@@ -628,6 +637,7 @@ smith-local-shell = { path = "smith/crates/smith-local-shell" }
 smith-agent-shell = { path = "smith/crates/smith-agent-shell" }
 smith-agent-document = { path = "smith/crates/smith-agent-document" }
 smith-session-world = { path = "smith/tests/session" }
+smith-shapes = { path = "smith/testing/smith-shapes" }
 smith-tools-world = { path = "smith/tests/tools" }
 jig-test-layouts = { path = "jig/testing/jig-test-layouts" }
 base64 = { version = "0.22" }
@@ -808,6 +818,8 @@ temper-protocol-worker-wire = { path = "temper/crates/temper-protocol-worker-wir
 temper-protocol-store = { path = "temper/crates/temper-protocol-store" }
 temper-protocol-store-codec = { path = "temper/crates/temper-protocol-store-codec" }
 temper-protocol-brief = { path = "temper/crates/temper-protocol-brief" }
+temper-protocol-hooks = { path = "temper/crates/temper-protocol-hooks" }
+temper-protocol-member-message = { path = "temper/crates/temper-protocol-member-message" }
 temper-charter-set = { path = "temper/crates/temper-charter-set" }
 temper-engine-domain = { path = "temper/crates/temper-engine-domain" }
 temper-engine-domain-store = { path = "temper/crates/temper-engine-domain-store" }

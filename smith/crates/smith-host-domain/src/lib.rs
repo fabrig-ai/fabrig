@@ -58,9 +58,9 @@ pub use boundary::{End, Exit, Fault, Forced, Input, Invalid, MessageRefusal, Out
 
 pub use channel::{
     Answer, AnsweredCall, Ask, BudgetRefusal, CallName, Cap, Ceiling, CompletionEvidence, CompletionFailure, Directory,
-    Down, Effect, Exhausted, Form, Grant, Limit, Message, ModelFault, Overflow, Part, Phase, Policy, Rate,
-    ReceivingLimit, Refusal, Reply, Report, RunFailure, RunInvalid, RunResult, SavedReply, Scheme, SourceName, Start,
-    TranscriptRefusal, Turn, Up, Window,
+    Down, Effect, Exhausted, Form, Grant, HOOK_FAULT_BYTES, HookTime, HookTimes, Limit, Message, ModelFault, Overflow,
+    Part, Phase, Policy, Rate, ReceivingLimit, Refusal, Reply, Report, RunFailure, RunInvalid, RunResult, SavedReply,
+    Scheme, SourceName, Start, TranscriptRefusal, Turn, Up, Window,
 };
 
 pub use delivery::{

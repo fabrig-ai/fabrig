@@ -15,7 +15,7 @@ pub use ways::ways;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core::{
-    Charter, CharterPart, ConfiguredPolicy, Model, RunPolicy, Template, ToolFamilies,
+    Charter, CharterPart, ConfiguredPolicy, Model, RunPolicy, Speed, Template, ToolFamilies,
     settings::{CatalogueModel, Defaults, ModelSource, Setting},
 };
 use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
@@ -176,6 +176,15 @@ struct StockModel {
     cache_write: Option<u64>,
     output: u64,
     unit: u32,
+    speeds: &'static [StockSpeed],
+}
+struct StockSpeed {
+    name: &'static [u8],
+    also: &'static [&'static [u8]],
+    input: u64,
+    cached: u64,
+    cache_write: u64,
+    output: u64,
 }
 const MODELS: &[StockModel] = &[
     StockModel {
@@ -190,6 +199,14 @@ const MODELS: &[StockModel] = &[
         cache_write: Some(5_000),
         output: 20_000,
         unit: 1_000_000,
+        speeds: &[StockSpeed {
+            name: b"fast",
+            also: &[],
+            input: 8_000,
+            cached: 400,
+            cache_write: 10_000,
+            output: 40_000,
+        }],
     },
     StockModel {
         number: 2,
@@ -203,6 +220,7 @@ const MODELS: &[StockModel] = &[
         cache_write: Some(2_500),
         output: 10_000,
         unit: 1_000_000,
+        speeds: &[],
     },
     StockModel {
         number: 3,
@@ -216,6 +234,7 @@ const MODELS: &[StockModel] = &[
         cache_write: Some(12_500),
         output: 50_000,
         unit: 1_000_000,
+        speeds: &[],
     },
     StockModel {
         number: 4,
@@ -229,6 +248,7 @@ const MODELS: &[StockModel] = &[
         cache_write: None,
         output: 10_000,
         unit: 1_000_000,
+        speeds: &[],
     },
     StockModel {
         number: 5,
@@ -242,6 +262,7 @@ const MODELS: &[StockModel] = &[
         cache_write: None,
         output: 50_000,
         unit: 1_000_000,
+        speeds: &[],
     },
     StockModel {
         number: 6,
@@ -255,6 +276,7 @@ const MODELS: &[StockModel] = &[
         cache_write: None,
         output: 5_000,
         unit: 1_000_000,
+        speeds: &[],
     },
     StockModel {
         number: 7,
@@ -268,6 +290,7 @@ const MODELS: &[StockModel] = &[
         cache_write: None,
         output: 500,
         unit: 1_000_000,
+        speeds: &[],
     },
     StockModel {
         number: 8,
@@ -281,10 +304,67 @@ const MODELS: &[StockModel] = &[
         cache_write: None,
         output: 1,
         unit: 1_000,
+        speeds: &[],
+    },
+    StockModel {
+        number: 9,
+        provider: 1,
+        name: b"gpt-6.2-sol",
+        shown: Some(b"GPT-6.2 Sol"),
+        effort: Some(b"high"),
+        efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
+        input: 2_000,
+        cached: 100,
+        cache_write: Some(2_500),
+        output: 10_000,
+        unit: 1_000_000,
+        speeds: &[
+            StockSpeed {
+                name: b"fast",
+                also: &[b"priority"],
+                input: 4_000,
+                cached: 200,
+                cache_write: 5_000,
+                output: 20_000,
+            },
+            StockSpeed {
+                name: b"ultrafast",
+                also: &[],
+                input: 12_000,
+                cached: 600,
+                cache_write: 15_000,
+                output: 60_000,
+            },
+        ],
     },
 ];
 
-/// Seven stock models in every deployment, and the scripted model where its provider runs.
+fn boxed_names(names: &[&[u8]]) -> Box<[Box<[u8]>]> {
+    let mut values = List::with_capacity(u32::try_from(names.len()).expect("stock names"));
+    for name in names {
+        values.push(bytes::copy_of(name)).expect("stock name count");
+    }
+    values.into_boxed()
+}
+
+fn speeds(rows: &[StockSpeed]) -> Box<[Speed]> {
+    let mut values = List::with_capacity(u32::try_from(rows.len()).expect("stock speeds"));
+    for row in rows {
+        values
+            .push(Speed {
+                name: bytes::copy_of(row.name),
+                also: boxed_names(row.also),
+                input_price: row.input,
+                cached_price: row.cached,
+                cache_write_price: Some(row.cache_write),
+                output_price: row.output,
+            })
+            .expect("stock speed count");
+    }
+    values.into_boxed()
+}
+
+/// Eight stock models in every deployment, and the scripted model where its provider runs.
 #[must_use]
 pub fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
     let mut models = List::with_capacity(u32::try_from(MODELS.len()).expect("stock model count"));
@@ -316,10 +396,6 @@ pub fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
                 if provider.endpoint.as_deref() != Some(endpoint.name.as_ref()) {
                     continue;
                 }
-                let mut efforts = List::with_capacity(u32::try_from(row.efforts.len()).expect("stock efforts"));
-                for effort in row.efforts {
-                    efforts.push(bytes::copy_of(effort)).expect("stock effort count");
-                }
                 models
                     .push(CatalogueModel {
                         first_read: None,
@@ -342,7 +418,9 @@ pub fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
                                 Some(effort) => Some(bytes::copy_of(effort)),
                                 None => None,
                             },
-                            efforts: efforts.into_boxed(),
+                            efforts: boxed_names(row.efforts),
+                            speeds: speeds(row.speeds),
+                            speed: None,
                         },
                         shown: match row.shown {
                             Some(shown) => Some(bytes::copy_of(shown)),
@@ -437,7 +515,7 @@ pub fn floors(defaults: &Defaults, limits: &jig_protocol_config::Limits) -> Resu
     }
     for template in &defaults.templates {
         let setting = Setting::Template(template.number);
-        floor(b"documents.text_bytes", u64::from(core.documents.text_bytes), count(template.name.len()), setting)?;
+        floor(b"documents.text_bytes", u64::from(core.documents.text_bytes), count(template.shown.len()), setting)?;
         if let Contract::Report { words } = template.contract {
             floor(b"tasks.result_bytes", u64::from(core.tasks.result_bytes), u64::from(words), setting)?;
         }
@@ -594,6 +672,7 @@ pub fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> Option<
 
 fn project_policy(period_spend: u64, pool_spend: u64, task_spend: u64) -> ConfiguredPolicy {
     ConfiguredPolicy {
+        name: Some(bytes::copy_of(b"stock")),
         policy: authority::Policy {
             escalation_role: Some(0),
             ceiling: ceiling(pool_spend),
@@ -689,7 +768,23 @@ fn charter(
     for alternative in ordered {
         alternatives.push(alternative).expect("one per remaining configured model");
     }
+    let name: &[u8] = match number {
+        1 => b"chat",
+        2 => b"implementer",
+        4 => b"reviewer",
+        5 => b"goal",
+        9 => b"status",
+        10 => b"trial",
+        11 => b"ask-temper",
+        12 => b"drafter",
+        13 => b"standing-role",
+        14 => b"triager",
+        15 => b"prover",
+        16 => b"porter",
+        _ => unreachable!("only stock charters"),
+    };
     Charter {
+        name: Some(bytes::copy_of(name)),
         parts: Box::new([]),
         rest: true,
         wake: WakePolicy::DEFAULT,
@@ -908,7 +1003,8 @@ fn chat(result_bytes: u32) -> Template {
     Template {
         resources: Box::new([]),
         number: 1,
-        name: bytes::copy_of(b"chat"),
+        name: Some(bytes::copy_of(b"chat")),
+        shown: bytes::copy_of(b"chat"),
         executor: TemplateExecutor::Charter(1),
         contract: Contract::Report { words: result_bytes },
         shallower: 1,
@@ -922,13 +1018,20 @@ fn chat(result_bytes: u32) -> Template {
     }
 }
 fn ask(result_bytes: u32) -> Template {
-    Template { number: 5, name: bytes::copy_of(b"ask"), executor: TemplateExecutor::Charter(11), ..chat(result_bytes) }
+    Template {
+        number: 5,
+        name: Some(bytes::copy_of(b"ask-temper")),
+        shown: bytes::copy_of(b"ask"),
+        executor: TemplateExecutor::Charter(11),
+        ..chat(result_bytes)
+    }
 }
 // A design session is a chat (temper/docs/design/protocol/configuration/stock.md).
 fn design(result_bytes: u32) -> Template {
     Template {
         number: 6,
-        name: bytes::copy_of(b"design session"),
+        name: Some(bytes::copy_of(b"design-session")),
+        shown: bytes::copy_of(b"design session"),
         executor: TemplateExecutor::Charter(12),
         ..chat(result_bytes)
     }
@@ -936,7 +1039,8 @@ fn design(result_bytes: u32) -> Template {
 fn draft_goal(result_bytes: u32) -> Template {
     Template {
         number: 4,
-        name: bytes::copy_of(b"goal for a draft"),
+        name: Some(bytes::copy_of(b"draft-goal")),
+        shown: bytes::copy_of(b"goal for a draft"),
         executor: TemplateExecutor::Charter(5),
         resources: Box::new([jig_domain_people::Symbol { connector: 1, symbol: 1 }]),
         flags: Flags {
@@ -949,7 +1053,8 @@ fn draft_goal(result_bytes: u32) -> Template {
 fn role(result_bytes: u32) -> Template {
     Template {
         number: 7,
-        name: bytes::copy_of(b"standing role"),
+        name: Some(bytes::copy_of(b"standing-role")),
+        shown: bytes::copy_of(b"standing role"),
         deadline: TemplateDeadline::None,
         tracked: None,
         flags: Flags { ended_by: EndedBy::Standing, conversation: false, listed: true, retention: Retention::Kept },
@@ -960,7 +1065,8 @@ fn role(result_bytes: u32) -> Template {
 fn milestone(result_bytes: u32) -> Template {
     Template {
         number: 8,
-        name: bytes::copy_of(b"milestone"),
+        name: Some(bytes::copy_of(b"milestone")),
+        shown: bytes::copy_of(b"milestone"),
         shallower: 1,
         deadline: TemplateDeadline::None,
         flags: Flags { ended_by: EndedBy::Requester, conversation: false, listed: true, retention: Retention::Kept },
@@ -972,7 +1078,8 @@ fn goal(result_bytes: u32) -> Template {
     Template {
         resources: Box::new([]),
         number: 2,
-        name: bytes::copy_of(b"goal"),
+        name: Some(bytes::copy_of(b"goal")),
+        shown: bytes::copy_of(b"goal"),
         executor: TemplateExecutor::Chosen,
         contract: Contract::Report { words: result_bytes },
         shallower: 1,

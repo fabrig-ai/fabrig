@@ -39,7 +39,7 @@ impl Gap {
     /// The words used when the worker's layout cannot keep a value at this site.
     #[must_use]
     pub fn words(&self) -> Box<[u8]> {
-        words::kept(&self.wire, &self.declaration, &self.part, Cause::from_refused(self.why))
+        words::kept(&self.wire, &self.declaration, &self.part, &Cause::from_refused(self.why))
     }
 }
 
@@ -61,7 +61,7 @@ impl Peer {
                 if pass.mode != Mode::Keep || pass.value != site.value() {
                     continue;
                 }
-                let Some(plan) = &pass.plan else { continue };
+                let Some(plan) = pass.passing.plan() else { continue };
                 for index in 0..=u16::MAX {
                     let Some((why, declaration, part)) = plan.refusal(index) else { break };
                     if site == Site::Frame && why == Refused::Variant && optional_variant(plan, index) {

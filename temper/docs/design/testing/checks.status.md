@@ -1,14 +1,15 @@
 # checks: status
 
-2026-11-22. Where the tree's code lags or departs from [checks.md](checks.md).
+2026-11-27. Where the tree's code lags or departs from [checks.md](checks.md).
 
 Section 6.1's engine adapter is `engine-checks.md`'s; the worker's
 adapter is `worker.status.md`'s.
 
+
 - **Not yet:** 6.2: no check holds the 3.3 failure table's rows for runs
   outside the system world's account case (6.3) and the composed
-  workload's sweep (`workloads.md`, 8.2). Where the workloads and their
-  sweeps lag is `workloads.status.md`'s.
+  workload's sweep (`workloads-sweeps.md`, 1.2). The workloads and their
+  sweeps keep their own gaps (`workloads.status.md`; `workloads-sweeps.status.md`).
 
 - **Departs:** 1: twelve named real-loop stories remain in the fuzzy
   suite: nine scripted stories cut to what only the real loop shows

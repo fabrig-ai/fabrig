@@ -230,6 +230,8 @@ pub struct Domain {
     pub(crate) names: Map<Box<[u8]>, Id<Repository>>,
     /// Every commit there is, by its name, and the last name given.
     pub(crate) commits: Map<u64, Object>,
+    /// Scenario-supplied link kinds for contents listings, by commit and path.
+    pub(crate) directory_links: Map<u64, Set<Box<[u8]>>>,
     pub(crate) made: u64,
     /// The last id given to a comment, and to a review.
     pub(crate) comments: u64,
@@ -255,6 +257,7 @@ pub struct Domain {
     pub(crate) runners: crate::runners::Pool,
     pub(crate) rng: Rng,
     pub(crate) lag: Option<crate::scenario::Lag>,
+    pub(crate) omit_report: Option<u64>,
     pub(crate) tally: Tally,
 }
 
@@ -338,6 +341,7 @@ impl Domain {
             repositories: Slab::with_capacity(limits.repositories),
             names: Map::with_capacity(limits.repositories),
             commits: Map::with_capacity(limits.commits),
+            directory_links: Map::with_capacity(limits.commits),
             made: 0,
             comments: 0,
             reviews: 0,
@@ -357,6 +361,7 @@ impl Domain {
             runners: crate::runners::Pool::new(limits),
             rng: Rng::new(seed),
             lag: None,
+            omit_report: None,
             tally: Tally::ZERO,
         }
     }

@@ -874,8 +874,8 @@ fn selected_nested_causes_keep_the_outer_stored_key_and_first_fit_order() {
                     amendment.llm = Some(LlmChoice {
                         later: None,
                         account: None,
-                        main: ModelEffort { model: 255, effort: Some(255) },
-                        subagents: copies(ModelEffort { model: 255, effort: None }, MODELS + extra),
+                        main: ModelEffort { model: 255, effort: Some(255), speed: None },
+                        subagents: copies(ModelEffort { model: 255, effort: None, speed: None }, MODELS + extra),
                     });
                     env.limits.amendment_bytes = 4096;
                     (
@@ -893,7 +893,7 @@ fn selected_nested_causes_keep_the_outer_stored_key_and_first_fit_order() {
                 14 => {
                     // One sub-agent in each choice owns two model/effort rows.
                     let held = u32::try_from(2 * size_of::<ModelEffort>()).unwrap();
-                    let chosen = ModelEffort { model: 255, effort: None };
+                    let chosen = ModelEffort { model: 255, effort: None, speed: None };
                     let mut amendment = fixtures::unchanged(b"");
                     amendment.llm = Some(LlmChoice {
                         account: None,
@@ -914,11 +914,11 @@ fn selected_nested_causes_keep_the_outer_stored_key_and_first_fit_order() {
                     let mut amendment = fixtures::unchanged(b"");
                     amendment.llm = Some(LlmChoice {
                         later: Some(LlmLater {
-                            main: ModelEffort { model: 255, effort: None },
-                            subagents: copies(ModelEffort { model: 255, effort: None }, MODELS + extra),
+                            main: ModelEffort { model: 255, effort: None, speed: None },
+                            subagents: copies(ModelEffort { model: 255, effort: None, speed: None }, MODELS + extra),
                         }),
                         account: None,
-                        main: ModelEffort { model: 255, effort: None },
+                        main: ModelEffort { model: 255, effort: None, speed: None },
                         subagents: Box::new([]),
                     });
                     env.limits.amendment_bytes = 4096;

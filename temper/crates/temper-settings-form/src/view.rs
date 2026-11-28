@@ -21,6 +21,7 @@ pub struct ChangeSettings {
 /// A charter and its parts (temper/docs/design/client/ctl/tools-acts.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Charter {
+    pub name: Option<Box<[u8]>>,
     pub rest: bool,
     /// Resume, inspect, modify, shell and agents, in that order.
     pub switches: [bool; 5],
@@ -161,6 +162,8 @@ pub struct ModelEffort {
     pub model: Text,
     /// One of the efforts the model declares; `None` is its LLM provider's default.
     pub effort: Option<Text>,
+    /// A declared speed by name, `standard`, or `None` for the charter's speed.
+    pub speed: Option<Text>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Authority {
@@ -422,6 +425,7 @@ pub enum SettingFault {
     Linked,
     Accounts,
     Range,
+    Name,
     Judged,
     Shape,
     Count,
@@ -450,8 +454,9 @@ pub struct SettingItem {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingLine {
+    pub name: Option<Box<[u8]>>,
     pub setting: Setting,
-    pub name: Option<DocumentText>,
+    pub shown: Option<DocumentText>,
     pub follows: SettingFollows,
     pub last: Option<u32>,
     pub application: Option<ApplicationState>,
@@ -472,6 +477,17 @@ pub struct SettingModel {
     pub price_unit: u32,
     pub efforts: List<Text>,
     pub effort: Option<Text>,
+    pub speeds: List<SettingSpeed>,
+    pub speed: Option<Text>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SettingSpeed {
+    pub name: Text,
+    pub also: List<Text>,
+    pub input_price: u64,
+    pub cached_price: u64,
+    pub cache_write_price: Option<u64>,
+    pub output_price: u64,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct SettingNumber {
@@ -479,6 +495,7 @@ pub struct SettingNumber {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingPolicy {
+    pub name: Option<Box<[u8]>>,
     pub escalation_role: Option<u32>,
     pub ceiling: Authority,
     pub projections: List<Grant>,
@@ -545,10 +562,11 @@ pub struct TaskFlags {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Template {
+    pub name: Option<Box<[u8]>>,
     /// Connector symbols resolved to resources when the task is created.
     pub resources: List<Symbol>,
     pub number: u32,
-    pub name: DocumentText,
+    pub shown: DocumentText,
     pub executor: TemplateExecutor,
     pub contract: TaskContractDocument,
     pub shallower: u32,

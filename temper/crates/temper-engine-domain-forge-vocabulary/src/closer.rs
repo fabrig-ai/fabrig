@@ -1,4 +1,4 @@
-//! Durable goal closer progress and fresh containment (temper/docs/design/domain/forge/branches.md, 2).
+//! Durable goal closer progress and fresh containment (temper/docs/design/domain/forge/branches-closer.md, 1).
 use alloc::boxed::Box;
 use temper_engine_domain_forge_closer::{Closer, Step};
 
@@ -9,6 +9,7 @@ pub struct CloserRow {
     pub closer: Closer,
     pub making: Option<Step>,
     pub close_changes: Box<[u64]>,
+    pub catch_up_changes: Box<[u64]>,
     pub superseded: Box<[u64]>,
     pub landing_changes: Box<[u64]>,
     pub done: bool,

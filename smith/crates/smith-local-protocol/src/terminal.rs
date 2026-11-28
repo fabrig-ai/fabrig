@@ -211,7 +211,7 @@ pub fn notice_text(
                 failure::run(&mut text, failure, detail, models, None, None, None);
             }
             local::Failure::EffortRefused(choice) => return choice_text(choice, chat, cap),
-            local::Failure::Refused(refusal) => failure::refused(&mut text, *refusal),
+            local::Failure::Refused(refusal) => failure::refused(&mut text, refusal),
             local::Failure::Unstarted(end) => failure::end(&mut text, *end),
             local::Failure::Credential { account, reason } => {
                 failure::credential(&mut text, *account, reason.clone());
@@ -763,6 +763,7 @@ mod failure_tests {
     fn named_failure(failure: host::RunFailure, detail: &[u8]) -> Box<[u8]> {
         let models = [smith_domain::run::charter::Llm {
             effort: None,
+            speed: None,
             prices: smith_domain::run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
             dialect: 0,
             account: Some(7),

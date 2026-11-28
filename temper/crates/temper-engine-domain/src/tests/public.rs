@@ -43,17 +43,21 @@ fn a_forge_kind_is_asked_of_the_forge_with_its_public_tasks() {
         let mut requests = Queue::uncapped();
         requests.push(core::Request::Ask {
             connector,
-            ask: core::Ask::Public {
+            ask: core::Ask::Connector(jig_domain_contract::Ask::Parts(jig_domain_contract::parts::Ask::Public {
                 reply: REPLY,
                 kind: w::PUBLIC_LANDINGS,
                 version: w::PUBLIC_VERSION,
                 project: 1,
                 task: None,
                 public: Box::new([task]),
-            },
+            })),
         });
         crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
-        let Some(crate::boundary::Work::Core(core::Event::PublicAnswered { reply, answer })) = domain.work.pop() else {
+        let Some(crate::boundary::Work::Connector(
+            _,
+            jig_domain_contract::Up::Parts(jig_domain_contract::parts::Up::Public { reply, answer }),
+        )) = domain.work.pop()
+        else {
             panic!("public answer in the same decision")
         };
         assert_eq!(reply, REPLY);

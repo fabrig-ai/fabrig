@@ -12,7 +12,7 @@ use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_hub_link as hub;
 use jig_domain_tasks as tasks;
-use skein_lib::{List, Queue, Token};
+use skein_lib::{Queue, Token};
 use temper_engine_domain_forge as forge;
 impl Domain {
     /// The unique resource pushed under this fenced answer's authentic writer claim.
@@ -423,59 +423,6 @@ fn decorate_answer(domain: &mut Domain, event: &mut core::Event) {
     *invalid_out = invalid_saved;
 }
 
-/// Keep generic section ordering in the link and forge text in temper.
-pub(crate) fn keep_sections(domain: &mut Domain, task: u64, sections: Box<[crate::BriefSection]>) {
-    use crate::{BriefBody, BriefKind};
-    use jig_domain_brief::GatherPlaced;
-    let mut brief = List::with_capacity(u32::try_from(sections.len()).expect("bounded brief sections"));
-    for section in sections {
-        let placed = match section {
-            crate::BriefSection { kind: BriefKind::Core(kind), body: BriefBody::Text(text) } => {
-                GatherPlaced::Core { kind, text }
-            }
-            crate::BriefSection { kind: BriefKind::Core(kind), body: BriefBody::Missing(why) } => {
-                GatherPlaced::CoreMissing { kind, why }
-            }
-            section @ crate::BriefSection { kind: BriefKind::Forge(_), .. } => {
-                let token = domain.hub_link.fresh();
-                let size = u32::try_from(crate::budget::section_bytes(::core::slice::from_ref(&section)))
-                    .expect("bounded forge section");
-                domain.forge_briefs.insert(token, section).expect("one forge section per token");
-                GatherPlaced::Connector { connector: domain.config.forge_connector, kind: 0, token, size }
-            }
-        };
-        brief.push(placed).expect("one placed section per input");
-    }
-    domain.hub_link.keep_brief(task, brief.into_boxed());
-}
-
-fn sections(domain: &mut Domain, brief: Box<[jig_domain_brief::GatherPlaced]>) -> Box<[crate::BriefSection]> {
-    use crate::{BriefBody, BriefKind, BriefSection};
-    use jig_domain_brief::GatherPlaced;
-    let mut sections = List::with_capacity(u32::try_from(brief.len()).expect("bounded brief sections"));
-    for placed in brief {
-        let section = match placed {
-            GatherPlaced::Core { kind, text } => {
-                BriefSection { kind: BriefKind::Core(kind), body: BriefBody::Text(text) }
-            }
-            GatherPlaced::CoreMissing { kind, why } => {
-                BriefSection { kind: BriefKind::Core(kind), body: BriefBody::Missing(why) }
-            }
-            GatherPlaced::Connector { token, .. } => {
-                domain.forge_briefs.remove(&token).expect("retained forge section")
-            }
-            GatherPlaced::Missing { .. } => unreachable!("forge missing sections are translated at completion"),
-        };
-        sections.push(section).expect("one section per placed input");
-    }
-    sections.into_boxed()
-}
-
-pub(crate) fn take_sections(domain: &mut Domain, task: u64) -> Option<Box<[crate::BriefSection]>> {
-    let brief = domain.hub_link.take_brief(task)?;
-    Some(sections(domain, brief))
-}
-
 pub(crate) fn assignment(domain: &mut Domain, assignment: hub::Assignment) -> crate::Assignment {
     let parts = domain.assignment_parts.remove(&assignment.task).expect("prepared temper assignment parts");
     crate::Assignment {
@@ -490,7 +437,7 @@ pub(crate) fn assignment(domain: &mut Domain, assignment: hub::Assignment) -> cr
         },
         charter: assignment.charter,
         run: assignment.run,
-        sections: sections(domain, assignment.brief),
+        sections: parts.sections,
         messages: assignment.messages,
         saved: parts.saved,
         workstream: parts.workstream,
@@ -628,7 +575,7 @@ mod tests {
             },
             &mut out,
         );
-        let items = crate::ForgeWorkspace { rerun: None, repositories: Box::new([]) };
+        let items = crate::ForgeWorkspace { hook_timeout_max_seconds: 1_800, ..crate::ForgeWorkspace::default() };
         let kept = crate::boundary::JobWorkspace { attempt: 1, workspace: items.clone(), offered: false };
         domain.job_workspaces.insert(task, kept).unwrap();
         assert!(!domain.job_workspaces_offered(), "a job not yet offered is unfinished work");
@@ -716,104 +663,21 @@ mod tests {
     }
 
     fn review_change(task: u64) -> temper_engine_domain_forge::ChangeRow {
-        use temper_engine_domain_forge as forge;
         use temper_engine_domain_forge_change as change;
-        forge::ChangeRow {
-            settling: false,
-            behind_wait: None,
-            room: None,
-            source: None,
-            kept: None,
-            regate: None,
-            ci_recheck: None,
-            task_release: None,
-            job: None,
-            signed: Box::new([]),
-            task: 7,
-            repository: skein_forge::api::Repository { forge: 3, repository: 1 },
-            branch: b"temper/7".as_slice().into(),
-            base: b"main".as_slice().into(),
-            title: b"Change".as_slice().into(),
-            body: Box::new([]),
-            priority: 0,
-            ci: None,
-            asks: Box::new([]),
-            handed: 0,
-            previous: None,
-            change: change::Change {
-                ended_held: None,
-                early: change::Early::None,
-                way: change::Way::Queue,
-
-                task: 7,
-                state: change::State::Gating { head: [7; 32], asked: Box::new([1]) },
-                gates: Box::new([change::Gate {
-                    number: 1,
-                    kind: change::GateKind::Agent,
-                    blocking: true,
-                    freshness: change::Freshness::Clean,
-                    eager: true,
-                }]),
-                clean: Box::new([]),
-                gate_failures: Box::new([]),
-                released_resolution: false,
-                released: None,
-                repairs: 0,
-                resolutions: 0,
-                updates: 0,
-                stale: None,
-                since: skein_lib::Wall::EPOCH,
-                ready_since: None,
-                owns_turn: false,
-                last_head: Some([7; 32]),
-                last_checked: None,
-                last_checked_by: None,
-                clock: None,
-            },
-            pull: Some(7),
-            pending: None,
-            effect: change::EffectResult::None,
-            delegate: Some((task, change::Delegate::Gate { number: 1, head: [7; 32] })),
-            delegate_status: change::Status::Unknown,
-            spec_revision: 0,
-            gate_revision: 0,
-            delegate_flake: false,
-            delegate_no_test: false,
-            delegate_head: None,
-            delegate_words: None,
-            verdicts: Box::new([]),
-            milestone: None,
-            person: None,
-            goal_title: None,
-            draft: None,
-            goal: None,
-            ending: None,
-            repair_tasks: Box::new([]),
-            resolution_tasks: Box::new([]),
-            result: forge::ChangeResult::empty(),
-            gate_remarks: Box::new([]),
-            drift: None,
-            base_repair: false,
-            queue_repair: None,
-            queue_repairs: 0,
-            producing_charter: 1,
-            review_charter: 1,
-            producing_llm: None,
-            review_llm: None,
-            questions: change::Questions::default(),
-            effect_account: None,
-            producer_failure: None,
-            runner_ci: None,
-            close_at: None,
-            report: Box::new([]),
-            repairs: None,
-            follows: None,
-            catch_up: None,
-            close: None,
-            merge_result: None,
-            history: None,
-            follow_check: None,
-        }
+        let mut row = crate::tests::change_row::change_row(Some(7));
+        row.change.state = change::State::Gating { head: [7; 32], asked: Box::new([1]) };
+        row.change.gates = Box::new([change::Gate {
+            number: 1,
+            kind: change::GateKind::Agent,
+            blocking: true,
+            freshness: change::Freshness::Clean,
+            eager: true,
+        }]);
+        row.change.last_head = Some([7; 32]);
+        row.delegate = Some((task, change::Delegate::Gate { number: 1, head: [7; 32] }));
+        row.producing_charter = 1;
+        row.review_charter = 1;
+        row
     }
 
     #[test]

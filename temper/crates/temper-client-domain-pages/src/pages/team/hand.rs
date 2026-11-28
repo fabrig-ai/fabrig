@@ -489,7 +489,7 @@ fn changed(open: &Open, record: w::ProjectAreas, bounds: &w::Limits) -> Option<w
             let held = match &row.owner {
                 w::AreaOwner::Task(task) => task.number == give.task,
                 w::AreaOwner::Charter(charter) => give.charters.as_slice().contains(&charter.number),
-                w::AreaOwner::Party(_) | w::AreaOwner::Role(_) => false,
+                w::AreaOwner::Party(_) | w::AreaOwner::Role(_) | w::AreaOwner::CharterNamed(_) => false,
             };
             if held {
                 row.owner = w::AreaOwner::Party(w::AreaParty { number: give.party });

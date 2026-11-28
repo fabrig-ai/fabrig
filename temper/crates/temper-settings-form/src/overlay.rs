@@ -41,21 +41,16 @@ pub fn directories(items: &List<c::SettingItem>) -> List<DirectoryName> {
     out
 }
 /// Context shared by host read failures and the pure assembly's refusals.
-#[expect(
-    clippy::disallowed_macros,
-    clippy::disallowed_methods,
-    reason = "input boundary validates and renders UTF-8 directory diagnostics"
-)]
+#[expect(clippy::disallowed_methods, reason = "input boundary validates and renders UTF-8 directory diagnostics")]
 #[must_use]
 pub fn refusal(name: &DirectoryName, why: &str) -> Box<[u8]> {
-    format!(
-        "settings file item {}: overlay.charters[{}]: \"{}\": {why}",
-        name.item,
-        name.index,
-        core::str::from_utf8(&name.path).unwrap_or("<non-UTF-8 directory>")
-    )
-    .into_bytes()
-    .into_boxed_slice()
+    let path = core::str::from_utf8(&name.path).unwrap_or("<non-UTF-8 directory>");
+    item_refusal(name, format_args!("\"{path}\": {why}"))
+}
+
+#[expect(clippy::disallowed_macros, reason = "render the overlay input diagnostic")]
+fn item_refusal(name: &DirectoryName, why: core::fmt::Arguments<'_>) -> Box<[u8]> {
+    format!("settings file item {}: overlay.charters[{}]: {why}", name.item, name.index).into_bytes().into_boxed_slice()
 }
 /// Assemble every named set, including the files the selected charter does not take.
 #[expect(clippy::disallowed_methods, reason = "the input boundary validates directory names and Markdown as UTF-8")]
@@ -102,12 +97,16 @@ pub fn assemble(items: &mut List<c::SettingItem>, inputs: &[Directory], limits: 
                     None => {}
                 }
             }
-            let goal = match temper_charter_set::goal_agent(&set, reason) {
+            let bodies = match set.overlay_bodies() {
+                Ok(bodies) => bodies,
+                Err(why) => return Err(item_refusal(&name, format_args!("{why}"))),
+            };
+            let goal = match temper_charter_set::goal_agent(&bodies, reason) {
                 Ok(goal) => goal,
-                Err(why) => return Err(assembly_refusal(&name, &why)),
+                Err(why) => return Err(assembly_refusal(&name, &why.in_source(&set))),
             };
             let instructions =
-                if number.number == 5 { goal.instructions } else { temper_charter_set::implementer(&set) };
+                if number.number == 5 { goal.instructions } else { temper_charter_set::implementer(&bodies) };
             overlay.instructions = join(&overlay.instructions, &instructions, limits.settings.charter_instructions)?;
             if number.number == 5 {
                 for part in &goal.parts {

@@ -7,6 +7,7 @@
 )]
 use super::*;
 use fixtures::{BASE, CHANGE, HEAD, OPEN};
+use jig_domain_contract as contract;
 use skein_forge::api::{self, Answer, Op, Read};
 use skein_forge_client as client;
 use temper_engine_domain_forge_change as c;
@@ -55,7 +56,12 @@ fn answered(d: &mut Domain, e: &Env<Limits>, call: Token, commit: api::Commit) -
     requests(fixtures::answer_at(d, e, call, Ok(Answer::Commit(commit))))
 }
 fn fresh_wake(out: &[Request], task: u64) {
-    assert!(out.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }), "{out:?}");
+    assert!(
+        out.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+            stage: RestartStage::ReadAfresh
+        }))),
+        "{out:?}"
+    );
     assert_eq!(out.iter().filter(|r| **r == Request::WakeProcedure { task }).count(), 1, "{out:?}");
 }
 
@@ -120,7 +126,9 @@ fn verified_changes_wait_for_fresh_reads_and_use_the_fresh_head() {
     assert_eq!(d.change(CHANGE).unwrap().change.gate_failures.as_ref(), &[c::GateFailure { number: 7, count: 1 }]);
     let fresh = answered(&mut d, &env(), call, FRESH);
     assert_eq!(d.branch_head(&marker), Some(FRESH));
-    assert!(fresh.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
+    assert!(fresh.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: RestartStage::ReadAfresh
+    }))));
     assert!(domain::fresh_reads_in(&d));
     assert_eq!(
         decisions(&fresh),
@@ -166,7 +174,9 @@ fn taking_read_stalls_count_from_the_fresh_reads_not_the_restored_since() {
         );
         assert!(!matches!(d.change(CHANGE).unwrap().change.state, c::State::Held { .. }));
         let fresh = answered(&mut d, &e, call, HEAD);
-        assert!(fresh.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
+        assert!(fresh.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+            stage: RestartStage::ReadAfresh
+        }))));
         assert!(!fresh.contains(&Request::WakeProcedure { task: CHANGE }), "the gather is already open");
         if started_before {
             assert_eq!(d.steps.len(), 1, "the in-flight gather keeps its entry and read");
@@ -245,7 +255,9 @@ fn restored_tier_baselines_and_pending_landings_wait_for_their_fresh_tip() {
         assert_eq!(tier_runs(&keyed), [FRESH]);
         assert!(!domain::fresh_reads_in(&d), "the branch's own read suffices while another fresh read is held");
         let all_fresh = answered(&mut d, &env(), *marker, HEAD);
-        assert!(all_fresh.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
+        assert!(all_fresh.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+            stage: RestartStage::ReadAfresh
+        }))));
         assert!(tier_runs(&all_fresh).is_empty(), "the tier was requested once");
     }
 }
@@ -474,7 +486,9 @@ fn restored_follows_wait_for_their_source_read_and_queue_only_the_fresh_tip() {
     assert_eq!(follow.queue.len(), 1);
     assert_eq!(follow.queue[0].after, FRESH);
     let finished = answered(&mut d, &env(), *marker_call, HEAD);
-    assert!(finished.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
+    assert!(finished.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: RestartStage::ReadAfresh
+    }))));
 }
 
 const GOAL_BRANCH: &[u8] = b"temper/7/g7";
@@ -550,7 +564,9 @@ fn moved_branch_facts_wait_and_compare_against_the_fresh_confirmed_head() {
         assert!(decisions(&before).is_empty(), "{before:?}");
         assert_eq!(d.change(CHANGE).unwrap().change.state, c::State::Checking { head: HEAD });
         let fresh = answered(&mut d, &env(), fresh_call, HEAD);
-        assert!(fresh.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
+        assert!(fresh.contains(&Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+            stage: RestartStage::ReadAfresh
+        }))));
         assert!(!fresh.contains(&Request::WakeProcedure { task: CHANGE }), "the completed gather resumes in place");
         assert_eq!(decisions(&fresh).contains(&c::Decision::Hold(c::Cause::BranchMoved)), still_moved, "{fresh:?}");
         if !still_moved {
@@ -602,6 +618,7 @@ fn held_landing_judgements_wait_and_are_woken_by_fresh_reads() {
         readback_owed: false,
         nearest_write: None,
         touched: Touched::UNKNOWN,
+        temper_dir: TemperDirEvidence::Uncovered,
         prior: row.change.clone(),
         head: Some(HEAD),
         base_tip: BASE,

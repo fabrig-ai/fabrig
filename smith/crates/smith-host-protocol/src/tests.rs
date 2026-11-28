@@ -12,6 +12,12 @@ fn a_start_keeps_host_bytes_and_service_values_in_order() {
     use smith_host_domain::channel;
 
     let limits = process_limits();
+    let hooks = channel::HookTimes {
+        deliver: None,
+        finish: Some(channel::HookTime { time: Duration::from_secs(3600), asked: Duration::from_secs(7200) }),
+        ceiling: Duration::from_secs(3600),
+        fault: Box::default(),
+    };
     let start = channel::Start {
         parts: Box::default(),
         tell_parts: false,
@@ -30,6 +36,7 @@ fn a_start_keeps_host_bytes_and_service_values_in_order() {
         }]),
         directories: Box::from([channel::Directory {
             results: None,
+            hooks: Some(hooks.clone()),
             host: Box::from(b"/host".as_slice()),
             root: Token::new(1),
             name: Box::from(*b"src"),
@@ -81,16 +88,18 @@ fn a_start_keeps_host_bytes_and_service_values_in_order() {
         smith_host_world::transcript_value(512).into_value()
     );
     assert_eq!(start.answered.get(0).expect("answered call").tool.as_ref(), b"check");
-    assert_eq!(
-        start.workspace.as_ref().expect("workspace").directories.get(0).expect("directory").path.as_ref(),
-        b"/tmp/src"
-    );
+    let directory = start.workspace.as_ref().expect("workspace").directories.get(0).expect("directory");
+    assert_eq!(directory.path.as_ref(), b"/tmp/src");
     let grant = start.grants.get(0).expect("grant");
     let smith_channel::GrantValue::Credential(value) = &grant.value else {
         panic!("bearer grant");
     };
     assert_eq!((&value.scheme), &smith_channel::Scheme::Bearer);
     assert!(value.bytes.expose() == b"secret");
+    let charter = smith_host_world::charter_value(7).into_value();
+    let decoded = smith_protocol_translate::start_context(start, charter, None).expect("decode the start context");
+    let mounts = decoded.mounts.expect("the prepared mount");
+    assert_eq!(mounts[0].hooks, Some(hooks));
 }
 
 #[test]

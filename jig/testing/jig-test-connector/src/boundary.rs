@@ -569,8 +569,19 @@ pub enum SystemEvent {
 }
 
 /// What the root tells the connector for this part of its contract.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Debug)]
 pub enum Event {
+    Ask(jig_domain_contract::Ask),
+    Released(jig_domain_contract::Released),
+    StageEffect {
+        owner: Token,
+        effect: Effect,
+        start: Option<jig_domain_contract::effects::EffectOrigin>,
+    },
+    WriterRead {
+        resource: jig_domain_contract::resources::Name,
+        event: SystemEvent,
+    },
     /// Read the live resources and settle the restored outbox after opening.
     CatchUp {
         procedures: Box<[u64]>,
@@ -823,8 +834,20 @@ pub enum Event {
     Restore {
         record: Record,
     },
+    /// A page of the connector's own records, with the next key in its live range.
+    RestoredPage {
+        rows: Box<[RestoreRow]>,
+        after: Option<Box<[u8]>>,
+    },
     /// The connector's system reported a change.
     System(SystemEvent),
+}
+
+/// A live record and the core subscription numbers that refer to it, if any.
+#[derive(Debug)]
+pub struct RestoreRow {
+    pub record: Record,
+    pub interests: Box<[u64]>,
 }
 
 /// A named resource's role and hold for the core's use.
@@ -926,6 +949,29 @@ pub enum Record {
 }
 
 impl Record {
+    /// Topic and task of a restored topic subscription.
+    #[must_use]
+    pub const fn subscription(&self) -> Option<(u16, u64)> {
+        match self {
+            Self::Subscription { topic, task, .. } => Some((*topic, *task)),
+            Self::ApplicationObject { .. }
+            | Self::ApplicationAnswer { .. }
+            | Self::Proposal { .. }
+            | Self::Procedure(_)
+            | Self::ProcedureDelegateOutcome { .. }
+            | Self::Result { .. }
+            | Self::Task { .. }
+            | Self::Adoption { .. }
+            | Self::Pool { .. }
+            | Self::Outbox(_)
+            | Self::Made { .. }
+            | Self::SettingDefault { .. }
+            | Self::SettingChange { .. }
+            | Self::SettingProposal { .. }
+            | Self::SettingReplaced { .. } => None,
+        }
+    }
+
     /// The key under which the parent keeps this record.
     #[must_use]
     pub fn key(&self) -> RecordKey {

@@ -44,7 +44,7 @@ pub fn read_present(component: &mut Store, bounds: &Bounds) -> Result<Present, J
         let mut after = None;
         let mut done = false;
         for _ in 0..=limit {
-            let Ok(page) = component.patch_page(
+            let Ok(page) = component.job_read(
                 skein_kv::Range { start: Box::new([family]), end: Some(Box::new([end])) },
                 after.as_ref(),
                 1,
@@ -356,6 +356,7 @@ fn judge(row: &JobRow, present: &Present, bounds: &Bounds) -> Result<Judged, Job
         | Stored::Dismissed { .. }
         | Stored::PersonBrief(_)
         | Stored::ProjectFacts(_)
+        | Stored::DotTemperRevision(_)
         | Stored::Looked(_)
         | Stored::Away(_)
         | Stored::Decided(_)

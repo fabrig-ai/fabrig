@@ -97,6 +97,7 @@ fn merged_pull() -> PendingStep {
         reviews_complete: true,
         paths: Box::new([]),
         paths_whole: false,
+        temper_dir: temper_dir::Check::new(),
         woken: false,
     }
 }

@@ -35,6 +35,27 @@ pub(crate) fn text(
         }
     }
 }
+/// An optional setting name, not a template's shown words.
+pub(crate) fn setting_name(
+    object: &mut read::Object,
+    document: &Document,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<Box<[u8]>> {
+    let at = object.member(document, b"name")?;
+    match read::text(document, at, jig_domain_people::settings::NAME_BYTES) {
+        Ok(value) if jig_domain_people::is_name(&value) => Some(value),
+        Ok(_) => {
+            problems.push(path.member(b"name"), What::Form);
+            None
+        }
+        Err(what) => {
+            problems.push(path.member(b"name"), what);
+            None
+        }
+    }
+}
+
 pub(crate) fn path(
     object: &mut read::Object,
     document: &Document,

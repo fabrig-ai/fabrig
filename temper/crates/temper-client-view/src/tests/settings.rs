@@ -415,9 +415,7 @@ fn repositories_wait_for_the_watch_without_claiming_none() {
     );
     let mut served = drive(
         &mut unknown,
-        d::Event::Client {
-            event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
-        },
+        d::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
     );
     while let Some(request) = served.pop() {
         out.push(request);
@@ -560,7 +558,7 @@ fn how(ways: Option<Ways>) -> d::Domain {
     for (number, name) in [(11, "One agent, one branch"), (4, "goal for a draft")] {
         let mut template = template.clone();
         template.number = number;
-        template.name = c::DocumentText::complete(c::Text::new(name.as_bytes().into(), 32).unwrap());
+        template.shown = c::DocumentText::complete(c::Text::new(name.as_bytes().into(), 32).unwrap());
         template.tracked = Some(1);
         project.templates.push(template).unwrap();
     }

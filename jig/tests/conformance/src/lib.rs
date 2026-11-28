@@ -1,6 +1,7 @@
 //! The testing application adapter (`domain/testing.md`, 5). Its peers report
 //! outside observations; the conformance harness owns the engine and store.
 #![forbid(unsafe_code)]
+use core::engine::store as engine_store;
 use jig_conformance::scenarios::Scenario;
 use jig_conformance::{
     Application, Clock, Input, Output,
@@ -12,6 +13,7 @@ use jig_core_kit::conformance::Observer;
 use jig_core_kit::peers::Peers;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
+use jig_domain_contract as jig;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -202,8 +204,8 @@ pub enum Delivery {
     Now(core::Now),
     /// A connector retains this event until a later engine can take it.
     Busy(Box<root::Event>),
-    /// A phase of the core's start and its optional inbox range.
-    Start { phase: core::start::Phase, census: Option<core::Census> },
+    /// The first request of a start walk (or switch), with its observed phase.
+    Start { phase: core::start::Phase, out: StoreOut },
 }
 
 /// The outside correlation state of the application's scripted peers.
@@ -475,22 +477,30 @@ impl Application for Testing {
 
     fn step(domain: &mut Engine, config: &Config, clock: Clock, input: Input<root::Event>) {
         let env = env(config, clock);
-        let input = negative::input(domain, config, clock, input);
-        if matches!(
-            &input,
-            Input::Event(root::Event::StartRecord(root::Record::Core(core::Record::Core(
-                core::CoreRecord::Deployment(_)
-            ))))
-        ) {
-            domain.fixture = None;
-        }
-        if matches!(&input, Input::Event(root::Event::StartDone(core::start::Phase::LoadCore)))
-            && let Some(rows) = domain.fixture.take()
+        let mut input = negative::input(domain, config, clock, input);
+        if domain.start_phase() == Some(core::start::Phase::LoadCore)
+            && let Input::Event(root::Event::Store(engine_store::In::Loaded {
+                result: engine_store::Answer::Rows(engine_store::Rows::Start { items, next }),
+                ..
+            })) = &mut input
         {
-            for row in &rows {
-                root::start_record(domain, &env, row.clone());
+            if items.iter().any(|item| {
+                matches!(item, engine_store::Item::Record(core::Record::Core(core::CoreRecord::Deployment(_))))
+            }) {
+                domain.fixture = None;
             }
-            domain.journal = rows;
+            if next.is_none()
+                && let Some(rows) = domain.fixture.take()
+            {
+                // The empty-store fixture is not durable until the seed's first commit.
+                let mut page = std::mem::take(items).into_vec();
+                page.extend(rows.iter().map(|row| match row {
+                    root::Record::Core(row) => engine_store::Item::Record(row.clone()),
+                    root::Record::Connector { .. } => unreachable!("accounts fixture belongs to the core"),
+                }));
+                *items = page.into_boxed_slice();
+                domain.journal = rows;
+            }
         }
         match input {
             Input::Event(event) => root::step(domain, &env, event),
@@ -516,7 +526,19 @@ impl Application for Testing {
                     rows.extend(std::mem::take(&mut domain.journal).into_vec().into_iter().map(root::Write::Save));
                     Output::Commit { number, writes: rows.into_boxed_slice() }
                 }
-                root::Request::Start { phase, census } => Output::Deliver(Delivery::Start { phase, census }),
+                root::Request::Deliver(root::Delivery::Store(
+                    out @ (engine_store::Out::Switch
+                    | engine_store::Out::Load { range: engine_store::Range::Start { after: None, .. }, .. }),
+                )) => Output::Deliver(Delivery::Start {
+                    phase: domain.start_phase().expect("engine reported phase"),
+                    out: StoreOut::Engine(out),
+                }),
+                root::Request::Deliver(root::Delivery::ConnectorLoad { number, after: None }) => {
+                    Output::Deliver(Delivery::Start {
+                        phase: domain.start_phase().expect("engine reported connector restore"),
+                        out: StoreOut::ConnectorLoad { number, after: None },
+                    })
+                }
 
                 root::Request::Deliver(delivery) => Output::Deliver(Delivery::Held(delivery)),
                 root::Request::ReadResult { .. } => panic!("scripted results are already typed"),
@@ -532,9 +554,15 @@ impl Application for Testing {
         if !matches!(
             event,
             root::Event::StartBegin { .. }
-                | root::Event::StartDone(_)
-                | root::Event::StartRecord(_)
-                | root::Event::StartMissing { .. }
+                | root::Event::Engine(_)
+                | root::Event::ConnectorPage { .. }
+                | root::Event::Store(
+                    engine_store::In::Loaded {
+                        result: engine_store::Answer::Rows(engine_store::Rows::Start { .. }),
+                        ..
+                    } | engine_store::In::Switched
+                        | engine_store::In::Census(_)
+                )
                 | root::Event::StartPageRefused { .. }
         ) {
             peers.observer.inbound(store, clock.now, event).map_err(finding)?;
@@ -576,7 +604,10 @@ impl Application for Testing {
                         .map(|event| Input::Event(root::Event::Core(event)))
                         .collect()
                 }
-                Delivery::Start { phase, census } => peers.start(store, phase, census),
+                Delivery::Start { phase, out } => {
+                    peers.start(store, phase, out);
+                    Vec::new()
+                }
                 Delivery::Busy(event) => {
                     peers.busy_events.push(format!("{event:?}"));
                     Vec::new()
@@ -592,10 +623,10 @@ impl Application for Testing {
         Ok(match delivery {
             root::Delivery::Projection { connector, feed } => {
                 if feed.closing {
-                    vec![Input::Event(root::Event::Core(core::Event::ProjectionSettled {
-                        goal: feed.goal.number,
+                    vec![Input::Event(root::Event::connector_up(
                         connector,
-                    }))]
+                        jig::Up::Projections(jig::projections::Up::Settled { goal: feed.goal.number }),
+                    ))]
                 } else {
                     Vec::new()
                 }
@@ -657,6 +688,10 @@ impl Application for Testing {
                 store.ask(StoreOut::Engine(load));
                 Vec::new()
             }
+            root::Delivery::ConnectorLoad { number, after } => {
+                store.ask(StoreOut::ConnectorLoad { number, after });
+                Vec::new()
+            }
             root::Delivery::Core(core::Held::CallAnswer { to, key, part }) => {
                 let answer = peers.peers.protocol.answer(to.into_token(), key, &part, true);
                 peers.calls.push(part);
@@ -671,7 +706,8 @@ impl Application for Testing {
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
             | root::Delivery::CallAnswer { .. }
-            | root::Delivery::Start(_)
+            | root::Delivery::Connector(..)
+            | root::Delivery::Resume(_)
             | root::Delivery::Message { .. } => Vec::new(),
             root::Delivery::Fleet(_) => panic!("root consumes fleet continuations"),
         })

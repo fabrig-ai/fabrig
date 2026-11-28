@@ -176,13 +176,19 @@ and the state as it is now (jig's `domain/tasks/lifecycle.md`, 7).
 
 ## 4. Conventions
 
-Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
+Guides at `AGENTS.md`; checks at `.temper/hooks/deliver` and
+`.temper/hooks/finish`, a check for each moment, and at `.temper/pre-pr`
+for both in a directory with no `.temper/hooks/`: the conventions name
+`.temper/hooks` as their hooks directory and `.temper/pre-pr` as their
+checks (`../../protocol/hooks.md`, 4.1 and 5; smith's
 `domain/run-start.md`, 1.1, and `domain/run-delivery.md`, 1.1).
 
 - **What a delivery checks** is its project's: the host runs the
-  repository's `.temper/pre-pr` on the run's warm checkout before anything
-  is pushed, at each `deliver` and at a `finish` that delivers, and a
-  failing check refuses the delivery, its output's tail the run's feedback.
+  repository's hook for the moment on the run's warm checkout before
+  anything is pushed, `.temper/hooks/deliver` at each `deliver` and
+  `.temper/hooks/finish` at a `finish` that delivers, or `.temper/pre-pr`
+  at both in a repository with no `.temper/hooks/`, and a failing check
+  refuses the delivery, its output's tail the run's feedback.
   A `save` runs none, and is marked unchecked (`tools.md`; `README.md`, section 5).
   The worker pins the landing branch's tip in each change producer's
   checkout as `refs/temper/landing`, and the head a repair's or a
@@ -199,8 +205,12 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   and no bound otherwise, so the agent's `check_timeout` holds. Every
   other run names none. The bound is read when the run's charter is
   written, at each attempt, so a changed setting reaches the next
-  attempt. A check that runs out of time runs once more at twice its
-  bound (smith's `domain/run-delivery.md`, 1.1), so a check that only ran out of
+  attempt. A repository's hooks say their own time in
+  `.temper/hooks/config.toml`, which the worker reads as the run starts
+  and cuts at the project's `hook_timeout_max_seconds`, and a moment the
+  file times runs its hook within that time in place of the bound
+  (`../../protocol/hooks.md`, 2.3 and 4.1). A check that runs out of time runs once more at twice its
+  time (smith's `domain/run-delivery.md`, 1.1), so a check that only ran out of
   time never ends the run's work by itself.
 - **No CI before a goal's branch.** A pull request into a goal's branch
   runs no CI: a change's delivery checks are all it meets before it lands
@@ -222,7 +232,7 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   goal's agent's words have it write each delivery's title and body
   for the history too, and deliver at any point, even while its closer
   lands the branch, which then lands the new head
-  (`../forge/branches.md`, 2 and 3).
+  (`../forge/branches-closer.md`, 1, and `../forge/branches.md`, 3).
 - **Main into a goal's branch only for a change that needs it**
   (`../../draft/squash-in.md`, 4 and 5; `../forge/branches.md`, 1).
   The goal's agent's words have it ask for main's tip, a catch-up

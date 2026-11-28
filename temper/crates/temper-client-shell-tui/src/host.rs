@@ -1308,18 +1308,6 @@ impl Host {
             self.act(Act::ChatWords { words });
             self.act(Act::StartChat);
             self.tell(Told::Cleared);
-        } else if let Some(number) = words.strip_prefix(b"/chats ") {
-            let task = core::str::from_utf8(number)
-                .ok()
-                .and_then(|number| number.parse::<u32>().ok())
-                .and_then(|number| tui::chat_number(&self.view, number));
-            if let Some(task) = task {
-                self.composer_words(Box::default());
-                self.act(Act::Go { address: Address::Chat { task } });
-                self.tell(Told::Cleared);
-            } else {
-                self.unknown();
-            }
         } else {
             return false;
         }

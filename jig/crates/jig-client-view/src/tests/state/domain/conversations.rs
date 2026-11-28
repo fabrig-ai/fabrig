@@ -48,6 +48,7 @@ fn engine_call() -> Call {
         input: text(b"words"),
         outcome: Some(text(b"made")),
         failed: false,
+        answer: None,
         objects,
         parts: List::with_capacity(0),
     }

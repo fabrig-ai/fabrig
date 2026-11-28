@@ -218,7 +218,7 @@ fn client_fixture(me: u64, env: &Env<client::Limits>) -> client::Domain {
             kept: List::with_capacity(0),
             with: Some(jig_client::With::Transport),
         },
-        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
     ] {
         client::step(&mut root, env, event, &mut out);
     }
@@ -284,6 +284,7 @@ fn client_fixture(me: u64, env: &Env<client::Limits>) -> client::Domain {
 
 fn frame(me: u64) -> c::Me {
     c::Me {
+        charters: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,

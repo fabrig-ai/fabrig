@@ -1,5 +1,24 @@
 //! Task and batch values carried by operations (jig/docs/design/domain/connectors.md, 2).
 
+mod activation;
+mod admission;
+pub mod party;
+mod waits;
+
+pub use activation::{
+    Added, CallKey, Carried, DelegateState, Endings, EscalationDecider, EscalationHolder, InvalidResult, Mode, Payer,
+    PersonOffer, PersonStallNotice, PersonWait, REASON_NAMES, Reasons, RetryNotice, Revisions, RunContext, Scope,
+    Tries,
+};
+pub use admission::{
+    AccountWhy, Capacity, CapacityAction, CapacityCause, LlmFault, Problem, QuestionAnswerer, Refusal, Status,
+};
+pub use party::{Act, Outcome};
+pub use waits::{
+    AgentShortfall, AtBound, Figures, HelloRefusal, HostKind, JobRefusal, JobShort, JobShortfall, Place, TaskRunWait,
+    TaskSourceState, TaskWaitRefused, TaskWaitWhy, Thing, Unbounded, Unread, WaitKind, WaitObject,
+};
+
 use crate::parts::Part;
 use crate::resources::{Holding, Name};
 use crate::topics::NewsClass;
@@ -962,7 +981,10 @@ pub struct Closer {
     pub code: u32,
 }
 
-/// One model and its effort (domain/tasks/README.md, section 3).
+/// The name a choice gives the provider's standard speed (domain/tasks/README.md, 3).
+pub const STANDARD_SPEED: &[u8] = b"standard";
+
+/// One model with its effort and speed (domain/tasks/README.md, section 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ModelEffort {
     /// The catalogue number's position, starting at zero.
@@ -970,6 +992,8 @@ pub struct ModelEffort {
     /// One of the efforts the model declares, in its order; `None` is the LLM provider's default,
     /// the only effort of a model that declares none.
     pub effort: Option<u8>,
+    /// A speed the model declares, `STANDARD_SPEED`, or `None` for the charter's resolution.
+    pub speed: Option<skein_lib::Name<32>>,
 }
 
 impl ModelEffort {
@@ -1004,10 +1028,7 @@ pub struct LlmLater {
 
 /// A task action waiting for a holder's authority and funding.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::large_enum_variant, reason = "a stored proposed amendment stays inline and is priced by size_of")
-)]
+#[expect(clippy::large_enum_variant, reason = "a stored proposed amendment stays inline and is priced by size_of")]
 pub enum ProposalAction {
     /// Settings values stay in the core (domain/engine/settings-proposals.md, 1).
     Settings { against: u32, items: Box<[SettingHead]>, projects: Box<[u32]> },

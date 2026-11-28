@@ -716,31 +716,75 @@ fn an_ended_changes_hold_round_trips_in_its_state() {
     }
 }
 
+fn change_with_role_choices(speeds: bool) -> temper_engine_domain_forge_vocabulary::ChangeRow {
+    use jig_domain_tasks::{LlmChoice, ModelEffort};
+    fn named_speed(speeds: bool, name: &[u8]) -> Option<skein_lib::Name<32>> {
+        if speeds { Some(skein_lib::Name::from_checked(name).expect("speed fixture fits")) } else { None }
+    }
+    let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: false });
+    row.repairs = Some([28; 32]);
+    row.producing_llm = Some(LlmChoice {
+        later: None,
+        main: ModelEffort { model: 3, effort: Some(1), speed: named_speed(speeds, b"ultrafast") },
+        subagents: Box::new([
+            ModelEffort { model: 0, effort: Some(0), speed: named_speed(speeds, b"fast") },
+            ModelEffort { model: 2, effort: None, speed: None },
+        ]),
+        account: Some(17),
+    });
+    row.review_llm = Some(LlmChoice {
+        later: None,
+        main: ModelEffort { model: 4, effort: Some(2), speed: named_speed(speeds, b"standard") },
+        subagents: Box::new([
+            ModelEffort { model: 1, effort: None, speed: None },
+            ModelEffort { model: 3, effort: Some(1), speed: named_speed(speeds, b"ultrafast") },
+        ]),
+        account: None,
+    });
+    row
+}
+
 #[test]
 fn a_changes_role_choices_round_trip_with_or_without_models() {
-    use jig_domain_tasks::{LlmChoice, ModelEffort};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
-    let producing = LlmChoice {
-        later: None,
-        main: ModelEffort { model: 3, effort: Some(1) },
-        subagents: Box::new([ModelEffort { model: 0, effort: Some(0) }, ModelEffort { model: 2, effort: None }]),
-        account: Some(17),
-    };
-    let review = LlmChoice {
-        later: None,
-        main: ModelEffort { model: 4, effort: Some(2) },
-        subagents: Box::new([ModelEffort { model: 1, effort: None }, ModelEffort { model: 3, effort: Some(1) }]),
-        account: None,
-    };
-    for (producing_llm, review_llm) in [(None, None), (Some(producing), Some(review))] {
-        let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: false });
-        row.repairs = Some([28; 32]);
-        row.producing_llm = producing_llm;
-        row.review_llm = review_llm;
-        let row = fixtures::change_cold(row);
+    let mut no_choices = change_with_role_choices(false);
+    no_choices.producing_llm = None;
+    no_choices.review_llm = None;
+    for change in [no_choices, change_with_role_choices(false), change_with_role_choices(true)] {
+        let row = fixtures::change_cold(change);
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
 }
+
+#[test]
+fn a_changes_previous_role_choice_layout_reads_without_speeds() {
+    use skein_codec::layout::{Mode, Plan, Workspace};
+    let current = crate::OWNER_SET.families.first().expect("store family").current;
+    let prior = current.replace(
+        "record ModelEffort { model: u8 effort: option u8 speed: option bytes 32 = none }",
+        "record ModelEffort { model: u8 effort: option u8 }",
+    );
+    assert_ne!(current, &prior);
+    let new = skein_codec::schema::parse(current.as_bytes()).unwrap();
+    let old = skein_codec::schema::parse(prior.as_bytes()).unwrap();
+    let new_row = new.root(b"Row", None).unwrap();
+    let old_row = old.root(b"Row", None).unwrap();
+    let down = Plan::between(Mode::Read, &new, new_row, &[], &old, old_row, &[]).unwrap();
+    let up = Plan::derive(&old, old_row, &[], &new, new_row, &[]).unwrap();
+    let mut work = Workspace::new();
+    let row = fixtures::change_cold(change_with_role_choices(true));
+    // The previous layout can only write the indices and efforts, not the speed names.
+    let mut earlier = skein_lib::Buffer::with_capacity(131_072);
+    assert!(work.fit(&down));
+    down.convert(&records::encode(&row), &mut earlier, &mut work).unwrap();
+    let mut converted = skein_lib::Buffer::with_capacity(131_072);
+    assert!(work.fit(&up));
+    up.convert(earlier.as_slice(), &mut converted, &mut work).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let expected = fixtures::change_cold(change_with_role_choices(false));
+    assert_eq!(records::decode(converted.as_slice(), &bounds), Ok(expected));
+}
+
 #[test]
 fn verifying_changes_keep_the_first_observation_at_wall_time_extremes() {
     use temper_engine_domain_forge_change::{Cause, State};
@@ -877,6 +921,7 @@ fn previous_hold_arms_read_without_releasing_the_change() {
         landing: [2; 32],
         asked: true,
         refused: Some(temper_engine_domain_forge_change::CloseRefused { counts: Some([3; 32]) }),
+        outdated: None,
     };
     for (arm, cause, at, flake, no_test) in [
         (v25::ChangeHold::Stalled, Cause::Stalled, None, false, false),
@@ -1726,28 +1771,59 @@ fn a_changes_result_evidence_survives_restart_with_its_cut_counts() {
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
 }
 
+fn directory_call(path: &[u8], truncated: bool) -> forge::Stored {
+    use skein_forge::api::{Answer, Entry, EntryKind};
+    let answer = Answer::Directory {
+        head: [15; 32],
+        path: path.into(),
+        entries: Box::new([
+            Entry { name: b"main.rs".as_slice().into(), kind: EntryKind::File },
+            Entry { name: b"lib".as_slice().into(), kind: EntryKind::Directory },
+            Entry { name: b"vendor".as_slice().into(), kind: EntryKind::Submodule },
+            Entry { name: b"linked.rs".as_slice().into(), kind: EntryKind::Link },
+        ]),
+        truncated,
+    };
+    fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(answer))))
+}
+
 #[test]
 fn a_directory_answer_round_trips_with_its_entries() {
-    use skein_forge::api::{Answer, Entry, EntryKind};
     let mut limits = fixtures::LIMITS;
     limits.client.rows = 1; // Directory entries use the existing byte budget alone.
     let bounds = crate::bounds(&limits, limits.client.op_bytes).expect("fixture bounds");
     for path in [b"".as_slice(), b"src"] {
         for truncated in [false, true] {
-            let answer = Answer::Directory {
-                head: [15; 32],
-                path: path.into(),
-                entries: Box::new([
-                    Entry { name: b"main.rs".as_slice().into(), kind: EntryKind::File },
-                    Entry { name: b"lib".as_slice().into(), kind: EntryKind::Directory },
-                    Entry { name: b"vendor".as_slice().into(), kind: EntryKind::Submodule },
-                ]),
-                truncated,
-            };
-            let row = fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(answer))));
+            let row = directory_call(path, truncated);
             assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
         }
     }
+}
+
+#[test]
+fn the_previous_directory_kind_cannot_keep_a_link_answer() {
+    use skein_codec::{
+        layout::{Misconverted, Mode, Plan, Refused, Workspace},
+        schema,
+    };
+    const CURRENT_KIND: &str = "enum DirectoryKind { file, directory, submodule, link }";
+    const EARLIER_KIND: &str = "enum DirectoryKind { file, directory, submodule }";
+    let text = fixtures::layouts::BINARY;
+    let earlier = text.replace(CURRENT_KIND, EARLIER_KIND);
+    let new = schema::parse(text.as_bytes()).expect("current schema");
+    let old = schema::parse(earlier.as_bytes()).expect("schema without links");
+    let new_call = new.root(b"Row", Some(b"call")).expect("registered call root");
+    let old_call = old.root(b"Row", Some(b"call")).expect("previous call root");
+    let keep = Plan::between(Mode::Keep, &new, new_call, &[], &old, old_call, &[]).expect("Keep plan for calls");
+    let mut work = Workspace::new();
+    assert!(work.fit(&keep));
+    let bytes = records::encode(&directory_call(b"src", false));
+    // The previous enum has the same wire width, so a successful conversion could not need more room.
+    let mut out = skein_lib::Buffer::with_capacity(u32::try_from(bytes.len()).expect("bounded fixture"));
+    let Err(Misconverted::Refused(at)) = keep.convert(&bytes, &mut out, &mut work) else {
+        panic!("a link is not a previous directory kind");
+    };
+    assert_eq!(keep.refusal(at), Some((Refused::Variant, "DirectoryKind", "link")));
 }
 
 #[test]
@@ -3427,6 +3503,7 @@ fn a_closer_row_round_trips() {
             closer: Closer::new(),
             making: None,
             close_changes: Box::new([]),
+            catch_up_changes: Box::new([]),
             superseded: Box::new([]),
             landing_changes: Box::new([]),
             relay: temper_engine_domain_forge_closer::relay::Relay::new(),
@@ -3444,6 +3521,7 @@ fn a_closer_row_round_trips() {
             },
             making: Some(Step::Close),
             close_changes: Box::new([20]),
+            catch_up_changes: Box::new([]),
             superseded: Box::new([]),
             landing_changes: Box::new([]),
             relay: temper_engine_domain_forge_closer::relay::Relay::new(),
@@ -3462,6 +3540,7 @@ fn a_closer_row_round_trips() {
             },
             making: Some(Step::Land),
             close_changes: Box::new([20, 22]),
+            catch_up_changes: Box::new([]),
             superseded: Box::new([20]),
             landing_changes: Box::new([21, 23]),
             relay: temper_engine_domain_forge_closer::relay::Relay::new(),
@@ -3481,6 +3560,7 @@ fn a_closer_row_round_trips() {
         },
         making: None,
         close_changes: Box::new([20]),
+        catch_up_changes: Box::new([]),
         superseded: Box::new([]),
         landing_changes: Box::new([]),
         relay: temper_engine_domain_forge_closer::relay::Relay::new(),
@@ -3508,6 +3588,7 @@ fn a_closers_report_check_and_its_last_line_round_trip() {
         let forge::Stored::Closer(mut row) = closer_relay_row(Relay::new()) else { panic!("closer fixture") };
         row.closer.report_check = check;
         row.closer.goal_left = Some(b"the switch, not yet cut.".as_slice().into());
+        row.closer.goal_asked = Some(b"Asked: causes\nthe cache was cold".as_slice().into());
         let stored = forge::Stored::Closer(row);
         let meter = skein_world::domain::heap::Meter::new();
         meter.start();
@@ -3525,6 +3606,7 @@ fn closer_relay_row(relay: temper_engine_domain_forge_closer::relay::Relay) -> f
         closer: temper_engine_domain_forge_closer::Closer::new(),
         making: None,
         close_changes: Box::new([]),
+        catch_up_changes: Box::new([]),
         superseded: Box::new([]),
         landing_changes: Box::new([]),
         done: false,
@@ -3535,6 +3617,7 @@ fn closer_relay_row(relay: temper_engine_domain_forge_closer::relay::Relay) -> f
 const CLOSER_GOAL: u64 = 7;
 const CLOSER_LANDING: u64 = 20;
 const CLOSER_SETTLEMENT: u64 = 21;
+const CLOSER_CATCH_UP: u64 = 22;
 const LANDING_QUESTION: u64 = 10;
 const SETTLEMENT_QUESTION: u64 = 11;
 const NEXT_LANDING_QUESTION: u64 = 12;
@@ -3677,6 +3760,36 @@ fn an_older_closer_defaults_superseded_changes_to_empty() {
 }
 
 #[test]
+fn a_closers_catch_up_round_trips_with_its_owned_bytes() {
+    use temper_engine_domain_forge_closer::{Hold, Running, Step, relay::Relay};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let forge::Stored::Closer(mut row) = closer_relay_row(Relay::new()) else { panic!("closer fixture") };
+    row.closer.caught_up = Some(Box::new([CLOSER_SETTLEMENT]));
+    row.catch_up_changes = Box::new([CLOSER_CATCH_UP]);
+    row.closer.running = Some(Running { step: Step::CatchUp, change: CLOSER_CATCH_UP });
+    row.closer.hold = Some(Hold::ClosingStep { step: Step::CatchUp, change: CLOSER_CATCH_UP });
+    let stored = forge::Stored::Closer(row);
+    let meter = skein_world::domain::heap::Meter::new();
+    meter.start();
+    let cloned = stored.clone();
+    assert_eq!(forge::stored_bytes(&cloned), Some(meter.end().held()));
+    assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+}
+
+#[test]
+fn an_older_closer_defaults_its_catch_up_fields() {
+    use super::dev_layouts::Dev;
+    use temper_engine_domain_forge_closer::relay::Relay;
+    let forge::Stored::Closer(mut row) = closer_relay_row(Relay::new()) else { panic!("closer fixture") };
+    let expected = forge::Stored::Closer(row.clone());
+    row.closer.caught_up = Some(Box::new([CLOSER_SETTLEMENT]));
+    row.catch_up_changes = Box::new([CLOSER_CATCH_UP]);
+    let mut dev = Dev::new();
+    let stored = dev.row(&forge::Stored::Closer(row), "closer");
+    assert_eq!(dev.read(&stored, "closer"), expected);
+}
+
+#[test]
 fn a_closers_waiting_questions_alone_keep_the_relay_present() {
     use temper_engine_domain_forge_closer::relay::Relay;
     const WAITING_BOUND: u32 = 2; // One slot per possible open step.
@@ -3702,13 +3815,13 @@ fn a_closers_third_waiting_question_is_refused_by_the_decoder() {
 
 #[test]
 fn a_closer_with_a_truncated_relay_is_malformed() {
-    const EMPTY_SUPERSEDED: [u8; 4] = 0_u32.to_be_bytes();
+    // The absent option and two empty lists that follow the relay tag.
+    const DEFAULT_TAIL: [u8; 9] = [0; 9];
     let row = closer_relay_row(temper_engine_domain_forge_closer::relay::Relay::new());
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
     let bytes = records::encode(&row);
-    // The absent relay's tag precedes the empty superseded list's u32 count.
-    let without_list = bytes.strip_suffix(EMPTY_SUPERSEDED.as_slice()).expect("empty superseded list");
-    let legacy = without_list.strip_suffix(&[0]).expect("absent relay tag");
+    let tail = bytes.strip_suffix(DEFAULT_TAIL.as_slice()).expect("default trailing fields");
+    let legacy = tail.strip_suffix(&[0]).expect("absent relay tag");
     assert_eq!(records::decode(legacy, &bounds), Err(crate::Undecodable::Malformed));
     assert_eq!(records::decode(&legacy[..legacy.len() - 1], &bounds), Err(crate::Undecodable::Malformed));
     let mut truncated = skein_lib::Writer::new(legacy.len() + 1);
@@ -3743,6 +3856,7 @@ fn a_closers_selection_progress_round_trips_with_its_owned_bytes() {
         closer,
         making: None,
         close_changes: Box::new([]),
+        catch_up_changes: Box::new([]),
         superseded: Box::new([]),
         landing_changes: Box::new([]),
         relay: temper_engine_domain_forge_closer::relay::Relay::new(),
@@ -4183,7 +4297,7 @@ fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
             use jig_domain_tasks::{LlmChoice, ModelEffort};
             use temper_engine_domain_forge_change::{Early, Open, Stands, StartedFrom};
             row.room = Some(random.next_u64());
-            let model = ModelEffort { model: 0, effort: None };
+            let model = ModelEffort { model: 0, effort: None, speed: None };
             row.producing_llm =
                 Some(LlmChoice { account: None, main: model, subagents: Box::new([model]), later: None });
             row.review_llm = row.producing_llm.clone();
@@ -4418,22 +4532,41 @@ fn a_flake_terminal_and_hold_round_trip_in_the_hot_part() {
     }
 }
 
-#[test]
-fn a_close_refusal_round_trips_in_the_hot_part() {
-    use temper_engine_domain_forge_change::{CloseAt, CloseRefused, State};
+fn close_attempt_round_trips(
+    state: temper_engine_domain_forge_change::State,
+    at: temper_engine_domain_forge_change::CloseAt,
+) {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
-    let mut row = fixtures::change_row(State::Producing { requested: true });
-    row.close_at = Some(CloseAt {
-        branch: [3; 32],
-        landing: [4; 32],
-        asked: true,
-        refused: Some(CloseRefused { counts: Some([5; 32]) }),
-    });
+    let mut row = fixtures::change_row(state);
+    row.close_at = Some(at);
     let (cold, hot) = row.clone().split();
     let stored = forge::Stored::ChangeHot(Box::new(hot));
     let decoded = records::decode(&records::encode(&stored), &bounds).expect("current change record");
     let forge::Stored::ChangeHot(decoded) = decoded else { panic!("change hot part") };
     assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
+}
+
+#[test]
+fn a_close_refusal_round_trips_in_the_hot_part() {
+    use temper_engine_domain_forge_change::{CloseAt, CloseRefused, State};
+    let at = CloseAt {
+        branch: [3; 32],
+        landing: [4; 32],
+        asked: true,
+        refused: Some(CloseRefused { counts: Some([5; 32]) }),
+        outdated: None,
+    };
+    close_attempt_round_trips(State::Producing { requested: true }, at);
+}
+
+#[test]
+fn an_outdated_close_round_trips_in_the_hot_part() {
+    use temper_engine_domain_forge_change::{CloseAt, CloseOutdated, State};
+    for finding in [CloseOutdated::Window, CloseOutdated::Ancestry] {
+        let at = CloseAt { branch: [3; 32], landing: [4; 32], asked: true, refused: None, outdated: Some(finding) };
+        let state = State::NoChange { words: b"Catch up from main.".as_slice().into() };
+        close_attempt_round_trips(state, at);
+    }
 }
 
 #[test]
@@ -4633,4 +4766,94 @@ fn a_ci_recheck_round_trips_before_and_after_its_measurement() {
         let forge::Stored::ChangeHot(decoded) = decoded else { panic!("change hot part") };
         assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
     }
+}
+
+#[test]
+fn a_temper_dir_repair_round_trips_but_cannot_be_kept_by_the_previous_layout() {
+    use skein_codec::{
+        layout::{Misconverted, Mode, Plan, Refused, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_change::{Repair, State};
+    let why = Repair::TemperDir { head: [7; 32] };
+    let mut row = fixtures::change_row(State::Repairing { requested: true, why });
+    row.temper_dir_fault =
+        Some(Box::from(b"temper's check of .temper/ at 0707:\n.temper/ways.toml:1: unknown key `x`".as_slice()));
+    let stored = fixtures::change_hot(row);
+    let bytes = records::encode(&stored);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
+    assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
+
+    let text = fixtures::layouts::BINARY;
+    let earlier = text.replace(", temper_dir: Commit", "").replace(" temper_dir_fault: option bytes 65536 = none", "");
+    let new = schema::parse(text.as_bytes()).expect("current schema");
+    let old = schema::parse(earlier.as_bytes()).expect("schema without check repairs");
+    let new_hot = new.root(b"Row", Some(b"change_hot")).expect("current change hot");
+    let old_hot = old.root(b"Row", Some(b"change_hot")).expect("previous change hot");
+    let keep = Plan::between(Mode::Keep, &new, new_hot, &[], &old, old_hot, &[]).expect("Keep plan");
+    let mut work = Workspace::new();
+    assert!(work.fit(&keep));
+    let mut out = skein_lib::Buffer::with_capacity(u32::try_from(bytes.len()).expect("test row length"));
+    let Err(Misconverted::Refused(at)) = keep.convert(&bytes, &mut out, &mut work) else {
+        panic!("the old layout cannot keep a new repair");
+    };
+    assert_eq!(keep.refusal(at), Some((Refused::Field, "ChangeHot", "temper_dir_fault")));
+    let reason = fixtures::change_hot(fixtures::change_row(State::Repairing { requested: true, why }));
+    let Err(Misconverted::Refused(at)) = keep.convert(&records::encode(&reason), &mut out, &mut work) else {
+        panic!("the previous layout cannot keep even the reason without its words");
+    };
+    assert_eq!(keep.refusal(at), Some((Refused::Variant, "Repair", "temper_dir")));
+
+    // A row without a check repair can go both ways. Reading the older row defaults the fault words to absent.
+    let ordinary = fixtures::change_hot(fixtures::change_row(State::Repairing { requested: true, why: Repair::Ci }));
+    let bytes = records::encode(&ordinary);
+    let mut back = skein_lib::Buffer::with_capacity(u32::try_from(bytes.len()).expect("test row length"));
+    keep.convert(&bytes, &mut back, &mut work).expect("ordinary repair can go back");
+    let forward = Plan::between(Mode::Keep, &old, old_hot, &[], &new, new_hot, &[]).expect("forward Keep plan");
+    assert!(work.fit(&forward));
+    let mut forward_bytes = skein_lib::Buffer::with_capacity(u32::try_from(bytes.len()).expect("test row length"));
+    forward.convert(back.as_slice(), &mut forward_bytes, &mut work).expect("default the fault words");
+    assert_eq!(records::decode(forward_bytes.as_slice(), &bounds), Ok(ordinary));
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "ordinary Rust store fixture at the byte ceiling"
+)]
+fn temper_revision_row_is_keyed_by_project_and_bounded() {
+    let mut revision = forge::DotTemperRevision {
+        project: u32::MAX,
+        number: 9,
+        home: fixtures::REPO,
+        commit: Some([1; 32]),
+        method: true,
+        files: (0_u32..8_u32)
+            .map(|n| forge::DotTemperFile {
+                path: format!(".temper/ways/a{n}.toml").into_bytes().into(),
+                bytes: vec![b'x'; 65_536].into(),
+            })
+            .collect(),
+        observed: 43,
+        refused: Some(forge::DotTemperRefusal { commit: Some([2; 32]), observed: 43, words: vec![b'w'; 1024].into() }),
+    };
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let row = forge::Stored::DotTemperRevision(revision.clone());
+    let key = forge::stored_key(&row);
+    let encoded_key = crate::keys::encode(&key, u32::MAX).unwrap();
+    assert_eq!(encoded_key[0], 53);
+    assert_eq!(
+        crate::keys::decode(&encoded_key, &fixtures::LIMITS),
+        Some(forge::Key::DotTemperRevision { project: u32::MAX })
+    );
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    let mut files = revision.files.into_vec();
+    files.push(forge::DotTemperFile {
+        path: b".temper/ways/extra.toml".as_slice().into(),
+        bytes: b"x".as_slice().into(),
+    });
+    revision.files = files.into();
+    let over = records::encode(&forge::Stored::DotTemperRevision(revision));
+    assert_eq!(records::decode(&over, &bounds), Err(crate::Undecodable::Malformed));
 }

@@ -161,11 +161,12 @@ pub struct Plan {
     pub options: Options,
     pub chromium: PathBuf,
     pub environment: Vec<(OsString, OsString)>,
+    parent: u32,
     pub(super) tui_display: Option<OsString>,
 }
 impl Plan {
     #[must_use]
-    pub fn new(options: Options, chromium: PathBuf, path: &OsStr) -> Self {
+    pub fn new(options: Options, chromium: PathBuf, path: &OsStr, parent: u32) -> Self {
         let mut environment = vec![("PATH".into(), path.into())];
         for (key, dir) in [
             ("HOME", "home"),
@@ -178,7 +179,7 @@ impl Plan {
         ] {
             environment.push((key.into(), options.scratch.join("session").join(dir).into_os_string()));
         }
-        Self { options, chromium, environment, tui_display: None }
+        Self { options, chromium, environment, parent, tui_display: None }
     }
     #[must_use]
     pub fn box_program(&self) -> Program {
@@ -202,6 +203,26 @@ impl Plan {
                 "TEMPER_INTERNAL_FAKE_BOX_PORTS".into(),
                 super::place::Ports::parse(ports).expect("validated ports").list().into(),
             ));
+        }
+        self.dying_with_session(program, "terminate")
+    }
+    /// Exec on the session's loop thread, preserving the process identity and its pipes
+    /// (`temper/docs/design/testing/fixture-lifetime.md`, 1 and 2).
+    pub(super) fn dying_with_session(&self, mut program: Program, signal: &str) -> Program {
+        if cfg!(target_os = "linux") {
+            let mut args = vec![
+                "internal".into(),
+                "forge-child".into(),
+                "--parent".into(),
+                self.parent.to_string().into(),
+                "--signal".into(),
+                signal.into(),
+                "--".into(),
+                program.program.into_os_string(),
+            ];
+            args.append(&mut program.args);
+            program.program = self.options.bin.join("temper-box");
+            program.args = args;
         }
         program
     }
@@ -294,12 +315,13 @@ pub(super) fn check_destinations(program: &Program, scratch: &Path) -> Result<()
     Ok(())
 }
 pub(super) fn prepare(options: Options, environment: &[EnvironmentEntry]) -> Result<Plan, String> {
-    prepare_with(options, environment, &mut Disk)
+    prepare_with(options, environment, skein_shell::process_id(), &mut Disk)
 }
 
 pub(super) fn prepare_with(
     mut options: Options,
     environment: &[EnvironmentEntry],
+    parent: u32,
     disk: &mut impl PreflightDisk,
 ) -> Result<Plan, String> {
     validate_journey(options.journey, options.ctl, !options.widths.is_empty())?;
@@ -360,8 +382,8 @@ pub(super) fn prepare_with(
         executable(disk, &chromium)?;
         chromium
     };
-    let mut plan =
-        Plan::new(options, chromium, OsStr::from_bytes(crate::table::PATH.value(environment).unwrap_or_default()));
+    let path = OsStr::from_bytes(crate::table::PATH.value(environment).unwrap_or_default());
+    let mut plan = Plan::new(options, chromium, path, parent);
     plan.tui_display = environment
         .iter()
         .find(|(name, _)| name.as_ref() == b"DISPLAY")

@@ -1,4 +1,4 @@
-//! Scenarios and input builders shared by protocol-world checks.
+//! Protocol-world scenarios and draws (hearth/docs/design/testing/README.md, 2.5 and 4.5).
 use super::{Fault, File, GIT_DIR, Scenario, Shared, thin};
 use hearth_domain_builder::vocabulary::Call;
 use hearth_fake_machine::hearth::mirror::{Mirror, Release, Suite, Timestamp};
@@ -12,7 +12,7 @@ pub const MOTD_KIND_SHA256: Digest = Digest([
     0xa6, 0x03, 0xa5, 0x5b, 0x16, 0x48, 0xd6, 0x7c, 0xb6, 0x67, 0x25, 0xe7, 0x9b, 0xb1, 0xd1, 0xc5, 0xe3, 0x4d, 0x1b,
     0xfa, 0x5b, 0x59, 0x72, 0x77, 0x3c, 0xb8, 0xe3, 0xa8, 0xb0, 0xa3, 0xe8, 0xb2,
 ]);
-/// The plan's sixty-four-seed sweep covers every fault repeatedly.
+/// The gate's sixty-four seeds cover every fault repeatedly.
 pub const FUZZY_PROTOCOL_SEEDS: core::ops::Range<u64> = 0..64;
 pub const PROTOCOL_LOCK_RELEASE: skein_lib::Time = skein_lib::Time::from_nanos(2_500_000_000);
 const THIN_SNAPSHOT: &[u8] = b"20261001T030405Z";
@@ -157,7 +157,8 @@ pub const PROTOCOL_FAULTS: &[ProtocolFault] = &[
 ];
 #[must_use]
 pub fn swept_fault(seed: u64) -> (&'static ProtocolFault, Scenario<'static>) {
-    let position = usize::try_from(seed).expect("seed fits") % PROTOCOL_FAULTS.len();
+    let position = seed % PROTOCOL_FAULTS.len() as u64;
+    let position = usize::try_from(position).expect("position fits the fault table");
     let case = PROTOCOL_FAULTS.get(position).expect("fault drawn within the table");
     let scenario = match case.fault {
         Some(Fault::CacheFileGone { .. }) => diff_motd(hearth::Form::JsonLines),

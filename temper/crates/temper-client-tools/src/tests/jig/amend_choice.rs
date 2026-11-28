@@ -22,6 +22,64 @@ fn amend_sends_the_named_effort() {
     let c::Ask::Amend { change, .. } = f::act_ask(&root, call) else { panic!("amend") };
     assert_eq!(change.llm.as_ref().expect("choice").main.effort, Some(f::act_text(f::EFFORT_NAME)));
 }
+const AMEND: &[&str] = &["task", "amend", "41", "--rev", "7", "because"];
+
+#[test]
+fn amend_sends_speeds_in_a_main_replacement_or_a_subagent_edit() {
+    for (flags, main) in [
+        (&["--model", "chosen-model", "--speed", "fast", "--key", "main-speed"][..], true),
+        (&["--sub-agent-speed", "plain-model:fast"][..], false),
+    ] {
+        let mut me = f::choice_me(f::CHAT_BUDGET);
+        let models = &mut me.projects.get_mut(0).unwrap().models;
+        for index in 0..models.len() {
+            models.get_mut(index).unwrap().speeds = List::from_boxed(Box::new([f::speed_offer(b"fast")]));
+        }
+        let mut task = f::choice_task(c::Admission::Allowed);
+        let choice = task.llm.as_mut().unwrap();
+        choice.main.speed = Some(f::act_text(b"standard"));
+        let mut plain = f::model_effort(b"plain-model", None);
+        plain.speed = Some(f::act_text(b"standard"));
+        let mut other = choice.subagents.get(0).unwrap().clone();
+        other.speed = Some(f::act_text(b"ultrafast"));
+        choice.subagents = List::from_boxed(Box::new([plain, other]));
+        let mut expected = choice.clone();
+        if main {
+            expected.main = f::model_effort(f::MODEL_NAME, Some(f::EFFORT_NAME));
+            expected.main.speed = Some(f::act_text(b"fast"));
+        } else {
+            expected.subagents.get_mut(0).unwrap().speed = Some(f::act_text(b"fast"));
+        }
+
+        let argv = f::extended(AMEND, flags);
+        let call = f::call(argv.as_slice());
+        let json = crate::jig::json::write_call(crate::table::TOOLS, &call).unwrap();
+        let decoded = f::from_json(&json);
+        assert_eq!(decoded, call);
+        for call in [call, decoded] {
+            let mut root = f::choice_root(me.clone());
+            let sent = root.submit_prepared(call, false, None);
+            root.serve(sent, f::task_result(task.clone()));
+            let c::Ask::Amend { change, revision, .. } = f::act_ask(&root, sent) else { panic!("amend") };
+            assert_eq!(*revision, Some(c::Revision { value: f::CHOICE_SPEC }));
+            assert_eq!(change.llm.as_ref(), Some(&expected));
+        }
+    }
+}
+
+#[test]
+fn amend_refuses_speed_for_a_model_the_task_does_not_keep() {
+    let argv = f::extended(AMEND, &["--sub-agent-speed", "plain-model:standard"]);
+    let (mut root, call) = f::send_choice_amend(argv.as_slice(), f::choice_task(c::Admission::Allowed));
+    assert!(root.sends.is_empty());
+    let answer = root.answer(call).unwrap();
+    assert_eq!(answer.status, 1);
+    assert_eq!(
+        answer.stderr.as_ref(),
+        b"--sub-agent-speed plain-model:standard: plain-model is not one of the task's sub-agents\n"
+    );
+}
+
 #[test]
 fn amend_can_start_a_task_choice() {
     let mut task = f::choice_task(c::Admission::Allowed);
@@ -110,10 +168,10 @@ fn amend_requires_a_change() {
 }
 #[test]
 fn amend_requires_a_revision_for_a_model_change() {
-    assert_eq!(
-        f::parse(&["task", "amend", "41", "--model", "chosen-model", "because"]),
-        Err(crate::jig::argv::Usage::AmendmentRevision)
-    );
+    for flag in [["--model", "chosen-model"], ["--sub-agent-speed", "plain-model:fast"]] {
+        let argv = f::extended(&["task", "amend", "41", "because"], &flag);
+        assert_eq!(f::parse(argv.as_slice()), Err(crate::jig::argv::Usage::AmendmentRevision));
+    }
 }
 #[test]
 fn amend_requires_a_reason() {

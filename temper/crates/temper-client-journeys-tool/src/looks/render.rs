@@ -1,4 +1,4 @@
-//! The lines from look-render (temper/docs/design/client/journey-writer.md, 6.2, step 8).
+//! The lines from look-render (temper/docs/design/client/journey-writer-requests.md, 1.2, step 8).
 
 use std::fmt::Write as _;
 
@@ -159,9 +159,11 @@ fn url_path(path: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::look_render::tests::report_with_printed_and_hand_made_pages;
+    use std::collections::BTreeSet;
 
-    use super::{Render, page_path};
+    use crate::look_render::{Why, report::line, tests::lines};
+
+    use super::{RESULTS, Render, Report, page_path};
 
     #[test]
     fn page_paths_accept_only_html_files_directly_in_a_journey_directory() {
@@ -186,22 +188,74 @@ mod tests {
     }
 
     #[test]
-    fn look_render_reports_round_trip_printed_and_hand_made_pages() {
-        let bytes = report_with_printed_and_hand_made_pages();
-        let render = Render::read(&bytes).expect("writer reads look-render's report");
-        assert_eq!(render.result, "differs");
-        let mut html = String::new();
-        render.html(&mut html, false);
-        assert_eq!(
-            html,
-            concat!(
-                "<h3><a href=\"usage-model-week/accounts-after.html\">web/journeys/usage-model-week/accounts-after.html</a></h3>",
-                "<p>not compared: hand-made</p>",
-                "<h3><a href=\"welcome/01.html\">web/journeys/welcome/01.html</a></h3>",
-                "<table><thead><tr><th>Width</th><th>Element</th><th>Property</th><th>Requested</th><th>Landed</th></tr></thead><tbody>",
-                "<tr><td>1440</td><td>41 button.temper-chip</td><td>color</td><td>red</td><td>blue</td></tr>",
-                "</tbody></table>",
-            ),
-        );
+    fn listed_render_outputs_round_trip_through_the_writer() {
+        let mut kinds = BTreeSet::new();
+        let mut results = BTreeSet::new();
+        let mut pages = BTreeSet::new();
+        let mut whys = BTreeSet::new();
+        let outputs = lines::outputs().collect::<Vec<_>>();
+        for (name, stdout) in &outputs {
+            let render = Render::read(stdout.as_bytes()).unwrap_or_else(|why| panic!("{name}: {why}: {stdout:?}"));
+            let written = write_back(&render);
+            assert_eq!(std::str::from_utf8(&written), Ok(stdout.as_str()), "{name}");
+
+            kinds.extend(stdout.split_terminator('\n').filter_map(|line| line.split_once('\t').map(|(kind, _)| kind)));
+            results.insert(render.result);
+            for page in render.pages {
+                pages.insert(page.path);
+                if let Report::Uncompared(why) = page.report {
+                    whys.insert(why);
+                }
+            }
+        }
+
+        for kind in ["identical", "differs", "more", "uncompared", "result"] {
+            assert!(kinds.contains(kind), "no listed look-render line of kind {kind:?}");
+        }
+        for &result in RESULTS {
+            assert!(results.contains(result), "no listed look-render result {result:?}");
+        }
+        for why in Why::ALL {
+            let words = why.words();
+            assert!(whys.contains(words.as_ref()), "no listed look-render why {words:?}");
+        }
+        for page in ["web/journeys/sign-in/02.html", "web/journeys/usage-model-week/accounts-after.html"] {
+            assert!(pages.contains(page), "no listed look-render page {page:?}");
+        }
+        for root in ["web/journeys/", "tui/journeys/"] {
+            assert!(pages.iter().any(|page| page.starts_with(root)), "no listed look-render page under {root:?}");
+        }
+    }
+
+    fn write_back(render: &Render) -> Vec<u8> {
+        let mut out = Vec::new();
+        for page in &render.pages {
+            let path = page.path.as_bytes();
+            match &page.report {
+                Report::Identical => line(&mut out, &[b"identical", path]),
+                Report::Uncompared(why) => line(&mut out, &[b"uncompared", path, why.as_bytes()]),
+                Report::Differences { rows, more } => {
+                    for [width, element, property, requested, landed] in rows {
+                        line(
+                            &mut out,
+                            &[
+                                b"differs",
+                                path,
+                                width.as_bytes(),
+                                element.as_bytes(),
+                                property.as_bytes(),
+                                requested.as_bytes(),
+                                landed.as_bytes(),
+                            ],
+                        );
+                    }
+                    if let Some(count) = more {
+                        line(&mut out, &[b"more", path, count.to_string().as_bytes()]);
+                    }
+                }
+            }
+        }
+        line(&mut out, &[b"result", render.result.as_bytes()]);
+        out
     }
 }

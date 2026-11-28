@@ -229,20 +229,19 @@ pub(super) fn issuer(
 }
 
 pub(super) fn start(directory: &Path) -> skein_world::end_to_end::Binary {
-    use skein_world::end_to_end::{Binary, Command, Mode};
+    use skein_world::end_to_end::{Binary, Mode};
     super::limit_settings::install(directory);
     // A fresh init's demo forge is prepared by box before it starts serve.
-    Binary::start(
-        Command {
-            program: skein_scratch::paths::built("temper-box", "temper-box"),
-            arguments: super::configuration::flags(directory),
-            directory: directory.into(),
-            environment: Vec::new(),
-        },
-        Mode::Pipes,
-        65_536,
-    )
-    .expect("box starts the initialized deployment")
+    Binary::start(box_command(directory), Mode::Pipes, 65_536).expect("box starts the initialized deployment")
+}
+
+pub(super) fn box_command(directory: &Path) -> skein_world::end_to_end::Command {
+    super::boxed::box_fixture(skein_world::end_to_end::Command {
+        program: skein_scratch::paths::built("temper-box", "temper-box"),
+        arguments: super::configuration::flags(directory),
+        directory: directory.into(),
+        environment: Vec::new(),
+    })
 }
 
 struct Judge {
@@ -640,6 +639,8 @@ pub(super) fn plan_played(scripts: skein_fake_llm_domain::api::Scripts) -> super
         .flat_map(|script| &script.turns)
         .flat_map(|turn| &turn.lines)
         .map(|line| match line {
+            Line::Served { name } => name.len(),
+            Line::Drawn { tools, .. } => tools.iter().map(|name| name.len()).max().unwrap_or(0),
             Line::Cut { .. } => 0,
             Line::Take { name, before, after } => name.len().max(before.len()).max(after.len()),
             Line::Opaque { bytes } => bytes.len(),

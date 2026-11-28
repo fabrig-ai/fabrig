@@ -13,6 +13,8 @@ mod generated {
 mod classes;
 pub mod fields;
 pub mod file;
+#[cfg(test)]
+mod fuzzy;
 mod json;
 mod kinds;
 pub mod overlay;
@@ -31,6 +33,7 @@ pub use text::{Text, text_end};
 
 /// Every jig family but settings and asking: a charter's `tools` when its file leaves it out.
 pub const CHARTER_TOOLS_DEFAULT: u64 = 1023;
+const SETTING_NAME_BYTES: u32 = 32;
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
     pub settings: jig_client_protocol_wire::Limits,
@@ -183,8 +186,10 @@ pub fn refusal(why: &Refusal, out: &mut Text) {
             out.put(b"out of shape; item ");
             out.number(u64::from(*at));
             out.put(b"; ");
-            render::setting_text(*setting, out);
-            out.put(b": ");
+            if *fault != view::SettingFault::Name {
+                render::setting_text(*setting, out);
+                out.put(b": ");
+            }
             render::setting_fault(*setting, *fault, out);
             if let Some(detail) = detail {
                 render::setting_detail(detail, out);

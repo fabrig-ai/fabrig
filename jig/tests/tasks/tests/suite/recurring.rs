@@ -66,8 +66,8 @@ fn an_occurrence_keeps_its_members_llm_choice() {
     let llm = LlmChoice {
         later: None,
         account: None,
-        main: ModelEffort { model: 0, effort: Some(1) },
-        subagents: Box::new([ModelEffort { model: 2, effort: Some(0) }]),
+        main: ModelEffort { model: 0, effort: Some(1), speed: None },
+        subagents: Box::new([ModelEffort { model: 2, effort: Some(0), speed: None }]),
     };
     let mut master = recurring(9, RecurringOverlap::Skip);
     master.authority.models = Models::Named(0b101);

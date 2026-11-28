@@ -81,7 +81,7 @@ fn value(value: &Value) -> Option<u64> {
         Value::Template(template) => {
             let mut bytes = u64::try_from(size_of::<jig_domain_core::Template>())
                 .ok()?
-                .checked_add(skein_lib::len_u64(template.name.len()))?
+                .checked_add(skein_lib::len_u64(template.shown.len()))?
                 .checked_add(contract(&template.contract)?)?;
             if let Some(choice) = &template.llm {
                 bytes = bytes.checked_add(

@@ -373,7 +373,7 @@ fn finish_answered(domain: &mut Domain, answer: host::Answer, detail: Box<[u8]>,
                 host::Refusal::Invalid(host::RunInvalid::Effort) => {
                     crate::Failure::EffortRefused(domain.refused_effort())
                 }
-                host::Refusal::Invalid(_) | host::Refusal::Busy => crate::Failure::Refused(*refusal),
+                host::Refusal::Invalid(_) | host::Refusal::Busy => crate::Failure::Refused(refusal.clone()),
             };
             out.push(Request::Notice { notice: crate::Notice::Failure(failure) });
         }

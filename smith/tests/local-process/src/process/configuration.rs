@@ -114,6 +114,7 @@ pub(super) fn configuration_for_launch(
         let host: Box<[u8]> = path.as_os_str().as_encoded_bytes().into();
         directories.push(smith_domain::run::Directory {
             results: None,
+            hooks: None,
             host: host.clone(),
             name: plain.name.clone(),
             root: skein_lib::Token::new(2),
@@ -210,6 +211,7 @@ fn local_policy(lower: &agent::Config, change: bool, tools: bool) -> (local::Con
     let workspace = change.then(|| run::Workspace {
         directories: Box::new([run::Directory {
             results: None,
+            hooks: None,
             host: paths[0].clone(),
             name: b"repo".as_slice().into(),
             root: skein_lib::Token::new(1),
@@ -224,6 +226,7 @@ fn local_policy(lower: &agent::Config, change: bool, tools: bool) -> (local::Con
         brief: charter::Brief { sections: Box::new([]) },
         models: Box::new([charter::Llm {
             effort: None,
+            speed: None,
             prices: run::Prices {
                 input: 1_250_000,
                 cached: 125_000,
@@ -250,6 +253,7 @@ fn local_policy(lower: &agent::Config, change: bool, tools: bool) -> (local::Con
         conventions: tools.then(|| run::Conventions {
             guide: b".smith-test/guide".as_slice().into(),
             checks: b".smith-test/check".as_slice().into(),
+            hooks: None,
         }),
         contract: if change {
             local::Contract::Change(outcome::ChangeSpec {

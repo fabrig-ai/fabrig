@@ -5,7 +5,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
-use crate::{CallKey, CallPart, Core, Limits, PendingCall, Request};
+use crate::{CallHolder, CallKey, CallPart, Core, Limits, Request};
 
 #[derive(Hash, Debug)]
 pub(crate) enum Replay {
@@ -127,7 +127,7 @@ pub(crate) fn missing(
 pub(crate) fn current(core: &Core, replay: &Replay) -> bool {
     match replay {
         Replay::Agent { key, .. } => {
-            core.current_proof(key.task, key.attempt) && core.pending_calls.get(key) == Some(&PendingCall::Routed)
+            core.current_proof(key.task, key.attempt) && core.pending_calls.get(key) == Some(&CallHolder::Routed)
         }
         // Owner departure clears the read without deciding the keyed request.
         Replay::Person { person, .. } => core.people.identity(*person).is_some(),

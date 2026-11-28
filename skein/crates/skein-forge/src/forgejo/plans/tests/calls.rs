@@ -907,7 +907,7 @@ fn directory_entries() -> Box<[api::Entry]> {
     Box::new([
         api::Entry { name: Box::from(*b"a"), kind: api::EntryKind::File },
         api::Entry { name: Box::from(*b"b"), kind: api::EntryKind::Directory },
-        api::Entry { name: Box::from(*b"c"), kind: api::EntryKind::File },
+        api::Entry { name: Box::from(*b"c"), kind: api::EntryKind::Link },
         api::Entry { name: Box::from(*b"d"), kind: api::EntryKind::Submodule },
     ])
 }

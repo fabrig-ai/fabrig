@@ -82,7 +82,7 @@ fn first_build() -> OwnerSets {
 /// Every non-reserved record belongs to exactly one family. Report all bad keys,
 /// including both family names when ranges overlap.
 pub fn golden_ranges(directory: &Path) {
-    let mut disk = crate::golden::files::load(directory);
+    let mut disk = crate::golden::files::load_kept(directory);
     let maps = maps::Maps::read(&mut disk);
     let reserved = [
         (keys::encode_own(&keys::Own::Format, 64).expect("format key"), "format"),
@@ -370,7 +370,7 @@ fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>
         assert!(job.ended > 0, "job end committed");
         changed.insert(job_key.into_vec());
     }
-    changed.extend(pause_registry_upgrade(before, after, new.text));
+    changed.extend(current_registry_layouts(before, after, new.text));
     changed.extend(registry_orders(before, after, &changed));
     changed
 }
@@ -412,8 +412,8 @@ fn registry_orders(before: &maps::Maps, after: &maps::Maps, layouts: &BTreeSet<V
     changed
 }
 
-/// Register the pause, landing and closer layouts, retiring earlier layouts only for unused types.
-fn pause_registry_upgrade(before: &maps::Maps, after: &maps::Maps, temper_text: [u8; 32]) -> BTreeSet<Vec<u8>> {
+/// Check the named layout changes, retiring earlier layouts only for unused types.
+fn current_registry_layouts(before: &maps::Maps, after: &maps::Maps, temper_text: [u8; 32]) -> BTreeSet<Vec<u8>> {
     use jig_protocol_store::registry_v1 as wire;
     use skein_lib::Reader;
     let family = CURRENT_SETS
@@ -427,10 +427,17 @@ fn pause_registry_upgrade(before: &maps::Maps, after: &maps::Maps, temper_text: 
         .expect("people family");
     let people = skein_codec::schema::parse(family.current.as_bytes()).expect("people production text");
     let mut changed = BTreeSet::new();
-    for (owner, name, variant) in [
+    for (owner, name, root_or_variant) in [
         (Owner::Jig, "jig-store-people", "answer"),
         (Owner::Jig, "jig-store-people", "acted"),
+        // Only roots that carry a charter, template or policy have the new setting name.
+        (Owner::Jig, "jig-store-settings", "Default"),
+        (Owner::Jig, "jig-store-settings", "Changed"),
+        (Owner::Jig, "jig-store-settings", "Revision"),
+        (Owner::Jig, "jig-store-settings", "CharterVersion"),
+        (Owner::Jig, "jig-store-settings", "Proposal"),
         (Owner::Application, "temper-store", "application"),
+        (Owner::Application, "temper-store", "setting"), // Named area and triager owners.
         (Owner::Application, "temper-store", "landing"),
         (Owner::Application, "temper-store", "closer"),
     ] {
@@ -444,7 +451,11 @@ fn pause_registry_upgrade(before: &maps::Maps, after: &maps::Maps, temper_text: 
             .find(|family| family.name == name)
             .expect("family");
         let schema = skein_codec::schema::parse(family.current.as_bytes()).expect("production text");
-        let ty = family.types.iter().find(|ty| ty.variant == Some(variant)).expect("retained type");
+        let ty = family
+            .types
+            .iter()
+            .find(|ty| ty.variant.unwrap_or(ty.root) == root_or_variant)
+            .unwrap_or_else(|| panic!("retained type {name}/{root_or_variant}"));
         let root = schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).expect("root");
         let digest = schema.layout(root, &[&people]).expect("fingerprint").digest();
         for (key, value) in &before.store {

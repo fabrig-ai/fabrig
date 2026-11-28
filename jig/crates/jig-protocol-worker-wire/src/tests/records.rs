@@ -245,36 +245,32 @@ fn a_reason_below_256_reads_as_none() {
 #[test]
 fn the_schema_lists_the_hello_from_the_initiator() {
     let schema = hello_schema();
-    let version = schema.version(crate::VERSION).expect("one version");
     assert_eq!(schema.magic, *b"jigw");
-    assert_eq!(version.kinds.len(), CHANNEL_KINDS);
+    assert_eq!(schema.kinds.len(), CHANNEL_KINDS);
     assert_eq!(
-        version.kind(0x0100),
+        schema.kind(0x0100),
         Some(skein_channel::Kind { kind: 0x0100, direction: Direction::FromInitiator, largest: HELLO_MAX })
     );
 }
 
 #[test]
 fn terms_that_take_every_kind_leave_no_gap() {
-    assert_eq!(crate::terms_gap(&hello_schema(), crate::VERSION, Role::Initiator, &hello_terms(HELLO_MAX)), None);
+    assert_eq!(crate::terms_gap(&hello_schema().kinds, Role::Initiator, &hello_terms(HELLO_MAX)), None);
 }
 
 #[test]
 fn terms_below_the_hello_bound_name_the_hello_kind() {
-    assert_eq!(
-        crate::terms_gap(&hello_schema(), crate::VERSION, Role::Initiator, &hello_terms(HELLO_MAX - 1)),
-        Some(0x0100)
-    );
+    assert_eq!(crate::terms_gap(&hello_schema().kinds, Role::Initiator, &hello_terms(HELLO_MAX - 1)), Some(0x0100));
 }
 
 #[test]
 fn terms_without_the_hello_name_the_hello_kind() {
-    assert_eq!(crate::terms_gap(&hello_schema(), crate::VERSION, Role::Initiator, &no_terms()), Some(0x0100));
+    assert_eq!(crate::terms_gap(&hello_schema().kinds, Role::Initiator, &no_terms()), Some(0x0100));
 }
 
 #[test]
 fn the_responder_needs_no_sending_hello_term() {
-    assert_eq!(crate::terms_gap(&hello_schema(), crate::VERSION, Role::Responder, &down_terms()), None);
+    assert_eq!(crate::terms_gap(&hello_schema().kinds, Role::Responder, &down_terms()), None);
 }
 
 fn answer_through_bytes(answer: &crate::Answer) -> crate::Answer {
@@ -591,11 +587,10 @@ fn an_assignment_past_its_grant_bound_is_refused() {
 #[test]
 fn the_schema_lists_every_down_kind_from_the_responder() {
     let schema = hello_schema();
-    let version = schema.version(crate::VERSION).expect("one version");
-    assert_eq!(version.kinds.len(), CHANNEL_KINDS);
+    assert_eq!(schema.kinds.len(), CHANNEL_KINDS);
     for term in &down_terms() {
         assert_eq!(
-            version.kind(term.kind),
+            schema.kind(term.kind),
             Some(skein_channel::Kind { kind: term.kind, direction: Direction::FromResponder, largest: term.largest })
         );
     }

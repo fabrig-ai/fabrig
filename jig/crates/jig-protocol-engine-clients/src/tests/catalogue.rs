@@ -33,6 +33,8 @@ fn entry(number: u32, name: Box<[u8]>) -> CatalogueModel {
         price_unit: 1_000_000,
         efforts: Box::new([]),
         effort: None,
+        speeds: Box::default(),
+        speed: None,
     };
     CatalogueModel {
         first_read: None,
@@ -65,7 +67,7 @@ fn create() -> w::Ask {
     task.llm = Some(w::LlmChoice {
         later: None,
         account: None,
-        main: w::ModelEffort { model: NEW.into(), effort: None },
+        main: w::ModelEffort { model: NEW.into(), effort: None, speed: None },
         subagents: List::with_capacity(0),
     });
     let task = task;

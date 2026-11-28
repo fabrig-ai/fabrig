@@ -1,6 +1,6 @@
 # reference-code-production: the reasons behind it
 
-This holds the reference's reasons, moved from [`notes.md`](notes.md), sections 1, 4, 5 and 6.
+This holds the reference's reasons, moved from the shared notes file, sections 1, 4, 5 and 6.
 
 ## 1. In one page
 

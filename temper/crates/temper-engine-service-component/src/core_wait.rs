@@ -54,13 +54,31 @@ pub(crate) fn starting(step: Option<Phase>) -> &'static [u8] {
     }
 }
 
-/// One warning after start for values kept in the stock range (jig/docs/design/domain/engine/settings-store.md, 1).
-pub(crate) fn settings_kept(settings: &[jig_domain_core::settings::Setting]) -> Box<[u8]> {
+/// One warning after start, including both kinds of settings kept after a release (jig/docs/design/domain/engine/settings.md, 1).
+pub(crate) fn settings_warning(
+    kept: &[jig_domain_core::settings::Setting],
+    unnamed: &[jig_domain_core::settings::Setting],
+) -> Box<[u8]> {
+    let mut line: Box<[u8]> = Box::new([]);
+    if !kept.is_empty() {
+        line = bytes::copy_of(b"settings kept at stock numbers as a deployment's own (the stock's 1 to 32, a deployment's own 33 to 64): ");
+        line = setting_list(&line, kept);
+        line = bytes::concat(&[
+            &line,
+            b"; a release whose stock brings one of these numbers refuses its start until each moves to 33 to 64",
+        ]);
+    }
+    if !unnamed.is_empty() {
+        let separator: &[u8] = if line.is_empty() { b"" } else { b"; " };
+        line = bytes::concat(&[&line, separator, b"settings offered without a name now reserved by the stock: "]);
+        line = setting_list(&line, unnamed);
+    }
+    line
+}
+
+fn setting_list(prefix: &[u8], settings: &[jig_domain_core::settings::Setting]) -> Box<[u8]> {
     use jig_domain_core::settings::Setting;
-    let mut line: Box<[u8]> =
-        b"settings kept at stock numbers as a deployment's own (the stock's 1 to 32, a deployment's own 33 to 64): "
-            .as_slice()
-            .into();
+    let mut line = bytes::copy_of(prefix);
     for (at, setting) in settings.iter().enumerate() {
         let separator: &[u8] = if at == 0 { b"" } else { b", " };
         let (kind, number): (&[u8], u32) = match *setting {
@@ -77,10 +95,7 @@ pub(crate) fn settings_kept(settings: &[jig_domain_core::settings::Setting]) -> 
         };
         line = bytes::concat(&[&line, separator, kind, b" ", Decimal::of(u64::from(number)).as_bytes()]);
     }
-    bytes::concat(&[
-        &line,
-        b"; a release whose stock brings one of these numbers refuses its start until each moves to 33 to 64",
-    ])
+    line
 }
 
 /// One reason held; a line when it has kept inputs 1 s, again on change,

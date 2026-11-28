@@ -1,6 +1,8 @@
 //! Effect identities, descriptions and verdicts (jig/docs/design/domain/connectors.md, 2).
 
+use crate::ops::{CallKey, Ending, Party, Proposal};
 use alloc::boxed::Box;
+use skein_lib::{ReplyTo, Token, Wall};
 
 /// The purpose fixes the key independently of retry or outbox numbering.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -307,4 +309,110 @@ pub struct Name {
     /// Literal ordered segments, bounded by `Limits::segments` and `Limits::segment_bytes` when
     /// admitted.
     pub segments: Box<[Box<[u8]>]>,
+}
+
+/// Who requested the connector-owned effect and when a call must answer.
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum EffectOrigin {
+    /// A connector-owned goal projection, independent of executable task grants.
+    Projection {
+        goal: u64,
+        entry: Option<u64>,
+    },
+    Call {
+        to: ReplyTo,
+        key: CallKey,
+        deadline: Wall,
+    },
+    /// An explicit proposal keeps its connector payload without making it.
+    Propose {
+        to: ReplyTo,
+        key: CallKey,
+        reason: Box<[u8]>,
+        as_holder: bool,
+    },
+    /// A holder decision already authenticated by the core's proposal route.
+    Accept {
+        to: ReplyTo,
+        key: Option<CallKey>,
+        proposal: Box<Proposal>,
+        by: Party,
+    },
+    Procedure {
+        task: u64,
+        step: u64,
+        entry: Option<u64>,
+    },
+}
+
+impl EffectOrigin {
+    #[must_use]
+    pub fn task(&self) -> u64 {
+        match self {
+            Self::Projection { goal, .. } => *goal,
+            Self::Call { key, .. } | Self::Propose { key, .. } => key.task,
+            Self::Accept { proposal, .. } => proposal.proposer,
+            Self::Procedure { task, .. } => *task,
+        }
+    }
+}
+
+/// Root-verified writer-hold relationship for a run's written resource; authority performs no
+/// ownership discovery. (domain/authority-checks.md, section 1.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Writer {
+    /// Hold belongs to the running task.
+    Task,
+    /// Hold belongs to a root-verified ancestor of the running task.
+    Ancestor,
+    /// Hold is unresolved; run admission waits.
+    Pending,
+    /// Another task holds the writer; run admission waits.
+    Other,
+}
+
+/// What the engine asks of an effect connector.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Ask {
+    /// Judgement: describe this effect, answered by `Up::Described`, `Up::Refused` or `Up::Busy`.
+    Describe { owner: Token },
+    /// Judgement: describe the kept proposal's effect, answered by `Up::Described`, `Up::Refused` or `Up::Busy`.
+    DescribeProposal { owner: Token, proposal: u64 },
+    /// Judgement: judge the requirement for this state and resources, answered by `Up::Verdict`.
+    Judge { owner: Token, judge: Judge, state: [u8; 32], resources: Box<[Name]> },
+    /// Notification: keep the effect under its outbox key; no answer.
+    Keep { owner: Token, entry: u64, task: u64, key: EffectKey, project: Option<u32> },
+    /// Notification: keep the effect under its proposal number; no answer.
+    KeepProposal { owner: Token, proposal: u64, task: u64, project: u32 },
+    /// Notification: drop the effect with its reason and findings; no answer.
+    Drop { owner: Token, answer: Answer, findings: Box<[Finding]>, why: EffectRefusal },
+    /// Notification: drop a terminal proposal's effect; no answer.
+    DropProposal { proposal: u64 },
+    /// Operation that ends later: resolve an uncertain entry, answered by `Up::Outbox`.
+    Resolve { entry: u64, again: bool },
+    /// Operation that ends later: settle a closing task's effects, answered by `Up::Closed`.
+    Close { task: u64, root: u64, ending: Ending },
+    /// Operation that ends later: release a closing task's holds through the entry, answered by `Up::Released`.
+    Release { task: u64, root: u64, ending: Ending, entry: u64 },
+}
+
+/// An effect connector's answers, outbox outcomes and effect starts.
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum Up {
+    /// The effect's description.
+    Described { owner: Token, description: Box<EffectDescription> },
+    /// The effect description was refused.
+    Refused { owner: Token },
+    /// The effect description could not be made this time.
+    Busy { owner: Token },
+    /// A requirement's verdict for the given state.
+    Verdict { owner: Token, judge: Judge, verdict: Verdict, at: Wall, guarded: bool, state: [u8; 32] },
+    /// An outbox entry's outcome, including the resolution of an uncertain entry.
+    Outbox { entry: u64, task: u64, outcome: OutboxOutcome },
+    /// A closing task's effects are settled.
+    Closed { task: u64 },
+    /// A closing task's holds are released.
+    Released { task: u64 },
+    /// Unasked: start an effect for a procedure step or projection.
+    Start { owner: Token, origin: EffectOrigin },
 }

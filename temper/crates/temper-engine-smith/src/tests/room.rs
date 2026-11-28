@@ -53,6 +53,7 @@ fn measured_limits() -> run::Limits {
 
 fn configured(policy: &engine::RunPolicy) -> engine::Charter {
     engine::Charter {
+        name: None,
         number: 1,
         rest: false,
         policy: policy.clone(),

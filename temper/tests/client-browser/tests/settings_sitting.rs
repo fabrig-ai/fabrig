@@ -114,3 +114,64 @@ fn a_refused_call_reports_its_words_and_drains_serve() {
     assert_eq!(sitting.left, 1, "sign-out did not start");
     assert_eq!(sitting.exit, Exit::Code(0), "serve drained after the refusal: {}", sitting.ending);
 }
+
+/// The forge's settings judgement and the root's kept value share the apply's decision.
+#[test]
+fn a_forge_setting_removal_survives_a_real_loop_restart() {
+    let scratch = deployment("remove-forge-setting");
+    let directory = scratch.path();
+    let installed = configuration::install(directory).expect("install with an agents setting");
+    assert_eq!(installed.exit, Exit::Code(0));
+    assert_eq!(installed.failure, None);
+    let against = ctl::newest(&installed.calls[1]) + 1;
+    let removal = against + 1;
+    let file = directory.join("remove-agents.json");
+    fs::write(&file, br#"{"items":[{"setting":{"kind":"agents"},"edit":"removed"}]}"#).expect("agents removal fixture");
+    let changed = sit(
+        directory,
+        vec![
+            Step::Run(Call::sign_in()),
+            Step::Run(Call::new(&[
+                "settings",
+                "apply",
+                file.to_str().expect("settings path"),
+                "--against",
+                &against.to_string(),
+                "--key",
+                "remove-agents",
+            ])),
+            Step::Run(Call::new(&["sign-out"])),
+        ],
+    );
+    assert_eq!(changed.failure, None);
+    assert_eq!(changed.calls[1].exit, Some(Exit::Code(0)));
+    assert_eq!(changed.calls[1].stdout, format!("revision {removal}\n").as_bytes());
+    assert_eq!(changed.left, 0);
+
+    let reopened = sit(
+        directory,
+        vec![
+            Step::Run(Call::sign_in()),
+            Step::Run(Call::new(&["settings", "show", "--json"])),
+            Step::Run(Call::new(&["settings", "show"])),
+            Step::Run(Call::new(&["revision", "show", &removal.to_string(), "--json"])),
+            Step::Run(Call::new(&["sign-out"])),
+        ],
+    );
+    assert_eq!(reopened.failure, None);
+    assert_eq!(reopened.left, 0);
+    let inventory = ctl::json(&reopened.calls[1]);
+    assert_eq!(inventory["newest"], removal, "restart made no revision");
+    let settings = inventory["settings"].as_array().expect("inventory settings");
+    let agents = settings.iter().find(|item| item["setting"]["kind"] == "agents").expect("agents inventory row");
+    assert_eq!(agents["follows"], "change");
+    assert_eq!(agents["last"], removal);
+    // The JSON inventory groups removals under "change"; text distinguishes them.
+    let text = std::str::from_utf8(&reopened.calls[2].stdout).expect("inventory text");
+    let removed = format!("  agents: changed in revision {removal}, removed");
+    assert!(text.lines().any(|line| line == removed), "missing inventory line: {removed}\n{text}");
+    let revision = ctl::json(&reopened.calls[3]);
+    let items = revision["items"].as_array().expect("revision items");
+    let agents = items.iter().find(|item| item["setting"]["kind"] == "agents").expect("agents revision item");
+    assert_eq!(agents["application"], "removed", "agents revision item: {agents}");
+}

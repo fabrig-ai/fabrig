@@ -26,6 +26,7 @@ fn charter() -> jig_domain_core_vocabulary::Charter {
     use jig_domain_core_vocabulary as core;
     use skein_lib::Duration;
     core::Charter {
+        name: None,
         parts: Box::new([]),
         rest: false,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
@@ -74,6 +75,8 @@ fn charter() -> jig_domain_core_vocabulary::Charter {
                 price_unit: 1000,
                 efforts: Box::new([Box::from(b"high".as_slice())]),
                 effort: Some(Box::from(b"high".as_slice())),
+                speeds: Box::default(),
+                speed: None,
             },
             alternatives: Box::new([]),
             inspect: true,
@@ -91,6 +94,7 @@ fn values() -> [s::Value; 4] {
         s::Value::Charter(Box::new(charter())),
         s::Value::Template(Box::new(f::template())),
         s::Value::Policy(Box::new(jig_domain_core_vocabulary::ConfiguredPolicy {
+            name: None,
             policy: a::Policy {
                 escalation_role: Some(1),
                 ceiling: authority(),

@@ -2,6 +2,9 @@
 //! (jig/docs/design/protocol/store/growth.md, 1.1; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/growth.md, 1.1).
 use super::{core, root};
 use jig_conformance::Durable;
+use jig_domain_core::engine::store as engine;
+use jig_domain_tasks as tasks;
+use skein_lib::Token;
 use std::collections::BTreeMap;
 use std::ops::{Deref, DerefMut};
 
@@ -95,6 +98,93 @@ impl Durable for Store {
     fn holding(&self) -> bool {
         !self.inner.held.is_empty()
     }
+}
+
+/// Each in-memory walk fits in one page. Intervals keep the engine's order,
+/// and rows within an interval keep the store's order.
+pub(crate) fn start_page(
+    rows: &BTreeMap<root::Key, root::Record>,
+    load: Token,
+    ranges: &[core::RestoreRange],
+    after: Option<&engine::Cursor>,
+) -> root::Event {
+    assert!(after.is_none(), "the in-memory store has no later page");
+    let mut items = Vec::new();
+    for range in ranges {
+        let admitted = rows.iter().filter_map(|(key, row)| match (key, row) {
+            (root::Key::Core(key), root::Record::Core(row)) if range.admits(key) => Some((key, row)),
+            _ => None,
+        });
+        if let core::RestoreRange::Census(census) = range {
+            let mut ordered: Vec<_> = admitted.collect();
+            ordered.sort_by_key(|(key, _)| census.interval(key));
+            for (key, row) in ordered {
+                census_owner(rows, key, row, &mut items);
+            }
+        } else {
+            items.extend(admitted.map(|(_, row)| engine::Item::Record(row.clone())));
+        }
+    }
+    loaded(load, engine::Answer::Rows(engine::Rows::Start { items: items.into_boxed_slice(), next: None }))
+}
+
+fn census_owner(
+    rows: &BTreeMap<root::Key, root::Record>,
+    key: &core::Key,
+    row: &core::Record,
+    items: &mut Vec<engine::Item>,
+) {
+    let task = match row {
+        core::Record::Tasks(tasks::Stored::Result(row)) => row.task,
+        core::Record::People(jig_domain_people::Stored::EndedRead { task, .. }) => {
+            items.push(engine::Item::Record(row.clone()));
+            *task
+        }
+        _ => return,
+    };
+    let target = core::Key::Tasks(tasks::Key::Ended(task));
+    items.push(match rows.get(&root::Key::Core(target.clone())) {
+        Some(root::Record::Core(owner)) => engine::Item::Record(owner.clone()),
+        _ => engine::Item::Missing { record: key.clone(), target },
+    });
+}
+
+pub(crate) fn connector_rows(rows: &BTreeMap<root::Key, root::Record>, range: &root::Range) -> Vec<root::Event> {
+    let mut events = Vec::new();
+    for row in rows.values() {
+        match (range, row) {
+            (root::Range::Infrastructure, root::Record::Infrastructure(record)) => {
+                events.push(root::Event::Infrastructure(super::infra::Event::Restore { record: record.clone() }));
+            }
+            (root::Range::Observability, root::Record::Observability(record)) => {
+                events.push(root::Event::Observability(super::obs::Event::Restore { record: record.clone() }));
+            }
+            _ => {}
+        }
+    }
+    events.push(match range {
+        root::Range::Infrastructure => root::Event::Infrastructure(super::infra::Event::RestoreDone),
+        root::Range::Observability => root::Event::Observability(super::obs::Event::RestoreDone),
+    });
+    events
+}
+
+pub(crate) fn loaded(load: Token, result: engine::Answer) -> root::Event {
+    root::Event::Store(root::Store::Engine(engine::In::Loaded { load, result }))
+}
+
+pub(crate) fn switched() -> root::Event {
+    root::Event::Store(root::Store::Engine(engine::In::Switched))
+}
+
+pub(crate) fn account_rows(providers: &jig_domain_accounts::Providers) -> BTreeMap<root::Key, root::Record> {
+    jig_test_profile::fixtures::account_rows(providers)
+        .into_iter()
+        .map(|row| {
+            let jig_test_domain::Record::Core(row) = row else { panic!("account fixture row") };
+            (root::Key::Core(row.key()), root::Record::Core(row))
+        })
+        .collect()
 }
 
 #[cfg(test)]

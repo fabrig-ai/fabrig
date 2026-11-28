@@ -15,6 +15,7 @@ const ANTHROPIC_MEASURE: u64 = 124;
 fn prompt(guard: Option<llm::Guard>, text: &[u8]) -> llm::Prompt {
     llm::Prompt {
         effort: None,
+        speed: None,
         purpose: llm::Purpose::Ordinary { guard },
         choice: llm::ToolChoice::Auto,
         namespace: tools::Namespace::One,

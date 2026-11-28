@@ -3,6 +3,7 @@
 mod switched;
 use super::*;
 use crate::*;
+use jig_domain_contract as contract;
 use skein_lib::{Time, Wall};
 use temper_engine_domain_forge_tiers as policy;
 const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
@@ -296,6 +297,7 @@ fn opening_row() -> ChangeRow {
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        temper_dir_fault: None,
         runner_ci: None,
         close_at: None,
         report: Box::new([]),
@@ -543,6 +545,8 @@ fn a_project_ending_at_landing_makes_no_verification_and_finishes_in_its_merge_s
             decision: change::Decision::Finish { merge: FIRST },
             entry: None,
             evidence: None,
+            close_at: None,
+            close_refusal: None,
         }
     ));
     assert_eq!(d.change(CHANGE).unwrap().change.state, change::State::Landed { merge: FIRST, since: env().wall });
@@ -598,7 +602,9 @@ fn two_landings_in_one_green_run_finish_cleared() {
                 task,
                 decision: change::Decision::Finish { merge: commit },
                 entry: None,
-                evidence: None
+                evidence: None,
+                close_at: None,
+                close_refusal: None,
             }
         ));
         assert_eq!(d.change(task).expect("change").change.state, change::State::Cleared { merge: commit });
@@ -696,7 +702,9 @@ fn no_verdict_at_the_project_bound_finishes_uncleared() {
             task: CHANGE,
             decision: change::Decision::Wait { until: Some(deadline) },
             entry: None,
-            evidence: None
+            evidence: None,
+            close_at: None,
+            close_refusal: None,
         }
     ));
     d.wait_change(&env(), CHANGE, Some(deadline));
@@ -732,7 +740,9 @@ fn an_unfollowed_goal_branch_finishes_landed_at_once() {
             task: CHANGE,
             decision: change::Decision::Finish { merge: FIRST },
             entry: None,
-            evidence: None
+            evidence: None,
+            close_at: None,
+            close_refusal: None,
         }
     ));
     assert_eq!(
@@ -943,7 +953,7 @@ fn deleted_branch(d: &mut Domain, task: u64, name: &Name) {
     );
     d.entries.remove(&CLEANUP);
     continue_release(d, &env(), task, CLEANUP + 1, &mut out);
-    assert!(contains(&out, &Request::Released { task }));
+    assert!(contains(&out, &Request::Up(contract::Up::Effects(contract::effects::Up::Released { task }))));
     no_pull_cancellation(&out);
     assert!(!d.holds.contains_key(name));
     assert_eq!(d.landed.get(&LAST), Some(&task));
@@ -955,7 +965,10 @@ fn cancelling_a_red_landing_releases_its_branch_without_touching_its_pull() {
     red(&mut d);
     advance(&mut d, SECOND, env().wall, false);
     let name = cancellation_hold(&mut d, SECOND);
-    assert!(contains(&cancel_effects(&mut d, SECOND), &Request::EffectsSettled { task: SECOND }));
+    assert!(contains(
+        &cancel_effects(&mut d, SECOND),
+        &Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: SECOND }))
+    ));
     no_pull_cancellation(&cancel_release(&mut d, SECOND));
     deleted_branch(&mut d, SECOND, &name);
     assert_eq!(d.change(SECOND).expect("change").change.state, change::State::Uncleared { merge: LAST });
@@ -996,11 +1009,14 @@ fn a_merge_settling_during_cancellation_leaves_its_pull_untouched() {
     let name = cancellation_hold(&mut d, SECOND);
     keep_entry(&mut d, merging_entry(), None, &mut Queue::uncapped());
     let settling = cancel_effects(&mut d, SECOND);
-    assert!(!contains(&settling, &Request::EffectsSettled { task: SECOND }));
+    assert!(!contains(&settling, &Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: SECOND }))));
     assert_eq!(d.releases.get(&SECOND).expect("release").close_pull, Some(PULL));
     merged(&mut d, SECOND, LAST);
     d.entries.remove(&OPEN);
-    assert!(contains(&cancel_effects(&mut d, SECOND), &Request::EffectsSettled { task: SECOND }));
+    assert!(contains(
+        &cancel_effects(&mut d, SECOND),
+        &Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: SECOND }))
+    ));
     no_pull_cancellation(&cancel_release(&mut d, SECOND));
     deleted_branch(&mut d, SECOND, &name);
     assert_eq!(d.change(SECOND).expect("change").change.state, change::State::Uncleared { merge: LAST });
@@ -1083,7 +1099,7 @@ fn an_ended_unlanded_pull_posts_its_words_then_closes_it() {
         skein_forge::api::Write::DeleteBranch { branch: d.change(SECOND).expect("change").branch.clone() }
     );
     let out = finish_cleanup(&mut d);
-    assert!(contains(&out, &Request::Released { task: SECOND }));
+    assert!(contains(&out, &Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: SECOND }))));
     assert!(!d.holds.contains_key(&name));
     if ending == ReleaseEnding::Done {
         assert_eq!(d.change(SECOND).expect("retained panel").change.state, change::State::NoChange { words: words.into() });
@@ -1129,6 +1145,8 @@ fn goal_tiers_leave_goal_landings_unfollowed_and_main_verified() {
             decision: change::Decision::Finish { merge: FIRST },
             entry: None,
             evidence: None,
+            close_at: None,
+            close_refusal: None,
         }
     ));
     assert_eq!(

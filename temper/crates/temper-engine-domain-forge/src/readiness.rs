@@ -8,8 +8,20 @@ use crate::{ChangeRow, Domain, Limits, Request, history as h};
 
 /// A project's way is taken before first readiness (domain/landing.md, 1).
 pub(crate) fn way(d: &Domain, row: &mut ChangeRow) {
+    let way = selected_way(d, row);
+    if row.change.way != way {
+        row.change.way = way;
+        if way == c::Way::Turn
+            && let c::State::Checking { head } = row.change.state
+        {
+            row.change.state = c::State::Gating { head, asked: Box::new([]) };
+        }
+    }
+}
+
+pub(crate) fn selected_way(d: &Domain, row: &ChangeRow) -> c::Way {
     if row.change.ready_since.is_some() || row.change.owns_turn || d.landing_of(row.task).is_some() {
-        return;
+        return row.change.way;
     }
     match row.change.state {
         c::State::Taking { .. }
@@ -36,17 +48,11 @@ pub(crate) fn way(d: &Domain, row: &mut ChangeRow) {
         | c::State::Held { .. }
         | c::State::Red { .. }
         | c::State::Cleared { .. }
-        | c::State::Uncleared { .. } => return,
+        | c::State::Uncleared { .. } => return row.change.way,
     }
-    let Some(repository) = d.repositories.get(&row.repository) else { return };
-    let way = d.landing.way(repository.project);
-    if row.change.way != way {
-        row.change.way = way;
-        if way == c::Way::Turn
-            && let c::State::Checking { head } = row.change.state
-        {
-            row.change.state = c::State::Gating { head, asked: Box::new([]) };
-        }
+    match d.repository(row.repository) {
+        Some(repository) => d.landing.way(repository.project),
+        None => row.change.way,
     }
 }
 

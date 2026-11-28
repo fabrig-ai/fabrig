@@ -66,7 +66,7 @@ pub fn valid(limits: &Limits) -> bool {
 /// Checks bounds using the full channel table prepared by the caller.
 #[must_use]
 pub fn valid_with_schema(limits: &Limits, schema: &channel::Schema) -> bool {
-    if schema.range() != Some((wire::VERSION, wire::VERSION))
+    if schema.version != wire::VERSION
         || limits.room < 270
         || limits.ping == Duration::ZERO
         || limits.silence < limits.ping.saturating_mul(3)

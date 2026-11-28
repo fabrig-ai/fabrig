@@ -95,7 +95,7 @@ enum ResultsWake { never, each, last_or_failure }
 record WakePolicy { words: WakeRule notices: WakeRule news: WakeRule results: ResultsWake questions: bool answers: bool timers: bool }
 record TrackingTracked { priority: u32 }
 enum Tracking { tracked: TrackingTracked, untracked }
-record ModelEffort { model: u8 effort: option u8 }
+record ModelEffort { model: u8 effort: option u8 speed: option bytes 32 = none }
 record LlmLater { main: ModelEffort subagents: list 64 ModelEffort }
 record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort later: option LlmLater }
 record Amendment { tracked: option Tracking addressed: option AddressChange instructions: option bytes 135168 spec: option Spec wake: option WakePolicy dependencies: option bytes 405504 pieces Number64 authority: option Authority llm: option LlmChoice reason: bytes 8192 }
@@ -167,7 +167,7 @@ record ApplicationSetting { kind: u32 scope: u32 number: u32 }
 record ProjectPolicySetting { project: u32 }
 enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting, model: SettingNumber, worker: SettingNumber, provider: SettingNumber, limits }
 record OutcomeRestored { proposal: u64 to: u32 left_out: list 256 Setting }
-enum SettingFault { shape, count, reference, rules, budget, grace, owner, judged, linked, accounts, range }
+enum SettingFault { shape, count, reference, rules, budget, grace, owner, judged, linked, accounts, range, name }
 enum SettingMember { documents, name_segments, name_segment_bytes, path, heading, connector, stored_policy }
 enum SettingRule { maximum, minimum, registered }
 record SettingDetail { member: SettingMember document: u32 segment: u32 rule: SettingRule supplied: u32 bound: u32 }
@@ -277,7 +277,7 @@ enum NameRule { empty, long, control, space, digits }
 record MalformedName { rule: NameRule }
 enum Malformed { name: MalformedName, cycle, as_allowed_twice, conversation, proposed_as_allowed, ended_by, settings: MalformedSettings, settings_unchanged, running }
 record RefusalNotWellFormed { at: u32 why: Malformed }
-enum LlmWhy { unconfigured, effort, charter, authority, procedure, repeated }
+enum LlmWhy { unconfigured, effort, charter, authority, procedure, repeated, speed }
 record RefusalLlm { model: u8 why: LlmWhy }
 enum AccountWhy { unknown, provider, uses, limited }
 record RefusalAccount { account: u32 why: AccountWhy }

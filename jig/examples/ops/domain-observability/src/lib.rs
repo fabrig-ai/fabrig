@@ -34,15 +34,18 @@ pub use client_documents::{
 mod boundary;
 mod domain;
 mod limits;
+mod port;
+mod translate;
 mod triage;
 
 pub use boundary::{
-    Alert, Class, Classed, Effect, Entry, Event, Fact, Key, LeadTemplate, LoadPoint, Outcome, Phase, Purpose, Read,
-    Record, RecordKey, Request, Requirement, Resource, RestartStage, Service, SystemEvent, SystemRequest, Topic,
+    Alert, Class, Classed, Effect, Entry, Event, Fact, Key, LeadTemplate, LoadPoint, Out, Outcome, Phase, Purpose,
+    Read, Record, RecordKey, Request, Requirement, Resource, RestartStage, Service, SystemEvent, SystemRequest, Topic,
     TriageTemplate, Verdict, Watch, Window,
 };
-pub use domain::{Domain, fire, next_deadline, split, step};
+pub use domain::{Domain, fire_system, next_deadline, split, step_system};
 pub use limits::{Limits, Vocabulary, valid};
+pub use port::{Requirements, alert_words, fire, health_words, step, triage_batch};
 pub use triage::{Parameter, ResultField, ResultKind, Spec, WatchInput, WatchSpec, watch_messages, watch_spec};
 
 #[cfg(test)]

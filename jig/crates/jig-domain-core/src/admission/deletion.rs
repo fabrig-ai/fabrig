@@ -1,8 +1,10 @@
 //! Kept project deletion (jig/docs/design/domain/people/acts.md, 2).
-use crate::{Ask, Core, Event, Key, Limits, Request, Write};
+use crate::vocabulary::connector_ask;
+use crate::{Core, Event, Key, Limits, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
+use jig_domain_contract as contract;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -341,7 +343,10 @@ fn release(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, project
     let mut owed = List::with_capacity(u32::try_from(core.connectors.len()).expect("configured connector count"));
     for &connector in &core.connectors {
         owed.push(connector).expect("configured connectors");
-        out.push(Request::Ask { connector, ask: Ask::ReleaseProject { project } });
+        out.push(connector_ask(
+            connector,
+            contract::Ask::Lifecycle(contract::lifecycle::Ask::ReleaseProject { project }),
+        ));
     }
     let empty = owed.is_empty();
     core.deletions.live.get_mut(&project).expect("kept deletion").owed = owed;

@@ -3,6 +3,7 @@ use crate::{ChangeEvidence, Criterion, JudgeFreshness as Freshness, Reviewer, SI
 use alloc::collections::BTreeSet;
 use skein_forge::api::Verdict;
 use skein_lib::{List, Rng, Wall};
+mod temper_revision;
 
 #[test]
 fn forge_read_waiters_keep_their_turn_under_interleaving() {
@@ -101,6 +102,7 @@ fn sign_offs_are_a_bounded_ordered_union_and_times_do_not_change_verdicts() {
         readback_owed: false,
         nearest_write: None,
         touched: crate::Touched::UNKNOWN,
+        temper_dir: crate::TemperDirEvidence::Uncovered,
         prior: tests::fixtures::opening_row().change,
         head: Some(head),
         base_tip: [4; 32],

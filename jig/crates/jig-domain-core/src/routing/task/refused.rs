@@ -1,8 +1,9 @@
 //! Refused task continuations and their party or named-call answers
 //! (jig/docs/design/domain/engine/vocabulary.md, 1.4).
 
+use crate::vocabulary::connector_ask;
 use crate::{
-    Ask, CallPart, Core, Limits, LinkNow, Now, PersonProposalRoute, PersonTaskRoute, Request, RoutedCall,
+    CallPart, Core, Limits, LinkNow, Now, PersonProposalRoute, PersonTaskRoute, Request, RoutedCall,
     routing::{
         children::append_people,
         flight::{Flight, Internal},
@@ -12,6 +13,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
+use jig_domain_contract as contract;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Token};
@@ -132,16 +134,23 @@ fn refuse_flight(
             crate::admission::deletion::compound_done(core, project);
         }
         Flight::Internal(Internal::Repair { number }) => {
-            for &connector in core.connectors.as_ref() {
-                out.push(Request::Ask {
+            for &connector in core.connector_recipients.resources.as_ref() {
+                out.push(connector_ask(
                     connector,
-                    ask: Ask::RepairRefused { repair: problem.task, number, why: problem.why },
-                });
+                    contract::Ask::Resources(contract::resources::Ask::RepairRefused {
+                        repair: problem.task,
+                        number,
+                        why: problem.why,
+                    }),
+                ));
             }
         }
         Flight::Internal(Internal::Delegate | Internal::Acknowledge) => {
-            for &connector in core.connectors.as_ref() {
-                out.push(Request::Ask { connector, ask: Ask::DelegateRefused { task: problem.task } });
+            for &connector in core.connector_recipients.resources.as_ref() {
+                out.push(connector_ask(
+                    connector,
+                    contract::Ask::Resources(contract::resources::Ask::DelegateRefused { task: problem.task }),
+                ));
             }
         }
         Flight::Internal(Internal::Admission) => {
@@ -178,15 +187,15 @@ fn call_refused(
     out: &mut Queue<Request>,
 ) {
     if let Some((connector, owner)) = effect {
-        out.push(Request::Ask {
+        out.push(connector_ask(
             connector,
-            ask: Ask::Effect(crate::effects::connector::Ask::Drop {
+            contract::Ask::Effects(contract::effects::Ask::Drop {
                 owner,
                 answer: authority::Answer::Refuse,
                 findings: Box::new([]),
                 why: crate::effects::connector::EffectRefusal::Proposal,
             }),
-        });
+        ));
     }
     let (key, part) = match route {
         RoutedCall::Message(key)
@@ -212,10 +221,10 @@ fn call_refused(
         | RoutedCall::Decide { key, .. }
         | RoutedCall::Withdraw { key, .. }
         | RoutedCall::Accepting { key, .. } => (key, CallPart::ProposalRefused(problem)),
-        RoutedCall::Subscribe { key, .. } | RoutedCall::Unsubscribe(key) => {
+        RoutedCall::Subscribe { key, topic, .. } | RoutedCall::Unsubscribe { key, topic, .. } => {
             call_decision(core, out, ReplyTo::new(request), key, CallPart::SubscriptionRefused(problem));
-            for &connector in core.connectors.as_ref() {
-                out.push(Request::Ask { connector, ask: Ask::DropSubscription { request } });
+            if let Some((connector, _)) = topic {
+                out.push(connector_ask(connector, contract::Ask::Topics(contract::topics::Ask::Refused { request })));
             }
             return;
         }

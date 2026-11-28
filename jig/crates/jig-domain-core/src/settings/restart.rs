@@ -1,4 +1,5 @@
 //! Settings restore precedes live work; stored defaults survive until its holders are known (domain/engine/settings-store.md, 1, and domain/engine/settings.md, 8).
+use crate::vocabulary::connector_ask;
 use crate::{
     Core, CoreKey, CoreRecord, HeldLimit, Limits, Request, Write,
     settings::{
@@ -7,6 +8,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
+use jig_domain_contract as contract;
 use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Map, Queue};
@@ -267,6 +269,8 @@ impl Core {
                 return false;
             }
         }
+        // Only defaults still present can be recorded as additions by this release.
+        self.omit_held_model_names();
         for (&setting, _) in &self.current.defaults {
             if !self.settings_restore.defaults.contains_key(&setting) {
                 assert!(self.settings_restore.pending.insert(setting, true).is_ok(), "bounded added default");
@@ -302,12 +306,37 @@ impl Core {
             core::mem::swap(&mut self.current.defaults, &mut self.settings_restore.defaults);
             self.settings_restore.position = DefaultsPosition::Stored;
         }
+        if self.settings_restore.position == DefaultsPosition::Given {
+            self.settings_unnamed = jig_domain_core_vocabulary::settings::names::restore(&mut self.current);
+        }
         self.settings_restore.ready = true;
         self.settings.models = super::catalogue::table(&self.current);
         super::charters::rebuild(&mut self.current, &env.limits);
         self.tell_settings(env, out);
         true
     }
+    fn omit_held_model_names(&mut self) {
+        let mut omitted = List::uncapped();
+        for (&setting, given) in &self.current.defaults {
+            let Some(given) = given.value.as_model() else { continue };
+            if self.settings_restore.defaults.contains_key(&setting) {
+                continue;
+            }
+            for (_, changed) in &self.current.changes {
+                if let Some(value) = &changed.value
+                    && let Some(held) = value.as_model()
+                    && held.model.name == given.model.name
+                {
+                    omitted.push(setting).expect("one omission per supplied model");
+                    break;
+                }
+            }
+        }
+        for setting in &omitted {
+            self.current.defaults.remove(setting);
+        }
+    }
+
     fn refuse_numbers(&mut self) -> bool {
         let settings = super::check::numbers(&self.current);
         if settings.is_empty() {
@@ -353,6 +382,12 @@ impl Core {
     #[must_use]
     pub fn settings_kept(&self) -> Box<[Setting]> {
         super::check::kept(&self.current)
+    }
+
+    /// Stored own items offered without the names now reserved by defaults.
+    #[must_use]
+    pub fn settings_unnamed(&self) -> &[Setting] {
+        &self.settings_unnamed
     }
 
     /// The typed refusal is retained even when a later completion repeats it.
@@ -616,6 +651,7 @@ impl Core {
         }
         if self.settings_restore.position == DefaultsPosition::Stored {
             core::mem::swap(&mut self.current.defaults, &mut self.settings_restore.defaults);
+            self.settings_unnamed = jig_domain_core_vocabulary::settings::names::restore(&mut self.current);
         }
         if release {
             self.current.head = Head {
@@ -821,10 +857,10 @@ pub(crate) fn forget_replaced(core: &Core, before: u32, out: &mut Queue<Request>
         connectors.insert(kind.connector, ()).expect("kind owners");
     }
     for (&connector, ()) in &connectors {
-        out.push(Request::Ask {
+        out.push(connector_ask(
             connector,
-            ask: crate::Ask::Effect(crate::effects::connector::Ask::ForgetReplaced { before: u64::from(before) }),
-        });
+            contract::Ask::Settings(contract::settings::Ask::ForgetReplaced { before: u64::from(before) }),
+        ));
     }
 }
 /// Notify only when a record fell outside retained history, including the old newest.
@@ -837,6 +873,7 @@ pub(crate) fn erased_revision(writes: &List<Write>, before: u32) -> bool {
             }
             Write::Save(_)
             | Write::Erase(_)
+            | Write::Wires
             | Write::CopySettingsRevision(_)
             | Write::DropHistory { .. }
             | Write::DropTranscript { .. } => {}

@@ -109,6 +109,9 @@ fn gather(d: &mut Domain, run: &api::Run, report: Result<Answer, api::Error>) ->
                 assert_eq!(id, run.id);
                 report.clone()
             }
+            Op::Read(Read::Compare { before, after }) => {
+                Ok(Answer::Compare { before, after, ahead: 1, behind: 0, changed: 0, files: Box::new([]) })
+            }
             Op::Read(_) | Op::Write(_) => panic!("unexpected gather {op:?}"),
         };
         for request in fixtures::answer(d, call, answer) {

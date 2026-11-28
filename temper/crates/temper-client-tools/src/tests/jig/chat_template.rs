@@ -12,11 +12,12 @@ fn template_me() -> c::Me {
     let chat = project.templates.get(0).expect("chat template").clone();
     let mut goal = chat.clone();
     goal.number = 2;
-    goal.name = f::document_text(b"Goal");
+    goal.shown = f::document_text(b"Goal");
     goal.flags.conversation = false;
     let mut asking = chat.clone();
     asking.number = 5;
-    asking.name = f::document_text(b"Ask temper");
+    asking.name = Some(b"ask-temper".as_slice().into());
+    asking.shown = f::document_text(b"Ask temper");
     asking.executor = c::TemplateExecutor::Charter(11);
     let mut templates = List::with_capacity(3);
     templates.push(chat).expect("chat");
@@ -34,10 +35,14 @@ fn template_me() -> c::Me {
 fn chat_start_names_a_chat_template() {
     let me = template_me();
     let expected = shapes::chat_from(&me, f::PROJECT, 5, f::call_words(TEMPLATE_CHAT, 2)).expect("named shape");
-    let mut root = f::choice_root(me);
-    let call = root.submit(TEMPLATE_CHAT);
-    assert_eq!(f::act_ask(&root, call), &expected);
-    assert_eq!(f::chat_task(&root, call).executor, c::Executor::Agent { charter: 11 });
+    for template in ["5", "ask-temper"] {
+        let mut argv = f::extended(TEMPLATE_CHAT, &[]);
+        *argv.get_mut(5).expect("template selector") = template;
+        let mut root = f::choice_root(me.clone());
+        let call = root.submit(argv.as_slice());
+        assert_eq!(f::act_ask(&root, call), &expected);
+        assert_eq!(f::chat_task(&root, call).executor, c::Executor::Agent { charter: 11 });
+    }
 }
 
 #[test]

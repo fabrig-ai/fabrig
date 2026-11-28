@@ -121,7 +121,7 @@ fn missing_or_old_floor_refuses_before_plans_jobs_versions_and_registry() {
             "{events:?}"
         );
         assert_eq!(contents(&mut disk), before);
-        assert!(reopened.directory.patch.is_none());
+        assert!(reopened.directory.upgrade_levels.is_none());
         assert!(reopened.registry.batch(&reopened.limits).unwrap().is_empty());
         assert_eq!(reopened.stores.store.last(), 2);
     }
@@ -173,7 +173,7 @@ fn ahead_and_unleveled_refuse_before_a_missing_floor() {
         let [Event::OpenRefused { why: found, .. }] = events.as_ref() else { panic!("{events:?}") };
         assert_eq!(*found, why);
         assert_eq!(contents(&mut disk), before);
-        assert!(reopened.directory.patch.is_none());
+        assert!(reopened.directory.upgrade_levels.is_none());
     }
 }
 
@@ -213,7 +213,7 @@ fn floorless_rehearsal_refuses_before_decoding_and_announces_no_fresh_plan() {
         },
         "{events:?}"
     );
-    assert!(reopened.directory.patch.is_none());
+    assert!(reopened.directory.upgrade_levels.is_none());
     assert_eq!(contents(&mut disk), before);
 }
 
@@ -413,7 +413,7 @@ fn job_upgrade_leaves_the_first_commits_floor_unchanged() {
 }
 
 #[test]
-fn a_level_survives_an_empty_patch_array_in_first_commit_reopen_and_ahead() {
+fn a_level_without_jobs_survives_first_commit_reopen_and_ahead() {
     let set = OwnerSet { level: Some(7), ..BASE.sets[0] };
     let sets = OwnerSets { sets: Box::leak(Box::new([set])) };
     let mut disk = Disk::new(&[]);
@@ -427,7 +427,7 @@ fn a_level_survives_an_empty_patch_array_in_first_commit_reopen_and_ahead() {
     let mut disk = Disk::new(&items);
     let mut reopened = store(&disk, sets);
     assert_opened(&disk.open(&mut reopened), 1);
-    assert!(reopened.directory.patch.is_none());
+    assert!(reopened.directory.upgrade_levels.is_none());
     let mut disk = Disk::new(&items);
     let older = OwnerSets { sets: Box::leak(Box::new([OwnerSet { level: Some(6), ..set }])) };
     let mut reopened = store(&disk, older);

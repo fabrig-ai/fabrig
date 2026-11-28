@@ -36,7 +36,7 @@ impl Disk {
     }
 
     pub(super) fn prepare(&mut self, options: Options, env: &[EnvironmentEntry]) -> Result<Plan, String> {
-        options::prepare_with(options, env, self)
+        options::prepare_with(options, env, super::super::testing::SESSION_PID, self)
     }
 
     pub(super) fn directory(&mut self, path: &Path) {

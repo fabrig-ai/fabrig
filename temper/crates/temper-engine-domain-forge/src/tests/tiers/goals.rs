@@ -1,5 +1,6 @@
 //! Goal branches run independently and tell their own reds (temper/docs/design/domain/after-landing-runs.md, 2, and temper/docs/design/domain/after-landing.md, 7).
 use super::*;
+use jig_domain_contract as contract;
 
 const GOAL: u64 = 1;
 const OTHER: u64 = 2;
@@ -361,7 +362,7 @@ fn released_hold_drops_the_entry_and_in_flight_red_tells_nothing() {
         &mut d,
         Event::Release { task: GOAL, root: GOAL, ending: ReleaseEnding::Done, reason: None, entry: 40 },
     );
-    assert!(out.contains(&Request::Released { task: GOAL }));
+    assert!(out.contains(&Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: GOAL }))));
     assert!(d.hold(&name(BRANCH)).is_none());
     assert!(row(&d).goals.is_empty());
     assert!(crate::tiers::watched(&d).is_empty());

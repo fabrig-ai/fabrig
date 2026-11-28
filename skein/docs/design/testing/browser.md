@@ -117,14 +117,14 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
     Chromium refuses it otherwise, each `file:` document being an
     origin of its own (section 7). A page kept to files still sends
     nothing outside `file://` (section 5). temper's render check asks
-    for it (`temper/docs/design/client/journey-writer.md`, 6.2, step
+    for it (`temper/docs/design/client/journey-writer-requests.md`, 1.2, step
     4); every other owner passes `false`;
   - `--hide-scrollbars` where the owner asks for it, `command`'s
     `hide_scrollbars` (`RawPump::start` passes it on), and never
     otherwise: a page taller than its window then lays out at the
     window's whole width, as a shorter one does. temper's render check
     asks for it, comparing pages of any height at one width
-    (`temper/docs/design/client/journey-writer.md`, 6.2, step 4); every
+    (`temper/docs/design/client/journey-writer-requests.md`, 1.2, step 4); every
     other owner passes `false`, and its pages
     keep the scrollbars a person's browser draws;
   - `about:blank` as the first page.
@@ -396,8 +396,8 @@ pub struct Property { name: Box<[u8]>, value: Box<[u8]> }       // as Chromium w
   carries its value as the person sees it. No element, an element
   without the attribute, and an empty attribute are three answers.
 - **A page's rendering is read for a tool** comparing two renders
-  (`temper/docs/design/client/journey-writer.md`, 6.2), reading the
-  current document as an attribute read does (section 6):
+  (`temper/docs/design/client/journey-writer-requests.md`, 1.2), reading the
+  current document as an attribute read does (`browser.md`, section 6):
   - `Elements`: its elements in document order, every one or those a
     CSS selector selects, each with its node, its depth below the root
     element and its local name; at most `Limits::elements`, the rest

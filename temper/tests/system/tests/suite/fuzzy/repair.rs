@@ -7,7 +7,7 @@ use jig_domain_tasks::{self as tasks, TaskResult};
 use serde_json::Value;
 use skein_fake_forge_domain::{Observation, api};
 use smith_protocol_llm_world::fixture::Dialect;
-use temper_system_world::composed::{World, provider::Playback, review_rule};
+use temper_system_world::composed::{World, provider::Playback, review_rule, stretches};
 
 use super::twin::{HOST, calls, chat_text, done, hex, query, replies, repository, told, utf8};
 
@@ -37,8 +37,19 @@ fn words<'a>(person: &'a Value, field: &str) -> &'a str {
 #[test]
 fn a_change_failing_ci_is_repaired_and_lands() {
     let person: Value = serde_json::from_slice(PERSON).expect("B1 person's script");
-    let document = temper_fake::llm::Document::decode(TAPE).expect("B1 LLM document").with_strict(true);
-    let playback = Playback::new(&document, Dialect::OpenAi.configuration(), SEED);
+    // Only this wire twin plays the extra rounds; the real-loop recording is unchanged.
+    let mut tape: Value = serde_json::from_slice(TAPE).expect("B1 LLM recording");
+    let (menu, stretch) = stretches::document();
+    tape["menu"] = menu;
+    let turns = tape["cued"][2]["turns"].as_array_mut().expect("producer's turns");
+    let before_finish = turns.len() - 1;
+    assert_eq!(turns[before_finish]["lines"][0]["call"], "finish");
+    turns.insert(before_finish, stretch);
+    let bytes = serde_json::to_vec(&tape).expect("B1 with drawn rounds");
+    let document = temper_fake::llm::Document::decode(&bytes).expect("B1 LLM document").with_strict(true);
+    let end = before_finish + usize::try_from(stretches::ROUNDS).expect("stretch length");
+    let playback =
+        Playback::new(&document, Dialect::OpenAi.configuration(), SEED).with_stretch(PRODUCER, before_finish..end);
     let forge = temper_fake::forge::Document::decode(FORGE).expect("B1 forge document");
     let [widget] = forge.repositories() else { panic!("one widget repository") };
     let mut checks = temper_fake::forge::checks(widget.ci.as_ref());
@@ -76,6 +87,16 @@ fn a_change_failing_ci_is_repaired_and_lands() {
     let (first, repaired, merge) = check_ci(&mut world);
     check_repair(&mut world, first);
     check_landing(&mut world, &person, repaired, merge, &seed.1);
+    world.observed.stretches.check().expect("wire producer played the stretch");
+    assert!(
+        world
+            .observed
+            .stretches
+            .refusals()
+            .contains_key(&(stretches::Refusal::ReadReference, stretches::Target::NeverIssued)),
+        "wire stretch checked a read of a never-issued task"
+    );
+    eprintln!("wire stretches {:?}", world.observed.stretches);
     assert_eq!(world.task_overview(CHAT).chip.phase, PhaseLine::Active(tasks::Active::Idle));
     let mut operations = skein_lib::List::with_capacity(1);
     operations

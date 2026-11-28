@@ -314,7 +314,7 @@ fn an_unkept_layout_refusal_names_the_count_and_the_first_refusal() {
         value_type: 4,
         id: 9,
         values: Some(3),
-        why: jig_protocol_store::Unplanned::Unkept(jig_protocol_store::Unkept {
+        why: jig_protocol_store::Unplanned::Unkept(jig_protocol_store::Refusals {
             refused: 2,
             why: skein_codec::layout::Refused::Field,
             declaration: "Growing".into(),
@@ -324,6 +324,27 @@ fn an_unkept_layout_refusal_names_the_count_and_the_first_refusal() {
     let (lines, exit) = crate::start_refusal::refused_start(&why, b"state");
     let expected = refusal_words(&why)
         + "temper serve: family fixture-layouts value type 4 layout 9: cannot keep 2 values; first refusal: Growing.extra: the field would be lost\n";
+    assert_eq!(core::str::from_utf8(&lines).unwrap(), expected);
+    assert_eq!(exit, 1);
+}
+
+#[test]
+fn an_unread_layout_refusal_names_the_count_and_the_first_refusal() {
+    let why = OpenRefusal::Layout {
+        family: "fixture-layouts".into(),
+        value_type: 4,
+        id: 9,
+        values: Some(3),
+        why: jig_protocol_store::Unplanned::Unread(jig_protocol_store::Refusals {
+            refused: 2,
+            why: skein_codec::layout::Refused::Narrowed,
+            declaration: "Stable".into(),
+            part: "n".into(),
+        }),
+    };
+    let (lines, exit) = crate::start_refusal::refused_start(&why, b"state");
+    let expected = refusal_words(&why)
+        + "temper serve: family fixture-layouts value type 4 layout 9: cannot read 2 values; first refusal: Stable.n: the value does not fit this build's bounds\n";
     assert_eq!(core::str::from_utf8(&lines).unwrap(), expected);
     assert_eq!(exit, 1);
 }
@@ -358,13 +379,17 @@ fn missing_forge_links_refuse_the_start_before_startup_wires() {
     }
     let link =
         MissingLink { kind: RecordKind::Names, key: Key::Names(KEPT_TASK), need: Need::Repository(ABSENT_REPOSITORY) };
-    let phase = Some(jig_domain_core::start::Phase::Link);
+    let phase = Some(jig_domain_core::start::Phase::RestoreConnector { connector: 1 });
     assert_eq!(service.end(), Some(&End::Stopped(Stop::ForgeLink { phase, link: link.clone() })));
     let engine = service.engine.as_ref().expect("linking engine");
     assert_eq!(engine.domain.forge_missing_link(), Some(link.clone()));
     assert_eq!(engine.domain.start_stop(), Some(temper_engine_domain::StartStop::ForgeLink { phase, link }));
     assert!(!engine.store.host.mark_durable(), "no start wires before link");
-    assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::Link), "no adoption before link");
+    assert_eq!(
+        engine.domain.start_phase(),
+        Some(jig_domain_core::start::Phase::RestoreConnector { connector: 1 }),
+        "no adoption before link"
+    );
     assert!(!engine.domain.ready(), "no decisions before link");
 }
 

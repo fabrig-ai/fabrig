@@ -58,6 +58,7 @@ pub(super) fn validate(prompt: &Prompt, declared_output: u32, limits: &wire::Lim
         return Err(Error::limit(crate::Cap::HistoryItems, limits.history_items));
     }
     crate::translate::validate_choice(&prompt.choice, &prompt.tools)?;
+    crate::speed::admit(prompt.speed.as_deref())?;
     let mut budget: u64 = 0;
     match &prompt.choice {
         crate::ToolChoice::Auto | crate::ToolChoice::None => {}
@@ -279,6 +280,10 @@ fn write_request(
     out.object_start();
     out.key(b"model");
     out.string(&prompt.model);
+    if let Some(speed) = &prompt.speed {
+        out.key(b"speed");
+        out.string(speed);
+    }
     out.key(b"max_tokens");
     out.unsigned(u64::from(prompt.max_output_tokens.unwrap_or(declared_output)));
     out.key(b"stream");

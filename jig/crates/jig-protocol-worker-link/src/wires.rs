@@ -1,6 +1,6 @@
 //! Construction checks and the initiator's terms (jig/docs/design/protocol/channel/wires.md, 5).
 use jig_protocol_worker_wire::{Kind, Root, Spoken};
-use skein_channel::{Direction, Term, Version};
+use skein_channel::{Direction, Kind as ChannelKind, Term};
 use skein_lib::List;
 
 pub(crate) fn roots_present(spoken: &List<Spoken>, roots: &List<Root>) -> bool {
@@ -42,8 +42,8 @@ pub(crate) fn optional(kind: u16) -> bool {
     false
 }
 
-pub(crate) fn terms_gap(table: &Version, terms: &List<Term>) -> Option<u16> {
-    for rule in &table.kinds {
+pub(crate) fn terms_gap(table: &List<ChannelKind>, terms: &List<Term>) -> Option<u16> {
+    for rule in table {
         if rule.direction == Direction::FromInitiator {
             let mut bound = None;
             for term in terms {

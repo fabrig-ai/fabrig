@@ -1,18 +1,18 @@
 //! The admitted step and ordered journal release (jig's domain/root.md, 3).
-use crate::boundary::{BriefConnector, BriefSection, Event, Fact, Payload, Read, Released, Request, Work};
+use crate::boundary::{BriefConnector, Event, Fact, Payload, Read, Released, Request, Work};
 use crate::limits::{Limits, backlog, core_limits, environment_core, payload_slots, run_policy_bound, valid};
-use crate::restart::request_load;
 use crate::route::{
     forge_route, host_route, policy_translate, route_core_requests, route_engine_requests, route_into, step_routed,
 };
+use crate::store_route::request_load;
 use crate::translate::{Config, RootConfig, environment_forge, forge_declaration};
 use crate::{CallKey, Decision, Delivery, Journal, JournalOutput as Output, Range, Write, loads};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
+use jig_domain_contract::StartProblem;
 use jig_domain_core::Core;
 use jig_domain_core::engine::{self, Admit, Engine};
 use jig_domain_fleet as fleet;
-use jig_domain_link::Problem;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
@@ -49,7 +49,7 @@ pub enum StartStop {
 #[derive(Hash, Debug)]
 #[expect(
     clippy::struct_excessive_bools,
-    reason = "the journal door, header, pending switch, sweep page and opened milestone are independent"
+    reason = "the journal door, header, pending switch and opened milestone are independent"
 )]
 pub struct Domain {
     pub(crate) host_part: crate::room::HostPart,
@@ -85,6 +85,11 @@ pub struct Domain {
     pending_now: u32,
     pub(crate) door_count: u32,
     pub(crate) startup_range: Option<Range>,
+    pub(crate) start_page: Option<loads::Kind>,
+    pub(crate) start_walk: loads::start::Walk,
+    pub(crate) start_load: Option<Token>,
+    pub(crate) start_missing: Queue<(jig_domain_core::Key, jig_domain_core::Key)>,
+    pub(crate) start_phase: Option<jig_domain_core::start::Phase>,
     pub(crate) start_wall: Option<Wall>,
     pub(crate) start_report: Option<forge::Report>,
     pub(crate) start_stop: Option<StartStop>,
@@ -92,16 +97,10 @@ pub struct Domain {
     pub(crate) start_pending: bool,
     pub(crate) convert_branch_writes: bool,
     pub(crate) rehearsal: Option<bool>,
-    pub(crate) startup_fill: Option<u64>,
-    pub(crate) startup_census: Option<Box<jig_domain_core::documents::StoreCensus>>,
-    pub(crate) sweep_rows: Queue<crate::Record>,
-    pub(crate) sweep_page: bool,
-    pub(crate) sweep_next: Option<crate::Key>,
     pub(crate) core_header_loaded: bool,
     pub(crate) restored_commits: Option<u64>,
-    pub(crate) brief_connectors: Slab<BriefConnector>,
+    pub(crate) brief_connectors: Map<Token, BriefConnector>,
     pub(crate) brief_document_titles: Map<u64, Box<[Box<[u8]>]>>,
-    pub(crate) forge_briefs: Map<Token, BriefSection>,
     pub(crate) run_workspaces: Map<u64, crate::boundary::WorkspacePreparation>,
     pub(crate) job_workspaces: Map<u64, crate::boundary::JobWorkspace>,
     pub(crate) push_claims: Map<u64, forge_route::push_admission::Claim>,
@@ -203,7 +202,7 @@ impl Domain {
     /// The phase the start is in, none before the start and once decisions open.
     #[must_use]
     pub fn start_phase(&self) -> Option<jig_domain_core::start::Phase> {
-        self.engine.core().start_phase()
+        self.start_phase
     }
 
     /// First unmade core run-proof link before startup can open.
@@ -311,6 +310,19 @@ impl Domain {
     #[must_use]
     pub fn tasks(&self) -> &tasks::Domain {
         &self.engine.core().tasks
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_forge_call_attempt(&self, owner: Token, task: u64) -> Option<u64> {
+        match self.forge_effects.get(&owner)? {
+            forge_route::EffectFlight::Call { key, .. } if key.task == task => Some(key.attempt),
+            forge_route::EffectFlight::Call { .. }
+            | forge_route::EffectFlight::Projection { .. }
+            | forge_route::EffectFlight::Landing { .. }
+            | forge_route::EffectFlight::Tier { .. }
+            | forge_route::EffectFlight::Procedure { .. } => None,
+        }
     }
 
     /// The run channel admitted at this worker's configured position.
@@ -454,9 +466,9 @@ impl Domain {
     /// cross-child limits. Checks bounded authority/bootstrap configuration; issues no request.
     /// Startup pages/account setup begin only on `Event::Restart`.
     /// # Errors
-    /// A configured worker count or name exceeds its priced membership bound.
+    /// The engine refuses its worker membership or connector declarations.
     #[expect(clippy::too_many_lines, reason = "the root allocates every child and bounded handoff table together")]
-    pub fn new(mut config: Config, limits: &Limits) -> Result<Domain, Problem> {
+    pub fn new(mut config: Config, limits: &Limits) -> Result<Domain, StartProblem> {
         assert!(valid(limits), "root limits are valid");
         assert!(
             config.core.settings.deployment_provider != 0,
@@ -572,7 +584,10 @@ impl Domain {
                 prepare_kind = Some(*bound);
             }
             if bound.kind.0 == forge::CLOSE_KIND {
-                close_kind = Some(*bound);
+                close_kind = Some(jig_domain_link::JobBound {
+                    result: temper_protocol_worker_wire::CLOSE_RESULT_BYTES,
+                    ..*bound
+                });
             }
             if bound.kind.0 == forge::MERGE_KIND {
                 merge_kind = Some(*bound);
@@ -630,23 +645,22 @@ impl Domain {
             openings: Queue::uncapped(),
             door_count: 0,
             startup_range: None,
+            start_page: None,
+            start_walk: loads::start::Walk::empty(),
+            start_load: None,
+            start_missing: Queue::with_capacity(limits.loads.rows),
+            start_phase: None,
             start_wall: None,
             start_report: None,
             start_stop: None,
             opened: false,
             start_pending: false,
             convert_branch_writes: false,
-            startup_fill: None,
-            startup_census: None,
-            sweep_rows: Queue::uncapped(),
-            sweep_page: false,
-            sweep_next: None,
             core_header_loaded: false,
             restored_commits: None,
             engine,
-            brief_connectors: Slab::with_capacity(brief_connector_capacity(limits)),
-            brief_document_titles: Map::with_capacity(limits.brief.briefs),
-            forge_briefs: Map::uncapped(),
+            brief_connectors: Map::uncapped(),
+            brief_document_titles: Map::with_capacity(limits.tasks.tasks),
             run_workspaces: Map::with_capacity(limits.tasks.tasks),
             job_workspaces: Map::with_capacity(limits.tasks.tasks),
             push_claims: Map::with_capacity(limits.tasks.tasks),
@@ -767,6 +781,11 @@ impl Domain {
         self.engine.core().settings_kept()
     }
 
+    #[must_use]
+    pub fn settings_unnamed(&self) -> &[jig_domain_core::settings::Setting] {
+        self.engine.core().settings_unnamed()
+    }
+
     /// Decisions open and the journal is not stopped (temper/docs/design/domain/root-restart.md, 1.1).
     #[must_use]
     pub fn ready(&self) -> bool {
@@ -779,7 +798,9 @@ impl Domain {
         self.engine.core().caught_up(connector)
     }
 
-    pub(crate) fn start_runtime(&self) -> bool {
+    /// Whether the durable Wires continuation has entered runtime.
+    #[must_use]
+    pub fn start_runtime(&self) -> bool {
         use jig_domain_core::start::Phase;
         match self.start_phase() {
             Some(
@@ -826,11 +847,6 @@ impl Domain {
         }
     }
 
-    pub(crate) fn stop_core(&mut self) {
-        let failure = self.engine.core().start_failure().expect("a refused row records its start fit failure");
-        self.stop_start(StartStop::Core { phase: self.start_phase(), failure });
-    }
-
     /// Pure shell idle query: no immediate internal handoff or issued store operation
     /// remains unfinished. Call after the iteration's reclaim; sessions, idle
     /// workers, assigned workers awaiting external answers and future task/account
@@ -849,7 +865,6 @@ impl Domain {
             && self.hub_link.payload_count() == 0
             && self.answer_parts.is_empty()
             && self.refused_calls.is_empty()
-            && self.forge_briefs.is_empty()
             && self.archive_reads.is_empty()
             && self.revision_reads.is_empty()
             && self.history_reads.is_empty()
@@ -904,7 +919,6 @@ impl Domain {
         self.changed();
         self.settled = None;
         self.engine.core_mut().reclaim();
-        self.brief_connectors.reclaim();
         self.forge.reclaim();
         self.archive_reads.reclaim();
         loads::reclaim(&mut self.loads);
@@ -1027,8 +1041,7 @@ fn finish_close(
     route_core_requests(domain, env, &mut decision, requests);
     route_into(domain, env, &mut decision);
     domain.kinds = Box::default();
-    let persist_header = domain.core_header_loaded
-        && (domain.start_phase() != Some(jig_domain_core::start::Phase::LoadCore) || domain.startup_range.is_none());
+    let persist_header = domain.core_header_loaded;
     let empty = finished
         && decision.empty()
         && !(persist_header && domain.engine.core().counters.dirty())
@@ -1048,8 +1061,7 @@ fn finish_close(
     )
     .expect("root decision uses its configured store edge");
     if let Some(commits) = domain.restored_commits.take() {
-        assert!(domain.journal.idle(), "deployment is the first cold-start row");
-        domain.journal = Journal::uncapped(1, commits);
+        domain.journal.restore_numbering(commits);
         domain.sent_commit = commits;
         domain.durable_commit = commits;
     }
@@ -1241,7 +1253,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
     if domain.journal.stopped() || domain.start_stop().is_some() {
         return;
     }
-    if !domain.store_answers.is_empty() && domain.work.is_empty() {
+    if (domain.start_wall.is_some() || domain.opened) && !domain.store_answers.is_empty() && domain.work.is_empty() {
         let event = domain.store_answers.pop().expect("queued store answer");
         step_routed(domain, env, event, out);
         return;
@@ -1430,7 +1442,10 @@ fn released_into(
             domain.work.push(Work::Core(jig_domain_core::Event::PublicDurable { read }));
         }
         Delivery::ProjectReleased { connector, project } => {
-            domain.work.push(Work::Core(jig_domain_core::Event::ProjectReleased { connector, project }));
+            domain.work.push(Work::Connector(
+                jig_domain_contract::Connector(connector),
+                jig_domain_contract::Up::Lifecycle(jig_domain_contract::lifecycle::Up::Released { project }),
+            ));
         }
         Delivery::MoveStanding { project, owner } => crate::route::standing::move_roles(domain, project, owner),
         Delivery::FindingsOwned { project, task, words } => {
@@ -1452,15 +1467,14 @@ fn released_into(
             // Repositories and homes arise on adoption, panels on watching.
             // None needs an empty-project row.
         }
+        Delivery::TakeForgeAdoption { repository, request } => {
+            domain.work.push(Work::Forge(forge::Event::TakeAdoption { repository, request }));
+        }
         Delivery::ForgeCommitted { entry } => {
-            domain.work.push(Work::Forge(forge::Event::Committed { entry }));
+            domain.work.push(Work::Forge(forge::Event::Released(jig_domain_contract::Released::Make { entry })));
         }
-        Delivery::Start(continuation) => {
-            let mut output = Queue::uncapped();
-            let action = domain.engine.core_mut().start_resume(&environment_core(env), continuation, &mut output);
-            route_core_requests(domain, env, decision, output);
-            domain.work.push(Work::Start(action));
-        }
+        Delivery::Resume(resume) => domain.work.push(Work::EngineResume(resume)),
+        Delivery::EngineStore(request) => crate::store_route::released(domain, request, out),
         Delivery::Fleet(event) => domain.work.push(Work::Fleet(event)),
         Delivery::Relay { task, attempt, word, .. } => {
             let name = Token::new(word.number);
@@ -1498,7 +1512,6 @@ fn released_into(
         | Delivery::ForgeRead { .. }
         | Delivery::Read { .. }
         | Delivery::PartLoad { .. }
-        | Delivery::EngineStore(_)
         | Delivery::Document { .. }
         | Delivery::WatchEnded { .. }
         | Delivery::Restarting { .. }
@@ -1518,7 +1531,7 @@ fn released_into(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Refused {
     /// Configured worker membership exceeds its priced count or name bound.
-    Workers(Problem),
+    Workers(StartProblem),
     /// The charter at this index: its run policy's bytes, `None` past `u64`,
     /// beyond `journal.run_bytes`.
     Run { charter: usize, bytes: Option<u64> },
@@ -1555,7 +1568,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         .saturating_add(7);
     let mut refused = List::with_capacity(room);
     if let Err(problem) = jig_domain_core::worker_membership(&config.core.defaults.workers, &core_limits(limits)) {
-        refused.push(Refused::Workers(problem)).expect("counted refusals");
+        refused.push(Refused::Workers(StartProblem::Membership(problem))).expect("counted refusals");
     }
     for (charter, configured) in config.core.defaults.charters.iter().enumerate() {
         let bytes = run_policy_bound(&configured.policy, limits);
@@ -1676,16 +1689,6 @@ fn add_configured_requirements(
     };
     rules.requirements = combined;
     authority::valid_rules(rules, limits)
-}
-
-fn brief_connector_capacity(limits: &Limits) -> u32 {
-    limits
-        .brief
-        .briefs
-        .checked_mul(limits.brief.sections)
-        .expect("validated brief count")
-        .checked_mul(2)
-        .expect("validated brief connector room")
 }
 
 // A turn needs its carriers and resource slots before it may be selected by settings.

@@ -16,11 +16,10 @@ use jig_domain_core::{
     reads::{Answer, Read},
 };
 use jig_domain_people as people;
-use jig_domain_tasks as tasks;
 use skein_lib::{ReplyTo, Token};
 use std::{borrow::Cow, collections::BTreeMap};
 use temper_engine_domain::{self as engine, Delivery, Key, Record};
-use temper_engine_domain_forge::Document as ForgeDocument;
+use temper_engine_domain_forge::{Document as ForgeDocument, Stored as ForgeRow};
 
 /// The one inventory of rows rebuilt by startup, with the step's reason.
 #[must_use]
@@ -82,26 +81,50 @@ impl Snapshot {
         let mut queries = Vec::new();
         for sign_in in sessions {
             queries.push((sign_in, Read::Frame));
-            for row in rows.values() {
-                if let Record::Core(core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task))) = row {
-                    queries.push((sign_in, Read::Task { task: task.number }));
-                    queries.push((sign_in, Read::Result { task: task.number }));
-                }
+            for task in crate::store::task_rows(rows) {
+                queries.push((sign_in, Read::Task { task: task.number }));
+                queries.push((sign_in, Read::Result { task: task.number }));
             }
         }
         Self { rows: BTreeMap::new(), wall, queries, answers: Vec::new() }
     }
 
     pub fn compare_rows(&self, rows: &BTreeMap<Key, Record>) -> Result<(), String> {
-        for key in self.rows.keys().chain(rows.keys().filter(|key| !self.rows.contains_key(*key))) {
-            let before = self.rows.get(key).and_then(|row| retained(key, row, self.wall));
-            let after = rows.get(key).and_then(|row| retained(key, row, self.wall));
-            if before != after {
-                return Err(format!(
-                    "assertion `left == right` failed: restart oracle row {key:?}, field {}\n  left: {before:?}\n right: {after:?}",
-                    difference(&format!("{before:#?}"), &format!("{after:#?}"))
-                ));
+        self.compare_inventory(rows, false)
+    }
+
+    /// Check the settled inventory after startup has made its fresh observations.
+    pub fn compare_rows_after_restart(&self, rows: &BTreeMap<Key, Record>) -> Result<(), String> {
+        self.compare_inventory(rows, true)
+    }
+
+    fn compare_inventory(&self, rows: &BTreeMap<Key, Record>, restarted: bool) -> Result<(), String> {
+        // Walk both sorted maps once. Report a difference in the saved keys
+        // before reporting a newly present key, as in the restart oracle.
+        let mut afters = rows.iter().peekable();
+        let mut extra = None;
+        for (key, before) in &self.rows {
+            while let Some((key, row)) = afters.next_if(|(after_key, _)| *after_key < key) {
+                if extra.is_none()
+                    && let Some(row) = retained(key, row, self.wall)
+                {
+                    extra = Some((key, row));
+                }
             }
+            let after = afters.next_if(|(after_key, _)| *after_key == key).map(|(_, row)| row);
+            if after == Some(before) || restarted && startup_observed_temper_revision(before, after) {
+                continue;
+            }
+            let before = retained(key, before, self.wall);
+            let after = after.and_then(|row| retained(key, row, self.wall));
+            if before != after {
+                return Err(row_difference(key, before.as_deref(), after.as_deref()));
+            }
+        }
+        if let Some((key, after)) =
+            extra.or_else(|| afters.find_map(|(key, row)| retained(key, row, self.wall).map(|row| (key, row))))
+        {
+            return Err(row_difference(key, None, Some(after.as_ref())));
         }
         Ok(())
     }
@@ -124,6 +147,34 @@ impl Snapshot {
             difference(&format!("{before:#?}"), &format!("{after:#?}"))
         ))
     }
+}
+
+// temper/docs/design/domain/forge/temper-dir.md, 2–3: startup rereads the home,
+// and even an identical observation advances the stamp, not the revision.
+fn startup_observed_temper_revision(before: &Record, after: Option<&Record>) -> bool {
+    let (Record::Forge { row: before }, Some(Record::Forge { row: after })) = (before, after) else { return false };
+    let (ForgeRow::DotTemperRevision(before), ForgeRow::DotTemperRevision(after)) = (before.as_ref(), after.as_ref())
+    else {
+        return false;
+    };
+    if after.observed <= before.observed {
+        return false;
+    }
+    let mut observed = after.clone();
+    observed.observed = before.observed;
+    if let (Some(before), Some(refused)) = (&before.refused, &mut observed.refused)
+        && refused.observed == after.observed
+    {
+        refused.observed = before.observed;
+    }
+    before == &observed
+}
+
+fn row_difference(key: &Key, before: Option<&Record>, after: Option<&Record>) -> String {
+    format!(
+        "assertion `left == right` failed: restart oracle row {key:?}, field {}\n  left: {before:?}\n right: {after:?}",
+        difference(&format!("{before:#?}"), &format!("{after:#?}"))
+    )
 }
 
 // Only the inventory's rebuilt rows need an owned projection.
@@ -242,7 +293,7 @@ impl Driver {
         self.period_sent = true;
         self.ends.restarted(self.env.now);
         self.oracle_settle();
-        snapshot.compare_rows(&self.store.rows)?;
+        snapshot.compare_rows_after_restart(&self.store.rows)?;
         compare_forges(forges, self.root.forges())?;
         for (index, (sign_in, read)) in snapshot.queries.iter().enumerate() {
             let answer = self.oracle_read(*sign_in, read);
@@ -285,9 +336,11 @@ impl Driver {
                 self.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
             }
             let commit = self.store.applied;
-            if self.events.is_empty() && self.out.is_empty() && self.store.idle()
+            if self.events.is_empty()
+                && self.out.is_empty()
+                && self.store.idle()
                 && self.forge.as_ref().is_none_or(crate::forge_stand::ForgeStand::quiescent)
-                && self.store.rows.values().any(|row| matches!(row, Record::Core(core::Record::Tasks(tasks::Stored::Live(task))) if matches!(task.executor, tasks::Executor::Procedure { code: 2, .. }) && task.phase == tasks::Phase::Active(tasks::Active::Due)))
+                && self.store.has_due_change()
                 && let Some(due) = self.root.next_deadline(&self.env)
                 && due <= self.env.now.saturating_add(skein_lib::Duration::from_secs(1))
             {
@@ -335,7 +388,7 @@ impl Driver {
                 Some(temper_engine_domain_forge::Document::Change(*panel.clone()))
             }
             Delivery::Push(_)
-            | Delivery::Start(_)
+            | Delivery::Resume(_)
             | Delivery::ProjectMade { .. }
             | Delivery::Bound { .. }
             | Delivery::ProjectReleased { .. }
@@ -356,6 +409,7 @@ impl Driver {
             | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
             | Delivery::ForgeCommitted { .. }
+            | Delivery::TakeForgeAdoption { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Procedure { .. }
             | Delivery::Relay { .. }
@@ -434,29 +488,31 @@ pub fn close_world(
 #[must_use]
 pub fn forge_subjects(rows: &BTreeMap<Key, Record>) -> Vec<(u64, u32, u64)> {
     let mut subjects = std::collections::BTreeSet::new();
+    let mut projects = std::collections::BTreeSet::new();
+    for task in crate::store::task_rows(rows) {
+        subjects.insert((task.project, task.number));
+        projects.insert(task.project);
+    }
+    let mut sessions = Vec::new();
     for row in rows.values() {
-        if let Record::Core(core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task))) = row {
-            subjects.insert((task.project, task.number));
-            for ended in [false, true] {
-                subjects.insert((task.project, temper_engine_domain_forge::landings_subject(task.project, ended)));
+        match row {
+            Record::Forge { row } => {
+                if let temper_engine_domain_forge::Stored::Repository(repository) = row.as_ref() {
+                    projects.insert(repository.project);
+                }
             }
-        }
-        if let Record::Forge { row } = row
-            && let temper_engine_domain_forge::Stored::Repository(repository) = row.as_ref()
-        {
-            for ended in [false, true] {
-                subjects.insert((
-                    repository.project,
-                    temper_engine_domain_forge::landings_subject(repository.project, ended),
-                ));
-            }
+            Record::Core(core::Record::People(people::Stored::SignIn { number, .. })) => sessions.push(*number),
+            Record::Core(_) => {}
         }
     }
-    let mut queries = Vec::new();
-    for row in rows.values() {
-        if let Record::Core(core::Record::People(people::Stored::SignIn { number, .. })) = row {
-            queries.extend(subjects.iter().map(|(project, subject)| (*number, *project, *subject)));
+    for project in projects {
+        for ended in [false, true] {
+            subjects.insert((project, temper_engine_domain_forge::landings_subject(project, ended)));
         }
+    }
+    let mut queries = Vec::with_capacity(sessions.len() * subjects.len());
+    for sign_in in sessions {
+        queries.extend(subjects.iter().map(|(project, subject)| (sign_in, *project, *subject)));
     }
     queries
 }
@@ -521,6 +577,7 @@ impl Drop for Driver {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use jig_domain_tasks as tasks;
 
     #[test]
     fn closing_twice_keeps_the_first_cold_readback() {

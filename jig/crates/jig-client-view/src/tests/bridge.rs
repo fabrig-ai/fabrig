@@ -47,7 +47,7 @@ fn a_run_s_text_reaches_the_page_in_its_changed_document() {
 #[test]
 fn out_of_date_shows_the_out_of_date_page() {
     let (mut fixture, _) = cards::start();
-    cards::drive(&mut fixture, Up::Served { served: false, versions: None });
+    cards::drive(&mut fixture, Up::Served { served: false });
     assert_eq!(fixture.page(), &crate::state::page::Page::OutOfDate);
 }
 #[test]

@@ -1,4 +1,4 @@
-//! The gallery print used by look-render (temper/docs/design/client/journey-writer.md, 6.2, steps 2–3).
+//! The gallery print used by look-render (temper/docs/design/client/journey-writer-requests.md, 1.2, steps 2–3).
 
 use std::{
     collections::{BTreeMap, BTreeSet},

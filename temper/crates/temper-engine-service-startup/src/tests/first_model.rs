@@ -45,6 +45,10 @@ struct StockBox {
 }
 
 fn stock_box(account: OneAccount) -> StockBox {
+    stock_box_with_sol(account, true)
+}
+
+fn stock_box_with_sol(account: OneAccount, with_sol: bool) -> StockBox {
     let document = stock::generated();
     let parsed = stock::engine(&document);
     assert_eq!(parsed.llm.models[0].model.name.as_ref(), CLAUDE, "stock must put Claude first");
@@ -69,7 +73,7 @@ fn stock_box(account: OneAccount) -> StockBox {
     let limits = crate::limits::engine_candidate(&parsed.limits, &application.limits);
     let mut core = crate::startup::core(&parsed, [31; 16], 91);
     core.kinds = crate::stock::kinds(&limits, 1);
-    let config = engine::Config {
+    let mut config = engine::Config {
         host_part: temper_engine_domain::room::HostPart {
             allowance: u64::MAX,
             ..temper_engine_domain::room::HostPart::EMPTY
@@ -86,11 +90,16 @@ fn stock_box(account: OneAccount) -> StockBox {
         under_box: false,
         playground: None,
     };
+    let restart = temper_engine_domain_world::oracle::config::copy(&config);
+    if !with_sol {
+        config.core.defaults.models =
+            config.core.defaults.models.into_iter().filter(|model| model.number != 9).collect();
+        config.core.settings.models = core::settings::catalogue::rows(&config.core.defaults.models);
+    }
     let models = config.core.settings.models.clone();
     let templates = config.core.defaults.templates.clone();
     let charters = config.core.defaults.charters.clone();
     let providers = config.core.settings.llm_providers.clone();
-    let restart = temper_engine_domain_world::oracle::config::copy(&config);
     let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
     driver.period_sent = true;
     driver.settle();
@@ -443,6 +452,7 @@ impl StockBox {
                     .find(|model| model.name.as_ref() == name)
                     .filter(|model| !model.efforts.is_empty())
                     .map(|_| 0),
+                speed: None,
             },
             subagents: Box::new([]),
         });
@@ -606,6 +616,7 @@ fn chatgpt_alone_runs_the_stock_chat() {
         (ASTRA, b"high"),
         (b"gpt-6.1-terra", b"medium"),
         (b"gpt-6-luna", b"medium"),
+        (b"gpt-6.2-sol", b"high"),
     ]);
     world.assert_previews(Some(OPENAI), Some(ASTRA));
     let task = world.create(1, None);
@@ -728,6 +739,7 @@ fn both_accounts_offer_every_model_and_preview_the_users_first_choice() {
         (ASTRA, b"high"),
         (b"gpt-6.1-terra", b"medium"),
         (b"gpt-6-luna", b"medium"),
+        (b"gpt-6.2-sol", b"high"),
     ]);
     world.assert_previews(Some(CLAUDE), Some(CLAUDE));
 }
@@ -796,14 +808,14 @@ fn a_lapsed_login_withdraws_its_offer_and_marks_me_but_keeps_the_tasks_model() {
 }
 
 #[test]
-fn init_limits_hold_seven_models_and_five_previews_per_project_on_the_wire() {
+fn init_limits_hold_eight_models_and_five_previews_per_project_on_the_wire() {
     let mut world = stock_box(OneAccount::Claude);
     world.add_openai();
     world.worker();
     let mut frame = world.frame();
     let limits = world.driver.env.limits;
     let mut project = frame.projects.as_slice().first().unwrap().clone();
-    assert_eq!(project.offer.len(), 7);
+    assert_eq!(project.offer.len(), 8);
     // Size the fourth preview too: a project's chosen goal executor may be resolved
     // to the coding charter. The stock leaves that executor for the person to pick.
     let choice = project.defaults.as_slice().first().unwrap().1.clone();
@@ -857,11 +869,41 @@ fn init_limits_hold_seven_models_and_five_previews_per_project_on_the_wire() {
     let mut seen = 0_u32;
     while let Some(bytes) = skein_codec::piece::split(&mut projects).unwrap() {
         let project = wire::MeProject::decode(&world.client_limits.wire, &mut Reader::new(&bytes)).unwrap();
-        assert_eq!(project.models.len(), 7);
+        assert_eq!(project.models.len(), 8);
         assert_eq!(project.defaults.len(), 5);
         seen = seen.checked_add(1).unwrap();
     }
     assert_eq!(seen, count);
+}
+
+#[test]
+fn the_stock_start_keeps_an_existing_gpt_6_2_sol_at_its_own_number() {
+    use core::settings::{Changed, ModelSource, Record, Setting, Value};
+
+    let mut world = stock_box_with_sol(OneAccount::None, false);
+    let stock = Setting::Model(9);
+    let own = Setting::Model(64);
+    assert!(world.driver.root.core().current.value(stock).is_none());
+    let mut model = world.config.core.defaults.models.iter().find(|model| model.number == 9).unwrap().clone();
+    assert_eq!(model.model.name.as_ref(), b"gpt-6.2-sol");
+    model.number = 64;
+    model.source = ModelSource::Person;
+    model.model.speeds = Box::default();
+    model.shown = Some(b"Our Sol".as_slice().into());
+    let value = Value::Model(Box::new(model));
+    world.driver.store.seed(
+        Box::new([engine::Record::Core(core::Record::Core(core::CoreRecord::Settings(Record::Changed {
+            setting: own,
+            changed: Changed { revision: 1, value: Some(value.clone()) },
+        })))]),
+        Box::new([]),
+    );
+    world.driver.reopen(world.config);
+    world.driver.settle();
+    assert!(world.driver.root.ready(), "{:?}", world.driver.root.start_stop());
+    let current = &world.driver.root.core().current;
+    assert_eq!(current.value(own), Some(&value));
+    assert_eq!(current.value(stock), None);
 }
 
 #[test]

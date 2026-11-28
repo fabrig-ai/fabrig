@@ -4,8 +4,8 @@
 
 use super::{Call, Proposing};
 use crate::{
-    CallKey, CallPart, CallRecord, Core, CoreRecord, EscalationChoice, Event, Held, Limits, NamedAction,
-    PayloadRefusal, PendingCall, ProposalChoice, Record, Request, RoutedCall, ToolKind, Write,
+    CallHolder, CallKey, CallPart, CallRecord, Core, CoreRecord, EscalationChoice, Event, Held, Limits, NamedAction,
+    PayloadRefusal, ProposalChoice, Record, Request, RoutedCall, ToolKind, Write,
     routing::{NoteRoute, Work, run::delegation::propose_batch},
 };
 use alloc::boxed::Box;
@@ -14,6 +14,13 @@ use jig_domain_fleet as fleet;
 use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Token};
+
+fn connector_topic(kind: tasks::SubscriptionKind) -> Option<(u16, u64)> {
+    match kind {
+        tasks::SubscriptionKind::Topic { connector, topic } => Some((connector, topic)),
+        tasks::SubscriptionKind::Task { .. } | tasks::SubscriptionKind::Timer { .. } => None,
+    }
+}
 
 pub(crate) fn call_decision(core: &mut Core, out: &mut Queue<Request>, to: ReplyTo, key: CallKey, part: CallPart) {
     if !core.decide_pending_call(key, part.clone()) {
@@ -40,7 +47,7 @@ pub(crate) fn admit_named_call(
         out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part: part.clone() })));
         return None;
     }
-    if !core.reserve_call(key, PendingCall::Routed) {
+    if !core.reserve_call(key, CallHolder::Routed) {
         out.push(Request::Now(Box::new(crate::Now::CallBusy { to })));
         return None;
     }
@@ -624,7 +631,8 @@ pub(crate) fn named_action(
                 );
                 return out;
             };
-            let token = core.fly_call(token, RoutedCall::Subscribe { key, subscription });
+            let topic = connector_topic(kind);
+            let token = core.fly_call(token, RoutedCall::Subscribe { key, subscription, topic });
             work.push(Work::Event(Event::Tasks(tasks::Event::Subscribe {
                 reads_project: false,
                 reply_to: ReplyTo::new(token),
@@ -633,7 +641,20 @@ pub(crate) fn named_action(
             })));
         }
         NamedAction::Unsubscribe { subscription } => {
-            let token = core.fly_call(token, RoutedCall::Unsubscribe(key));
+            let mut route = RoutedCall::Unsubscribe { key, subscription, topic: None };
+            if let Some(task) = core.tasks.task(key.task) {
+                for interest in &task.subscriptions {
+                    if interest.number == subscription {
+                        route = RoutedCall::Unsubscribe {
+                            key,
+                            subscription: interest.number,
+                            topic: connector_topic(interest.kind),
+                        };
+                        break;
+                    }
+                }
+            }
+            let token = core.fly_call(token, route);
             work.push(Work::Event(Event::Tasks(tasks::Event::Unsubscribe {
                 reply_to: ReplyTo::new(token),
                 task: key.task,
@@ -742,7 +763,7 @@ pub(crate) fn named_action(
         }
         NamedAction::WithdrawProposal { proposal } => {
             if core.tasks.proposal(key.task, proposal).is_none() {
-                core.handoff_call(key, PendingCall::Routed, PendingCall::DecidedProposal(proposal));
+                core.handoff_call(key, CallHolder::Routed, CallHolder::DecidedProposal(proposal));
                 let point = crate::loads::point::Point::Proposal { to: ReplyTo::new(token), key, proposal };
                 if !crate::loads::try_point(core, &env.limits, &mut out, point) {
                     return crate::routing::party::ended::decided_proposal(
@@ -773,11 +794,11 @@ pub(crate) fn named_action(
         }
         NamedAction::ProposeBatch { batch, reason, as_holder } => {
             let proposing = Proposing { to: ReplyTo::new(token), key, reason, as_holder };
-            return propose_batch(core, env, proposing, batch, None);
+            return propose_batch(core, env, work, proposing, batch, None);
         }
         NamedAction::ProposeGoal { goal, priority, reason } => {
             let proposing = Proposing { to: ReplyTo::new(token), key, reason, as_holder: true };
-            return propose_batch(core, env, proposing, Box::new([*goal]), Some(priority));
+            return propose_batch(core, env, work, proposing, Box::new([*goal]), Some(priority));
         }
         NamedAction::Note { mut entry, recalled, records } => {
             if recalled.is_none() && entry.name != 0 {
@@ -912,7 +933,7 @@ pub(crate) fn named_tool_kind(action: &NamedAction) -> ToolKind {
 pub(crate) fn route_named_answer(core: &mut Core, to: ReplyTo, key: CallKey, part: CallPart) -> Queue<Request> {
     // A translated answer can complete a reserved application call or be the
     // whole decision of a new call (for example, a refusal of its input).
-    if core.pending_calls.get(&key) == Some(&PendingCall::Application) {
+    if core.pending_calls.get(&key) == Some(&CallHolder::Application) {
         return route_pending_answer(core, to, key, part);
     }
     let mut out = Queue::uncapped();

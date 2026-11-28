@@ -716,7 +716,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     };
     let next = if parked && kept.owes {
         let task = task_mut(domain, number).expect("owing task live");
-        task.record.tries.add(Class::Run);
+        crate::failures::add_try(&mut task.record.tries, Class::Run);
         let times = task.record.tries.of(Class::Run);
         if times > env.limits.retries.run.retries {
             Phase::Closing(Closing {
@@ -849,7 +849,7 @@ fn wall_after(env: &Env<Limits>, duration: skein_lib::Duration) -> skein_lib::Wa
 
 fn failure(domain: &mut Domain, env: &Env<Limits>, number: u64, class: Class, reason: Option<Box<[u8]>>) -> Phase {
     let task = task_mut(domain, number).expect("failure names live task");
-    task.record.tries.add(class);
+    crate::failures::add_try(&mut task.record.tries, class);
     task.record.refusals = 0;
     let times = task.record.tries.of(class);
     let retry = env.limits.retries.of(class);
@@ -1122,7 +1122,7 @@ pub(crate) fn nothing_awaited_notice(
         task_mut(domain, number).expect("idle notice task live").record.phase = phase;
         publish(domain, env, number, out);
     } else {
-        task.record.tries.add(Class::Run);
+        crate::failures::add_try(&mut task.record.tries, Class::Run);
         publish(domain, env, number, out);
         crate::wake::after_message(domain, env, number, prepared.previous, prepared.word, out);
     }

@@ -390,6 +390,7 @@ pub fn config(seed: u64) -> engine::Config {
                 number: 1,
                 name: "Project 1".into(),
                 policy: jig_domain_core::ConfiguredPolicy {
+                    name: None,
                     policy,
                     permissions: permission_roles().remove(&1).expect("project permissions"),
                     templates: Box::new([]),
@@ -460,6 +461,7 @@ pub fn models() -> Box<[engine::Model]> {
 #[must_use]
 pub fn charter() -> engine::Charter {
     engine::Charter {
+        name: None,
         parts: Box::new([]),
         rest: false,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
@@ -489,6 +491,8 @@ pub fn charter() -> engine::Charter {
                 price_unit: 1000,
                 efforts: Box::new([]),
                 effort: None,
+                speeds: Box::default(),
+                speed: None,
             },
             alternatives: Box::new([]),
             inspect: true,
@@ -939,6 +943,12 @@ impl World {
                     let result = self.store.read(range);
                     self.queue(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }), 0);
                 }
+                engine::Request::Store(engine::StoreRequest::Engine(
+                    engine_store::Out::Switch
+                    | engine_store::Out::Load { range: engine_store::Range::Start { .. }, .. },
+                )) => {
+                    unreachable!("start requests use the bounded page and switch adapter");
+                }
                 engine::Request::Store(engine::StoreRequest::Engine(engine_store::Out::Load {
                     load,
                     range:
@@ -1148,13 +1158,14 @@ impl World {
             | Delivery::Refuse { .. } => {
                 panic!("unexpected walking delivery {delivery:?}")
             }
-            Delivery::Start(_)
+            Delivery::Resume(_)
             | Delivery::Fleet(_)
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
             | Delivery::MoveStanding { .. }
             | Delivery::FindingsOwned { .. }
             | Delivery::ForgeCommitted { .. }
+            | Delivery::TakeForgeAdoption { .. }
             | Delivery::Relay { .. }
             | Delivery::Load { .. } => {
                 panic!("internal handoff leaked to world")

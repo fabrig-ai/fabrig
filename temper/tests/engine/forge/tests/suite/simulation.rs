@@ -1,3 +1,4 @@
+use jig_domain_contract as contract;
 use skein_lib::{Token, Wall};
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
@@ -152,6 +153,7 @@ fn a_first_change_behind_its_base_takes_it_or_goes_to_its_merge_job() {
                 task: 51,
                 child: 52,
                 kind: change::Delegate::Merge { base, from: Some(head) },
+                close_at: None,
             });
             assert_eq!(
                 change_step_merge_job(&mut world, 3, change::Status::Passed, Box::new([])),
@@ -1291,7 +1293,12 @@ fn failed_ci_repair_world() -> World {
         change_step(&mut world, 1, change::Status::Unknown, Box::new([])),
         change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci))
     );
-    world.event(top::Event::Delegated { task: 51, child: 52, kind: change::Delegate::Repair(change::Repair::Ci) });
+    world.event(top::Event::Delegated {
+        task: 51,
+        child: 52,
+        kind: change::Delegate::Repair(change::Repair::Ci),
+        close_at: None,
+    });
     world.event(top::Event::DelegateResult {
         ended_at: None,
         task: 51,
@@ -1329,7 +1336,12 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
         panic!("retained change")
     };
     assert_eq!(saved.change.repairs, 2, "failure keeps the spent repair and counts its replacement");
-    world.event(top::Event::Delegated { task: 51, child: 53, kind: change::Delegate::Repair(change::Repair::Ci) });
+    world.event(top::Event::Delegated {
+        task: 51,
+        child: 53,
+        kind: change::Delegate::Repair(change::Repair::Ci),
+        close_at: None,
+    });
     world.run_for(1);
     world.restart();
     world.event(top::Event::DelegateResult {
@@ -1510,7 +1522,8 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::LandingReady { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::ChangeDecision { .. }
-                | top::Request::CloseDecision { .. }
+                | top::Request::ReplayJudgement { .. }
+                | top::Request::RelayRefusal { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
@@ -1528,13 +1541,9 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
-                | top::Request::ProjectionOutcome { .. }
-                | top::Request::NotMade { .. }
                 | top::Request::ContinueRelease { .. }
                 | top::Request::ContinueGoalBranch { .. }
-                | top::Request::EffectsSettled { .. }
-                | top::Request::Released { .. }
-                | top::Request::ProjectReleased { .. }
+                | top::Request::Up(_)
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
                 | top::Request::ProjectionEffect { .. }
@@ -1542,7 +1551,6 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::CloserChecked { .. }
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
-                | top::Request::ProjectionSettled { .. }
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::News { .. }
@@ -1557,7 +1565,6 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::ApplicationDone { .. }
                 | top::Request::ApplicationAgain { .. }
                 | top::Request::Settled { .. }
-                | top::Request::RestartDone { .. }
                 | top::Request::StatusRun { .. }
                 | top::Request::FollowRun { .. }
                 | top::Request::CancelFollow { .. }
@@ -1611,7 +1618,11 @@ fn a_goal_issue_is_created_only_after_its_outbox_commit() {
     assert_eq!(world.writes(), 1);
     let mut made = false;
     for event in world.seen() {
-        if let top::Request::ProjectionOutcome { entry: 1, outcome: skein_forge_client::Outcome::Made { .. } } = event {
+        if let top::Request::Up(contract::Up::Projections(contract::projections::Up::Outbox {
+            entry: 1,
+            outcome: contract::effects::OutboxOutcome::Made,
+        })) = event
+        {
             made = true;
         }
     }
@@ -1837,16 +1848,30 @@ fn a_restored_write_runs_while_the_fresh_repository_read_keeps_failing() {
     world.restart();
     world.run_for(2);
     assert_eq!(world.writes(), 0, "the restored write still owes its own clock read");
-    assert!(world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::Restored }));
-    assert!(!world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::ReadAfresh }));
+    assert!(world.seen().contains(&top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: top::RestartStage::Restored
+    }))));
+    assert!(!world.seen().contains(&top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: top::RestartStage::ReadAfresh
+    }))));
     world.run_for(20);
     assert_eq!(world.writes(), 1);
-    assert!(!world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::ReadAfresh }));
-    assert!(world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::Settled }));
+    assert!(!world.seen().contains(&top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: top::RestartStage::ReadAfresh
+    }))));
+    assert!(world.seen().contains(&top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done {
+        stage: top::RestartStage::Settled
+    }))));
     let stages: Vec<_> = world
         .seen()
         .iter()
-        .filter_map(|request| if let top::Request::RestartDone { stage } = request { Some(*stage) } else { None })
+        .filter_map(|request| {
+            if let top::Request::Up(contract::Up::Lifecycle(contract::lifecycle::Up::Done { stage })) = request {
+                Some(*stage)
+            } else {
+                None
+            }
+        })
         .collect();
     assert_eq!(stages, [top::RestartStage::Restored, top::RestartStage::Settled]);
 }
@@ -1975,12 +2000,18 @@ fn closing_a_landed_change_deletes_its_branch_before_releasing_the_task() {
     world.event(top::Event::Release { task: 51, root: 51, ending: top::ReleaseEnding::Done, reason: None, entry: 10 });
     assert!(world.stored().contains_key(&top::Key::Release(51)));
     assert!(world.stored().contains_key(&top::Key::Entry(10)));
-    assert!(!world.seen().iter().any(|request| matches!(request, top::Request::Released { task: 51 })));
+    assert!(!world.seen().iter().any(|request| matches!(
+        request,
+        top::Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 51 }))
+    )));
     world.event(top::Event::Committed { entry: 10 });
     world.run_for(5);
     assert!(world.seen().iter().any(|request| matches!(request, top::Request::ContinueRelease { task: 51 })));
     world.event(top::Event::ContinueRelease { task: 51, entry: 11 });
-    assert!(world.seen().iter().any(|request| matches!(request, top::Request::Released { task: 51 })));
+    assert!(world.seen().iter().any(|request| matches!(
+        request,
+        top::Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 51 }))
+    )));
     assert!(!world.stored().contains_key(&top::Key::Hold(name)));
     assert!(!world.stored().contains_key(&top::Key::Release(51)));
     assert_eq!(world.writes(), 1);
@@ -2055,12 +2086,18 @@ fn prior_effects_settle_before_cleanup_can_delete_a_held_resource() {
     });
     world.take_seen();
     world.event(top::Event::SettleEffects { task: 51, root: 51, ending: top::ReleaseEnding::Done });
-    assert!(!world.seen().iter().any(|request| matches!(request, top::Request::EffectsSettled { task: 51 })));
+    assert!(!world.seen().iter().any(|request| matches!(
+        request,
+        top::Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: 51 }))
+    )));
     assert!(world.stored().contains_key(&top::Key::Hold(name.clone())));
     world.event(top::Event::Committed { entry: 9 });
     world.run_for(5);
     world.event(top::Event::ContinueRelease { task: 51, entry: 10 });
-    assert!(world.seen().iter().any(|request| matches!(request, top::Request::EffectsSettled { task: 51 })));
+    assert!(world.seen().iter().any(|request| matches!(
+        request,
+        top::Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: 51 }))
+    )));
     assert!(world.stored().contains_key(&top::Key::Hold(name.clone())));
     assert!(!world.stored().contains_key(&top::Key::Entry(10)));
     world.event(top::Event::Release { task: 51, root: 51, ending: top::ReleaseEnding::Done, reason: None, entry: 11 });
@@ -2106,7 +2143,10 @@ fn cancelling_withdraws_a_prior_effect_that_never_went_out() {
         request,
         top::Request::Outcome { entry: 9, outcome: skein_forge_client::Outcome::Withdrawn, .. }
     )));
-    assert!(world.seen().iter().any(|request| matches!(request, top::Request::EffectsSettled { task: 51 })));
+    assert!(world.seen().iter().any(|request| matches!(
+        request,
+        top::Request::Up(contract::Up::Effects(contract::effects::Up::Closed { task: 51 }))
+    )));
     assert_eq!(world.writes(), 0);
 }
 
@@ -2457,7 +2497,10 @@ fn finish_cancel(world: &mut World) {
         world.run_for(5);
     }
     world.event(top::Event::ContinueRelease { task: RELEASE_TASK, entry: 13 });
-    assert!(world.seen().iter().any(|request| matches!(request, top::Request::Released { task: RELEASE_TASK })));
+    assert!(world.seen().iter().any(|request| matches!(
+        request,
+        top::Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: RELEASE_TASK }))
+    )));
 }
 
 #[test]
@@ -2557,7 +2600,10 @@ fn cancelling_an_unproduced_change_leaves_only_the_two_existing_pulls() {
         .filter_map(|record| if let Observation::Opened { number, .. } = record { Some(number) } else { None })
         .collect();
     assert_eq!(pulls, [1, 2], "cancelling a plan without a pull opens none");
-    assert!(world.seen().iter().any(|request| matches!(request, top::Request::Released { task: RELEASE_TASK })));
+    assert!(world.seen().iter().any(|request| matches!(
+        request,
+        top::Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: RELEASE_TASK }))
+    )));
 }
 
 #[test]
@@ -2587,7 +2633,10 @@ fn releases_without_a_cancelled_pull_post_no_reason() {
                 .iter()
                 .any(|op| matches!(op, skein_forge::api::Op::Write(skein_forge::api::Write::Post { .. })))
         );
-        assert!(world.seen().iter().any(|request| matches!(request, top::Request::Released { task: RELEASE_TASK })));
+        assert!(world.seen().iter().any(|request| matches!(
+            request,
+            top::Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: RELEASE_TASK }))
+        )));
     }
 }
 
@@ -2644,7 +2693,10 @@ fn a_cancelled_change_watching_its_pull_deletes_its_branch_past_its_own_close() 
     world.event(top::Event::Committed { entry: 11 });
     world.run_for(5);
     world.event(top::Event::ContinueRelease { task: 51, entry: 12 });
-    assert!(world.seen().iter().any(|request| matches!(request, top::Request::Released { task: 51 })));
+    assert!(world.seen().iter().any(|request| matches!(
+        request,
+        top::Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 51 }))
+    )));
     assert!(!world.seen().iter().any(|request| matches!(request, top::Request::Drift { task: 51, .. })));
     assert_eq!(world.writes(), 2);
 }
@@ -2670,7 +2722,10 @@ fn another_partys_close_during_a_cancel_is_taken_as_the_cancels_own() {
     world.event(top::Event::Committed { entry: 11 });
     world.run_for(5);
     world.event(top::Event::ContinueRelease { task: 51, entry: 12 });
-    assert!(world.seen().iter().any(|request| matches!(request, top::Request::Released { task: 51 })));
+    assert!(world.seen().iter().any(|request| matches!(
+        request,
+        top::Request::Up(contract::Up::Effects(contract::effects::Up::Released { task: 51 }))
+    )));
 }
 
 #[test]

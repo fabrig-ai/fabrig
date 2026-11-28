@@ -65,6 +65,7 @@ fn every_run_call_terminal_has_canonical_feedback() {
                 repository: bytes(b"repo"),
                 check: bytes(b".smith/check"),
                 given: Duration::from_secs(60),
+                ceiling_cut: None,
                 ran: run::Ran {
                     exit: run::Exit::Code { code: 1 },
                     said_not_judged: false,
@@ -80,6 +81,7 @@ fn every_run_call_terminal_has_canonical_feedback() {
                 repository: bytes(b"repo"),
                 check: bytes(b".smith/check"),
                 given: Duration::from_secs(60),
+                ceiling_cut: None,
                 ran: run::Ran { exit: run::Exit::TimedOut, said_not_judged: false, output: bytes(b"tail"), cut: 3 },
             },
             "checks-not-judged repository=\"repo\" check=\".smith/check\" exit=timed-out given_ms=60000 cut=3 tail=\"tail\"",
@@ -211,9 +213,9 @@ fn every_delivery_reason_and_check_exit_is_visible() {
         let given = Duration::from_secs(60);
         let ran = run::Ran { exit, said_not_judged, output: bytes(b"\"\xff\n"), cut: 4 };
         let (returned, prefix) = if refused {
-            (run::Returned::ChecksFailed { repository, check, given, ran }, "checks-failed")
+            (run::Returned::ChecksFailed { repository, check, given, ceiling_cut: None, ran }, "checks-failed")
         } else {
-            (run::Returned::ChecksNotJudged { repository, check, given, ran }, "checks-not-judged")
+            (run::Returned::ChecksNotJudged { repository, check, given, ceiling_cut: None, ran }, "checks-not-judged")
         };
         assert_eq!(
             rendering(returned),

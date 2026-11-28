@@ -23,8 +23,7 @@ pub fn settings() -> Settings {
     served
         .push(Served {
             family: None,
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION,
+            version: jig_client_protocol_wire::VERSION,
             layout: jig_client_protocol_wire::LAYOUT,
         })
         .expect("one range");
@@ -86,7 +85,8 @@ pub fn limits() -> Limits {
 }
 #[must_use]
 pub fn client_limits() -> skein_http::client::Limits {
-    skein_http::client::Limits { head: 4096, headers: 32, request: 4096, read: 256, send: 256 }
+    // The peer uploads one complete body, including the names in a choice with `later`.
+    skein_http::client::Limits { head: 4096, headers: 32, request: 4096, read: 256, send: 512 }
 }
 #[must_use]
 pub fn expires() -> skein_lib::Wall {
@@ -101,6 +101,7 @@ pub fn me_subject() -> jig_client_protocol_wire::Subject {
 pub fn me_document(needs: u32) -> jig_domain_core::documents::Document {
     use jig_domain_core::documents as d;
     d::Document::Frame(d::Frame {
+        charters: List::with_capacity(0),
         providers: skein_lib::List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,

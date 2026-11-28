@@ -238,10 +238,9 @@ impl Session {
         self.hello(client);
     }
 
-    /// A version fault supplies the replacement range served by the protocol
-    /// fixture, independently of core business configuration and Me.
-    pub fn versions(&mut self, versions: client::VersionRange) {
-        self.driver.transport.versions(versions);
+    /// Replace the layout verdict independently of core business configuration and Me.
+    pub fn set_served(&mut self, served: bool) {
+        self.driver.transport.set_served(served);
         for client in self.driver.transport.clients() {
             self.hello(client);
         }
@@ -693,7 +692,9 @@ impl Session {
             | root::Delivery::System { .. }
             | root::Delivery::LostRead { .. }
             | root::Delivery::Store(_)
-            | root::Delivery::Start(_)
+            | root::Delivery::Connector(..)
+            | root::Delivery::Resume(_)
+            | root::Delivery::ConnectorLoad { .. }
             | root::Delivery::Procedure { .. }) => return unrouted_delivery(&other),
         }
         self.pump(now, wall)
@@ -1091,10 +1092,15 @@ mod tests {
                 root::Delivery::Core(core::Held::PeopleReply { reply: people::Reply::SignedIn { person: 1, .. }, .. })
             )
         ));
-        assert!(
-            take_signed_in(ClientId(0), session.business_poll(now, wall).expect("explicit admitted provider exchange"))
-                .is_empty()
-        );
+        let callbacks =
+            take_signed_in(ClientId(0), session.business_poll(now, wall).expect("explicit admitted provider exchange"));
+        assert!(matches!(
+            callbacks.as_slice(),
+            [(
+                ClientId(0),
+                Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } }
+            )]
+        ));
         assert!(session.driver.transport.sign_in(ClientId(0)).is_some());
         assert!(session.sign_in_failure(ClientId(0)).is_none());
     }
@@ -1145,9 +1151,7 @@ mod tests {
             &callbacks[0],
             (
                 ClientId(0),
-                Event::Client {
-                    event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } }
-                }
+                Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } }
             )
         ));
         assert!(session.driver.withhold_completion().expect("actual authentication becomes durable").is_none());
@@ -1159,8 +1163,17 @@ mod tests {
             ClientId(0),
             session.business_poll(now, wall).expect("genuine session flushes original request"),
         );
-        assert_eq!(callbacks.len(), 1, "actual callbacks: {callbacks:?}");
-        let (client, event) = &callbacks[0];
+        // The wire verdict arrives with the first Me, after the fixture's early verdict.
+        let [
+            (
+                ClientId(0),
+                Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true } } },
+            ),
+            (client, event),
+        ] = callbacks.as_slice()
+        else {
+            panic!("layout verdict and delivery: {callbacks:?}");
+        };
         assert_eq!(*client, ClientId(0));
         let Event::Client {
             event:

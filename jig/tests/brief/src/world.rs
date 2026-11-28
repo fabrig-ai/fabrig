@@ -5,7 +5,8 @@ use jig_domain_brief::{
 };
 use skein_lib::{Env, Queue, Time, Token, Wall};
 
-pub const LIMITS: Limits = Limits { briefs: 3, sections: 5, read_bytes: 128, brief_bytes: 192 };
+pub const LIMITS: Limits =
+    Limits { briefs: 3, sections: 5, read_bytes: 128, brief_bytes: 192, gather: skein_lib::Duration::from_secs(30) };
 
 /// The child, a clock, and connector-owned bytes outside the child.
 pub struct World {
@@ -15,7 +16,6 @@ pub struct World {
     held: BTreeMap<Token, Vec<u8>>,
     paused: BTreeSet<Token>,
     closed: BTreeSet<Token>,
-    brief: Token,
 }
 
 impl World {
@@ -28,7 +28,6 @@ impl World {
             held: BTreeMap::new(),
             paused: BTreeSet::new(),
             closed: BTreeSet::new(),
-            brief: Token::new(1),
         }
     }
 
@@ -54,9 +53,6 @@ impl World {
 
     /// Step one event and return the requests without answering them.
     pub fn step(&mut self, event: GatherEvent) -> Vec<GatherRequest> {
-        if let GatherEvent::Plan { brief, .. } = &event {
-            self.brief = *brief;
-        }
         gather_step(&mut self.domain, &self.env, event, &mut self.out);
         self.drain()
     }
@@ -85,18 +81,20 @@ impl World {
             steps += 1;
             assert!(steps < 100, "bounded scripted brief");
             let answer = match request {
-                GatherRequest::Gather { section, .. } => {
+                GatherRequest::Gather { brief, connector, section, .. } => {
                     if self.paused.contains(&section) {
                         continue;
                     }
                     match self.held.get(&section) {
-                        Some(bytes) => GatherEvent::Ready {
-                            brief: self.brief,
+                        Some(bytes) => GatherEvent::Sized {
+                            brief,
+                            connector,
                             section,
                             size: u32::try_from(bytes.len()).expect("bounded fake bytes"),
                         },
                         None => GatherEvent::Missing {
-                            brief: self.brief,
+                            brief,
+                            connector,
                             section,
                             why: GatherFailure {
                                 fate: GatherFate::Transient,
@@ -106,11 +104,12 @@ impl World {
                         },
                     }
                 }
-                GatherRequest::CutTo { section, size, .. } => {
+                GatherRequest::CutTo { brief, connector, section, size } => {
                     let bytes = self.held.get_mut(&section).expect("cut held section");
                     bytes.truncate(skein_lib::length::usize_of(size));
-                    GatherEvent::Cut {
-                        brief: self.brief,
+                    GatherEvent::Sized {
+                        brief,
+                        connector,
                         section,
                         size: u32::try_from(bytes.len()).expect("bounded fake bytes"),
                     }

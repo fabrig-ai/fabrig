@@ -16,10 +16,8 @@ pub(crate) fn saved(
     requests: &Queue<core::engine::Out>,
 ) {
     for output in requests {
-        let core::engine::Out::Core(request) = output else { continue };
-        let core::Request::Write(core::Write::Save(core::Record::People(people::Stored::Roles { project, .. }))) =
-            request
-        else {
+        let core::engine::Out::Write(write) = output else { continue };
+        let core::Write::Save(core::Record::People(people::Stored::Roles { project, .. })) = write else {
             continue;
         };
         let mut leaver = false;
@@ -34,12 +32,12 @@ pub(crate) fn saved(
         }
         let mut asker = None;
         for output in requests {
-            let core::engine::Out::Core(request) = output else { continue };
-            if let core::Request::Write(core::Write::Save(core::Record::People(people::Stored::Answer {
+            let core::engine::Out::Write(write) = output else { continue };
+            if let core::Write::Save(core::Record::People(people::Stored::Answer {
                 key,
                 outcome: people::Outcome::RolesSet { project: saved },
                 ..
-            }))) = request
+            })) = write
                 && saved == project
             {
                 asker = Some(key.person);

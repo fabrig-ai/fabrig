@@ -1,4 +1,4 @@
-//! Pure goal closer reports (temper/docs/design/domain/forge/branches.md, 2).
+//! Pure goal closer reports (temper/docs/design/domain/forge/branches-closer.md, 1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 
@@ -8,12 +8,14 @@ mod policy;
 pub mod relay;
 mod report;
 mod selection;
-pub use policy::{Child, Closer, Decision, Facts, Hold, ReportCheck, ReportRead, Running, Step, Stepped, step};
+pub use policy::{
+    Child, CloseJob, Closer, Decision, Facts, Hold, ReportCheck, ReportFields, ReportRead, Running, Step, Stepped, step,
+};
 pub use selection::{PullSelection, SELECTION_JOBS, SelectionProgress, selection_answer, selection_read};
 #[cfg(test)]
 mod tests;
 
 pub use report::{
     GoalFinish, LOG_START_BYTES, Landed, Landing, REPORT_OPENING, Report, SELECTION_LINE_BYTES, SELECTION_PREFIX,
-    Selection, Unlanded, Why, first_line, goal_left, left_section, selection_line, words,
+    Selection, Unlanded, Why, first_line, goal_asked, goal_left, left_section, selection_line, words,
 };

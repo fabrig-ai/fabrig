@@ -128,6 +128,7 @@ pub fn core_config(seed: u64, projects: u32) -> jig_domain_core::Config {
             number: 1,
             name: "Project 1".into(),
             policy: jig_domain_core::ConfiguredPolicy {
+                name: None,
                 policy,
                 permissions: permission_roles().remove(&1).expect("project permissions"),
                 templates: Box::new([]),
@@ -169,6 +170,7 @@ pub fn models() -> Box<[jig_domain_core::Model]> {
 #[must_use]
 pub fn charter() -> jig_domain_core::Charter {
     jig_domain_core::Charter {
+        name: None,
         parts: Box::new([]),
         rest: false,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
@@ -198,6 +200,8 @@ pub fn charter() -> jig_domain_core::Charter {
                 price_unit: 1000,
                 efforts: Box::new([]),
                 effort: None,
+                speeds: Box::default(),
+                speed: None,
             },
             alternatives: Box::new([]),
             inspect: true,

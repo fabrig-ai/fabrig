@@ -11,6 +11,7 @@ use alloc::boxed::Box;
 mod change;
 pub(super) use change::{
     account as change_account, fallback as change_fallback, fallback_reason as change_fallback_reason,
+    questions_account, replay as replay_judgement,
 };
 
 pub(super) fn source(domain: &Domain, entry: Option<u64>, words: Box<[u8]>) -> tasks::HoldSource {
@@ -294,6 +295,166 @@ pub(crate) fn start_refused(domain: &mut Domain, task: u64) {
     }
 }
 
+/// A change keeps its roles' charters and choices (temper/docs/design/domain/forge/change/gates.md, 3).
+pub(in crate::route) fn hold_changed_charter(
+    domain: &mut Domain,
+    task: u64,
+    step: u64,
+    delegation: Option<temper_engine_domain_forge_change::Delegate>,
+    refusal: &jig_domain_core::StepRefusal,
+) -> bool {
+    use temper_engine_domain_forge_change::{Delegate, GateKind};
+    let Some((owner, 2, current)) = domain.engine.core().tasks.procedure_due(task) else { return false };
+    if owner != domain.config.forge_connector || current != step {
+        return false;
+    }
+    let Some(row) = domain.forge.change(task) else { return false };
+    let (role, charter, choice): (&[u8], u32, _) = match delegation {
+        Some(Delegate::Gate { number, .. }) => {
+            let mut kind = None;
+            for gate in &row.change.gates {
+                if gate.number == number {
+                    kind = Some(gate.kind);
+                    break;
+                }
+            }
+            match kind {
+                Some(GateKind::Agent) => (b"review", row.review_charter, &row.review_llm),
+                Some(GateKind::Check) => (b"producer", row.producing_charter, &row.producing_llm),
+                Some(GateKind::Person | GateKind::Follow) | None => return false,
+            }
+        }
+        Some(Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. }) => {
+            (b"producer", row.producing_charter, &row.producing_llm)
+        }
+        Some(Delegate::Merge { .. } | Delegate::Close) | None => return false,
+    };
+    let model_and_speed = match refusal {
+        jig_domain_core::StepRefusal::Denied { findings, .. }
+            if executor_refused(findings)
+                && (!domain
+                    .engine
+                    .core()
+                    .authority
+                    .rules()
+                    .ceiling
+                    .delegation
+                    .kinds
+                    .contains(&jig_domain_authority::Executor::Charter(charter))
+                    || domain.engine.core().charter(charter).is_none()) =>
+        {
+            None
+        }
+        jig_domain_core::StepRefusal::Refused(tasks::Problem {
+            why: tasks::Refusal::Llm { model, why: tasks::LlmFault::Charter },
+            ..
+        }) => Some((*model, None)),
+        jig_domain_core::StepRefusal::Refused(tasks::Problem {
+            why: tasks::Refusal::Llm { model, why: tasks::LlmFault::Speed },
+            ..
+        }) => {
+            let Some(choice) = choice else { return false };
+            let Some(speed) = super::refused_speed(domain, *model, choice) else { return false };
+            Some((*model, Some(speed)))
+        }
+        jig_domain_core::StepRefusal::Moved { .. }
+        | jig_domain_core::StepRefusal::Refused(_)
+        | jig_domain_core::StepRefusal::Denied { .. } => {
+            return false;
+        }
+    };
+    let Some(words) = changed_charter_words(domain, role, charter, model_and_speed) else { return false };
+    domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
+        task,
+        why: tasks::Hold::Procedure,
+        source: Box::new(tasks::HoldSource::Account { connector: domain.config.forge_connector, entry: None, words }),
+    }));
+    true
+}
+
+fn changed_charter_words(
+    domain: &Domain,
+    role: &[u8],
+    charter: u32,
+    model_and_speed: Option<(u8, Option<skein_lib::Name<32>>)>,
+) -> Option<Box<[u8]>> {
+    const CHARTER: &[u8] = b", which charter ";
+    const DISALLOWED: &[u8] = b" no longer allows";
+    const REMEDY: &[u8] = b"; cancel the change or make it again";
+    const AT_SPEED: &[u8] = b" at speed ";
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    let charter_number = decimal(u64::from(charter));
+    append_hold(&mut words, b"the change's ");
+    append_hold(&mut words, role);
+    match model_and_speed {
+        Some((model, speed)) => {
+            append_hold(&mut words, b" choice names model ");
+            match domain.engine.core().settings.models.get(usize::from(model)) {
+                Some(configured) => {
+                    if let Some(speed) = speed {
+                        // Leave room for the speed even when a long model name needs shortening.
+                        let tail = AT_SPEED
+                            .len()
+                            .saturating_add(speed.as_bytes().len())
+                            .saturating_add(CHARTER.len())
+                            .saturating_add(charter_number.len())
+                            .saturating_add(DISALLOWED.len())
+                            .saturating_add(REMEDY.len());
+                        let room = skein_lib::usize_of(words.room()).saturating_sub(tail);
+                        append_hold_name(&mut words, &configured.name, room);
+                    } else {
+                        append_hold(&mut words, &configured.name);
+                    }
+                }
+                None if speed.is_some() => append_hold(&mut words, &decimal(u64::from(model))),
+                None => return None,
+            }
+            if let Some(speed) = speed {
+                append_hold(&mut words, AT_SPEED);
+                append_hold(&mut words, speed.as_bytes());
+            }
+            append_hold(&mut words, CHARTER);
+            append_hold(&mut words, &charter_number);
+            append_hold(&mut words, DISALLOWED);
+        }
+        None => {
+            append_hold(&mut words, b" charter ");
+            append_hold(&mut words, &charter_number);
+            append_hold(&mut words, b" is no longer offered");
+        }
+    }
+    append_hold(&mut words, REMEDY);
+    Some(words.into_boxed())
+}
+
+fn append_hold_name(words: &mut List<u8>, name: &[u8], room: usize) {
+    if name.len() <= room {
+        append_hold(words, name);
+    } else {
+        const CUT: &[u8] = b"...";
+        let prefix = skein_lib::bytes::utf8_prefix(name, room.saturating_sub(CUT.len()));
+        append_hold(words, prefix);
+        append_hold(words, CUT);
+    }
+}
+
+fn executor_refused(findings: &[jig_domain_authority::Finding]) -> bool {
+    for finding in findings {
+        if let jig_domain_authority::Finding::Executor { .. } = finding {
+            return true;
+        }
+    }
+    false
+}
+
+fn append_hold(words: &mut List<u8>, bytes: &[u8]) {
+    for byte in bytes {
+        if words.room() > 0 {
+            words.push(*byte).expect("checked hold account room");
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -373,6 +534,7 @@ mod tests {
 
     #[test]
     fn a_taking_routes_the_cores_entry_to_the_forge() {
+        use jig_domain_contract::{Ask, resources};
         const ENTRY: u64 = 21;
         let (mut domain, env, task) = crate::tests::live_task(Some(1), tasks::Executor::Agent { charter: 1 });
         let connector = domain.config.forge_connector;
@@ -383,9 +545,9 @@ mod tests {
             &env,
             &mut decision,
             connector,
-            jig_domain_core::Ask::Hold { task, resource, entry: ENTRY },
+            Ask::Resources(resources::Ask::Hold { task, resource: resource.clone(), entry: ENTRY }),
         );
         let Some(Work::Forge(event)) = domain.work.pop() else { panic!("the forge hears the taking") };
-        assert_eq!(event, forge::Event::Hold { entry: ENTRY, task, resource: goal_branch(), from: None });
+        assert_eq!(event, forge::Event::Ask(Ask::Resources(resources::Ask::Hold { entry: ENTRY, task, resource })));
     }
 }

@@ -1,6 +1,6 @@
 //! A close change's job through both roots (temper/docs/design/domain/worker/jobs.md;
 //! temper/docs/design/protocol/tooling.md, 4.2).
-use super::{Duration, Script, Token, World, call, engine, host, link, tasks, worker};
+use super::{Duration, Script, Token, World, call, engine, host, job_io::disk_path, link, tasks, worker};
 use jig_domain_link::JobBound;
 use temper_fake_checkout::git::Remote;
 use temper_worker_domain::tooling;
@@ -19,6 +19,7 @@ pub enum Row {
 
 pub(super) struct Story {
     row: Row,
+    fallback: &'static [u8],
     job: Option<u64>,
     hello: Vec<JobBound>,
     pushes: u32,
@@ -57,7 +58,8 @@ pub(super) fn worker_kinds(declared: &[JobBound], limits: &mut worker::Limits) -
     let kinds: Box<[_]> = temper_worker_service::worker_settings::job_kinds()
         .into_vec()
         .into_iter()
-        .filter(|kind| declared.contains(&kind.bound))
+        // The worker advertises its own limits for the kinds in this world, not the engine's placement minima.
+        .filter(|kind| declared.iter().any(|bound| bound.kind == kind.bound.kind))
         .collect();
     for kind in &kinds {
         limits.tooling.file_bytes = limits.tooling.file_bytes.max(kind.bound.spec).max(kind.bound.result);
@@ -70,7 +72,9 @@ fn config(seed: u64) -> engine::Config {
     let mut jig = jig_protocol_config_fixtures::small();
     jig.core.tasks = temper_engine_domain_world::forge_routes::box_limits().tasks;
     config.core.jobs = temper_engine_service_vocabulary::limits::jobs(&jig);
-    assert!(config.core.jobs.contains(&temper_engine_service_vocabulary::limits::close_bound()));
+    let bound = temper_engine_service_vocabulary::limits::close_bound();
+    assert!(config.core.jobs.contains(&bound));
+    assert_eq!(bound.deadline, Duration::from_secs(86_400));
     let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
     let mut extended = kinds.to_vec();
     let close = jig_domain_authority::Executor::Job(temper_engine_domain_forge::CLOSE_KIND);
@@ -89,7 +93,38 @@ fn config(seed: u64) -> engine::Config {
     config
 }
 
+fn hook_config(seed: u64) -> engine::Config {
+    let mut config = config(seed);
+    temper_engine_domain_world::oracle::config::landing(&mut config, 1).close_job = None;
+    config
+}
+
 impl World {
+    /// Let the goal's closer discover the close hook and make its close change.
+    #[must_use]
+    pub fn close_hook(seed: u64) -> Self {
+        let goal = Script {
+            cue: b"Help the person with their work.".as_slice().into(),
+            turns: Box::new([call(b"wait", b"{}")]),
+        };
+        let mut world = Self::configured_with(seed, goal.clone(), true, hook_config);
+        world.chat_ending = tasks::EndedBy::Closer(tasks::Closer { connector: 1, code: 6 });
+        world.goal_branch = true;
+        world.scripts.push_back(goal);
+        world.forge.advance(REMOTE, b"main", temper_engine_domain_forge::CLOSE_HOOK, COMMAND);
+        world.forge.advance(REMOTE, b"main", b"status.md", b"in flight\n");
+        world.close_job = Some(Story {
+            row: Row::Settled,
+            fallback: b"",
+            job: None,
+            hello: Vec::new(),
+            pushes: 0,
+            tip: None,
+            spawn: None,
+        });
+        world
+    }
+
     /// Make a close change directly with bytes parameter 17, into the goal's branch.
     #[must_use]
     pub fn close_job(seed: u64, row: Row) -> Self {
@@ -105,7 +140,15 @@ impl World {
         world.scripts.push_back(goal);
         world.forge.advance(REMOTE, b"main", b".temper/close", COMMAND);
         world.forge.advance(REMOTE, b"main", b"status.md", b"in flight\n");
-        world.close_job = Some(Story { row, job: None, hello: Vec::new(), pushes: 0, tip: None, spawn: None });
+        world.close_job = Some(Story {
+            row,
+            fallback: b"repo/.temper/close",
+            job: None,
+            hello: Vec::new(),
+            pushes: 0,
+            tip: None,
+            spawn: None,
+        });
         world
     }
 
@@ -153,7 +196,23 @@ impl World {
         engine::WorkerInput::DecodedHostCall { to, body }
     }
 
-    /// Stop once the changed branch opens, or the unchanged close ends durably.
+    pub(super) fn is_close_hook_story(&self) -> bool {
+        self.close_job.as_ref().is_some_and(|story| story.fallback.is_empty())
+    }
+
+    pub(super) fn close_hook_revision_read(&self, head: skein_forge::api::Commit, path: &[u8]) -> bool {
+        if !self.is_close_hook_story() {
+            return false;
+        }
+        let tip = self.forge.branch(REMOTE, b"main").expect("home landing tip");
+        // temper/docs/design/domain/forge/temper-dir.md, 2: the home revision reads
+        // the pinned hooks listing and its listed config, never a hook executable.
+        head == temper_engine_forge_world::translate::commit(tip)
+            && (path == b".temper/hooks"
+                || (path == b".temper/hooks/config.toml" && self.forge.tree(tip).contains_key(path)))
+    }
+
+    /// Record the job's delivery, then check that the hooks-only goal lands.
     pub fn run_close_job(&mut self) -> CloseJobReport {
         for _ in 0..STEPS {
             self.tick();
@@ -175,7 +234,7 @@ impl World {
         let tree = head.map(|head| self.forge.tree(head)).unwrap_or_default();
         let story = self.close_job.as_ref().expect("close story");
         let spawn = story.spawn.as_ref().unwrap_or_else(|| panic!("close command spawned: {change:?}"));
-        CloseJobReport {
+        let report = CloseJobReport {
             hello: story.hello.clone(),
             tip: story.tip.expect("goal tip"),
             head,
@@ -190,7 +249,27 @@ impl World {
             args: spawn.args.clone(),
             request: spawn.request.clone(),
             directory: spawn.directory.clone(),
+        };
+        if self.is_close_hook_story() {
+            self.finish_close_hook();
         }
+        report
+    }
+
+    fn finish_close_hook(&mut self) {
+        let before = self.forge.branch(REMOTE, b"main").expect("home landing tip");
+        for _ in 0..STEPS {
+            self.tick();
+            let head = self.forge.branch(REMOTE, b"main").expect("home landing tip");
+            if head != before {
+                assert_eq!(
+                    self.forge.tree(head).get(b"status.md".as_slice()).map(Vec::as_slice),
+                    Some(b"settled\n".as_slice())
+                );
+                return;
+            }
+        }
+        panic!("hooks-only goal did not land: {:?}; close {:?}", self.observed, self.close_change());
     }
 
     fn close_change(&self) -> Option<temper_engine_domain_forge::ChangeRow> {
@@ -249,14 +328,25 @@ impl World {
         let Some(story) = &mut self.close_job else { return self.assigned_job(channel, job, workspace) };
         assert_eq!(channel, super::CHANNEL);
         assert_eq!(job.kind.0, temper_engine_domain_forge::CLOSE_KIND);
-        assert_eq!(job.deadline, Duration::from_secs(600));
+        assert_eq!(job.deadline, Duration::from_secs(3_600));
         story.job = Some(job.run.raw());
+        if story.tip.is_none() {
+            let task = job.workspace.as_ref().expect("job workspace").workstream;
+            let row = self.store.change(task).expect("the closer's close change");
+            story.tip = Some(self.forge.branch(REMOTE, &row.base).expect("goal branch exists before close"));
+        }
         let own = temper_service_core::limits::stock();
         let limits = temper_worker_service::worker_settings::payload_limits(
             &temper_worker_service::worker_settings::Limits::shared(own),
         )
         .expect("worker payload limits");
-        self.lanes[0].worker_events.push_back(link::job(job, workspace, &limits));
+        self.lanes[0].worker_events.push_back(link::hook_job(
+            job,
+            workspace,
+            &limits,
+            b"repo/.temper/hooks/close",
+            story.fallback,
+        ));
     }
 
     pub(super) fn observe_close_io(&mut self, op: &worker::checkout::git::Op) {
@@ -267,19 +357,7 @@ impl World {
         }
     }
 
-    pub(super) fn story_job_operation(&mut self, owner: Token, op: tooling::Request) {
-        if self.close_job.is_none() {
-            return self.job_operation(owner, op);
-        }
-        if let tooling::Request::Spawn { owner: inner, program, args, dir, .. } = op {
-            assert_eq!(owner, inner);
-            self.play_close_command(owner, &program, &args, &dir);
-        } else {
-            self.job_operation(owner, op);
-        }
-    }
-
-    fn play_close_command(&mut self, owner: Token, program: &[u8], args: &[Box<[u8]>], directory: &[u8]) {
+    pub(super) fn play_close_command(&mut self, owner: Token, program: &[u8], args: &[Box<[u8]>], directory: &[u8]) {
         assert_eq!(self.lanes[0].disk.content(&disk_path(program)), Some(COMMAND), "command read from goal's tree");
         let dir = disk_path(directory);
         let repo = [dir.as_slice(), b"/repo"].concat();
@@ -312,8 +390,4 @@ impl World {
             self.lanes[0].worker_events.push_back(worker::Event::Job { owner, event });
         }
     }
-}
-
-fn disk_path(path: &[u8]) -> Vec<u8> {
-    [b"ws/".as_slice(), path.strip_prefix(b"workspaces/").expect("job workspace path")].concat()
 }

@@ -20,6 +20,7 @@ pub(in crate::codec) fn wire_model_effort(value: &c::ModelEffort) -> w::ModelEff
     w::ModelEffort {
         model: bytes::copy_of(value.model.bytes()),
         effort: value.effort.as_ref().map(|item| bytes::copy_of((item).bytes())),
+        speed: value.speed.as_ref().map(|item| bytes::copy_of(item.bytes())),
     }
 }
 
@@ -40,6 +41,7 @@ pub(in crate::codec) fn wire_llm_why(value: &c::LlmWhy) -> w::LlmWhy {
         c::LlmWhy::Authority => w::LlmWhy::Authority,
         c::LlmWhy::Procedure => w::LlmWhy::Procedure,
         c::LlmWhy::Repeated => w::LlmWhy::Repeated,
+        c::LlmWhy::Speed => w::LlmWhy::Speed,
     }
 }
 
@@ -148,6 +150,8 @@ pub(in crate::codec) fn wire_me_model(value: &c::MeModel) -> w::MeModel {
         shown: value.shown.as_ref().map(|text| bytes::copy_of(text.bytes())),
         accounts: value.accounts.clone(),
         picker: value.picker,
+        speeds: list(value.speeds.iter().map(super::wire_setting_speed)),
+        speed: value.speed.as_ref().map(|name| bytes::copy_of(name.bytes())),
         prices: wire_me_prices(&value.prices),
         description: value.description.as_ref().map(|item| bytes::copy_of((item).bytes())),
     }

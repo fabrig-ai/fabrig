@@ -22,6 +22,8 @@ fn model() -> core::Model {
         price_unit: 1_000_000,
         efforts: Box::default(),
         effort: None,
+        speeds: Box::default(),
+        speed: None,
     }
 }
 
@@ -50,6 +52,8 @@ pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
             unit: model.price_unit,
         },
         description: None,
+        speeds: Box::default(),
+        speed: None,
     }])
 }
 
@@ -118,6 +122,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
             workers: Box::new([]),
             models: Box::default(),
             charters: Box::new([core::Charter {
+                name: None,
                 parts: Box::new([]),
                 rest: false,
                 wake: jig_domain_tasks::WakePolicy::DEFAULT,
