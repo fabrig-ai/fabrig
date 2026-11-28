@@ -29,8 +29,12 @@ to this judgement (`../draft/ways-recipes.md`;
   alone.
 - **Formats** (7): each file's `format`, absent 1; every shipped format
   reads, and a newer one is refused by name.
-- **One judgement** (8): the files of one commit in, the tree's faults
-  out, each `FILE:LINE: why`, in a fixed order.
+- **A charter's file** (3.3): a front matter naming its `format` and
+  its `settings` charter, then its instructions and its parts, words
+  alone.
+- **One judgement** (8): the files of one commit and the deployment's
+  charters in, the tree's faults out, each `FILE:LINE: why`, in a fixed
+  order.
 
 ## 2. What temper reads
 
@@ -85,11 +89,52 @@ judged as one it names, and offers nothing.
 
 ### 3.3 A charter's file
 
-`.temper/charters/NAME.md`: UTF-8, at most 65,536 bytes, opening with front
-matter or not, as `../client/ctl/overlays.md`, 2 reads a charter file:
-three lines alone, `+++`, `format = N` and `+++`, the format 1 where
-there is none. Its text is the charter's (`../draft/ways-charters.md`).
-One reader serves both: `temper-charter-set`'s, called for one file.
+`.temper/charters/NAME.md`: UTF-8, at most 65,536 bytes: a front matter
+or none, then the charter's instructions, then its parts, the project's
+charter NAME whole (`../domain/agent/project-charters.md`, 3). One
+reader serves every caller, `temper-charter-set`'s, called for one
+file's text: this judgement, the root's set
+(`../domain/agent/project-charters.md`, 4) and `temper ctl charter
+copy` (`../client/ctl/tools-reads.md`, 1). A settings file's overlay
+files are read by it too, taking `format` alone
+(`../client/ctl/overlays.md`, 2).
+
+- **The front matter:** from a first line `+++` to the next line `+++`,
+  TOML read by `skein-toml`, at format 1:
+
+  | Key | Its value | Absent |
+  |---|---|---|
+  | `format` | a whole number from 1 (7) | 1 |
+  | `settings` | a name (4): the deployment's charter whose settings it runs by, its models, tools, hosts, waiting, resume and budget | the file's own name |
+
+  Any other key is a fault naming its line: ``.temper/charters/careful.md:3:
+  unknown key `model`: a charter's file holds words alone; models,
+  tools, wakes and budgets are settings``. A first line `+++` with no
+  closing one is ``FILE:1: front matter: no closing `+++` ``; a value of
+  another type names its key and what it must be, as in `ways.toml`
+  (3.1). An overlay's file naming `settings` is refused at apply,
+  naming its line: ``…: `settings` is a project's charter file's key``.
+- **The instructions:** the text after the front matter up to the first
+  part's heading, or to the file's end where it has none.
+- **The parts:** each from a line beginning `## part, on:` to the next
+  such line or the file's end, other headings included; its reasons the
+  rest of that line, split at commas, each trimmed of spaces, named as
+  jig names a part's reasons (`jig/docs/design/domain/tasks/messages.md`,
+  6). The heading line is no part of its text. A heading whose reasons
+  are none, hold an empty name between commas, repeat one, or name one
+  jig doesn't, is a fault at its line: ``.temper/charters/lead.md:40:
+  `## part, on: frist`: `frist` is no reason a part is selected by``.
+- **Texts** keep every byte as written but the line feeds that open and
+  close the instructions and each part, as the stock's set joins them
+  (`../domain/agent/charter.md`, 1). Empty instructions are none; a part
+  is a part whatever its text.
+- **Written back the same:** a charter written in this form, no front
+  matter, its instructions, then for each part a blank line, its heading
+  `## part, on: ` and its reasons' names joined by `, ` in jig's order,
+  and its text, reads back to the same instructions and parts. A text
+  holding a line that begins `## part, on:`, in its instructions or a
+  part, can't be written so, and the writer refuses it, naming the
+  part and the line.
 
 ### 3.4 `hooks/config.toml`
 
@@ -168,28 +213,68 @@ this judgement's, at its line. Missing, it is silent.
 
 - **What it is given:** the listing of `.temper/` and of each directory
   of section 2 it holds, each entry a name and a kind; the bytes of each
-  file section 2 reads, and whether its read was cut; and whether the
-  repository is the project's home, with the home's name.
+  file section 2 reads, and whether its read was cut; whether the
+  repository is the project's home, with the home's name; and the
+  deployment's charters, as the root last gave them to the forge (8.1).
 - **What it gives:** whether the tree holds temper's method (2), and its
   faults, in order, at most 16, the count of those past 16 beside them.
   No fault is a good tree.
+- **A charter's file, judged whole** (3.3, 8.1): its front matter and its
+  part headings; then its settings charter, `settings` or its own name,
+  one the deployment's charters hold:
+  ``.temper/charters/careful.md:2: `settings` names `careful-impl`,
+  which this deployment's settings don't offer``, or, with no
+  `settings`, ``.temper/charters/careful.md: no `settings`, and this
+  deployment offers no charter `careful` ``; then its words within the
+  room that charter leaves them: ``.temper/charters/implementer.md: its
+  words take 70,112 bytes and 3 parts; charter `implementer` leaves
+  them 52,000 bytes and 8 parts``. Past the files, the charters' count
+  within the deployment's: ``.temper/charters/: 40 charters; this
+  deployment's tasks hold at most 32``.
 - **Its order** is the reader's: entries before files; paths in byte
-  order; in a file, its format first (7), then its lines in order; home
-  last.
+  order; in a file, its format first (7), then its lines in order, then,
+  for a charter's file, its settings charter and its room; the charters'
+  count after the files; home last.
 - **Bounds:** at most 64 files read, each within its section's bytes,
   at most 524,288 bytes in all. A listing or a file the forge cut is a
   fault, ``FILE: past what temper reads, 65,536 bytes``; past the files'
   or the bytes' count, ``.temper/: past what temper reads: 64 files``.
 - **One judgement, two callers:** the forge's read and the landing
-  check give it the same input for the same commit and get the same
-  answer.
+  check give it the same input for the same commit and the same
+  deployment's charters, and get the same answer.
+
+### 8.1 The deployment's charters
+
+- **What they are:** for each charter the newest settings offer that has
+  a name (`jig/docs/design/domain/engine/settings.md`, 1, *Names*), its
+  name and the room it leaves a project's words: the most bytes and the
+  most parts a project's charter run by its settings may hold, so that
+  the charter jig composes (`jig/docs/design/domain/engine/project-charters.md`,
+  5) passes jig's bounds, `core.run_bytes` and `tasks.charter_parts`,
+  and the room temper gives a received charter
+  (`../domain/agent/room.md`, 4), once that charter's own fields and its
+  overlay's words are counted; the words counted as jig counts a
+  charter's, its instructions and each part with what joins it. Beside
+  them, `tasks.charters`, the most charters a project may keep.
+- **Given by the root,** which holds the settings and the limits: at its
+  start, before the forge's first read, and in each decision that makes a
+  settings revision. The forge keeps the last in memory, never in the
+  store, and judges every tree against it.
+- **A settings change after a revision** judges nothing again: the
+  revision stands, and the binding refuses what no longer fits
+  (`jig/docs/design/domain/engine/project-charters.md`, 6) until the next
+  read.
 
 ## 9. Testing
 
 Focused, with fuzzy where it says, in the judgement's crate.
 
 - **Every fault:** a table of trees, one per fault of sections 2 to 8,
-  each with its words and line.
+  each with its words and line, given a deployment's charters.
+- **A charter's file:** front matter with `format` and `settings` in
+  either order, and with neither; parts with one and several reasons;
+  instructions alone; and the writer's text of any instructions and
+  parts reading back to them, fuzzy too.
 - **The fixtures** of 7 read with no fault.
 - **Order and bound:** a tree with more than 16 faults names the first
   16, in order, and the count past them.
@@ -205,11 +290,16 @@ Focused, with fuzzy where it says, in the judgement's crate.
 - **Older builds** refuse `format` in `hooks/config.toml`, as a key
   before any header; nothing temper writes names it
   (`configuration/file-formats.md`, 9).
+- **A charter's file at format 1** gains `settings` and its parts' form
+  (3.3) with no format's move: a file written before them, with no front
+  matter or `format` alone and no part heading, reads to the same text,
+  its instructions. A build before them refuses a front matter naming
+  `settings`, as 3.1 has a key a later design adds, so the last good
+  revision holds on it.
 
 ## 11. Later
 
-- **A way's tasks and a charter's settings** add their checks to the
-  judgement as their designs are written (`../draft/ways.execution.md`,
-  W3 and W4).
+- **A way's tasks** add their checks to the judgement as their design
+  is written (`../draft/ways.execution.md`, W4).
 - **A hook link's target,** where a forge's read gives it, judged before
   it lands.

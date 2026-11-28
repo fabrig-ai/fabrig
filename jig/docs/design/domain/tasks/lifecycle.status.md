@@ -5,3 +5,4 @@
 
 
 - **Not yet:** 2: a standing task: no `NothingAwaited` notice, a finish parked, its `standing` ending (`standing.md`, section 2).
+- **Not yet:** 12.1: an attempt records no sources.
