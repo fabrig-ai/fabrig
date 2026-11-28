@@ -1206,7 +1206,6 @@ mod admission_tests {
                     wire::schema(&codec).expect("schema"),
                     skein_channel::Role::Responder,
                     channel_limits,
-                    wire::VERSION,
                     Box::default(),
                 )
                 .expect("engine peer"),

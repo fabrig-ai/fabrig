@@ -6,7 +6,11 @@ use skein_http::{
     server::{Body, Call, Event as HttpEvent},
 };
 use skein_lib::{Env, Queue, Rng, Time, Token, Wall, stream::Up};
-use std::net::IpAddr;
+use skein_world::{
+    sweep::{Case, cases},
+    this_test,
+};
+use std::{convert::Infallible, net::IpAddr};
 
 const PUBLIC: &[u8] = b"app.example.com";
 const EXCHANGE: Token = Token::new(1);
@@ -73,26 +77,33 @@ fn check(fields: Vec<Vec<u8>>) {
 }
 
 #[test]
-fn arbitrary_forwarded_fields_never_panic_and_only_the_last_element_is_a_source() {
-    let mut rng = Rng::new(0x50a7_ce01);
-    for _ in 0..2048 {
-        let mut fields = Vec::new();
-        for _ in 0..rng.below(5) {
-            let mut field = Vec::new();
-            for _ in 0..rng.below(97) {
-                field.push(u8::try_from(rng.next_u64() & 0xff).expect("low byte"));
+fn arbitrary_forwarded_fields_never_panic_and_only_the_last_element_is_a_source() -> Result<(), Case<Infallible>> {
+    cases(
+        this_test!("arbitrary_forwarded_fields_never_panic_and_only_the_last_element_is_a_source"),
+        [0x50a7_ce01],
+        |seed| {
+            let mut rng = Rng::new(seed);
+            for _ in 0..2048 {
+                let mut fields = Vec::new();
+                for _ in 0..rng.below(5) {
+                    let mut field = Vec::new();
+                    for _ in 0..rng.below(97) {
+                        field.push(u8::try_from(rng.next_u64() & 0xff).expect("low byte"));
+                    }
+                    fields.push(field);
+                }
+                check(fields.clone());
+                // Random prefixes also precede readable terminal elements, not just
+                // overwhelmingly unreadable random text.
+                for suffix in [b", \t::ffff:203.0.113.7 \t".as_slice(), b",2001:db8::1", b",203.0.113.7, "] {
+                    let mut readable = fields.clone();
+                    let mut field = vec![0xff];
+                    field.extend_from_slice(suffix);
+                    readable.push(field);
+                    check(readable);
+                }
             }
-            fields.push(field);
-        }
-        check(fields.clone());
-        // Random prefixes also precede readable terminal elements, not just
-        // overwhelmingly unreadable random text.
-        for suffix in [b", \t::ffff:203.0.113.7 \t".as_slice(), b",2001:db8::1", b",203.0.113.7, "] {
-            let mut readable = fields.clone();
-            let mut field = vec![0xff];
-            field.extend_from_slice(suffix);
-            readable.push(field);
-            check(readable);
-        }
-    }
+            Ok(())
+        },
+    )
 }

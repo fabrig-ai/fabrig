@@ -1,14 +1,21 @@
 //! Random byte peers for the batch's client end (jig/docs/design/protocol/client/default-http.md, 6).
 #[cfg(test)]
 mod fuzzy {
+    use core::convert::Infallible;
+
     use jig_client_protocol_http::{Frames, Heard, Limits};
     use skein_lib::{List, Queue, Rng, Token, Writer};
+    use skein_world::{
+        sweep::{Case, cases},
+        this_test,
+    };
 
     #[test]
-    fn random_frame_bodies_keep_their_parts_across_random_cuts() {
+    #[expect(clippy::disallowed_macros, reason = "this_test! names the calling package for campaign replay")]
+    fn random_frame_bodies_keep_their_parts_across_random_cuts() -> Result<(), Case<Infallible>> {
         const LIMITS: Limits = Limits { record: 64, chunk: 16 };
         let exchange = Token::new(17);
-        for seed in 0..128 {
+        cases(this_test!("random_frame_bodies_keep_their_parts_across_random_cuts"), 0..128, |seed| {
             let mut rng = Rng::new(seed);
             let mut body = List::with_capacity(4352);
             let mut records = List::with_capacity(64);
@@ -57,6 +64,7 @@ mod fuzzy {
                 assert_eq!(out.pop(), Some(Heard::Done { exchange }), "seed {seed}");
                 assert!(out.is_empty());
             }
-        }
+            Ok(())
+        })
     }
 }

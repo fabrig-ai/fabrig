@@ -13,7 +13,7 @@ fn each_settled_answer_gives_its_last_line() {
             None,
             Some(smith_protocol_events::failure_record(failed, now)),
         ),
-        (run::Answer::Refused(refusal), None, Some(smith_protocol_events::refusal_record(refusal))),
+        (run::Answer::Refused(refusal.clone()), None, Some(smith_protocol_events::refusal_record(&refusal))),
         (run::Answer::Parked { spent: run::Spend::ZERO, turns: 0 }, Some(Failure::Send), None),
     ];
     for (answer, unsent, expected) in rows {

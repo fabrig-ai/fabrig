@@ -73,6 +73,7 @@ impl LongWorld {
         self.step(AgentEvent::Below(smith_domain::Below::Completed {
             owner,
             completion: agent::llm::Completion {
+                served: smith_domain::llm::ServedSpeed::Unreported,
                 reasoning_dropped: Box::default(),
                 stop: agent::llm::Stop::ToolUse,
                 usage: agent::llm::Usage::NONE,

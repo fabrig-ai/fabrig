@@ -70,7 +70,7 @@ impl Room {
         )
         .unwrap();
         let mut entries = List::with_capacity(self.limits.channel.kinds);
-        for kind in &schema.version(smith_channel::kind::VERSION).unwrap().kinds {
+        for kind in &schema.kinds {
             if kind.direction == Direction::FromResponder {
                 entries.push(Term { kind: kind.kind, largest: kind.largest }).unwrap();
             }

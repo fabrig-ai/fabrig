@@ -3,6 +3,7 @@
 //! answers each with, all JSON the writer writes, with text of every kind
 //! in them, now and then an event with an id or a reconnection time; and
 //! what each end's user does, for each thing a protocol world aims at.
+//! The case's draws fit the world for every seed (skein/docs/design/testing/sweeps.md, 4.5).
 
 use skein_json::Token;
 use skein_lib::Rng;
@@ -26,16 +27,42 @@ fn number(n: u64) -> Token {
 /// Text a string is made of: words, and what JSON escapes or keeps as it
 /// is: quotes, backslashes, line endings, a control character, and UTF-8
 /// of two, three and four bytes.
-fn text(rng: &mut Rng, most: u64) -> Vec<u8> {
-    const PIECES: &[&str] = &[
-        "the ", "sky ", "is ", "blue ", "because ", "light ", "scatters", ".", "\"", "\\", "\n", "\t", "\u{1}", "é",
-        "€", "😀", "/", " ",
+fn text(rng: &mut Rng, most: u64, room: &mut u64) -> Vec<u8> {
+    // The pieces and their wire lengths inside a JSON string.
+    const PIECES: &[(&str, u64)] = &[
+        ("the ", 4),
+        ("sky ", 4),
+        ("is ", 3),
+        ("blue ", 5),
+        ("because ", 8),
+        ("light ", 6),
+        ("scatters", 8),
+        (".", 1),
+        ("\"", 2),
+        ("\\", 2),
+        ("\n", 2),
+        ("\t", 2),
+        ("\u{1}", 6),
+        ("é", 2),
+        ("€", 3),
+        ("😀", 4),
+        ("/", 1),
+        (" ", 1),
     ];
     let mut out = Vec::new();
     for _ in 0..rng.between(0, most) {
-        out.extend_from_slice(PIECES[usize::try_from(rng.below(PIECES.len() as u64)).expect("fits")].as_bytes());
+        let (piece, wire) = PIECES[usize::try_from(rng.below(PIECES.len() as u64)).expect("fits")];
+        if let Some(left) = room.checked_sub(wire) {
+            out.extend_from_slice(piece.as_bytes());
+            *room = left;
+        }
     }
     out
+}
+
+fn event_text(rng: &mut Rng, most: u64) -> Vec<u8> {
+    let mut room = u64::MAX;
+    text(rng, most, &mut room)
 }
 
 /// The request an LLM client writes: its model, its budget, and a
@@ -53,9 +80,12 @@ pub fn request(rng: &mut Rng, turns: u64, most: u64) -> Vec<Token> {
         key("messages"),
         Token::ArrayStart,
     ];
+    // The envelope is shorter than 128 bytes, each message shorter than
+    // 40 before its text. Spend the rest on text across the conversation.
+    let mut room = u64::from(json_limits().length).saturating_sub(128 + 40 * turns);
     for turn in 0..turns {
         tokens.extend([Token::ObjectStart, key("role"), string(if turn % 2 == 0 { b"user" } else { b"assistant" })]);
-        tokens.extend([key("content"), string(&text(rng, most)), Token::ObjectEnd]);
+        tokens.extend([key("content"), string(&text(rng, most, &mut room)), Token::ObjectEnd]);
     }
     tokens.extend([Token::ArrayEnd, Token::ObjectEnd]);
     tokens
@@ -98,7 +128,7 @@ pub fn events(rng: &mut Rng, deltas: u64, most: u64) -> Vec<(Vec<u8>, Vec<Token>
                 key("type"),
                 string(b"text_delta"),
                 key("text"),
-                string(&text(rng, most)),
+                string(&event_text(rng, most)),
                 Token::ObjectEnd,
                 Token::ObjectEnd,
             ],
@@ -221,7 +251,7 @@ pub fn early(rng: &mut Rng) -> Scenario {
         key("type"),
         string(b"request_too_large"),
         key("message"),
-        string(&text(rng, 20)),
+        string(&event_text(rng, 20)),
         Token::ObjectEnd,
         Token::ObjectEnd,
     ];

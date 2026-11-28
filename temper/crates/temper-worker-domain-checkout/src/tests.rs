@@ -161,7 +161,11 @@ impl Harness {
                 | Op::Create { .. }
                 | Op::CheckOut { .. }
                 | Op::Push { .. } => Done::Succeeded,
-                Op::Brings { .. } | Op::DiffPaths { .. } | Op::IsAncestor { .. } | Op::Commit { .. } => {
+                Op::Brings { .. }
+                | Op::DiffPaths { .. }
+                | Op::IsAncestor { .. }
+                | Op::Message { .. }
+                | Op::Commit { .. } => {
                     panic!("a prepare commits or compares nothing")
                 }
             };
@@ -395,6 +399,7 @@ fn workspace_of(op: &Op) -> Token {
         | Op::CheckOut { at, .. }
         | Op::Look { at, .. }
         | Op::DiffPaths { at, .. }
+        | Op::Message { at, .. }
         | Op::Brings { at, .. }
         | Op::IsAncestor { at, .. }
         | Op::Merge { at, .. }
@@ -1259,6 +1264,7 @@ fn pin_trace(h: &mut Harness, client: u64, repo: Repository, tip: Commit, counts
             Op::Counts { .. } => counts.clone(),
             Op::Fetch { want: Want::Commit { commit }, .. } => Done::Fetched { commit: *commit },
             Op::Fetch { .. } => Done::Fetched { commit: commit(1) },
+            Op::Message { .. } => panic!("this fixture has no commit messages"),
             Op::DiffPaths { .. } => panic!("this prepare lists no delivery paths"),
             Op::Brings { .. } => Done::Brings { brings: false },
             Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
@@ -1416,6 +1422,7 @@ fn a_named_pin_reuses_a_fetched_start_or_push_commit() {
                 | Op::Create { .. }
                 | Op::CheckOut { .. }
                 | Op::IsAncestor { .. }
+                | Op::Message { .. }
                 | Op::Brings { .. }
                 | Op::DiffPaths { .. }
                 | Op::Merge { .. }
@@ -1459,6 +1466,7 @@ fn saved_and_resolution_starts_fetch_the_named_pin_before_checkout() {
                 | Op::Counts { .. }
                 | Op::Create { .. }
                 | Op::IsAncestor { .. }
+                | Op::Message { .. }
                 | Op::Brings { .. }
                 | Op::DiffPaths { .. }
                 | Op::Merge { .. }
@@ -1619,6 +1627,7 @@ fn pin_count(ops: &List<Op>) -> usize {
             | Op::Counts { .. }
             | Op::Create { .. }
             | Op::CheckOut { .. }
+            | Op::Message { .. }
             | Op::Brings { .. }
             | Op::IsAncestor { .. }
             | Op::DiffPaths { .. }
@@ -1726,6 +1735,7 @@ fn landing_fetch_failures_fail_preparation_and_never_fall_back() {
                 let done = match op {
                     Op::Fetch { want: Want::Commit { commit }, .. } => Done::Fetched { commit },
                     Op::CheckOut { .. } | Op::Counts { .. } => Done::Succeeded,
+                    Op::Message { .. } => panic!("this fixture has no commit messages"),
                     Op::DiffPaths { .. } => panic!("this prepare lists no delivery paths"),
                     Op::Brings { .. } => Done::Brings { brings: false },
                     Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
@@ -2481,6 +2491,7 @@ fn assert_account(op: Op, expected: Option<u64>, kind: Kind) {
         | Op::Clone { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
+        | Op::Message { .. }
         | Op::Brings { .. }
         | Op::IsAncestor { .. }
         | Op::Keep { .. }
@@ -3398,6 +3409,7 @@ fn opposite_repository_orders_finish_with_one_store_per_remote() {
                 | Op::DiffPaths { .. }
                 | Op::Merge { .. }
                 | Op::Commit { .. }
+                | Op::Message { .. }
                 | Op::Brings { .. }
                 | Op::Push { .. } => panic!("branch preparation only"),
             };

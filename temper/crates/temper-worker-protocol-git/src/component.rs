@@ -294,6 +294,7 @@ impl Component {
             | git::Op::Clone { .. }
             | git::Op::Look { .. }
             | git::Op::DiffPaths { .. }
+            | git::Op::Message { .. }
             | git::Op::Brings { .. }
             | git::Op::IsAncestor { .. } => false,
         };
@@ -617,6 +618,7 @@ impl Component {
                     | git::Op::CheckOut { .. }
                     | git::Op::Look { .. }
                     | git::Op::DiffPaths { .. }
+                    | git::Op::Message { .. }
                     | git::Op::Brings { .. }
                     | git::Op::IsAncestor { .. }
                     | git::Op::Merge { .. }

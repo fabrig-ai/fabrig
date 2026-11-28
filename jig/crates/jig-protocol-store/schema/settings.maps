@@ -26,7 +26,8 @@ with context own::value_to_record
 
 record Text stands for bytes
 record ModelName = v::ModelName { efforts slice }
-record Model = c::Model { efforts slice }
+record Speed = c::Speed { also slice }
+record Model = c::Model { efforts slice, speeds slice }
 record RunPolicy = c::RunPolicy { alternatives slice, tools via own::run_tools }
 enum Kinds = jig_domain_fleet::Kinds
 record WakeBatch

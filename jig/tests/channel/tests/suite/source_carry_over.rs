@@ -10,6 +10,7 @@ fn opening() -> record::Opening {
     let transcript = restored_transcript(affinity);
     record::Opening {
         window_llm: None,
+        speed: None,
         cut: None,
         spec: session::Spec {
             tell_parts: false,

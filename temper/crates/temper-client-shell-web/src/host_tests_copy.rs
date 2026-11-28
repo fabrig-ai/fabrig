@@ -16,7 +16,7 @@ fn welcome() -> Host {
         kept: List::with_capacity(0),
         with: Some(jig_client::With::Transport),
     });
-    host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
+    host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true } });
     let watch = skein_lib::Token::new(0);
     let link = jig_client_protocol_link::Limits::new(host.env.limits.client.domain, limits::EXCHANGES).unwrap();
     let mut frame =

@@ -494,6 +494,24 @@ playground and no Forgejo on this machine.
   is private, and, with the box's parts, the person's login, fallen back
   to `person` or not; it reads, writes and binds nothing. The binary's `init` finds
   the facts, checks the refusals and writes the files, on skein-io.
+- **Each file whole:** init makes each file whose bytes it writes under a
+  name of its own beside it, `NAME.partial` (`temper.toml.partial`),
+  writes all its bytes, gives it its mode and renames it to `NAME`, never
+  over an entry there (skein-io's `Rename` with `no_replace`, so it still
+  never replaces a file); the link is whole as it is made, and
+  `provider.key` is published whole by its own maker
+  (`../openid-provider.md`, 9). A reader of the directory finds each file
+  absent or whole, never begun or cut. The configuration's file is why:
+  an empty or cut `temper.toml` is a file of its own, its clients'
+  listener at `listen`'s default, `127.0.0.1:7100`
+  (`../configuration/file.md`, section 3), a port no box holds, where the
+  whole one names the port init holds; so whoever reads it as soon as it
+  shows reads the port the box holds (`box.md`, 1). A write that fails
+  removes its `NAME.partial`, and the refusal names `NAME`; a
+  `NAME.partial` that a killed init left is init's own, and the next init
+  removes it before making it again. Init flushes nothing to storage: it
+  keeps what a reader sees, not what a crash leaves, and a flush would
+  cost every init, its tests' among them, a disk's wait.
 - **Checked:** temper-init's step tests check that the box's `engine.llm` is the
   owned example's with the scripted provider (6), that the bare
   document is the box's less its parts, that its worker is named
@@ -510,7 +528,9 @@ playground and no Forgejo on this machine.
   directories, writes disjoint ports and matching listener, remote
   and scripted LLM addresses in both documents; `clients.bundle` always
   `null`; each refusal writing nothing, the person's fallback login
-  among them; the files' modes; and the link's target. A box on a fresh init,
+  among them; the files' modes; the link's target; and, over scripted
+  operations, a short write among them, that a file's name is entered by
+  its rename alone, once every byte is written. A box on a fresh init,
   among those tests, reaches `temper-box serve`'s listening with no forge
   and every group dormant: no `forge-N` directory, no group's file and
   nothing in the cache. The process

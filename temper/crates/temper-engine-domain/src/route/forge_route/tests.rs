@@ -40,7 +40,7 @@ fn not_installed_ends_the_roots_adoption_part_as_missing_access() {
     assert_eq!(super::adoption_failure(skein_forge::api::Error::Busy), people::Outcome::Again(people::Again::Busy));
 }
 
-fn adopted(forge: u16) -> super::forge::Repository {
+pub(super) fn adopted(forge: u16) -> super::forge::Repository {
     super::forge::Repository {
         contexts: Box::new([]),
         landing: b"main".as_slice().into(),
@@ -1574,6 +1574,7 @@ fn a_landing_repair_charter_fit_cuts_pull_contents_and_keeps_its_whole_ci() {
             endpoint: run::charter::Endpoint(0),
             model: b"model".as_slice().into(),
             effort: None,
+            speed: None,
             window: 65_536,
             output: 256,
         },
@@ -3586,7 +3587,7 @@ fn change_llm_text_refuses_malformed_parts_and_too_many_entries() {
     assert_eq!(super::change_llm::read(text.as_slice()), None);
 }
 
-fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
+pub(super) fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
     use super::{authority, forge, tasks};
     let mut config = crate::tests::resume_fixture::config(7);
     let chat = crate::tests::resume_fixture::charter();
@@ -3879,7 +3880,7 @@ fn jig_admission_refuses_a_procedures_producer_beyond_its_creators_kinds() {
     assert!(lacks.executors);
 }
 
-fn change_start_fixture() -> (super::Domain, skein_lib::Env<super::Limits>, Box<super::tasks::RunContext>) {
+pub(super) fn change_start_fixture() -> (super::Domain, skein_lib::Env<super::Limits>, Box<super::tasks::RunContext>) {
     use super::{forge, tasks};
     let (mut domain, mut env, task) =
         crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
@@ -4832,6 +4833,7 @@ fn the_job_root_names_the_declaration_the_engine_encodes() {
         assert_ne!(spec.command.as_ref(), []);
         assert_ne!(spec.request.as_ref(), []);
         assert_eq!(spec.refusal, refusal);
+        assert_eq!(spec.outdated, refusal);
         assert!(spec.find);
         assert!(spec.fallback.is_empty());
     }

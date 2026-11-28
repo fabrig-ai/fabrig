@@ -906,6 +906,26 @@ pub fn form_setting_model(v: &c::SettingModel) -> n::SettingModel {
             out
         },
         effort: form_optional_text(v.effort.as_ref()),
+        speeds: {
+            let mut out = List::with_capacity(v.speeds.len());
+            for item in &v.speeds {
+                let mut also = List::with_capacity(item.also.len());
+                for name in &item.also {
+                    also.push(form_text(name)).expect("one value per input");
+                }
+                out.push(n::SettingSpeed {
+                    name: form_text(&item.name),
+                    also,
+                    input_price: item.input_price,
+                    cached_price: item.cached_price,
+                    cache_write_price: item.cache_write_price,
+                    output_price: item.output_price,
+                })
+                .expect("one value per input");
+            }
+            out
+        },
+        speed: form_optional_text(v.speed.as_ref()),
     }
 }
 pub fn client_setting_model(v: &n::SettingModel) -> c::SettingModel {
@@ -930,6 +950,26 @@ pub fn client_setting_model(v: &n::SettingModel) -> c::SettingModel {
             out
         },
         effort: client_optional_text(v.effort.as_ref()),
+        speeds: {
+            let mut out = List::with_capacity(v.speeds.len());
+            for item in &v.speeds {
+                let mut also = List::with_capacity(item.also.len());
+                for name in &item.also {
+                    also.push(client_text(name)).expect("one value per input");
+                }
+                out.push(c::SettingSpeed {
+                    name: client_text(&item.name),
+                    also,
+                    input_price: item.input_price,
+                    cached_price: item.cached_price,
+                    cache_write_price: item.cache_write_price,
+                    output_price: item.output_price,
+                })
+                .expect("one value per input");
+            }
+            out
+        },
+        speed: client_optional_text(v.speed.as_ref()),
     }
 }
 pub fn form_setting_number(v: c::SettingNumber) -> n::SettingNumber {

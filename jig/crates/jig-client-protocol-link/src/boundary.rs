@@ -156,7 +156,6 @@ pub enum Request {
     },
     Hello {
         family: Option<u16>,
-        versions: Option<contract::VersionRange>,
         served: bool,
     },
     /// A lost read may be sent once more if its token is still current.

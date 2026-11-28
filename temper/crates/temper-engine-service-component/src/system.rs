@@ -150,10 +150,10 @@ impl Service {
     pub fn build_name(&mut self, name: &'static str) {
         self.engine.as_mut().expect("store build name has an engine").build_name(name);
     }
-    /// Test seam: replace this service's patch sets before `adopt_store`
+    /// Test seam: replace this service's owner sets before `adopt_store`
     /// (protocol/floor.md, 3). Production keeps the binary's sets.
     pub fn owner_sets(&mut self, sets: jig_protocol_store::OwnerSets) {
-        self.engine.as_mut().expect("engine patch sets").owner_sets(sets);
+        self.engine.as_mut().expect("engine owner sets").owner_sets(sets);
     }
     /// Supply optional parsed binary texts before open; admission still checks the sets.
     pub fn prepared_schemas(&mut self, schemas: &'static [skein_codec::schema::Schema]) {

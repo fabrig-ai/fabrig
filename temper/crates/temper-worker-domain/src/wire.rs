@@ -75,13 +75,14 @@ pub enum ItemsRefusal {
     Version(jig_domain_host::Mismatch),
 }
 
-/// A job's command, request bytes and typed refusal ask, decoded by the service
+/// A job's command, request bytes and close asks, decoded by the service
 /// (temper/docs/design/domain/worker/jobs.md).
 #[derive(PartialEq, Eq, Debug)]
 pub struct JobSpec {
     pub command: Box<[u8]>,
     pub request: Box<[u8]>,
     pub refusal: bool,
+    pub outdated: bool,
     /// An empty fallback still asks to find the hook.
     pub fallback: Option<Box<[u8]>>,
 }

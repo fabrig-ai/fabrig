@@ -10,7 +10,7 @@ pub enum Output<P> {
     ToolStart { index: u32, id: Box<[u8]>, name: Box<[u8]> },
     ArgumentsDelta { index: u32, delta: Box<[u8]> },
     ReasoningDelta { index: u32, summary_index: u32, text: Box<[u8]> },
-    Completed { stop: Stop, usage: Usage },
+    Completed { stop: Stop, usage: Usage, served: Option<Box<[u8]>> },
     Failed { failure: Failure, detail: Box<[u8]> },
     Progress,
 }

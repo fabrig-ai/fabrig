@@ -7,7 +7,8 @@ use jig_domain_link::{JobBound, JobKind};
 use skein_lib::{Duration, Queue};
 
 const CHILD: u64 = 90;
-const TIPS: change::CloseAt = change::CloseAt { branch: SHA1, landing: SHA256, asked: true, refused: None };
+const TIPS: change::CloseAt =
+    change::CloseAt { branch: SHA1, landing: SHA256, asked: true, refused: None, outdated: None };
 // A job bound with room for the encoded command and request below and a refusal result.
 const CLOSE_BOUND: JobBound =
     JobBound { kind: JobKind(forge::CLOSE_KIND), spec: 16_384, result: 512, deadline: Duration::from_secs(600) };

@@ -162,6 +162,7 @@ fn charter(restoring: bool) -> run::Charter {
         budget: LIMITS.run.budget,
         llm: run::charter::Llm {
             effort: None,
+            speed: None,
             prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
             account: Some(0),
             endpoint: run::charter::Endpoint(0),
@@ -367,6 +368,7 @@ fn copy_prompt(prompt: &llm::Prompt) -> llm::Prompt {
         .collect();
     let copied = llm::Prompt {
         effort: None,
+        speed: None,
         purpose: prompt.purpose,
         choice: prompt.choice.clone(),
         namespace: prompt.namespace.clone(),
@@ -746,6 +748,7 @@ impl Counted {
         let event = Event::Below(smith_domain::Below::Completed {
             owner: complete.owner,
             completion: llm::Completion {
+                served: smith_domain::llm::ServedSpeed::Unreported,
                 reasoning_dropped: Box::new([]),
                 content: Box::new([content]),
                 stop: if waiting { llm::Stop::ToolUse } else { llm::Stop::EndTurn },

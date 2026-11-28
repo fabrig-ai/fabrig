@@ -19,6 +19,7 @@ record Contract = r::outcome::OutcomeSpec { verdicts slice }
 record Tools by hand
 record Conventions = r::Conventions
 record Prices = r::Prices
+record Speed by hand
 record Llm by hand
 record Reserve = r::charter::Reserve
 record Budget by hand

@@ -680,8 +680,8 @@ lower test that holds it:
   with the welcome first, and reading's four page loads with anchoring off
   only for the position story. Default: compile during the plan; run in
   Chromium after landing, preserving every assertion, the forty-second
-  run deadline and the whole tier's 127.5 CPU-second budget, 85 raised by
-  half by the user's word of 11-08, for now, to be revisited. A whole-tier
+  run deadline and the whole tier's 140 CPU-second budget, the user's word
+  of 11-27 (`tools/tiers/budgets.toml`, its opening comment). A whole-tier
   run supplies the cost proof; separate story measurements do not.
 
 - **Reading's test past its run's forty seconds** (`testing.md`, 3; `testing.md`, 6, story 14). Default: it

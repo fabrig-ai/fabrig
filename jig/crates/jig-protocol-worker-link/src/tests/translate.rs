@@ -557,8 +557,8 @@ fn a_hubs_draining_notice_becomes_the_empty_draining_record() {
 }
 
 #[test]
-fn a_version_refusal_encodes_its_wire_and_range_without_parts() {
-    let mismatch = host::Mismatch { wire: b"smith-charter".as_slice().into(), version: 5, lowest: 4, highest: 4 };
+fn a_version_refusal_writes_the_worker_version_twice_with_unchanged_bytes() {
+    let mismatch = host::Mismatch { wire: b"smith-charter".as_slice().into(), version: 5, worker_version: 4 };
     let value = host::LinkUp::Answer {
         run: Token::new(7),
         attempt: Token::new(2),
@@ -572,6 +572,8 @@ fn a_version_refusal_encodes_its_wire_and_range_without_parts() {
     };
     let limits = fixtures::codec();
     let frame = translate::up(value, &[], &limits).expect("version refusal");
+    // The v22 Mismatch at the end of the answer: text length, text, and three u16s.
+    assert!(frame.bytes().ends_with(b"\0\0\0\x0dsmith-charter\0\x05\0\x04\0\x04"));
     let record = wire::Answer::decode(&limits, &mut body(&frame)).expect("answer");
     let wire::Ending::Refused(value) = &record.ending else { panic!("refused") };
     let wire::Refusal::Version(value) = &value.value else { panic!("version") };

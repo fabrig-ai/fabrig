@@ -53,7 +53,7 @@ fn show_format(world: &mut World, task: u64, json_output: bool, change: bool) ->
     for event in [
         client::Event::StartUnlinked { kept: List::with_capacity(0) },
         client::Event::SignIn { with: client::With::Transport },
-        client::Event::Up { up: client::Up::Served { served: true, versions: None } },
+        client::Event::Up { up: client::Up::Served { served: true } },
     ] {
         root::step(&mut root, &env, root::Event::Client { event }, &mut out);
     }

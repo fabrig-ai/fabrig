@@ -31,6 +31,6 @@ pub const SMITH_SET: OwnerSet = OwnerSet {
         name: smith_transcript::FAMILY,
         map: KeptMap::Store,
         keys: &[],
-        frames: Some(Frames { root: smith_transcript::ROOT, texts: smith_transcript::SEED, number: 0 }),
+        frames: Some(Frames { root: smith_transcript::ROOT, number: 0 }),
     }],
 };

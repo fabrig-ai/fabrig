@@ -1,4 +1,4 @@
-# The user's budgets, director/decisions/0028 (10-30): x1.5 of the cold measurement of 10-30 (main 44230b8fc), process-temper at its design aim (temper/docs/design/testing/process-tier.md), red until its repair; re-measure after a week. Changing a figure is the user's. browser-skein's 217.5, browser-temper's 127.5 and process-temper's 540 CPU seconds are 145, 85 and 360 raised by half by the user's word of 11-08, for now, to be revisited.
+# The user's budgets, director/decisions/0028 (10-30): x1.5 of the cold measurement of 10-30 (main 44230b8fc), process-temper at its design aim (temper/docs/design/testing/process-tier.md), red until its repair; re-measure after a week. Changing a figure is the user's. browser-skein's 217.5 and process-temper's 540 CPU seconds are 145 and 360 raised by half by the user's word of 11-08, for now, to be revisited. browser-temper's 140 CPU seconds are the user's word of 11-27, keeping four cores with longer runs: held to four cores' time on the after-landing tier's machine from 11-26 01:06Z, its 29 full runs took 95.4 to 133.8 CPU s, 8 of them over the 127.5 that was 85 raised by half on 11-08, and 140 is about 5% over the dearest.
 # Live pairs have no entry yet: the user has not set their CPU budgets here.
 # Gate tables: tools/tiers/budgets.md, 6; the CI builder's 11-16 gate runs' median by tree, suite and layer, plus the larger of a tenth and a second, rounded up, by the user's word of 11-16; references and ideals from temper/docs/design/draft/test-budgets.md, 6 and 9.
 # Optional per-pair auto_reap = ["test_name", ...] declares known auto-reaping tests; empty today.
@@ -737,7 +737,7 @@ cpu_test_s = 60
 wall_hard_s = 300
 
 [browser-temper]
-cpu_suite_s = 127.5
+cpu_suite_s = 140
 cpu_test_s = 60
 wall_hard_s = 300
 

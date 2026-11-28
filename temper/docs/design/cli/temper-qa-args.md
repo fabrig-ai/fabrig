@@ -70,7 +70,7 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell-table.md`, 1.
 - **Forms:** `NAME`
 - Restore a pass setup at its place, or make it again from the nearest restoring copy.
 - **Arguments:** `NAME`: fresh, or a recipe of the pass's setups.
-- **Notes:** The drive session must be closed. Walks use the place's build with --strict. Exit 4: the box failed; 5: stopped at a recipe line; 1: refused. Cache stays across restores.
+- **Notes:** The drive session must be closed. Walks use the place's build with --strict. A copy refused by its store or at startup is made again from the next ancestor up. Exit 4: the box failed; 5: stopped at a recipe line; 1: refused. Cache stays across restores.
 
 ### `temper-qa pass recipe`
 

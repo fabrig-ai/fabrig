@@ -9,7 +9,7 @@ smith's agent processes, and declares in its hello the kinds it runs:
 | 1, prepare | a landing's stack for one repository (`../landing-prepare.md`, 1.2 and 1.3): temper's own merge train, or the project's prepare command | the repository, the round's base and the commit it stacks from, the train's `combine` and its upstream's tip, its members' heads in order with their messages and branches, the upstream candidates and the pins between them, the command and the home's revision | how each member was combined, merged or squashed, and each conflict's member, kind and files; each gate's key, when the project's key command is named |
 | 2, key | a gate's key at a candidate, by the project's key command (`../landing-proof.md`, 1.1) | the repository, the candidate, the gate, the command and the home's revision | the key |
 | 3, merge | a merge of a base into a head, the conflicts the project's merge command knows settled (`../forge/change/repairs.md`) | the command, the head and the base | the files settled, and a record of each left, its kind and, for a deletion or a rename, the side and the commit that made it (`../../protocol/tooling.md`, 4.1), carried as bytes and parsed by no reader |
-| 4, close | what a goal leaves in its branch settled by the project's close command, before its landing (`../forge/branches.md`, 2) | the command, the close request and whether it asks for a typed refusal | the files settled, or the close check's refusal (`../../protocol/tooling.md`, 4.2) |
+| 4, close | what a goal leaves in its branch settled by the project's close command, before its landing (`../forge/branches.md`, 2) | the command, the close request and whether it asks for a typed refusal and for an outdated finding | the files settled, or the close check's refusal or outdated finding (`../../protocol/tooling.md`, 4.2) |
 
 ## 1. Job declarations, commands and delivery
 
@@ -111,10 +111,11 @@ smith's agent processes, and declares in its hello the kinds it runs:
   command is the repository's name, `/`, then `.temper/hooks/close`,
   with `find` set and the setting's path as its `fallback`, and its
   request the close request's bytes, which the engine writes whole. Its spec asks for a
-  typed refusal, `JobSpec`'s `refusal` true (`../../protocol/wires.md`,
-  8), and the worker then sets `TEMPER_CLOSE_REFUSAL=3` in the command's
-  environment beside the others (`../../protocol/tooling.md`, 2); a spec
-  that doesn't ask sets nothing. On exit 3 it delivers nothing and
+  typed refusal, `JobSpec`'s `refusal` true, and for an outdated
+  finding, its `outdated` true (`../../protocol/wires.md`, 8), and the
+  worker then sets `TEMPER_CLOSE_REFUSAL=3` and `TEMPER_CLOSE_OUTDATED=3`
+  in the command's environment beside the others
+  (`../../protocol/tooling.md`, 2), each only where its spec asks. On exit 3 it delivers nothing and
   finishes the job with the result, as for a merge, and the engine reads
   it. On exit 0 the delivery
   commits the tree as the command left it, one parent, the tip, its message
@@ -168,7 +169,11 @@ smith's agent processes, and declares in its hello the kinds it runs:
     `message` from the request as its message;
   - **`squash`** otherwise: the same tree, one parent, the prefix
     below, and the member's `squash` message, committed even when the
-    tree is the one below's (`always`).
+    tree is the one below's (`always`). For a member the request marks
+    `head_trailers`, the job first reads its fetched head's message
+    (`Message`, `../../protocol/git-operations.md`, 1.9) and commits
+    `squash` with that message's TRAILERS (`../../protocol/tooling.md`,
+    4); a member it merges reads none.
 
   A head that does not merge cleanly is no failure, whatever `combine`
   says: the merge is abandoned, the member skipped, and the next merged

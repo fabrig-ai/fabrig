@@ -789,7 +789,10 @@ pub struct RecipeWalk<'a> {
 }
 pub struct WalkOutput {
     pub code: u8,
+    pub first: Option<String>,
     pub tail: String,
+    /// On exit 3, the last `refused: ` line, or the last line if none was labelled.
+    pub refusal: Option<String>,
 }
 pub struct RealDrive {
     pub environment: Environment,
@@ -884,18 +887,30 @@ impl DriveFace for RealDrive {
             arguments.extend(["--ports".into(), OsString::from(ports)]);
         }
         let output = self.output(place, &arguments, Some(&place.walk_log), request.name, processes)?;
-        let mut tail = std::collections::VecDeque::new();
-        for line in BufReader::new(log).lines() {
-            tail.push_back(line.map_err(|why| refused(format!("walk.log: {why}")))?);
-            if tail.len() > 40 {
-                tail.pop_front();
-            }
-        }
         let code = match output.exit {
             Exit::Code(code) => u8::try_from(code).unwrap_or(1),
             Exit::Signal(_) | Exit::Bound | Exit::Lost | Exit::Unstarted => 1,
         };
-        Ok(WalkOutput { code, tail: tail.into_iter().collect::<Vec<_>>().join("\n") })
+        let mut first = None;
+        let mut refusal = None;
+        let mut tail = std::collections::VecDeque::new();
+        for line in BufReader::new(log).lines() {
+            let line = line.map_err(|why| refused(format!("walk.log: {why}")))?;
+            if first.is_none() {
+                first = Some(line.clone());
+            }
+            if code == 3 && line.starts_with("refused: ") {
+                refusal = Some(line.clone());
+            }
+            tail.push_back(line);
+            if tail.len() > 40 {
+                tail.pop_front();
+            }
+        }
+        if code == 3 && refusal.is_none() {
+            refusal = tail.back().cloned();
+        }
+        Ok(WalkOutput { code, first, tail: tail.into_iter().collect::<Vec<_>>().join("\n"), refusal })
     }
 }
 

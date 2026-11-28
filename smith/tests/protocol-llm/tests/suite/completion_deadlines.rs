@@ -213,6 +213,7 @@ fn start_attempt(peer: &mut Peer, world: &Scripted) -> Vec<u8> {
         affinity: sent.affinity,
         model: sent.model.clone(),
         effort: sent.effort.clone(),
+        speed: None,
         system: sent.system.clone(),
         tools: sent.tools,
         namespace: sent.namespace.clone(),

@@ -549,16 +549,16 @@ fn opening_stream_me() -> (fixtures::Exchange, Token, Token) {
     (world, owner, watcher)
 }
 #[test]
-fn opened_names_jig_then_the_application_layouts_in_settings_order() {
+fn opened_keeps_hello_ranges_in_settings_order_and_names_jigs_layout_first() {
     const FIRST: u16 = 9;
     const SECOND: u16 = 2;
     const FIRST_LAYOUT: [u8; 32] = [1; 32];
     const SECOND_LAYOUT: [u8; 32] = [2; 32];
     let mut settings = fixtures::settings();
     settings.served = skein_lib::List::from_boxed(Box::new([
-        crate::Served { family: Some(FIRST), first: 2, last: 2, layout: FIRST_LAYOUT },
-        crate::Served { family: None, first: w::VERSION, last: w::VERSION, layout: w::LAYOUT },
-        crate::Served { family: Some(SECOND), first: 1, last: 1, layout: SECOND_LAYOUT },
+        crate::Served { family: Some(FIRST), version: 2, layout: FIRST_LAYOUT },
+        crate::Served { family: None, version: w::VERSION, layout: w::LAYOUT },
+        crate::Served { family: Some(SECOND), version: 1, layout: SECOND_LAYOUT },
     ]));
     let mut env = fixtures::env();
     env.limits.families = settings.served.len();
@@ -588,6 +588,14 @@ fn opened_names_jig_then_the_application_layouts_in_settings_order() {
     else {
         panic!("Opened on the stream")
     };
+    assert_eq!(
+        opened.hello.served.as_slice(),
+        &[
+            w::Served { owner: w::Owner::Family(w::Family { number: FIRST }), first: 2, last: 2 },
+            w::Served { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION },
+            w::Served { owner: w::Owner::Family(w::Family { number: SECOND }), first: 1, last: 1 },
+        ]
+    );
     assert_eq!(
         opened.layouts.as_slice(),
         &[

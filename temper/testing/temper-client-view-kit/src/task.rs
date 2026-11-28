@@ -271,7 +271,7 @@ pub fn agent_root_for(
     for event in [
         E::StartUnlinked { kept: List::with_capacity(0) },
         E::SignIn { with: jig_client::With::Transport },
-        E::Up { up: Up::Served { served: true, versions: None } },
+        E::Up { up: Up::Served { served: true } },
         E::Up {
             up: Up::Watched {
                 watch: skein_lib::Token::new(0),

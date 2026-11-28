@@ -121,7 +121,7 @@ fn refused(refusal: smith::Refusal) -> &'static [u8] {
                 smith::Rate::CacheWrite => b"agent cache write price invalid",
                 smith::Rate::Output => b"agent output price invalid",
             },
-            smith::RunInvalid::Llm => b"agent llm invalid",
+            smith::RunInvalid::Llm | smith::RunInvalid::ProgramSpeed { .. } => b"agent llm invalid",
             smith::RunInvalid::Conversation => b"agent conversation invalid",
             smith::RunInvalid::Endpoint => b"agent endpoint invalid",
             smith::RunInvalid::Effort => b"agent effort invalid",
@@ -277,8 +277,7 @@ fn version(bytes: &[u8], wire: &str, current: u16) -> Result<(), hub::Undecoded>
         return Err(hub::Undecoded::Version(hub::Mismatch {
             wire: Box::from(wire.as_bytes()),
             version,
-            lowest: current,
-            highest: current,
+            worker_version: current,
         }));
     }
     Ok(())
@@ -460,8 +459,7 @@ mod versions {
             Err(jig_domain_host::Undecoded::Version(jig_domain_host::Mismatch {
                 wire: b"smith-charter".as_slice().into(),
                 version: 6,
-                lowest: 5,
-                highest: 5,
+                worker_version: 5,
             }))
         );
     }
