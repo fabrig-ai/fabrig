@@ -135,6 +135,12 @@ def size_lines(sizes):
             sorted(sizes, key=lambda item: (-item[1], os.fsencode(item[0])))]
 
 
+def _is_generated_page(data):
+    nonblank = (line for line in data.splitlines() if line.strip())
+    return (next(nonblank, b"").startswith(b"# ")
+            and next(nonblank, b"").startswith(b"Generated from "))
+
+
 def roll_up(tree, files):
     design = f"{tree}/docs/design/"
     totals = dict.fromkeys(LABELS, 0)
@@ -149,7 +155,7 @@ def roll_up(tree, files):
         if not path.endswith((".status.md", ".notes.md", ".execution.md")):
             heading = NUMBERED_HEADING.search(data)
             opening_size = heading.start() if heading else len(data)
-            if opening_size > OPENING_MARK:
+            if opening_size > OPENING_MARK and not _is_generated_page(data):
                 long_openings.append((path, opening_size))
         if not path.endswith(".status.md"):
             continue
