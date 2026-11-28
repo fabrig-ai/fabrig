@@ -1,7 +1,11 @@
 # restart: status
 
-2026-11-22. Where the tree's code lags or departs from [restart.md](restart.md).
+2026-11-28. Where the tree's code lags or departs from [restart.md](restart.md).
 
+- **Not yet:** 2, 4: the engine serving each phase through its ports, the switch asked and the wires written by it [in flight: change 22485]
+- **Not yet:** 1, step 2: `ops`'s connectors loading their own records when asked [in flight: change 22494]
+- **Not yet:** 1, step 2: the test connector loading its own records when asked [in flight: change 22499]
+- **Not yet:** 1, step 2: temper's forge loading its own records when asked [in flight: change 22501]
 
 - **Departs:** the whole document: `Core::new` without a start is ready, because the
   core's unit fixtures need no start; every root starts it.
