@@ -1342,6 +1342,7 @@ fn unread_evidence(member: u64, change: &crate::ChangeRow) -> crate::LandingEvid
             readback_owed: false,
             nearest_write: None,
             touched: crate::Touched::UNKNOWN,
+            temper_dir: crate::TemperDirEvidence::Uncovered,
             prior: change.change.clone(),
             head: None,
             base_tip: [0; 32],

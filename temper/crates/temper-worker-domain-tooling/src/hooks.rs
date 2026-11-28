@@ -52,16 +52,19 @@ impl Fault {
     /// The time file's path, the line number and the reason, naming the reading binary.
     #[must_use]
     pub fn text(&self, reader: &[u8]) -> Box<[u8]> {
+        bytes::concat(&[CONFIG, b":", Decimal::of(u64::from(self.line())).as_bytes(), b": ", &self.why(reader)])
+    }
+
+    /// The reason without its path or line, naming the reading binary.
+    #[must_use]
+    pub fn why(&self, reader: &[u8]) -> Box<[u8]> {
         match self {
-            Self::Line { line, why } => fault_text(*line, why),
-            Self::BadFormat { line } => fault_text(*line, b"format: a whole number from 1"),
-            Self::NewerFormat { line, written, newest } => {
+            Self::Line { why, .. } => why.clone(),
+            Self::BadFormat { .. } => bytes::copy_of(b"format: a whole number from 1"),
+            Self::NewerFormat { written, newest, .. } => {
                 let newest = Decimal::of(*newest);
                 bytes::concat(&[
-                    CONFIG,
-                    b":",
-                    Decimal::of(u64::from(*line)).as_bytes(),
-                    b": format ",
+                    b"format ",
                     written,
                     b"; this ",
                     reader,
@@ -73,10 +76,6 @@ impl Fault {
             }
         }
     }
-}
-
-fn fault_text(line: u32, why: &[u8]) -> Box<[u8]> {
-    bytes::concat(&[CONFIG, b":", Decimal::of(u64::from(line)).as_bytes(), b": ", why])
 }
 
 /// A line for a hook time cut to the project's ceiling. `moment` is one of

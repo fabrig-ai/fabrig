@@ -148,7 +148,7 @@ impl Parser {
                 Stored::Table(TableState::Root | TableState::Inline)
                 | Stored::Pending
                 | Stored::String(_)
-                | Stored::Integer(_)
+                | Stored::Integer { .. }
                 | Stored::Float(_)
                 | Stored::Boolean(_)
                 | Stored::DateTime { .. }
@@ -196,7 +196,7 @@ impl Parser {
                         Stored::Table(_)
                         | Stored::Pending
                         | Stored::String(_)
-                        | Stored::Integer(_)
+                        | Stored::Integer { .. }
                         | Stored::Float(_)
                         | Stored::Boolean(_)
                         | Stored::DateTime { .. }

@@ -105,12 +105,34 @@ impl Document {
     /// Entry by decoded key segment (a dot is just a byte, not a path).
     #[must_use]
     pub fn get(&self, table: Table, key: &[u8]) -> Option<Entry> {
+        let id = self.find(table, key)?;
+        self.entry_at(id)
+    }
+
+    /// Radix of an integer entry as written (2, 8, 10 or 16), or none if not an integer.
+    #[must_use]
+    pub fn integer_radix(&self, table: Table, key: &[u8]) -> Option<u8> {
+        let id = self.find(table, key)?;
+        match self.record(id)?.kind {
+            Stored::Integer { radix, .. } => Some(radix),
+            Stored::Pending
+            | Stored::String(_)
+            | Stored::Float(_)
+            | Stored::Boolean(_)
+            | Stored::DateTime { .. }
+            | Stored::Array
+            | Stored::Table(_)
+            | Stored::ArrayOfTables => None,
+        }
+    }
+
+    fn find(&self, table: Table, key: &[u8]) -> Option<u32> {
         self.table(table)?;
         let parent = self.record(table.0)?;
         for index in 0..parent.len {
-            let entry = self.child_entry(parent, index)?;
-            if self.text(entry.key)? == key {
-                return Some(entry);
+            let id = self.child(parent, index)?;
+            if self.text(self.record(id)?.key)? == key {
+                return Some(id);
             }
         }
         None
@@ -143,7 +165,7 @@ impl Document {
             Stored::Pending
             | Stored::Table(_)
             | Stored::String(_)
-            | Stored::Integer(_)
+            | Stored::Integer { .. }
             | Stored::Float(_)
             | Stored::Boolean(_)
             | Stored::DateTime { .. } => None,
@@ -159,6 +181,10 @@ impl Document {
 
     fn child_entry(&self, parent: &Record, index: u32) -> Option<Entry> {
         let id = self.child(parent, index)?;
+        self.entry_at(id)
+    }
+
+    fn entry_at(&self, id: u32) -> Option<Entry> {
         let record = self.record(id)?;
         Some(Entry { key: record.key, line: record.key_line, value: record.value(id)? })
     }
@@ -196,7 +222,7 @@ impl TableState {
 pub(crate) enum Stored {
     Pending,
     String(Text),
-    Integer(i64),
+    Integer { number: i64, radix: u8 },
     Float(Text),
     Boolean(bool),
     DateTime { kind: DateTimeKind, text: Text },
@@ -211,7 +237,7 @@ impl Stored {
             Self::Table(state) => Some(state),
             Self::Pending
             | Self::String(_)
-            | Self::Integer(_)
+            | Self::Integer { .. }
             | Self::Float(_)
             | Self::Boolean(_)
             | Self::DateTime { .. }
@@ -236,7 +262,7 @@ impl Record {
         let kind = match self.kind {
             Stored::Pending => return None,
             Stored::String(text) => ValueKind::String(text),
-            Stored::Integer(number) => ValueKind::Integer(number),
+            Stored::Integer { number, .. } => ValueKind::Integer(number),
             Stored::Float(text) => ValueKind::Float(text),
             Stored::Boolean(flag) => ValueKind::Boolean(flag),
             Stored::DateTime { kind, text } => ValueKind::DateTime { kind, text },

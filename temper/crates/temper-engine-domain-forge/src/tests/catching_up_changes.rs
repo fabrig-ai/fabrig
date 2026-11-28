@@ -602,6 +602,7 @@ fn held_landing_judgements_wait_and_are_woken_by_fresh_reads() {
         readback_owed: false,
         nearest_write: None,
         touched: Touched::UNKNOWN,
+        temper_dir: TemperDirEvidence::Uncovered,
         prior: row.change.clone(),
         head: Some(HEAD),
         base_tip: BASE,

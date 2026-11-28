@@ -224,6 +224,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-process-guard::parent" = "real-loop" # Real /bin/cat process identities.
 "temper-process-guard::step" = "step" # observe() over scripted read and exit results.
 "temper-protocol-reaches::suite" = "step" # Seeded judgement functions on generated tables.
+"temper-protocol-temper-dir::judgement" = "step" # Reading and judging one commit from scripted forge answers.
 "temper-qa-tool::domain" = "domain" # The QA runner's world over scripted files, sockets, clock, git and children.
 "temper-qa-tool::step" = "step" # Ledger, configuration and parser values (including seeded sequences), the command table's answers and tune's figures.
 "temper-qa-tool::suite" = "real-loop" # Non-UTF-8 file name; staged executables; run.sock poke, mode and stale path; child exit wake; holder modes, ledger watch and socket; umasks; system tar; process group killed at its bound.

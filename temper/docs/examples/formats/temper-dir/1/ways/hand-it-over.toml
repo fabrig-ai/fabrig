@@ -1,0 +1,14 @@
+# hand-it-over: you describe it, an agent writes it, another reviews it, and code lands it
+start = "change"
+[tasks.change]
+executor = "change"
+into = "base"
+producer = "build"
+gates = ["review"]
+landing = { ci = true, up_to_date = true }
+[tasks.build]
+executor = { agent = "implementer" }
+contract = "change"
+[tasks.review]
+executor = { agent = "reviewer" }
+contract = "verdict"

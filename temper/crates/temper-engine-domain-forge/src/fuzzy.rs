@@ -101,6 +101,7 @@ fn sign_offs_are_a_bounded_ordered_union_and_times_do_not_change_verdicts() {
         readback_owed: false,
         nearest_write: None,
         touched: crate::Touched::UNKNOWN,
+        temper_dir: crate::TemperDirEvidence::Uncovered,
         prior: tests::fixtures::opening_row().change,
         head: Some(head),
         base_tip: [4; 32],

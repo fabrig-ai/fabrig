@@ -6389,6 +6389,7 @@ fn hold_read_session(
             readback_owed: read_session::readback_owed(d, task),
             nearest_write: None,
             touched: crate::Touched::UNKNOWN,
+            temper_dir: crate::TemperDirEvidence::Uncovered,
             prior,
             head: row.change.last_head,
             base_tip: [0; 32],
@@ -7462,6 +7463,7 @@ fn step_evidence(d: &Domain, row: &ChangeRow, pending: &PendingStep, prior: chan
             None => None,
         },
         touched: step_touched(d, row, pending),
+        temper_dir: crate::TemperDirEvidence::Uncovered,
         prior,
         head: pending.branch,
         // An unfinished gather supplies evidence only to name its read stall.

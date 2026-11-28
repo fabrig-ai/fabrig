@@ -408,6 +408,7 @@ members = [
     "temper/crates/temper-protocol-store-codec",
     "temper/crates/temper-protocol-brief",
     "temper/crates/temper-protocol-member-message",
+    "temper/crates/temper-protocol-temper-dir",
     "temper/crates/temper-charter-set",
     "temper/crates/temper-engine-domain",
     "temper/crates/temper-engine-domain-see",

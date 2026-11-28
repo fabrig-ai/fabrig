@@ -411,6 +411,7 @@ fn landing_judgement_waits_for_all_member_repositories() {
         readback_owed: false,
         nearest_write: None,
         touched: Touched::UNKNOWN,
+        temper_dir: TemperDirEvidence::Uncovered,
         prior: fixtures::opening_row().change,
         head: Some(fixtures::HEAD),
         base_tip: fixtures::BASE,

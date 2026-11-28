@@ -8255,6 +8255,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-protocol-temper-dir"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-people",
+ "skein-forge",
+ "skein-lib",
+ "skein-toml",
+ "temper-charter-set",
+ "temper-worker-domain-tooling",
+]
+
+[[package]]
 name = "temper-protocol-worker-wire"
 version = "0.0.0"
 dependencies = [

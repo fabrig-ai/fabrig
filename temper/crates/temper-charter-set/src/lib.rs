@@ -8,6 +8,7 @@ use core::fmt;
 use skein_lib::{List, Writer};
 
 mod format;
+pub use format::{FormatFault, read_file};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum File {

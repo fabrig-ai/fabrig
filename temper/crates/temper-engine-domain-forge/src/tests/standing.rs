@@ -52,6 +52,7 @@ fn fixture() -> (Domain, ChangeEvidence) {
         readback_owed: false,
         nearest_write: None,
         touched: Touched::UNKNOWN,
+        temper_dir: TemperDirEvidence::Uncovered,
         size: None,
         prior: row.change.clone(),
         head: Some(HEAD),

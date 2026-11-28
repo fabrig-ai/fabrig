@@ -135,7 +135,7 @@ fn integer(cursor: &Cursor, input: &[u8], from: usize, radix: u8, negative: bool
             value = if negative { scaled.checked_sub(digit) } else { scaled.checked_add(digit) }.ok_or(range)?;
         }
     }
-    Ok(Stored::Integer(value))
+    Ok(Stored::Integer { number: value, radix })
 }
 
 fn is_local_time(cursor: &Cursor, input: &[u8]) -> bool {

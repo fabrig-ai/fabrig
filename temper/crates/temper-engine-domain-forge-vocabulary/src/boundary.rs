@@ -1933,6 +1933,14 @@ pub struct BehindWait {
     pub evidence: ReadBehind,
 }
 
+/// The `.temper/` check's evidence for a change at the observed head and base.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum TemperDirEvidence {
+    Uncovered,
+    Pending,
+    Passed { tree: skein_forge::api::Commit },
+}
+
 /// Coherent provider facts used by the root to check a change effect before
 /// releasing its durable outbox entry.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1941,6 +1949,7 @@ pub struct ChangeEvidence {
     pub readback_owed: bool,
     pub nearest_write: Option<u64>,
     pub touched: crate::Touched,
+    pub temper_dir: TemperDirEvidence,
     /// State to restore if the root does not authorize this effect.
     pub prior: change::Change,
     pub head: Option<skein_forge::api::Commit>,
