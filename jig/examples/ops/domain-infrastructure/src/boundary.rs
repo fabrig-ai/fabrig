@@ -539,6 +539,8 @@ pub enum Event {
     ResolveEntry { entry: u64, repeat: bool },
     /// Restore one committed record.
     Restore { record: Record },
+    /// The store reached the end of this connector's restore walk.
+    RestoreDone,
     /// Refresh the resources restored by the preceding live load.
     ReadAfresh,
     /// Settle restored entries after all live reads have answered.
@@ -593,6 +595,8 @@ pub enum SystemEvent {
 /// Requests to the root and its journal.
 #[derive(Debug)]
 pub enum Out {
+    /// Load this connector's live records after the journal releases the request.
+    LoadRestore,
     /// What this connector says to the engine in this decision.
     Up(jig_domain_contract::Up),
     /// Feed an internal continuation back after its commit.

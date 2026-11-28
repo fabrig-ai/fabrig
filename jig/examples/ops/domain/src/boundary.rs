@@ -1,6 +1,6 @@
 //! The root wraps its children's vocabulary. Replace the connector arms when
 //! copying this application; keep Store and Released (domain/root.md, 2–4).
-use crate::{Range, Record, Write};
+use crate::{Range, Write};
 use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
@@ -18,12 +18,6 @@ pub enum Store {
     Committed { number: u64, fill: u64 },
     /// This transaction failed and no later held output may leave.
     Failed { number: u64 },
-    /// One row in the core's requested restoration order.
-    Restore(Record),
-    /// The store completed this exact restart range.
-    Restored(core::start::Phase),
-    /// The generation is active; save the start’s wires.
-    Switched,
     /// A child-specific loaded page in the core's vocabulary.
     Loaded(core::Event),
     /// An answer on the engine’s store port.
@@ -47,7 +41,7 @@ pub enum Released {
     /// A durable engine output for a numbered connector.
     Connector(jig_domain_contract::Connector, jig_domain_contract::Released),
     /// Resume the start after its decision is durable.
-    Start(core::start::Continuation),
+    Resume(core::engine::Resume),
 }
 
 /// Inputs to the reference root; protocol adapters supply typed child values.
@@ -154,15 +148,13 @@ pub enum Output {
     Application { to: ReplyTo, outcome: infrastructure::ApplicationOutcome },
     /// One atomic transaction, numbered by the journal.
     Commit { number: u64, writes: Queue<Write> },
-    /// Make the pending generation active, or answer Switched immediately.
-    Switch,
-    /// Load this child's rows for the core-selected restart step.
-    Load { phase: core::start::Phase, range: Range },
+    /// Load the connector's own records.
+    ConnectorLoad(Range),
     /// A core-owned store read, routed by its variant.
     CoreLoad(core::Now),
     /// Core output for its party, view, note or external protocol owner.
     Core(core::Held),
-    /// A held engine load, released after preceding commits.
+    /// A held engine store request, released after preceding commits.
     Store(core::engine::store::Out),
     /// Core output with no durable dependency, such as a view fact.
     Now(core::Now),

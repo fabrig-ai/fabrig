@@ -146,8 +146,7 @@ pub(crate) fn load(store: &Store, output: &root::Output) -> Option<root::Event> 
         | root::Output::IncidentAssociationRefused { .. }
         | root::Output::Application { .. }
         | root::Output::Commit { .. }
-        | root::Output::Switch
-        | root::Output::Load { .. }
+        | root::Output::ConnectorLoad(_)
         | root::Output::CoreLoad(_)
         | root::Output::Core(_)
         | root::Output::Now(_)

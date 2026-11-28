@@ -4,8 +4,8 @@ use crate::translate::{
     infrastructure_outcome, infrastructure_spec, resource_role,
 };
 use crate::{
-    ClientDocument, ClientScope, CloseOutcome, DocumentMissing, Domain, Effect, Event, Hold, Limits, Out,
-    ProcedureSignal, Request, Resource, StepDecision, fire_system, step_system,
+    ClientDocument, ClientScope, CloseOutcome, DocumentMissing, Domain, Effect, Event, Hold, Limits, Named, Out,
+    ProcedureSignal, Record, Request, Resource, StepDecision, fire_system, step_system,
 };
 use alloc::boxed::Box;
 use jig_domain_contract::{self as jig, effects, lifecycle, ops, parts, procedures, requests, resources};
@@ -70,6 +70,17 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     let mut system = Queue::uncapped();
     match event {
         Event::Ask(ask) => ask_engine(domain, env, ask, &mut system, out),
+        Event::Restore { record } => {
+            if let Record::Rely { project, resources, .. } = &record {
+                for named in resources {
+                    say_resource(domain.port.number, *project, named, out);
+                }
+            }
+            step_system(domain, env, Event::Restore { record }, &mut system);
+        }
+        Event::RestoreDone => {
+            out.push(Out::Up(jig::Up::Lifecycle(lifecycle::Up::Done { stage: lifecycle::RestartStage::Restored })));
+        }
         Event::Released(released) => match released {
             jig::Released::Make { entry } => step_system(domain, env, Event::MakeEntry { entry }, &mut system),
             jig::Released::Answered { key, outcome } => {
@@ -124,7 +135,6 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         | Event::Make { .. }
         | Event::MakeEntry { .. }
         | Event::ResolveEntry { .. }
-        | Event::Restore { .. }
         | Event::ReadAfresh
         | Event::Restart
         | Event::System(_)) => step_system(domain, env, system_event, &mut system),
@@ -148,12 +158,16 @@ fn ask_engine(
 ) {
     match ask {
         jig::Ask::Lifecycle(ask) => match ask {
-            lifecycle::Ask::CatchUp => step_system(domain, env, Event::ReadAfresh, system),
+            lifecycle::Ask::Restore => out.push(Out::LoadRestore),
+            lifecycle::Ask::CatchUp => {
+                step_system(domain, env, Event::SendCloses, system);
+                step_system(domain, env, Event::ReadAfresh, system);
+            }
             lifecycle::Ask::ReleaseProject { project } => {
                 out.push(Out::Up(jig::Up::Lifecycle(lifecycle::Up::Released { project })));
             }
             // Task reliance is released with the task; there are no separate adoptions or project settings.
-            lifecycle::Ask::Adopt { .. } | lifecycle::Ask::Restore => {}
+            lifecycle::Ask::Adopt { .. } => {}
         },
         jig::Ask::Resources(ask) => resources(domain, env, ask, system, out),
         jig::Ask::Effects(ask) => effects(domain, env, ask, system, out),
@@ -420,7 +434,20 @@ fn name(number: u16, resource: &Resource) -> resources::Name {
     resources::Name { connector: number, path: resource.segments() }
 }
 
-#[expect(clippy::too_many_lines, reason = "one exhaustive system-to-port dispatcher")]
+fn say_resource(number: u16, project: u32, named: &Named, out: &mut Queue<Out>) {
+    let hold = match named.hold {
+        Hold::None => resources::HoldKind::Shared,
+        Hold::ExclusiveWait => resources::HoldKind::Exclusive { wait: true },
+        Hold::PooledWait => resources::HoldKind::Pooled { slots: 0, wait: true },
+    };
+    out.push(Out::Up(jig::Up::Resources(resources::Up::Resource {
+        project,
+        name: name(number, &named.resource),
+        hold,
+        role: resource_role(named.role),
+    })));
+}
+
 fn say_system(domain: &mut Domain, mut system: Queue<Request>, out: &mut Queue<Out>) {
     let number = domain.port.number;
     for _ in 0..system.len() {
@@ -480,17 +507,7 @@ fn say_system(domain: &mut Domain, mut system: Queue<Request>, out: &mut Queue<O
             }
             Request::Named { project, resources, .. } => {
                 for named in resources {
-                    let hold = match named.hold {
-                        Hold::None => resources::HoldKind::Shared,
-                        Hold::ExclusiveWait => resources::HoldKind::Exclusive { wait: true },
-                        Hold::PooledWait => resources::HoldKind::Pooled { slots: 0, wait: true },
-                    };
-                    out.push(Out::Up(jig::Up::Resources(resources::Up::Resource {
-                        project,
-                        name: name(number, &named.resource),
-                        hold,
-                        role: resource_role(named.role),
-                    })));
+                    say_resource(number, project, &named, out);
                 }
             }
             Request::Drift { task, resource } => {

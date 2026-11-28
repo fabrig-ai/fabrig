@@ -11,7 +11,7 @@ mod scripts;
 pub use scripts::agent_bounds;
 mod scenarios;
 pub(crate) use scenarios::reads::point;
-mod store;
+pub(crate) mod store;
 mod systems;
 
 use jig_conformance::referee as r;
@@ -286,11 +286,7 @@ impl Application for Ops {
     }
     fn start(config: &Config, store: &mut Store) -> Vec<root::Event> {
         if store.rows.is_empty() {
-            for row in jig_test_profile::fixtures::account_rows(&config.configuration.core.settings.llm_providers) {
-                let jig_test_domain::Record::Core(row) = row else { panic!("account fixture row") };
-                let row = root::Record::Core(row);
-                store.rows.insert(row.key(), row);
-            }
+            store.rows = store::account_rows(&config.configuration.core.settings.llm_providers);
         }
         vec![root::Event::Restart { pending: false }]
     }
@@ -368,8 +364,7 @@ impl Application for Ops {
                 | root::Output::ApplicationRead { .. }
                 | root::Output::IncidentAssociationRefused { .. }
                 | root::Output::Application { .. }
-                | root::Output::Switch
-                | root::Output::Load { .. }
+                | root::Output::ConnectorLoad(_)
                 | root::Output::ReadResult { .. }
                 | root::Output::CoreLoad(_)
                 | root::Output::Store(_)
@@ -490,53 +485,26 @@ impl Application for Ops {
                 }
                 vec![Input::Event(root::Event::Released(child))]
             }
-            root::Output::Switch => vec![Input::Event(root::Event::Store(root::Store::Switched))],
-            root::Output::Load { phase, range } => {
-                if let Some(position) = peers::restart_position(phase, 2) {
-                    peers.observed.push(r::Observed::RestartStage { position });
+            root::Output::Store(core::engine::store::Out::Switch) => {
+                vec![Input::Event(store::switched())]
+            }
+            root::Output::Store(core::engine::store::Out::Load {
+                load,
+                range: core::engine::store::Range::Start { ranges, after },
+            }) => {
+                if ranges.as_ref() == core::RestoreRange::LIVE && after.is_none() {
+                    peers.observed.push(r::Observed::RestartStage { position: 0 });
                 }
-                let rows: Vec<_> = if range == root::Range::Core {
-                    core::RestoreRange::LIVE
-                        .iter()
-                        .flat_map(|range| {
-                            store.rows.iter().filter_map(move |(key, row)| match key {
-                                root::Key::Core(key) if range.admits(key) => Some(row.clone()),
-                                root::Key::Core(_) | root::Key::Observability(_) | root::Key::Infrastructure(_) => None,
-                            })
-                        })
-                        .collect()
-                } else {
-                    store
-                        .rows
-                        .iter()
-                        .filter_map(|(key, row)| {
-                            let admitted = match (&range, key) {
-                                (root::Range::Census(census), root::Key::Core(key)) => census.admits(key),
-                                (root::Range::People, root::Key::Core(core::Key::People(_)))
-                                | (root::Range::Observability, root::Key::Observability(_))
-                                | (root::Range::Infrastructure, root::Key::Infrastructure(_)) => true,
-                                _ => false,
-                            };
-                            admitted.then(|| row.clone())
-                        })
-                        .collect()
+                vec![Input::Event(store::start_page(&store.rows, load, &ranges, after.as_ref()))]
+            }
+            root::Output::ConnectorLoad(range) => {
+                use jig_ops_domain_connectors::{Connector, number};
+                let connector = match range {
+                    root::Range::Infrastructure => Connector::Infrastructure,
+                    root::Range::Observability => Connector::Observability,
                 };
-                let rows = if matches!(range, root::Range::Census(_)) {
-                    let mut rows = rows;
-                    if let root::Range::Census(census) = &range {
-                        rows.sort_by_key(|row| match row.key() {
-                            root::Key::Core(key) => census.interval(&key),
-                            root::Key::Observability(_) | root::Key::Infrastructure(_) => None,
-                        });
-                    }
-                    rows.into_iter().flat_map(|row| census_owner(store, &row)).collect()
-                } else {
-                    rows
-                };
-                let mut events: Vec<_> =
-                    rows.into_iter().map(|row| Input::Event(root::Event::Store(root::Store::Restore(row)))).collect();
-                events.push(Input::Event(root::Event::Store(root::Store::Restored(phase))));
-                events
+                peers.observed.push(r::Observed::RestartStage { position: u32::from(number(connector)) });
+                store::connector_rows(&store.rows, &range).into_iter().map(Input::Event).collect()
             }
             root::Output::Infrastructure(call) => {
                 if let Some(events) = scenarios::infrastructure(peers, &call) {
@@ -1251,22 +1219,6 @@ impl Peers {
     pub fn finish_result(&mut self, outcome: &[u8]) -> root::Event {
         self.agents.finish_result(outcome)
     }
-}
-
-fn census_owner(store: &Store, row: &root::Record) -> Vec<root::Record> {
-    let task = match row {
-        root::Record::Core(core::Record::Tasks(tasks::Stored::Result(row))) => row.task,
-        root::Record::Core(core::Record::People(jig_domain_people::Stored::EndedRead { task, .. })) => *task,
-        root::Record::Core(_) | root::Record::Observability(_) | root::Record::Infrastructure(_) => return Vec::new(),
-    };
-    let mut rows = Vec::new();
-    if let root::Record::Core(core::Record::People(jig_domain_people::Stored::EndedRead { .. })) = row {
-        rows.push(row.clone());
-    }
-    if let Some(owner) = store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(task)))) {
-        rows.push(owner.clone());
-    }
-    rows
 }
 
 mod funding;

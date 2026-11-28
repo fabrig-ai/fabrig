@@ -1,11 +1,11 @@
 //! Each variant fixes its destination. Replace connector arms when copying;
 //! retain the journal marks and engine's permanent host link (domain/root.md, 5).
 use crate::domain::{Work, child, held, now, write};
-use crate::{Domain, Event, Key, Limits, Output, Record, Released, Write};
+use crate::{Domain, Event, Key, Limits, Output, Record, Released, Store, Write};
 use alloc::boxed::Box;
 use jig_domain_contract as jig;
 use jig_domain_core as core;
-use jig_domain_core::engine::{self, In, Out, Peer};
+use jig_domain_core::engine::{self, In, Out, Peer, application, store};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_hub_link::Event as LinkEvent;
@@ -29,14 +29,9 @@ pub(crate) fn work(
             engine::step(&mut domain.engine, &env.with(env.limits.core), In::Core(event), &mut out);
             engine_out(domain, env, decision, out, work);
         }
-        Work::Store(answer) => {
+        Work::Engine(input) => {
             let mut out = Queue::uncapped();
-            engine::step(&mut domain.engine, &env.with(env.limits.core), In::Store(answer), &mut out);
-            engine_out(domain, env, decision, out, work);
-        }
-        Work::Connector(number, up) => {
-            let mut out = Queue::uncapped();
-            engine::step(&mut domain.engine, &env.with(env.limits.core), In::Connector(number, up), &mut out);
+            engine::step(&mut domain.engine, &env.with(env.limits.core), input, &mut out);
             engine_out(domain, env, decision, out, work);
         }
         Work::Finish => {}
@@ -68,8 +63,6 @@ pub(crate) fn work(
             host::step(&mut domain.host, &env.with(env.limits.host), event, &mut out);
             crate::link::host_out(domain, env, decision, &mut out, work);
         }
-        Work::Start(action) => crate::restart::route(domain, env, decision, action, work),
-        Work::StartDone(phase) => crate::restart::done(domain, env, decision, phase, work),
     }
 }
 
@@ -128,27 +121,20 @@ fn event_in(
         Event::Observability(event) => work.push(Work::Observability(event)),
         Event::Host(event) => work.push(Work::Host(event)),
         Event::Restart { pending } => {
-            domain.start.state = crate::domain::StartState::Starting;
-            let request = domain.engine.core_mut().start_begin(pending, env.wall);
-            work.push(Work::Start(request));
+            work.push(Work::Engine(In::Store(store::In::Opened { pending })));
         }
-        Event::Store(store) => crate::restart::store(domain, env, decision, store, work),
+        Event::Store(store) => match store {
+            Store::Engine(answer) => work.push(Work::Engine(In::Store(answer))),
+            Store::Loaded(event) => work.push(Work::Core(event)),
+            Store::Committed { .. } | Store::Failed { .. } => unreachable!("store terminals belong to the journal"),
+        },
         Event::Released(released) => match released {
             Released::Core(event) => work.push(Work::Core(event)),
             Released::Fleet(event) => work.push(Work::Core(core::Event::Fleet(event))),
             Released::Host(event) => work.push(Work::Host(event)),
             Released::Infrastructure(event) => work.push(Work::Infrastructure(event)),
             Released::Observability(event) => work.push(Work::Observability(event)),
-            Released::Start(continuation) => {
-                if !domain.engine.core().stopping() {
-                    domain.start.waiting = false;
-                    let mut out = Queue::uncapped();
-                    let action =
-                        domain.engine.core_mut().start_resume(&env.with(env.limits.core), continuation, &mut out);
-                    core_out(domain, env, decision, out, work);
-                    work.push(Work::Start(action));
-                }
-            }
+            Released::Resume(resume) => work.push(Work::Engine(In::Resume(resume))),
             Released::Connector(number, released) => match jig_ops_domain_connectors::connector(number.0) {
                 Some(Connector::Infrastructure) => {
                     work.push(Work::Infrastructure(infrastructure::Event::Released(released)));
@@ -221,9 +207,24 @@ fn engine_out(
         match out.pop().expect("engine output count") {
             Out::Core(request) => core_request(domain, env, decision, request, work),
             Out::Write(write) => core_request(domain, env, decision, core::Request::Write(write), work),
-            Out::Now(_) | Out::Held(Peer::Application(_) | Peer::Resume(_)) => {
-                unreachable!("the root drives its own start")
+            Out::Now(Peer::Application(report)) => match report {
+                application::Out::Numbered { commits } => domain.restored_commits = Some(commits),
+                application::Out::Start { phase } => {
+                    domain.start = crate::domain::StartState::Reported(phase);
+                    #[cfg(test)]
+                    if let Some(phase) = phase {
+                        domain.start_phases.push(phase).expect("the start's finite phase list");
+                    }
+                }
+                application::Out::Refused { phase, failure } => {
+                    domain.start_failure = Some((phase, failure));
+                    domain.journal.stop();
+                }
+            },
+            Out::Now(Peer::Store(_) | Peer::Connector(..) | Peer::Resume(_)) | Out::Held(Peer::Application(_)) => {
+                unreachable!("engine port output mark")
             }
+            Out::Held(Peer::Resume(resume)) => child(decision, Released::Resume(resume)),
             Out::Ask(number, ask) => match jig_ops_domain_connectors::connector(number.0) {
                 Some(Connector::Infrastructure) => work.push(Work::Infrastructure(infrastructure::Event::Ask(ask))),
                 Some(Connector::Observability) => work.push(Work::Observability(observability::Event::Ask(ask))),
@@ -499,7 +500,8 @@ fn infrastructure_out(
     use infrastructure::Out as I;
     let number = jig_ops_domain_connectors::number(Connector::Infrastructure);
     match request {
-        I::Up(up) => work.push(Work::Connector(jig::Connector(number), up)),
+        I::LoadRestore => held(decision, Output::ConnectorLoad(crate::Range::Infrastructure)),
+        I::Up(up) => work.push(Work::Engine(In::Connector(jig::Connector(number), up))),
         I::Save { record } => write(domain, decision, Write::Save(Record::Infrastructure(record))),
         I::Erase { key } => write(domain, decision, Write::Erase(Key::Infrastructure(key))),
         I::System(request) => held(decision, Output::Infrastructure(request)),
@@ -525,7 +527,8 @@ fn observability_out(
     use observability::Out as O;
     let number = jig_ops_domain_connectors::number(Connector::Observability);
     match request {
-        O::Up(up) => work.push(Work::Connector(jig::Connector(number), up)),
+        O::LoadRestore => held(decision, Output::ConnectorLoad(crate::Range::Observability)),
+        O::Up(up) => work.push(Work::Engine(In::Connector(jig::Connector(number), up))),
         O::Save { record } => write(domain, decision, Write::Save(Record::Observability(record))),
         O::Erase { key } => write(domain, decision, Write::Erase(Key::Observability(key))),
         O::AfterCommit(event) => child(decision, Released::Observability(*event)),
