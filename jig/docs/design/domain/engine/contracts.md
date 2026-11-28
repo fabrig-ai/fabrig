@@ -141,8 +141,14 @@ pub fn bridge_ask(connector: Connector, ask: contract::Ask) -> Request      // t
 pub fn bridge_released(connector: Connector, released: contract::Released) -> Request  // today's Held
 ```
 
-They give back today's `Request::Ask { connector, ask }` and today's held `MakeEffect` or `Acted`,
-exactly as the core made them before. A root that has not moved keeps feeding its connectors'
+They give back today's `Request::Ask { connector, ask }` and today's held `MakeEffect`, exactly as
+the core made them before. `Released::Answered` has no exact counterpart today: `Held::Acted`'s
+`ReplyTo` is a reply token, not a connector's number and act key, and neither is derived from the
+other. So the bridge gives it back as one held case of its own, in-process alone and deleted with the
+bridge: `Held::ConnectorActed { connector, key, outcome }`. A root that has not moved never meets it,
+since its connectors' acts still cross as `Event::Act` in `In::Core` and are answered by
+`Held::Acted` to their reply tokens; a holder's exhaustive match takes it in an arm of its own.
+A root that has not moved keeps feeding its connectors'
 answers as today's events in `In::Core`, which the core still takes. A moved root names neither
 function nor today's variants.
 
