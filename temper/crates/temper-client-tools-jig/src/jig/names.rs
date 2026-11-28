@@ -29,6 +29,15 @@ impl Kind {
         None
     }
 
+    pub(crate) fn setting(self, number: u32) -> c::Setting {
+        let number = c::SettingNumber { number };
+        match self {
+            Self::Charter => c::Setting::Charter(number),
+            Self::Template => c::Setting::Template(number),
+            Self::Policy => c::Setting::Policy(number),
+        }
+    }
+
     fn word(self) -> &'static [u8] {
         match self {
             Self::Charter => b"charter",

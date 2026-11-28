@@ -277,6 +277,10 @@ pub trait Parts: core::fmt::Debug {
     fn release_again_refusal(&self, _task: &contract::Task) -> Option<&'static [u8]> {
         None
     }
+    /// A host's local file command reads the newest setting named by argument zero.
+    fn file_setting(&self, _call: &crate::jig::call::Call) -> Option<crate::jig::names::Kind> {
+        None
+    }
     /// Resolve the host's setting selector before reading the inventory.
     fn prepare_setting(&self, call: &mut crate::jig::call::Call, me: Option<&contract::Me>) -> bool;
     /// Select a host setting; none leaves selection to the kit's forms.

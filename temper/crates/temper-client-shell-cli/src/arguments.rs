@@ -42,6 +42,14 @@ pub fn file_root(parsed: &Parsed) -> Option<Box<[u8]>> {
     let path = match parsed {
         Parsed::File { file: Source::Path(path), .. } => path.as_ref(),
         Parsed::File { file: Source::Stdin, .. } => return None,
+        Parsed::Call { call, .. } if call.tool == table::CHARTER_COPY_AT => {
+            let into = if let Some(Value::Text(path)) = temper_client_tools::jig::call::value(call, 1) {
+                Some(path.as_ref())
+            } else {
+                None
+            };
+            return crate::directory::charter::Destination::new(into).map(|destination| destination.anchor);
+        }
         Parsed::Call { call, .. } => {
             let name = TOOLS[usize::from(call.tool)].name;
             if class(call) == Class::Help

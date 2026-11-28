@@ -57,6 +57,7 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::CHANGE_SETTINGS_AT), "help_settings_apply"),
     (Some(jig::rows::PROPOSE_SETTINGS_AT), "help_settings_propose"),
     (Some(jig::rows::UPGRADE_SETTINGS_AT), "help_settings_upgrade"),
+    (Some(table::CHARTER_COPY_AT), "help_charter_copy"),
     (Some(jig::rows::PROPOSAL_AT), "help_proposal_show"),
     (Some(jig::rows::MOVE_TO_NEWEST_AT), "help_revision_advance"),
     (Some(jig::rows::RESTORE_AT), "help_revision_restore"),
@@ -313,6 +314,7 @@ const USAGES: &[(u8, &[u8])] = &[
     (jig::rows::PARTY_REISSUE_AT, b"party reissue PARTY --out FILE [--key KEY]\n"),
     (jig::rows::HELP_AT, b"help [GROUP [VERB]]\n"),
     (jig::rows::UPGRADE_SETTINGS_AT, b"settings upgrade FILE\n"),
+    (table::CHARTER_COPY_AT, b"charter copy NUMBER [--into DIR]\n"),
     (jig::rows::SETTING_AT, b"settings show charter|template|policy NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager|project-landing|project-gates PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\nsettings show agents [--revision REVISION]\nsettings show welcome [--revision REVISION]\nsettings show limits\nsettings show temper-limits [--revision REVISION]\nsettings show model|worker|provider NUMBER [--revision REVISION]\n"),
 ];
 #[test]
@@ -580,6 +582,7 @@ mod reference {
     #[test]
     fn the_reference_documents_match_the_table() {
         super::reference_matches(b"worker", b"ctl-worker");
+        super::reference_matches(b"charter", b"ctl-charter");
     }
 }
 fn reference_matches(group_name: &[u8], page_name: &[u8]) {

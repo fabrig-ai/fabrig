@@ -307,6 +307,9 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
         }
         rows::TREE_AT => watch(runner, &mut reading, 3, c::Subject::Tree { task, window: env.limits.rows }, out),
         7 => watch(runner, &mut reading, 4, c::Subject::Run { task, turn: None, offset: 0 }, out),
+        _ if reading.parts.file_setting(&reading.called.call).is_some() => {
+            read(runner, &mut reading, 6, c::Read::Settings, out);
+        }
         _ => unreachable!("read tool"),
     }
     runner.active.insert(reading.called.call_number, reading);
@@ -504,20 +507,32 @@ fn setting_page(
     page: &Readout,
     out: &mut Queue<Out>,
 ) -> Result<bool, names::Missing> {
-    if reading.called.call.tool != rows::SETTING_AT || local != 6 {
+    let file = reading.parts.file_setting(&reading.called.call);
+    if (file.is_none() && reading.called.call.tool != rows::SETTING_AT) || local != 6 {
         return Ok(false);
     }
     let Readout::Jig(c::ReadResult::Value(c::ReadValue::Settings(settings))) = page else { return Ok(false) };
     let call = &mut reading.called.call;
-    if let Some(Value::Text(name)) = value(call, 1) {
-        let kind = match reading.parts.setting_name_kind(call) {
+    let argument = usize::from(file.is_none());
+    if let Some(Value::Text(name)) = value(call, argument) {
+        let kind = match file.or(reading.parts.setting_name_kind(call)) {
             Some(kind) => kind,
             None => settings_file::name_kind(call).expect("named setting form"),
         };
         let Some(number) = kind.number(settings, name) else { return Err(names::Missing::new(kind, name)) };
-        names::resolved(call, 1, number);
+        names::resolved(call, argument, number);
     }
-    setting_read(runner, reading, Some(settings), out);
+    if let Some(kind) = file {
+        let number = u32::try_from(number(call, argument).expect("setting number")).expect("parsed u32");
+        let what = c::Read::Setting(c::ReadSetting {
+            setting: kind.setting(number),
+            revision: settings.newest,
+            proposal: None,
+        });
+        read(runner, reading, 1, what, out);
+    } else {
+        setting_read(runner, reading, Some(settings), out);
+    }
     Ok(true)
 }
 fn person_page(

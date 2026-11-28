@@ -19,7 +19,7 @@ mod role;
 pub(crate) mod specification;
 pub(crate) mod talk;
 mod worker;
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FileEnd {
     Keep,
     Remove,
@@ -27,6 +27,17 @@ pub enum FileEnd {
     Service {
         party: u64,
     },
+    /// The terminal host creates a local file, or reports why it could not.
+    WriteNew {
+        file: Box<FileCopy>,
+    },
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FileCopy {
+    pub name: Box<[u8]>,
+    pub into: Option<Box<[u8]>>,
+    pub bytes: Box<[u8]>,
+    pub json: bool,
 }
 #[derive(Debug)]
 pub struct Printed {
@@ -243,6 +254,9 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
             acts::start(runner, client, env, called, out);
         }
         rows::TREE_AT => reads::start(runner, client, env, called, out),
+        _ if runner.parts.expect("host vocabulary").file_setting(&called.call).is_some() => {
+            reads::start(runner, client, env, called, out);
+        }
         _ => {
             let printed = render::failure(b"call not supported", called.json, 1);
             finish(called, printed, out);

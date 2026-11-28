@@ -1,0 +1,9 @@
+charter copy NUMBER [--into DIR]
+  NUMBER (number): a name or number from 0 to 4294967295; required. The charter's name or number
+  --into DIR: text, at most 1048576 bytes; optional. The destination directory; the working directory when absent
+Copy a deployment charter's words into a project file
+Prints: The path written and its length in bytes
+--json: the record charter_file.
+Key: none.
+Writes .temper/charters/NAME.md without the deployment's overlay.
+Never writes over a file already there. Takes its destination from command-line arguments, not --call.

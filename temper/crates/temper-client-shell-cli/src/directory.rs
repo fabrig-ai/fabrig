@@ -8,6 +8,7 @@ use skein_io::{
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use std::net::SocketAddr;
 use temper_client_tools::jig::FileEnd;
+pub(crate) mod charter;
 mod overlays;
 const OWNER: Token = Token::new(1);
 // The existing five slots plus the two amendment text parents.
@@ -15,6 +16,7 @@ pub(crate) const FILE_SLOTS: u32 = 7;
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Stage {
     Overlay,
+    Charter,
     Start,
     Exists,
     Checked,
@@ -41,6 +43,8 @@ enum Stage {
 }
 pub(crate) struct Directory {
     sets: Option<overlays::Sets>,
+    charter: Option<charter::Writing>,
+    pub(crate) charter_written: Option<charter::Written>,
     pub(crate) loaded_sets: Option<skein_lib::List<settings_form::overlay::Directory>>,
     io: FileIo,
     limits: Limits,
@@ -108,6 +112,8 @@ impl Directory {
         }
         Self {
             sets: None,
+            charter: None,
+            charter_written: None,
             loaded_sets: None,
             io,
             limits,
@@ -200,6 +206,10 @@ impl Directory {
         self.close();
     }
     fn answer(&mut self, now: Time, event: file::Event) {
+        if self.stage == Stage::Charter {
+            self.charter_answer(event);
+            return;
+        }
         if self.stage == Stage::Overlay && !self.closing {
             self.sets_answer(event);
             return;
@@ -256,6 +266,7 @@ impl Directory {
         }
         if let file::Event::Refused { found, .. } = event {
             let part = match self.stage {
+                Stage::Charter => unreachable!("charter answers have their own path"),
                 Stage::Overlay => "overlay",
                 Stage::Address | Stage::Store => "address",
                 Stage::PartyRead | Stage::PartyStore => "party",
@@ -336,6 +347,7 @@ impl Directory {
             (stage, event) => {
                 let words = answer_words(&event);
                 let message = match stage {
+                    Stage::Charter => unreachable!("charter answers have their own path"),
                     Stage::KeyOpen | Stage::KeyStat | Stage::KeyRead | Stage::KeyClose => {
                         self.answer_key(event);
                         return;
@@ -448,6 +460,7 @@ impl Directory {
             self.stage = if self.class == Class::SignIn { Stage::Private } else { Stage::Exists };
         }
         let request = match self.stage {
+            Stage::Charter => self.charter_request(),
             Stage::Overlay => {
                 let Some(request) = self.sets_request() else { return };
                 request
@@ -564,6 +577,7 @@ impl Directory {
         if let Some(file) = self
             .record
             .take()
+            .or_else(|| self.close_charter())
             .or_else(|| self.close_set())
             .or_else(|| self.key.take())
             .or_else(|| self.check.take())
