@@ -244,6 +244,7 @@ fn settings_answers_and_each_fault_keep_their_facts() {
             (p::SettingFault::Judged, w::SettingFault::Judged),
             (p::SettingFault::Linked, w::SettingFault::Linked),
             (p::SettingFault::Range, w::SettingFault::Range),
+            (p::SettingFault::Name, w::SettingFault::Name),
         ] {
             let value = translate::refusals::refusal(
                 p::Refusal::NotWellFormed { at: 0, why: p::Malformed::Settings { setting, fault, detail: None } },

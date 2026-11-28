@@ -398,6 +398,7 @@ enum FollowVerdict = f::FollowVerdict { failing tuple }
 record FollowParity = f::FollowParity
 record FollowView = f::FollowView { entries slice, skips slice }
 record FollowsPanel = f::FollowsView { follows slice, dependencies slice }
-enum AreaOwner = f::settings::AreaOwner { task tuple, party tuple, role tuple, charter tuple }
+record AreaCharterNamed stands for name
+enum AreaOwner = f::settings::AreaOwner { task tuple, party tuple, role tuple, charter tuple, charter_named tuple }
 record AreaRow = f::AreaRow
 record Findings = f::Findings { rows slice, areas slice }

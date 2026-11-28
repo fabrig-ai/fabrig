@@ -203,10 +203,7 @@
       },
       "set": {
         "number": 4,
-        "name": {
-          "bytes": "goal for a draft",
-          "cut": false
-        },
+        "shown": "goal for a draft",
         "executor": {
           "charter": 5
         },

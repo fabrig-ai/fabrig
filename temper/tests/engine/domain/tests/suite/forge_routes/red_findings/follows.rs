@@ -168,7 +168,11 @@ fn world_with_wait(
     let area_owner = if person { s::AreaOwner::Party(1) } else { s::AreaOwner::Task(role.task) };
     let areas: Box<[_]> = if has_area {
         // A nonmatching holder first; matching names are deliberately not in byte order.
-        Box::new([area(b"other", s::AreaOwner::Role(0)), area(b"port", area_owner), area(b"a-port", area_owner)])
+        Box::new([
+            area(b"other", s::AreaOwner::Role(0)),
+            area(b"port", area_owner.clone()),
+            area(b"a-port", area_owner),
+        ])
     } else {
         Box::new([])
     };

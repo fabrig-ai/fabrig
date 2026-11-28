@@ -40,8 +40,9 @@ fn model() -> c::MeModel {
 }
 pub(super) fn template(number: u32) -> c::Template {
     c::Template {
+        name: None,
         number,
-        name: c::DocumentText::complete(text(b"Chat")),
+        shown: c::DocumentText::complete(text(b"Chat")),
         executor: c::TemplateExecutor::Charter(1),
         contract: c::TaskContractDocument::Report { words: 32 },
         shallower: 1,

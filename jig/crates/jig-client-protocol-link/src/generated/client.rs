@@ -4238,10 +4238,10 @@ pub fn needs_to_domain(record: jig_client_protocol_wire::v44::Needs) -> jig_clie
 }
 
 pub fn template_to_domain(record: jig_client_protocol_wire::v44::Template, context: &crate::Limits) -> Result<jig_client_domain::contract::Template, jig_client_protocol_wire::v44::Problem> {
-    let jig_client_protocol_wire::v44::Template { number: field_000000, name: field_000001, executor: field_000002, contract: field_000003, shallower: field_000004, budget: field_000005, deadline: field_000006, tracked: field_000007, flags: field_000008, label: field_000009, grace: field_000010, llm: field_000011, resources: field_000012 } = record;
+    let jig_client_protocol_wire::v44::Template { number: field_000000, shown: field_000001, executor: field_000002, contract: field_000003, shallower: field_000004, budget: field_000005, deadline: field_000006, tracked: field_000007, flags: field_000008, label: field_000009, grace: field_000010, llm: field_000011, resources: field_000012, name: field_000013 } = record;
     Ok(jig_client_domain::contract::Template {
         number: field_000000,
-        name: crate::translate::client::document_text_to_domain(field_000001, context)?,
+        shown: crate::translate::client::document_text_to_domain(field_000001, context)?,
         executor: template_executor_to_domain(field_000002),
         contract: crate::translate::client::task_contract_document_to_domain(field_000003, context)?,
         shallower: field_000004,
@@ -4279,6 +4279,13 @@ pub fn template_to_domain(record: jig_client_protocol_wire::v44::Template, conte
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
+        },
+        name: match field_000013 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
         }
     })
 }
@@ -4333,6 +4340,15 @@ pub fn readiness_to_domain(record: jig_client_protocol_wire::v44::Readiness) -> 
         jig_client_protocol_wire::v44::Readiness::Usable => jig_client_domain::contract::Readiness::Usable,
         jig_client_protocol_wire::v44::Readiness::Unavailable => jig_client_domain::contract::Readiness::Unavailable,
         jig_client_protocol_wire::v44::Readiness::Unknown => jig_client_domain::contract::Readiness::Unknown,
+    }
+}
+
+#[must_use]
+pub fn me_charter_to_domain(record: jig_client_protocol_wire::v44::MeCharter) -> jig_client_domain::contract::MeCharter {
+    let jig_client_protocol_wire::v44::MeCharter { number: field_000000, name: field_000001 } = record;
+    jig_client_domain::contract::MeCharter {
+        number: field_000000,
+        name: field_000001
     }
 }
 
@@ -6790,6 +6806,7 @@ pub fn setting_fault_to_domain(record: jig_client_protocol_wire::v44::SettingFau
         jig_client_protocol_wire::v44::SettingFault::Linked => jig_client_domain::contract::SettingFault::Linked,
         jig_client_protocol_wire::v44::SettingFault::Accounts => jig_client_domain::contract::SettingFault::Accounts,
         jig_client_protocol_wire::v44::SettingFault::Range => jig_client_domain::contract::SettingFault::Range,
+        jig_client_protocol_wire::v44::SettingFault::Name => jig_client_domain::contract::SettingFault::Name,
     }
 }
 
@@ -6921,10 +6938,10 @@ pub fn application_state_to_domain(record: jig_client_protocol_wire::v44::Applic
 }
 
 pub fn setting_line_to_domain(record: jig_client_protocol_wire::v44::SettingLine, context: &crate::Limits) -> Result<jig_client_domain::contract::SettingLine, jig_client_protocol_wire::v44::Problem> {
-    let jig_client_protocol_wire::v44::SettingLine { setting: field_000000, name: field_000001, follows: field_000002, last: field_000003, application: field_000004 } = record;
+    let jig_client_protocol_wire::v44::SettingLine { setting: field_000000, shown: field_000001, follows: field_000002, last: field_000003, application: field_000004, name: field_000005 } = record;
     Ok(jig_client_domain::contract::SettingLine {
         setting: setting_to_domain(field_000000),
-        name: match field_000001 {
+        shown: match field_000001 {
             Some(item) => {
                 let converted = crate::translate::client::document_text_to_domain(item, context)?;
                 Some(converted)
@@ -6942,6 +6959,13 @@ pub fn setting_line_to_domain(record: jig_client_protocol_wire::v44::SettingLine
         application: match field_000004 {
             Some(item) => {
                 let converted = application_state_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        name: match field_000005 {
+            Some(item) => {
+                let converted = item;
                 Some(converted)
             }
             None => None,

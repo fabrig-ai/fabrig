@@ -2993,8 +2993,9 @@ fn home_domain(name: &str) -> Domain {
                         let mut lines = List::with_capacity(1);
                         lines
                             .push(c::SettingLine {
-                                setting: c::Setting::Application { kind: 2, scope: 1, number: 1 },
                                 name: None,
+                                setting: c::Setting::Application { kind: 2, scope: 1, number: 1 },
+                                shown: None,
                                 follows: if everyday || matches!(name, "home-ready" | "home-begin-settings-left") {
                                     c::SettingFollows::Change
                                 } else {

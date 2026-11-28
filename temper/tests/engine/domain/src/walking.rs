@@ -390,6 +390,7 @@ pub fn config(seed: u64) -> engine::Config {
                 number: 1,
                 name: "Project 1".into(),
                 policy: jig_domain_core::ConfiguredPolicy {
+                    name: None,
                     policy,
                     permissions: permission_roles().remove(&1).expect("project permissions"),
                     templates: Box::new([]),
@@ -460,6 +461,7 @@ pub fn models() -> Box<[engine::Model]> {
 #[must_use]
 pub fn charter() -> engine::Charter {
     engine::Charter {
+        name: None,
         parts: Box::new([]),
         rest: false,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,

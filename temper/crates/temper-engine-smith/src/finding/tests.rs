@@ -280,6 +280,27 @@ fn finding_answers_use_the_tools_words_and_mark_refusals_as_errors() {
     assert_eq!(shown.text(), "3/12 new red high tests task 40: boot flaké\nfiler: task 2\nat: 19\nwhy: flake\ngoal: task 99\nreason: duplicate\n\nreproduce é".as_bytes());
 }
 #[test]
+fn finding_list_prints_a_named_charter_owner_as_written() {
+    let owner = f::settings::AreaOwner::CharterNamed(b"triager".as_slice().into());
+    let answer = engine::CallAnswer::Finding(Box::new(Answer::List(f::Findings {
+        project: 3,
+        rows: Box::new([]),
+        areas: Box::new([f::AreaRow {
+            name: b"tests".as_slice().into(),
+            words: b"Suite".as_slice().into(),
+            owner: owner.clone(),
+            holder: Some(f::Holder::Task(40)),
+        }]),
+        triager: Some(owner),
+        holder: f::Holder::Task(40),
+        cut: false,
+    })));
+    let rendered = crate::answer(&answer);
+    assert!(!rendered.error());
+    assert_eq!(rendered.text(), b"tests (charter triager, task 40): Suite\ntriager (charter triager, task 40)");
+}
+
+#[test]
 #[expect(clippy::disallowed_methods, reason = "the test checks that bounded replies preserve UTF-8")]
 fn finding_list_fits_whole_lines_and_counts_every_omitted_entry() {
     let doc = f::Findings {

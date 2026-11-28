@@ -32,6 +32,7 @@ fn model() -> core::Model {
 
 pub(super) fn charter() -> core::Charter {
     core::Charter {
+        name: None,
         parts: Box::new([
             core::CharterPart { on: tasks::Reasons::FIRST, instructions: Box::from(b"first part".as_slice()) },
             core::CharterPart {
@@ -107,8 +108,9 @@ fn rules() -> a::Rules {
     }
 }
 
-fn policy() -> core::ConfiguredPolicy {
+pub(super) fn policy() -> core::ConfiguredPolicy {
     core::ConfiguredPolicy {
+        name: None,
         policy: a::Policy {
             escalation_role: Some(0),
             ceiling: authority(),
@@ -134,11 +136,12 @@ fn policy() -> core::ConfiguredPolicy {
     }
 }
 
-fn template() -> core::Template {
+pub(super) fn template() -> core::Template {
     core::Template {
+        name: None,
         resources: Box::new([]),
         number: 1,
-        name: Box::from(b"template".as_slice()),
+        shown: Box::from(b"template".as_slice()),
         executor: people::TemplateExecutor::Charter(1),
         contract: tasks::Contract::Verdict {
             choices: Box::new([tasks::Verdict {
@@ -172,7 +175,7 @@ fn template() -> core::Template {
     }
 }
 
-fn catalogue_name(name: &[u8]) -> s::ModelName {
+pub(super) fn catalogue_name(name: &[u8]) -> s::ModelName {
     s::ModelName {
         name: Box::from(name),
         efforts: Box::new([Box::from(b"low".as_slice()), Box::from(b"high".as_slice())]),

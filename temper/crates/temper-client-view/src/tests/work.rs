@@ -93,7 +93,7 @@ impl Fixture {
         chat.label = 7;
         let mut milestone = goal.clone();
         milestone.number = 1;
-        milestone.name = text(b"milestone");
+        milestone.shown = text(b"milestone");
         milestone.flags.ended_by = c::EndedBy::Requester;
         frame.projects.get_mut(0).unwrap().templates = list(&[chat, milestone, goal]);
         f::deliver_me(&mut root, me, frame);

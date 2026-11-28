@@ -152,12 +152,20 @@ pub(super) fn overlay(d: &Decoder<'_>, at: u32, number: u32) -> Result<c::Overla
         },
     })
 }
+fn setting_name(d: &Decoder<'_>, at: Option<u32>) -> Result<Option<Box<[u8]>>, Error> {
+    match at {
+        Some(at) => Ok(Some(d.words(at, crate::SETTING_NAME_BYTES, b"name")?.into_bytes())),
+        None => Ok(None),
+    }
+}
+
 pub(super) fn charter(d: &Decoder<'_>, at: u32) -> Result<c::Charter, Error> {
     let fields = d.object(
         at,
         &[
             b"rest",
             b"number",
+            b"name",
             b"instructions",
             b"waiting",
             b"resume",
@@ -183,6 +191,7 @@ pub(super) fn charter(d: &Decoder<'_>, at: u32) -> Result<c::Charter, Error> {
     let resume = d.boolean(field(&fields, b"resume")?)?;
     let parts = charter_parts(d, optional(&fields, b"parts"))?;
     Ok(c::Charter {
+        name: setting_name(d, optional(&fields, b"name"))?,
         parts,
         rest: match optional(&fields, b"rest") {
             Some(at) => d.boolean(at)?,
@@ -526,6 +535,7 @@ pub(super) fn template(d: &Decoder<'_>, at: u32) -> Result<c::Template, Error> {
         &[
             b"resources",
             b"number",
+            b"shown",
             b"name",
             b"executor",
             b"contract",
@@ -540,10 +550,14 @@ pub(super) fn template(d: &Decoder<'_>, at: u32) -> Result<c::Template, Error> {
         ],
     )?;
     Ok(c::Template {
+        name: match optional(&fields, b"shown") {
+            Some(_) => setting_name(d, optional(&fields, b"name"))?,
+            None => None,
+        },
         resources: template_resources(d, optional(&fields, b"resources"))?,
         number: u32::try_from(d.number(field(&fields, b"number")?)?)
             .or(Err(error(b"template_number", b"integer bound")))?,
-        name: d.document_text(field(&fields, b"name")?)?,
+        shown: template_shown(d, &fields)?,
         executor: template_executor(d, field(&fields, b"executor")?)?,
         contract: task_contract_document(d, field(&fields, b"contract")?)?,
         shallower: u32::try_from(d.number(field(&fields, b"shallower")?)?)
@@ -572,6 +586,16 @@ pub(super) fn template(d: &Decoder<'_>, at: u32) -> Result<c::Template, Error> {
             Some(llm_choice(d, field(&fields, b"llm")?)?)
         },
     })
+}
+fn template_shown(d: &Decoder<'_>, fields: &super::Fields) -> Result<c::DocumentText, Error> {
+    let at = match optional(fields, b"shown") {
+        Some(at) => at,
+        None => optional(fields, b"name").ok_or(error(b"shown", b"missing member"))?,
+    };
+    if d.kind(at)? == Kind::String {
+        return Ok(c::DocumentText::complete(d.words(at, d.limits.document_text_bytes, b"shown")?));
+    }
+    d.document_text(at)
 }
 fn template_resources(d: &Decoder<'_>, at: Option<u32>) -> Result<List<c::Symbol>, Error> {
     let Some(at) = at else { return Ok(List::with_capacity(0)) };
@@ -611,6 +635,7 @@ pub(super) fn setting_policy(d: &Decoder<'_>, at: u32) -> Result<c::SettingPolic
     let fields = d.object(
         at,
         &[
+            b"name",
             b"escalation_role",
             b"ceiling",
             b"projections",
@@ -622,6 +647,7 @@ pub(super) fn setting_policy(d: &Decoder<'_>, at: u32) -> Result<c::SettingPolic
         ],
     )?;
     Ok(c::SettingPolicy {
+        name: setting_name(d, optional(&fields, b"name"))?,
         escalation_role: if d.kind(field(&fields, b"escalation_role")?)? == Kind::Null {
             None
         } else {

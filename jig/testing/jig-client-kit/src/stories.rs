@@ -25,6 +25,7 @@ pub fn text(bytes: &[u8]) -> Text {
 #[must_use]
 pub fn frame(party: u64) -> Me {
     Me {
+        charters: skein_lib::List::with_capacity(0),
         providers: skein_lib::List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,

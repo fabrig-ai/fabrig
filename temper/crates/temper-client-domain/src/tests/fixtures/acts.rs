@@ -227,6 +227,7 @@ pub fn live_client() -> jig_client::Client {
     let empty = w::DocumentText { bytes: Box::from([]), cut: false };
     let party = w::MeParty { number: PARTY, kind: w::PartyKind::Person, login: empty.clone(), name: empty };
     let me = w::Me {
+        charters: List::with_capacity(0),
         providers: Box::new([]),
         providers_cut: false,
         key_bytes: 256,

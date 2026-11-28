@@ -141,8 +141,12 @@ fn inventory_text(document: &c::SettingsDocument, vocabulary: &dyn Parts, out: &
         out.put(b"  ");
         setting_text(line.setting, vocabulary, out);
         if let Some(name) = &line.name {
+            out.put(b" ");
+            out.put(name);
+        }
+        if let Some(shown) = &line.shown {
             out.put(b" \"");
-            out.words(name.bytes.bytes());
+            out.words(shown.bytes.bytes());
             out.put(b"\"");
         }
         out.put(b": ");

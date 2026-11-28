@@ -574,8 +574,9 @@ fn settings_inventory(count: u32) -> c::SettingsDocument {
     for number in 0..count {
         settings
             .push(c::SettingLine {
-                setting: c::Setting::Charter(c::SettingNumber { number }),
                 name: None,
+                setting: c::Setting::Charter(c::SettingNumber { number }),
+                shown: None,
                 follows: c::SettingFollows::Default,
                 last: Some(0),
                 application: None,
@@ -726,8 +727,9 @@ fn application_items_and_states_round_trip_without_treating_bytes_as_text() {
     ] {
         let state = c::ApplicationState { follows, size: 17, charters: List::with_capacity(0) };
         let source = c::SettingLine {
-            setting: c::Setting::Application { kind: 6, scope: 8, number: 2 },
             name: None,
+            setting: c::Setting::Application { kind: 6, scope: 8, number: 2 },
+            shown: None,
             follows: c::SettingFollows::Change,
             last: Some(4),
             application: Some(state),

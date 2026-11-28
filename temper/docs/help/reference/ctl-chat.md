@@ -28,7 +28,7 @@ they consume no conversation words budget. JSON leaves those payload fields null
 ```
 chat start --project PROJECT [--template TEMPLATE] TEXT [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... [--speed SPEED] [--sub-agent-speed MODEL:SPEED]... --key KEY
   --project PROJECT: a project's name or number; required. The project
-  --template TEMPLATE: a number; optional. A chat's template by its number; the project's chat template when absent
+  --template TEMPLATE: a name or number from 0 to 18446744073709551615; optional. A chat's template by name or number; the project's chat template when absent
   TEXT (text): text, at most 1048576 bytes, or - to read stdin; required. The opening words
   --model MODEL: text, at most 1048576 bytes, or - to read stdin; optional. A model the chat may use, as model list shows it
   --effort EFFORT: text, at most 1048576 bytes, or - to read stdin; optional. An effort that model offers

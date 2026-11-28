@@ -558,7 +558,7 @@ fn how(ways: Option<Ways>) -> d::Domain {
     for (number, name) in [(11, "One agent, one branch"), (4, "goal for a draft")] {
         let mut template = template.clone();
         template.number = number;
-        template.name = c::DocumentText::complete(c::Text::new(name.as_bytes().into(), 32).unwrap());
+        template.shown = c::DocumentText::complete(c::Text::new(name.as_bytes().into(), 32).unwrap());
         template.tracked = Some(1);
         project.templates.push(template).unwrap();
     }

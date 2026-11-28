@@ -265,7 +265,8 @@ fn findings_documents_and_details_round_trip_at_their_caps() {
     for _ in 0_u32..16 {
         areas.push(area.clone()).unwrap();
     }
-    let document = v1::Findings { project: 3, rows, areas, triager: Some(owner()), holder: holder(), cut: true };
+    let named = v1::AreaOwner::CharterNamed(v1::AreaCharterNamed { name: filled(32) });
+    let document = v1::Findings { project: 3, rows, areas, triager: Some(named), holder: holder(), cut: true };
     let bytes = crate::findings(&document);
     assert_eq!(crate::decode_findings(&bytes, limits), Some(document.clone()));
     let mut trailing = Writer::new(bytes.len().checked_add(1).unwrap());

@@ -221,8 +221,9 @@ fn hello() -> Box<[u8]> {
 
 fn me() -> w::Me {
     let template = w::Template {
+        name: None,
         number: jig_client::shapes::CHAT,
-        name: records::wire_text(b"Chat"),
+        shown: records::wire_text(b"Chat"),
         executor: w::TemplateExecutor::Charter(w::TemplateCharter { value: 7 }),
         contract: w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: 32 }),
         shallower: 1,

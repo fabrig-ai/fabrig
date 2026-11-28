@@ -219,8 +219,16 @@ fn encode_parts(parts: &skein_lib::List<c::CharterPart>, out: &mut Encoder) {
     }
     out.array_end();
 }
+pub(super) fn encode_setting_name(name: Option<&[u8]>, out: &mut Encoder) {
+    if let Some(name) = name {
+        out.key(b"name");
+        out.string(name);
+    }
+}
+
 pub fn encode_charter(value: &c::Charter, out: &mut Encoder) {
     out.object_start();
+    encode_setting_name(value.name.as_deref(), out);
     out.key(b"rest");
     out.boolean(value.rest);
     out.key(b"number");
@@ -366,8 +374,14 @@ pub fn encode_template(value: &c::Template, out: &mut Encoder) {
     out.array_end();
     out.key(b"number");
     out.unsigned(u64::from(value.number));
-    out.key(b"name");
-    encode_document_text(&value.name, out);
+    encode_setting_name(value.name.as_deref(), out);
+    out.key(b"shown");
+    // A cut preview keeps its flag; whole display text prints in the settings file form.
+    if value.shown.cut {
+        encode_document_text(&value.shown, out);
+    } else {
+        out.string(value.shown.bytes());
+    }
     out.key(b"executor");
     encode_template_executor(value.executor, out);
     out.key(b"contract");
@@ -407,6 +421,7 @@ pub fn encode_template(value: &c::Template, out: &mut Encoder) {
 }
 pub fn encode_setting_policy(value: &c::SettingPolicy, out: &mut Encoder) {
     out.object_start();
+    encode_setting_name(value.name.as_deref(), out);
     out.key(b"escalation_role");
     match &value.escalation_role {
         Some(value) => {

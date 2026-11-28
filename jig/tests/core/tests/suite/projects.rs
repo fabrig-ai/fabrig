@@ -41,7 +41,10 @@ fn configuration() -> (root::Config, root::Limits) {
         .core
         .defaults
         .policies
-        .insert(POLICY, core::ConfiguredPolicy { policy, permissions: Box::new([]), templates: seed.templates.clone() })
+        .insert(
+            POLICY,
+            core::ConfiguredPolicy { name: None, policy, permissions: Box::new([]), templates: seed.templates.clone() },
+        )
         .expect("one configured policy");
     jig_core_world::peers::journal(&mut limits);
     (config, limits)

@@ -147,6 +147,7 @@ pub struct Field {
 #[derive(Debug)]
 pub enum Value {
     Integer(Width),
+    CharterOwner,
     Nanoseconds,
     Time,
     Boolean,
@@ -413,7 +414,8 @@ pub fn members(shape: Shape) -> &'static [Field] {
 }
 // client/ctl/overlays.md, 1: replaced members share the charter's rows.
 pub(crate) fn overlay_replaces(field: &Field) -> bool {
-    field.shape == Shape::Charter && ![b"number".as_slice(), b"instructions", b"parts", b"wake"].contains(&field.name)
+    field.shape == Shape::Charter
+        && ![b"number".as_slice(), b"name", b"instructions", b"parts", b"wake"].contains(&field.name)
 }
 
 pub(crate) fn member(shape: Shape, name: &[u8]) -> Option<&'static Field> {
@@ -465,6 +467,7 @@ pub fn resolve(path: &[u8]) -> Option<&'static Field> {
             shape = match member.value {
                 Value::Shape(s) => Some(s),
                 Value::Integer(_)
+                | Value::CharterOwner
                 | Value::Nanoseconds
                 | Value::Time
                 | Value::Boolean

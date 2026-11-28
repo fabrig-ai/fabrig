@@ -942,6 +942,8 @@ pub enum SettingFault {
     Accounts,
     /// A charter, template, policy or model numbered out of its range.
     Range,
+    /// A reserved or already offered charter, template or policy name.
+    Name,
 }
 
 /// The charter member rejected by the settings check (domain/engine/settings.md, 9).

@@ -147,9 +147,10 @@ pub(crate) fn chat_me(budget: u64) -> c::Me {
     project
         .templates
         .push(c::Template {
+            name: None,
             resources: List::with_capacity(0),
             number: jig_client::shapes::CHAT,
-            name: document_text(b"chat"),
+            shown: document_text(b"chat"),
             executor: c::TemplateExecutor::Charter(1),
             contract: c::TaskContractDocument::Report { words: crate::limits::TEXT },
             shallower: CHAT_ENTRIES,

@@ -25,9 +25,10 @@ pub fn line() -> c::TaskLine {
 #[must_use]
 pub fn template(number: u32, name: &[u8], tracked: bool) -> c::Template {
     c::Template {
+        name: None,
         resources: List::uncapped(),
         number,
-        name: c::DocumentText::complete(c::Text::new(name.into(), TEXT_BYTES).unwrap()),
+        shown: c::DocumentText::complete(c::Text::new(name.into(), TEXT_BYTES).unwrap()),
         executor: c::TemplateExecutor::Charter(CHARTER),
         contract: c::TaskContractDocument::Report { words: TEXT_BYTES },
         shallower: DEPTH,

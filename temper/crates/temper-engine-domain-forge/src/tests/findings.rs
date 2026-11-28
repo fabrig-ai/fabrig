@@ -15,16 +15,16 @@ fn the_owner_chain_uses_standing_then_triager_then_project_owners() {
         }]),
     };
     let standing = [
-        (AreaOwner::Task(40), Holder::Task(40)),
-        (AreaOwner::Charter(14), Holder::Task(47)),
-        (AreaOwner::Party(7), Holder::Party(7)),
+        (&AreaOwner::Task(40), Holder::Task(40)),
+        (&AreaOwner::Charter(14), Holder::Task(47)),
+        (&AreaOwner::Party(7), Holder::Party(7)),
     ];
-    assert_eq!(owner(Some(b"tests"), &areas, Some(AreaOwner::Charter(14)), &standing), Holder::Task(40));
-    assert_eq!(owner(Some(b"tests"), &areas, Some(AreaOwner::Charter(14)), &standing[1..]), Holder::Task(47));
+    assert_eq!(owner(Some(b"tests"), &areas, Some(&AreaOwner::Charter(14)), &standing), Holder::Task(40));
+    assert_eq!(owner(Some(b"tests"), &areas, Some(&AreaOwner::Charter(14)), &standing[1..]), Holder::Task(47));
     assert_eq!(owner(None, &areas, None, &standing), Holder::Role(0));
-    assert_eq!(owner(Some(b"removed"), &areas, Some(AreaOwner::Party(7)), &standing), Holder::Party(7));
-    assert_eq!(owner(Some(b"tests"), &areas, Some(AreaOwner::Party(8)), &[]), Holder::Role(0));
-    assert_eq!(owner(None, &areas, Some(AreaOwner::Role(9)), &[]), Holder::Role(9));
+    assert_eq!(owner(Some(b"removed"), &areas, Some(&AreaOwner::Party(7)), &standing), Holder::Party(7));
+    assert_eq!(owner(Some(b"tests"), &areas, Some(&AreaOwner::Party(8)), &[]), Holder::Role(0));
+    assert_eq!(owner(None, &areas, Some(&AreaOwner::Role(9)), &[]), Holder::Role(9));
 }
 fn move_fixture() -> (Domain, Finding) {
     let mut d = tiers::restoring(Some(b"release"));

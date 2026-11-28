@@ -3,6 +3,7 @@
 2026-11-27. Where the tree's code lags or departs from [documents.md](documents.md).
 
 
+
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings-catalogue.status.md`, 2.
 
 `reads.md`, section 1, and `watches.md`, section 1.3 have a party's scope and withheld turns by plan

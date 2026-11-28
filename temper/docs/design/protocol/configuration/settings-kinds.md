@@ -337,14 +337,17 @@ forge's connector, which judges them (jig's `domain/engine/settings-application.
     by the root, from the core, as kind 7's way is, an owner that is not
     of the project: a `task` not a live task of it, a `party` with no
     role in it, a `role` past jig's `authority.roles`, a `charter` 0 or
-    past 64, a charter's numbers; the refusal names the area and the
-    owner. A removal or a reset is always good;
+    past 64, a charter's numbers, or a `charter` name out of a name's
+    form (jig's `domain/engine/settings.md`, 1, Names), whether or not a
+    charter has it; the refusal names the area and the owner. A removal
+    or a reset is always good;
   - *named* `project-areas` and `project-triager`, with the `project`,
     in a settings file and a run's `settings`, `see` and
     `propose_settings`; kind 14's value `{"areas": [{"name": NAME,
     "words": TEXT, "owner": OWNER}, ...]}`, kind 15's `{"owner":
-    OWNER}`, OWNER one of `{"task": N}`, `{"party": N}`, `{"role": N}`
-    and `{"charter": N}`; read by any party with a role in the project,
+    OWNER}`, OWNER one of `{"task": N}`, `{"party": N}`, `{"role": N}`,
+    `{"charter": N}` and `{"charter": "NAME"}`, the text form's `charter
+    N` and `charter NAME`, kept as written; read by any party with a role in the project,
     as kinds 2, 6, 7, 8 and 10 are;
   - *read by* the root's owner rule (`../../domain/areas.md`, section 4)
     and the forge's `findings` subject (`../../client/forge/records.md`);

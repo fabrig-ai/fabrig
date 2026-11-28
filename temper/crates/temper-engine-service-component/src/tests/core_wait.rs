@@ -68,7 +68,10 @@ fn kept_settings_warn_once_after_start_and_none_warns_of_nothing() {
         }
         fixtures::restart(&mut service);
         fixtures::restart(&mut service);
-        let expected = b"settings kept at stock numbers as a deployment's own (the stock's 1 to 32, a deployment's own 33 to 64): charter 17, charter 19, template 9, template 16; a release whose stock brings one of these numbers refuses its start until each moves to 33 to 64";
+        let expected = b"settings kept at stock numbers as a deployment's own (the stock's 1 to 32, a deployment's own 33 to 64): \
+                         charter 17, charter 19, template 9, template 16; \
+                         a release whose stock brings one of these numbers refuses its start until each moves to 33 to 64; \
+                         settings offered without a name now reserved by the stock: charter 17, charter 19, template 9, template 16";
         let mut warnings = 0_u32;
         for note in &service.engine.as_ref().unwrap().notes {
             if let Note::StartupWarning { line } = note

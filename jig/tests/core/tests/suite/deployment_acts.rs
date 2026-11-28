@@ -409,6 +409,7 @@ fn project_world(granted: bool) -> World {
         .insert(
             1,
             core::ConfiguredPolicy {
+                name: None,
                 policy: seed.policy.clone(),
                 permissions: Box::new([]),
                 templates: seed.templates.clone(),

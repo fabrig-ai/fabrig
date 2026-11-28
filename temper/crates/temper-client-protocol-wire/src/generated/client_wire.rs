@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 47;
 pub const LAYOUT: [u8; 32] = [
-    0xda, 0x4d, 0x4c, 0xc0, 0xef, 0xcb, 0xfa, 0x16, 0xb0, 0xe5, 0x5f, 0xa4, 0x54, 0xed, 0x0b, 0x2c, 0xf9, 0x0c, 0x13,
-    0x59, 0xc0, 0xd7, 0xe1, 0x31, 0xb5, 0x42, 0xa0, 0x62, 0x0d, 0x29, 0x01, 0x6d,
+    0xd8, 0x0d, 0x3b, 0x7d, 0xab, 0xcc, 0xc5, 0xf8, 0x55, 0x23, 0xe6, 0x2f, 0xe6, 0x9b, 0x85, 0x0a, 0xef, 0x05, 0x8d,
+    0xeb, 0x91, 0x7f, 0xe5, 0x66, 0x70, 0x2d, 0xe6, 0xcd, 0x58, 0xb8, 0x97, 0xec,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -327,6 +327,7 @@ pub struct Limits {
     pub follow_view_skips: u32,
     pub follows_panel_follows: u32,
     pub follows_panel_dependencies: u32,
+    pub area_charter_named_name: u32,
     pub area_name: u32,
     pub area_words: u32,
     pub project_areas_areas: u32,
@@ -654,6 +655,7 @@ pub const CEILINGS: Limits = Limits {
     follow_view_skips: 256,
     follows_panel_follows: 256,
     follows_panel_dependencies: 256,
+    area_charter_named_name: 32,
     area_name: 32,
     area_words: 480,
     project_areas_areas: 16,
@@ -981,6 +983,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "follow_view_skips",
     "follows_panel_follows",
     "follows_panel_dependencies",
+    "area_charter_named_name",
     "area_name",
     "area_words",
     "project_areas_areas",
@@ -1312,6 +1315,7 @@ impl Limits {
             self.follow_view_skips,
             self.follows_panel_follows,
             self.follows_panel_dependencies,
+            self.area_charter_named_name,
             self.area_name,
             self.area_words,
             self.project_areas_areas,
@@ -1644,6 +1648,7 @@ impl Limits {
             follow_view_skips: self.follow_view_skips.min(most),
             follows_panel_follows: self.follows_panel_follows.min(most),
             follows_panel_dependencies: self.follows_panel_dependencies.min(most),
+            area_charter_named_name: self.area_charter_named_name.min(most),
             area_name: self.area_name.min(most),
             area_words: self.area_words.min(most),
             project_areas_areas: self.project_areas_areas.min(most),
@@ -1973,6 +1978,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::FOLLOW_VIEW_SKIPS,
     paths::FOLLOWS_PANEL_FOLLOWS,
     paths::FOLLOWS_PANEL_DEPENDENCIES,
+    paths::AREA_CHARTER_NAMED_NAME,
     paths::AREA_NAME,
     paths::AREA_WORDS,
     paths::PROJECT_AREAS_AREAS,
@@ -3579,6 +3585,8 @@ pub mod paths {
     pub const FOLLOWS_PANEL_DEPENDENCIES: Path = Path::new("FollowsPanel.dependencies");
     pub const FOLLOWS_PANEL_VERSION: Path = Path::new("FollowsPanel (version)");
     pub const FOLLOWS_PANEL_TAIL: Path = Path::new("FollowsPanel (tail)");
+    pub const AREA_CHARTER_NAMED_NAME: Path = Path::new("AreaCharterNamed.name");
+    pub const AREA_CHARTER_NAMED_TAIL: Path = Path::new("AreaCharterNamed (tail)");
     pub const AREA_OWNER_TAG: Path = Path::new("AreaOwner (tag)");
     pub const AREA_NAME: Path = Path::new("Area.name");
     pub const AREA_WORDS: Path = Path::new("Area.words");
@@ -34151,6 +34159,56 @@ impl Record for FollowsPanel {
     }
 }
 
+// Type: AreaCharterNamed.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AreaCharterNamed {
+    pub name: Box<[u8]>,
+}
+
+// Record: AreaCharterNamed.
+impl AreaCharterNamed {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, area_charter_named_name) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
+impl Record for AreaCharterNamed {
+    type Limits = Limits;
+    const TAIL: Path = paths::AREA_CHARTER_NAMED_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AreaCharterNamed")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AreaCharterNamed")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Text { limit: limits.area_charter_named_name.min(CEILINGS.area_charter_named_name) }, &self.name, limits, out, paths::AREA_CHARTER_NAMED_NAME)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            name: field::read(field::Text { limit: limits.area_charter_named_name.min(CEILINGS.area_charter_named_name) }, limits, reader, paths::AREA_CHARTER_NAMED_NAME)?,
+        })
+    }
+}
+
 // Type: AreaOwner.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum AreaOwner {
@@ -34158,6 +34216,7 @@ pub enum AreaOwner {
     Party(AreaParty),
     Role(AreaRole),
     Charter(AreaCharter),
+    CharterNamed(AreaCharterNamed),
 }
 
 // Record: AreaOwner.
@@ -34167,7 +34226,8 @@ impl AreaOwner {
         skein_codec::bounds::Node::Named("AreaParty"),
         skein_codec::bounds::Node::Named("AreaRole"),
         skein_codec::bounds::Node::Named("AreaCharter"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+        skein_codec::bounds::Node::Named("AreaCharterNamed"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -34201,6 +34261,7 @@ impl Record for AreaOwner {
             Self::Party(value) => { field::put(out, &[1], paths::AREA_OWNER_TAG)?; value.write(limits, out) },
             Self::Role(value) => { field::put(out, &[2], paths::AREA_OWNER_TAG)?; value.write(limits, out) },
             Self::Charter(value) => { field::put(out, &[3], paths::AREA_OWNER_TAG)?; value.write(limits, out) },
+            Self::CharterNamed(value) => { field::put(out, &[4], paths::AREA_OWNER_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -34211,7 +34272,8 @@ impl Record for AreaOwner {
             1 => Ok(Self::Party(AreaParty::read(limits, reader)?)),
             2 => Ok(Self::Role(AreaRole::read(limits, reader)?)),
             3 => Ok(Self::Charter(AreaCharter::read(limits, reader)?)),
-            4..=u8::MAX => Err(Problem { path: paths::AREA_OWNER_TAG, reason: skein_codec::Reason::Tag }),
+            4 => Ok(Self::CharterNamed(AreaCharterNamed::read(limits, reader)?)),
+            5..=u8::MAX => Err(Problem { path: paths::AREA_OWNER_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -34994,6 +35056,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Approvals", nodes: Approvals::SHAPE },
     skein_codec::bounds::Declaration { name: "Area", nodes: Area::SHAPE },
     skein_codec::bounds::Declaration { name: "AreaCharter", nodes: AreaCharter::SHAPE },
+    skein_codec::bounds::Declaration { name: "AreaCharterNamed", nodes: AreaCharterNamed::SHAPE },
     skein_codec::bounds::Declaration { name: "AreaOwner", nodes: AreaOwner::SHAPE },
     skein_codec::bounds::Declaration { name: "AreaParty", nodes: AreaParty::SHAPE },
     skein_codec::bounds::Declaration { name: "AreaRole", nodes: AreaRole::SHAPE },
@@ -35792,6 +35855,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.follow_view_skips,
     CEILINGS.follows_panel_follows,
     CEILINGS.follows_panel_dependencies,
+    CEILINGS.area_charter_named_name,
     CEILINGS.area_name,
     CEILINGS.area_words,
     CEILINGS.project_areas_areas,

@@ -74,9 +74,10 @@ pub(super) fn template(
         resources.push(mapped::symbol_to_record(item)).expect("one row per symbol");
     }
     Ok(w::Template {
+        name: value.name.clone(),
         resources,
         number: value.number,
-        name: w::DocumentText { bytes: bytes::copy_of(&value.name), cut: false },
+        shown: w::DocumentText { bytes: bytes::copy_of(&value.shown), cut: false },
         executor: executor(value.executor),
         contract: objects::goal::contract(&value.contract, limits)?,
         shallower: value.shallower,

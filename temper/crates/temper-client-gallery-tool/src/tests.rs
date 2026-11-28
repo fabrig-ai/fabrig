@@ -458,7 +458,7 @@ fn reference_lede_names_the_worlds_templates_in_number_order() {
     let goals: Vec<_> = templates
         .iter()
         .filter(|template| template.tracked.is_some())
-        .map(|template| (template.number, template.name.bytes()))
+        .map(|template| (template.number, template.shown.bytes()))
         .collect();
     assert_eq!(
         goals,

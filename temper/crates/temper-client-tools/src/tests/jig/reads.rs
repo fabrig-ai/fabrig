@@ -251,8 +251,12 @@ fn a_refused_act_says_why_without_a_call() {
 }
 #[test]
 fn me_prints_the_live_frame() {
+    let mut me = super::goal_template::goal_me();
+    me.projects.get_mut(0).expect("project").creating = None;
     for (argv, golden) in [(fixtures::ME_CALL, "me"), (fixtures::ME_JSON_CALL, "me_json")] {
-        let (mut root, call) = fixtures::read_call(argv);
+        let mut root = fixtures::started(skein_lib::List::with_capacity(fixtures::EMPTY));
+        root.deliver(jig_client::contract::Delivery::Me(Box::new(me.clone())));
+        let call = root.submit(argv);
         let answer = root.answer(call).expect("live frame answered");
         if temper_test_env::rewrite() {
             std::fs::write(std::path::Path::new("src/tests/golden").join(golden).with_extension("txt"), &answer.stdout)

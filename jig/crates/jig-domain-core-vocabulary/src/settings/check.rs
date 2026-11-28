@@ -183,7 +183,8 @@ pub fn numbers(current: &Current) -> Box<[crate::start::Numbered]> {
 /// Admission judges the offered numbers before the edits' other faults (domain/engine/settings.md, 1).
 pub fn check_edits(current: &Current, items: &[Item], limits: &Limits) -> Result<(), Failure> {
     check_ranges(current, false, items)?;
-    super::change_shape(items, limits)
+    super::change_shape(items, limits)?;
+    super::names::check_edits(current, items)
 }
 
 /// Check proposed settings through the same borrowed selection as startup.
@@ -249,6 +250,9 @@ pub fn check_set(
     limits: &Limits,
 ) -> Result<(), Failure> {
     check_ranges(current, defaults, items)?;
+    if defaults {
+        super::names::check_defaults(current)?;
+    }
     super::workers::check_set(current, defaults, items)?;
     super::providers::check_set(current, defaults, items)?;
     let providers = super::providers::overlay(current, defaults, items);
@@ -450,6 +454,11 @@ pub fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Fai
 }
 /// Stored values retain their byte and count bounds without judging their writer.
 pub fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Failure> {
+    if let Some(name) = value.name()
+        && !people::is_name(name)
+    {
+        return Err(Failure { setting, fault: Fault::Shape, detail: None });
+    }
     let valid = match value {
         Value::Overlay(value) => return overlay_fit(setting, value, limits),
         Value::Charter(value) => {
@@ -462,7 +471,7 @@ pub fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> Result<(
             true
         }
         Value::Template(value) => {
-            value.name.len() <= skein_lib::length::usize_of(limits.documents.text_bytes)
+            value.shown.len() <= skein_lib::length::usize_of(limits.documents.text_bytes)
                 && contract_fits(&value.contract, &limits.tasks)
         }
         Value::Policy(value) => {

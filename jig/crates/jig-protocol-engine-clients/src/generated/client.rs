@@ -3083,6 +3083,15 @@ pub fn readiness_to_record(value: &jig_domain_core_vocabulary::documents::Readin
     }
 }
 
+#[must_use]
+pub fn me_charter_to_record(value: &jig_domain_core_vocabulary::documents::FrameCharter) -> jig_client_protocol_wire::v44::MeCharter {
+    let jig_domain_core_vocabulary::documents::FrameCharter { number: field_000000, name: field_000001 } = value;
+    jig_client_protocol_wire::v44::MeCharter {
+        number: *field_000000,
+        name: field_000001.clone()
+    }
+}
+
 pub fn live_delegate_to_record(value: &jig_domain_core_vocabulary::documents::LiveDelegate, context: &(&[crate::Model] , &jig_client_protocol_wire::Limits)) -> Result<jig_client_protocol_wire::v44::LiveDelegate, jig_client_protocol_wire::v44::Problem> {
     let jig_domain_core_vocabulary::documents::LiveDelegate { chip: field_000000, takeover_budget: field_000001 } = value;
     Ok(jig_client_protocol_wire::v44::LiveDelegate {
@@ -5237,6 +5246,7 @@ pub fn setting_fault_to_record(value: &jig_domain_people::SettingFault) -> jig_c
         jig_domain_people::SettingFault::Linked => jig_client_protocol_wire::v44::SettingFault::Linked,
         jig_domain_people::SettingFault::Accounts => jig_client_protocol_wire::v44::SettingFault::Accounts,
         jig_domain_people::SettingFault::Range => jig_client_protocol_wire::v44::SettingFault::Range,
+        jig_domain_people::SettingFault::Name => jig_client_protocol_wire::v44::SettingFault::Name,
     }
 }
 
@@ -5316,10 +5326,10 @@ pub fn application_state_to_record(value: &jig_domain_core_vocabulary::settings:
 }
 
 pub fn setting_line_to_record(value: &jig_domain_core_vocabulary::documents::SettingLine) -> Result<jig_client_protocol_wire::v44::SettingLine, jig_client_protocol_wire::v44::Problem> {
-    let jig_domain_core_vocabulary::documents::SettingLine { setting: field_000000, name: field_000001, follows: field_000002, last: field_000003, application: field_000004 } = value;
+    let jig_domain_core_vocabulary::documents::SettingLine { setting: field_000000, shown: field_000001, follows: field_000002, last: field_000003, application: field_000004, name: field_000005 } = value;
     Ok(jig_client_protocol_wire::v44::SettingLine {
         setting: setting_to_record(field_000000),
-        name: match field_000001 {
+        shown: match field_000001 {
             Some(item) => {
                 let converted = document_text_to_record(item);
                 Some(converted)
@@ -5337,6 +5347,13 @@ pub fn setting_line_to_record(value: &jig_domain_core_vocabulary::documents::Set
         application: match field_000004 {
             Some(item) => {
                 let converted = application_state_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
+        },
+        name: match field_000005 {
+            Some(item) => {
+                let converted = item.clone();
                 Some(converted)
             }
             None => None,

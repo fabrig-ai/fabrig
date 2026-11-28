@@ -51,7 +51,12 @@ pub(crate) fn frame_fields(value: &w::Me, limits: &Limits) -> Result<c::Me, w::P
     {
         return Err(too_large());
     }
+    let mut charters = skein_lib::List::with_capacity(value.charters.len());
+    for item in &value.charters {
+        charters.push(client::me_charter_to_domain(item.clone())).expect("supplied charters");
+    }
     Ok(c::Me {
+        charters,
         providers: super::catalogue::offers(&value.providers, limits, &mut super::document_room(limits))?,
         providers_cut: value.providers_cut,
         key_bytes: value.key_bytes,

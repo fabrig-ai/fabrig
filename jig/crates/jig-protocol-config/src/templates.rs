@@ -100,7 +100,6 @@ fn report_list(value: Result<List<u32>, What>, path: &Path, problems: &mut Probl
         }
     }
 }
-#[expect(clippy::too_many_lines, reason = "one template reads and checks its complete configuration shape")]
 fn template(
     document: &Document,
     at: u32,
@@ -111,16 +110,12 @@ fn template(
 ) -> Option<Template> {
     let mut object = check::object(document, at, path, problems, "template")?;
     let number = check::count(&mut object, document, b"number", path, problems);
-    let name = match object.required(document, b"name", path, problems) {
-        Some(at) => match read::text(document, at, limits.core.documents.text_bytes) {
-            Ok(name) => Some(name),
-            Err(what) => {
-                problems.push(path.member(b"name"), what);
-                None
-            }
-        },
-        None => None,
+    let (member, text, name) = if let Some(at) = object.member(document, b"shown") {
+        (b"shown".as_slice(), Some(at), check::setting_name(&mut object, document, path, problems))
+    } else {
+        (b"name".as_slice(), object.member(document, b"name"), None)
     };
+    let shown = shown(document, path, limits.core.documents.text_bytes, member, text, problems);
     let executor = match object.required(document, b"executor", path, problems) {
         Some(at) => executor(document, at, &path.member(b"executor"), problems),
         None => None,
@@ -181,9 +176,10 @@ fn template(
         }
     };
     let template = Template {
+        name,
         resources: resources?,
         number: number?,
-        name: name?,
+        shown: shown?,
         executor: executor?,
         contract: contract?,
         shallower: shallower?,
@@ -211,6 +207,26 @@ fn template(
         problems.push(path.member(b"grace_ms"), What::Grace { template: template.number });
     }
     Some(template)
+}
+fn shown(
+    document: &Document,
+    path: &Path,
+    max: u32,
+    member: &[u8],
+    at: Option<u32>,
+    problems: &mut Problems,
+) -> Option<Box<[u8]>> {
+    let Some(at) = at else {
+        problems.push(path.member(b"shown"), What::Missing);
+        return None;
+    };
+    match read::text(document, at, max) {
+        Ok(text) => Some(text),
+        Err(what) => {
+            problems.push(path.member(member), what);
+            None
+        }
+    }
 }
 fn resources(document: &Document, at: u32, path: &Path, limit: u32, problems: &mut Problems) -> Option<Box<[Symbol]>> {
     let items = report_list(read::list(document, at, limit), path, problems)?;

@@ -692,6 +692,7 @@ pub(crate) fn config(seed: u64) -> Config {
             number: 1,
             name: Box::from("Project 1"),
             policy: ConfiguredPolicy {
+                name: None,
                 policy,
                 permissions: Box::new([
                     people::PermissionRole { connector: 1, permission: 3, role: 1 },
@@ -751,6 +752,7 @@ pub(crate) fn config(seed: u64) -> Config {
             ]),
             models: Box::default(),
             charters: Box::new([Charter {
+                name: None,
                 parts: Box::new([]),
                 rest: false,
                 wake: jig_domain_tasks::WakePolicy::DEFAULT,
@@ -4414,6 +4416,7 @@ fn configured_policies_are_retained_by_the_core() {
         .insert(
             1,
             ConfiguredPolicy {
+                name: None,
                 policy,
                 permissions: Box::new([people::PermissionRole { connector: 1, permission: 1, role: 0 }]),
                 templates: Box::new([]),

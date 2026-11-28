@@ -167,6 +167,7 @@ pub(super) fn confirm(root: &mut Domain, watch: Token, party: u64) -> Vec<Reques
         );
     }
     let frame = Me {
+        charters: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,

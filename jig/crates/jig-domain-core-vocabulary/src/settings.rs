@@ -6,6 +6,7 @@ pub mod charters;
 pub mod check;
 pub mod fleet_needs;
 pub mod models;
+pub mod names;
 pub mod overlays;
 mod overrides;
 pub use overrides::{OVERRIDE_NAME_BYTES, OVERRIDE_REASON_BYTES, OVERRIDES, Override, OverrideFault, check_overrides};
@@ -46,6 +47,44 @@ pub enum Value {
     Application(Box<[u8]>),
 }
 impl Value {
+    #[must_use]
+    pub fn name(&self) -> Option<&[u8]> {
+        match self {
+            Self::Charter(value) => value.name.as_deref(),
+            Self::Template(value) => value.name.as_deref(),
+            Self::Policy(value) => value.name.as_deref(),
+            Self::Overlay(_)
+            | Self::Rules(_)
+            | Self::Limits(_)
+            | Self::Model(_)
+            | Self::Worker(_)
+            | Self::Provider(_)
+            | Self::Application(_) => None,
+        }
+    }
+
+    pub fn set_name(&mut self, name: Option<&[u8]>) {
+        if self.name() == name {
+            return;
+        }
+        let name = match name {
+            Some(name) => Some(skein_lib::bytes::copy_of(name)),
+            None => None,
+        };
+        match self {
+            Self::Charter(value) => value.name = name,
+            Self::Template(value) => value.name = name,
+            Self::Policy(value) => value.name = name,
+            Self::Overlay(_)
+            | Self::Rules(_)
+            | Self::Limits(_)
+            | Self::Model(_)
+            | Self::Worker(_)
+            | Self::Provider(_)
+            | Self::Application(_) => {}
+        }
+    }
+
     #[must_use]
     pub fn as_limits(&self) -> Option<&[Override]> {
         match self {

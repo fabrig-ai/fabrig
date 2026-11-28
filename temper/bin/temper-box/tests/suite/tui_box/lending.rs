@@ -285,6 +285,7 @@ fn hello() -> Vec<u8> {
 fn me() -> w::Owned {
     let text = || w::DocumentText { bytes: Box::new([]), cut: false };
     let me = w::Me {
+        charters: skein_lib::List::with_capacity(0),
         party: w::MeParty { number: 17, kind: w::PartyKind::Person, login: text(), name: text() },
         projects: Box::new([]),
         needs: w::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },

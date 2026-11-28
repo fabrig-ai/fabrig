@@ -167,6 +167,14 @@ pub(crate) fn setting_value_to_domain(record: w::SettingValue) -> c::SettingSet 
     c::SettingSet { value: c::SettingValue::Application(record.value) }
 }
 
+pub(crate) fn name_kind(call: &Call) -> Option<crate::jig::names::Kind> {
+    match call.form {
+        5 => Some(crate::jig::names::Kind::Charter),
+        6 => Some(crate::jig::names::Kind::Template),
+        _ => None,
+    }
+}
+
 pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
     if call.form == 11 {
         return Some(c::Setting::Limits);
@@ -234,7 +242,7 @@ use crate::jig::table::{
     Occurs::{Optional, Required},
     Tool, flag, positional,
 };
-#[expect(clippy::indexing_slicing, reason = "the host extends the kit's two fixed setting forms in order")]
+#[expect(clippy::indexing_slicing, reason = "the host keeps the kit's named and rules forms first")]
 pub const SETTING: Tool = Tool {
     prints:
         b"`KIND N, revision R`, or `rules, revision R`, then the whole value; project classes in words; temper's settings also show their state",
@@ -304,9 +312,9 @@ pub const SETTING: Tool = Tool {
             positional(
                 b"number",
                 b"NUMBER",
-                Kind::NumberRange { min: 1, max: 4_294_967_295 },
+                Kind::NameOrNumber { min: 1, max: 4_294_967_295 },
                 Required,
-                b"The charter's number",
+                b"The charter's name or number",
             ),
             revision_flag(),
         ],
@@ -321,9 +329,9 @@ pub const SETTING: Tool = Tool {
             positional(
                 b"number",
                 b"NUMBER",
-                Kind::NumberRange { min: 1, max: 4_294_967_295 },
+                Kind::NameOrNumber { min: 1, max: 4_294_967_295 },
                 Required,
-                b"The template's number",
+                b"The template's name or number",
             ),
             revision_flag(),
         ],
@@ -349,6 +357,7 @@ pub const SETTING: Tool = Tool {
         ],
         &[positional(b"kind", b"limits", Kind::Word { set: &[b"limits"] }, Required, b"Overrides of jig's limits")],
         &[positional(b"kind", b"temper-limits", Kind::Word { set: &[b"temper-limits"] }, Required, b"Overrides of temper's limits"), revision_flag()],
+        rows::SETTING.forms[2],
     ],
     ..rows::SETTING
 };

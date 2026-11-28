@@ -537,6 +537,7 @@ pub fn given_with(document: &Configuration, stock: bool, read_wait: bool) -> tem
         .insert(
             number,
             jig_domain_core::ConfiguredPolicy {
+                name: None,
                 policy: seed.policy.clone(),
                 permissions: seed.roles.clone(),
                 templates: seed.templates.clone(),

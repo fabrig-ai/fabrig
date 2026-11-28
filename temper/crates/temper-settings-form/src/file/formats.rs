@@ -217,6 +217,7 @@ impl Walk {
                 (shape, fields::form(shape).name)
             }
             Value::Integer(_)
+            | Value::CharterOwner
             | Value::Text(_)
             | Value::Hex(_)
             | Value::Words(_)

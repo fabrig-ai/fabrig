@@ -175,6 +175,14 @@ fn scalar(value: &Json, field: &Field, limits: &Limits, pending: &mut Vec<(Shape
             };
             assert!(number <= max, "integer fits {width:?}");
         }
+        Value::CharterOwner => {
+            if let Some(name) = value.as_str() {
+                assert!(jig_domain_people::is_name(name.as_bytes()), "charter name fits");
+            } else {
+                let number = value.as_u64().expect("unsigned charter number or name");
+                assert!((1..=u64::from(jig_domain_people::NUMBERS)).contains(&number));
+            }
+        }
         Value::Nanoseconds | Value::Time => {
             value.as_u64().expect("nanoseconds");
         }
@@ -200,6 +208,11 @@ fn walk(shape: Shape, value: Json) {
     let limits = temper_client_tools::limits::form();
     let mut pending = vec![(shape, value)];
     while let Some((shape, value)) = pending.pop() {
+        if shape == Shape::Text && value.is_string() {
+            let field = fields::resolve(b"template.shown.bytes").expect("whole text uses the text object's byte bound");
+            scalar(&value, field, &limits, &mut pending);
+            continue;
+        }
         if let Choice::One { words } = fields::form(shape).choice {
             if value.is_string() {
                 word(&value, words);

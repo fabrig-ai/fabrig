@@ -239,6 +239,7 @@ fn frame(watch: u64) -> w::StreamEvent {
     )
     .expect("project pieces");
     let frame = w::Me {
+        charters: List::with_capacity(0),
         party: w::MeParty { number: PARTY, kind: w::PartyKind::Person, login: text(b"fixture"), name: text(b"Pat") },
         projects,
         needs: w::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },

@@ -5,6 +5,7 @@ pub use table::Limits;
 pub mod argv;
 pub mod call;
 pub mod json;
+pub mod names;
 pub mod render;
 pub mod rows;
 pub mod runner;

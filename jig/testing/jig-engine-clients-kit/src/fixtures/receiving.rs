@@ -122,6 +122,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
             workers: Box::new([]),
             models: Box::default(),
             charters: Box::new([core::Charter {
+                name: None,
                 parts: Box::new([]),
                 rest: false,
                 wake: jig_domain_tasks::WakePolicy::DEFAULT,

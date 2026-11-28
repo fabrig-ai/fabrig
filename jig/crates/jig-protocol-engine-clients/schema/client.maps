@@ -496,6 +496,7 @@ record MeModel by hand
 record MeDefault by hand
 record ProviderOffer = d::ProviderOffer
 enum Readiness = d::Readiness
+record MeCharter = d::FrameCharter
 record Me by hand
 record LiveDelegate = d::LiveDelegate
 enum TaskResult by hand

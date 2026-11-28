@@ -96,13 +96,22 @@ fn zero_wake_counts_and_durations_are_sent_for_deployment_validation() {
 }
 #[test]
 fn a_shown_charter_with_a_wake_policy_applies_unchanged() {
-    let value = charter(&charter_file(COORDINATOR));
-    let bounds = JsonLimits { depth: 32, length: 8192 };
-    let mut measure = Encoder::measure(&bounds);
-    encode_file(&value, &mut measure);
-    let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
-    encode_file(&value, &mut out);
-    assert_eq!(charter(&out.finish()), value);
+    for name in [None, Some(b"coordinator".as_slice())] {
+        let members = match name {
+            Some(_) => joined(&[COORDINATOR, br#", "name":"coordinator""#]),
+            None => COORDINATOR.into(),
+        };
+        let value = charter(&charter_file(&members));
+        assert_eq!(value.name.as_deref(), name);
+        let bounds = JsonLimits { depth: 32, length: 8192 };
+        let mut measure = Encoder::measure(&bounds);
+        encode_file(&value, &mut measure);
+        let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+        encode_file(&value, &mut out);
+        let printed = out.finish();
+        assert_eq!(skein_lib::bytes::find(&printed, br#""name":"coordinator""#).is_some(), name.is_some());
+        assert_eq!(charter(&printed), value);
+    }
 }
 fn encode_file(value: &c::Charter, out: &mut Encoder) {
     out.object_start();
@@ -155,6 +164,60 @@ const CHARTER_WORDS: &[u8] = br#"{"kind":"charter-words","number":4}"#;
 const PROJECT_WORDS: &[u8] = br#"{"kind":"project-words","project":7}"#;
 const LINE: &[u8] = br#""llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll""#;
 const WORDS: &[u8] = br#"{"headline":"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh","lede":"llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll"}"#;
+#[test]
+fn charter_owners_keep_names_and_numbers_in_the_settings_form() {
+    use temper_client_protocol_wire::v1 as w;
+    use w::Record;
+    for (json, expected) in [
+        (
+            br#""triager""#.as_slice(),
+            w::AreaOwner::CharterNamed(w::AreaCharterNamed { name: b"triager".as_slice().into() }),
+        ),
+        (b"14".as_slice(), w::AreaOwner::Charter(w::AreaCharter { number: 14 })),
+    ] {
+        for (kind, setting, value) in [
+            (
+                14,
+                br#"{"kind":"project-areas","project":3}"#.as_slice(),
+                joined(&[br#"{"areas":[{"name":"tests","words":"C tests","owner":{"charter":"#, json, b"}}]}"]),
+            ),
+            (
+                15,
+                br#"{"kind":"project-triager","project":3}"#.as_slice(),
+                joined(&[br#"{"owner":{"charter":"#, json, b"}}"]),
+            ),
+        ] {
+            let items =
+                file::decode(&kind_file(setting, &value), &Limits::standard()).expect("owner in a settings file");
+            let item = items.get(0).expect("one item");
+            assert_eq!(item.setting, c::Setting::Application { kind, scope: 3, number: 1 });
+            let c::SettingEdit::Set(set) = &item.edit else { panic!("set value") };
+            let c::SettingValue::Application(bytes) = &set.value else { panic!("owner bytes") };
+            let mut reader = skein_lib::Reader::new(bytes);
+            if kind == 14 {
+                let areas = w::ProjectAreas::decode(&w::CEILINGS, &mut reader).unwrap();
+                assert_eq!(areas.areas.get(0).unwrap().owner, expected);
+            } else {
+                let triager = w::ProjectTriager::decode(&w::CEILINGS, &mut reader).unwrap();
+                assert_eq!(triager.owner, expected);
+            }
+            assert!(reader.is_empty());
+            let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+                overlay: None,
+                setting: item.setting,
+                revision: 1,
+                value: Some(set.value.clone()),
+                application: None,
+                proposed: None,
+            }));
+            assert_eq!(
+                shown(&document),
+                joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, &value, b"}"])
+            );
+        }
+    }
+}
+
 #[test]
 fn temper_kinds_round_trip_from_file_to_shown_json() {
     for (setting, json, expected) in [
@@ -595,6 +658,28 @@ fn a_project_policy_item_decodes_to_its_setting_and_a_policy_value() {
     assert_eq!(crate::wire::settings_restore_setting(&wire), item.setting);
 }
 #[test]
+fn numbered_policies_read_and_print_optional_names() {
+    let limits = Limits::standard();
+    let setting = br#"{"kind":"policy","number":33}"#;
+    let named = joined(&[br#"{"name":"lean-policy","#, &POLICY[1..]]);
+    for (body, name) in [(POLICY, None), (named.as_ref(), Some(b"lean-policy".as_slice()))] {
+        let items = file::decode(&kind_file(setting, body), &limits).unwrap();
+        let item = items.get(0).unwrap();
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set policy") };
+        let c::SettingValue::Policy(value) = &set.value else { panic!("policy") };
+        assert_eq!(value.name.as_deref(), name);
+        let bounds = JsonLimits { depth: 32, length: 8192 };
+        let mut measure = Encoder::measure(&bounds);
+        encode_policy_file(item.setting, &set.value, &mut measure);
+        let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+        encode_policy_file(item.setting, &set.value, &mut out);
+        let printed = out.finish();
+        assert_eq!(skein_lib::bytes::find(&printed, br#""name":"lean-policy""#).is_some(), name.is_some());
+        assert_eq!(file::decode(&printed, &limits).unwrap(), items);
+    }
+}
+
+#[test]
 fn a_project_policy_edit_a_second_one_or_a_bad_project_is_refused_naming_the_item() {
     for (bytes, expected) in [
         (
@@ -657,7 +742,7 @@ fn revision_replaced_states_reach_the_host_settings_form_from_the_wire() {
     }
 }
 
-const TEMPLATE_PREFIX: &[u8] = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"name":{"bytes":"draft","cut":false},"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":"#;
+const TEMPLATE_PREFIX: &[u8] = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"shown":"draft","executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":"#;
 fn template_file(resources: &[u8]) -> Box<[u8]> {
     joined(&[TEMPLATE_PREFIX, b"null", resources, SUFFIX])
 }
@@ -667,6 +752,60 @@ fn template(bytes: &[u8], limits: &Limits) -> c::Template {
     let c::SettingValue::Template(value) = &set.value else { panic!("template") };
     *value.clone()
 }
+const TEMPLATE_SETTING: &[u8] = br#"{"kind":"template","number":33}"#;
+const TEMPLATE_VALUE: &[u8] = br#"{"number":33,"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null,"#;
+
+#[test]
+fn templates_read_both_display_forms_and_print_shown() {
+    let limits = Limits::standard();
+    let bounds = JsonLimits { depth: 32, length: 8192 };
+    for member in [
+        br#""shown":"goal for a lean design"}"#.as_slice(),
+        br#""name":"goal for a lean design"}"#,
+        br#""name":{"bytes":"goal for a lean design","cut":false}}"#,
+    ] {
+        let file = kind_file(TEMPLATE_SETTING, &joined(&[TEMPLATE_VALUE, member]));
+        let value = template(&file, &limits);
+        assert_eq!(value.shown.bytes(), b"goal for a lean design");
+        assert_eq!(value.name, None);
+        let mut measure = Encoder::measure(&bounds);
+        values::encode_template(&value, &mut measure);
+        let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+        values::encode_template(&value, &mut out);
+        let printed = out.finish();
+        assert!(skein_lib::bytes::find(&printed, br#""shown":"goal for a lean design""#).is_some());
+        assert!(skein_lib::bytes::find(&printed, br#""name""#).is_none());
+        assert_eq!(template(&kind_file(TEMPLATE_SETTING, &printed), &limits), value);
+    }
+}
+
+#[test]
+fn a_template_with_shown_reads_and_prints_its_separate_name() {
+    let limits = Limits::standard();
+    let named = br#""name":"lean-goal","shown":"goal for a lean design"}"#;
+    let file = kind_file(TEMPLATE_SETTING, &joined(&[TEMPLATE_VALUE, named]));
+    let value = template(&file, &limits);
+    assert_eq!(value.name.as_deref(), Some(b"lean-goal".as_slice()));
+    assert_eq!(value.shown.bytes(), b"goal for a lean design");
+    let bounds = JsonLimits { depth: 32, length: 8192 };
+    let mut measure = Encoder::measure(&bounds);
+    values::encode_template(&value, &mut measure);
+    let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+    values::encode_template(&value, &mut out);
+    let printed = out.finish();
+    assert!(skein_lib::bytes::find(&printed, br#""name":"lean-goal","shown":"goal for a lean design""#).is_some());
+    assert_eq!(template(&kind_file(TEMPLATE_SETTING, &printed), &limits), value);
+}
+
+#[test]
+fn a_charter_overlay_refuses_a_name_member() {
+    let file = br#"{"items":[{"setting":{"kind":"charter","number":1},"overlay":{"name":"a-name"}}]}"#;
+    assert_eq!(
+        file::decode(file, &Limits::standard()).unwrap_err().as_ref(),
+        b"settings file item 1: name: unknown member"
+    );
+}
+
 #[test]
 fn a_settings_file_template_names_its_resources() {
     let limits = Limits::standard();

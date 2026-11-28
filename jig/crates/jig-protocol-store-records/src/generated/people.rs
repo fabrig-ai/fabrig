@@ -1528,6 +1528,7 @@ pub fn setting_fault_to_record(value: &jig_domain_people::SettingFault) -> crate
         jig_domain_people::SettingFault::Linked => crate::people_v17::SettingFault::Linked,
         jig_domain_people::SettingFault::Accounts => crate::people_v17::SettingFault::Accounts,
         jig_domain_people::SettingFault::Range => crate::people_v17::SettingFault::Range,
+        jig_domain_people::SettingFault::Name => crate::people_v17::SettingFault::Name,
     }
 }
 
@@ -1545,6 +1546,7 @@ pub fn setting_fault_to_domain(record: crate::people_v17::SettingFault) -> jig_d
         crate::people_v17::SettingFault::Linked => jig_domain_people::SettingFault::Linked,
         crate::people_v17::SettingFault::Accounts => jig_domain_people::SettingFault::Accounts,
         crate::people_v17::SettingFault::Range => jig_domain_people::SettingFault::Range,
+        crate::people_v17::SettingFault::Name => jig_domain_people::SettingFault::Name,
     }
 }
 

@@ -141,6 +141,7 @@ fn reaches(value: &Value, seen: &[bool; SHAPES.len()]) -> bool {
             false
         }
         Value::Integer(_)
+        | Value::CharterOwner
         | Value::Nanoseconds
         | Value::Time
         | Value::Boolean
@@ -351,6 +352,15 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                             continue;
                         }
                     }
+                    // The earlier template form takes `name` as display text without `shown`.
+                    if shape == Shape::Template
+                        && field.name == b"name"
+                        && let Edit::Omit(chosen) = edit
+                        && chosen.shape == Shape::Template
+                        && chosen.name == b"shown"
+                    {
+                        continue;
+                    }
                     if shape == Shape::Overlay && field.name == b"charters" {
                         continue;
                     }
@@ -455,7 +465,7 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                 }
             }
             Action::Value(value) => match value {
-                Value::Integer(_) | Value::Nanoseconds | Value::Time => out.unsigned(1),
+                Value::Integer(_) | Value::CharterOwner | Value::Nanoseconds | Value::Time => out.unsigned(1),
                 Value::Boolean => out.boolean(false),
                 Value::Text(_) => out.string(b"x"),
                 Value::Hex(_) => out.string(b"00"),
@@ -517,6 +527,10 @@ fn optional_provider(field: &Field) -> bool {
         || (field.shape == Shape::ProviderEndpoint && [b"program".as_slice(), b"trust"].contains(&field.name))
         || field.shape == Shape::ProviderAddress
 }
+fn optional_setting_name(field: &Field) -> bool {
+    field.name == b"name" && [Shape::Charter, Shape::Template, Shape::Policy].contains(&field.shape)
+}
+
 fn optional_model_speed(field: &Field) -> bool {
     (field.shape == Shape::Model && [b"speeds".as_slice(), b"speed"].contains(&field.name))
         || (field.shape == Shape::ModelEffort && field.name == b"speed")
@@ -565,6 +579,7 @@ fn every_generated_file_decodes() {
             || (field.shape == Shape::Llm && field.name == b"later")
             || (field.shape == Shape::LlmLater && field.name == b"subagents")
             || (field.shape == Shape::ClassItem && field.name == b"words")
+            || optional_setting_name(field)
             || optional_model_speed(field)
             || optional_worker(field)
             || optional_follow(field)
@@ -600,6 +615,7 @@ fn a_member_left_out_is_refused_naming_it() {
             || (field.shape == Shape::Model && field.name == b"provider")
             || (field.shape == Shape::Document && field.name == b"heading")
             || (field.shape == Shape::ClassItem && [b"set".as_slice(), b"words"].contains(&field.name))
+            || optional_setting_name(field)
             || optional_model_speed(field)
             || optional_worker(field)
             || optional_provider(field)

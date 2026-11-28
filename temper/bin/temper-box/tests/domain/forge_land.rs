@@ -898,6 +898,7 @@ fn referee_me() -> jig_client::contract::Me {
     use skein_lib::List;
     let words = c::DocumentText::complete(c::Text::new(b"Person".as_slice().into(), 6).expect("name"));
     c::Me {
+        charters: skein_lib::List::with_capacity(0),
         party: c::MeParty { number: 1, kind: c::PartyKind::Person, login: words.clone(), name: words },
         projects: List::with_capacity(0),
         providers: List::with_capacity(0),

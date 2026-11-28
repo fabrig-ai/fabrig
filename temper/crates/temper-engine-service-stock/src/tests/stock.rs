@@ -360,6 +360,7 @@ fn ask_temper_is_charter_11_and_template_5() {
     let charter = defaults.charters.iter().find(|charter| charter.number == 11).expect("Ask temper charter");
     let mut expected = defaults.charters.iter().find(|charter| charter.number == 1).unwrap().clone();
     expected.number = 11;
+    expected.name = Some(b"ask-temper".as_slice().into());
     expected.policy.instructions = include_bytes!("../stock/ask.txt").as_slice().into();
     expected.policy.inspect = false;
     expected.policy.modify = false;
@@ -386,7 +387,7 @@ fn ask_temper_is_charter_11_and_template_5() {
     }
     let (_, configuring) = words.split_once("## Configuring\n\n").expect("Configuring part");
     let (configuring, _) = configuring.split_once("## Showing").expect("Showing follows Configuring");
-    assert!(configuring.contains("A new template, charter or policy takes the lowest number from 33 that the settings don't hold; a model you add takes the highest free number."));
+    assert!(configuring.contains("A new template, charter or policy takes the lowest number from 33 that the settings don't hold and a name of its own that no item of its kind has, never a stock item's; a stock item keeps its name. A model you add takes the highest free number."));
     assert!(configuring.contains("With it, write in their terms what the pages show: charter-words for each charter, what it does; project-words for the project's own way, a headline and a short lede."));
     assert!(configuring.contains("Draw in it what it describes, as Showing says: the project's path from its view, never as a list of steps, and a proposal that waits from its own view until it is decided."));
     let (_, remembering) = words.split_once("## Remembering\n\n").expect("Remembering part");
@@ -422,7 +423,8 @@ A flow is one path: draw each path as a flow of its own, and set options side by
     }
     let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
     expected.number = 5;
-    expected.name = b"ask".as_slice().into();
+    expected.name = Some(b"ask-temper".as_slice().into());
+    expected.shown = b"ask".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(11);
     assert_eq!(*defaults.templates.iter().find(|template| template.number == 5).unwrap(), expected);
 }
@@ -440,6 +442,7 @@ fn the_drafter_is_charter_12_and_template_6() {
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.ask.0, 0);
     let mut expected = defaults.charters.iter().find(|charter| charter.number == 1).unwrap().clone();
     expected.number = 12;
+    expected.name = Some(b"drafter".as_slice().into());
     expected.policy.instructions = include_bytes!("../stock/drafter.txt").as_slice().into();
     expected.policy.inspect = false;
     expected.policy.modify = false;
@@ -449,7 +452,8 @@ fn the_drafter_is_charter_12_and_template_6() {
     assert_eq!(*charter, expected);
     let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
     expected.number = 6;
-    expected.name = b"design session".as_slice().into();
+    expected.name = Some(b"design-session".as_slice().into());
+    expected.shown = b"design session".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(12);
     assert_eq!(*defaults.templates.iter().find(|template| template.number == 6).unwrap(), expected);
     let policy = &defaults.policies.get(&1).unwrap().policy;
@@ -497,7 +501,7 @@ fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
     assert_eq!((charter.policy.turns, charter.policy.time), (coordinator.policy.turns, coordinator.policy.time));
     assert_eq!((charter.policy.reserve_turns, charter.policy.reserve_time), (1, skein_lib::Duration::from_secs(300)));
     let template = defaults.templates.iter().find(|template| template.number == 7).expect("standing role template");
-    assert_eq!(template.name.as_ref(), b"standing role");
+    assert_eq!(template.shown.as_ref(), b"standing role");
     assert_eq!(template.executor, TemplateExecutor::Chosen);
     assert_eq!(template.budget, TemplateBudget::Given);
     assert_eq!(template.deadline, TemplateDeadline::None);
@@ -522,8 +526,9 @@ fn the_milestone_is_a_tracked_requester_ended_gathering_template() {
     assert_eq!(
         *template,
         jig_domain_core::Template {
+            name: Some(b"milestone".as_slice().into()),
             number: 8,
-            name: b"milestone".as_slice().into(),
+            shown: b"milestone".as_slice().into(),
             executor: TemplateExecutor::Chosen,
             contract: Contract::Report { words: engine.limits.core.tasks.result_bytes },
             shallower: 1,
@@ -568,7 +573,7 @@ fn the_stocks_ways_are_two_and_four_never_eight() {
     let project = me.projects.get_mut(0).unwrap();
     project.templates = skein_lib::List::uncapped();
     for template in &defaults.templates {
-        let mut client = view::goals::template(template.number, &template.name, template.tracked.is_some());
+        let mut client = view::goals::template(template.number, &template.shown, template.tracked.is_some());
         client.flags.ended_by = match template.flags.ended_by {
             EndedBy::Requester => c::EndedBy::Requester,
             EndedBy::Result => c::EndedBy::Result,
@@ -618,18 +623,20 @@ fn the_specialized_roles_keep_the_standing_policy_and_load_their_parts() {
     let configured = fixtures::engine();
     let limits = crate::limits::engine(&configured.jig.limits, &configured.limits).unwrap();
     let stock = crate::stock::forge(&limits);
-    for (number, text, words) in [
+    for (number, name, text, words) in [
         (
             14,
+            b"triager".as_slice(),
             include_str!("../stock/triager.md"),
             "Routes what comes in to its area's owner, and triages what fits no area.",
         ),
         (
             15,
+            b"prover",
             include_str!("../stock/prover.md"),
             "Owns its area's tests: triages their reds and flakes and makes the repairs.",
         ),
-        (16, include_str!("../stock/porter.md"), "Keeps its area's port in step with its source."),
+        (16, b"porter", include_str!("../stock/porter.md"), "Keeps its area's port in step with its source."),
     ] {
         let charter = defaults.charters.iter().find(|charter| charter.number == number).expect("stock role");
         let mut sections = text.strip_prefix("## shared\n").unwrap().split("\n## ");
@@ -637,6 +644,7 @@ fn the_specialized_roles_keep_the_standing_policy_and_load_their_parts() {
         assert_eq!(charter.policy.instructions.as_ref(), shared.as_bytes());
         let mut expected = standing.clone();
         expected.number = number;
+        expected.name = Some(name.into());
         expected.policy.instructions = shared.as_bytes().into();
         for (part, section) in expected.parts.iter_mut().zip(sections) {
             let (heading, words) = section.split_once('\n').unwrap();
@@ -648,7 +656,7 @@ fn the_specialized_roles_keep_the_standing_policy_and_load_their_parts() {
             assert_eq!(part.on, reasons);
             part.instructions = words.trim_matches('\n').as_bytes().into();
         }
-        assert_eq!(charter, &expected, "only instructions differ for charter {number}");
+        assert_eq!(charter, &expected, "only name and instructions differ for charter {number}");
         assert!(shared.contains("Never accept your own proposal"));
         assert!(shared.contains("Never change what is outside your area"));
         assert!(shared.contains("Before every park, write your Now"));
@@ -1375,6 +1383,7 @@ fn the_reviewer_keeps_the_coding_run_with_read_only_workspace_families() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let mut expected = defaults.charters.iter().find(|charter| charter.number == 2).unwrap().clone();
     expected.number = 4;
+    expected.name = Some(b"reviewer".as_slice().into());
     expected.policy.instructions = include_bytes!("../stock/review.txt").as_slice().into();
     expected.policy.modify = false;
     expected.policy.agents = false;
@@ -1862,7 +1871,7 @@ fn kinds_are_declared_with_their_bounds() {
                 number: 14,
                 scope: KindScope::Project,
                 connector: CONNECTOR,
-                value_bytes: 4 + 16 * (4 + 32 + 4 + 480 + 1 + 8),
+                value_bytes: 4 + 16 * (4 + 32 + 4 + 480 + 1 + 4 + 32),
                 per_scope: 1,
                 charters: 0
             },
@@ -1870,7 +1879,7 @@ fn kinds_are_declared_with_their_bounds() {
                 number: 15,
                 scope: KindScope::Project,
                 connector: CONNECTOR,
-                value_bytes: 9,
+                value_bytes: 1 + 4 + 32,
                 per_scope: 1,
                 charters: 0
             },
@@ -2165,6 +2174,7 @@ fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
     let coordinator = stock.charters.iter().find(|charter| charter.number == 5).unwrap();
     let mut expected = stock.charters.iter().find(|charter| charter.number == 2).unwrap().clone();
     expected.number = 5;
+    expected.name = Some(b"goal".as_slice().into());
     expected.policy.instructions = coordinator.policy.instructions.clone();
     expected.parts = coordinator.parts.clone();
     expected.policy.resume = false;
@@ -2182,7 +2192,8 @@ fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
     assert_eq!(coordinator, &expected);
     let mut expected = stock.templates.iter().find(|template| template.number == 2).unwrap().clone();
     expected.number = 4;
-    expected.name = b"goal for a draft".as_slice().into();
+    expected.name = Some(b"draft-goal".as_slice().into());
+    expected.shown = b"goal for a draft".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(5);
     expected.resources = Box::new([jig_domain_people::Symbol { connector: 1, symbol: 1 }]);
     expected.flags.ended_by = jig_domain_tasks::EndedBy::Closer(jig_domain_tasks::Closer { connector: 1, code: 6 });
@@ -2277,6 +2288,7 @@ fn the_status_charter_is_small_and_reaches_nothing() {
     let status = defaults.charters.iter().find(|charter| charter.number == 9).expect("status charter");
     let mut expected = defaults.charters[0].clone();
     expected.number = 9;
+    expected.name = Some(b"status".as_slice().into());
     expected.policy.instructions = include_bytes!("../stock/status.txt").as_slice().into();
     expected.policy.turns = 4;
     expected.policy.time = skein_lib::Duration::from_secs(300);
@@ -2328,6 +2340,7 @@ fn the_trial_charter_is_one_working_turn_and_reaches_nothing() {
     let trial = defaults.charters.iter().find(|charter| charter.number == 10).expect("trial charter");
     let mut expected = defaults.charters[0].clone();
     expected.number = 10;
+    expected.name = Some(b"trial".as_slice().into());
     expected.policy.instructions = include_bytes!("../stock/trial.txt").as_slice().into();
     expected.policy.turns = 2;
     expected.policy.time = skein_lib::Duration::from_secs(120);
@@ -2532,4 +2545,45 @@ fn with_scripted(mut llm: config::Llm) -> config::Llm {
     llm.providers = providers.into_boxed_slice();
     llm.endpoints = endpoints.into_boxed_slice();
     llm
+}
+
+#[test]
+fn stock_setting_names_and_template_display_words_are_distinct() {
+    let defaults = crate::stock::checked_with(Box::new([fixtures::small_model()]), 10_660).unwrap();
+    let charters = [
+        (1, b"chat".as_slice()),
+        (2, b"implementer"),
+        (4, b"reviewer"),
+        (5, b"goal"),
+        (9, b"status"),
+        (10, b"trial"),
+        (11, b"ask-temper"),
+        (12, b"drafter"),
+        (13, b"standing-role"),
+        (14, b"triager"),
+        (15, b"prover"),
+        (16, b"porter"),
+    ];
+    assert_eq!(defaults.charters.len(), charters.len());
+    for (number, name) in charters {
+        let charter = defaults.charters.iter().find(|v| v.number == number).unwrap();
+        assert_eq!(charter.name.as_deref(), Some(name), "charter {number}");
+    }
+    let templates = [
+        (1, b"chat".as_slice(), b"chat".as_slice()),
+        (2, b"goal", b"goal"),
+        (4, b"draft-goal", b"goal for a draft"),
+        (5, b"ask-temper", b"ask"),
+        (6, b"design-session", b"design session"),
+        (7, b"standing-role", b"standing role"),
+        (8, b"milestone", b"milestone"),
+    ];
+    assert_eq!(defaults.templates.len(), templates.len());
+    for (number, name, shown) in templates {
+        let template = defaults.templates.iter().find(|v| v.number == number).unwrap();
+        assert_eq!(template.name.as_deref(), Some(name), "template {number}");
+        assert_eq!(template.shown.as_ref(), shown, "template {number}");
+    }
+    assert_eq!(defaults.policies.len(), 1);
+    assert_eq!(defaults.policies.get(&1).unwrap().name.as_deref(), Some(b"stock".as_slice()));
 }

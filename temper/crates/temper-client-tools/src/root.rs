@@ -636,6 +636,9 @@ impl jig::render::Parts for Parts {
     fn setting_selector(&self, call: &jig::call::Call) -> Option<jig_client::contract::Setting> {
         crate::settings::selector(call)
     }
+    fn setting_name_kind(&self, call: &jig::call::Call) -> Option<jig::names::Kind> {
+        crate::settings::name_kind(call)
+    }
     fn application_read(&self, query: runner::application::Query) -> jig_client::Readable {
         crate::settings::read(query)
     }

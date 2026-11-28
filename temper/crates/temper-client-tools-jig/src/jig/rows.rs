@@ -378,9 +378,9 @@ pub const CHAT_CREATE: Tool = Tool {
         flag(
             b"template",
             b"TEMPLATE",
-            Kind::Number,
+            Kind::NameOrNumber { min: 0, max: u64::MAX },
             Optional,
-            b"A chat's template by its number; the project's chat template when absent",
+            b"A chat's template by name or number; the project's chat template when absent",
         ),
         positional(b"text", b"TEXT", Kind::Text, Required, b"The opening words"),
         super::table::Argument { line: b"A model the chat may use, as model list shows it", ..MODEL },
@@ -942,6 +942,13 @@ pub const SETTINGS: Tool = Tool {
     area: 1,
     notes: b"settings show KIND NUMBER --json prints one value to edit.\nsettings apply and settings propose take the newest revision this\nprints as `--against`.\n",
 };
+const SETTING_REVISION: super::table::Argument = flag(
+    b"revision",
+    b"REVISION",
+    Kind::NumberRange { min: 0, max: 4_294_967_295 },
+    Optional,
+    b"Its value at this revision; the newest when absent",
+);
 pub const SETTING: Tool = Tool {
     name: b"settings show",
     line: b"Read one setting's value whole",
@@ -951,8 +958,26 @@ pub const SETTING: Tool = Tool {
         &[
             positional(
                 b"kind",
-                b"charter|template|policy|model|worker|provider",
-                Kind::Word { set: &[b"charter", b"template", b"policy", b"model", b"worker", b"provider"] },
+                b"charter|template|policy",
+                Kind::Word { set: &[b"charter", b"template", b"policy"] },
+                Required,
+                b"The setting's kind",
+            ),
+            positional(
+                b"number",
+                b"NUMBER",
+                Kind::NameOrNumber { min: 0, max: 4_294_967_295 },
+                Required,
+                b"The setting's name or number",
+            ),
+            SETTING_REVISION,
+        ],
+        &[positional(b"kind", b"rules", Kind::Word { set: &[b"rules"] }, Required, b"The deployment's rules")],
+        &[
+            positional(
+                b"kind",
+                b"model|worker|provider",
+                Kind::Word { set: &[b"model", b"worker", b"provider"] },
                 Required,
                 b"The setting's kind",
             ),
@@ -963,15 +988,8 @@ pub const SETTING: Tool = Tool {
                 Required,
                 b"The setting's number",
             ),
-            flag(
-                b"revision",
-                b"REVISION",
-                Kind::NumberRange { min: 0, max: 4_294_967_295 },
-                Optional,
-                b"Its value at this revision; the newest when absent",
-            ),
+            SETTING_REVISION,
         ],
-        &[positional(b"kind", b"rules", Kind::Word { set: &[b"rules"] }, Required, b"The deployment's rules")],
     ],
     keyed: Keyed::Never,
     area: 1,
@@ -1269,7 +1287,7 @@ pub const ROLE_START: Tool = Tool {
         flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
         flag(b"budget", b"AMOUNT", Kind::Amount, Required, b"The budget each period, as task show prints budgets"),
         positional(b"text", b"TEXT", Kind::Text, Required, b"What the role owns and how"),
-        flag(b"charter", b"CHARTER", Kind::NumberRange { min: 1, max: 4_294_967_295 }, Optional, b"The role's charter; 13 when absent"),
+        flag(b"charter", b"CHARTER", Kind::NameOrNumber { min: 1, max: 4_294_967_295 }, Optional, b"The role's charter by name or number; 13 when absent"),
     ]],
     keyed: Keyed::Required,
     area: 2,
@@ -1347,9 +1365,9 @@ pub const GOAL_START: Tool = Tool {
         flag(
             b"template",
             b"TEMPLATE",
-            Kind::NumberRange { min: 1, max: 4_294_967_295 },
+            Kind::NameOrNumber { min: 1, max: 4_294_967_295 },
             Optional,
-            b"An offered template; stock goal template 2 when absent",
+            b"An offered template by name or number; stock goal template 2 when absent",
         ),
         positional(
             b"text",
@@ -1361,9 +1379,9 @@ pub const GOAL_START: Tool = Tool {
         flag(
             b"charter",
             b"CHARTER",
-            Kind::NumberRange { min: 1, max: 4_294_967_295 },
+            Kind::NameOrNumber { min: 1, max: 4_294_967_295 },
             Optional,
-            b"Required when the template lets its creator choose; omit when it fixes a charter",
+            b"A charter by name or number, required when the template lets its creator choose; omit when it fixes a charter",
         ),
         flag(
             b"priority",

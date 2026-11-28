@@ -238,8 +238,9 @@ fn only_a_lineage_root_on_the_projects_chat_charter_names_a_chat() {
     for executor in [people::TemplateExecutor::Charter(1), people::TemplateExecutor::Chosen] {
         let mut config = fixture::config(7);
         config.core.defaults.templates = Box::new([core::Template {
+            name: None,
             number: 1,
-            name: b"Chat".as_slice().into(),
+            shown: b"Chat".as_slice().into(),
             executor,
             contract: tasks::Contract::Report { words: 32 },
             shallower: 1,

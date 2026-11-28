@@ -104,8 +104,9 @@ fn document(f: &mut Fixture, newest: u32, configured: bool) {
     if configured {
         settings
             .push(c::SettingLine {
-                setting: c::Setting::Application { kind: 2, scope: f::PROJECT, number: 1 },
                 name: None,
+                setting: c::Setting::Application { kind: 2, scope: f::PROJECT, number: 1 },
+                shown: None,
                 last: Some(newest),
                 follows: c::SettingFollows::Change,
                 application: None,

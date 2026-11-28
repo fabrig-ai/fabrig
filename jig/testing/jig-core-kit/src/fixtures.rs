@@ -250,6 +250,7 @@ pub fn two_projects(seed: u64) -> (root::Config, root::Limits) {
                 number,
                 name: format!("Project {number}").into_boxed_str(),
                 policy: core::ConfiguredPolicy {
+                    name: None,
                     policy,
                     permissions: if number == 1 {
                         config.core.seed_projects[0].policy.permissions.clone()

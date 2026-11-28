@@ -805,23 +805,23 @@ fn owner_refusal(domain: &Domain, bounds: &settings::Bounds, asked: &settings::A
     match value {
         settings::Value::ProjectAreas(value) => {
             for area in &value.areas {
-                if !owner_of_project(domain, bounds, asked.scope, area.owner) {
+                if !owner_of_project(domain, bounds, asked.scope, &area.owner) {
                     let mut name = List::uncapped();
                     for part in [b"area ".as_slice(), area.name.as_ref()] {
                         for &byte in part {
                             name.push(byte).expect("bounded area name");
                         }
                     }
-                    return Some(settings::Refusal::Owner { name: name.into_boxed(), owner: area.owner });
+                    return Some(settings::Refusal::Owner { name: name.into_boxed(), owner: area.owner.clone() });
                 }
             }
             None
         }
         settings::Value::ProjectTriager(value) => {
-            if owner_of_project(domain, bounds, asked.scope, value.owner) {
+            if owner_of_project(domain, bounds, asked.scope, &value.owner) {
                 None
             } else {
-                Some(settings::Refusal::Owner { name: b"triager".as_slice().into(), owner: value.owner })
+                Some(settings::Refusal::Owner { name: b"triager".as_slice().into(), owner: value.owner.clone() })
             }
         }
         settings::Value::Landing(_)
@@ -841,10 +841,10 @@ fn owner_refusal(domain: &Domain, bounds: &settings::Bounds, asked: &settings::A
         | settings::Value::Limits(_) => None,
     }
 }
-fn owner_of_project(domain: &Domain, bounds: &settings::Bounds, project: u32, owner: settings::AreaOwner) -> bool {
+fn owner_of_project(domain: &Domain, bounds: &settings::Bounds, project: u32, owner: &settings::AreaOwner) -> bool {
     match owner {
         settings::AreaOwner::Task(number) => {
-            let Some(task) = domain.engine.core().tasks.task(number) else { return false };
+            let Some(task) = domain.engine.core().tasks.task(*number) else { return false };
             if task.project != project {
                 return false;
             }
@@ -856,9 +856,10 @@ fn owner_of_project(domain: &Domain, bounds: &settings::Bounds, project: u32, ow
                 | jig_domain_tasks::Phase::Held { .. } => true,
             }
         }
-        settings::AreaOwner::Party(number) => domain.engine.core().people.role(number, project).is_some(),
-        settings::AreaOwner::Role(number) => number < bounds.roles,
-        settings::AreaOwner::Charter(number) => number > 0 && number <= jig_domain_people::NUMBERS,
+        settings::AreaOwner::Party(number) => domain.engine.core().people.role(*number, project).is_some(),
+        settings::AreaOwner::Role(number) => *number < bounds.roles,
+        settings::AreaOwner::Charter(number) => *number > 0 && *number <= jig_domain_people::NUMBERS,
+        settings::AreaOwner::CharterNamed(name) => jig_domain_people::is_name(name),
     }
 }
 

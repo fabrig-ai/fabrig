@@ -58,8 +58,10 @@
 extern crate alloc;
 mod restore;
 pub use restore::{RestoreBound, RestoreCause, RestoreFailure, RestoreProjection};
-mod settings;
-pub use settings::{NUMBERS, Running, STOCK_NUMBERS, Setting, SettingDetail, SettingFault, SettingMember, SettingRule};
+pub mod settings;
+pub use settings::{
+    NUMBERS, Running, STOCK_NUMBERS, Setting, SettingDetail, SettingFault, SettingMember, SettingRule, is_name,
+};
 mod scope;
 pub use scope::ApplicationScope;
 mod templates;

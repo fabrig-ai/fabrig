@@ -19,6 +19,7 @@ pub use goals::{goal_authority, repair_goal_spec, repair_goal_template, stamp_re
 mod parameters;
 pub use parameters::*;
 pub mod change_llm;
+pub mod document;
 pub mod prepare;
 #[cfg(test)]
 mod tests;

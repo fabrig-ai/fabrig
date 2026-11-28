@@ -841,8 +841,9 @@ fn playground_me(client: &jig_client::DomainLimits) -> w::Me {
     for (offset, name) in (0..client.rows).zip(std::iter::repeat(template_name.as_slice())) {
         let number = jig_client::shapes::CHAT + offset;
         let template = w::Template {
+            name: None,
             number,
-            name: jig_client_test_records::wire_text(name),
+            shown: jig_client_test_records::wire_text(name),
             executor: w::TemplateExecutor::Charter(w::TemplateCharter { value: number }),
             contract: w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: client.text }),
             shallower: 1,

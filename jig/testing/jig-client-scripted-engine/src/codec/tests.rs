@@ -10,6 +10,7 @@ fn frame() -> c::Me {
     let text = c::Text::new(Box::from(b"party".as_slice()), 32).expect("fixture text fits");
     let text = c::DocumentText::complete(text);
     c::Me {
+        charters: skein_lib::List::with_capacity(0),
         party: c::MeParty { number: REQUESTER, kind: c::PartyKind::Person, login: text.clone(), name: text },
         projects: List::with_capacity(0),
         needs: c::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },

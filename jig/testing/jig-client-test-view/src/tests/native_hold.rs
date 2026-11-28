@@ -37,6 +37,7 @@ pub(super) fn ready() -> Domain {
                 up: jig_client::Up::Watched {
                     watch,
                     event: WatchEvent::Delivered(Delivery::Me(Box::new(Me {
+                        charters: List::with_capacity(0),
                         providers: List::with_capacity(0),
                         providers_cut: false,
                         key_bytes: 256,

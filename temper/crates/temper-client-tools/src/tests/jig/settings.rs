@@ -470,6 +470,7 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
         (
             c::Setting::Charter(c::SettingNumber { number: 3 }),
             c::SettingValue::Charter(Box::new(c::Charter {
+                name: None,
                 parts: List::with_capacity(0),
                 rest: false,
                 documents: documents(),
@@ -505,9 +506,10 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
         (
             c::Setting::Template(c::SettingNumber { number: 4 }),
             c::SettingValue::Template(Box::new(c::Template {
+                name: None,
                 resources: List::with_capacity(0),
                 number: 4,
-                name: c::DocumentText::complete(words("work")),
+                shown: c::DocumentText::complete(words("work")),
                 executor: c::TemplateExecutor::Charter(3),
                 contract: c::TaskContractDocument::Report { words: 1024 },
                 shallower: 1,
@@ -533,6 +535,7 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
         (
             c::Setting::Policy(c::SettingNumber { number: 5 }),
             c::SettingValue::Policy(Box::new(c::SettingPolicy {
+                name: None,
                 escalation_role: Some(1),
                 ceiling: authority(),
                 projections: list([authority().grants.get(0).expect("grant").clone()]),
@@ -613,6 +616,31 @@ fn serve_review(root: &mut fixtures::Harness, call: u32, value: c::ReadValue) {
     if let Some((_, c::Read::Settings)) = root.reads.get(&call) {
         newest_for_setting(root, call);
     }
+}
+const STOCK_NAME_ROWS: [(&str, &str, &str, c::Setting); 5] = [
+    ("charter", "goal", "5", c::Setting::Charter(c::SettingNumber { number: 5 })),
+    ("charter", "implementer", "2", c::Setting::Charter(c::SettingNumber { number: 2 })),
+    ("template", "milestone", "8", c::Setting::Template(c::SettingNumber { number: 8 })),
+    ("template", "draft-goal", "4", c::Setting::Template(c::SettingNumber { number: 4 })),
+    ("policy", "stock", "1", c::Setting::Policy(c::SettingNumber { number: 1 })),
+];
+fn stock_name_line(setting: c::Setting, name: &str) -> c::SettingLine {
+    c::SettingLine {
+        name: Some(name.as_bytes().into()),
+        setting,
+        shown: None,
+        follows: c::SettingFollows::Default,
+        last: None,
+        application: None,
+    }
+}
+fn stock_name_inventory() -> c::ReadResult {
+    c::ReadResult::Value(c::ReadValue::Settings(Box::new(c::SettingsDocument {
+        newest: 5,
+        settings: list(STOCK_NAME_ROWS.map(|(_, name, _, setting)| stock_name_line(setting, name))),
+        held: list([]),
+        pending: list([]),
+    })))
 }
 fn newest_for_setting(root: &mut fixtures::Harness, call: u32) {
     if root.reads.get(&call).expect("setting read").1 == c::Read::Settings {
@@ -808,16 +836,20 @@ fn whole_settings_document_renderings_are_stable() {
     let inventory = c::ReadValue::Settings(Box::new(c::SettingsDocument {
         newest: 5,
         settings: list([
+            stock_name_line(c::Setting::Charter(c::SettingNumber { number: 2 }), "implementer"),
+            stock_name_line(c::Setting::Policy(c::SettingNumber { number: 1 }), "stock"),
             c::SettingLine {
-                setting: c::Setting::Charter(c::SettingNumber { number: 3 }),
-                name: Some(c::DocumentText::complete(words("worker"))),
+                name: Some(b"lean-goal".as_slice().into()),
+                setting: c::Setting::Template(c::SettingNumber { number: 33 }),
+                shown: Some(c::DocumentText::complete(words("goal for a lean design"))),
                 follows: c::SettingFollows::Change,
                 last: Some(5),
                 application: None,
             },
             c::SettingLine {
-                setting: c::Setting::Rules,
                 name: None,
+                setting: c::Setting::Rules,
+                shown: None,
                 follows: c::SettingFollows::Default,
                 last: Some(0),
                 application: None,
@@ -928,6 +960,16 @@ fn settings_change_outcomes_name_the_revision_and_refusal_facts() {
             },
             "out of shape; item 0; model 4: shape",
         ),
+        (
+            c::Refusal::Malformed {
+                at: 0,
+                why: super::malformed_setting(
+                    c::Setting::Template(c::SettingNumber { number: 2 }),
+                    c::SettingFault::Name,
+                ),
+            },
+            "out of shape; item 0; template 2 keeps the stock's name",
+        ),
         (c::Refusal::Role { held: None }, "role"),
     ] {
         for json in [false, true] {
@@ -977,7 +1019,7 @@ fn settings_values_refuse_each_nonempty_byte_and_list_bound_on_both_sides() {
         (0, "setting_model_efforts", 1),
         (0, "setting_model_efforts_item", 4),
         (0, "setting_model_effort_some", 4),
-        (1, "document_text_bytes", 4),
+        (1, "shown", 4),
         (1, "model_effort_model", 5),
         (1, "model_effort_effort_some", 4),
         (2, "setting_policy_roles", 1),
@@ -1009,7 +1051,7 @@ fn settings_values_refuse_each_nonempty_byte_and_list_bound_on_both_sides() {
                 "setting_model_efforts" => wire.setting_model_efforts = bound,
                 "setting_model_efforts_item" => wire.setting_model_efforts_item = bound,
                 "setting_model_effort_some" => wire.setting_model_effort_some = bound,
-                "document_text_bytes" => wire.document_text_bytes = bound,
+                "shown" => wire.document_text_bytes = bound,
                 "model_effort_model" => wire.model_effort_model = bound,
                 "model_effort_effort_some" => wire.model_effort_effort_some = bound,
                 "setting_policy_roles" => wire.setting_policy_roles = bound,
@@ -1080,10 +1122,44 @@ fn an_unqualified_setting_reads_the_inventoried_revision_before_its_value() {
 }
 
 #[test]
+fn stock_setting_names_send_the_inventoried_numbers() {
+    for (kind, name, digits, setting) in STOCK_NAME_ROWS {
+        for selector in [name, digits] {
+            let (mut root, call) = fixtures::read_call(&["settings", "show", kind, selector]);
+            assert_eq!(root.reads.get(&call).expect("inventory read").1, c::Read::Settings);
+            root.serve(call, stock_name_inventory());
+            assert_eq!(
+                root.reads.get(&call).expect("value read").1,
+                c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+            );
+        }
+    }
+}
+
+#[test]
+fn a_setting_name_must_belong_to_its_kind() {
+    for (selector, item, name) in [
+        ("policy", "policy", "goal"),
+        ("charter", "charter", "milestone"),
+        ("template-goal", "template", "implementer"),
+        ("charter-words", "charter", "draft-goal"),
+    ] {
+        let (mut root, call) = fixtures::read_call(&["settings", "show", selector, name]);
+        root.serve(call, stock_name_inventory());
+        assert!(root.reads.is_empty() && root.family_reads.is_empty());
+        let answer = root.answer(call).expect("unknown name is usage");
+        let why = format!("temper ctl: no {item} is named {name}; temper ctl settings show lists them\n");
+        assert_eq!((answer.status, answer.stderr.as_ref()), (1, why.as_bytes()));
+    }
+}
+
+#[test]
 fn settings_reads_keep_their_neighbours_not_served_and_role_statuses() {
     for argv in [
         vec!["settings", "show"],
         vec!["settings", "show", "rules"],
+        vec!["settings", "show", "charter", "goal"],
+        vec!["settings", "show", "charter-words", "implementer"],
         vec!["revision", "show", "5"],
         vec!["revision", "list"],
     ] {
@@ -2278,8 +2354,9 @@ fn forge_inventory(setting: c::Setting, follows: c::ApplicationFollows) -> c::Re
     c::ReadResult::Value(c::ReadValue::Settings(Box::new(c::SettingsDocument {
         newest: 5,
         settings: list([c::SettingLine {
-            setting,
             name: None,
+            setting,
+            shown: None,
             follows: if follows == c::ApplicationFollows::Default {
                 c::SettingFollows::Default
             } else {
@@ -2292,6 +2369,27 @@ fn forge_inventory(setting: c::Setting, follows: c::ApplicationFollows) -> c::Re
         pending: list([]),
     })))
 }
+#[test]
+fn settings_words_and_work_names_select_the_numbered_values() {
+    use temper_client_protocol_wire::v1 as w;
+    for (selector, name, digits, kind, number, heading) in [
+        ("charter-words", "implementer", "2", 9, 2, "charter-words 2, revision 5\n"),
+        ("template-goal", "draft-goal", "4", 11, 4, "template-goal 4, revision 5\n"),
+    ] {
+        for reference in [name, digits] {
+            let (mut root, call) = fixtures::read_call(&["settings", "show", selector, reference]);
+            assert_eq!(root.reads.get(&call).expect("inventory read").1, c::Read::Settings);
+            root.serve(call, stock_name_inventory());
+            let w::Read::Setting(query) = forge_query(&root, call) else { panic!("setting value read") };
+            assert_eq!((query.kind, query.scope, query.number), (kind, 0, number));
+            root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
+            let answer = root.answer(call).expect("setting value");
+            assert_eq!(answer.status, 0);
+            assert!(answer.stdout.starts_with(heading.as_bytes()));
+        }
+    }
+}
+
 #[test]
 #[expect(
     clippy::too_many_lines,
@@ -3152,6 +3250,78 @@ fn revision_show_prints_what_each_item_replaced() {
 }
 
 #[test]
+fn settings_apply_and_show_keep_names_separate_from_shown() {
+    let file = br#"{"items":[{"setting":{"kind":"template","number":33},"set":{"number":33,"name":"lean-goal","shown":"goal for a lean design","executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null}}]}"#;
+    let (mut root, call) = changed(file, true);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    let item = change.items.get(0).unwrap();
+    let setting = c::Setting::Template(c::SettingNumber { number: 33 });
+    assert_eq!(item.setting, setting);
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let c::SettingValue::Template(template) = &set.value else { panic!("template") };
+    assert_eq!(template.name.as_deref(), Some(b"lean-goal".as_slice()));
+    assert_eq!(template.shown.bytes(), b"goal for a lean design");
+    let value = set.value.clone();
+    let line = c::SettingLine {
+        setting,
+        name: template.name.clone(),
+        shown: Some(template.shown.clone()),
+        follows: c::SettingFollows::Change,
+        last: Some(6),
+        application: None,
+    };
+    root.done(call, c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: 6 }));
+    assert_eq!(root.answer(call).expect("applied").stdout.as_ref(), br#"{"revision":6}"#);
+    let inventory = c::ReadValue::Settings(Box::new(c::SettingsDocument {
+        newest: 6,
+        settings: list([line]),
+        held: list([]),
+        pending: list([]),
+    }));
+    let shown = read(&["settings", "show"], inventory);
+    assert_eq!(shown.status, 0);
+    let text = core::str::from_utf8(&shown.stdout).unwrap();
+    assert!(text.contains("template 33 lean-goal \"goal for a lean design\": changed in revision 6"), "{text}");
+    let shown = read(&["settings", "show", "template", "33", "--json"], setting_read(setting, value));
+    assert_eq!(shown.status, 0);
+    assert!(
+        core::str::from_utf8(&shown.stdout).unwrap().contains(r#""name":"lean-goal","shown":"goal for a lean design""#)
+    );
+}
+
+#[test]
+fn settings_apply_reports_an_own_charters_taken_name() {
+    let file = String::from_utf8(charter_file("[]"))
+        .unwrap()
+        .replace(r#""number":3"#, r#""number":34"#)
+        .replace(r#""instructions":"#, r#""name":"implementer","instructions":"#);
+    let (mut root, call) = changed(file.as_bytes(), false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    let item = change.items.get(0).unwrap();
+    let setting = c::Setting::Charter(c::SettingNumber { number: 34 });
+    assert_eq!(item.setting, setting);
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let c::SettingValue::Charter(value) = &set.value else { panic!("charter") };
+    assert_eq!(value.name.as_deref(), Some(b"implementer".as_slice()));
+    root.answered(
+        call,
+        c::Answer::Refused {
+            refusal: c::Refusal::Malformed { at: 0, why: super::malformed_setting(setting, c::SettingFault::Name) },
+            at: None,
+        },
+    );
+    let answer = root.answer(call).expect("refused");
+    assert_eq!(answer.status, 2);
+    assert!(
+        core::str::from_utf8(&answer.stderr)
+            .unwrap()
+            .contains("charter 34's name is taken, by a stock charter or another of your own")
+    );
+}
+
+#[test]
 fn a_settings_file_template_sends_its_resources_to_jig() {
     let file = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"name":{"bytes":"draft","cut":false},"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null,"resources":[{"connector":1,"symbol":1}]}}]}"#;
     let (root, call) = changed(file, false);
@@ -3178,6 +3348,7 @@ fn a_settings_file_template_sends_its_resources_to_jig() {
 #[test]
 fn settings_show_template_resources_apply_again_unchanged() {
     let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
+    template.name = Some(b"draft".as_slice().into());
     template.resources = list([c::Symbol { connector: 1, symbol: 1 }, c::Symbol { connector: 1, symbol: 2 }]);
     let value = c::SettingValue::Template(template);
     let json = setting_json(setting, value.clone());
@@ -3208,6 +3379,34 @@ fn settings_show_template_resources_apply_again_unchanged() {
         Some(jig::form_setting_value(&value))
     );
 }
+#[test]
+fn settings_show_project_areas_prints_the_named_charter_without_resolving_it() {
+    let setting = c::Setting::Application { kind: 14, scope: 7, number: 1 };
+    let value = br#"{"areas":[{"name":"tests","words":"C tests","owner":{"charter":"triager"}}]}"#;
+    let mut input = br#"{"items":[{"setting":{"kind":"project-areas","project":7},"set":"#.to_vec();
+    input.extend_from_slice(value);
+    input.extend_from_slice(b"}]}");
+    let items = settings_file::decode(&input, &fixtures::limits()).expect("area settings fixture");
+    let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(bytes) }) = &items.get(0).unwrap().edit
+    else {
+        panic!("area settings bytes")
+    };
+    for json in [false, true] {
+        let mut root = fixtures::signed_in(fixtures::PARTY);
+        let call = root.submit_prepared(fixtures::call(&["settings", "show", "project-areas", "7"]), json, None);
+        root.serve(call, forge_inventory(setting, c::ApplicationFollows::Changed { revision: 5 }));
+        root.serve_readout(call, forge_setting_page(Some(bytes.clone())));
+        let answer = root.answer(call).expect("joined setting");
+        assert_eq!(answer.status, 0);
+        let text = core::str::from_utf8(&answer.stdout).unwrap();
+        if json {
+            assert!(text.contains(core::str::from_utf8(value).unwrap()), "{text}");
+        } else {
+            assert!(text.contains("tests: charter triager\n  C tests\n"), "{text}");
+        }
+    }
+}
+
 #[test]
 fn settings_show_template_resources_are_readable_when_present() {
     for resources in [list([]), list([c::Symbol { connector: 1, symbol: 1 }, c::Symbol { connector: 2, symbol: 3 }])] {
@@ -3932,8 +4131,9 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
     let inventory = c::ReadValue::Settings(Box::new(c::SettingsDocument {
         newest: 5,
         settings: list([c::SettingLine {
+            name: None,
             setting,
-            name: Some(c::DocumentText::complete(words("GPT-6.1 Terra"))),
+            shown: Some(c::DocumentText::complete(words("GPT-6.1 Terra"))),
             follows: c::SettingFollows::Change,
             last: Some(5),
             application: None,

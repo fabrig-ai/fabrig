@@ -81,6 +81,7 @@ fn charter(
     problems: &mut Problems,
 ) -> Option<Charter> {
     let mut object = check::object(document, at, path, problems, "charter")?;
+    let name = check::setting_name(&mut object, document, path, problems);
     let models_at = object.member(document, b"models");
     let rest = match object.member(document, b"rest") {
         Some(at) => match read::boolean(document, at) {
@@ -142,6 +143,7 @@ fn charter(
     let parts = parts(&mut object, document, path, limits.core.tasks.charter_parts, directories, problems);
     object.finish(document, path, problems);
     let mut charter = Charter {
+        name,
         parts: parts?,
         rest,
         documents: documents?,
