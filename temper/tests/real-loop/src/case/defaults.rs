@@ -27,6 +27,7 @@ pub(crate) fn apply(defaults: &mut Defaults, flags: &Value, stock_period_spend: 
     if flags["second_wait_ms"].is_number() || flags["second_resume"].is_boolean() || flags["owner_brief"] == true {
         let mut second = defaults.charters[0].clone();
         second.number = 2;
+        second.name.clone_from(&defaults.charters[1].name);
         if let Some(wait) = flags["second_wait_ms"].as_u64() {
             second.policy.waiting = Duration::from_millis(wait);
         }
