@@ -9,6 +9,7 @@ use skein_fake_person_browser::{
 };
 use skein_ui::Role;
 use std::{
+    ffi::OsString,
     fs,
     net::TcpListener,
     path::{Path, PathBuf},
@@ -84,6 +85,64 @@ pub fn temper() -> PathBuf {
 #[must_use]
 pub fn playground_serve() -> PathBuf {
     binary("temper-playground-serve")
+}
+
+/// The static playground server's command and its browser downloads directory.
+#[must_use]
+pub fn playground_setup(bundle: &Path, downloads: PathBuf) -> Setup<'static> {
+    let program = playground_serve();
+    let wrapper = if cfg!(target_os = "linux") { temper() } else { program.clone() };
+    server_setup(wrapper, chromium(), Server::Playground { program, bundle: bundle.into(), downloads })
+}
+
+enum Server {
+    Box(Vec<OsString>),
+    Playground { program: PathBuf, bundle: PathBuf, downloads: PathBuf },
+}
+
+/// Both starts use the server's original pipes and process identity
+/// (`temper/docs/design/testing/fixture-lifetime.md`, 1 and 2).
+fn server_setup(wrapper: PathBuf, chromium: PathBuf, server: Server) -> Setup<'static> {
+    let (mut server, mut args, mut restart, downloads, signal) = match server {
+        Server::Box(args) => (wrapper.clone(), args.clone(), args, None, "terminate"),
+        Server::Playground { program, bundle, downloads } => {
+            (program, vec![bundle.into_os_string()], vec![], Some(downloads), "kill")
+        }
+    };
+    if cfg!(target_os = "linux") {
+        let prefix = vec![
+            "internal".into(),
+            "forge-child".into(),
+            "--parent".into(),
+            skein_shell::process_id().to_string().into(),
+            "--signal".into(),
+            signal.into(),
+            "--".into(),
+            server.into_os_string(),
+        ];
+        let mut start = prefix.clone();
+        start.append(&mut args);
+        let mut again = prefix;
+        again.append(&mut restart);
+        server = wrapper;
+        args = start;
+        restart = again;
+    }
+    Setup {
+        server,
+        args,
+        restart,
+        printed: Printed {
+            sent: skein_fake_person_browser::harness::Sent::Page,
+            prefix: b"http://127.0.0.1:",
+            on: Output::Stdout,
+            names: Names::Url,
+        },
+        chromium,
+        downloads,
+        expected: vec![],
+        origins: vec![],
+    }
 }
 
 fn binary(name: &str) -> PathBuf {
@@ -430,27 +489,17 @@ impl Tier {
         args.push("--box".into());
         args
     }
+    /// The box's arguments after exec, also used to identify it in the process tree.
+    #[must_use]
+    pub fn box_arguments(&self) -> Vec<OsString> {
+        configuration::flags(self.scratch.path())
+    }
     #[must_use]
     pub fn setup(&self) -> Setup<'_> {
         let _sitting = configuration::install(self.scratch.path());
         // The box supplies serve's pipe and --box at every start, including its welcome default
         // (temper/docs/design/protocol/configuration/settings-kinds.md, 1, kind 20).
-        let args = configuration::flags(self.scratch.path());
-        Setup {
-            server: temper(),
-            args: args.clone(),
-            restart: args,
-            printed: Printed {
-                sent: skein_fake_person_browser::harness::Sent::Page,
-                prefix: b"http://127.0.0.1:",
-                on: Output::Stdout,
-                names: Names::Url,
-            },
-            chromium: chromium(),
-            downloads: None,
-            expected: vec![],
-            origins: vec![],
-        }
+        server_setup(temper(), chromium(), Server::Box(self.box_arguments()))
     }
     /// Owner observes the signed-in document; `connected` checks Live even when hidden.
     /// Offline and signed-out states remain visible.
@@ -539,6 +588,45 @@ fn copy_bundle(from: &Path, to: &Path) {
 mod tests {
     use super::configuration::{UNREACHED, typed_documents as documents};
     use std::{fs, path::Path};
+
+    #[test]
+    fn browser_servers_start_and_restart_with_their_parent_signal() {
+        let parent = std::process::id().to_string();
+        let box_program = "/build/bin/temper-box";
+        let playground = "/build/bin/temper-playground-serve";
+        let cases = [
+            (
+                super::Server::Box(vec!["--config".into(), "/scratch/config".into()]),
+                box_program,
+                "terminate",
+                vec!["--config", "/scratch/config"],
+                vec!["--config", "/scratch/config"],
+            ),
+            (
+                super::Server::Playground {
+                    program: playground.into(),
+                    bundle: "/build/playground".into(),
+                    downloads: "/scratch/downloads".into(),
+                },
+                playground,
+                "kill",
+                vec!["/build/playground"],
+                vec![],
+            ),
+        ];
+        for (server, program, signal, start, restart) in cases {
+            let setup = super::server_setup(box_program.into(), "/chromium".into(), server);
+            let (launcher, prefix) = if cfg!(target_os = "linux") {
+                (box_program, vec!["internal", "forge-child", "--parent", &parent, "--signal", signal, "--", program])
+            } else {
+                (program, vec![])
+            };
+            assert_eq!(setup.server, Path::new(launcher));
+            assert_eq!(setup.args, [prefix.as_slice(), &start].concat());
+            assert_eq!(setup.restart, [prefix.as_slice(), &restart].concat());
+        }
+    }
+
     #[test]
     fn a_model_without_credentials_keeps_the_world_provider_for_every_start() {
         let scratch = skein_scratch::Scratch::new("browser-model-provider");
