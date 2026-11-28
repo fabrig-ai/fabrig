@@ -198,10 +198,6 @@ hearth/docs/design/domain/render/README.md. Open questions are in section 11.
   bytes, a `: ` or a line feed in it, would break that line. A name out
   of form is a decode error at its key.
 
-## 3. Targets
-
-Moved to [`targets.md`](targets.md), section 1.
-
 ## 4. Merging
 
 ### 4.1 RFC 7386
@@ -284,14 +280,6 @@ merge(target, patch):
   `{"ssh": {"authorized": {"alice": {"old-laptop": null}}}}` drops one key
   of one user; `{"dns": {"servers": ["10.0.0.1"]}}` replaces the whole
   list of servers.
-
-## 5. The schema
-
-Moved to [`schema.md`](schema.md), section 1.
-
-## 6. Exports
-
-Moved to [`exports.md`](exports.md), section 1.
 
 ## 7. Secrets and identity
 
