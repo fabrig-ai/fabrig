@@ -6780,7 +6780,12 @@ dependencies = [
 name = "temper-deployment-fixtures"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-core",
+ "jig-protocol-store",
  "serde_json",
+ "skein-codec",
+ "skein-kv",
+ "skein-lib",
  "skein-scratch",
  "skein-shell",
  "temper-agent-fixtures",
@@ -7968,6 +7973,7 @@ dependencies = [
  "temper-client-shell-terminal",
  "temper-client-tools",
  "temper-config-shell",
+ "temper-deployment-fixtures",
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
