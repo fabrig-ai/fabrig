@@ -5,7 +5,6 @@
 
 - **Not yet:** 5, 6 and 7: a task that stands, its renewal per period and its exemption from the stall's bound (`standing.md`, sections 2 and 4).
 - **Not yet:** 3: a standing task's session (`standing.md`, 5.1).
-- **Not yet:** 3 and 4: a choice's speed, kept by name and checked at a batch, an amendment, a move and a restore; the fault `Speed` [in flight: change 21874].
 
 `lifecycle-holds.md`, section 1's classified activation cause has no known gap. `FailedWithReason`
 uses the existing reason bound and retry policy, and keeps its UTF-8 words

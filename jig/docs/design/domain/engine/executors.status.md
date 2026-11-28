@@ -4,8 +4,6 @@
 
 
 - **Not yet:** 1, step 3: the run proof's `endpoint` (core-v6); a window resumed only on the endpoint it ran on, judged at the activation's check and the claim's, a proof with no endpoint judged by its main provider's source kind; a moved window's run started fresh with its tail. [in flight: change 8569]
-- **Not yet:** 1, step 3: a run's model at its choice's speed [in flight: change 21874].
-- **Not yet:** 1, step 3: a run's model at the charter's speed for it, where its choice names none [in flight: change 21878].
 - **Not yet:** 4: a standing task's finish parked (`../tasks/standing.md`, section 2).
 - **Not yet:** 4: a standing task's runs resuming only within a session (`../tasks/standing.md`, section 5).
 
